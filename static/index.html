@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leitor de PDF Online Pro</title>
+    <meta name="description" content="Extrator de textos e propriedades de arquivos PDF com uma interface online e moderna.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="background-animation">
+        <div class="blob shape1"></div>
+        <div class="blob shape2"></div>
+        <div class="blob shape3"></div>
+    </div>
+
+    <main class="container">
+        <header>
+            <h1 class="title">Leitor de <span class="highlight">PDF</span> Pro</h1>
+            <p class="subtitle">Extraia textos, fontes, cores e mais com precisão. <span style="font-size: 0.8rem; opacity: 0.6;">v3.0</span></p>
+        </header>
+
+        <section class="upload-section">
+            <div class="upload-card" id="upload-zone">
+                <div class="icon-container">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-upload-cloud"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path><polyline points="16 16 12 12 8 16"></polyline></svg>
+                </div>
+                <h3>Arraste e solte seu PDF aqui</h3>
+                <p>ou</p>
+                <label for="pdf-file" class="btn-primary">Procurar Arquivo</label>
+                <input type="file" id="pdf-file" accept="application/pdf" hidden>
+            </div>
+            <div class="file-info hidden" id="file-info">
+                <div class="file-details">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    <span id="file-name">documento.pdf</span>
+                </div>
+                <button class="btn-secondary" id="remove-file">Remover</button>
+            </div>
+            
+            <button class="btn-action hidden" id="extract-btn">
+                <span>Extrair Dados</span>
+                <div class="spinner hidden" id="loading-spinner"></div>
+            </button>
+        </section>
+
+        <section class="results-section hidden" id="results-section">
+            <div class="results-header">
+                <h2>Resultados da Extração</h2>
+                <div class="actions">
+                    <button class="btn-icon" id="copy-selected" title="Copiar colunas selecionadas visíveis">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        Copiar
+                    </button>
+                    <button class="btn-icon" id="export-csv" title="Exportar para CSV">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        CSV
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="results-table">
+                    <thead>
+                        <tr>
+                            <th>
+                                <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="0"><span>Pág</span></div>
+                                <div class="filter-container" data-col="0"></div>
+                            </th>
+                            <th>
+                                <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="1"><span>Texto</span></div>
+                                <div class="filter-container" data-col="1"></div>
+                            </th>
+                            <th>
+                                <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="2"><span>Cor</span></div>
+                                <div class="filter-container" data-col="2"></div>
+                            </th>
+                            <th class="col-user">
+                                <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="3"><span>Entidade</span></div>
+                                <div class="filter-container" data-col="3"></div>
+                            </th>
+                            <th class="col-user">
+                                <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="4" checked><span>Operação</span></div>
+                                <div class="filter-container" data-col="4"></div>
+                            </th>
+                            <th class="col-user">
+                                <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="5" checked><span>Ativo</span></div>
+                                <div class="filter-container" data-col="5"></div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <!-- Linhas serão inseridas aqui via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    <script src="/static/script.js"></script>
+</body>
+</html>
