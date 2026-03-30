@@ -2,8 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // WebSocket for remote file triggers
     let socket;
     try {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.type === 'load_file' && data.path) {
