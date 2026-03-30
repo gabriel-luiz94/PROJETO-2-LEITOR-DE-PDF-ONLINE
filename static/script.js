@@ -286,11 +286,23 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (uAtivo === "1-AF") entAuto = "ESTRUTURA";
         else if ((uAtivo.includes("-RECAL")||uAtivo.includes("-BASE")||uAtivo.includes("-CAVA")) && !hasApoioConflict) entAuto = "APOIO";
         else if ((tUpper.includes("DT") || tUpper.includes("CV")) && tUpper.includes("/") && isRedOrGray) entAuto = "POSTE";
-        else if (isRedOrGray && !tUpper.includes("DT") && !tUpper.includes("CV") && !tUpper.includes("(") && !tUpper.includes(")") && !tUpper.includes("AWG") && !tUpper.includes("#") && (
-            (tUpper.indexOf("CU ") >= 0 && tUpper.indexOf("CU ") <= 2) || (tUpper.indexOf("CA ") >= 0 && tUpper.indexOf("CA ") <= 1) || 
-            (tUpper.indexOf("CAL ") >= 0 && tUpper.indexOf("CAL ") <= 1) || tUpper.includes("CAA ") || tUpper.includes("CAZ") || (tUpper.includes("X1X") && /\d+\s*M$/.test(tUpper)) ||
-            tUpper.includes("P 50") || tUpper.includes("P 120") || tUpper.includes("P 185") || tUpper.includes("P50") || tUpper.includes("P120") || tUpper.includes("P185")
-        )) entAuto = "CABO";
+        else if (isRedOrGray && !tUpper.includes("DT") && !tUpper.includes("CV") && !tUpper.includes("(") && !tUpper.includes(")") && !tUpper.includes("AWG") && !tUpper.includes("#") && (() => {
+            // CU com número: CU 25, CU25, CU 50, CU50, etc. (início ou posição 0-2)
+            if (/^CU\s*\d/.test(tUpper) || /\bCU\s*\d/.test(tUpper.substring(0, 5))) return true;
+            // CA com número: CA 4, CA4, CA 25, CA25 (mas não CAA, CAL, CAZ separado)
+            if (/^CA\s+\d/.test(tUpper) || /^CA\d/.test(tUpper)) return true;
+            // CAL com número: CAL 25, CAL25, CAL 4, CAL4
+            if (/^CAL\s*\d/.test(tUpper)) return true;
+            // CAA com número (com ou sem espaço): CAA 2, CAA2, CAA 25, CAA25
+            if (/\bCAA\s*\d/.test(tUpper)) return true;
+            // CAZ (qualquer)
+            if (tUpper.includes("CAZ")) return true;
+            // Bitolas P (protoduto): P 50, P50, P 120, P120, P 185, P185, P 240, P240, P 25, P25, P 16, P16
+            if (/\bP\s*(16|25|35|50|70|95|120|150|185|240)\b/.test(tUpper)) return true;
+            // X1X com metros (cabo multiplex)
+            if (tUpper.includes("X1X") && /\d+\s*M$/.test(tUpper)) return true;
+            return false;
+        })()) entAuto = "CABO";
         else if (tUpper.includes("FIOS")) entAuto = "CERCA";
         else if (uAtivo.includes("-CF") && opAuto !== "M") entAuto = "CHAVE";
         else if (uAtivo.includes("-TR") && opAuto !== "M") {
