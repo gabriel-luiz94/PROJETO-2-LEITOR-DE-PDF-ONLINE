@@ -312,8 +312,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const headers = ["Pág", "Texto", "Cor", "Entidade", "Operação", "Ativo"];
-            let text = selectedCols.map(i => headers[i]).join('\t') + "\n";
+            // Removemos o cabeçalho da cópia conforme solicitado
+            let text = "";
 
             Array.from(body.children).forEach(tr => {
                 if (tr.style.display !== 'none') {
