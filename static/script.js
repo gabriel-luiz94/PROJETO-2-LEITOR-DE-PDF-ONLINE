@@ -554,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyFilters() {
         const trs = tableBody.querySelectorAll('tr');
         const container = document.querySelector('.table-container');
-        const currentScroll = container.scrollTop;
+        const currentScroll = container ? container.scrollTop : 0;
         const columns = ['pagina', 'texto', 'cor', 'entidade', 'operacao', 'ativo'];
 
         trs.forEach(tr => {
@@ -585,12 +585,31 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
+            tr.style.display = isVisible ? '' : 'none';
         });
 
         const csvBtn = document.getElementById('downloadCsv');
         const procBtn = document.getElementById('processarResumo');
         if (csvBtn) csvBtn.style.display = extractedDataCache.length ? 'flex' : 'none';
         if (procBtn) procBtn.style.display = extractedDataCache.length ? 'flex' : 'none';
+
+        // Update trigger text / indicator states
+        filterContainers.forEach((cont, i) => {
+            const sel = columnFilterSelections[i];
+            const span = cont.querySelector('.filter-trigger span');
+            const ind = cont.querySelector('.filter-active-indicator');
+            if (span) span.textContent = sel.size > 0 ? sel.size + ' sel' : 'Todos';
+            if (ind) {
+                if (sel.size > 0) ind.classList.add('active');
+                else ind.classList.remove('active');
+            }
+        });
+
+        if (container) {
+            requestAnimationFrame(() => {
+                container.scrollTop = currentScroll;
+            });
+        }
     }
 
     const processarBtn = document.getElementById('processarResumo');
@@ -686,23 +705,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 </html>
             `);
             newWin.document.close();
-        });
-    }
-
-        // Update trigger text / indicator states
-        filterContainers.forEach((cont, i) => {
-            const sel = columnFilterSelections[i];
-            const span = cont.querySelector('.filter-trigger span');
-            const ind = cont.querySelector('.filter-active-indicator');
-            if (span) span.textContent = sel.size > 0 ? sel.size + ' sel' : 'Todos';
-            if (ind) {
-                if (sel.size > 0) ind.classList.add('active');
-                else ind.classList.remove('active');
-            }
-        });
-
-        requestAnimationFrame(() => {
-            if (container) container.scrollTop = currentScroll;
         });
     }
 
