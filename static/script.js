@@ -616,95 +616,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (processarBtn) {
         processarBtn.addEventListener('click', () => {
             const rows = tableBody.querySelectorAll('tr');
-            const cabos = [];
-            const outros = [];
+            const exportData = [];
 
             rows.forEach(tr => {
+                const idx = tr.dataset.index;
+                if (idx === undefined || tr.style.display === 'none' || tr.classList.contains('row-deleted')) return;
+
                 const entInput = tr.querySelector('input[data-field="entidade"]');
-                const ent = entInput ? entInput.value : "0";
-                if (!ent || ent === "0") return;
+                const opInput = tr.querySelector('input[data-field="operacao"]');
+                const atInput = tr.querySelector('input[data-field="ativo"]');
+                const item = extractedDataCache[idx];
 
-                const rowData = {
-                    texto: tr.cells[1].querySelector('.editable-text-field')?.innerText || tr.cells[1].innerText,
-                    operacao: tr.querySelector('input[data-field="operacao"]')?.value || "",
-                    ativo: tr.querySelector('input[data-field="ativo"]')?.value || "",
-                    entidade: ent
-                };
-
-                if (ent === "CABO") {
-                    cabos.push(rowData);
-                } else {
-                    outros.push(rowData);
-                }
+                exportData.push({
+                    pagina: item.pagina,
+                    texto: tr.querySelector('.editable-text-field')?.innerText || item.texto,
+                    cor: item.cor,
+                    entidade: entInput ? entInput.value : "0",
+                    operacao: opInput ? opInput.value : "",
+                    ativo: atInput ? atInput.value : ""
+                });
             });
 
-            const newWin = window.open('', '_blank');
-            newWin.document.write(`
-                <html>
-                <head>
-                    <title>Resumo de Processamento</title>
-                    <style>
-                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: #f8f9fa; color: #333; }
-                        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
-                        h2 { margin-top: 40px; color: #2c3e50; background: #e9ecef; padding: 10px; border-left: 5px solid #3498db; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-                        th, td { padding: 12px; text-align: left; border: 1px solid #dee2e6; }
-                        th { background-color: #3498db; color: white; }
-                        tr:nth-child(even) { background-color: #f2f2f2; }
-                        .tag { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; display: inline-block; min-width: 20px; text-align: center; }
-                        .tag-i { background: #d4edda; color: #155724; }
-                        .tag-r { background: #f8d7da; color: #721c24; }
-                        .tag-m { background: #e2e3e5; color: #383d41; }
-                    </style>
-                </head>
-                <body>
-                    <h1>Resumo do Orçamento</h1>
-                    
-                    <h2>TABELA DE CABOS</h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Texto Original</th>
-                                <th>Ativo (Código)</th>
-                                <th>Operação</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${cabos.length === 0 ? '<tr><td colspan="3" style="text-align:center">Nenhum cabo identificado</td></tr>' : cabos.map(c => `
-                                <tr>
-                                    <td>${c.texto}</td>
-                                    <td><strong>${c.ativo}</strong></td>
-                                    <td><span class="tag tag-${c.operacao.toLowerCase()}">${c.operacao}</span></td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-
-                    <h2>DEMAIS ATIVOS (ESTRUTURAS, POSTES, ETC)</h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Entidade</th>
-                                <th>Texto Original</th>
-                                <th>Ativo (Código)</th>
-                                <th>Operação</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${outros.length === 0 ? '<tr><td colspan="4" style="text-align:center">Nenhum outro ativo identificado</td></tr>' : outros.map(o => `
-                                <tr>
-                                    <td><strong>${o.entidade}</strong></td>
-                                    <td>${o.texto}</td>
-                                    <td><strong>${o.ativo}</strong></td>
-                                    <td><span class="tag tag-${o.operacao.toLowerCase()}">${o.operacao}</span></td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </body>
-                </html>
-            `);
-            newWin.document.close();
+            localStorage.setItem('processar_dados', JSON.stringify(exportData));
+            window.open('/static/resumo.html', '_blank');
         });
     }
 
