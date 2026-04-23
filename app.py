@@ -234,9 +234,8 @@ def _process_entity(entity, doc, base_color=None, block_name=None) -> list[dict]
     Suporta quebra de parágrafos MTEXT e herança de cor.
     """
     tp = entity.dxftype()
-    raw = getattr(entity, "text", "")
-    if not raw and tp == "MTEXT":
-        raw = entity.text
+    # TEXT e ATTRIB usam .dxf.text, MTEXT usa .text
+    raw = entity.dxf.text if tp in ("TEXT", "ATTRIB") else entity.text
 
     # Cor base da entidade (sem codigos inline — esses sao por paragrafo)
     if base_color and entity.dxf.color == 0:
