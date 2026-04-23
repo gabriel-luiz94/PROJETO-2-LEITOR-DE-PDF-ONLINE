@@ -282,20 +282,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // REGRAS ESPECÍFICAS PARA FLY
         let entAuto = "0";
-        if (tUpper.includes("FLY")) {
-            if (tUpper.includes("REF")) {
-                textoAtivo = "1-RFLY";
-                opAuto = "I";
-                entAuto = "ESTRUTURA";
-            } else if (tUpper.includes("DESF")) {
-                textoAtivo = "1-FLY";
-                opAuto = "R";
-                entAuto = "ESTRUTURA";
-            } else if (tUpper.includes("INST")) {
-                textoAtivo = "1-FLY";
-                opAuto = "I";
-                entAuto = "ESTRUTURA";
+        const isRed = (displayColor.toLowerCase() === "#ff0000");
+
+        if (!tUpper.includes("BLOCO")) {
+            if (isRed && tUpper.includes("FLY")) {
+                if (tUpper.includes("REF")) {
+                    textoAtivo = "1-RFLY";
+                    opAuto = "I";
+                    entAuto = "ESTRUTURA";
+                } else if (tUpper.includes("DESF")) {
+                    textoAtivo = "1-FLY";
+                    opAuto = "R";
+                    entAuto = "ESTRUTURA";
+                } else if (tUpper.includes("INST")) {
+                    textoAtivo = "1-FLY";
+                    opAuto = "I";
+                    entAuto = "ESTRUTURA";
+                }
             }
+        } else {
+            // Se for BLOCO, resetamos as automações para manual/vazio
+            textoAtivo = "";
+            opAuto = "M";
+            entAuto = "0";
         }
         
         const isRedOrGray = (displayColor.toLowerCase() === "#ff0000") || (isGray(displayColor));
