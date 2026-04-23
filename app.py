@@ -254,21 +254,27 @@ def _process_entity(entity, doc, base_color=None, block_name=None) -> list[dict]
     if tp == "MTEXT":
         # Passo 1: remove \pxql; \pxqc; \pxqr; etc.
         pre = _RE_PARA_FMT.sub('', raw)
-        # Passo 2: divide por \P (AutoCAD), \n ou \r (padrão)
-        # E também por sequências literais ^M ^J comuns em alguns arquivos
-        parts = re.split(r'\\P|[\r\n]+|\^M|\^J', pre)
+        # Passo 2: divide por \P (AutoCAD), \n ou \r (padrão), ^M ^J (literais)
+        # E também captura blocos entre chaves { } para tratar como linhas separadas
+        # Usamos parênteses no split para manter as chaves na lista de partes
+        parts = re.split(r'\\P|[\r\n]+|\^M|\^J|(\{.*?\})', pre)
     else:
         parts = [raw]
 
     rows = []
-    current_color = entity_base  # cor herdada entre paragrafos
+    current_color = entity_base  # cor herdada entre paragrafos (\P)
 
     for part in parts:
+        if not part or not part.strip():
+            continue
+        
+        # Resolve a cor desta parte. 
+        # Se estiver entre chaves { }, a cor é local.
+        is_block = part.startswith('{') and part.endswith('}')
+        item_color = _resolve_part_color(part, current_color)
+        
         if tp == "MTEXT":
-            # Passo 3: resolve a cor deste paragrafo (herda do anterior
-            #          se nao houver codigo inline proprio).
-            current_color = _resolve_part_color(part, current_color)
-            # Passo 4: limpa o texto do paragrafo.
+            # Passo 4: limpa o texto do paragrafo/bloco.
             txt = clean_dxf_text(part)
         else:
             txt = re.sub(r'[ \t]+', ' ', part).strip()
@@ -283,11 +289,16 @@ def _process_entity(entity, doc, base_color=None, block_name=None) -> list[dict]
                 "texto": txt,
                 "fonte": style,
                 "tamanho": round(height, 2),
-                "cor": current_color,
+                "cor": item_color,
                 "flags": flags,
                 "_y": float(pos.y),
                 "_x": float(pos.x),
             })
+            
+            # Se for uma quebra de paragrafo real ou mudança global (sem chaves), 
+            # atualiza a cor herdada. Se for bloco { }, não atualiza a herança global.
+            if not is_block:
+                current_color = item_color
     return rows
 
 
