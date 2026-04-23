@@ -254,9 +254,9 @@ def _process_entity(entity, doc, base_color=None, block_name=None) -> list[dict]
     if tp == "MTEXT":
         # Passo 1: remove \pxql; \pxqc; \pxqr; etc.
         pre = _RE_PARA_FMT.sub('', raw)
-        # Passo 2: divide exclusivamente por \P, \n, \r, ^M, ^J ou blocos { }
-        # Conforme solicitado, ignorando espaços múltiplos e tabulações na quebra.
-        parts = re.split(r'\\P|[\r\n]+|\^M|\^J|(\{.*?\})', pre)
+        # Passo 2: divide exclusivamente por \P, \n, \r, ^M ou ^J
+        # Removemos a captura de chaves { } para que quebras \P internas funcionem.
+        parts = re.split(r'\\P|[\r\n]+|\^M|\^J', pre)
     else:
         parts = [raw]
 
