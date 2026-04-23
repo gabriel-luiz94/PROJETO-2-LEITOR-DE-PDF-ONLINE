@@ -279,43 +279,63 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const uAtivo = textoAtivo.toUpperCase();
         const tUpper = item.texto.replace(/\u00A0/g, " ").toUpperCase();
+
+        // REGRAS ESPECÍFICAS PARA FLY
+        let entAuto = "0";
+        if (tUpper.includes("FLY")) {
+            if (tUpper.includes("REF")) {
+                textoAtivo = "1-RFLY";
+                opAuto = "I";
+                entAuto = "ESTRUTURA";
+            } else if (tUpper.includes("DESF")) {
+                textoAtivo = "1-FLY";
+                opAuto = "R";
+                entAuto = "ESTRUTURA";
+            } else if (tUpper.includes("INST")) {
+                textoAtivo = "1-FLY";
+                opAuto = "I";
+                entAuto = "ESTRUTURA";
+            }
+        }
+        
         const isRedOrGray = (displayColor.toLowerCase() === "#ff0000") || (isGray(displayColor));
         const apoioMarkers = ["-ROCO", "-RECAL", "-BASE", "-CAVA", "PODA"];
         const foundApoioCount = apoioMarkers.filter(m => uAtivo.includes(m)).length;
         const hasApoioConflict = tUpper.includes("APOIOS") || tUpper.includes("LARGURA") || (tUpper.includes("BASE") && tUpper.includes("CALÇADA")) || foundApoioCount > 1;
         
-        let entAuto = "0";
-        if (/\sRS\s+[MT]\s/i.test(item.texto)) entAuto = "RAMAIS";
-        else if (uAtivo.includes("-ROCO") && !hasApoioConflict) entAuto = "APOIO";
-        else if (uAtivo.includes("-IP") || /\bIP\b/i.test(item.texto)) entAuto = "IP";
-        else if (uAtivo === "1-AF") entAuto = "ESTRUTURA";
-        else if ((uAtivo.includes("-RECAL")||uAtivo.includes("-BASE")||uAtivo.includes("-CAVA")) && !hasApoioConflict) entAuto = "APOIO";
-        else if ((tUpper.includes("DT") || tUpper.includes("CV")) && tUpper.includes("/") && isRedOrGray) entAuto = "POSTE";
-        else if (isRedOrGray && !tUpper.includes("DT") && !tUpper.includes("CV") && !tUpper.includes("(") && !tUpper.includes(")") && !tUpper.includes("AWG") && !tUpper.includes("#") && (() => {
-            // CU com número: CU 25, CU25, CU 50, CU50, etc. (início ou posição 0-2)
-            if (/^CU\s*\d/.test(tUpper) || /\bCU\s*\d/.test(tUpper.substring(0, 5))) return true;
-            // CA com número: CA 4, CA4, CA 25, CA25 (mas não CAA, CAL, CAZ separado)
-            if (/^CA\s+\d/.test(tUpper) || /^CA\d/.test(tUpper)) return true;
-            // CAL com número: CAL 25, CAL25, CAL 4, CAL4
-            if (/^CAL\s*\d/.test(tUpper)) return true;
-            // CAA com número (com ou sem espaço): CAA 2, CAA2, CAA 25, CAA25
-            if (/\bCAA\s*\d/.test(tUpper)) return true;
-            // CAZ (qualquer)
-            if (tUpper.includes("CAZ")) return true;
-            // Bitolas P (protoduto): P 50, P50, P 120, P120, P 185, P185, P 240, P240, P 25, P25, P 16, P16
-            if (/\bP\s*(16|25|35|50|70|95|120|150|185|240)\b/.test(tUpper)) return true;
-            // X1X com metros (cabo multiplex)
-            if (tUpper.includes("X1X") && /\d+\s*M$/.test(tUpper)) return true;
-            return false;
-        })()) entAuto = "CABO";
-        else if (tUpper.includes("FIOS")) entAuto = "CERCA";
-        else if (uAtivo.includes("-CF") && opAuto !== "M") entAuto = "CHAVE";
-        else if (uAtivo.includes("-TR") && opAuto !== "M") {
-            entAuto = "TRAFO";
-            const match = textoAtivo.match(/(1-TR\d+)/i);
-            if (match) textoAtivo = match[1].toUpperCase();
+        if (entAuto === "0") {
+            if (/\sRS\s+[MT]\s/i.test(item.texto)) entAuto = "RAMAIS";
+            else if (uAtivo.includes("-ROCO") && !hasApoioConflict) entAuto = "APOIO";
+            else if (uAtivo.includes("-IP") || /\bIP\b/i.test(item.texto)) entAuto = "IP";
+            else if (uAtivo === "1-AF") entAuto = "ESTRUTURA";
+            else if ((uAtivo.includes("-RECAL")||uAtivo.includes("-BASE")||uAtivo.includes("-CAVA")) && !hasApoioConflict) entAuto = "APOIO";
+            else if ((tUpper.includes("DT") || tUpper.includes("CV")) && tUpper.includes("/") && isRedOrGray) entAuto = "POSTE";
+            else if (isRedOrGray && !tUpper.includes("DT") && !tUpper.includes("CV") && !tUpper.includes("(") && !tUpper.includes(")") && !tUpper.includes("AWG") && !tUpper.includes("#") && (() => {
+                // CU com número: CU 25, CU25, CU 50, CU50, etc. (início ou posição 0-2)
+                if (/^CU\s*\d/.test(tUpper) || /\bCU\s*\d/.test(tUpper.substring(0, 5))) return true;
+                // CA com número: CA 4, CA4, CA 25, CA25 (mas não CAA, CAL, CAZ separado)
+                if (/^CA\s+\d/.test(tUpper) || /^CA\d/.test(tUpper)) return true;
+                // CAL com número: CAL 25, CAL25, CAL 4, CAL4
+                if (/^CAL\s*\d/.test(tUpper)) return true;
+                // CAA com número (com ou sem espaço): CAA 2, CAA2, CAA 25, CAA25
+                if (/\bCAA\s*\d/.test(tUpper)) return true;
+                // CAZ (qualquer)
+                if (tUpper.includes("CAZ")) return true;
+                // Bitolas P (protoduto): P 50, P50, P 120, P120, P 185, P185, P 240, P240, P 25, P25, P 16, P16
+                if (/\bP\s*(16|25|35|50|70|95|120|150|185|240)\b/.test(tUpper)) return true;
+                // X1X com metros (cabo multiplex)
+                if (tUpper.includes("X1X") && /\d+\s*M$/.test(tUpper)) return true;
+                return false;
+            })()) entAuto = "CABO";
+            else if (tUpper.includes("FIOS")) entAuto = "CERCA";
+            else if (uAtivo.includes("-CF") && opAuto !== "M") entAuto = "CHAVE";
+            else if (uAtivo.includes("-TR") && opAuto !== "M") {
+                entAuto = "TRAFO";
+                const match = textoAtivo.match(/(1-TR\d+)/i);
+                if (match) textoAtivo = match[1].toUpperCase();
+            }
+            else if (uAtivo.includes("PODA") && opAuto !== "M" && !hasApoioConflict) entAuto = "APOIO";
         }
-        else if (uAtivo.includes("PODA") && opAuto !== "M" && !hasApoioConflict) entAuto = "APOIO";
         
         // Força "I" para exceções que não dependem da cor (Apoios, Cercas, IP, Ramais)
         if (entAuto === "IP" || entAuto === "APOIO" || entAuto === "CERCA" || entAuto === "RAMAIS") opAuto = "I";
