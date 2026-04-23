@@ -39,18 +39,21 @@
                     <span id="file-name">documento.pdf</span>
                 </div>
                 <button class="btn-secondary" id="remove-file">Remover</button>
+                <button class="btn-action hidden" id="extract-btn">
+                    <span>Extrair Dados</span>
+                    <div class="spinner hidden" id="loading-spinner"></div>
+                </button>
             </div>
-            
-            <button class="btn-action hidden" id="extract-btn">
-                <span>Extrair Dados</span>
-                <div class="spinner hidden" id="loading-spinner"></div>
-            </button>
         </section>
 
         <section class="results-section hidden" id="results-section">
             <div class="results-header">
                 <h2>Resultados da Extração</h2>
                 <div class="actions">
+                    <button class="btn-icon" id="processarResumo" title="Gerar resumo do orçamento" style="background: #27ae60; color: white; padding: 0 15px;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        PROCESSAR
+                    </button>
                     <button class="btn-icon" id="copy-selected" title="Copiar colunas selecionadas visíveis">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                         Copiar
