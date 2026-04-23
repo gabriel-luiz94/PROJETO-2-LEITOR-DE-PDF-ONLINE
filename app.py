@@ -255,9 +255,9 @@ def _process_entity(entity, doc, base_color=None, block_name=None) -> list[dict]
     if tp == "MTEXT":
         # Passo 1: remove \pxql; \pxqc; \pxqr; etc.
         pre = _RE_PARA_FMT.sub('', raw)
-        # Passo 2: divide por \P ANTES de plain_mtext para preservar
-        #          os codigos \C / \c inline de cada paragrafo.
-        parts = pre.split("\\P")
+        # Passo 2: divide por \P (AutoCAD), \n ou \r (padrão)
+        # E também por sequências literais ^M ^J comuns em alguns arquivos
+        parts = re.split(r'\\P|[\r\n]+|\^M|\^J', pre)
     else:
         parts = [raw]
 
