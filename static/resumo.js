@@ -49,14 +49,12 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             body.appendChild(tr);
 
-            // Eventos de Input para atualizar o cache
             tr.querySelectorAll('.user-input').forEach(input => {
                 input.addEventListener('input', (e) => {
                     item[e.target.dataset.field] = e.target.value;
                 });
             });
 
-            // Menu de Contexto
             tr.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 showContextMenu(e, tr);
@@ -92,13 +90,21 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="filter-dropdown">
                 <div class="filter-search-container"><input type="text" class="filter-search" placeholder="Pesquisar..."></div>
                 <div class="filter-options-list">
-                    ${values.map(val => `<label class="filter-option" data-value="${val}"><input type="checkbox" checked><span>${val || "(Vazio)"}</span></label>`).join('')}
+                    <label class="filter-option select-all-option">
+                        <input type="checkbox" checked>
+                        <span>(Selecionar Tudo)</span>
+                    </label>
+                    <div class="options-container">
+                        ${values.map(val => `<label class="filter-option" data-value="${val}"><input type="checkbox" checked><span>${val || "(Vazio)"}</span></label>`).join('')}
+                    </div>
                 </div>
             </div>
         `;
 
         const trigger = container.querySelector('.filter-trigger');
         const dropdown = container.querySelector('.filter-dropdown');
+        const mainSelectAll = container.querySelector('.select-all-option input');
+        const optionsContainer = container.querySelector('.options-container');
         
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -108,16 +114,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         dropdown.addEventListener('click', e => e.stopPropagation());
 
-        dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-            cb.addEventListener('change', () => {
-                const checked = dropdown.querySelectorAll('input:checked');
-                selections.clear();
-                if (checked.length < values.length) {
-                    checked.forEach(c => selections.add(c.parentElement.dataset.value));
-                }
-                applyFilters(type);
-                updateFilterTrigger(container, selections);
+        const onSelectionChange = () => {
+            const checks = optionsContainer.querySelectorAll('input');
+            const checked = optionsContainer.querySelectorAll('input:checked');
+            mainSelectAll.checked = checked.length === checks.length;
+            mainSelectAll.indeterminate = checked.length > 0 && checked.length < checks.length;
+
+            selections.clear();
+            if (checked.length < checks.length) {
+                checked.forEach(c => selections.add(c.parentElement.dataset.value));
+            }
+            applyFilters(type);
+            updateFilterTrigger(container, selections);
+        };
+
+        optionsContainer.querySelectorAll('input').forEach(cb => {
+            cb.addEventListener('change', onSelectionChange);
+        });
+
+        mainSelectAll.addEventListener('change', () => {
+            optionsContainer.querySelectorAll('input').forEach(cb => {
+                cb.checked = mainSelectAll.checked;
             });
+            onSelectionChange();
         });
     }
 
@@ -283,22 +302,30 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.btn-copy-report').forEach(btn => {
         btn.addEventListener('click', () => {
             const type = btn.dataset.target.includes('cabos') ? 'cabos' : 'outros';
+            const table = document.getElementById(`table-${type}`);
             const body = document.getElementById(tableStates[type].bodyId);
-            let text = "Pág\tTexto\tCor\tEntidade\tOperação\tAtivo\n";
+            
+            // Verifica colunas selecionadas
+            const selectedCols = Array.from(table.querySelectorAll('.col-checkbox:checked')).map(cb => parseInt(cb.dataset.col));
+            if (selectedCols.length === 0) {
+                alert("Selecione pelo menos uma coluna para copiar.");
+                return;
+            }
+
+            const headers = ["Pág", "Texto", "Cor", "Entidade", "Operação", "Ativo"];
+            let text = selectedCols.map(i => headers[i]).join('\t') + "\n";
+
             Array.from(body.children).forEach(tr => {
                 if (tr.style.display !== 'none') {
                     const cells = Array.from(tr.children);
-                    const rowData = [
-                        cells[0].innerText,
-                        cells[1].innerText,
-                        cells[2].innerText,
-                        cells[3].querySelector('input').value,
-                        cells[4].querySelector('input').value,
-                        cells[5].querySelector('input').value
-                    ];
+                    const rowData = selectedCols.map(colI => {
+                        if (colI < 3) return cells[colI].innerText.replace(/\n/g, ' ');
+                        return cells[colI].querySelector('input').value.replace(/\n/g, ' ');
+                    });
                     text += rowData.join('\t') + "\n";
                 }
             });
+
             navigator.clipboard.writeText(text);
             const orig = btn.innerHTML;
             btn.innerHTML = "Copiado!";

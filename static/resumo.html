@@ -27,6 +27,8 @@
         .filter-option:hover { background: #37373d; }
         .filter-search-container { padding: 10px; border-bottom: 1px solid #454545; }
         .filter-search { width: 100%; background: #3c3c3c; border: 1px solid #555; color: white; padding: 5px; border-radius: 4px; outline: none; }
+        .select-all-option { border-bottom: 1px solid #454545; font-weight: 600; color: #3498db !important; }
+        .options-container { max-height: 200px; overflow-y: auto; }
         
         #context-menu { position: fixed; background: #252526; border: 1px solid #454545; border-radius: 6px; padding: 5px 0; z-index: 10000; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: none; min-width: 160px; }
         #context-menu.active { display: block; }
@@ -79,27 +81,27 @@
                         <thead>
                             <tr>
                                 <th>
-                                    <div class="th-content"><span>Pág</span></div>
+                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="0"><span>Pág</span></div>
                                     <div class="filter-container" data-col="0" data-table="cabos"></div>
                                 </th>
                                 <th>
-                                    <div class="th-content"><span>Texto</span></div>
+                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="1"><span>Texto</span></div>
                                     <div class="filter-container" data-col="1" data-table="cabos"></div>
                                 </th>
                                 <th>
-                                    <div class="th-content"><span>Cor</span></div>
+                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="2"><span>Cor</span></div>
                                     <div class="filter-container" data-col="2" data-table="cabos"></div>
                                 </th>
                                 <th class="col-user">
-                                    <div class="th-content"><span>Entidade</span></div>
+                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="3"><span>Entidade</span></div>
                                     <div class="filter-container" data-col="3" data-table="cabos"></div>
                                 </th>
                                 <th class="col-user">
-                                    <div class="th-content"><span>Operação</span></div>
+                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="4" checked><span>Operação</span></div>
                                     <div class="filter-container" data-col="4" data-table="cabos"></div>
                                 </th>
                                 <th class="col-user">
-                                    <div class="th-content"><span>Ativo</span></div>
+                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="5" checked><span>Ativo</span></div>
                                     <div class="filter-container" data-col="5" data-table="cabos"></div>
                                 </th>
                             </tr>
@@ -134,27 +136,27 @@
                         <thead>
                             <tr>
                                 <th>
-                                    <div class="th-content"><span>Pág</span></div>
+                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="0"><span>Pág</span></div>
                                     <div class="filter-container" data-col="0" data-table="outros"></div>
                                 </th>
                                 <th>
-                                    <div class="th-content"><span>Texto</span></div>
+                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="1"><span>Texto</span></div>
                                     <div class="filter-container" data-col="1" data-table="outros"></div>
                                 </th>
                                 <th>
-                                    <div class="th-content"><span>Cor</span></div>
+                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="2"><span>Cor</span></div>
                                     <div class="filter-container" data-col="2" data-table="outros"></div>
                                 </th>
                                 <th class="col-user">
-                                    <div class="th-content"><span>Entidade</span></div>
+                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="3"><span>Entidade</span></div>
                                     <div class="filter-container" data-col="3" data-table="outros"></div>
                                 </th>
                                 <th class="col-user">
-                                    <div class="th-content"><span>Operação</span></div>
+                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="4" checked><span>Operação</span></div>
                                     <div class="filter-container" data-col="4" data-table="outros"></div>
                                 </th>
                                 <th class="col-user">
-                                    <div class="th-content"><span>Ativo</span></div>
+                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="5" checked><span>Ativo</span></div>
                                     <div class="filter-container" data-col="5" data-table="outros"></div>
                                 </th>
                             </tr>
