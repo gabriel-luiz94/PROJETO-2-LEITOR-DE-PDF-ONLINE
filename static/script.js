@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const spinner = document.getElementById('loading-spinner');
     const resultsSection = document.getElementById('results-section');
     const tableBody = document.getElementById('table-body');
-    const exportCsvBtn = document.getElementById('export-csv');
+    const exportCsvBtn = document.getElementById('downloadCsv');
     const copySelectedBtn = document.getElementById('copy-selected');
     const filterContainers = document.querySelectorAll('.filter-container');
     const colCheckboxes = document.querySelectorAll('.col-checkbox');
@@ -585,10 +585,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-            tr.style.display = isVisible ? '' : 'none';
         });
 
-        });
+        const csvBtn = document.getElementById('downloadCsv');
+        const procBtn = document.getElementById('processarResumo');
+        if (csvBtn) csvBtn.style.display = extractedDataCache.length ? 'flex' : 'none';
+        if (procBtn) procBtn.style.display = extractedDataCache.length ? 'flex' : 'none';
     }
 
     const processarBtn = document.getElementById('processarResumo');
