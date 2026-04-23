@@ -144,7 +144,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleFiles(files) {
         if (files.length > 0) {
             const file = files[0];
-            if (file.type === "application/pdf") {
+            const isPDF = file.type === "application/pdf" || file.name.toLowerCase().endsWith('.pdf');
+            const isDXF = file.name.toLowerCase().endsWith('.dxf');
+            if (isPDF || isDXF) {
                 currentFile = file;
                 fileName.textContent = file.name;
                 uploadZone.classList.add('hidden');
@@ -152,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 extractBtn.classList.remove('hidden');
                 resultsSection.classList.add('hidden');
             } else {
-                alert("Selecione um PDF.");
+                alert("Selecione um arquivo PDF ou DXF.");
             }
         }
     }
@@ -259,7 +261,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        let text2 = text1.replace(/TR-3-/g, "1-TR3").replace(/kVA/gi, "").replace(/TR-1-/g, "1-TR1").replace(/TR-2-/g, "1-TR2");
+        let text2 = text1.replace(/TR\s*-\s*3\s*-\s*/g, "1-TR3")
+                         .replace(/kVA/gi, "")
+                         .replace(/TR\s*-\s*1\s*-\s*/g, "1-TR1")
+                         .replace(/TR\s*-\s*2\s*-\s*/g, "1-TR2");
         if (text2.includes("-100A-")) text2 = text2.replace("-100A-", `-CFU ${text2.charAt(0)}-EF`);
         return text2.replace(/3CF-400A/g, "3-CFA").replace(/112,5/g, "112").replace(/0,5H/g, "05H").replace(/PODAS/g, "PODA").replace(/PODA M/g, "PODA").replace(/PODA G/g, "PODA").replace(/PODA P/g, "PODA").replace(/ PODA/g, "-PODA").replace(/3CL-300A/g, "3-CFU 3-CL").replace(/TR15/g, "TR105").trim();
     }
