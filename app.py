@@ -254,10 +254,9 @@ def _process_entity(entity, doc, base_color=None, block_name=None) -> list[dict]
     if tp == "MTEXT":
         # Passo 1: remove \pxql; \pxqc; \pxqr; etc.
         pre = _RE_PARA_FMT.sub('', raw)
-        # Passo 2: divide por \P (AutoCAD), \n ou \r (padrão), ^M ^J (literais)
-        # E também captura blocos entre chaves { } para tratar como linhas separadas
-        # Usamos parênteses no split para manter as chaves na lista de partes
-        parts = re.split(r'\\P|[\r\n]+|\^M|\^J|(\{.*?\})', pre)
+        # Passo 2: divide por \P, \n, \r, \t, ^M, ^J, blocos { } ou 2+ espaços seguidos
+        # Isso separa ramais e apoios que costumam ser alinhados com espaços/tabs
+        parts = re.split(r'\\P|[\r\n]+|\^M|\^J|\t| {2,}|(\{.*?\})', pre)
     else:
         parts = [raw]
 
