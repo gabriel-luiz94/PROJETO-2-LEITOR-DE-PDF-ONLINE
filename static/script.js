@@ -24,7 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const spinner = document.getElementById('loading-spinner');
     const resultsSection = document.getElementById('results-section');
     const tableBody = document.getElementById('table-body');
-    const exportCsvBtn = document.getElementById('downloadCsv');
     const copySelectedBtn = document.getElementById('copy-selected');
     const filterContainers = document.querySelectorAll('.filter-container');
     const colCheckboxes = document.querySelectorAll('.col-checkbox');
@@ -430,6 +429,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         populateFilters(data);
         refreshUserFilter(3); refreshUserFilter(4); refreshUserFilter(5);
+        
+        // Garante que o botão apareça após extrair
+        const procBtn = document.getElementById('processarResumo');
+        if (procBtn) procBtn.style.display = 'flex';
     }
 
     function createFilterDropdown(container, values, colIdx) {
@@ -642,17 +645,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    exportCsvBtn.addEventListener('click', () => {
-        let csv = "Página\tTexto\tCor\tEntidade\tOperação\tAtivo\n";
-        extractedDataCache.forEach((item, index) => {
-            if (deletedRows.has(String(index))) return;
-            const uf = userFields[index] || {};
-            csv += `${item.pagina}\t"${(item.texto||'').replace(/\n/g,' ')}"\t"${item.cor}"\t"${uf.entidade||''}"\t"${uf.operacao||''}"\t"${uf.ativo||''}"\n`;
-        });
-        const blob = new Blob(["\uFEFF"+csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url; link.download = "extracao.csv"; link.click();
+    // Lógica de Colar (CTRL+V)
+    document.addEventListener('paste', (e) => {
+        const selected = tableBody.querySelectorAll('.cell-selected');
+        if (selected.length === 0) return;
+
+        const pasteData = e.clipboardData.getData('text/plain');
+        if (!pasteData) return;
+
+        const lines = pasteData.split(/\r?\n/).filter(l => l.trim() !== "");
+        if (lines.length === 0) return;
+
+        // Se for uma única linha colada, aplica em todas as células selecionadas
+        if (lines.length === 1) {
+            const val = lines[0].trim();
+            selected.forEach(cell => {
+                const input = cell.querySelector('input');
+                if (input) {
+                    input.value = val;
+                    // Trigger input event to update filters/cache
+                    input.dispatchEvent(new Event('input'));
+                } else if (cell.querySelector('.editable-text-field')) {
+                    cell.querySelector('.editable-text-field').innerText = val;
+                }
+            });
+        } 
+        // Se for múltiplas linhas, cola sequencialmente (opcional, por agora fazemos o simples)
+        e.preventDefault();
     });
 
     // Excel-style Cell Selection Logic

@@ -1,30 +1,39 @@
 document.addEventListener('DOMContentLoaded', () => {
+    let extractedDataCache = [];
+    const tableStates = {
+        cabos: { bodyId: 'body-cabos', data: [], filters: { 0: new Set(), 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set() } },
+        outros: { bodyId: 'body-outros', data: [], filters: { 0: new Set(), 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set() } }
+    };
+
     const dataRaw = localStorage.getItem('processar_dados');
     if (!dataRaw) {
-        alert("Nenhum dado encontrado para processar.");
+        alert("Nenhum dado encontrado.");
         return;
     }
 
-    const allData = JSON.parse(dataRaw);
-    const cabosData = allData.filter(d => d.entidade === "CABO");
-    const outrosData = allData.filter(d => d.entidade !== "CABO" && d.entidade !== "0");
+    extractedDataCache = JSON.parse(dataRaw);
+    tableStates.cabos.data = extractedDataCache.filter(d => d.entidade === "CABO");
+    tableStates.outros.data = extractedDataCache.filter(d => d.entidade !== "CABO" && d.entidade !== "0");
 
-    renderTable('body-cabos', cabosData);
-    renderTable('body-outros', outrosData);
+    // Inicialização
+    initTable('cabos');
+    initTable('outros');
 
-    document.getElementById('count-cabos').textContent = cabosData.length;
-    document.getElementById('count-outros').textContent = outrosData.length;
+    function initTable(type) {
+        renderTable(type);
+        updateCounters();
+        setupFilters(type);
+    }
 
-    function renderTable(bodyId, data) {
-        const body = document.getElementById(bodyId);
+    function renderTable(type) {
+        const state = tableStates[type];
+        const body = document.getElementById(state.bodyId);
         body.innerHTML = '';
-        if (data.length === 0) {
-            body.innerHTML = '<tr><td colspan="6" style="text-align:center; opacity: 0.5;">Nenhum item encontrado.</td></tr>';
-            return;
-        }
 
-        data.forEach((item, index) => {
+        state.data.forEach((item, index) => {
             const tr = document.createElement('tr');
+            tr.dataset.index = index;
+            tr.dataset.type = type;
             const displayColor = item.cor || "#000000";
             tr.innerHTML = `
                 <td>${item.pagina || 1}</td>
@@ -34,81 +43,211 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </td>
                 <td><div class="color-badge"><div class="color-swatch" style="background-color: ${displayColor};"></div><span>${displayColor.toUpperCase()}</span></div></td>
-                <td class="col-user"><input class="user-input" type="text" value="${item.entidade}"></td>
-                <td class="col-user"><input class="user-input" type="text" value="${item.operacao}"></td>
-                <td class="col-user"><input class="user-input" type="text" value="${item.ativo}"></td>
+                <td class="col-user"><input class="user-input" type="text" value="${item.entidade}" data-field="entidade"></td>
+                <td class="col-user"><input class="user-input" type="text" value="${item.operacao}" data-field="operacao"></td>
+                <td class="col-user"><input class="user-input" type="text" value="${item.ativo}" data-field="ativo"></td>
             `;
             body.appendChild(tr);
 
-            // Funções de Edição
-            const textField = tr.querySelector('.editable-text-field');
-            textField.addEventListener('blur', function() { this.contentEditable = false; });
-            textField.addEventListener('dblclick', function() { this.contentEditable = true; this.focus(); });
+            // Eventos de Input para atualizar o cache
+            tr.querySelectorAll('.user-input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    item[e.target.dataset.field] = e.target.value;
+                });
+            });
+
+            // Menu de Contexto
+            tr.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                showContextMenu(e, tr);
+            });
+        });
+        applyFilters(type);
+    }
+
+    function updateCounters() {
+        document.getElementById('count-cabos').textContent = tableStates.cabos.data.length;
+        document.getElementById('count-outros').textContent = tableStates.outros.data.length;
+    }
+
+    // --- FILTROS ---
+    function setupFilters(type) {
+        const containers = document.querySelectorAll(`.filter-container[data-table="${type}"]`);
+        const state = tableStates[type];
+        const columns = ['pagina', 'texto', 'cor', 'entidade', 'operacao', 'ativo'];
+
+        containers.forEach(container => {
+            const colIdx = parseInt(container.dataset.col);
+            const uniqueValues = [...new Set(state.data.map(item => String(item[columns[colIdx]] || "")))].sort();
+            createFilterDropdown(container, uniqueValues, colIdx, type);
         });
     }
 
-    function escapeHtml(u) { return String(u || "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#039;"}[m])); }
+    function createFilterDropdown(container, values, colIdx, type) {
+        const state = tableStates[type];
+        const selections = state.filters[colIdx];
+        
+        container.innerHTML = `
+            <div class="filter-trigger"><span>Todos</span><div class="filter-active-indicator"></div></div>
+            <div class="filter-dropdown">
+                <div class="filter-search-container"><input type="text" class="filter-search" placeholder="Pesquisar..."></div>
+                <div class="filter-options-list">
+                    ${values.map(val => `<label class="filter-option" data-value="${val}"><input type="checkbox" checked><span>${val || "(Vazio)"}</span></label>`).join('')}
+                </div>
+            </div>
+        `;
 
-    // Implementação de Seleção Estilo Excel (Simplificada para o resumo)
-    let isSelecting = false, selectionStart = null, selectionEnd = null, activeBody = null;
-
-    document.querySelectorAll('tbody').forEach(body => {
-        body.addEventListener('mousedown', (e) => {
-            if (e.button !== 0) return;
-            const td = e.target.closest('td');
-            if (!td || e.target.tagName === 'INPUT') return;
-            isSelecting = true;
-            activeBody = body;
-            clearAllSelections();
-            selectionStart = getCoords(td, body);
-            selectionEnd = selectionStart;
-            updateHighlight(body);
+        const trigger = container.querySelector('.filter-trigger');
+        const dropdown = container.querySelector('.filter-dropdown');
+        
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.filter-dropdown.active').forEach(d => d !== dropdown && d.classList.remove('active'));
+            dropdown.classList.toggle('active');
         });
 
-        body.addEventListener('mouseover', (e) => {
-            if (!isSelecting || activeBody !== body) return;
-            const td = e.target.closest('td');
-            if (!td) return;
-            selectionEnd = getCoords(td, body);
-            updateHighlight(body);
+        dropdown.addEventListener('click', e => e.stopPropagation());
+
+        dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const checked = dropdown.querySelectorAll('input:checked');
+                selections.clear();
+                if (checked.length < values.length) {
+                    checked.forEach(c => selections.add(c.parentElement.dataset.value));
+                }
+                applyFilters(type);
+                updateFilterTrigger(container, selections);
+            });
+        });
+    }
+
+    function updateFilterTrigger(container, selections) {
+        const span = container.querySelector('.filter-trigger span');
+        const ind = container.querySelector('.filter-active-indicator');
+        span.textContent = selections.size > 0 ? selections.size + ' sel' : 'Todos';
+        ind.classList.toggle('active', selections.size > 0);
+    }
+
+    function applyFilters(type) {
+        const state = tableStates[type];
+        const rows = document.getElementById(state.bodyId).children;
+        const columns = ['pagina', 'texto', 'cor', 'entidade', 'operacao', 'ativo'];
+
+        for (let tr of rows) {
+            const item = state.data[tr.dataset.index];
+            let isVisible = true;
+
+            for (let i = 0; i < 6; i++) {
+                const sel = state.filters[i];
+                if (sel.size > 0) {
+                    const val = String(item[columns[i]] || "");
+                    if (!sel.has(val)) { isVisible = false; break; }
+                }
+            }
+            tr.style.display = isVisible ? '' : 'none';
+        }
+    }
+
+    // --- CONTEXT MENU ---
+    const contextMenu = document.getElementById('context-menu');
+    let contextTargetRow = null;
+
+    function showContextMenu(e, tr) {
+        contextTargetRow = tr;
+        const x = Math.min(e.clientX, window.innerWidth - 180);
+        const y = Math.min(e.clientY, window.innerHeight - 150);
+        contextMenu.style.left = x + 'px';
+        contextMenu.style.top = y + 'px';
+        contextMenu.classList.add('active');
+    }
+
+    document.addEventListener('click', () => contextMenu.classList.remove('active'));
+
+    document.getElementById('ctx-delete').addEventListener('click', () => {
+        if (!contextTargetRow) return;
+        const type = contextTargetRow.dataset.type;
+        const index = parseInt(contextTargetRow.dataset.index);
+        tableStates[type].data.splice(index, 1);
+        renderTable(type);
+        updateCounters();
+    });
+
+    document.getElementById('ctx-edit').addEventListener('click', () => {
+        if (!contextTargetRow) return;
+        const span = contextTargetRow.querySelector('.editable-text-field');
+        span.contentEditable = true;
+        span.focus();
+    });
+
+    // --- ADICIONAR LINHA ---
+    document.querySelectorAll('.btn-add').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const type = btn.dataset.target.includes('cabos') ? 'cabos' : 'outros';
+            tableStates[type].data.push({ pagina: 1, texto: "NOVA LINHA", cor: "#000000", entidade: type === 'cabos' ? "CABO" : "", operacao: "M", ativo: "" });
+            renderTable(type);
+            updateCounters();
         });
     });
 
-    document.addEventListener('mouseup', () => { isSelecting = false; });
+    // --- SELEÇÃO ESTILO EXCEL & CTRL+C / CTRL+V ---
+    let isSelecting = false, selectionStart = null, selectionEnd = null, activeType = null;
+
+    document.querySelectorAll('tbody').forEach(body => {
+        const type = body.id.includes('cabos') ? 'cabos' : 'outros';
+        body.addEventListener('mousedown', (e) => {
+            if (e.button !== 0 || e.target.tagName === 'INPUT') return;
+            isSelecting = true;
+            activeType = type;
+            selectionStart = getCoords(e.target.closest('td'), body);
+            selectionEnd = selectionStart;
+            clearSelection();
+            updateHighlight();
+        });
+
+        body.addEventListener('mouseover', (e) => {
+            if (!isSelecting || activeType !== type) return;
+            const td = e.target.closest('td');
+            if (td) {
+                selectionEnd = getCoords(td, body);
+                updateHighlight();
+            }
+        });
+    });
+
+    document.addEventListener('mouseup', () => isSelecting = false);
 
     function getCoords(td, body) {
         const tr = td.parentElement;
         return { row: Array.from(body.children).indexOf(tr), col: Array.from(tr.children).indexOf(td) };
     }
 
-    function clearAllSelections() {
+    function clearSelection() {
         document.querySelectorAll('.cell-selected').forEach(c => c.classList.remove('cell-selected'));
     }
 
-    function updateHighlight(body) {
+    function updateHighlight() {
         if (!selectionStart || !selectionEnd) return;
-        document.querySelectorAll('.cell-selected').forEach(c => c.classList.remove('cell-selected'));
+        clearSelection();
+        const body = document.getElementById(tableStates[activeType].bodyId);
         const rMin = Math.min(selectionStart.row, selectionEnd.row), rMax = Math.max(selectionStart.row, selectionEnd.row);
         const cMin = Math.min(selectionStart.col, selectionEnd.col), cMax = Math.max(selectionStart.col, selectionEnd.col);
-        const rows = body.children;
+        
         for (let r = rMin; r <= rMax; r++) {
-            if (rows[r]) {
-                const cells = rows[r].children;
+            const tr = body.children[r];
+            if (tr && tr.style.display !== 'none') {
                 for (let c = cMin; c <= cMax; c++) {
-                    if (cells[c]) cells[c].classList.add('cell-selected');
+                    if (tr.children[c]) tr.children[c].classList.add('cell-selected');
                 }
             }
         }
     }
 
-    // Atalho de Cópia (CTRL+C)
+    // CTRL+C / CTRL+V
     document.addEventListener('keydown', (e) => {
         if (e.ctrlKey && e.key === 'c' && !window.getSelection().toString()) {
             const selected = document.querySelectorAll('.cell-selected');
             if (selected.length === 0) return;
-            
-            let text = "";
-            let lastRow = -1;
+            let text = "", lastRow = -1;
             selected.forEach(cell => {
                 const row = Array.from(cell.parentElement.parentElement.children).indexOf(cell.parentElement);
                 if (lastRow !== -1 && row !== lastRow) text += "\n";
@@ -117,5 +256,55 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             navigator.clipboard.writeText(text.trim());
         }
+
+        if (e.ctrlKey && e.key === 'v') {
+            const selected = document.querySelectorAll('.cell-selected');
+            if (selected.length === 0) return;
+            navigator.clipboard.readText().then(content => {
+                if (!content) return;
+                const lines = content.split(/\r?\n/).filter(l => l.trim() !== "");
+                if (lines.length === 1) {
+                    const val = lines[0].trim();
+                    selected.forEach(cell => {
+                        const input = cell.querySelector('input');
+                        if (input) {
+                            input.value = val;
+                            input.dispatchEvent(new Event('input'));
+                        } else if (cell.querySelector('.editable-text-field')) {
+                            cell.querySelector('.editable-text-field').innerText = val;
+                        }
+                    });
+                }
+            });
+        }
     });
+
+    // Copiar Botão (Seção)
+    document.querySelectorAll('.btn-copy-report').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const type = btn.dataset.target.includes('cabos') ? 'cabos' : 'outros';
+            const body = document.getElementById(tableStates[type].bodyId);
+            let text = "Pág\tTexto\tCor\tEntidade\tOperação\tAtivo\n";
+            Array.from(body.children).forEach(tr => {
+                if (tr.style.display !== 'none') {
+                    const cells = Array.from(tr.children);
+                    const rowData = [
+                        cells[0].innerText,
+                        cells[1].innerText,
+                        cells[2].innerText,
+                        cells[3].querySelector('input').value,
+                        cells[4].querySelector('input').value,
+                        cells[5].querySelector('input').value
+                    ];
+                    text += rowData.join('\t') + "\n";
+                }
+            });
+            navigator.clipboard.writeText(text);
+            const orig = btn.innerHTML;
+            btn.innerHTML = "Copiado!";
+            setTimeout(() => btn.innerHTML = orig, 1000);
+        });
+    });
+
+    function escapeHtml(u) { return String(u || "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#039;"}[m])); }
 });

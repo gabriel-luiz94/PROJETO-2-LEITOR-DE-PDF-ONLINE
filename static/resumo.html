@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css">
     <style>
-        .container { max-width: 1400px; }
+        .container { max-width: 1400px; padding-bottom: 50px; }
         .report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 15px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
         .report-title { font-size: 1.8rem; font-weight: 700; color: #fff; margin: 0; }
         .report-section { margin-bottom: 50px; }
@@ -17,6 +17,26 @@
         .section-title i { font-size: 1.2rem; }
         .table-container { height: 400px; }
         .badge-count { background: #3498db; color: white; padding: 2px 10px; border-radius: 20px; font-size: 0.9rem; }
+        
+        /* Ajustes de filtro e ações */
+        .filter-container { position: relative; margin-top: 5px; }
+        .filter-trigger { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; color: #ccc; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .filter-dropdown { position: absolute; top: 100%; left: 0; background: #252526; border: 1px solid #454545; border-radius: 6px; z-index: 1000; display: none; min-width: 200px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .filter-dropdown.active { display: block; }
+        .filter-option { display: flex; align-items: center; padding: 8px 12px; gap: 10px; cursor: pointer; color: #ccc; }
+        .filter-option:hover { background: #37373d; }
+        .filter-search-container { padding: 10px; border-bottom: 1px solid #454545; }
+        .filter-search { width: 100%; background: #3c3c3c; border: 1px solid #555; color: white; padding: 5px; border-radius: 4px; outline: none; }
+        
+        #context-menu { position: fixed; background: #252526; border: 1px solid #454545; border-radius: 6px; padding: 5px 0; z-index: 10000; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: none; min-width: 160px; }
+        #context-menu.active { display: block; }
+        .ctx-item { padding: 8px 15px; cursor: pointer; color: #ccc; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; }
+        .ctx-item:hover { background: #094771; color: white; }
+        .ctx-item.danger:hover { background: #a1260d; }
+        .ctx-separator { height: 1px; background: #454545; margin: 5px 0; }
+        
+        .btn-add { background: #27ae60 !important; font-size: 0.8rem; height: 32px; padding: 0 10px; }
+        .btn-copy-report { background: #3498db !important; font-size: 0.8rem; height: 32px; padding: 0 10px; }
     </style>
 </head>
 <body>
@@ -37,21 +57,51 @@
 
         <!-- SEÇÃO DE CABOS -->
         <section class="report-section" id="section-cabos">
-            <h2 class="section-title">
-                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                Tabela de Cabos <span class="badge-count" id="count-cabos">0</span>
-            </h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 class="section-title" style="margin:0;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    Tabela de Cabos <span class="badge-count" id="count-cabos">0</span>
+                </h2>
+                <div class="actions">
+                    <button class="btn-icon btn-add" data-target="body-cabos">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Add Linha
+                    </button>
+                    <button class="btn-icon btn-copy-report" data-target="body-cabos">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        Copiar
+                    </button>
+                </div>
+            </div>
             <div class="results-section" style="display: block;">
                 <div class="table-container">
                     <table id="table-cabos">
                         <thead>
                             <tr>
-                                <th>Pág</th>
-                                <th>Texto</th>
-                                <th>Cor</th>
-                                <th class="col-user">Entidade</th>
-                                <th class="col-user">Operação</th>
-                                <th class="col-user">Ativo</th>
+                                <th>
+                                    <div class="th-content"><span>Pág</span></div>
+                                    <div class="filter-container" data-col="0" data-table="cabos"></div>
+                                </th>
+                                <th>
+                                    <div class="th-content"><span>Texto</span></div>
+                                    <div class="filter-container" data-col="1" data-table="cabos"></div>
+                                </th>
+                                <th>
+                                    <div class="th-content"><span>Cor</span></div>
+                                    <div class="filter-container" data-col="2" data-table="cabos"></div>
+                                </th>
+                                <th class="col-user">
+                                    <div class="th-content"><span>Entidade</span></div>
+                                    <div class="filter-container" data-col="3" data-table="cabos"></div>
+                                </th>
+                                <th class="col-user">
+                                    <div class="th-content"><span>Operação</span></div>
+                                    <div class="filter-container" data-col="4" data-table="cabos"></div>
+                                </th>
+                                <th class="col-user">
+                                    <div class="th-content"><span>Ativo</span></div>
+                                    <div class="filter-container" data-col="5" data-table="cabos"></div>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="body-cabos"></tbody>
@@ -62,21 +112,51 @@
 
         <!-- SEÇÃO DE OUTROS ATIVOS -->
         <section class="report-section" id="section-outros">
-            <h2 class="section-title">
-                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
-                Demais Ativos (Estruturas, Postes, etc) <span class="badge-count" id="count-outros">0</span>
-            </h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 class="section-title" style="margin:0;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                    Demais Ativos <span class="badge-count" id="count-outros">0</span>
+                </h2>
+                <div class="actions">
+                    <button class="btn-icon btn-add" data-target="body-outros">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Add Linha
+                    </button>
+                    <button class="btn-icon btn-copy-report" data-target="body-outros">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        Copiar
+                    </button>
+                </div>
+            </div>
             <div class="results-section" style="display: block;">
                 <div class="table-container">
                     <table id="table-outros">
                         <thead>
                             <tr>
-                                <th>Pág</th>
-                                <th>Texto</th>
-                                <th>Cor</th>
-                                <th class="col-user">Entidade</th>
-                                <th class="col-user">Operação</th>
-                                <th class="col-user">Ativo</th>
+                                <th>
+                                    <div class="th-content"><span>Pág</span></div>
+                                    <div class="filter-container" data-col="0" data-table="outros"></div>
+                                </th>
+                                <th>
+                                    <div class="th-content"><span>Texto</span></div>
+                                    <div class="filter-container" data-col="1" data-table="outros"></div>
+                                </th>
+                                <th>
+                                    <div class="th-content"><span>Cor</span></div>
+                                    <div class="filter-container" data-col="2" data-table="outros"></div>
+                                </th>
+                                <th class="col-user">
+                                    <div class="th-content"><span>Entidade</span></div>
+                                    <div class="filter-container" data-col="3" data-table="outros"></div>
+                                </th>
+                                <th class="col-user">
+                                    <div class="th-content"><span>Operação</span></div>
+                                    <div class="filter-container" data-col="4" data-table="outros"></div>
+                                </th>
+                                <th class="col-user">
+                                    <div class="th-content"><span>Ativo</span></div>
+                                    <div class="filter-container" data-col="5" data-table="outros"></div>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="body-outros"></tbody>
@@ -85,6 +165,13 @@
             </div>
         </section>
     </main>
+
+    <div id="context-menu">
+        <div class="ctx-item" id="ctx-copy">Copiar seleção</div>
+        <div class="ctx-item" id="ctx-edit">Editar texto</div>
+        <div class="ctx-separator"></div>
+        <div class="ctx-item danger" id="ctx-delete">Excluir linha</div>
+    </div>
 
     <script src="/static/resumo.js"></script>
 </body>
