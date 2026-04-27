@@ -193,6 +193,11 @@ document.addEventListener('DOMContentLoaded', () => {
             extractedDataCache = result.data;
             renderTable(extractedDataCache);
             resultsSection.classList.remove('hidden');
+            
+            // Força a visibilidade dos botões de ação
+            const procBtn = document.getElementById('processarResumo');
+            if (procBtn) procBtn.style.display = 'flex';
+            
             resultsSection.scrollIntoView({ behavior: 'smooth' });
         } catch (e) { 
             console.error("Erro completo:", e);
@@ -302,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let i = start; i <= end; i++) {
                 if (i === index) continue;
                 const neighbor = extractedDataCache[i];
-                if (neighbor.pagina !== item.pagina) continue;
+                if (!neighbor || !neighbor.texto || neighbor.pagina !== item.pagina) continue;
                 
                 const nText = neighbor.texto.replace(/\u00A0/g, " ").toUpperCase();
                 const m = nText.match(/([13])\s*-\s*100A/);
@@ -868,7 +873,10 @@ document.addEventListener('DOMContentLoaded', () => {
         colCheckboxes.forEach((cb, idx) => {
             if (cb.checked) selectedColsIndex.push(idx);
         });
-        if (selectedColsIndex.length === 0) return;
+        if (selectedColsIndex.length === 0) {
+            alert("Selecione ao menos uma coluna para copiar.");
+            return;
+        }
         let textToCopy = "";
         const keys = ['pagina', 'texto', 'cor', 'entidade', 'operacao', 'ativo'];
         const trs = tableBody.querySelectorAll('tr');
@@ -890,14 +898,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+        
         if (textToCopy) {
-            navigator.clipboard.writeText(textToCopy).then(() => {
+            copyToClipboard(textToCopy, () => {
                 const orig = copySelectedBtn.innerHTML;
                 copySelectedBtn.innerHTML = "Copiado!"; copySelectedBtn.style.color = '#3fb950';
                 setTimeout(() => { copySelectedBtn.innerHTML = orig; copySelectedBtn.style.color = ''; }, 1000);
             });
         }
     });
+
+    function copyToClipboard(text, callback) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(callback).catch(err => {
+                console.error("Erro ao copiar via API:", err);
+                fallbackCopy(text, callback);
+            });
+        } else {
+            fallbackCopy(text, callback);
+        }
+    }
+
+    function fallbackCopy(text, callback) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            const successful = document.execCommand('copy');
+            if (successful && callback) callback();
+        } catch (err) {
+            console.error('Erro no fallback de cópia:', err);
+        }
+        document.body.removeChild(textArea);
+    }
 
     document.addEventListener('copy', (e) => {
         if (tableBody.querySelectorAll('.cell-selected').length > 0 && document.activeElement.tagName !== 'INPUT') {
@@ -925,7 +963,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        navigator.clipboard.writeText(txt);
+        copyToClipboard(txt);
     }
 
     function escapeHtml(u) { return String(u || "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#039;"}[m])); }

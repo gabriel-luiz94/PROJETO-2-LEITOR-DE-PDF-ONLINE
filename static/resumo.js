@@ -449,12 +449,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    function copyToClipboard(text, callback) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(callback).catch(err => {
+                console.error("Erro ao copiar via API:", err);
+                fallbackCopy(text, callback);
+            });
+        } else {
+            fallbackCopy(text, callback);
+        }
+    }
+
+    function fallbackCopy(text, callback) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            const successful = document.execCommand('copy');
+            if (successful && callback) callback();
+        } catch (err) {
+            console.error('Erro no fallback de cópia:', err);
+        }
+        document.body.removeChild(textArea);
+    }
+
     function copySelectionToClipboard() {
         const selected = document.querySelectorAll('.cell-selected');
         if (selected.length === 0) return;
         
         let text = "", lastRow = -1;
-        // Ordena a seleção por ordem de linha/coluna no DOM para garantir a ordem correta na cópia
         const sorted = Array.from(selected).sort((a, b) => {
             const rowA = a.parentElement, rowB = b.parentElement;
             if (rowA === rowB) return a.cellIndex - b.cellIndex;
@@ -471,7 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
             text += String(val || "").replace(/\n/g, ' ');
             lastRow = row;
         });
-        navigator.clipboard.writeText(text.trim());
+        copyToClipboard(text.trim());
     }
 
     document.addEventListener('keydown', (e) => {
@@ -542,8 +570,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     text += rowData.join('\t') + "\n";
                 }
             });
-            navigator.clipboard.writeText(text);
-            const orig = btn.innerHTML; btn.innerHTML = "Copiado!"; setTimeout(() => btn.innerHTML = orig, 1000);
+            copyToClipboard(text, () => {
+                const orig = btn.innerHTML; btn.innerHTML = "Copiado!"; setTimeout(() => btn.innerHTML = orig, 1000);
+            });
         });
     });
 
