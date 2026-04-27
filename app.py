@@ -187,7 +187,10 @@ def _resolve_part_color(part_raw: str, inherited: str) -> str:
         except:
             pass
     else:
-        return _aci_to_hex(int(value))
+        aci = int(value)
+        if aci == 0 or aci == 256:
+            return inherited
+        return _aci_to_hex(aci)
         
     return inherited
 
@@ -254,9 +257,10 @@ def _process_entity(entity, doc, base_color=None, block_name=None) -> list[dict]
     if tp == "MTEXT":
         # Passo 1: remove \pxql; \pxqc; \pxqr; etc.
         pre = _RE_PARA_FMT.sub('', raw)
-        # Passo 2: divide exclusivamente por \P, \n, \r, ^M ou ^J
-        # Removemos a captura de chaves { } para que quebras \P internas funcionem.
-        parts = re.split(r'\\P|[\r\n]+|\^M|\^J', pre)
+        # Passo 2: divide por \P, quebras de linha ou mudanças de cor internas
+        # Lookahead (?=...) divide ANTES do código, Lookbehind (?<=\}) divide APÓS o bloco.
+        # (?<!\{) garante que não dividimos entre o { e o código de cor (\C1;).
+        parts = re.split(r'\\P|[\r\n]+|\^M|\^J|(?=\{\\[cC]\d+;)|(?<!\{)(?=\\[cC]\d+;)|(?<=\})', pre)
     else:
         parts = [raw]
 
@@ -269,7 +273,8 @@ def _process_entity(entity, doc, base_color=None, block_name=None) -> list[dict]
         
         # Resolve a cor desta parte. 
         # Se estiver entre chaves { }, a cor é local.
-        is_block = part.startswith('{') and part.endswith('}')
+        p_stripped = part.strip()
+        is_block = p_stripped.startswith('{') and p_stripped.endswith('}')
         item_color = _resolve_part_color(part, current_color)
         
         if tp == "MTEXT":

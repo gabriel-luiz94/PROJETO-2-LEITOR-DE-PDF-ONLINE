@@ -1,0 +1,11 @@
+# Cloudflare Pages - Proxy reverso para o backend no Fly.io
+# Redireciona /upload e /ws para o backend remoto
+# Substitua a URL abaixo pela URL real do seu app no Fly.io após o deploy
+
+/upload/* https://leitor-pdf-backend.fly.dev/upload/:splat 200
+/ws/* https://leitor-pdf-backend.fly.dev/ws/:splat 200
+/trigger-file/* https://leitor-pdf-backend.fly.dev/trigger-file/:splat 200
+/extract-local/* https://leitor-pdf-backend.fly.dev/extract-local/:splat 200
+
+# SPA fallback: rota qualquer para index.html
+/* /index.html 200

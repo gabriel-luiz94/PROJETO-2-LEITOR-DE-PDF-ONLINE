@@ -264,6 +264,15 @@ document.addEventListener('DOMContentLoaded', () => {
                          .replace(/kVA/gi, "")
                          .replace(/TR\s*-\s*1\s*-\s*/g, "1-TR1")
                          .replace(/TR\s*-\s*2\s*-\s*/g, "1-TR2");
+
+        // Regra para padrão combinado: 3 - 100A - 3H
+        const comboMatch = text2.match(/([13])\s*-\s*100A\s*-\s*(\d+(?:,\d+)?(?:H|K))/i);
+        if (comboMatch) {
+            const q = comboMatch[1];
+            const e = comboMatch[2].replace(",", "").replace(" ", "");
+            return `${q}-CFU ${q}-EF${e}`;
+        }
+
         if (text2.includes("-100A-")) text2 = text2.replace("-100A-", `-CFU ${text2.charAt(0)}-EF`);
         return text2.replace(/3CF-400A/g, "3-CFA").replace(/112,5/g, "112").replace(/0,5H/g, "05H").replace(/PODAS/g, "PODA").replace(/PODA M/g, "PODA").replace(/PODA G/g, "PODA").replace(/PODA P/g, "PODA").replace(/ PODA/g, "-PODA").replace(/3CL-300A/g, "3-CFU 3-CL").replace(/TR15/g, "TR105").trim();
     }
@@ -277,10 +286,38 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (isGray(displayColor)) opAuto = "R";
         
         const uAtivo = textoAtivo.toUpperCase();
-        const tUpper = item.texto.replace(/\u00A0/g, " ").toUpperCase();
-
-        // REGRAS ESPECÍFICAS PARA FLY
+        const tUpper = item.texto.replace(/\u00A0/g, " ").toUpperCase().trim();
         let entAuto = "0";
+
+        // --- NOVA REGRA: ELO FUSÍVEL (EF) ---
+        const elosFusivel = ["0,5H", "1H", "2H", "3H", "5H", "6K", "8K", "10K", "12K", "15K", "25K", "30K", "40K"];
+        if (elosFusivel.includes(tUpper)) {
+            entAuto = "CHAVE";
+            // Busca contexto nas proximidades (mesma página, +/- 10 linhas)
+            let qtyFound = "";
+            const searchRange = 10;
+            const start = Math.max(0, index - searchRange);
+            const end = Math.min(extractedDataCache.length - 1, index + searchRange);
+            
+            for (let i = start; i <= end; i++) {
+                if (i === index) continue;
+                const neighbor = extractedDataCache[i];
+                if (neighbor.pagina !== item.pagina) continue;
+                
+                const nText = neighbor.texto.replace(/\u00A0/g, " ").toUpperCase();
+                const m = nText.match(/([13])\s*-\s*100A/);
+                if (m) {
+                    qtyFound = m[1];
+                    break;
+                }
+            }
+            
+            if (qtyFound) {
+                const eloVal = tUpper.replace(",", "").replace(" ", ""); // 0,5H -> 05H
+                textoAtivo = `${qtyFound}-EF${eloVal}`;
+            }
+        }
+
         const isRed = (displayColor.toLowerCase() === "#ff0000");
 
         if (!tUpper.includes("BLOCO")) {
@@ -338,7 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return false;
             })()) entAuto = "CABO";
             else if (tUpper.includes("FIOS")) entAuto = "CERCA";
-            else if (uAtivo.includes("-CF") && opAuto !== "M") entAuto = "CHAVE";
+            else if ((uAtivo.includes("-CF") || uAtivo.includes("-EF")) && opAuto !== "M") entAuto = "CHAVE";
             else if (uAtivo.includes("-TR") && opAuto !== "M") {
                 entAuto = "TRAFO";
                 const match = textoAtivo.match(/(1-TR\d+)/i);

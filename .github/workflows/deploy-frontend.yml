@@ -1,0 +1,26 @@
+name: Deploy Frontend → Cloudflare Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      # Só roda quando arquivos do frontend mudam
+      - 'static/**'
+
+jobs:
+  deploy-frontend:
+    name: Deploy para Cloudflare Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Deploy no Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy static --project-name=leitor-pdf-frontend --branch=main

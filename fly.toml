@@ -1,0 +1,29 @@
+# fly.toml - Configuração do Fly.io para o backend FastAPI
+# Documentação: https://fly.io/docs/reference/configuration/
+
+app = "leitor-pdf-backend"
+primary_region = "gru"  # São Paulo - mais próximo do Brasil
+
+[build]
+  # Usa o Dockerfile para buildar a imagem
+
+[env]
+  PORT = "8080"
+  PYTHONUNBUFFERED = "1"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true   # Para economizar créditos quando idle
+  auto_start_machines = true
+  min_machines_running = 0    # Pode subir para 1 se quiser sem cold start
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 100
+    soft_limit = 80
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

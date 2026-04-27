@@ -1,0 +1,19 @@
+# Ignora arquivos desnecessários no container Docker
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.git/
+.gitignore
+*.md
+*.spec
+*.vbs
+*.bat
+test.pdf
+extpdf.py
+trigger.py
+Procfile

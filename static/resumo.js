@@ -71,6 +71,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         let text2 = text1.replace(/TR\s*-\s*3\s*-\s*/g, "1-TR3").replace(/kVA/gi, "").replace(/TR\s*-\s*1\s*-\s*/g, "1-TR1").replace(/TR\s*-\s*2\s*-\s*/g, "1-TR2");
+        
+        // Regra para padrão combinado: 3 - 100A - 3H
+        const comboMatch = text2.match(/([13])\s*-\s*100A\s*-\s*(\d+(?:,\d+)?(?:H|K))/i);
+        if (comboMatch) {
+            const q = comboMatch[1];
+            const e = comboMatch[2].replace(",", "").replace(" ", "");
+            return `${q}-CFU ${q}-EF${e}`;
+        }
+
         if (text2.includes("-100A-")) text2 = text2.replace("-100A-", `-CFU ${text2.charAt(0)}-EF`);
         return text2.replace(/3CF-400A/g, "3-CFA").replace(/112,5/g, "112").replace(/0,5H/g, "05H").replace(/PODAS/g, "PODA").replace(/PODA M/g, "PODA").replace(/PODA G/g, "PODA").replace(/PODA P/g, "PODA").replace(/ PODA/g, "-PODA").replace(/3CL-300A/g, "3-CFU 3-CL").replace(/TR15/g, "TR105").trim();
     }
@@ -83,8 +92,42 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (isGray(displayColor)) opAuto = "R";
         
         const uAtivo = textoAtivo.toUpperCase();
-        const tUpper = item.texto.replace(/\u00A0/g, " ").toUpperCase();
+        const tUpper = item.texto.replace(/\u00A0/g, " ").toUpperCase().trim();
         let entAuto = "0";
+
+        // --- NOVA REGRA: ELO FUSÍVEL (EF) ---
+        const elosFusivel = ["0,5H", "1H", "2H", "3H", "5H", "6K", "8K", "10K", "12K", "15K", "25K", "30K", "40K"];
+        if (elosFusivel.includes(tUpper)) {
+            entAuto = "CHAVE";
+            // Busca contexto nas proximidades (mesma página, +/- 10 linhas no cache global)
+            const globalIdx = extractedDataCache.indexOf(item);
+            if (globalIdx !== -1) {
+                let qtyFound = "";
+                const searchRange = 10;
+                const start = Math.max(0, globalIdx - searchRange);
+                const end = Math.min(extractedDataCache.length - 1, globalIdx + searchRange);
+                
+                for (let i = start; i <= end; i++) {
+                    if (i === globalIdx) continue;
+                    const neighbor = extractedDataCache[i];
+                    if (neighbor.pagina !== item.pagina) continue;
+                    
+                    const nText = neighbor.texto.replace(/\u00A0/g, " ").toUpperCase();
+                    const m = nText.match(/([13])\s*-\s*100A/);
+                    if (m) {
+                        qtyFound = m[1];
+                        break;
+                    }
+                }
+                
+                if (qtyFound) {
+                    const eloVal = tUpper.replace(",", "").replace(" ", ""); // 0,5H -> 05H
+                    textoAtivo = `${qtyFound}-EF${eloVal}`;
+                }
+            }
+        }
+
+        entAuto = "0";
         const isRed = (displayColor.toUpperCase() === "#FF0000");
 
         if (!tUpper.includes("BLOCO")) {
@@ -118,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return false;
             })()) entAuto = "CABO";
             else if (tUpper.includes("FIOS")) entAuto = "CERCA";
-            else if (uAtivo.includes("-CF") && opAuto !== "M") entAuto = "CHAVE";
+            else if ((uAtivo.includes("-CF") || uAtivo.includes("-EF")) && opAuto !== "M") entAuto = "CHAVE";
             else if (uAtivo.includes("-TR") && opAuto !== "M") {
                 entAuto = "TRAFO";
                 const match = textoAtivo.match(/(1-TR\d+)/i);
@@ -237,8 +280,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const mainSelectAll = container.querySelector('.select-all-option input'), optionsContainer = container.querySelector('.options-container');
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
-            document.querySelectorAll('.filter-dropdown.active').forEach(d => d !== dropdown && d.classList.remove('active'));
-            dropdown.classList.toggle('active');
+            document.querySelectorAll('.filter-dropdown.active').forEach(d => {
+                if (d !== dropdown) {
+                    d.classList.remove('active');
+                    // Aqui aplicamos o filtro da tabela correspondente ao fechar outros dropdowns
+                    const otherTable = d.closest('.filter-container').dataset.table;
+                    applyFilters(otherTable);
+                }
+            });
+            if (dropdown.classList.contains('active')) {
+                dropdown.classList.remove('active');
+                applyFilters(type);
+            } else {
+                dropdown.classList.add('active');
+            }
         });
         dropdown.addEventListener('click', e => e.stopPropagation());
         const onSelectionChange = () => {
@@ -247,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
             mainSelectAll.indeterminate = checked.length > 0 && checked.length < checks.length;
             selections.clear();
             if (checked.length < checks.length) { checked.forEach(c => selections.add(c.parentElement.dataset.value)); }
-            applyFilters(type);
+            // applyFilters(type); // REMOVIDO: Agora aplica apenas ao fechar
             updateFilterTrigger(container, selections);
         };
         optionsContainer.querySelectorAll('input').forEach(cb => cb.addEventListener('change', onSelectionChange));
@@ -370,18 +425,102 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function getVisibleRows(type) {
+        if (!type) return [];
+        const body = document.getElementById(tableStates[type].bodyId);
+        return Array.from(body.children).filter(tr => tr.style.display !== 'none');
+    }
+    function getVisibleRowIndex(domIdx, type) {
+        const body = document.getElementById(tableStates[type].bodyId);
+        const vis = getVisibleRows(type);
+        return vis.indexOf(body.children[domIdx]);
+    }
+    function getDomRowIndex(visIdx, type) {
+        const vis = getVisibleRows(type);
+        const body = document.getElementById(tableStates[type].bodyId);
+        return Array.from(body.children).indexOf(vis[visIdx]);
+    }
+
+    document.addEventListener('copy', (e) => {
+        const selected = document.querySelectorAll('.cell-selected');
+        if (selected.length > 0 && document.activeElement.tagName !== 'INPUT') {
+            copySelectionToClipboard();
+            e.preventDefault();
+        }
+    });
+
+    function copySelectionToClipboard() {
+        const selected = document.querySelectorAll('.cell-selected');
+        if (selected.length === 0) return;
+        
+        let text = "", lastRow = -1;
+        // Ordena a seleção por ordem de linha/coluna no DOM para garantir a ordem correta na cópia
+        const sorted = Array.from(selected).sort((a, b) => {
+            const rowA = a.parentElement, rowB = b.parentElement;
+            if (rowA === rowB) return a.cellIndex - b.cellIndex;
+            return rowA.rowIndex - rowB.rowIndex;
+        });
+
+        sorted.forEach(cell => {
+            const tr = cell.parentElement;
+            const row = tr.rowIndex;
+            if (lastRow !== -1 && row !== lastRow) text += "\n";
+            else if (lastRow === row) text += "\t";
+            
+            const val = cell.querySelector('input')?.value || cell.querySelector('select')?.value || cell.innerText;
+            text += String(val || "").replace(/\n/g, ' ');
+            lastRow = row;
+        });
+        navigator.clipboard.writeText(text.trim());
+    }
+
     document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && e.key === 'c' && !window.getSelection().toString()) {
+        // Ctrl+C / Cmd+C: copy selection
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
             const selected = document.querySelectorAll('.cell-selected');
-            if (selected.length === 0) return;
-            let text = "", lastRow = -1;
-            selected.forEach(cell => {
-                const row = Array.from(cell.parentElement.parentElement.children).indexOf(cell.parentElement);
-                if (lastRow !== -1 && row !== lastRow) text += "\n";
-                text += (cell.querySelector('input')?.value || cell.querySelector('select')?.value || cell.innerText) + "\t";
-                lastRow = row;
-            });
-            navigator.clipboard.writeText(text.trim());
+            if (selected.length > 0 && e.target.tagName !== 'INPUT') {
+                e.preventDefault();
+                copySelectionToClipboard();
+            }
+            return;
+        }
+
+        // Shift+Arrow Navigation
+        const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+        if (e.shiftKey && arrowKeys.includes(e.key) && selectionStart !== null && activeType) {
+            // Evita conflito se estiver editando texto
+            if (e.target.contentEditable === 'true' || e.target.tagName === 'INPUT') return;
+            
+            e.preventDefault();
+            const vis = getVisibleRows(activeType);
+            if (vis.length === 0) return;
+
+            const body = document.getElementById(tableStates[activeType].bodyId);
+            const totalCols = body.children[0] ? body.children[0].children.length - 1 : 5;
+            const curVisIdx = getVisibleRowIndex(selectionEnd.row, activeType);
+            
+            let newVisIdx = curVisIdx;
+            let newCol = selectionEnd.col;
+
+            if (e.key === 'ArrowDown') {
+                newVisIdx = e.ctrlKey ? vis.length - 1 : Math.min(curVisIdx + 1, vis.length - 1);
+            } else if (e.key === 'ArrowUp') {
+                newVisIdx = e.ctrlKey ? 0 : Math.max(curVisIdx - 1, 0);
+            } else if (e.key === 'ArrowRight') {
+                newCol = e.ctrlKey ? totalCols : Math.min(selectionEnd.col + 1, totalCols);
+            } else if (e.key === 'ArrowLeft') {
+                newCol = e.ctrlKey ? 0 : Math.max(selectionEnd.col - 1, 0);
+            }
+
+            if (newVisIdx !== -1) {
+                selectionEnd = { row: getDomRowIndex(newVisIdx, activeType), col: newCol };
+                updateHighlight();
+
+                // Scroll focus
+                const lastTr = body.children[selectionEnd.row];
+                if (lastTr) lastTr.scrollIntoView({ block: 'nearest' });
+            }
+            return;
         }
     });
 
