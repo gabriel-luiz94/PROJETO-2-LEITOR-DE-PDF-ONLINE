@@ -294,9 +294,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const tUpper = item.texto.replace(/\u00A0/g, " ").toUpperCase().trim();
         let entAuto = "0";
 
+        const isRedOrGray = (displayColor.toLowerCase() === "#ff0000") || (isGray(displayColor));
+        
         // --- NOVA REGRA: ELO FUSÍVEL (EF) ---
         const elosFusivel = ["0,5H", "1H", "2H", "3H", "5H", "6K", "8K", "10K", "12K", "15K", "25K", "30K", "40K"];
-        if (elosFusivel.includes(tUpper)) {
+        if (elosFusivel.includes(tUpper) && isRedOrGray) {
             entAuto = "CHAVE";
             // Busca contexto nas proximidades (mesma página, +/- 10 linhas)
             let qtyFound = "";
@@ -348,7 +350,6 @@ document.addEventListener('DOMContentLoaded', () => {
             entAuto = "0";
         }
         
-        const isRedOrGray = (displayColor.toLowerCase() === "#ff0000") || (isGray(displayColor));
         const apoioMarkers = ["-ROCO", "-RECAL", "-BASE", "-CAVA", "PODA"];
         const foundApoioCount = apoioMarkers.filter(m => uAtivo.includes(m)).length;
         const hasApoioConflict = tUpper.includes("APOIOS") || tUpper.includes("LARGURA") || (tUpper.includes("BASE") && tUpper.includes("CALÇADA")) || foundApoioCount > 1;
