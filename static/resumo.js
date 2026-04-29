@@ -151,16 +151,23 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (uAtivo === "1-AF") entAuto = "ESTRUTURA";
             else if ((uAtivo.includes("-RECAL")||uAtivo.includes("-BASE")||uAtivo.includes("-CAVA")) && !hasApoioConflict) entAuto = "APOIO";
             else if ((tUpper.includes("DT") || tUpper.includes("CV")) && tUpper.includes("/") && isRedOrGray) entAuto = "POSTE";
-            else if (isRedOrGray && !tUpper.includes("DT") && !tUpper.includes("CV") && !tUpper.includes("AWG") && !tUpper.includes("#") && (() => {
+            else if (!tUpper.includes("DT") && !tUpper.includes("CV") && !tUpper.includes("AWG") && !tUpper.includes("#") && (() => {
                 if (/\bM?\d+x\d+/.test(tUpper)) return true;
                 if (tUpper.includes("ABC") && /\d+\s*M$/.test(tUpper)) return true;
                 if (/^CU\s*\d/.test(tUpper) || /\bCU\s*\d/.test(tUpper.substring(0, 5))) return true;
                 if (/^CA\s+\d/.test(tUpper) || /^CA\d/.test(tUpper)) return true;
-                if (tUpper.includes("CAL") || tUpper.includes("CAA") || tUpper.includes("CAZ")) return true;
+                if (/(?:CAL|CAA|CAZ)(?:\s|\d)/.test(tUpper)) return true;
                 if (/\bP\s*(16|25|35|50|70|95|120|150|185|240)\b/.test(tUpper)) return true;
                 if (tUpper.includes("X1X") && /\d+\s*M$/.test(tUpper)) return true;
                 return false;
-            })()) entAuto = "CABO";
+            })()) {
+                if (isRedOrGray) {
+                    entAuto = "CABO";
+                } else if (!isRedOrGray && (item.layer === "RETENS" || item.layer === "RETENS_LV")) {
+                    entAuto = "CABO";
+                    opAuto = item.layer === "RETENS_LV" ? "*M" : "M";
+                }
+            }
             else if (tUpper.includes("FIOS")) entAuto = "CERCA";
             else if ((uAtivo.includes("-CF") || uAtivo.includes("-EF")) && opAuto !== "M") entAuto = "CHAVE";
             else if (uAtivo.includes("-TR") && opAuto !== "M") {
@@ -177,6 +184,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const allWordsValid = words.length > 0 && words.every(w => /^\d+-\S+$/i.test(w));
             if (hasEstruturaPattern && allWordsValid && (opAuto === "I" || opAuto === "R")) entAuto = "ESTRUTURA";
         }
+        
+        if (item.layer === "LV" && opAuto && !opAuto.startsWith("*")) {
+            opAuto = "*" + opAuto;
+        }
+
         item.entidade = entAuto; item.operacao = opAuto; item.ativo = textoAtivo;
         const entInput = tr.querySelector('[data-field="entidade"]');
         const opInput = tr.querySelector('[data-field="operacao"]');

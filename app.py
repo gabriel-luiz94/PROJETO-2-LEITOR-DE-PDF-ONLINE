@@ -295,6 +295,7 @@ def _process_entity(entity, doc, base_color=None, block_name=None) -> list[dict]
                 "tamanho": round(height, 2),
                 "cor": item_color,
                 "flags": flags,
+                "layer": getattr(entity.dxf, "layer", ""),
                 "_y": float(pos.y),
                 "_x": float(pos.x),
             })
@@ -333,6 +334,7 @@ def extract_dxf_content(doc) -> list[dict]:
                 "tamanho": 0,
                 "cor": bcolor,
                 "flags": "DXF_INSERT",
+                "layer": getattr(insert.dxf, "layer", ""),
                 "_y": float(insert.dxf.insert.y),
                 "_x": float(insert.dxf.insert.x),
             })
