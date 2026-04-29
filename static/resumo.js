@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (tUpper.includes("ABC") && /\d+\s*M$/.test(tUpper)) return true;
                 if (/^CU\s*\d/.test(tUpper) || /\bCU\s*\d/.test(tUpper.substring(0, 5))) return true;
                 if (/^CA\s+\d/.test(tUpper) || /^CA\d/.test(tUpper)) return true;
-                if (/(?:CAL|CAA|CAZ)(?:\s|\d)/.test(tUpper)) return true;
+                if (/\b(?:CAL|CAA|CAZ)(?:\s|\d)/.test(tUpper)) return true;
                 if (/\bP\s*(16|25|35|50|70|95|120|150|185|240)\b/.test(tUpper)) return true;
                 if (tUpper.includes("X1X") && /\d+\s*M$/.test(tUpper)) return true;
                 return false;

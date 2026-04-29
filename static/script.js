@@ -370,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (/^CU\s*\d/.test(tUpper) || /\bCU\s*\d/.test(tUpper.substring(0, 5))) return true;
                 // CA / CAL / CAA (Alumínio)
                 if (/^CA\s+\d/.test(tUpper) || /^CA\d/.test(tUpper)) return true;
-                if (/(?:CAL|CAA|CAZ)(?:\s|\d)/.test(tUpper)) return true;
+                if (/\b(?:CAL|CAA|CAZ)(?:\s|\d)/.test(tUpper)) return true;
                 
                 // Bitolas P (protoduto) - Somente se seguido de bitola válida
                 if (/\bP\s*(16|25|35|50|70|95|120|150|185|240)\b/.test(tUpper)) return true;
