@@ -145,6 +145,32 @@ document.addEventListener('DOMContentLoaded', () => {
         const hasApoioConflict = tUpper.includes("APOIOS") || tUpper.includes("LARGURA") || (tUpper.includes("BASE") && tUpper.includes("CALÇADA")) || foundApoioCount > 1;
         
         if (entAuto === "0") {
+            const isBlack = !isRedOrGray;
+            const isRetens = item.layer === "RETENS" || item.layer === "RETENS_LV";
+
+            // --- REINSTALAÇÃO DE TRAFO (preto + RETENS) ---
+            if (isBlack && isRetens) {
+                const trafoMatch = tUpper.match(/TR\s*-\s*([123])/);
+                if (trafoMatch) {
+                    const qty = trafoMatch[1];
+                    entAuto = "TRAFO";
+                    textoAtivo = `1-RTR${qty}`;
+                    opAuto = item.layer === "RETENS_LV" ? "*I" : "I";
+                }
+            }
+
+            // --- REINSTALAÇÃO DE CHAVE (preto + RETENS) ---
+            if (isBlack && isRetens && entAuto === "0") {
+                const chaveMatch = tUpper.match(/^([123])\s*-\s*100A/);
+                if (chaveMatch) {
+                    const qty = chaveMatch[1];
+                    entAuto = "CHAVE";
+                    textoAtivo = `${qty}-RCFU`;
+                    opAuto = item.layer === "RETENS_LV" ? "*I" : "I";
+                }
+            }
+
+            if (entAuto === "0") {
             if (/\sRS\s+[MT]\s/i.test(item.texto)) entAuto = "RAMAIS";
             else if (uAtivo.includes("-ROCO") && !hasApoioConflict) entAuto = "APOIO";
             else if (uAtivo.includes("-IP") || /\bIP\b/i.test(item.texto)) entAuto = "IP";
@@ -176,6 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (match) textoAtivo = match[1].toUpperCase();
             }
             else if (uAtivo.includes("PODA") && opAuto !== "M" && !hasApoioConflict) entAuto = "APOIO";
+            } // end entAuto === "0" inner
         }
         if (entAuto === "IP" || entAuto === "APOIO" || entAuto === "CERCA" || entAuto === "RAMAIS") opAuto = "I";
         if (entAuto === "0" && !tUpper.includes("APOIOS")) {
