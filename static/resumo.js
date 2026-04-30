@@ -93,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const uAtivo = textoAtivo.toUpperCase();
         const tUpper = item.texto.replace(/\u00A0/g, " ").toUpperCase().trim();
+        const itemLayer = (item.layer || "").trim().toUpperCase();
         let entAuto = "0";
 
         const isRedOrGray = (displayColor.toUpperCase() === "#FF0000") || (isGray(displayColor));
@@ -146,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (entAuto === "0") {
             const isBlack = !isRedOrGray;
-            const isRetens = item.layer === "RETENS" || item.layer === "RETENS_LV" || item.layer === "LV";
+            const isRetens = itemLayer === "RETENS" || itemLayer === "RETENS_LV" || itemLayer === "LV";
 
             // --- REINSTALAÇÃO DE TRAFO (preto + RETENS/LV) ---
             if (isBlack && isRetens) {
@@ -155,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const qty = trafoMatch[1];
                     entAuto = "TRAFO";
                     textoAtivo = `1-RTR${qty}`;
-                    opAuto = (item.layer === "RETENS_LV" || item.layer === "LV") ? "*I" : "I";
+                    opAuto = (itemLayer === "RETENS_LV" || itemLayer === "LV") ? "*I" : "I";
                 }
             }
 
@@ -166,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const qty = chaveMatch[1];
                     entAuto = "CHAVE";
                     textoAtivo = `${qty}-RCFU`;
-                    opAuto = (item.layer === "RETENS_LV" || item.layer === "LV") ? "*I" : "I";
+                    opAuto = (itemLayer === "RETENS_LV" || itemLayer === "LV") ? "*I" : "I";
                 }
             }
 
@@ -189,9 +190,9 @@ document.addEventListener('DOMContentLoaded', () => {
             })()) {
                 if (isRedOrGray) {
                     entAuto = "CABO";
-                } else if (!isRedOrGray && (item.layer === "RETENS" || item.layer === "RETENS_LV")) {
+                } else if (!isRedOrGray && (itemLayer === "RETENS" || itemLayer === "RETENS_LV")) {
                     entAuto = "CABO";
-                    opAuto = item.layer === "RETENS_LV" ? "*M" : "M";
+                    opAuto = itemLayer === "RETENS_LV" ? "*M" : "M";
                 }
             }
             else if (tUpper.includes("FIOS")) entAuto = "CERCA";
@@ -212,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (hasEstruturaPattern && allWordsValid && (opAuto === "I" || opAuto === "R")) entAuto = "ESTRUTURA";
         }
         
-        if (item.layer === "LV" && opAuto && !opAuto.startsWith("*")) {
+        if (itemLayer === "LV" && opAuto && !opAuto.startsWith("*")) {
             opAuto = "*" + opAuto;
         }
 
