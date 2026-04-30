@@ -146,27 +146,27 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (entAuto === "0") {
             const isBlack = !isRedOrGray;
-            const isRetens = item.layer === "RETENS" || item.layer === "RETENS_LV";
+            const isRetens = item.layer === "RETENS" || item.layer === "RETENS_LV" || item.layer === "LV";
 
-            // --- REINSTALAÇÃO DE TRAFO (preto + RETENS) ---
+            // --- REINSTALAÇÃO DE TRAFO (preto + RETENS/LV) ---
             if (isBlack && isRetens) {
                 const trafoMatch = tUpper.match(/TR\s*-\s*([123])/);
                 if (trafoMatch) {
                     const qty = trafoMatch[1];
                     entAuto = "TRAFO";
                     textoAtivo = `1-RTR${qty}`;
-                    opAuto = item.layer === "RETENS_LV" ? "*I" : "I";
+                    opAuto = (item.layer === "RETENS_LV" || item.layer === "LV") ? "*I" : "I";
                 }
             }
 
-            // --- REINSTALAÇÃO DE CHAVE (preto + RETENS) ---
+            // --- REINSTALAÇÃO DE CHAVE (preto + RETENS/LV) ---
             if (isBlack && isRetens && entAuto === "0") {
                 const chaveMatch = tUpper.match(/^([123])\s*-\s*100A/);
                 if (chaveMatch) {
                     const qty = chaveMatch[1];
                     entAuto = "CHAVE";
                     textoAtivo = `${qty}-RCFU`;
-                    opAuto = item.layer === "RETENS_LV" ? "*I" : "I";
+                    opAuto = (item.layer === "RETENS_LV" || item.layer === "LV") ? "*I" : "I";
                 }
             }
 
