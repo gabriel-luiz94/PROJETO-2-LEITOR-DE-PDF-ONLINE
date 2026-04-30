@@ -92,7 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (isGray(displayColor)) opAuto = "R";
         
         const uAtivo = textoAtivo.toUpperCase();
-        const tUpper = item.texto.replace(/\u00A0/g, " ").toUpperCase().trim();
+        // Normaliza hífens e espaços para comparação robusta
+        const tUpper = item.texto.replace(/[\u00AD\u2010-\u2015\u2212]/g, "-").replace(/\u00A0/g, " ").toUpperCase().trim();
         const itemLayer = (item.layer || "").trim().toUpperCase();
         let entAuto = "0";
 
@@ -162,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // --- REINSTALAÇÃO DE CHAVE (preto + RETENS/LV) ---
             if (isBlack && isRetens && entAuto === "0") {
-                const chaveMatch = tUpper.match(/^([123])\s*-\s*100A/);
+                const chaveMatch = tUpper.match(/^([123])\s*-\s*100\s*A/);
                 if (chaveMatch) {
                     const qty = chaveMatch[1];
                     entAuto = "CHAVE";
