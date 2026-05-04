@@ -148,27 +148,27 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (entAuto === "0") {
             const isBlack = !isRedOrGray;
-            const isRetens = itemLayer === "RETENS" || itemLayer === "RETENS_LV" || itemLayer === "LV";
+            const isRetens = itemLayer === "01_RETENS" || itemLayer === "01_RETENS_LV" || itemLayer === "01_LV";
 
-            // --- REINSTALAÇÃO DE TRAFO (preto + RETENS/LV) ---
+            // --- REINSTALAÇÃO DE TRAFO (preto + 01_RETENS/01_LV) ---
             if (isBlack && isRetens) {
                 const trafoMatch = tUpper.match(/TR\s*-\s*([123])/);
                 if (trafoMatch) {
                     const qty = trafoMatch[1];
                     entAuto = "TRAFO";
                     textoAtivo = `1-RTR${qty}`;
-                    opAuto = (itemLayer === "RETENS_LV" || itemLayer === "LV") ? "*I" : "I";
+                    opAuto = (itemLayer === "01_RETENS_LV" || itemLayer === "01_LV") ? "*I" : "I";
                 }
             }
 
-            // --- REINSTALAÇÃO DE CHAVE (preto + RETENS/LV) ---
+            // --- REINSTALAÇÃO DE CHAVE (preto + 01_RETENS/01_LV) ---
             if (isBlack && isRetens && entAuto === "0") {
                 const chaveMatch = tUpper.match(/^([123])\s*-\s*100\s*A/);
                 if (chaveMatch) {
                     const qty = chaveMatch[1];
                     entAuto = "CHAVE";
                     textoAtivo = `${qty}-RCFU`;
-                    opAuto = (itemLayer === "RETENS_LV" || itemLayer === "LV") ? "*I" : "I";
+                    opAuto = (itemLayer === "01_RETENS_LV" || itemLayer === "01_LV") ? "*I" : "I";
                 }
             }
 
@@ -191,9 +191,9 @@ document.addEventListener('DOMContentLoaded', () => {
             })()) {
                 if (isRedOrGray) {
                     entAuto = "CABO";
-                } else if (!isRedOrGray && (itemLayer === "RETENS" || itemLayer === "RETENS_LV")) {
+                } else if (!isRedOrGray && (itemLayer === "01_RETENS" || itemLayer === "01_RETENS_LV")) {
                     entAuto = "CABO";
-                    opAuto = itemLayer === "RETENS_LV" ? "*M" : "M";
+                    opAuto = itemLayer === "01_RETENS_LV" ? "*M" : "M";
                 }
             }
             else if (tUpper.includes("FIOS")) entAuto = "CERCA";
@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (hasEstruturaPattern && allWordsValid && (opAuto === "I" || opAuto === "R")) entAuto = "ESTRUTURA";
         }
         
-        if (itemLayer === "LV" && opAuto && !opAuto.startsWith("*")) {
+        if (itemLayer === "01_LV" && opAuto && !opAuto.startsWith("*")) {
             opAuto = "*" + opAuto;
         }
 
