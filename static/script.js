@@ -482,6 +482,12 @@ document.addEventListener('DOMContentLoaded', () => {
             opAuto = "0";
         }
 
+        // === LAYER 01_PARTICULAR: ignora completamente (entidade e operação = 0) ===
+        if (itemLayer === "01_PARTICULAR") {
+            entAuto = "0";
+            opAuto = "0";
+        }
+
         userFields[index] = { entidade: entAuto, operacao: opAuto, ativo: textoAtivo };
         const entInput = tr.querySelector('[data-field="entidade"]');
         const opInput = tr.querySelector('[data-field="operacao"]');
