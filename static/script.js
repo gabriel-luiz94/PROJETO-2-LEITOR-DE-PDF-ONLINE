@@ -355,10 +355,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } else {
-            // Se for BLOCO, resetamos as automações para manual/vazio
-            textoAtivo = "";
-            opAuto = "M";
-            entAuto = "0";
+            // === BLOCO: detecta aterramento (TERRA3 e variantes) ===
+            if (/TERRA3/i.test(tUpper)) {
+                entAuto = "ATERRAMENTO";
+                textoAtivo = "1-TERRA3";
+                opAuto = displayColor.toLowerCase() === "#ff0000" ? "I" : (isGray(displayColor) ? "R" : "I");
+            } else {
+                // Se for BLOCO genérico, resetamos as automações para manual/vazio
+                textoAtivo = "";
+                opAuto = "M";
+                entAuto = "0";
+            }
         }
         
         const apoioMarkers = ["-ROCO", "-RECAL", "-BASE", "-CAVA", "PODA"];
@@ -455,13 +462,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // === LAYER 01_ORCAMENTO / 01_ORCAMENTO_LV ===
-        // Qualquer texto nessas layers recebe I ou R (ou *I / *R) baseado na cor.
+        // Qualquer texto nessas layers recebe I ou R (ou *I / *R) baseado na cor, e entidade AVULSO.
         if (itemLayer === "01_ORCAMENTO" || itemLayer === "01_ORCAMENTO_LV") {
             const isOrcLV = itemLayer === "01_ORCAMENTO_LV";
             const prefix = isOrcLV ? "*" : "";
             if (displayColor.toLowerCase() === "#ff0000") opAuto = prefix + "I";
             else if (isGray(displayColor)) opAuto = prefix + "R";
             else opAuto = prefix + "I"; // demais cores: instalação por padrão
+            entAuto = "AVULSO";
         }
 
         if (itemLayer === "01_LV" && opAuto && !opAuto.startsWith("*")) {
