@@ -237,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (match) text1 = match[1] + "-ROCO";
             else text1 = tArrume.replace(/ METROS/gi, "-ROCO");
         }
-        else if (/CAL[CÇ]ADA|RECAL|REC\.\s*CAL/i.test(tUpperMatched)) {
+        else if (/REC[.\s]*CAL[CÇ]ADA|RECAL|REC\.\s*CAL/i.test(tUpperMatched)) {
             const matchQty = tUpperMatched.match(/(\d+)\s*X/i) || tUpperMatched.match(/\(\s*(\d+)/) || tUpperMatched.match(/X\s*(\d+)/i);
             const qty = matchQty ? matchQty[1] : "1";
             text1 = qty + "-RECAL";
@@ -401,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (/^CU\s*\d/.test(tUpper) || /\bCU\s*\d/.test(tUpper.substring(0, 5))) return true;
                 // CA / CAL / CAA (Alumínio)
                 if (/^CA\s+\d/.test(tUpper) || /^CA\d/.test(tUpper)) return true;
-                if (/\b(?:CAL|CAA|CAZ)(?:\s|\d)/.test(tUpper)) return true;
+                if (/\b(?:CAL|CAA|CAZ)\s*\d/.test(tUpper)) return true;
                 
                 // Bitolas P (protoduto) - Somente se seguido de bitola válida
                 if (/\bP\s*(16|25|35|50|70|95|120|150|185|240)\b/.test(tUpper)) return true;
