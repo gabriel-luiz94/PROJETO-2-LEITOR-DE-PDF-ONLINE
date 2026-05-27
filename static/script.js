@@ -434,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     opAuto = itemLayer === "01_RETENS_LV" ? "*M" : "M";
                 }
             }
-            else if (tUpper.includes("FIOS")) entAuto = "CERCA";
+            else if (tUpper.includes("FIOS") && !isBlue(displayColor)) entAuto = "CERCA";
             else if ((uAtivo.includes("-CF") || uAtivo.includes("-EF")) && opAuto !== "M") entAuto = "CHAVE";
             else if (uAtivo.includes("-TR") && opAuto !== "M") {
                 entAuto = "TRAFO";
