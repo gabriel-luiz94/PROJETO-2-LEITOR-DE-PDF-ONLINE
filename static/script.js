@@ -217,6 +217,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.abs(r-g)<5 && Math.abs(g-b)<5 && r>20 && r<230;
     }
 
+    function isBlue(hex) {
+        if (!hex || hex.length < 7) return false;
+        const r = parseInt(hex.substring(1, 3), 16);
+        const g = parseInt(hex.substring(3, 5), 16);
+        const b = parseInt(hex.substring(5, 7), 16);
+        // Azul dominante: canal b claramente maior que r e g
+        return b > 80 && b > r * 1.5 && b > g * 1.5;
+    }
+
     function processAtivoFormula(col2) {
         if (!col2) return "";
         // Transforma todos os tipos de hífens PDF em hífen comum e limpa espaços
@@ -445,8 +454,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (hasEstruturaPattern && allWordsValid && (opAuto === "I" || opAuto === "R")) entAuto = "ESTRUTURA";
         }
         
+        // === LAYER 01_ORCAMENTO / 01_ORCAMENTO_LV ===
+        // Qualquer texto nessas layers recebe I ou R (ou *I / *R) baseado na cor.
+        if (itemLayer === "01_ORCAMENTO" || itemLayer === "01_ORCAMENTO_LV") {
+            const isOrcLV = itemLayer === "01_ORCAMENTO_LV";
+            const prefix = isOrcLV ? "*" : "";
+            if (displayColor.toLowerCase() === "#ff0000") opAuto = prefix + "I";
+            else if (isGray(displayColor)) opAuto = prefix + "R";
+            else opAuto = prefix + "I"; // demais cores: instalação por padrão
+        }
+
         if (itemLayer === "01_LV" && opAuto && !opAuto.startsWith("*")) {
             opAuto = "*" + opAuto;
+        }
+
+        // === COR AZUL: força operação "0" (ignorar), exceto nas layers RETENS/LV ===
+        const _blueExemptLayers = ["01_LV", "01_RETENS", "01_RETENS_LV"];
+        if (isBlue(displayColor) && !_blueExemptLayers.includes(itemLayer)) {
+            opAuto = "0";
         }
 
         userFields[index] = { entidade: entAuto, operacao: opAuto, ativo: textoAtivo };
