@@ -1,5 +1,5 @@
-from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect, Request, Form, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import pymupdf
@@ -13,6 +13,13 @@ import re
 import json
 import threading
 import webbrowser
+import sqlite3
+import urllib.request
+import csv
+import io
+from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
+
 
 app = FastAPI()
 
@@ -57,6 +64,396 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
+# =====================================================
+# BANCO DE DADOS (MEMÓRIA DE OBRAS E REGRAS)
+# =====================================================
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "banco_resumo.db")
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    # Tabela Obras
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS obras (
+            id TEXT PRIMARY KEY,
+            nome TEXT NOT NULL,
+            data TEXT NOT NULL,
+            dados_json TEXT NOT NULL
+        )
+    ''')
+    # Tabela Regras de Aprendizado
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS regras (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            conteudo TEXT NOT NULL,
+            embedding TEXT
+        )
+    ''')
+    try:
+        cursor.execute("ALTER TABLE regras ADD COLUMN embedding TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS configuracoes (
+            chave TEXT PRIMARY KEY,
+            valor TEXT NOT NULL
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tabela_orcamento (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ativo TEXT,
+            desc_ativo TEXT,
+            componente TEXT,
+            projeto TEXT,
+            mdo TEXT,
+            codigo TEXT,
+            desc_codigo TEXT,
+            fator_i REAL,
+            fator_r REAL
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS historico_rec (
+            numero_obra TEXT PRIMARY KEY,
+            dados_json TEXT NOT NULL,
+            data_criacao TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+class ObraModel(BaseModel):
+    id: str
+    nome: str
+    data: str
+    dados_json: str
+
+class RegraModel(BaseModel):
+    conteudo: str
+
+class RecModel(BaseModel):
+    numero_obra: str
+    dados_json: str
+
+@app.get("/api/obras")
+def get_obras():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, nome, data, dados_json FROM obras ORDER BY data DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    return [{"id": r[0], "nome": r[1], "data": r[2], "dados_json": r[3]} for r in rows]
+
+@app.post("/api/obras")
+def save_obra(obra: ObraModel):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO obras (id, nome, data, dados_json) VALUES (?, ?, ?, ?)",
+                   (obra.id, obra.nome, obra.data, obra.dados_json))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.delete("/api/obras/{obra_id}")
+def delete_obra(obra_id: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM obras WHERE id = ?", (obra_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.get("/api/regras")
+def get_regras():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, conteudo FROM regras ORDER BY id ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return [{"id": r[0], "conteudo": r[1]} for r in rows]
+
+@app.post("/api/regras")
+def save_regra(regra: RegraModel):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("INSERT INTO regras (conteudo, embedding) VALUES (?, NULL)", (regra.conteudo,))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+# =====================================================
+# API RECS
+# =====================================================
+from datetime import datetime
+
+@app.get("/api/recs")
+def get_recs():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT numero_obra, data_criacao FROM historico_rec ORDER BY data_criacao DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    return [{"numero_obra": r[0], "data_criacao": r[1]} for r in rows]
+
+@app.get("/api/recs/{numero_obra}")
+def get_rec(numero_obra: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT dados_json FROM historico_rec WHERE numero_obra = ?", (numero_obra,))
+    row = cursor.fetchone()
+    conn.close()
+    from fastapi import HTTPException
+    if row:
+        return {"dados_json": row[0]}
+    raise HTTPException(status_code=404, detail="REC não encontrado")
+
+@app.post("/api/recs")
+def save_rec(rec: RecModel):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("INSERT OR REPLACE INTO historico_rec (numero_obra, dados_json, data_criacao) VALUES (?, ?, ?)",
+                   (rec.numero_obra, rec.dados_json, agora))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.delete("/api/recs/{numero_obra}")
+def delete_rec(numero_obra: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM historico_rec WHERE numero_obra = ?", (numero_obra,))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+# =====================================================
+# API GEMINI (PROXY)
+# =====================================================
+class ChatRequest(BaseModel):
+    prompt: str
+    table_context: str = ""
+    history: List[Dict[str, Any]]
+    provider: str = "gemini"          # "gemini" | "openai"
+    openai_base_url: str = ""         # ex: http://localhost:11434/v1 (Ollama) ou https://openrouter.ai/api/v1
+
+
+@app.get("/api/gemini/models")
+def get_gemini_models(request: Request):
+    api_key = request.headers.get("X-Gemini-Key")
+    provider = request.headers.get("X-Provider", "gemini")
+    openai_base_url = request.headers.get("X-OpenAI-Base-URL", "")
+
+    conn = sqlite3.connect("banco_resumo.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT valor FROM configuracoes WHERE chave = 'gemini_api_key'")
+    row = cursor.fetchone()
+    saved_key = row[0] if row else None
+    conn.close()
+
+    if not api_key or api_key == "SAVED_IN_BACKEND":
+        if saved_key:
+            api_key = saved_key
+        else:
+            raise HTTPException(status_code=401, detail="API Key não encontrada.")
+
+    # Provedores OpenAI-compatíveis (Ollama, OpenRouter, LM Studio, OpenAI)
+    if provider == "openai":
+        try:
+            from openai import OpenAI
+            base = openai_base_url or "https://api.openai.com/v1"
+            client = OpenAI(api_key=api_key if api_key else "ollama", base_url=base)
+            models_raw = [m.id for m in client.models.list().data]
+            modelos_formatados = [{"id": m, "label": m} for m in sorted(models_raw)]
+            return {"models": modelos_formatados, "provider": "openai"}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    # Gemini (padrão) — usando SDK novo google.genai
+    try:
+        from google import genai as _genai
+        _client = _genai.Client(api_key=api_key)
+        preferencias_gemini = ["gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+        # Lista modelos disponíveis para a chave
+        models_page = _client.models.list()
+        modelos_raw = []
+        for m in models_page:
+            name = m.name.split("/")[-1] if "/" in m.name else m.name
+            if name.startswith("gemini"):
+                modelos_raw.append(name)
+        modelos_formatados = []
+        for m in modelos_raw:
+            label = m
+            if m == "gemini-3.1-flash-lite":
+                label = f"{m} ★ (Padrão)"
+            elif m in preferencias_gemini:
+                label = f"{m} (Reserva)"
+            modelos_formatados.append({"id": m, "label": label})
+        # Garante que o modelo padrão aparece sempre na lista
+        ids = [m["id"] for m in modelos_formatados]
+        if "gemini-3.1-flash-lite" not in ids:
+            modelos_formatados.insert(0, {"id": "gemini-3.1-flash-lite", "label": "gemini-3.1-flash-lite ★ (Padrão)"})
+        return {"models": modelos_formatados, "provider": "gemini"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/gemini/chat")
+async def gemini_chat(req: ChatRequest, request: Request):
+    import re, json, math, asyncio
+    from fastapi.responses import StreamingResponse, PlainTextResponse
+
+    # ── 1. Resolver API Key e Modelo ──
+    api_key = request.headers.get("X-Gemini-Key")
+    custom_model = request.headers.get("X-Gemini-Model")
+    provider = req.provider or "gemini"
+    openai_base_url = req.openai_base_url or ""
+
+    conn = sqlite3.connect("banco_resumo.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT valor FROM configuracoes WHERE chave = 'gemini_api_key'")
+    row = cursor.fetchone()
+    saved_key = row[0] if row else None
+    cursor.execute("SELECT valor FROM configuracoes WHERE chave = 'gemini_model'")
+    row_model = cursor.fetchone()
+    saved_model = row_model[0] if row_model else None
+    cursor.execute("SELECT valor FROM configuracoes WHERE chave = 'ai_provider'")
+    row_prov = cursor.fetchone()
+    saved_provider = row_prov[0] if row_prov else "gemini"
+    cursor.execute("SELECT valor FROM configuracoes WHERE chave = 'openai_base_url'")
+    row_base = cursor.fetchone()
+    saved_base_url = row_base[0] if row_base else ""
+
+    if api_key and api_key != "SAVED_IN_BACKEND":
+        cursor.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES ('gemini_api_key', ?)", (api_key,))
+        conn.commit()
+    elif saved_key:
+        api_key = saved_key
+    else:
+        conn.close()
+        raise HTTPException(status_code=401, detail="API Key não fornecida ou não salva internamente.")
+
+    if custom_model == "SAVED_IN_BACKEND":
+        custom_model = saved_model
+    elif custom_model is not None:
+        cursor.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES ('gemini_model', ?)", (custom_model,))
+        conn.commit()
+
+    if provider == "gemini" and saved_provider != "gemini":
+        provider = saved_provider
+    if not openai_base_url and saved_base_url:
+        openai_base_url = saved_base_url
+    conn.close()
+
+    # ── 2. Fast-Path (comandos de adição simples — sem chamar IA) ──
+    fast_match = re.match(
+        r'^(adicionar|add|adc|coloca|inserir|remover|rem|tira|excluir)\s+([\d.,]+)\s+(.+)$',
+        req.prompt.strip(), re.IGNORECASE
+    )
+    if fast_match:
+        acao = fast_match.group(1).lower()
+        qtd  = fast_match.group(2).replace(",", ".")
+        ativo = fast_match.group(3).upper().strip()
+        op = "R" if acao.startswith("rem") or acao in ["tira", "excluir"] else "I"
+        fake_json = {"outros": [{"ativo": f"{qtd}-{ativo}", "operacao": op}]}
+        return PlainTextResponse(f"*(Fast-Path)*\n```json\n{json.dumps(fake_json, indent=2)}\n```")
+
+    # ── 3. Detectar se precisa de contexto da tabela ──
+    prompt_lower = req.prompt.lower()
+    palavras_contexto = [
+        'analis', 'alterar', 'editar', 'excluir', 'remover', 'substituir',
+        'tudo', 'todas', 'tabela', 'leia', 'leitura', 'completo', 'lista',
+        'quantos', 'total', 'verifique', 'cheque', 'corrig'
+    ]
+    precisa_contexto = any(kw in prompt_lower for kw in palavras_contexto)
+    if precisa_contexto and req.table_context and req.table_context.strip():
+        prompt_final = req.prompt.strip() + "\n\n" + req.table_context.strip()
+    else:
+        prompt_final = req.prompt.strip()
+
+    # ── 4. Carregar System Prompt ──
+    prompt_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompt_rede_eletrica.txt")
+    system_instruction = "Você é um especialista em redes elétricas."
+    if os.path.exists(prompt_path):
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            system_instruction = f.read()
+
+    # ── 5. Injeção de Regras (Simplificado para todas as IAs) ──
+    try:
+        conn2 = sqlite3.connect(DB_PATH)
+        cursor2 = conn2.cursor()
+        cursor2.execute("SELECT conteudo FROM regras")
+        regras = cursor2.fetchall()
+        conn2.close()
+
+        if regras:
+            regras_txt = "\n".join(f"- {r[0]}" for r in regras)
+            system_instruction += f"\n\n🔹 REGRAS APRENDIDAS:\n{regras_txt}"
+    except Exception as e:
+        print(f"Erro ao carregar regras: {e}")
+
+    # ── 6. Stream ──
+
+    # ── Gemini ──
+    if provider == "gemini":
+        from google import genai
+        from google.genai import types
+        client = genai.Client(api_key=api_key)
+
+        preferencias = [
+            "gemini-3.1-flash-lite",
+            "gemini-2.5-flash",
+            "gemini-3.6-flash",
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+        ]
+        modelos = [custom_model] if custom_model else preferencias
+        if len(req.prompt.split()) < 15 and not precisa_contexto:
+            modelos = ["gemini-3.1-flash-lite"] + [m for m in modelos if m != "gemini-3.1-flash-lite"]
+
+        sdk_history = []
+        for msg in req.history:
+            parts = msg.get("parts", [])
+            if parts:
+                texto = parts[0].get("text", "") if isinstance(parts[0], dict) else str(parts[0])
+                sdk_history.append({"role": msg.get("role", "user"), "parts": [{"text": texto}]})
+
+        async def _stream_gemini():
+            last_err = None
+            for modelo in modelos:
+                try:
+                    chat = client.aio.chats.create(
+                        model=modelo,
+                        config=types.GenerateContentConfig(system_instruction=system_instruction),
+                        history=sdk_history
+                    )
+                    response = await chat.send_message_stream(prompt_final)
+                    async for chunk in response:
+                        if chunk.text:
+                            yield chunk.text
+                    return  # sucesso
+                except Exception as e:
+                    err = str(e).lower()
+                    if any(k in err for k in ["429", "quota", "exhausted", "not found", "404", "unavailable"]):
+                        last_err = e
+                        print(f"Gemini {modelo} indisponiível ({type(e).__name__}). Fallback...")
+                        continue
+                    # Erro inesperado: emite como texto para o frontend mostrar
+                    yield f"\n[ERRO] {str(e)}"
+                    return
+            # Nenhum modelo funcionou
+            msg = str(last_err) if last_err else "Nenhum modelo Gemini disponível."
+            yield f"\n[ERRO] {msg}"
+
+        return StreamingResponse(_stream_gemini(), media_type="text/plain")
+
+
+
 
 @app.get("/trigger-file")
 async def trigger_file(path: str):
@@ -446,15 +843,461 @@ if not os.path.exists(static_dir): os.makedirs(static_dir)
 
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+NO_CACHE_HEADERS = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
 @app.get("/")
 async def serve_index():
     index_path = os.path.join(static_dir, "index.html")
     if not os.path.exists(index_path): return HTMLResponse("index.html não encontrado na pasta static")
     with open(index_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(f.read())
+        return HTMLResponse(f.read(), headers=NO_CACHE_HEADERS)
+
+@app.get("/resumo")
+async def serve_resumo():
+    resumo_path = os.path.join(static_dir, "resumo.html")
+    if not os.path.exists(resumo_path): return HTMLResponse("resumo.html não encontrado na pasta static")
+    with open(resumo_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(f.read(), headers=NO_CACHE_HEADERS)
+
+@app.get("/static/resumo.js")
+async def serve_resumo_js():
+    js_path = os.path.join(static_dir, "resumo.js")
+    if not os.path.exists(js_path): return HTMLResponse("resumo.js não encontrado")
+    with open(js_path, "r", encoding="utf-8") as f:
+        from fastapi.responses import Response
+        return Response(content=f.read(), media_type="application/javascript", headers=NO_CACHE_HEADERS)
 
 def open_browser(url):
     webbrowser.open(url)
+
+class OrcamentoRequest(BaseModel):
+    cabos: List[Dict[str, Any]]
+    outros: List[Dict[str, Any]]
+
+@app.post("/api/orcamento/upload")
+async def upload_orcamento(file: UploadFile = File(...)):
+    try:
+        contents = await file.read()
+        # Decode and parse CSV
+        text = contents.decode("utf-8-sig")
+        reader = csv.DictReader(io.StringIO(text), delimiter=";")
+        
+        # fallback to comma if no columns found
+        if not reader.fieldnames or len(reader.fieldnames) < 2:
+            reader = csv.DictReader(io.StringIO(text), delimiter=",")
+            
+        required_cols = ["ATIVO", "DESC ATIVO", "COMPONENTE", "PROJETO", "MDO", "CODIGO", "DESC CODIGO", "FATOR I", "FATOR R"]
+        # Convert to upper just in case
+        actual_cols = [c.strip().upper() for c in (reader.fieldnames or []) if c]
+        
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Limpar tabela atual
+        cursor.execute("DELETE FROM tabela_orcamento")
+        
+        for row in reader:
+            # Map by ignoring case
+            row_upper = {k.strip().upper(): v for k, v in row.items() if k}
+            ativo = row_upper.get("ATIVO", "")
+            codigo = row_upper.get("CODIGO", "")
+            if not ativo and not codigo: continue
+            
+            try:
+                fator_i = float(row_upper.get("FATOR I", "0").replace(",", "."))
+            except ValueError:
+                fator_i = 0.0
+                
+            try:
+                fator_r = float(row_upper.get("FATOR R", "0").replace(",", "."))
+            except ValueError:
+                fator_r = 0.0
+                
+            cursor.execute('''
+                INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                ativo,
+                row_upper.get("DESC ATIVO", ""),
+                row_upper.get("COMPONENTE", ""),
+                row_upper.get("PROJETO", ""),
+                row_upper.get("MDO", ""),
+                row_upper.get("CODIGO", ""),
+                row_upper.get("DESC CODIGO", ""),
+                fator_i,
+                fator_r
+            ))
+            
+        conn.commit()
+        conn.close()
+        return {"status": "ok", "message": "Tabela carregada com sucesso."}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+@app.get("/api/orcamento/dados")
+def get_orcamento_dados():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tabela_orcamento")
+    rows = cursor.fetchall()
+    conn.close()
+    return {"dados": [dict(r) for r in rows]}
+
+from pydantic import BaseModel
+from typing import List, Dict, Any
+
+class SalvarOrcamentoRequest(BaseModel):
+    dados: List[Dict[str, Any]]
+
+@app.post("/api/orcamento/salvar")
+def salvar_orcamento(req: SalvarOrcamentoRequest):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM tabela_orcamento")
+        for row in req.dados:
+            ativo = row.get("ativo", "").strip()
+            codigo = row.get("codigo", "").strip()
+            if not ativo and not codigo: continue
+            
+            try:
+                fator_i = float(str(row.get("fator_i", "0")).replace(",", "."))
+            except ValueError:
+                fator_i = 0.0
+                
+            try:
+                fator_r = float(str(row.get("fator_r", "0")).replace(",", "."))
+            except ValueError:
+                fator_r = 0.0
+                
+            cursor.execute('''
+                INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                ativo,
+                row.get("desc_ativo", "").strip(),
+                row.get("componente", "").strip(),
+                row.get("projeto", "").strip(),
+                row.get("mdo", "").strip(),
+                codigo,
+                row.get("desc_codigo", "").strip(),
+                fator_i,
+                fator_r
+            ))
+            
+        conn.commit()
+        conn.close()
+        return {"status": "ok", "message": "Tabela atualizada com sucesso."}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+class RecSaveRequest(BaseModel):
+    numero_obra: str
+    dados: List[Dict[str, Any]]
+
+@app.post("/api/rec/salvar")
+def salvar_rec(req: RecSaveRequest):
+    try:
+        from datetime import datetime
+        import json
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        data_agora = datetime.now().isoformat()
+        dados_str = json.dumps(req.dados)
+        
+        cursor.execute("INSERT OR REPLACE INTO historico_rec (numero_obra, dados_json, data_criacao) VALUES (?, ?, ?)",
+                       (req.numero_obra.strip(), dados_str, data_agora))
+        conn.commit()
+        conn.close()
+        return {"status": "ok"}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+@app.get("/api/rec/{numero_obra}")
+def recuperar_rec(numero_obra: str):
+    try:
+        import json
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT dados_json FROM historico_rec WHERE numero_obra = ?", (numero_obra.strip(),))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return {"status": "ok", "dados": json.loads(row["dados_json"])}
+        else:
+            return JSONResponse(status_code=404, content={"error": "Obra não encontrada"})
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+class DetalhesRequest(BaseModel):
+    codigos: List[str]
+
+@app.post("/api/orcamento/detalhes")
+def get_detalhes_codigos(req: DetalhesRequest):
+    if not req.codigos:
+        return {}
+    
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    placeholders = ",".join(["?"] * len(req.codigos))
+    cursor.execute(f"SELECT codigo, desc_codigo, mdo FROM tabela_orcamento WHERE codigo IN ({placeholders})", tuple(req.codigos))
+    rows = cursor.fetchall()
+    conn.close()
+    
+    resultado = {}
+    for r in rows:
+        resultado[r["codigo"]] = {
+            "desc_codigo": r["desc_codigo"],
+            "mdo": r["mdo"]
+        }
+    return resultado
+
+@app.post("/api/orcamento/calcular")
+def calcular_orcamento(req: OrcamentoRequest):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tabela_orcamento")
+    orcamento_rows = cursor.fetchall()
+    conn.close()
+
+    # ── 1. Índice ATIVO → linhas do orçamento (O(1) lookup) ─────────────────
+    orcamento_dict = {}
+    for r in orcamento_rows:
+        key = r["ativo"].strip().upper()
+        orcamento_dict.setdefault(key, []).append(dict(r))
+
+    # ── 2. Extrair tabela interna [ativo, qtd, operacao] ────────────────────
+    ativos_qtd = []
+
+    # 2a. CABOS: Regra rígida de formato "ATIVO FASE COMPRIMENTO"
+    for item in req.cabos:
+        ativo_raw = item.get("ativo", "").strip().upper()
+        operacao  = item.get("operacao", "").strip().upper()
+        if not ativo_raw:
+            continue
+            
+        txt = ativo_raw
+        txt = txt.replace("CAA ", "CAA")
+        txt = txt.replace("CA ", "CA")
+        txt = txt.replace("CU ", "CU")
+        txt = txt.replace("CAZ ", "CAZ")
+        txt = txt.replace("P ", "P")
+        
+        # O 'm' final pode ser removido
+        txt = re.sub(r'\s+m\s*$', '', txt, flags=re.IGNORECASE)
+        
+        parts = txt.split()
+        if not parts:
+            continue
+            
+        nome_ativo = parts[0]
+        
+        fases = 1.0
+        comprimento = 1.0
+        
+        if len(parts) >= 3:
+            try:
+                fases = float(parts[1].replace(",", "."))
+            except Exception:
+                pass
+            try:
+                comprimento = float(parts[2].replace(",", "."))
+            except Exception:
+                pass
+        elif len(parts) == 2:
+            # Fallback caso tenham omitido fase ou comprimento
+            try:
+                comprimento = float(parts[1].replace(",", "."))
+            except:
+                pass
+                
+        # Prioriza qtdAtivos calculado pelo frontend; fallback para lógica local
+        qtd_ativos_frontend = item.get("qtdAtivos")
+        if qtd_ativos_frontend is not None:
+            try:
+                multiplicador = float(qtd_ativos_frontend)
+            except (ValueError, TypeError):
+                multiplicador = fases
+        elif nome_ativo.startswith("CAZ") or nome_ativo.startswith("M"):
+            multiplicador = 1.0
+        else:
+            multiplicador = fases
+            
+        # Adiciona a margem de 5% sobre a quantidade processada (comprimento * multiplicador)
+        qtd_final = (comprimento * multiplicador) * 1.05
+        
+        ativos_qtd.append({"ativo": nome_ativo, "qtd": qtd_final, "operacao": operacao})
+
+    # 2b. OUTROS: texto separado por espaços no modelo "[qtd]-[ativo] [qtd]-[ativo] ..."
+    for item in req.outros:
+        ativo_raw = item.get("ativo", "").strip()
+        operacao  = item.get("operacao", "").strip().upper()
+        if not ativo_raw:
+            continue
+        txt = ativo_raw.strip()
+        # Se inicia com DT ou CV sem quantidade, adiciona "1-"
+        if re.match(r'^(DT|CV)', txt, re.IGNORECASE) and not re.match(r'^\d', txt):
+            txt = "1-" + txt
+        # "-" → " " (separa quantidade do ativo)
+        txt = txt.replace("-", " ")
+        # "*" → "-" (representa negativo / linha viva)
+        txt = txt.replace("*", "-")
+        # Posições pares = quantidades, posições ímpares = ativos
+        tokens = txt.split()
+        i = 0
+        while i + 1 < len(tokens):
+            try:
+                qtd = float(tokens[i].replace(",", "."))
+            except ValueError:
+                qtd = 1.0
+            nome_str = tokens[i + 1].upper()
+            ativos_qtd.append({"ativo": nome_str, "qtd": qtd, "operacao": operacao})
+            i += 2
+
+    # ── 3. Cross-reference: Ativo → 1º match → Componente → todos os Códigos ─
+    # Índice auxiliar: COMPONENTE → lista de todas as linhas daquele componente
+    componente_dict = {}
+    for rows_list in orcamento_dict.values():
+        for row in rows_list:
+            comp = row.get("componente", "").strip().upper()
+            if comp:
+                componente_dict.setdefault(comp, []).append(row)
+
+    # Mapa garantido: codigo → row representativa (prioriza as que têm MDO)
+    codigo_lookup = {}
+    for rows_list in orcamento_dict.values():
+        for row in rows_list:
+            codigo = row["codigo"]
+            if codigo not in codigo_lookup:
+                codigo_lookup[codigo] = row
+            elif (row.get("mdo") or "").strip() and not (codigo_lookup[codigo].get("mdo") or "").strip():
+                codigo_lookup[codigo] = row
+
+    componentes_qtd = []
+    nao_encontrados = []
+
+    # Índice auxiliar: DESC_ATIVO (upper) → lista de rows (para busca parcial)
+    desc_ativo_index = {}
+    for rows_list in orcamento_dict.values():
+        for row in rows_list:
+            desc = (row.get("desc_ativo") or "").strip().upper()
+            if desc:
+                desc_ativo_index.setdefault(desc, []).append(row)
+
+    for av in ativos_qtd:
+        nome_ativo = av["ativo"]
+        linhas_ativo = orcamento_dict.get(nome_ativo, [])
+
+        if not linhas_ativo:
+            # ── Passo 2: busca por COMPONENTE exato ─────────────────────────
+            if nome_ativo in componente_dict:
+                linhas_ativo = componente_dict[nome_ativo]
+
+        if not linhas_ativo:
+            # ── Passo 3: busca por DESC_ATIVO exato ─────────────────────────
+            if nome_ativo in desc_ativo_index:
+                linhas_ativo = desc_ativo_index[nome_ativo]
+
+        if not linhas_ativo:
+            # ── Passo 4: busca parcial em DESC_ATIVO (nome_ativo contido na desc) ─
+            matches = [rows for desc, rows in desc_ativo_index.items() if nome_ativo in desc]
+            if matches:
+                linhas_ativo = matches[0]  # Usa o primeiro match parcial
+
+        if not linhas_ativo:
+            # ── Passo 5: busca como CÓDIGO direto ───────────────────────────
+            if nome_ativo in codigo_lookup:
+                row_clone = dict(codigo_lookup[nome_ativo])
+                row_clone["fator_i"] = 1.0
+                row_clone["fator_r"] = 1.0
+                componentes_qtd.append({
+                    "qtd":      av["qtd"],
+                    "operacao": av["operacao"],
+                    "row":      row_clone,
+                })
+            else:
+                nao_encontrados.append(nome_ativo)
+            continue
+
+        # Pega o COMPONENTE do primeiro match do ativo
+        componente = linhas_ativo[0].get("componente", "").strip().upper()
+        if not componente:
+            continue
+
+        # Agora busca TODOS os códigos desse componente
+        # Para cada código, garante que a row escolhida tem mdo preenchido (se existir)
+        linhas_componente = componente_dict.get(componente, [])
+        
+        # Agrupa linhas por codigo, priorizando as que têm mdo não-vazio
+        melhor_row_por_codigo = {}
+        for row in linhas_componente:
+            codigo = row["codigo"]
+            mdo_row = (row.get("mdo") or "").strip()
+            if codigo not in melhor_row_por_codigo:
+                melhor_row_por_codigo[codigo] = row
+            elif mdo_row and not (melhor_row_por_codigo[codigo].get("mdo") or "").strip():
+                # Substitui por essa que tem mdo preenchido
+                melhor_row_por_codigo[codigo] = row
+
+        for codigo, row in melhor_row_por_codigo.items():
+            componentes_qtd.append({
+                "qtd":      av["qtd"],
+                "operacao": av["operacao"],
+                "row":      row,
+            })
+
+    # ── 4. Soma I e Soma R por CÓDIGO (equivalente ao SOMASE do Excel) ───────
+    codigos = {}
+    for c in componentes_qtd:
+        row     = c["row"]
+        codigo  = row["codigo"]
+        # MDO: da linha, ou fallback pelo código — nunca fica vazio (usa "-" se não achar em lugar nenhum)
+        fallback_mdo = codigo_lookup.get(codigo, {}).get("mdo", "")
+        mdo     = (row.get("mdo") or "").strip() or (fallback_mdo or "").strip() or "-"
+        key     = (codigo, mdo)
+        is_inst = c["operacao"] in ("I", "*I")
+        fator_i = float(row.get("fator_i") or 0)
+        fator_r = float(row.get("fator_r") or 0)
+        if key not in codigos:
+            codigos[key] = {
+                "mdo":       mdo,
+                "codigo":    codigo,
+                "desc_codigo": row.get("desc_codigo", ""),
+                "soma_i":    0.0,
+                "soma_r":    0.0,
+            }
+        if is_inst:
+            codigos[key]["soma_i"] += c["qtd"] * fator_i
+        else:
+            codigos[key]["soma_r"] += c["qtd"] * fator_r
+
+    # ── 5. Montar resultado com uma linha por operação presente ──────────────
+    resultado = []
+    for key in codigos.keys():
+        v = codigos[key]
+        if v["soma_i"] > 0:
+            resultado.append({"operacao": "I", "mdo": v["mdo"], "codigo": v["codigo"],
+                               "desc_codigo": v["desc_codigo"], "total": round(v["soma_i"], 4)})
+        if v["soma_r"] > 0:
+            resultado.append({"operacao": "R", "mdo": v["mdo"], "codigo": v["codigo"],
+                               "desc_codigo": v["desc_codigo"], "total": round(v["soma_r"], 4)})
+
+    # Ordenar: Descrição A-Z, depois Operação A-Z, depois MDO A-Z
+    resultado.sort(key=lambda x: (x["desc_codigo"].upper(), x["operacao"], x["mdo"].upper()))
+
+    return {"resultado": resultado, "nao_encontrados": list(set(nao_encontrados))}
+
+
 
 if __name__ == "__main__":
     import uvicorn

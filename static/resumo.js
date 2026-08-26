@@ -1,622 +1,1650 @@
+/**
+ * resumo.js  –  Aba "Resumo do Orçamento"
+ * Tabelas de Cabos e Demais Ativos lado a lado.
+ * Colunas: Entidade (select), Operação (select validado), Ativo (input + autocomplete).
+ * Funcionalidades: Add linha, Excluir linha, Copiar, Undo (Ctrl+Z), Redo (Ctrl+Y).
+ */
 document.addEventListener('DOMContentLoaded', () => {
+
+    /* ═══════════════════════════════════════
+       DADOS GLOBAIS
+    ═══════════════════════════════════════ */
+    const ENTIDADES = ['0', 'CABO', 'CHAVE', 'TRAFO', 'ESTRUTURA', 'APOIO', 'IP', 'POSTE', 'RAMAIS', 'CERCA'];
+    const OPERACOES = ['I', '*I', 'R', '*R', 'M', '*M'];
+
     let extractedDataCache = [];
+    // tableStates: data é array de { entidade, operacao, ativo }
     const tableStates = {
-        cabos: { bodyId: 'body-cabos', data: [], filters: { 0: new Set(), 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set() } },
-        outros: { bodyId: 'body-outros', data: [], filters: { 0: new Set(), 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set() } }
+        cabos: { bodyId: 'body-cabos', data: [] },
+        outros: { bodyId: 'body-outros', data: [] }
     };
 
-    const dataRaw = localStorage.getItem('processar_dados');
+    /* ─── Column filters ─── */
+    // Selections: type → field → Set of selected values
+    const filterSelections = {
+        cabos:  { entidade: new Set(), operacao: new Set(), ativo: new Set() },
+        outros: { entidade: new Set(), operacao: new Set(), ativo: new Set() }
+    };
+    const FILTER_FIELDS = ['entidade', 'operacao', 'ativo'];
+    const FILTER_CONTAINERS = {
+        cabos:  { entidade: 'rfc-cabos-entidade', operacao: 'rfc-cabos-operacao', ativo: 'rfc-cabos-ativo' },
+        outros: { entidade: 'rfc-outros-entidade', operacao: 'rfc-outros-operacao', ativo: 'rfc-outros-ativo' }
+    };
+
+    /* ─── Undo / Redo history ─── */
+    const MAX_HISTORY = 80;
+    let history = [];      // array de snapshots
+    let historyIdx = -1;   // ponteiro atual
+
+    /* ─── Autocomplete state ─── */
+    let acList = null;          // elemento DOM do dropdown ativo
+    let acInput = null;         // input ativo
+    let acItems = [];           // itens filtrados
+    let acSelected = -1;        // índice selecionado
+    const ativoSets = { cabos: new Set(), outros: new Set() };
+
+    /* ─── Context menu state ─── */
+    const ctxMenu = document.getElementById('ctx-menu-resumo');
+    let ctxRow = null, ctxType = null;
+
+    /* ═══════════════════════════════════════
+       INICIALIZAÇÃO
+    ═══════════════════════════════════════ */
+    let dataRaw = localStorage.getItem('processar_dados');
     if (!dataRaw) {
-        alert("Nenhum dado encontrado.");
-        return;
+        dataRaw = '[]';
     }
 
     extractedDataCache = JSON.parse(dataRaw);
-    tableStates.cabos.data = extractedDataCache.filter(d => d.entidade === "CABO");
-    tableStates.outros.data = extractedDataCache.filter(d => d.entidade !== "CABO" && d.entidade !== "0");
 
-    initTable('cabos');
-    initTable('outros');
+    // Pré-processa lógica de negócio para cada item
+    const allProcessed = extractedDataCache.map(item => {
+        const result = computeRowLogic(item);
+        return result;
+    });
 
-    function initTable(type) {
-        renderTable(type);
-        updateCounters();
-        setupFilters(type);
-    }
+    tableStates.cabos.data = allProcessed
+        .filter(r => r.entidade === 'CABO')
+        .map(deepClone);
 
+    tableStates.outros.data = allProcessed
+        .filter(r => r.entidade !== 'CABO' && r.entidade !== '0')
+        .map(deepClone);
+
+    // Garante que ao menos os campos necessários existam
+    ['cabos', 'outros'].forEach(type => {
+        tableStates[type].data.forEach(r => {
+            r.entidade = r.entidade || '0';
+            r.operacao = r.operacao || 'M';
+            r.ativo    = r.ativo    || '';
+        });
+    });
+
+    buildAtivoSets();
+    recalcAllQtdAtivos();  // calcula qtdAtivos antes do primeiro render
+    pushHistory();   // estado inicial
+
+    renderTable('cabos');
+    renderTable('outros');
+    updateCounters();
+    updateHistoryUI();
+    buildDataLists();
+    refreshAllFilters('cabos');
+    refreshAllFilters('outros');
+
+    // Fecha dropdowns de filtro ao clicar fora
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.r-filter-container')) {
+            const hadActive = document.querySelectorAll('.r-filter-dropdown.active').length > 0;
+            document.querySelectorAll('.r-filter-dropdown.active').forEach(d => d.classList.remove('active'));
+            if (hadActive) { applyFilters('cabos'); applyFilters('outros'); }
+        }
+    });
+
+    /* ═══════════════════════════════════════
+       LÓGICA DE NEGÓCIO (portada do resumo.js antigo)
+    ═══════════════════════════════════════ */
     function isGray(hex) {
         if (!hex || hex.length < 7) return false;
         const r = parseInt(hex.substring(1, 3), 16);
         const g = parseInt(hex.substring(3, 5), 16);
         const b = parseInt(hex.substring(5, 7), 16);
-        return Math.abs(r-g)<5 && Math.abs(g-b)<5 && r>20 && r<230;
+        return Math.abs(r-g) < 5 && Math.abs(g-b) < 5 && r > 20 && r < 230;
     }
 
     function processAtivoFormula(col2) {
-        if (!col2) return "";
-        let normalized = col2.replace(/[\u00AD\u2010-\u2015\u2212]/g, "-").replace(/\u00A0/g, " ");
-        const cleanArrume = (t) => t.replace(/\s*-\s*/g, "-").trim().replace(/\s+/g, ' ');
+        if (!col2) return '';
+        let normalized = col2.replace(/[\u00AD\u2010-\u2015\u2212]/g, '-').replace(/\u00A0/g, ' ');
+        const cleanArrume = t => t.replace(/\s*-\s*/g, '-').trim().replace(/\s+/g, ' ');
         const tArrume = cleanArrume(normalized);
         const tUpperMatched = tArrume.toUpperCase();
-        if (tUpperMatched.includes("AFASTADOR")) return "1-AF";
-        let text1 = "";
+        if (tUpperMatched.includes('AFASTADOR')) return '1-AF';
+        let text1 = '';
         const instMatch = tUpperMatched.match(/INST\.?(?:AL(?:AR|A)?)?\s+0*(\d+)\s*(?:-| )?\s*(\d*SI\d*|\d*RA\d*|\d*BI\d*|\d*R\d*|\d*B\d*|\d*S\d*|\d*CE\d*|\d*N\d*|\d*U\d*|\d*T\d*|ISOL)/);
         if (instMatch) {
-            text1 = instMatch[1] + "-" + instMatch[2].replace(/\s/g, "");
-        } else if (tUpperMatched.includes(" METROS")) {
+            text1 = instMatch[1] + '-' + instMatch[2].replace(/\s/g, '');
+        } else if (tUpperMatched.includes(' METROS')) {
             const match = tUpperMatched.match(/(\d+(?:[.,]\d+)?)\s*METROS/);
-            if (match) text1 = match[1] + "-ROCO";
-            else text1 = tArrume.replace(/ METROS/gi, "-ROCO");
+            if (match) text1 = match[1] + '-ROCO';
+            else text1 = tArrume.replace(/ METROS/gi, '-ROCO');
         } else if (/CAL[CÇ]ADA|RECAL|REC\.\s*CAL/i.test(tUpperMatched)) {
             const matchQty = tUpperMatched.match(/(\d+)\s*X/i) || tUpperMatched.match(/\(\s*(\d+)/) || tUpperMatched.match(/X\s*(\d+)/i);
-            const qty = matchQty ? matchQty[1] : "1";
-            text1 = qty + "-RECAL";
+            text1 = (matchQty ? matchQty[1] : '1') + '-RECAL';
         } else if (/\bIP\b/i.test(tUpperMatched)) {
             const matchQty = tUpperMatched.match(/(\d+)\s*X/i) || tUpperMatched.match(/\(\s*(\d+)/) || tUpperMatched.match(/X\s*(\d+)/i);
-            const qty = matchQty ? matchQty[1] : "1";
-            text1 = qty + "-IP";
-        } else if (tUpperMatched.includes("CONC") && tUpperMatched.includes("BASE")) {
+            text1 = (matchQty ? matchQty[1] : '1') + '-IP';
+        } else if (tUpperMatched.includes('CONC') && tUpperMatched.includes('BASE')) {
             const matchQty = tUpperMatched.match(/(\d+)\s*X/i) || tUpperMatched.match(/\(\s*(\d+)/) || tUpperMatched.match(/X\s*(\d+)/i);
-            const qty = matchQty ? matchQty[1] : "1";
-            text1 = qty + "-BASE";
+            text1 = (matchQty ? matchQty[1] : '1') + '-BASE';
         } else if (/\bCOMPRESSOR\b/i.test(tUpperMatched) || /\bCAVA\b/i.test(tUpperMatched)) {
             const matchQty = tUpperMatched.match(/(\d+)\s*X/i) || tUpperMatched.match(/\(\s*(\d+)/) || tUpperMatched.match(/X\s*(\d+)/i);
-            const qty = matchQty ? matchQty[1] : "1";
-            text1 = qty + "-CAVA";
+            text1 = (matchQty ? matchQty[1] : '1') + '-CAVA';
         } else {
-            if (!tUpperMatched.includes("FIOS")) text1 = tArrume;
+            if (!tUpperMatched.includes('FIOS')) text1 = tArrume;
             else {
                 const arrumeRaw = col2.trim().replace(/\s+/g, ' ');
-                text1 = "1-" + arrumeRaw.substring(0, Math.max(0, arrumeRaw.length - 5)) + "F ";
+                text1 = '1-' + arrumeRaw.substring(0, Math.max(0, arrumeRaw.length - 5)) + 'F ';
             }
         }
-        let text2 = text1.replace(/TR\s*-\s*3\s*-\s*/g, "1-TR3").replace(/kVA/gi, "").replace(/TR\s*-\s*1\s*-\s*/g, "1-TR1").replace(/TR\s*-\s*2\s*-\s*/g, "1-TR2");
-        
-        // Regra para padrão combinado: 3 - 100A - 3H
+        let text2 = text1.replace(/TR\s*-\s*3\s*-\s*/g, '1-TR3').replace(/kVA/gi, '').replace(/TR\s*-\s*1\s*-\s*/g, '1-TR1').replace(/TR\s*-\s*2\s*-\s*/g, '1-TR2');
         const comboMatch = text2.match(/([13])\s*-\s*100A\s*-\s*(\d+(?:,\d+)?(?:H|K))/i);
         if (comboMatch) {
-            const q = comboMatch[1];
-            const e = comboMatch[2].replace(",", "").replace(" ", "");
+            const q = comboMatch[1], e = comboMatch[2].replace(',', '').replace(' ', '');
             return `${q}-CFU ${q}-EF${e}`;
         }
-
-        if (text2.includes("-100A-")) text2 = text2.replace("-100A-", `-CFU ${text2.charAt(0)}-EF`);
-        return text2.replace(/3CF-400A/g, "3-CFA").replace(/112,5/g, "112").replace(/0,5H/g, "05H").replace(/PODAS/g, "PODA").replace(/PODA M/g, "PODA").replace(/PODA G/g, "PODA").replace(/PODA P/g, "PODA").replace(/ PODA/g, "-PODA").replace(/3CL-300A/g, "3-CFU 3-CL").replace(/TR15/g, "TR105").trim();
+        if (text2.includes('-100A-')) text2 = text2.replace('-100A-', `-CFU ${text2.charAt(0)}-EF`);
+        return text2.replace(/3CF-400A/g, '3-CFA').replace(/112,5/g, '112').replace(/0,5H/g, '05H').replace(/PODAS/g, 'PODA').replace(/PODA M/g, 'PODA').replace(/PODA G/g, 'PODA').replace(/PODA P/g, 'PODA').replace(/ PODA/g, '-PODA').replace(/3CL-300A/g, '3-CFU 3-CL').replace(/TR15/g, 'TR105').trim();
     }
 
-    function updateRowLogic(item, tr) {
-        const displayColor = item.cor || "#000000";
-        let textoAtivo = processAtivoFormula(item.texto);
-        let opAuto = "M";
-        if (displayColor.toUpperCase() === "#FF0000") opAuto = "I";
-        else if (isGray(displayColor)) opAuto = "R";
-        
-        const uAtivo = textoAtivo.toUpperCase();
-        // Normaliza hífens e espaços para comparação robusta
-        const tUpper = item.texto.replace(/[\u00AD\u2010-\u2015\u2212]/g, "-").replace(/\u00A0/g, " ").toUpperCase().trim();
-        const itemLayer = (item.layer || "").trim().toUpperCase();
-        let entAuto = "0";
+    function computeRowLogic(item) {
+        // Se a entidade e ativo já vieram definidos da aba principal, confiar neles diretamente
+        // (evita re-derivação que descartaria a classificação manual do usuário)
+        if (item.entidade && item.entidade !== '0' && item.ativo && item.ativo.trim() !== '') {
+            return {
+                entidade: item.entidade,
+                operacao: item.operacao || 'M',
+                ativo: item.ativo,
+                _raw: item
+            };
+        }
 
-        const isRedOrGray = (displayColor.toUpperCase() === "#FF0000") || (isGray(displayColor));
-        
-        // --- NOVA REGRA: ELO FUSÍVEL (EF) ---
-        const elosFusivel = ["0,5H", "1H", "2H", "3H", "5H", "6K", "8K", "10K", "12K", "15K", "25K", "30K", "40K"];
+        const displayColor = (item.cor || '#000000').toUpperCase();
+        let textoAtivo = processAtivoFormula(item.texto || '');
+        let opAuto = 'M';
+        if (displayColor === '#FF0000') opAuto = 'I';
+        else if (isGray(displayColor)) opAuto = 'R';
+
+        const uAtivo = textoAtivo.toUpperCase();
+        const tUpper = (item.texto || '').replace(/[\u00AD\u2010-\u2015\u2212]/g, '-').replace(/\u00A0/g, ' ').toUpperCase().trim();
+        const itemLayer = (item.layer || '').trim().toUpperCase();
+        let entAuto = '0';
+
+        const isRedOrGray = (displayColor === '#FF0000') || isGray(displayColor);
+        const isRed = displayColor === '#FF0000';
+
+        const elosFusivel = ['0,5H','1H','2H','3H','5H','6K','8K','10K','12K','15K','25K','30K','40K'];
         if (elosFusivel.includes(tUpper) && isRedOrGray) {
-            entAuto = "CHAVE";
-            // Busca contexto nas proximidades (mesma página, +/- 10 linhas no cache global)
+            entAuto = 'CHAVE';
             const globalIdx = extractedDataCache.indexOf(item);
             if (globalIdx !== -1) {
-                let qtyFound = "";
-                const searchRange = 10;
-                const start = Math.max(0, globalIdx - searchRange);
-                const end = Math.min(extractedDataCache.length - 1, globalIdx + searchRange);
-                
+                let qtyFound = '';
+                const start = Math.max(0, globalIdx - 10), end = Math.min(extractedDataCache.length - 1, globalIdx + 10);
                 for (let i = start; i <= end; i++) {
                     if (i === globalIdx) continue;
                     const neighbor = extractedDataCache[i];
                     if (neighbor.pagina !== item.pagina) continue;
-                    
-                    const nText = neighbor.texto.replace(/\u00A0/g, " ").toUpperCase();
-                    const m = nText.match(/([13])\s*-\s*100A/);
-                    if (m) {
-                        qtyFound = m[1];
-                        break;
-                    }
+                    const m = neighbor.texto.replace(/\u00A0/g, ' ').toUpperCase().match(/([13])\s*-\s*100A/);
+                    if (m) { qtyFound = m[1]; break; }
                 }
-                
-                if (qtyFound) {
-                    const eloVal = tUpper.replace(",", "").replace(" ", ""); // 0,5H -> 05H
-                    textoAtivo = `${qtyFound}-EF${eloVal}`;
-                }
+                if (qtyFound) textoAtivo = `${qtyFound}-EF${tUpper.replace(',','').replace(' ','')}`;
             }
         }
 
-        entAuto = "0";
-        const isRed = (displayColor.toUpperCase() === "#FF0000");
+        entAuto = '0';
 
-        if (!tUpper.includes("BLOCO")) {
-            if (isRed && tUpper.includes("FLY")) {
-                if (tUpper.includes("REF")) { textoAtivo = "1-RFLY"; opAuto = "I"; entAuto = "ESTRUTURA"; }
-                else if (tUpper.includes("DESF")) { textoAtivo = "1-FLY"; opAuto = "R"; entAuto = "ESTRUTURA"; }
-                else if (tUpper.includes("INST")) { textoAtivo = "1-FLY"; opAuto = "I"; entAuto = "ESTRUTURA"; }
+        if (!tUpper.includes('BLOCO')) {
+            if (isRed && tUpper.includes('FLY')) {
+                if (tUpper.includes('REF'))  { textoAtivo = '1-RFLY'; opAuto = 'I'; entAuto = 'ESTRUTURA'; }
+                else if (tUpper.includes('DESF')) { textoAtivo = '1-FLY'; opAuto = 'R'; entAuto = 'ESTRUTURA'; }
+                else if (tUpper.includes('INST')) { textoAtivo = '1-FLY'; opAuto = 'I'; entAuto = 'ESTRUTURA'; }
             }
-        } else { textoAtivo = ""; opAuto = "M"; entAuto = "0"; }
-        
-        const apoioMarkers = ["-ROCO", "-RECAL", "-BASE", "-CAVA", "PODA"];
-        const foundApoioCount = apoioMarkers.filter(m => uAtivo.includes(m)).length;
-        const hasApoioConflict = tUpper.includes("APOIOS") || tUpper.includes("LARGURA") || (tUpper.includes("BASE") && tUpper.includes("CALÇADA")) || foundApoioCount > 1;
-        
-        if (entAuto === "0") {
-            const isBlack = !isRedOrGray;
-            const isRetens = itemLayer === "01_RETENS" || itemLayer === "01_RETENS_LV" || itemLayer === "01_LV";
+        } else { textoAtivo = ''; opAuto = 'M'; entAuto = '0'; }
 
-            // --- REINSTALAÇÃO DE TRAFO (preto + 01_RETENS/01_LV) ---
+        const apoioMarkers = ['-ROCO','-RECAL','-BASE','-CAVA','PODA'];
+        const foundApoioCount = apoioMarkers.filter(m => uAtivo.includes(m)).length;
+        const hasApoioConflict = tUpper.includes('APOIOS') || tUpper.includes('LARGURA') || (tUpper.includes('BASE') && tUpper.includes('CALÇADA')) || foundApoioCount > 1;
+
+        if (entAuto === '0') {
+            const isBlack = !isRedOrGray;
+            const isRetens = itemLayer === '01_RETENS' || itemLayer === '01_RETENS_LV' || itemLayer === '01_LV';
+
             if (isBlack && isRetens) {
                 const trafoMatch = tUpper.match(/TR\s*-\s*([123])/);
                 if (trafoMatch) {
                     const qty = trafoMatch[1];
-                    entAuto = "TRAFO";
+                    entAuto = 'TRAFO';
                     textoAtivo = `1-RTR${qty}`;
-                    opAuto = (itemLayer === "01_RETENS_LV" || itemLayer === "01_LV") ? "*I" : "I";
+                    opAuto = (itemLayer === '01_RETENS_LV' || itemLayer === '01_LV') ? '*I' : 'I';
                 }
             }
 
-            // --- REINSTALAÇÃO DE CHAVE (preto + 01_RETENS/01_LV) ---
-            if (isBlack && isRetens && entAuto === "0") {
+            if (isBlack && isRetens && entAuto === '0') {
                 const chaveMatch = tUpper.match(/^([123])\s*-\s*100\s*A/);
                 if (chaveMatch) {
                     const qty = chaveMatch[1];
-                    entAuto = "CHAVE";
+                    entAuto = 'CHAVE';
                     textoAtivo = `${qty}-RCFU`;
-                    opAuto = (itemLayer === "01_RETENS_LV" || itemLayer === "01_LV") ? "*I" : "I";
+                    opAuto = (itemLayer === '01_RETENS_LV' || itemLayer === '01_LV') ? '*I' : 'I';
                 }
             }
 
-            if (entAuto === "0") {
-            if (/\sRS\s+[MT]\s/i.test(item.texto)) entAuto = "RAMAIS";
-            else if (uAtivo.includes("-ROCO") && !hasApoioConflict) entAuto = "APOIO";
-            else if (uAtivo.includes("-IP") || /\bIP\b/i.test(item.texto)) entAuto = "IP";
-            else if (uAtivo === "1-AF") entAuto = "ESTRUTURA";
-            else if ((uAtivo.includes("-RECAL")||uAtivo.includes("-BASE")||uAtivo.includes("-CAVA")) && !hasApoioConflict) entAuto = "APOIO";
-            else if ((tUpper.includes("DT") || tUpper.includes("CV")) && tUpper.includes("/") && isRedOrGray) entAuto = "POSTE";
-            else if (!tUpper.includes("DT") && !tUpper.includes("CV") && !tUpper.includes("AWG") && !tUpper.includes("#") && (() => {
-                if (/\bM?\d+x\d+/.test(tUpper)) return true;
-                if (tUpper.includes("ABC") && /\d+\s*M$/.test(tUpper)) return true;
-                if (/^CU\s*\d/.test(tUpper) || /\bCU\s*\d/.test(tUpper.substring(0, 5))) return true;
-                if (/^CA\s+\d/.test(tUpper) || /^CA\d/.test(tUpper)) return true;
-                if (/\b(?:CAL|CAA|CAZ)(?:\s|\d)/.test(tUpper)) return true;
-                if (/\bP\s*(16|25|35|50|70|95|120|150|185|240)\b/.test(tUpper)) return true;
-                if (tUpper.includes("X1X") && /\d+\s*M$/.test(tUpper)) return true;
-                return false;
-            })()) {
-                if (isRedOrGray) {
-                    entAuto = "CABO";
-                } else if (!isRedOrGray && (itemLayer === "01_RETENS" || itemLayer === "01_RETENS_LV")) {
-                    entAuto = "CABO";
-                    opAuto = itemLayer === "01_RETENS_LV" ? "*M" : "M";
+            if (entAuto === '0') {
+                if (/\sRS\s+[MT]\s/i.test(item.texto || '')) entAuto = 'RAMAIS';
+                else if (uAtivo.includes('-ROCO') && !hasApoioConflict) entAuto = 'APOIO';
+                else if (uAtivo.includes('-IP') || /\bIP\b/i.test(item.texto || '')) entAuto = 'IP';
+                else if (uAtivo === '1-AF') entAuto = 'ESTRUTURA';
+                else if ((uAtivo.includes('-RECAL') || uAtivo.includes('-BASE') || uAtivo.includes('-CAVA')) && !hasApoioConflict) entAuto = 'APOIO';
+                else if ((tUpper.includes('DT') || tUpper.includes('CV')) && tUpper.includes('/') && isRedOrGray) entAuto = 'POSTE';
+                else if (!tUpper.includes('DT') && !tUpper.includes('CV') && !tUpper.includes('AWG') && !tUpper.includes('#') && (() => {
+                    if (/\bM?\d+x\d+/.test(tUpper)) return true;
+                    if (tUpper.includes('ABC') && /\d+\s*M$/.test(tUpper)) return true;
+                    if (/^CU\s*\d/.test(tUpper) || /\bCU\s*\d/.test(tUpper.substring(0, 5))) return true;
+                    if (/^CA\s+\d/.test(tUpper) || /^CA\d/.test(tUpper)) return true;
+                    if (/\b(?:CAL|CAA|CAZ)(?:\s|\d)/.test(tUpper)) return true;
+                    if (/\bP\s*(16|25|35|50|70|95|120|150|185|240)\b/.test(tUpper)) return true;
+                    if (tUpper.includes('X1X') && /\d+\s*M$/.test(tUpper)) return true;
+                    return false;
+                })()) {
+                    if (isRedOrGray) entAuto = 'CABO';
+                    else if (!isRedOrGray && (itemLayer === '01_RETENS' || itemLayer === '01_RETENS_LV')) {
+                        entAuto = 'CABO';
+                        opAuto = itemLayer === '01_RETENS_LV' ? '*M' : 'M';
+                    }
                 }
+                else if (tUpper.includes('FIOS')) entAuto = 'CERCA';
+                else if ((uAtivo.includes('-CF') || uAtivo.includes('-EF')) && opAuto !== 'M') entAuto = 'CHAVE';
+                else if (uAtivo.includes('-TR') && opAuto !== 'M') {
+                    entAuto = 'TRAFO';
+                    const match = textoAtivo.match(/(1-TR\d+)/i);
+                    if (match) textoAtivo = match[1].toUpperCase();
+                }
+                else if (uAtivo.includes('PODA') && opAuto !== 'M' && !hasApoioConflict) entAuto = 'APOIO';
             }
-            else if (tUpper.includes("FIOS")) entAuto = "CERCA";
-            else if ((uAtivo.includes("-CF") || uAtivo.includes("-EF")) && opAuto !== "M") entAuto = "CHAVE";
-            else if (uAtivo.includes("-TR") && opAuto !== "M") {
-                entAuto = "TRAFO";
-                const match = textoAtivo.match(/(1-TR\d+)/i);
-                if (match) textoAtivo = match[1].toUpperCase();
-            }
-            else if (uAtivo.includes("PODA") && opAuto !== "M" && !hasApoioConflict) entAuto = "APOIO";
-            } // end entAuto === "0" inner
         }
-        if (entAuto === "IP" || entAuto === "APOIO" || entAuto === "CERCA" || entAuto === "RAMAIS") opAuto = "I";
-        if (entAuto === "0" && !tUpper.includes("APOIOS")) {
+
+        if (['IP','APOIO','CERCA','RAMAIS'].includes(entAuto)) opAuto = 'I';
+        if (entAuto === '0' && !tUpper.includes('APOIOS')) {
             const hasEstruturaPattern = /\b\d+\s*-\s*(\d+[A-Z]{1,2}\d*|\d*[A-Z]{1,2}\d+|ISOL)\b/i.test(uAtivo) || /\b\d+\s*-\s*(SI|RA|BI|CE|N|U|T|R|B|S)\d+/i.test(uAtivo);
             const words = textoAtivo.trim().split(/\s+/);
             const allWordsValid = words.length > 0 && words.every(w => /^\d+-\S+$/i.test(w));
-            if (hasEstruturaPattern && allWordsValid && (opAuto === "I" || opAuto === "R")) entAuto = "ESTRUTURA";
+            if (hasEstruturaPattern && allWordsValid && (opAuto === 'I' || opAuto === 'R')) entAuto = 'ESTRUTURA';
         }
-        
-        if (itemLayer === "01_LV" && opAuto && !opAuto.startsWith("*")) {
-            opAuto = "*" + opAuto;
-        }
+        if (itemLayer === '01_LV' && opAuto && !opAuto.startsWith('*')) opAuto = '*' + opAuto;
 
-        item.entidade = entAuto; item.operacao = opAuto; item.ativo = textoAtivo;
-        const entInput = tr.querySelector('[data-field="entidade"]');
-        const opInput = tr.querySelector('[data-field="operacao"]');
-        const atInput = tr.querySelector('[data-field="ativo"]');
-        if(entInput) entInput.value = entAuto;
-        if(opInput) opInput.value = opAuto;
-        if(atInput) atInput.value = textoAtivo;
+        return { entidade: entAuto, operacao: opAuto, ativo: textoAtivo, _raw: item };
     }
 
+    /* ═══════════════════════════════════════
+       RENDER TABLE
+    ═══════════════════════════════════════ */
     function renderTable(type) {
         const state = tableStates[type];
         const body = document.getElementById(state.bodyId);
         body.innerHTML = '';
 
-        state.data.forEach((item, index) => {
+        state.data.forEach((row, idx) => {
             const tr = document.createElement('tr');
-            tr.dataset.index = index;
+            tr.dataset.index = idx;
             tr.dataset.type = type;
-            const curColor = item.cor ? item.cor.toUpperCase() : "#000000";
-            tr.innerHTML = `
-                <td>${item.pagina || 1}</td>
-                <td style="word-break: break-all; max-width: 400px;">
-                    <div class="text-cell-container">
-                        <span class="selectable-text editable-text-field" contenteditable="false">${escapeHtml(item.texto)}</span>
-                    </div>
-                </td>
-                <td>
-                    <select class="color-select" style="background: transparent; border: none; color: ${curColor}; font-weight: bold; cursor: pointer; outline: none;">
-                        <option value="#000000" style="color: black;" ${curColor==='#000000'?'selected':''}>PRETO</option>
-                        <option value="#FF0000" style="color: red;" ${curColor==='#FF0000'?'selected':''}>VERMELHO</option>
-                        <option value="#808080" style="color: gray;" ${isGray(curColor)?'selected':''}>CINZA</option>
-                    </select>
-                </td>
-                <td class="col-user"><input class="user-input" type="text" value="${item.entidade}" data-field="entidade"></td>
-                <td class="col-user"><input class="user-input" type="text" value="${item.operacao}" data-field="operacao"></td>
-                <td class="col-user"><input class="user-input" type="text" value="${item.ativo}" data-field="ativo"></td>
-            `;
-            body.appendChild(tr);
 
-            const textField = tr.querySelector('.editable-text-field');
-            textField.addEventListener('dblclick', function() { this.contentEditable = true; this.focus(); });
-            textField.addEventListener('blur', function() {
-                this.contentEditable = false;
-                item.texto = this.innerText.trim();
-                updateRowLogic(item, tr);
+            /* ── Entidade ── */
+            const tdEnt = document.createElement('td');
+            const selEnt = document.createElement('select');
+            selEnt.className = 'sel-entidade';
+            selEnt.dataset.field = 'entidade';
+            ENTIDADES.forEach(e => {
+                const opt = document.createElement('option');
+                opt.value = e; opt.textContent = e;
+                if (e === row.entidade) opt.selected = true;
+                selEnt.appendChild(opt);
             });
-            textField.addEventListener('keydown', function(e) { if(e.key==='Enter') { e.preventDefault(); this.blur(); } });
+            selEnt.addEventListener('change', () => {
+                const old = row.entidade;
+                row.entidade = selEnt.value;
+                if (old !== selEnt.value) { pushHistory(); refreshAllFilters(type); }
+            });
+            tdEnt.appendChild(selEnt);
+            tr.appendChild(tdEnt);
 
-            const colorSelect = tr.querySelector('.color-select');
-            colorSelect.addEventListener('change', (e) => {
-                item.cor = e.target.value;
-                colorSelect.style.color = item.cor;
-                updateRowLogic(item, tr);
+            /* ── Operação ── */
+            const tdOp = document.createElement('td');
+            const selOp = document.createElement('select');
+            selOp.className = 'sel-operacao';
+            selOp.dataset.field = 'operacao';
+            OPERACOES.forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o; opt.textContent = o;
+                if (o === row.operacao) opt.selected = true;
+                selOp.appendChild(opt);
+            });
+            selOp.addEventListener('change', () => {
+                const old = row.operacao;
+                row.operacao = selOp.value;
+                if (old !== selOp.value) { pushHistory(); refreshAllFilters(type); }
+            });
+            tdOp.appendChild(selOp);
+            tr.appendChild(tdOp);
+
+            /* ── Ativo ── */
+            const tdAt = document.createElement('td');
+            tdAt.style.position = 'relative';
+            const inpAt = document.createElement('input');
+            inpAt.type = 'text';
+            inpAt.className = 'inp-ativo';
+            inpAt.dataset.field = 'ativo';
+            inpAt.value = row.ativo;
+            inpAt.autocomplete = 'off';
+            inpAt.setAttribute('list', '');  // desabilita datalist nativo, usamos o nosso
+            let prevAtivo = row.ativo;
+
+            inpAt.addEventListener('input', () => {
+                const oldVal = inpAt.value;
+                const upperVal = oldVal.toUpperCase();
+                if (oldVal !== upperVal) {
+                    const cursor = inpAt.selectionStart;
+                    inpAt.value = upperVal;
+                    inpAt.setSelectionRange(cursor, cursor);
+                }
+                row.ativo = inpAt.value;
+                showAutocomplete(inpAt, type);
+            });
+            inpAt.addEventListener('keydown', e => {
+                if (e.key === 'Delete' && inpAt.value.trim() === '') {
+                    e.preventDefault();
+                    deleteRow(type, idx);
+                    return;
+                }
+                const consumed = handleAcKeydown(e, inpAt, type);
+                if (e.key === 'Enter' && !consumed) {
+                    e.preventDefault();
+                    addRow(type, idx);
+                }
+            });
+            inpAt.addEventListener('blur', () => {
+                setTimeout(() => {
+                    hideAutocomplete();
+                    if (inpAt.value !== prevAtivo) {
+                        prevAtivo = inpAt.value;
+                        buildAtivoSets();
+                        buildDataLists();
+                        if (type === 'cabos') {
+                            recalcAllQtdAtivos();
+                            // Atualiza visualmente os inputs de qtdAtivos
+                            const body = document.getElementById(state.bodyId);
+                            if (body) {
+                                Array.from(body.children).forEach(tr => {
+                                    const trIdx = parseInt(tr.dataset.index);
+                                    const qtdInp = tr.querySelector('.inp-qtd-ativos');
+                                    if (qtdInp && state.data[trIdx]) {
+                                        qtdInp.value = state.data[trIdx].qtdAtivos !== undefined ? state.data[trIdx].qtdAtivos : '';
+                                    }
+                                });
+                            }
+                        }
+                        pushHistory();
+                        refreshAllFilters(type);
+                    }
+                }, 150);
+            });
+            inpAt.addEventListener('focus', () => {
+                prevAtivo = inpAt.value;
+                if (inpAt.value.length === 0) showAutocomplete(inpAt, type);
             });
 
-            tr.querySelectorAll('.user-input').forEach(input => {
-                input.addEventListener('input', (e) => {
-                    item[e.target.dataset.field] = e.target.value;
+            tdAt.appendChild(inpAt);
+            tr.appendChild(tdAt);
+
+            /* ── Qtd Ativos (apenas para cabos) ── */
+            if (type === 'cabos') {
+                const tdQtd = document.createElement('td');
+                tdQtd.style.textAlign = 'center';
+                const inpQtd = document.createElement('input');
+                inpQtd.type = 'text';
+                inpQtd.className = 'inp-qtd-ativos';
+                inpQtd.dataset.field = 'qtdAtivos';
+                inpQtd.value = row.qtdAtivos !== undefined ? row.qtdAtivos : '';
+                inpQtd.autocomplete = 'off';
+                let prevQtd = inpQtd.value;
+
+                inpQtd.addEventListener('blur', () => {
+                    const val = inpQtd.value.trim();
+                    const num = val === '' ? 0 : parseInt(val, 10);
+                    if (!isNaN(num)) {
+                        row.qtdAtivos = num;
+                    }
+                    if (inpQtd.value !== prevQtd) {
+                        prevQtd = inpQtd.value;
+                        pushHistory();
+                    }
                 });
+
+                tdQtd.appendChild(inpQtd);
+                tr.appendChild(tdQtd);
+            }
+
+            /* ── Delete button ── */
+            const tdDel = document.createElement('td');
+            tdDel.className = 'col-del';
+            const btnDel = document.createElement('button');
+            btnDel.className = 'btn-row-del';
+            btnDel.title = 'Excluir linha';
+            btnDel.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>`;
+            btnDel.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteRow(type, idx);
+            });
+            tdDel.appendChild(btnDel);
+            tr.appendChild(tdDel);
+
+            /* ── Context menu trigger ── */
+            tr.addEventListener('contextmenu', e => {
+                e.preventDefault();
+                ctxRow = tr; ctxType = type;
+                showCtxMenu(e.clientX, e.clientY);
             });
 
-            tr.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                showContextMenu(e, tr);
-            });
+            body.appendChild(tr);
         });
+
+        updateCounters();
+
+        // Após render, aplica filtros ativos sem rebuildar dropdowns
         applyFilters(type);
     }
 
-    function updateCounters() {
-        document.getElementById('count-cabos').textContent = tableStates.cabos.data.length;
-        document.getElementById('count-outros').textContent = tableStates.outros.data.length;
+    /* ═══════════════════════════════════════
+       CRUD
+    ═══════════════════════════════════════ */
+    function deleteRow(type, idx) {
+        tableStates[type].data.splice(idx, 1);
+        renderTable(type);
+        buildAtivoSets(); buildDataLists();
+        pushHistory();
+        refreshAllFilters(type);
     }
 
-    function setupFilters(type) {
-        const containers = document.querySelectorAll(`.filter-container[data-table="${type}"]`);
-        const state = tableStates[type];
-        const columns = ['pagina', 'texto', 'cor', 'entidade', 'operacao', 'ativo'];
-        containers.forEach(container => {
-            const colIdx = parseInt(container.dataset.col);
-            const uniqueValues = [...new Set(state.data.map(item => String(item[columns[colIdx]] || "")))].sort();
-            createFilterDropdown(container, uniqueValues, colIdx, type);
-        });
+    function addRow(type, afterIdx = -1) {
+        let op = 'I';
+        if (afterIdx >= 0 && tableStates[type].data[afterIdx]) {
+            op = tableStates[type].data[afterIdx].operacao;
+        } else if (tableStates[type].data.length > 0 && afterIdx === -1) {
+            op = tableStates[type].data[tableStates[type].data.length - 1].operacao;
+        }
+        
+        const newRow = { entidade: '0', operacao: op, ativo: '' };
+        if (afterIdx === -1) tableStates[type].data.push(newRow);
+        else tableStates[type].data.splice(afterIdx + 1, 0, newRow);
+        renderTable(type);
+        // Foca no input Ativo da nova linha
+        const body = document.getElementById(tableStates[type].bodyId);
+        const target = afterIdx === -1 ? body.lastElementChild : body.children[afterIdx + 1];
+        if (target) {
+            const inp = target.querySelector('.inp-ativo');
+            if (inp) { setTimeout(() => inp.focus(), 30); }
+        }
+        pushHistory();
+        refreshAllFilters(type);
     }
 
-    function createFilterDropdown(container, values, colIdx, type) {
-        const state = tableStates[type];
-        const selections = state.filters[colIdx];
+    /* ═══════════════════════════════════════
+       BOTÕES DE AÇÃO
+    ═══════════════════════════════════════ */
+    document.getElementById('btn-add-cabos').addEventListener('click', () => addRow('cabos'));
+    document.getElementById('btn-add-outros').addEventListener('click', () => addRow('outros'));
+
+    document.getElementById('btn-del-cabos').addEventListener('click', () => deleteSelectedOrLast('cabos'));
+    document.getElementById('btn-del-outros').addEventListener('click', () => deleteSelectedOrLast('outros'));
+
+    document.getElementById('btn-copy-cabos').addEventListener('click', () => copyTable('cabos'));
+    document.getElementById('btn-copy-outros').addEventListener('click', () => copyTable('outros'));
+    
+    document.getElementById('btn-clear-cabos').addEventListener('click', () => {
+        if(confirm('Tem certeza que deseja limpar toda a tabela Cabos?')) {
+            tableStates['cabos'].data = [];
+            pushHistory();
+            renderTable('cabos');
+        }
+    });
+    document.getElementById('btn-clear-outros').addEventListener('click', () => {
+        if(confirm('Tem certeza que deseja limpar toda a tabela Outros?')) {
+            tableStates['outros'].data = [];
+            pushHistory();
+            renderTable('outros');
+        }
+    });
+
+    /* ═══════════════════════════════════════
+       FILTROS POR COLUNA (estilo Excel)
+    ═══════════════════════════════════════ */
+    function getUniqueValues(type, field) {
+        return [...new Set(tableStates[type].data.map(r => r[field] || ''))].sort();
+    }
+
+    function buildFilterDropdown(containerId, type, field) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const values = getUniqueValues(type, field);
+        const selections = filterSelections[type][field];
+        const isAllSelected = selections.size === 0 || selections.size === values.length;
+
         container.innerHTML = `
-            <div class="filter-trigger"><span>Todos</span><div class="filter-active-indicator"></div></div>
-            <div class="filter-dropdown">
-                <div class="filter-search-container"><input type="text" class="filter-search" placeholder="Pesquisar..."></div>
-                <div class="filter-options-list">
-                    <label class="filter-option select-all-option"><input type="checkbox" checked><span>(Selecionar Tudo)</span></label>
-                    <div class="options-container">
-                        ${values.map(val => `<label class="filter-option" data-value="${val}"><input type="checkbox" checked><span>${val || "(Vazio)"}</span></label>`).join('')}
+            <div class="r-filter-trigger" title="Filtrar ${field}">
+                <span>${selections.size > 0 ? selections.size + ' sel' : 'Todos'}</span>
+                <div class="r-filter-indicator ${selections.size > 0 ? 'active' : ''}"></div>
+            </div>
+            <div class="r-filter-dropdown">
+                <input type="text" class="r-filter-search" placeholder="Pesquisar...">
+                <div class="r-filter-options-list">
+                    <label class="r-filter-option r-select-all-opt">
+                        <input type="checkbox" ${isAllSelected ? 'checked' : ''}>
+                        <span>(Selecionar Tudo)</span>
+                    </label>
+                    <div class="r-options-inner">
+                        ${values.map(val => `
+                            <label class="r-filter-option" data-value="${val}">
+                                <input type="checkbox" ${(selections.has(val) || selections.size === 0) ? 'checked' : ''}>
+                                <span title="${val}">${val === '' ? '(Vazio)' : val}</span>
+                            </label>
+                        `).join('')}
                     </div>
+                </div>
+                <div class="r-filter-actions">
+                    <button class="r-btn-filter-action r-clear-btn">Limpar</button>
+                    <button class="r-btn-filter-action r-all-btn">Todos</button>
                 </div>
             </div>
         `;
-        const trigger = container.querySelector('.filter-trigger'), dropdown = container.querySelector('.filter-dropdown');
-        const mainSelectAll = container.querySelector('.select-all-option input'), optionsContainer = container.querySelector('.options-container');
+
+        const trigger    = container.querySelector('.r-filter-trigger');
+        const dropdown   = container.querySelector('.r-filter-dropdown');
+        const searchInp  = container.querySelector('.r-filter-search');
+        const inner      = container.querySelector('.r-options-inner');
+        const mainChk    = container.querySelector('.r-select-all-opt input');
+        const clearBtn   = container.querySelector('.r-clear-btn');
+        const allBtn     = container.querySelector('.r-all-btn');
+
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
-            document.querySelectorAll('.filter-dropdown.active').forEach(d => {
-                if (d !== dropdown) {
-                    d.classList.remove('active');
-                    // Aqui aplicamos o filtro da tabela correspondente ao fechar outros dropdowns
-                    const otherTable = d.closest('.filter-container').dataset.table;
-                    applyFilters(otherTable);
-                }
+            // Fecha outros
+            document.querySelectorAll('.r-filter-dropdown.active').forEach(d => {
+                if (d !== dropdown) d.classList.remove('active');
             });
-            if (dropdown.classList.contains('active')) {
-                dropdown.classList.remove('active');
-                applyFilters(type);
-            } else {
-                dropdown.classList.add('active');
-            }
+            dropdown.classList.toggle('active');
         });
-        dropdown.addEventListener('click', e => e.stopPropagation());
+        dropdown.addEventListener('click', (e) => e.stopPropagation());
+
         const onSelectionChange = () => {
-            const checks = optionsContainer.querySelectorAll('input'), checked = optionsContainer.querySelectorAll('input:checked');
-            mainSelectAll.checked = checked.length === checks.length;
-            mainSelectAll.indeterminate = checked.length > 0 && checked.length < checks.length;
+            const all   = inner.querySelectorAll('input');
+            const chkd  = inner.querySelectorAll('input:checked');
+            mainChk.checked = chkd.length === all.length;
             selections.clear();
-            if (checked.length < checks.length) { checked.forEach(c => selections.add(c.parentElement.dataset.value)); }
-            // applyFilters(type); // REMOVIDO: Agora aplica apenas ao fechar
-            updateFilterTrigger(container, selections);
+            if (chkd.length < all.length) {
+                chkd.forEach(cb => selections.add(cb.parentElement.dataset.value));
+            }
+            // Atualiza indicador visualmente sem fechar
+            const trigger2 = container.querySelector('.r-filter-trigger span');
+            const ind = container.querySelector('.r-filter-indicator');
+            if (trigger2) trigger2.textContent = selections.size > 0 ? selections.size + ' sel' : 'Todos';
+            if (ind) ind.classList.toggle('active', selections.size > 0);
+            applyFilters(type);
         };
-        optionsContainer.querySelectorAll('input').forEach(cb => cb.addEventListener('change', onSelectionChange));
-        mainSelectAll.addEventListener('change', () => {
-            optionsContainer.querySelectorAll('input').forEach(cb => { cb.checked = mainSelectAll.checked; });
+
+        inner.querySelectorAll('input').forEach(cb => cb.addEventListener('change', onSelectionChange));
+
+        mainChk.addEventListener('change', (e) => {
+            inner.querySelectorAll('.r-filter-option').forEach(opt => {
+                if (opt.style.display !== 'none') opt.querySelector('input').checked = e.target.checked;
+            });
             onSelectionChange();
+        });
+
+        clearBtn.addEventListener('click', () => {
+            inner.querySelectorAll('input').forEach(cb => cb.checked = false);
+            mainChk.checked = false;
+            onSelectionChange();
+        });
+
+        allBtn.addEventListener('click', () => {
+            inner.querySelectorAll('input').forEach(cb => cb.checked = true);
+            mainChk.checked = true;
+            onSelectionChange();
+        });
+
+        searchInp.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            inner.querySelectorAll('.r-filter-option').forEach(opt => {
+                const val = (opt.dataset.value || '').toLowerCase();
+                opt.style.display = val.includes(term) ? '' : 'none';
+            });
         });
     }
 
-    function updateFilterTrigger(container, selections) {
-        const span = container.querySelector('.filter-trigger span'), ind = container.querySelector('.filter-active-indicator');
-        span.textContent = selections.size > 0 ? selections.size + ' sel' : 'Todos';
-        ind.classList.toggle('active', selections.size > 0);
+    function refreshAllFilters(type) {
+        FILTER_FIELDS.forEach(field => {
+            buildFilterDropdown(FILTER_CONTAINERS[type][field], type, field);
+        });
     }
 
     function applyFilters(type) {
-        const state = tableStates[type], rows = document.getElementById(state.bodyId).children;
-        const columns = ['pagina', 'texto', 'cor', 'entidade', 'operacao', 'ativo'];
-        for (let tr of rows) {
-            const item = state.data[tr.dataset.index];
-            let isVisible = true;
-            for (let i = 0; i < 6; i++) {
-                const sel = state.filters[i];
-                if (sel.size > 0) { const val = String(item[columns[i]] || ""); if (!sel.has(val)) { isVisible = false; break; } }
-            }
-            tr.style.display = isVisible ? '' : 'none';
-        }
-    }
-
-    const contextMenu = document.getElementById('context-menu');
-    let contextTargetRow = null;
-    function showContextMenu(e, tr) {
-        contextTargetRow = tr;
-        const x = Math.min(e.clientX, window.innerWidth - 180), y = Math.min(e.clientY, window.innerHeight - 180);
-        contextMenu.style.left = x + 'px'; contextMenu.style.top = y + 'px';
-        contextMenu.classList.add('active');
-    }
-    document.addEventListener('click', () => contextMenu.classList.remove('active'));
-
-    document.getElementById('ctx-delete').addEventListener('click', () => {
-        if (!contextTargetRow) return;
-        const type = contextTargetRow.dataset.type, index = parseInt(contextTargetRow.dataset.index);
-        tableStates[type].data.splice(index, 1);
-        renderTable(type); updateCounters();
-    });
-
-    document.getElementById('ctx-edit').addEventListener('click', () => {
-        if (!contextTargetRow) return;
-        const span = contextTargetRow.querySelector('.editable-text-field');
-        span.contentEditable = true; span.focus();
-    });
-
-    function addRow(type, index = -1) {
-        const newItem = {
-            pagina: (contextTargetRow ? contextTargetRow.children[0].innerText : "1"),
-            texto: "",
-            cor: "#FF0000",
-            entidade: "0",
-            operacao: "I",
-            ativo: ""
-        };
-        if (index === -1) tableStates[type].data.push(newItem);
-        else tableStates[type].data.splice(index + 1, 0, newItem);
-        
-        renderTable(type);
-        updateCounters();
-
-        // Foca na célula de texto da nova linha
-        const body = document.getElementById(tableStates[type].bodyId);
-        const targetRow = (index === -1) ? body.lastElementChild : body.children[index + 1];
-        if (targetRow) {
-            const span = targetRow.querySelector('.editable-text-field');
-            span.contentEditable = true;
-            span.focus();
-        }
-    }
-
-    document.getElementById('ctx-add').addEventListener('click', () => {
-        if (!contextTargetRow) return;
-        addRow(contextTargetRow.dataset.type, parseInt(contextTargetRow.dataset.index));
-    });
-
-    document.querySelectorAll('.btn-add').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const type = btn.dataset.target.includes('cabos') ? 'cabos' : 'outros';
-            addRow(type);
-        });
-    });
-
-    let isSelecting = false, selectionStart = null, selectionEnd = null, activeType = null;
-    document.querySelectorAll('tbody').forEach(body => {
-        const type = body.id.includes('cabos') ? 'cabos' : 'outros';
-        body.addEventListener('mousedown', (e) => {
-            if (e.button !== 0 || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-            isSelecting = true; activeType = type;
-            selectionStart = getCoords(e.target.closest('td'), body);
-            selectionEnd = selectionStart;
-            clearSelection(); updateHighlight();
-        });
-        body.addEventListener('mouseover', (e) => {
-            if (!isSelecting || activeType !== type) return;
-            const td = e.target.closest('td');
-            if (td) { selectionEnd = getCoords(td, body); updateHighlight(); }
-        });
-    });
-    document.addEventListener('mouseup', () => isSelecting = false);
-    function getCoords(td, body) { const tr = td.parentElement; return { row: Array.from(body.children).indexOf(tr), col: Array.from(tr.children).indexOf(td) }; }
-    function clearSelection() { document.querySelectorAll('.cell-selected').forEach(c => c.classList.remove('cell-selected')); }
-    function updateHighlight() {
-        if (!selectionStart || !selectionEnd) return;
-        clearSelection();
-        const body = document.getElementById(tableStates[activeType].bodyId);
-        const rMin = Math.min(selectionStart.row, selectionEnd.row), rMax = Math.max(selectionStart.row, selectionEnd.row);
-        const cMin = Math.min(selectionStart.col, selectionEnd.col), cMax = Math.max(selectionStart.col, selectionEnd.col);
-        for (let r = rMin; r <= rMax; r++) {
-            const tr = body.children[r];
-            if (tr && tr.style.display !== 'none') {
-                for (let c = cMin; c <= cMax; c++) { if (tr.children[c]) tr.children[c].classList.add('cell-selected'); }
-            }
-        }
-    }
-
-    function getVisibleRows(type) {
-        if (!type) return [];
-        const body = document.getElementById(tableStates[type].bodyId);
-        return Array.from(body.children).filter(tr => tr.style.display !== 'none');
-    }
-    function getVisibleRowIndex(domIdx, type) {
-        const body = document.getElementById(tableStates[type].bodyId);
-        const vis = getVisibleRows(type);
-        return vis.indexOf(body.children[domIdx]);
-    }
-    function getDomRowIndex(visIdx, type) {
-        const vis = getVisibleRows(type);
-        const body = document.getElementById(tableStates[type].bodyId);
-        return Array.from(body.children).indexOf(vis[visIdx]);
-    }
-
-    document.addEventListener('copy', (e) => {
-        const selected = document.querySelectorAll('.cell-selected');
-        if (selected.length > 0 && document.activeElement.tagName !== 'INPUT') {
-            copySelectionToClipboard();
-            e.preventDefault();
-        }
-    });
-
-    function copyToClipboard(text, callback) {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(callback).catch(err => {
-                console.error("Erro ao copiar via API:", err);
-                fallbackCopy(text, callback);
-            });
-        } else {
-            fallbackCopy(text, callback);
-        }
-    }
-
-    function fallbackCopy(text, callback) {
-        const textArea = document.createElement("textarea");
-        textArea.value = text;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-9999px";
-        textArea.style.top = "0";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        try {
-            const successful = document.execCommand('copy');
-            if (successful && callback) callback();
-        } catch (err) {
-            console.error('Erro no fallback de cópia:', err);
-        }
-        document.body.removeChild(textArea);
-    }
-
-    function copySelectionToClipboard() {
-        const selected = document.querySelectorAll('.cell-selected');
-        if (selected.length === 0) return;
-        
-        let text = "", lastRow = -1;
-        const sorted = Array.from(selected).sort((a, b) => {
-            const rowA = a.parentElement, rowB = b.parentElement;
-            if (rowA === rowB) return a.cellIndex - b.cellIndex;
-            return rowA.rowIndex - rowB.rowIndex;
-        });
-
-        sorted.forEach(cell => {
-            const tr = cell.parentElement;
-            const row = tr.rowIndex;
-            if (lastRow !== -1 && row !== lastRow) text += "\n";
-            else if (lastRow === row) text += "\t";
-            
-            const val = cell.querySelector('input')?.value || cell.querySelector('select')?.value || cell.innerText;
-            text += String(val || "").replace(/\n/g, ' ');
-            lastRow = row;
-        });
-        copyToClipboard(text.trim());
-    }
-
-    document.addEventListener('keydown', (e) => {
-        // Ctrl+C / Cmd+C: copy selection
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-            const selected = document.querySelectorAll('.cell-selected');
-            if (selected.length > 0 && e.target.tagName !== 'INPUT') {
-                e.preventDefault();
-                copySelectionToClipboard();
-            }
-            return;
-        }
-
-        // Shift+Arrow Navigation
-        const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-        if (e.shiftKey && arrowKeys.includes(e.key) && selectionStart !== null && activeType) {
-            // Evita conflito se estiver editando texto
-            if (e.target.contentEditable === 'true' || e.target.tagName === 'INPUT') return;
-            
-            e.preventDefault();
-            const vis = getVisibleRows(activeType);
-            if (vis.length === 0) return;
-
-            const body = document.getElementById(tableStates[activeType].bodyId);
-            const totalCols = body.children[0] ? body.children[0].children.length - 1 : 5;
-            const curVisIdx = getVisibleRowIndex(selectionEnd.row, activeType);
-            
-            let newVisIdx = curVisIdx;
-            let newCol = selectionEnd.col;
-
-            if (e.key === 'ArrowDown') {
-                newVisIdx = e.ctrlKey ? vis.length - 1 : Math.min(curVisIdx + 1, vis.length - 1);
-            } else if (e.key === 'ArrowUp') {
-                newVisIdx = e.ctrlKey ? 0 : Math.max(curVisIdx - 1, 0);
-            } else if (e.key === 'ArrowRight') {
-                newCol = e.ctrlKey ? totalCols : Math.min(selectionEnd.col + 1, totalCols);
-            } else if (e.key === 'ArrowLeft') {
-                newCol = e.ctrlKey ? 0 : Math.max(selectionEnd.col - 1, 0);
-            }
-
-            if (newVisIdx !== -1) {
-                selectionEnd = { row: getDomRowIndex(newVisIdx, activeType), col: newCol };
-                updateHighlight();
-
-                // Scroll focus
-                const lastTr = body.children[selectionEnd.row];
-                if (lastTr) lastTr.scrollIntoView({ block: 'nearest' });
-            }
-            return;
-        }
-    });
-
-    document.querySelectorAll('.btn-copy-report').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const type = btn.dataset.target.includes('cabos') ? 'cabos' : 'outros';
-            const table = document.getElementById(`table-${type}`), body = document.getElementById(tableStates[type].bodyId);
-            const selectedCols = Array.from(table.querySelectorAll('.col-checkbox:checked')).map(cb => parseInt(cb.dataset.col));
-            if (selectedCols.length === 0) { alert("Selecione colunas."); return; }
-            let text = "";
-            Array.from(body.children).forEach(tr => {
-                if (tr.style.display !== 'none') {
-                    const cells = Array.from(tr.children);
-                    const rowData = selectedCols.map(colI => {
-                        if (colI === 2) return cells[colI].querySelector('select').value;
-                        if (colI < 3) return cells[colI].innerText.replace(/\n/g, ' ');
-                        return cells[colI].querySelector('input').value.replace(/\n/g, ' ');
-                    });
-                    text += rowData.join('\t') + "\n";
+        const state = tableStates[type];
+        const body  = document.getElementById(state.bodyId);
+        if (!body) return;
+        const sels = filterSelections[type];
+        Array.from(body.children).forEach(tr => {
+            const idx = parseInt(tr.dataset.index);
+            if (isNaN(idx)) return;
+            const row = state.data[idx];
+            if (!row) return;
+            let visible = true;
+            for (const field of FILTER_FIELDS) {
+                const sel = sels[field];
+                if (sel.size > 0 && !sel.has(row[field] || '')) {
+                    visible = false; break;
                 }
-            });
-            copyToClipboard(text, () => {
-                const orig = btn.innerHTML; btn.innerHTML = "Copiado!"; setTimeout(() => btn.innerHTML = orig, 1000);
-            });
+            }
+            tr.style.display = visible ? '' : 'none';
         });
+        updateCounters();
+    }
+
+
+    function deleteSelectedOrLast(type) {
+        const body = document.getElementById(tableStates[type].bodyId);
+        const selected = Array.from(body.querySelectorAll('tr.row-selected'));
+        if (selected.length > 0) {
+            // Remove de trás pra frente para não deslocar índices
+            const idxs = selected.map(tr => parseInt(tr.dataset.index)).sort((a,b) => b-a);
+            idxs.forEach(i => tableStates[type].data.splice(i, 1));
+            renderTable(type);
+            buildAtivoSets(); buildDataLists();
+            pushHistory();
+            refreshAllFilters(type);
+        } else {
+            // Remove a última linha
+            if (tableStates[type].data.length > 0) {
+                tableStates[type].data.pop();
+                renderTable(type);
+                buildAtivoSets(); buildDataLists();
+                pushHistory();
+                refreshAllFilters(type);
+            }
+        }
+    }
+
+    /* ═══════════════════════════════════════
+       COPIAR TABELA
+    ═══════════════════════════════════════ */
+    function copyTable(type) {
+        const body = document.getElementById(tableStates[type].bodyId);
+        let text = '';
+        Array.from(body.children).forEach(tr => {
+            if (tr.style.display === 'none') return; // Respeita o filtro
+            const row = tableStates[type].data[parseInt(tr.dataset.index)];
+            if (!row) return;
+            text += `${row.operacao}\t${row.ativo}\n`;
+        });
+        if (!text.trim()) { showToast('Tabela vazia ou tudo oculto.'); return; }
+        copyToClipboard(text, () => {
+            const btn = document.getElementById(`btn-copy-${type}`);
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copiado!';
+            setTimeout(() => btn.innerHTML = orig, 1200);
+        });
+    }
+
+    function copyToClipboard(text, cb) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => { if(cb) cb(); }).catch(() => fallbackCopy(text, cb));
+        } else fallbackCopy(text, cb);
+    }
+
+    function fallbackCopy(text, cb) {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        try { document.execCommand('copy'); if(cb) cb(); } catch(e) {}
+        document.body.removeChild(ta);
+    }
+
+    /* ═══════════════════════════════════════
+       CONTEXT MENU
+    ═══════════════════════════════════════ */
+    function showCtxMenu(x, y) {
+        ctxMenu.style.left = Math.min(x, window.innerWidth - 180) + 'px';
+        ctxMenu.style.top  = Math.min(y, window.innerHeight - 140) + 'px';
+        ctxMenu.classList.add('visible');
+    }
+    function hideCtxMenu() { ctxMenu.classList.remove('visible'); ctxRow = null; ctxType = null; }
+    document.addEventListener('mousedown', e => { if (!ctxMenu.contains(e.target)) hideCtxMenu(); });
+
+    document.getElementById('ctx-add-above').addEventListener('click', () => {
+        if (!ctxRow || !ctxType) return;
+        const idx = parseInt(ctxRow.dataset.index);
+        addRow(ctxType, idx - 1);
+        hideCtxMenu();
+    });
+    document.getElementById('ctx-add-below').addEventListener('click', () => {
+        if (!ctxRow || !ctxType) return;
+        const idx = parseInt(ctxRow.dataset.index);
+        addRow(ctxType, idx);
+        hideCtxMenu();
+    });
+    document.getElementById('ctx-del').addEventListener('click', () => {
+        if (!ctxRow || !ctxType) return;
+        deleteRow(ctxType, parseInt(ctxRow.dataset.index));
+        hideCtxMenu();
     });
 
-    function escapeHtml(u) { return String(u || "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#039;"}[m])); }
-});
+    /* Seleção de linha com clique */
+    document.addEventListener('click', e => {
+        const tr = e.target.closest('tr[data-index]');
+        if (!tr) return;
+        if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT' || e.target.closest('.btn-row-del')) return;
+        if (!e.ctrlKey && !e.shiftKey) {
+            document.querySelectorAll('tr.row-selected').forEach(r => r.classList.remove('row-selected'));
+        }
+        tr.classList.toggle('row-selected');
+    });
+
+    /* ═══════════════════════════════════════
+       AUTOCOMPLETE
+    ═══════════════════════════════════════ */
+    function buildAtivoSets() {
+        ativoSets.cabos.clear();
+        ativoSets.outros.clear();
+        tableStates.cabos.data.forEach(r => { if (r.ativo) ativoSets.cabos.add(r.ativo.trim()); });
+        tableStates.outros.data.forEach(r => { if (r.ativo) ativoSets.outros.add(r.ativo.trim()); });
+    }
+
+    function buildDataLists() {
+        buildDl('dl-ativos-cabos', ativoSets.cabos);
+        buildDl('dl-ativos-outros', ativoSets.outros);
+    }
+
+    function buildDl(id, set) {
+        const dl = document.getElementById(id);
+        dl.innerHTML = '';
+        set.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v; dl.appendChild(opt);
+        });
+    }
+
+    function showAutocomplete(input, type) {
+        hideAutocomplete();
+        const q = input.value.trim().toUpperCase();
+        const pool = Array.from(type === 'cabos' ? ativoSets.cabos : ativoSets.outros);
+        acItems = q ? pool.filter(v => v.toUpperCase().includes(q) && v.toUpperCase() !== q) : pool.slice(0, 20);
+        if (acItems.length === 0) return;
+
+        acList = document.createElement('div');
+        acList.className = 'autocomplete-list';
+        acSelected = -1;
+        acInput = input;
+
+        acItems.forEach((item, i) => {
+            const div = document.createElement('div');
+            div.className = 'autocomplete-item';
+            div.textContent = item;
+            div.addEventListener('mousedown', e => {
+                e.preventDefault();
+                input.value = item;
+                input.dispatchEvent(new Event('input'));
+                hideAutocomplete();
+                input.focus();
+            });
+            div.addEventListener('mouseover', () => setAcSelected(i));
+            acList.appendChild(div);
+        });
+
+        // Posiciona relativo ao input
+        const rect = input.getBoundingClientRect();
+        acList.style.position = 'fixed';
+        acList.style.left = rect.left + 'px';
+        acList.style.top  = (rect.bottom + 2) + 'px';
+        acList.style.width = Math.max(160, rect.width) + 'px';
+        document.body.appendChild(acList);
+    }
+
+    function hideAutocomplete() {
+        if (acList) { acList.remove(); acList = null; acItems = []; acSelected = -1; acInput = null; }
+    }
+
+    function setAcSelected(idx) {
+        if (!acList) return;
+        acSelected = idx;
+        Array.from(acList.children).forEach((el, i) => el.classList.toggle('active', i === idx));
+    }
+
+    function handleAcKeydown(e, input, type) {
+        if (!acList) {
+            if (e.key === 'ArrowDown') { showAutocomplete(input, type); e.preventDefault(); }
+            return;
+        }
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setAcSelected(Math.min(acSelected + 1, acItems.length - 1));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setAcSelected(Math.max(acSelected - 1, 0));
+        } else if (e.key === 'Enter' || e.key === 'Tab') {
+            if (acSelected >= 0 && acItems[acSelected]) {
+                e.preventDefault();
+                input.value = acItems[acSelected];
+                input.dispatchEvent(new Event('input'));
+                hideAutocomplete();
+                return true;
+            } else { hideAutocomplete(); }
+        } else if (e.key === 'Escape') {
+            hideAutocomplete();
+        }
+    }
+
+    /* ═══════════════════════════════════════
+       UNDO / REDO
+    ═══════════════════════════════════════ */
+    function snapshotState() {
+        return {
+            cabos: tableStates.cabos.data.map(deepClone),
+            outros: tableStates.outros.data.map(deepClone)
+        };
+    }
+
+    function pushHistory() {
+        // Descarta redo futuro
+        if (historyIdx < history.length - 1) history = history.slice(0, historyIdx + 1);
+        history.push(snapshotState());
+        if (history.length > MAX_HISTORY) history.shift();
+        historyIdx = history.length - 1;
+        updateHistoryUI();
+    }
+
+    function undo() {
+        if (historyIdx <= 0) return;
+        historyIdx--;
+        restoreSnapshot(history[historyIdx]);
+        showToast('Desfeito');
+    }
+
+    function redo() {
+        if (historyIdx >= history.length - 1) return;
+        historyIdx++;
+        restoreSnapshot(history[historyIdx]);
+        showToast('Refeito');
+    }
+
+    function restoreSnapshot(snap) {
+        tableStates.cabos.data  = snap.cabos.map(deepClone);
+        tableStates.outros.data = snap.outros.map(deepClone);
+        renderTable('cabos');
+        renderTable('outros');
+        buildAtivoSets();
+        buildDataLists();
+        refreshAllFilters('cabos');
+        refreshAllFilters('outros');
+        updateHistoryUI();
+    }
+
+    function updateHistoryUI() {
+        const btnU = document.getElementById('btn-undo');
+        const btnR = document.getElementById('btn-redo');
+        const info = document.getElementById('history-info');
+        btnU.disabled = historyIdx <= 0;
+        btnR.disabled = historyIdx >= history.length - 1;
+        const pos = historyIdx + 1, tot = history.length;
+        info.textContent = tot > 1 ? `${pos}/${tot}` : '';
+    }
+
+    document.getElementById('btn-undo').addEventListener('click', undo);
+    document.getElementById('btn-redo').addEventListener('click', redo);
+
+    /* ═══════════════════════════════════════
+       TECLADO GLOBAL
+    ═══════════════════════════════════════ */
+    document.addEventListener('keydown', e => {
+        const tag = document.activeElement.tagName;
+        const isEditing = (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || document.activeElement.contentEditable === 'true');
+
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+            if (!isEditing) { e.preventDefault(); undo(); }
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+            if (!isEditing) { e.preventDefault(); redo(); }
+            return;
+        }
+        if (e.key === 'Escape') hideAutocomplete();
+    });
+
+    /* ═══════════════════════════════════════
+       COUNTERS
+    ═══════════════════════════════════════ */
+    function updateCounters() {
+        // Conta apenas as linhas visíveis (não filtradas)
+        ['cabos', 'outros'].forEach(type => {
+            const body = document.getElementById(tableStates[type].bodyId);
+            const visible = body ? Array.from(body.children).filter(tr => tr.style.display !== 'none').length : tableStates[type].data.length;
+            const total   = tableStates[type].data.length;
+            const badge   = document.getElementById(`count-${type}`);
+            if (badge) badge.textContent = visible < total ? `${visible}/${total}` : total;
+        });
+    }
+
+    /* ═══════════════════════════════════════
+       TOAST
+    ═══════════════════════════════════════ */
+    let toastTimer = null;
+    function showToast(msg) {
+        const t = document.getElementById('resumo-toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
+    }
+
+    /* ═══════════════════════════════════════
+       UTILS
+    ═══════════════════════════════════════ */
+    function deepClone(obj) {
+        const c = { entidade: obj.entidade || '0', operacao: obj.operacao || 'M', ativo: obj.ativo || '' };
+        if (obj.qtdAtivos !== undefined) c.qtdAtivos = obj.qtdAtivos;
+        return c;
+    }
+
+    /* ═══════════════════════════════════════
+       CLASSIFICAÇÃO AUTOMÁTICA DE ENTIDADE
+    ═══════════════════════════════════════ */
+    function autoClassifyEntidade(ativoTexto) {
+        if (!ativoTexto) return '0';
+        const tUpper = ativoTexto.toUpperCase().trim();
+        
+        // Verifica primeiro se não tem conflitos de APOIO
+        const apoioMarkers = ["-ROCO", "-RECAL", "-BASE", "-CAVA", "PODA"];
+        const foundApoioCount = apoioMarkers.filter(m => tUpper.includes(m)).length;
+        const hasApoioConflict = tUpper.includes("APOIOS") || tUpper.includes("LARGURA") || (tUpper.includes("BASE") && tUpper.includes("CALÇADA")) || foundApoioCount > 1;
+
+        if (tUpper.includes("-RTR")) return "TRAFO";
+        if (tUpper.includes("-RCFU")) return "CHAVE";
+        if (/\sRS\s+[MT]\s/i.test(tUpper)) return "RAMAIS";
+        if (tUpper.includes("-ROCO") && !hasApoioConflict) return "APOIO";
+        if (tUpper.includes("-IP") || /\bIP\b/i.test(tUpper)) return "IP";
+        if (tUpper === "1-AF") return "ESTRUTURA";
+        if ((tUpper.includes("-RECAL")||tUpper.includes("-BASE")||tUpper.includes("-CAVA")) && !hasApoioConflict) return "APOIO";
+        if ((tUpper.includes("DT") || tUpper.includes("CV")) && tUpper.includes("/")) return "POSTE";
+        
+        // Cabos
+        if (!tUpper.includes("DT") && !tUpper.includes("CV") && !tUpper.includes("AWG") && !tUpper.includes("#")) {
+            if (/\bM?\d+x\d+/.test(tUpper)) return "CABO";
+            if (tUpper.includes("ABC") && /\d+\s*M$/.test(tUpper)) return "CABO";
+            if (/^CU\s*\d/.test(tUpper) || /\bCU\s*\d/.test(tUpper.substring(0, 5))) return "CABO";
+            if (/^CA\s+\d/.test(tUpper) || /^CA\d/.test(tUpper) || /\b(?:CAL|CAA|CAZ)\s*\d/.test(tUpper)) return "CABO";
+            if (/\bP\s*(16|25|35|50|70|95|120|150|185|240)\b/.test(tUpper)) return "CABO";
+            if (tUpper.includes("X1X") && /\d+\s*M$/.test(tUpper)) return "CABO";
+        }
+        
+        if (tUpper.includes("FIOS")) return "CERCA";
+        if (tUpper.includes("-CF") || tUpper.includes("-EF")) return "CHAVE";
+        if (tUpper.includes("-TR")) return "TRAFO";
+        if (tUpper.includes("PODA") && !hasApoioConflict) return "APOIO";
+        
+        // Estrutura
+        const hasEstruturaPattern = /\b\d+\s*-\s*(\d+[A-Z]{1,2}\d*|\d*[A-Z]{1,2}\d+|ISOL)\b/i.test(tUpper) || 
+                                   /\b\d+\s*-\s*(SI|RA|BI|CE|N|U|T|R|B|S)\d+/i.test(tUpper);
+        if (hasEstruturaPattern) return "ESTRUTURA";
+
+        return "0"; // Default
+    }
+
+    /* ═══════════════════════════════════════
+       CÁLCULO DE QTD ATIVOS (CABOS)
+    ═══════════════════════════════════════ */
+    /**
+     * Calcula a quantidade de ativos de uma linha de cabo.
+     * @param {string} ativoTexto - Texto do campo Ativo (ex: "CAA 2 ABC 35 m")
+     * @param {string|null} faseFromNext - Fase herdada da próxima linha (para linhas standalone)
+     * @returns {number} Quantidade de ativos calculada
+     */
+    function calcularQtdAtivos(ativoTexto, faseFromNext) {
+        if (!ativoTexto || !ativoTexto.trim()) return 0;
+
+        let txt = ativoTexto.trim().toUpperCase();
+
+        // Normaliza prefixos: "CAA 2" → "CAA2", "CA 4" → "CA4", "P 50" → "P50"
+        const txtNorm = txt
+            .replace(/^CAA\s+(\d)/i, 'CAA$1')
+            .replace(/^CA\s+(\d)/i, 'CA$1')
+            .replace(/^CU\s+(\d)/i, 'CU$1')
+            .replace(/^CAZ\s+(\d)/i, 'CAZ$1')
+            .replace(/^P\s+(\d)/i, 'P$1');
+
+        // Remove 'm' final (marcador de metros)
+        const cleaned = txtNorm.replace(/\s+M\s*$/i, '').trim();
+        const tokens = cleaned.split(/\s+/);
+
+        if (tokens.length === 0) return 0;
+
+        const prefixo = tokens[0];
+
+        // ── Regra M ou CAZ: sempre 1 ──
+        if (/^M\d/i.test(prefixo) || /^M$/i.test(prefixo) || /^CAZ/i.test(prefixo)) {
+            return 1;
+        }
+
+        // Determinar se é uma linha "standalone" (apenas ativo, sem fase/comprimento)
+        // Ex: "P50" → 1 token; "CAA2" → 1 token
+        // Uma linha completa tem pelo menos: ATIVO FASE COMPRIMENTO (3 tokens)
+        let fase = null;
+
+        if (tokens.length >= 3) {
+            // Formato padrão: ATIVO FASE COMPRIMENTO
+            // O último token (após remover 'm') é o comprimento
+            // O(s) token(s) do meio formam a fase
+            fase = tokens.slice(1, tokens.length - 1).join('');
+        } else if (tokens.length === 1) {
+            // Linha standalone - herda da próxima linha
+            if (faseFromNext) {
+                fase = faseFromNext;
+            } else {
+                return 1; // Sem info, retorna 1 como fallback
+            }
+        } else if (tokens.length === 2) {
+            // Poderia ser ATIVO+COMPRIMENTO (sem fase) ou ATIVO+FASE (sem comprimento)
+            // Tenta: se o segundo token for numérico, é comprimento sem fase
+            const second = tokens[1];
+            if (/^[\d.,]+$/.test(second)) {
+                // Apenas comprimento, sem fase → standalone behavior
+                if (faseFromNext) {
+                    fase = faseFromNext;
+                } else {
+                    return 1;
+                }
+            } else {
+                // Segundo token é a fase (sem comprimento)
+                fase = second;
+            }
+        }
+
+        if (!fase) return 1;
+
+        const faseLen = fase.length;
+
+        // ── Regra CAA2 / CAA 2 com fase de 1 char → +1 ──
+        if (/^CAA2/i.test(prefixo) && faseLen === 1) {
+            return faseLen + 1; // = 2
+        }
+
+        // ── Regra CA4 / CA 4 → sempre +1 ──
+        if (/^CA4/i.test(prefixo)) {
+            return faseLen + 1;
+        }
+
+        // ── Caso padrão: len(fase) ──
+        return faseLen || 1;
+    }
+
+    /**
+     * Extrai a fase de um texto de ativo completo (para herança de linhas standalone).
+     * Retorna null se não conseguir extrair.
+     */
+    function extrairFase(ativoTexto) {
+        if (!ativoTexto || !ativoTexto.trim()) return null;
+
+        let txt = ativoTexto.trim().toUpperCase();
+        const txtNorm = txt
+            .replace(/^CAA\s+(\d)/i, 'CAA$1')
+            .replace(/^CA\s+(\d)/i, 'CA$1')
+            .replace(/^CU\s+(\d)/i, 'CU$1')
+            .replace(/^CAZ\s+(\d)/i, 'CAZ$1')
+            .replace(/^P\s+(\d)/i, 'P$1');
+
+        const cleaned = txtNorm.replace(/\s+M\s*$/i, '').trim();
+        const tokens = cleaned.split(/\s+/);
+
+        if (tokens.length >= 3) {
+            return tokens.slice(1, tokens.length - 1).join('');
+        }
+        return null;
+    }
+
+    /**
+     * Verifica se uma linha de cabo é "standalone" (apenas ativo, sem fase/comprimento).
+     */
+    function isStandaloneLine(ativoTexto) {
+        if (!ativoTexto || !ativoTexto.trim()) return false;
+        let txt = ativoTexto.trim().toUpperCase();
+        const txtNorm = txt
+            .replace(/^CAA\s+(\d)/i, 'CAA$1')
+            .replace(/^CA\s+(\d)/i, 'CA$1')
+            .replace(/^CU\s+(\d)/i, 'CU$1')
+            .replace(/^CAZ\s+(\d)/i, 'CAZ$1')
+            .replace(/^P\s+(\d)/i, 'P$1');
+        const cleaned = txtNorm.replace(/\s+M\s*$/i, '').trim();
+        const tokens = cleaned.split(/\s+/);
+
+        if (tokens.length === 1) return true;
+        if (tokens.length === 2 && /^[\d.,]+$/.test(tokens[1])) return true;
+        return false;
+    }
+
+    /**
+     * Recalcula qtdAtivos para todas as linhas da tabela de cabos.
+     * Processa de baixo para cima para resolver dependências de linhas standalone.
+     */
+    function recalcAllQtdAtivos() {
+        const data = tableStates.cabos.data;
+        for (let i = data.length - 1; i >= 0; i--) {
+            const row = data[i];
+            if (!row) continue;
+            let faseFromNext = null;
+            if (isStandaloneLine(row.ativo) && i + 1 < data.length) {
+                faseFromNext = extrairFase(data[i + 1].ativo);
+            }
+            
+            const isNegative = row.qtdAtivos !== undefined && row.qtdAtivos !== null && row.qtdAtivos.toString().trim().startsWith('-');
+            let newVal = calcularQtdAtivos(row.ativo, faseFromNext);
+            
+            if (isNegative && newVal > 0) {
+                row.qtdAtivos = "-" + newVal;
+            } else {
+                row.qtdAtivos = newVal;
+            }
+        }
+    }
+
+    // Ao desfocar um input de ativo, tenta auto-classificar se a Entidade for "0"
+    document.addEventListener('blur', (e) => {
+        if (e.target.classList.contains('inp-ativo')) {
+            const tr = e.target.closest('tr');
+            if (tr) {
+                const selEnt = tr.querySelector('.sel-entidade');
+                if (selEnt && selEnt.value === '0') {
+                    const novaEntidade = autoClassifyEntidade(e.target.value);
+                    if (novaEntidade !== '0') {
+                        selEnt.value = novaEntidade;
+                        // Aciona evento change para salvar no state e history
+                        selEnt.dispatchEvent(new Event('change'));
+                    }
+                }
+            }
+        }
+    }, true);
+
+
+    /* ═══════════════════════════════════════
+       INTEGRAÇÃO IA (GEMINI) E MEMÓRIA
+    ═══════════════════════════════════════ */
+    function restoreSnapshot(snap) {
+        if (!snap || !snap.cabos || !snap.outros) {
+            showToast("Dados da obra inválidos.");
+            return;
+        }
+        tableStates.cabos.data = snap.cabos.data || [];
+        tableStates.outros.data = snap.outros.data || [];
+        recalcAllQtdAtivos();
+        renderTable('cabos');
+        renderTable('outros');
+        buildAtivoSets();
+        buildDataLists();
+        refreshAllFilters('cabos');
+        refreshAllFilters('outros');
+        pushHistory();
+    }
+
+    const aiChatMessages = document.getElementById('chat-messages');
+    const aiChatInput = document.getElementById('chat-input');
+    const btnSendChat = document.getElementById('btn-send-chat');
+    
+    // API Key config
+    const modalApikey = document.getElementById('modal-apikey');
+    const inputApikey = document.getElementById('input-apikey');
+    const inputModel = document.getElementById('input-model');
+    
+    async function fetchModels() {
+        const keyToUse = inputApikey.value.trim() || "SAVED_IN_BACKEND";
+        try {
+            const resp = await fetch('/api/gemini/models', {
+                headers: { 'X-Gemini-Key': keyToUse }
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                inputModel.innerHTML = '<option value="">Automático (gemini-3.1-flash-lite)</option>';
+                (data.models || []).forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.id || m;
+                    opt.textContent = m.label || m.id || m;
+                    inputModel.appendChild(opt);
+                });
+                inputModel.value = localStorage.getItem('gemini_model') || '';
+            }
+        } catch (e) {
+            console.error("Erro ao carregar modelos", e);
+        }
+    }
+
+    inputApikey.addEventListener('blur', fetchModels);
+
+    document.getElementById('btn-config-api').addEventListener('click', () => {
+        // Restaurar valores salvos
+        inputApikey.value = localStorage.getItem('gemini_api_key') || '';
+        inputModel.value = localStorage.getItem('gemini_model') || '';
+        fetchModels();
+        modalApikey.classList.remove('hidden');
+    });
+
+    document.getElementById('btn-save-apikey').addEventListener('click', () => {
+        localStorage.setItem('ai_provider', 'gemini');
+        localStorage.setItem('gemini_api_key', inputApikey.value.trim());
+        localStorage.setItem('gemini_model', inputModel.value.trim());
+        modalApikey.classList.add('hidden');
+        showToast('Configurações salvas!');
+    });
+
+    // Chat logic
+    let chatHistory = [];
+    
+    function addChatMessage(text, sender) {
+        const div = document.createElement('div');
+        div.className = `chat-message ${sender}`;
+        div.innerHTML = text.replace(/\n/g, '<br>');
+        aiChatMessages.appendChild(div);
+        aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+    }
+
+    function extractTableFromMarkdown(markdown) {
+        const lines = markdown.split('\n');
+        let inTable = false;
+        let result = [];
+        for (let line of lines) {
+            line = line.trim();
+            if (line.startsWith('|') && line.includes('ATIVOS')) {
+                // Serve tanto para o formato antigo (AÇÃO|ATIVOS) quanto para o novo (COMANDO|ID|AÇÃO|ATIVOS)
+                inTable = true;
+                continue;
+            }
+            if (inTable && line.startsWith('|') && line.includes('---')) continue;
+            
+            if (inTable && line.startsWith('|')) {
+                const parts = line.split('|').slice(1, -1).map(s => s.trim());
+                if (parts.length >= 4) {
+                    result.push({ comando: parts[0], idStr: parts[1], operacao: parts[2], ativosStr: parts[3] });
+                } else if (parts.length >= 2) {
+                    result.push({ comando: 'ADICIONAR', idStr: '-', operacao: parts[parts.length-2], ativosStr: parts[parts.length-1] });
+                }
+            } else if (inTable) {
+                // Fim da tabela
+                break;
+            }
+        }
+        return result;
+    }
+
+    async function sendToGemini() {
+        const text = aiChatInput.value.trim();
+        if (!text) return;
+
+        const apiKey = localStorage.getItem('gemini_api_key') || 'SAVED_IN_BACKEND';
+        const customModel = localStorage.getItem('gemini_model') || 'SAVED_IN_BACKEND';
+
+        addChatMessage(text, 'user');
+        aiChatInput.value = '';
+        aiChatInput.disabled = true;
+        btnSendChat.disabled = true;
+
+        // Se for uma regra, salva no banco e informa a IA
+        const isRule = text.toLowerCase().includes('lembre-se') || text.toLowerCase().includes('regra:');
+        if (isRule) {
+            try {
+                await fetch('/api/regras', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ conteudo: text })
+                });
+                showToast('Regra aprendida!');
+            } catch (e) {
+                console.error("Erro ao salvar regra", e);
+            }
+        }
+
+        // Indicador carregando
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'chat-message ai';
+        loadingDiv.innerHTML = '<span class="loading-dots">Gerando</span>';
+        aiChatMessages.appendChild(loadingDiv);
+        aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+
+        // Montar contexto da tabela apenas quando o prompt pede análise/edição
+        const palavrasContexto = ['analis', 'alterar', 'editar', 'excluir', 'remover', 'substituir',
+            'tudo', 'todas', 'tabela', 'leia', 'leitura', 'completo', 'lista',
+            'quantos', 'total', 'verifique', 'cheque', 'corrig'];
+        const precisaContexto = palavrasContexto.some(kw => text.toLowerCase().includes(kw));
+        let tableContext = "";
+        if (precisaContexto) {
+            tableContext = "\n\nESTADO ATUAL DA TABELA:\n";
+            tableStates.cabos.data.forEach((r, i) => { if(r) tableContext += `[CABOS-${i}] | ${r.operacao} | ${r.ativo}\n`; });
+            tableStates.outros.data.forEach((r, i) => { if(r) tableContext += `[OUTROS-${i}] | ${r.operacao} | ${r.ativo}\n`; });
+        }
+
+        try {
+            const reqBody = {
+                prompt: text,
+                table_context: tableContext,
+                history: chatHistory,
+                provider: "gemini",
+                openai_base_url: ""
+            };
+            const response = await fetch('/api/gemini/chat', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Gemini-Key': apiKey,
+                    'X-Gemini-Model': customModel
+                },
+                body: JSON.stringify(reqBody)
+            });
+
+            aiChatMessages.removeChild(loadingDiv);
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    modalApikey.classList.remove('hidden');
+                    addChatMessage("Chave da API não encontrada. Por favor, insira e tente novamente.", 'error');
+                } else {
+                    const err = await response.json();
+                    addChatMessage(`Erro: ${err.detail || 'Falha na comunicação'}`, 'error');
+                }
+                aiChatInput.disabled = false;
+                btnSendChat.disabled = false;
+                return;
+            }
+
+            // Ler a resposta em stream
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let replyText = "";
+            
+            // Cria a bolha da IA vazia
+            const div = document.createElement('div');
+            div.className = 'chat-message ai';
+            aiChatMessages.appendChild(div);
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                replyText += decoder.decode(value, { stream: true });
+                div.innerHTML = replyText.replace(/\n/g, '<br>');
+                aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+            }
+            
+            // Finaliza decodificação
+            replyText += decoder.decode();
+
+            // Detectar se a resposta é vazia ou um erro do backend
+            if (!replyText.trim()) {
+                div.className = 'chat-message error';
+                div.innerHTML = '⚠️ A IA não retornou resposta. Verifique a API Key e o modelo selecionado.';
+                aiChatInput.disabled = false;
+                btnSendChat.disabled = false;
+                return;
+            }
+            if (replyText.trim().startsWith('[ERRO]')) {
+                div.className = 'chat-message error';
+                div.innerHTML = '⚠️ ' + replyText.replace(/\n/g, '<br>');
+                aiChatInput.disabled = false;
+                btnSendChat.disabled = false;
+                return;
+            }
+
+            div.innerHTML = replyText.replace(/\n/g, '<br>');
+
+            chatHistory.push({ role: 'user', parts: [{ text: text }] });
+            chatHistory.push({ role: 'model', parts: [{ text: replyText }] });
+
+            // Processar a tabela retornada, se houver
+            const tableData = extractTableFromMarkdown(replyText);
+            if (tableData.length > 0) {
+                tableData.forEach(row => {
+                    const cmd = row.comando.toUpperCase().replace(/\*/g, '').trim();
+                    
+                    if (cmd === 'EDITAR' || cmd === 'EXCLUIR' || cmd === 'REMOVER') {
+                        const idParts = row.idStr.split('-');
+                        if (idParts.length === 2) {
+                            const type = idParts[0].toLowerCase();
+                            const idx = parseInt(idParts[1], 10);
+                            
+                            if (tableStates[type] && tableStates[type].data[idx]) {
+                                if (cmd === 'EXCLUIR' || cmd === 'REMOVER') {
+                                    // Apenas anula (null) e depois limpa com filter, para não quebrar 
+                                    // a ordem dos índices caso a IA mande excluir múltiplos itens
+                                    tableStates[type].data[idx] = null;
+                                } else {
+                                    const isCabo = autoClassifyEntidade(row.ativosStr) === 'CABO';
+                                    const novaEnt = autoClassifyEntidade(row.ativosStr);
+                                    tableStates[type].data[idx].operacao = row.operacao.trim() || 'I';
+                                    tableStates[type].data[idx].ativo = row.ativosStr;
+                                    tableStates[type].data[idx].entidade = novaEnt !== '0' ? novaEnt : (isCabo ? 'CABO' : '0');
+                                }
+                            }
+                        }
+                        return; // Se for edição/exclusão, NUNCA adiciona uma nova linha (mesmo se o ID for inválido)
+                    }
+                    
+                    // Roteamento baseado no formato estrito
+                    let isCabo = false;
+                    const ativoTest = row.ativosStr.trim().toUpperCase();
+                    // Se termina em 'm' ou 'M' precedido por numero e espaço (ex: "35 m")
+                    if (/\d+[\.,]?\d*\s*M$/.test(ativoTest)) {
+                        isCabo = true;
+                    } else if (/^\d+\s*-/.test(ativoTest)) { 
+                        // Formato Quantidade-Ativo vai sempre para Outros
+                        isCabo = false;
+                    } else if (ativoTest.startsWith('DT') || ativoTest.startsWith('CV')) {
+                        // Poste vai sempre para Outros
+                        isCabo = false;
+                    } else {
+                        // Fallback original
+                        isCabo = autoClassifyEntidade(row.ativosStr) === 'CABO';
+                    }
+                    
+                    const type = isCabo ? 'cabos' : 'outros';
+                    const novaEnt = autoClassifyEntidade(row.ativosStr);
+                    tableStates[type].data.push({
+                        entidade: novaEnt !== '0' ? novaEnt : (isCabo ? 'CABO' : '0'),
+                        operacao: row.operacao.trim() || 'I', // Mantém asteriscos
+                        ativo: row.ativosStr
+                    });
+                });
+                
+                // Limpar os nulos deixados por exclusões
+                tableStates.cabos.data = tableStates.cabos.data.filter(r => r !== null);
+                tableStates.outros.data = tableStates.outros.data.filter(r => r !== null);
+                recalcAllQtdAtivos();
+                renderTable('cabos');
+                renderTable('outros');
+                buildAtivoSets(); 
+                buildDataLists();
+                pushHistory();
+                refreshAllFilters('cabos');
+                refreshAllFilters('outros');
+                showToast(`+${tableData.length} ativos inseridos!`);
+            }
+        } catch (error) {
+            if (loadingDiv.parentNode) aiChatMessages.removeChild(loadingDiv);
+            addChatMessage(`Erro de conexão: ${error.message}`, 'error');
+        } finally {
+            aiChatInput.disabled = false;
+            btnSendChat.disabled = false;
+            aiChatInput.focus();
+        }
+    }
+
+    btnSendChat.addEventListener('click', sendToGemini);
+    aiChatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendToGemini();
+        }
+    });
+
+    // --- MEMÓRIA (Salvar / Carregar) ---
+    const modalSaveObra = document.getElementById('modal-save-obra');
+    const modalLoadObra = document.getElementById('modal-load-obra');
+    
+    document.getElementById('btn-save-obra').addEventListener('click', () => {
+        document.getElementById('input-obra-nome').value = '';
+        modalSaveObra.classList.remove('hidden');
+    });
+
+    document.getElementById('btn-confirm-save-obra').addEventListener('click', async () => {
+        const nome = document.getElementById('input-obra-nome').value.trim();
+        if (!nome) return alert('Digite um nome');
+        
+        const obra = {
+            id: 'obra_' + Date.now(),
+            nome: nome,
+            data: new Date().toLocaleString(),
+            dados_json: JSON.stringify(tableStates)
+        };
+
+        try {
+            await fetch('/api/obras', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(obra)
+            });
+            modalSaveObra.classList.add('hidden');
+            showToast('Obra salva com sucesso!');
+        } catch (e) {
+            showToast('Erro ao salvar no backend');
+        }
+    });
+
+    document.getElementById('btn-load-obra').addEventListener('click', async () => {
+        try {
+            const res = await fetch('/api/obras');
+            if (!res.ok) throw new Error('Falha ao listar obras');
+            const obras = await res.json();
+            
+            const listDiv = document.getElementById('obras-list');
+            listDiv.innerHTML = '';
+            
+            if (obras.length === 0) {
+                listDiv.innerHTML = '<div style="color:#8b949e;padding:10px;">Nenhuma obra salva ainda.</div>';
+            } else {
+                obras.forEach(o => {
+                    const item = document.createElement('div');
+                    item.className = 'obra-item';
+                    item.innerHTML = `
+                        <div class="obra-info">
+                            <span class="obra-nome">${o.nome}</span>
+                            <span class="obra-data">${o.data}</span>
+                        </div>
+                        <div class="obra-actions">
+                            <button class="btn-primary btn-load-item" data-json='${o.dados_json}' style="background:#238636; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Carregar</button>
+                            <button class="btn-secondary btn-add-item" data-json='${o.dados_json}' style="background:#1f6feb; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Adicionar</button>
+                            <button class="btn-secondary btn-sub-item" data-json='${o.dados_json}' style="background:#d29922; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Subtrair</button>
+                            <button class="btn-secondary btn-del-item" data-id="${o.id}" style="background:#da3633; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Excluir</button>
+                        </div>
+                    `;
+                    
+                    item.querySelector('.btn-load-item').addEventListener('click', (e) => {
+                        const stateStr = e.target.getAttribute('data-json');
+                        const snap = JSON.parse(stateStr);
+                        restoreSnapshot(snap);
+                        modalLoadObra.classList.add('hidden');
+                        showToast('Obra carregada!');
+                    });
+
+                    item.querySelector('.btn-add-item').addEventListener('click', (e) => {
+                        const stateStr = e.target.getAttribute('data-json');
+                        const snap = JSON.parse(stateStr);
+                        ['cabos', 'outros'].forEach(type => {
+                            if (snap[type] && snap[type].data) {
+                                snap[type].data.forEach(row => {
+                                    if(row) tableStates[type].data.push(JSON.parse(JSON.stringify(row)));
+                                });
+                                if (type === 'cabos') recalcAllQtdAtivos();
+                                renderTable(type);
+                                refreshAllFilters(type);
+                            }
+                        });
+                        buildAtivoSets();
+                        buildDataLists();
+                        pushHistory();
+                        modalLoadObra.classList.add('hidden');
+                        showToast('Obra adicionada!');
+                    });
+
+                    item.querySelector('.btn-sub-item').addEventListener('click', (e) => {
+                        const stateStr = e.target.getAttribute('data-json');
+                        const snap = JSON.parse(stateStr);
+                        ['cabos', 'outros'].forEach(type => {
+                            if (snap[type] && snap[type].data) {
+                                snap[type].data.forEach(row => {
+                                    if(row) {
+                                        let clonedRow = JSON.parse(JSON.stringify(row));
+                                        if (type === 'cabos') {
+                                            clonedRow.qtdAtivos = "-" + Math.abs(clonedRow.qtdAtivos || 0);
+                                        } else {
+                                            clonedRow.ativo = "*" + clonedRow.ativo;
+                                        }
+                                        tableStates[type].data.push(clonedRow);
+                                    }
+                                });
+                                renderTable(type);
+                                refreshAllFilters(type);
+                            }
+                        });
+                        buildAtivoSets();
+                        buildDataLists();
+                        pushHistory();
+                        modalLoadObra.classList.add('hidden');
+                        showToast('Obra subtraída!');
+                    });
+
+                    item.querySelector('.btn-del-item').addEventListener('click', async (e) => {
+                        const btn = e.target;
+                        btn.disabled = true;
+                        try {
+                            await fetch(`/api/obras/${o.id}`, { method: 'DELETE' });
+                            item.remove();
+                        } catch (err) {
+                            btn.disabled = false;
+                        }
+                    });
+
+                    listDiv.appendChild(item);
+                });
+            }
+            modalLoadObra.classList.remove('hidden');
+        } catch (e) {
+            showToast('Erro ao carregar obras');
+        }
+    });
+
+    const btnMontarOrcamento = document.getElementById('btn-montar-orcamento');
+    const modalOrcamento = document.getElementById('modal-orcamento');
+    const tbodyOrcamento = document.getElementById('resultado-orcamento-tbody');
+
+    if (btnMontarOrcamento) {
+        btnMontarOrcamento.addEventListener('click', async () => {
+            const payload = {
+                cabos: tableStates.cabos.data.filter(r => r !== null),
+                outros: tableStates.outros.data.filter(r => r !== null)
+            };
+            
+            localStorage.setItem('orcamentoPayload', JSON.stringify(payload));
+            window.open('/static/resultado_orcamento.html', '_blank');
+        });
+    }
+
+}); // end DOMContentLoaded

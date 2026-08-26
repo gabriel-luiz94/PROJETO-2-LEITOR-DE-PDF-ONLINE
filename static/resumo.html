@@ -9,37 +9,457 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css">
     <style>
-        .container { max-width: 1400px; padding-bottom: 50px; }
-        .report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 15px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
-        .report-title { font-size: 1.8rem; font-weight: 700; color: #fff; margin: 0; }
-        .report-section { margin-bottom: 50px; }
-        .section-title { font-size: 1.4rem; color: #3498db; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-        .section-title i { font-size: 1.2rem; }
-        .table-container { height: 400px; }
-        .badge-count { background: #3498db; color: white; padding: 2px 10px; border-radius: 20px; font-size: 0.9rem; }
-        
-        /* Ajustes de filtro e ações */
-        .filter-container { position: relative; margin-top: 5px; }
-        .filter-trigger { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; color: #ccc; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-        .filter-dropdown { position: absolute; top: 100%; left: 0; background: #252526; border: 1px solid #454545; border-radius: 6px; z-index: 1000; display: none; min-width: 200px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        .filter-dropdown.active { display: block; }
-        .filter-option { display: flex; align-items: center; padding: 8px 12px; gap: 10px; cursor: pointer; color: #ccc; }
-        .filter-option:hover { background: #37373d; }
-        .filter-search-container { padding: 10px; border-bottom: 1px solid #454545; }
-        .filter-search { width: 100%; background: #3c3c3c; border: 1px solid #555; color: white; padding: 5px; border-radius: 4px; outline: none; }
-        .select-all-option { border-bottom: 1px solid #454545; font-weight: 600; color: #3498db !important; }
-        .options-container { max-height: 200px; overflow-y: auto; }
-        
-        #context-menu { position: fixed; background: #252526; border: 1px solid #454545; border-radius: 6px; padding: 5px 0; z-index: 10000; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: none; min-width: 160px; }
-        #context-menu.active { display: block; }
-        .ctx-item { padding: 8px 15px; cursor: pointer; color: #ccc; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; }
-        .ctx-item:hover { background: #094771; color: white; }
-        .ctx-item.danger:hover { background: #a1260d; }
-        .ctx-separator { height: 1px; background: #454545; margin: 5px 0; }
-        
-        .btn-add { background: #27ae60 !important; font-size: 0.8rem; height: 32px; padding: 0 15px; color: white; font-weight: 600; border: none; }
-        .btn-copy-report { background: #007bff !important; font-size: 0.85rem; height: 32px; padding: 0 20px; color: white !important; font-weight: 700; border: none; box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3); }
-        .btn-copy-report:hover { background: #0056b3 !important; transform: translateY(-1px); }
+        /* ── Layout Geral ── */
+        body { display: flex; justify-content: flex-start; }
+        .container { max-width: 100%; width: 100%; padding: 24px 32px 50px; }
+
+        /* ── Header ── */
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 22px;
+            padding: 16px 22px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
+        }
+        .report-title { font-size: 1.6rem; font-weight: 700; color: #fff; margin: 0; }
+        .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+        /* ── Undo/Redo buttons ── */
+        .btn-undo, .btn-redo {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 7px;
+            color: #c9d1d9;
+            padding: 7px 13px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-undo:hover { background: rgba(88,166,255,0.15); border-color: #58a6ff; color: #58a6ff; }
+        .btn-redo:hover { background: rgba(137,87,229,0.15); border-color: #8957e5; color: #c792ff; }
+        .btn-undo:disabled, .btn-redo:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn-undo:disabled:hover, .btn-redo:disabled:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.15); color: #c9d1d9; }
+
+        .btn-sep { width: 1px; height: 28px; background: rgba(255,255,255,0.15); }
+
+        /* ── Side-by-side layout ── */
+        .tables-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+        @media (max-width: 900px) {
+            .tables-row { grid-template-columns: 1fr; }
+        }
+
+        /* ── Section card ── */
+        .report-section {
+            background: rgba(22, 27, 34, 0.65);
+            border: 1px solid rgba(48, 54, 61, 0.8);
+            border-radius: 14px;
+            padding: 18px;
+            backdrop-filter: blur(12px);
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #58a6ff;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .badge-count {
+            background: #1f6feb;
+            color: white;
+            padding: 1px 9px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .section-actions { display: flex; gap: 7px; align-items: center; }
+
+        /* ── Action buttons ── */
+        .btn-add-row {
+            display: flex; align-items: center; gap: 5px;
+            background: rgba(46,160,67,0.15);
+            border: 1px solid rgba(46,160,67,0.4);
+            border-radius: 7px;
+            color: #3fb950;
+            padding: 6px 11px;
+            font-size: 0.76rem; font-weight: 600;
+            cursor: pointer; transition: all 0.18s;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-add-row:hover { background: rgba(46,160,67,0.28); border-color: #3fb950; }
+
+        .btn-del-row-bulk {
+            display: flex; align-items: center; gap: 5px;
+            background: rgba(255,123,114,0.12);
+            border: 1px solid rgba(255,123,114,0.35);
+            border-radius: 7px;
+            color: #ff7b72;
+            padding: 6px 11px;
+            font-size: 0.76rem; font-weight: 600;
+            cursor: pointer; transition: all 0.18s;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-del-row-bulk:hover { background: rgba(255,123,114,0.25); border-color: #ff7b72; }
+
+        .btn-copy-table {
+            display: flex; align-items: center; gap: 5px;
+            background: rgba(31, 111, 235, 0.15);
+            border: 1px solid rgba(88,166,255,0.35);
+            border-radius: 7px;
+            color: #58a6ff;
+            padding: 6px 11px;
+            font-size: 0.76rem; font-weight: 600;
+            cursor: pointer; transition: all 0.18s;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-copy-table:hover { background: rgba(88,166,255,0.2); border-color: #58a6ff; }
+
+        /* ── Table container ── */
+        .table-wrap {
+            border: 1px solid rgba(48,54,61,0.9);
+            border-radius: 8px;
+            overflow: hidden;
+            max-height: 520px;
+            overflow-y: auto;
+            background: var(--bg-color);
+        }
+
+        /* ── Table ── */
+        .resumo-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .resumo-table th {
+            background: rgba(22, 27, 34, 0.97);
+            position: sticky; top: 0; z-index: 5;
+            color: #8b949e;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 8px 8px 10px;
+            border-bottom: 2px solid rgba(48,54,61,0.9);
+            text-align: left;
+            vertical-align: top;
+        }
+        .resumo-table th.col-entidade { width: 130px; }
+        .resumo-table th.col-operacao { width: 90px; }
+        .resumo-table th.col-ativo    { width: auto; }
+        .resumo-table th.col-qtd-ativos { width: 70px; text-align: center; }
+        .resumo-table th.col-del      { width: 34px; padding: 8px 4px; }
+
+        /* ── Qtd Ativos input ── */
+        .inp-qtd-ativos {
+            width: 100%;
+            background: rgba(137,87,229,0.06);
+            border: 1px solid rgba(137,87,229,0.18);
+            border-radius: 5px;
+            color: #c9a0ff;
+            font-size: 0.82rem;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            padding: 4px 4px;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.18s, background 0.18s;
+            box-sizing: border-box;
+        }
+        .inp-qtd-ativos:focus {
+            border-color: #8957e5;
+            background: rgba(137,87,229,0.14);
+        }
+
+        /* ── Th label row ── */
+        .th-label { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; white-space: nowrap; }
+
+        /* ── Filter system (reuso do estilo da página inicial) ── */
+        .r-filter-container {
+            position: relative;
+            width: 100%;
+            margin-top: 3px;
+        }
+        .r-filter-trigger {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(48,54,61,0.8);
+            border-radius: 4px;
+            padding: 3px 7px;
+            font-size: 0.7rem;
+            color: #c9d1d9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.18s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: 'Inter', sans-serif;
+        }
+        .r-filter-trigger:hover {
+            background: rgba(255,255,255,0.09);
+            border-color: #8b949e;
+        }
+        .r-filter-trigger::after {
+            content: '';
+            width: 0; height: 0;
+            border-left: 3px solid transparent;
+            border-right: 3px solid transparent;
+            border-top: 4px solid #8b949e;
+            margin-left: 4px;
+            flex-shrink: 0;
+        }
+        .r-filter-indicator {
+            background: #58a6ff;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            position: absolute;
+            top: -2px; right: -2px;
+            display: none;
+        }
+        .r-filter-indicator.active { display: block; }
+        .r-filter-dropdown {
+            position: absolute;
+            top: 100%; left: 0;
+            width: 220px;
+            max-height: 380px;
+            background: rgba(22,27,34,0.98);
+            border: 1px solid rgba(48,54,61,0.9);
+            border-radius: 6px;
+            box-shadow: 0 10px 28px rgba(0,0,0,0.6);
+            z-index: 9999;
+            padding: 9px;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            backdrop-filter: blur(12px);
+        }
+        .r-filter-dropdown.active { display: flex; animation: fadeInDown 0.1s ease-out; }
+        .r-filter-search {
+            width: 100%;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(48,54,61,0.8);
+            border-radius: 4px;
+            padding: 5px 8px;
+            font-size: 0.76rem;
+            color: #c9d1d9;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+        }
+        .r-filter-search:focus { border-color: #58a6ff; }
+        .r-filter-actions {
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid rgba(48,54,61,0.8);
+            padding-top: 6px;
+        }
+        .r-btn-filter-action {
+            background: transparent;
+            border: none;
+            color: #58a6ff;
+            font-size: 0.72rem;
+            cursor: pointer;
+            padding: 3px 7px;
+            border-radius: 4px;
+            font-family: 'Inter', sans-serif;
+        }
+        .r-btn-filter-action:hover { background: rgba(88,166,255,0.1); }
+        .r-filter-options-list {
+            overflow-y: auto;
+            max-height: 220px;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+        .r-filter-option {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 4px 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.74rem;
+            color: #c9d1d9;
+            transition: background 0.1s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: 'Inter', sans-serif;
+        }
+        .r-filter-option:hover { background: rgba(255,255,255,0.05); }
+        .r-filter-option input[type="checkbox"] { width: 13px; height: 13px; cursor: pointer; flex-shrink: 0; accent-color: #58a6ff; }
+        .r-filter-option span { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; }
+
+        .resumo-table td {
+            padding: 5px 6px;
+            border-bottom: 1px solid rgba(48,54,61,0.5);
+            vertical-align: middle;
+        }
+        .resumo-table tbody tr:hover { background: rgba(255,255,255,0.025); }
+        .resumo-table tbody tr.row-selected { background: rgba(88,166,255,0.1) !important; }
+
+        /* ── Entidade select ── */
+        .sel-entidade {
+            width: 100%;
+            background: rgba(137,87,229,0.09);
+            border: 1px solid rgba(137,87,229,0.25);
+            border-radius: 5px;
+            color: #c9d1d9;
+            font-size: 0.78rem;
+            font-family: 'Inter', sans-serif;
+            padding: 4px 6px;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.18s;
+        }
+        .sel-entidade:focus { border-color: #8957e5; background: rgba(137,87,229,0.16); }
+        .sel-entidade option { background: #1c1f26; color: #c9d1d9; }
+
+        /* ── Operação select ── */
+        .sel-operacao {
+            width: 100%;
+            background: rgba(46,160,67,0.07);
+            border: 1px solid rgba(46,160,67,0.25);
+            border-radius: 5px;
+            color: #3fb950;
+            font-size: 0.82rem;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            padding: 4px 5px;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.18s;
+            text-align: center;
+        }
+        .sel-operacao:focus { border-color: #3fb950; background: rgba(46,160,67,0.15); }
+        .sel-operacao option { background: #1c1f26; color: #c9d1d9; font-weight: 600; }
+
+        /* ── Ativo input ── */
+        .inp-ativo {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid transparent;
+            color: #e6edf3;
+            font-size: 0.8rem;
+            font-family: 'Inter', sans-serif;
+            padding: 3px 4px;
+            outline: none;
+            transition: border-color 0.18s;
+            box-sizing: border-box;
+        }
+        .inp-ativo:focus {
+            border-bottom-color: #58a6ff;
+            background: rgba(88,166,255,0.04);
+        }
+
+        /* ── Delete row button ── */
+        .btn-row-del {
+            background: transparent;
+            border: none;
+            color: rgba(255,123,114,0.45);
+            cursor: pointer;
+            padding: 3px;
+            border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.16s;
+        }
+        .btn-row-del:hover { color: #ff7b72; background: rgba(255,123,114,0.12); }
+        td.col-del { padding: 4px 3px; text-align: center; }
+
+        /* ── Autocomplete dropdown ── */
+        .autocomplete-list {
+            position: absolute;
+            background: #1c1f26;
+            border: 1px solid rgba(88,166,255,0.35);
+            border-radius: 7px;
+            max-height: 180px;
+            overflow-y: auto;
+            z-index: 9999;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            min-width: 140px;
+        }
+        .autocomplete-item {
+            padding: 7px 12px;
+            font-size: 0.78rem;
+            cursor: pointer;
+            color: #c9d1d9;
+            font-family: 'Inter', sans-serif;
+            transition: background 0.12s;
+        }
+        .autocomplete-item:hover, .autocomplete-item.active {
+            background: rgba(88,166,255,0.15);
+            color: #58a6ff;
+        }
+
+        /* ── Context menu ── */
+        #ctx-menu-resumo {
+            position: fixed; z-index: 9999;
+            background: rgba(22,27,34,0.96);
+            border: 1px solid rgba(48,54,61,0.9);
+            border-radius: 9px;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.55);
+            padding: 6px 0;
+            min-width: 165px;
+            display: none;
+            backdrop-filter: blur(12px);
+        }
+        #ctx-menu-resumo.visible { display: block; animation: fadeInDown 0.1s ease-out; }
+        .ctx-r-item {
+            display: flex; align-items: center; gap: 9px;
+            padding: 8px 15px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            color: #c9d1d9;
+            transition: background 0.12s;
+            user-select: none;
+        }
+        .ctx-r-item:hover { background: rgba(255,255,255,0.06); }
+        .ctx-r-item.danger { color: #ff7b72; }
+        .ctx-r-item.danger:hover { background: rgba(255,123,114,0.1); }
+        .ctx-r-sep { height: 1px; background: rgba(48,54,61,0.9); margin: 4px 0; }
+
+        /* ── Toast ── */
+        #resumo-toast {
+            position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: rgba(30,35,45,0.97);
+            border: 1px solid rgba(88,166,255,0.35);
+            color: #58a6ff;
+            padding: 9px 20px;
+            border-radius: 30px;
+            font-size: 0.82rem; font-weight: 600;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+            opacity: 0; transition: opacity 0.22s, transform 0.22s;
+            z-index: 8888; pointer-events: none;
+        }
+        #resumo-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* ── Undo/Redo indicator ── */
+        .history-info {
+            font-size: 0.72rem;
+            color: rgba(139,148,158,0.7);
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -52,131 +472,296 @@
     <main class="container">
         <header class="report-header">
             <h1 class="report-title">Resumo do <span class="highlight">Orçamento</span></h1>
-            <div class="actions">
-                <button class="btn-primary" onclick="window.print()">Imprimir PDF</button>
-                <button class="btn-secondary" onclick="window.close()">Fechar</button>
+            <div class="header-actions">
+                <!-- Undo / Redo -->
+                <button id="btn-undo" class="btn-undo" disabled title="Desfazer (Ctrl+Z)">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 10H16a5 5 0 0 1 0 10H8"/><polyline points="7 6 3 10 7 14"/></svg>
+                    Desfazer
+                </button>
+                <button id="btn-redo" class="btn-redo" disabled title="Refazer (Ctrl+Y)">
+                    Refazer
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10H8a5 5 0 0 0 0 10h8"/><polyline points="17 6 21 10 17 14"/></svg>
+                </button>
+                <span id="history-info" class="history-info"></span>
+                <div class="btn-sep"></div>
+                <button class="btn-primary" onclick="window.print()" style="font-size:0.82rem;padding:7px 15px;">Imprimir PDF</button>
+                <button class="btn-secondary" onclick="window.close()" style="font-size:0.82rem;padding:7px 12px;">Fechar</button>
             </div>
         </header>
 
-        <!-- SEÇÃO DE CABOS -->
-        <section class="report-section" id="section-cabos">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2 class="section-title" style="margin:0;">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                    Tabela de Cabos <span class="badge-count" id="count-cabos">0</span>
-                </h2>
-                <div class="actions">
-                    <button class="btn-icon btn-add" data-target="body-cabos">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        Add Linha
+        <!-- ─── PAINEL DE INTELIGÊNCIA (GEMINI) E MEMÓRIA DE OBRAS ─── -->
+        <section class="ai-memory-panel">
+            <div class="ai-header">
+                <!-- Header da Aba de Resumo -->
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 class="card-title">Resumo do Projeto</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-secondary" id="btn-tabela-orcamento" onclick="window.open('/static/orcamento.html', '_blank')">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M1.5 1.5A1.5 1.5 0 0 1 3 0h10a1.5 1.5 0 0 1 1.5 1.5v13a1.5 1.5 0 0 1-1.5 1.5H3a1.5 1.5 0 0 1-1.5-1.5v-13zm1.5 0v13h10v-13H3z"/>
+                            </svg> Tabela Orçamento
+                        </button>
+                        <button class="btn-secondary" id="btn-config-api" title="Configurar API">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path fill-rule="evenodd" d="M7.429 1.525a1.5 1.5 0 0 1 1.142 0l4.25 1.7A1.5 1.5 0 0 1 13.5 4.61v6.78a1.5 1.5 0 0 1-.679 1.385l-4.25 2.833a1.5 1.5 0 0 1-1.142 0l-4.25-2.833a1.5 1.5 0 0 1-.679-1.385V4.61a1.5 1.5 0 0 1 .679-1.385l4.25-1.7zm1.884 1.488L8 2.441 6.687 3.013l3.663 1.954 2.62-1.397-3.657-2.082zm-4.72.637l2.695 1.437-3.96 2.112v-2.07l1.265-1.48zm-2.093 2.5v5.24l3.5 2.334V8.537L2.5 6.15zm9 5.24l-3.5 2.334V8.537l3.5-2.387v5.24zM5.5 10.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1H6a.5.5 0 0 1-.5-.5z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="ai-actions">
+                    <button class="btn-secondary" id="btn-config-api" title="Configurar API Key">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        API Key
                     </button>
-                    <button class="btn-icon btn-copy-report" data-target="body-cabos">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                        Copiar
+                    <button class="btn-secondary" id="btn-load-obra" title="Carregar Obra">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Carregar
+                    </button>
+                    <button class="btn-primary" id="btn-save-obra" title="Salvar Obra na Memória">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                        Salvar Obra
                     </button>
                 </div>
             </div>
-            <div class="results-section" style="display: block;">
-                <div class="table-container">
-                    <table id="table-cabos">
+            <div class="ai-chat-container">
+                <div class="ai-chat-messages" id="chat-messages">
+                    <div class="chat-message system">
+                        Olá! Sou seu assistente de redes elétricas. Você pode me pedir para gerar obras, adicionar ativos, ou me ensinar novas regras técnicas (ex: "Lembre-se que trafo X usa IP Y").
+                    </div>
+                </div>
+                <div class="ai-chat-input-area">
+                    <textarea id="chat-input" placeholder="Ex: Gere uma rede com 3 postes DT11/300 e um trafo de 75kVA..." rows="1"></textarea>
+                    <button id="btn-send-chat" class="btn-primary" title="Enviar Mensagem (Enter)">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </div>
+            </div>
+            <!-- Action Bar -->
+            <div style="padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; background: var(--bg-card); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+                <div>
+                    <button class="btn-primary" id="btn-montar-orcamento" style="background-color: #238636;">
+                        Montar Orçamento
+                    </button>
+                </div>
+                <div>
+                    <button class="btn-secondary" id="btn-limpar-tabelas" style="color: #f85149; margin-right: 10px;">Limpar Tudo</button>
+                    <button class="btn-primary" id="btn-salvar-alteracoes">Salvar no PDF</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modals -->
+        <!-- API Key Modal -->
+        <div id="modal-apikey" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width:460px;">
+                <h3 style="margin-bottom:6px;">⚙️ Configurar IA</h3>
+
+                <p style="font-size:0.75rem;color:#8b949e;margin:10px 0 4px;">PROVEDOR DE IA</p>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn-provider active" data-provider="gemini" style="flex:1;padding:8px;border-radius:8px;border:2px solid #1f6feb;background:#0d1117;color:#58a6ff;font-size:0.8rem;cursor:pointer;transition:all .2s;">🔷 Google Gemini</button>
+                </div>
+
+                <!-- Seção Gemini -->
+                <div id="section-gemini">
+                    <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">GEMINI API KEY <span style="color:#3fb950;font-size:0.7rem;">(gratuita em aistudio.google.com)</span></p>
+                    <input type="password" id="input-apikey" placeholder="AIzaSy..." class="modal-input" style="margin-bottom:10px;">
+                    <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">MODELO (deixe Automático para usar gemini-3.1-flash-lite)</p>
+                    <select id="input-model" class="modal-input">
+                        <option value="">Automático</option>
+                    </select>
+                </div>
+
+                <div class="modal-actions" style="margin-top:16px;">
+                    <button class="btn-secondary" onclick="document.getElementById('modal-apikey').classList.add('hidden')">Cancelar</button>
+                    <button class="btn-primary" id="btn-save-apikey">💾 Salvar</button>
+                </div>
+
+    <!-- Modal Orçamento Resultado -->
+    <div id="modal-orcamento" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 800px; width: 90%;">
+            <div class="modal-header">
+                <h3>Resultado do Orçamento</h3>
+                <button class="close-modal" onclick="document.getElementById('modal-orcamento').classList.add('hidden')">×</button>
+            </div>
+            <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                <table class="data-table" style="width: 100%;">
+                    <thead style="position: sticky; top: 0; background: var(--bg-card); z-index: 1;">
+                        <tr>
+                            <th>OPERAÇÃO</th>
+                            <th>TIPO MDO</th>
+                            <th>CÓDIGO</th>
+                            <th>DESCRIÇÃO</th>
+                            <th>QUANTIDADE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultado-orcamento-tbody">
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-actions" style="margin-top:15px;">
+                <button class="btn-primary" onclick="document.getElementById('modal-orcamento').classList.add('hidden')">Fechar</button>
+            </div>
+        </div>
+    </div>
+            </div>
+        </div>
+
+        <!-- Save Obra Modal -->
+        <div id="modal-save-obra" class="modal-overlay hidden">
+            <div class="modal-content">
+                <h3>Salvar Obra</h3>
+                <input type="text" id="input-obra-nome" placeholder="Nome da Obra (ex: Extensão Rural João)" class="modal-input">
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="document.getElementById('modal-save-obra').classList.add('hidden')">Cancelar</button>
+                    <button class="btn-primary" id="btn-confirm-save-obra">Salvar na Memória</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Load Obra Modal -->
+        <div id="modal-load-obra" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 500px; width: 90%;">
+                <h3>Carregar Obra</h3>
+                <div class="obras-list" id="obras-list">
+                    <!-- Preenchido via JS -->
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="document.getElementById('modal-load-obra').classList.add('hidden')">Fechar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- DATALIST para autocomplete de Ativo -->
+        <datalist id="dl-ativos-cabos"></datalist>
+        <datalist id="dl-ativos-outros"></datalist>
+
+        <!-- Tabelas lado a lado -->
+        <div class="tables-row">
+
+            <!-- ── CABOS ── -->
+            <section class="report-section" id="section-cabos">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        Tabela de Cabos <span class="badge-count" id="count-cabos">0</span>
+                    </h2>
+                    <div class="section-actions">
+                        <button class="btn-add-row" id="btn-add-cabos" title="Adicionar linha">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Add
+                        </button>
+                        <button class="btn-del-row-bulk" id="btn-del-cabos" title="Excluir linhas selecionadas">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                            Excluir
+                        </button>
+                        <button class="btn-copy-table" id="btn-copy-cabos" title="Copiar tabela">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            Copiar
+                        </button>
+                        <button class="btn-del-row-bulk" id="btn-clear-cabos" title="Limpar Tudo">
+                            Limpar Tudo
+                        </button>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="resumo-table" id="table-cabos">
                         <thead>
                             <tr>
-                                <th>
-                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="0"><span>Pág</span></div>
-                                    <div class="filter-container" data-col="0" data-table="cabos"></div>
+                                <th class="col-entidade">
+                                    <div class="th-label">Entidade</div>
+                                    <div class="r-filter-container" id="rfc-cabos-entidade"></div>
                                 </th>
-                                <th>
-                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="1"><span>Texto</span></div>
-                                    <div class="filter-container" data-col="1" data-table="cabos"></div>
+                                <th class="col-operacao">
+                                    <div class="th-label">Operação</div>
+                                    <div class="r-filter-container" id="rfc-cabos-operacao"></div>
                                 </th>
-                                <th>
-                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="2"><span>Cor</span></div>
-                                    <div class="filter-container" data-col="2" data-table="cabos"></div>
+                                <th class="col-ativo">
+                                    <div class="th-label">Ativo</div>
+                                    <div class="r-filter-container" id="rfc-cabos-ativo"></div>
                                 </th>
-                                <th class="col-user">
-                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="3"><span>Entidade</span></div>
-                                    <div class="filter-container" data-col="3" data-table="cabos"></div>
+                                <th class="col-qtd-ativos">
+                                    <div class="th-label">Qtd Ativos</div>
                                 </th>
-                                <th class="col-user">
-                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="4" checked><span>Operação</span></div>
-                                    <div class="filter-container" data-col="4" data-table="cabos"></div>
-                                </th>
-                                <th class="col-user">
-                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="5" checked><span>Ativo</span></div>
-                                    <div class="filter-container" data-col="5" data-table="cabos"></div>
-                                </th>
+                                <th class="col-del"></th>
                             </tr>
                         </thead>
                         <tbody id="body-cabos"></tbody>
                     </table>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- SEÇÃO DE OUTROS ATIVOS -->
-        <section class="report-section" id="section-outros">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2 class="section-title" style="margin:0;">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
-                    Demais Ativos <span class="badge-count" id="count-outros">0</span>
-                </h2>
-                <div class="actions">
-                    <button class="btn-icon btn-add" data-target="body-outros">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        Add Linha
-                    </button>
-                    <button class="btn-icon btn-copy-report" data-target="body-outros">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                        Copiar
-                    </button>
+            <!-- ── OUTROS ── -->
+            <section class="report-section" id="section-outros">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                        Demais Ativos <span class="badge-count" id="count-outros">0</span>
+                    </h2>
+                    <div class="section-actions">
+                        <button class="btn-add-row" id="btn-add-outros" title="Adicionar linha">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Add
+                        </button>
+                        <button class="btn-del-row-bulk" id="btn-del-outros" title="Excluir linhas selecionadas">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                            Excluir
+                        </button>
+                        <button class="btn-copy-table" id="btn-copy-outros" title="Copiar tabela">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            Copiar
+                        </button>
+                        <button class="btn-del-row-bulk" id="btn-clear-outros" title="Limpar Tudo">
+                            Limpar Tudo
+                        </button>
+                    </div>
                 </div>
-            </div>
-            <div class="results-section" style="display: block;">
-                <div class="table-container">
-                    <table id="table-outros">
+                <div class="table-wrap">
+                    <table class="resumo-table" id="table-outros">
                         <thead>
                             <tr>
-                                <th>
-                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="0"><span>Pág</span></div>
-                                    <div class="filter-container" data-col="0" data-table="outros"></div>
+                                <th class="col-entidade">
+                                    <div class="th-label">Entidade</div>
+                                    <div class="r-filter-container" id="rfc-outros-entidade"></div>
                                 </th>
-                                <th>
-                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="1"><span>Texto</span></div>
-                                    <div class="filter-container" data-col="1" data-table="outros"></div>
+                                <th class="col-operacao">
+                                    <div class="th-label">Operação</div>
+                                    <div class="r-filter-container" id="rfc-outros-operacao"></div>
                                 </th>
-                                <th>
-                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="2"><span>Cor</span></div>
-                                    <div class="filter-container" data-col="2" data-table="outros"></div>
+                                <th class="col-ativo">
+                                    <div class="th-label">Ativo</div>
+                                    <div class="r-filter-container" id="rfc-outros-ativo"></div>
                                 </th>
-                                <th class="col-user">
-                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="3"><span>Entidade</span></div>
-                                    <div class="filter-container" data-col="3" data-table="outros"></div>
-                                </th>
-                                <th class="col-user">
-                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="4" checked><span>Operação</span></div>
-                                    <div class="filter-container" data-col="4" data-table="outros"></div>
-                                </th>
-                                <th class="col-user">
-                                    <div class="th-content"><input type="checkbox" class="col-checkbox" data-col="5" checked><span>Ativo</span></div>
-                                    <div class="filter-container" data-col="5" data-table="outros"></div>
-                                </th>
+                                <th class="col-del"></th>
                             </tr>
                         </thead>
                         <tbody id="body-outros"></tbody>
                     </table>
                 </div>
-            </div>
-        </section>
+            </section>
+
+        </div><!-- /tables-row -->
     </main>
 
-    <div id="context-menu">
-        <div class="ctx-item" id="ctx-copy">Copiar seleção</div>
-        <div class="ctx-item" id="ctx-edit">Editar texto</div>
-        <div class="ctx-item" id="ctx-add">Adicionar linha</div>
-        <div class="ctx-separator"></div>
-        <div class="ctx-item danger" id="ctx-delete">Excluir linha</div>
+    <!-- Context menu -->
+    <div id="ctx-menu-resumo">
+        <div class="ctx-r-item" id="ctx-add-above">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Inserir linha acima
+        </div>
+        <div class="ctx-r-item" id="ctx-add-below">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Inserir linha abaixo
+        </div>
+        <div class="ctx-r-sep"></div>
+        <div class="ctx-r-item danger" id="ctx-del">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            Excluir linha
+        </div>
     </div>
 
-    <script src="/static/resumo.js"></script>
+    <!-- Toast -->
+    <div id="resumo-toast"></div>
+
+    <script src="/static/resumo.js?v=4.6"></script>
 </body>
 </html>

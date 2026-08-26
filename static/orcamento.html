@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base de Orçamento - Leitor Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        body { display: flex; justify-content: flex-start; }
+        .container { max-width: 100%; width: 100%; padding: 24px 32px 50px; }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 22px;
+            padding: 16px 22px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
+        }
+        .report-title { font-size: 1.6rem; font-weight: 700; color: #fff; margin: 0; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+
+        .btn-primary-custom {
+            display: flex; align-items: center; gap: 6px;
+            background: linear-gradient(135deg, #1f6feb, #8957e5);
+            border: none;
+            border-radius: 9px;
+            color: white;
+            padding: 9px 18px;
+            font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: all 0.22s;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 4px 15px rgba(88,166,255,0.2);
+        }
+        .btn-primary-custom:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(88,166,255,0.35); }
+
+        .report-section {
+            background: rgba(22, 27, 34, 0.65);
+            border: 1px solid rgba(48, 54, 61, 0.8);
+            border-radius: 14px;
+            backdrop-filter: blur(12px);
+            overflow: hidden;
+        }
+
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table thead th {
+            background: rgba(31, 111, 235, 0.15);
+            border-bottom: 1px solid rgba(88,166,255,0.3);
+            color: #58a6ff;
+            font-size: 0.72rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            padding: 10px 12px;
+            position: sticky; top: 0; z-index: 10;
+        }
+        .data-table tbody tr { border-bottom: 1px solid rgba(48,54,61,0.5); transition: background 0.15s; }
+        .data-table tbody tr:hover { background: rgba(88,166,255,0.06); }
+        .data-table tbody td { padding: 8px 12px; font-size: 0.82rem; color: #c9d1d9; }
+
+        .table-scroll { max-height: calc(100vh - 180px); overflow-y: auto; }
+
+        #toast {
+            position: fixed; bottom: 20px; right: 20px;
+            background: linear-gradient(135deg, #238636, #2ea043);
+            color: white; padding: 12px 20px;
+            border-radius: 10px; font-weight: 600; font-size: 0.85rem;
+            opacity: 0; transition: opacity 0.3s;
+            pointer-events: none;
+            box-shadow: 0 4px 20px rgba(46,160,67,0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="report-header">
+            <h1 class="report-title">📋 Tabela Base de Orçamento</h1>
+            <div class="header-actions">
+                <input type="file" id="file-upload" accept=".csv" style="display: none;">
+                <button class="btn-primary-custom" onclick="adicionarLinha()" style="background: linear-gradient(135deg, #1f6feb, #3b82f6);">
+                    ➕ Adicionar Linha
+                </button>
+                <button class="btn-primary-custom" onclick="salvarAlteracoes()" style="background: linear-gradient(135deg, #238636, #2ea043);">
+                    💾 Salvar Alterações
+                </button>
+                <button class="btn-primary-custom" onclick="document.getElementById('file-upload').click()">
+                    ⬆ Carregar CSV (Sobrescrever)
+                </button>
+            </div>
+        </div>
+
+        <div class="report-section">
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ATIVO</th>
+                            <th>DESC ATIVO</th>
+                            <th>COMPONENTE</th>
+                            <th>PROJETO</th>
+                            <th>MDO</th>
+                            <th>CÓDIGO</th>
+                            <th>DESC CÓDIGO</th>
+                            <th>FATOR I</th>
+                            <th>FATOR R</th>
+                            <th style="width: 40px; text-align: center;">AÇÕES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orcamento-tbody">
+                        <tr><td colspan="10" style="text-align:center; padding:30px; color:#8b949e;">Nenhuma tabela base carregada. Clique em "Carregar CSV" para importar.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="quick-search" style="position: fixed; bottom: 80px; right: 20px; background: rgba(22, 27, 34, 0.95); border: 1px solid rgba(88,166,255,0.4); padding: 15px; border-radius: 12px; width: 340px; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 100;">
+        <h4 style="margin:0 0 10px 0; color:#58a6ff; font-size:0.95rem;">🔍 Consulta Rápida (Ativo/Comp/Cód)</h4>
+        <input type="text" id="qs-input" placeholder="Digite para buscar..." onkeyup="quickSearch()" style="width:100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: #0d1117; color: #fff; margin-bottom: 10px; font-family: 'Inter', sans-serif;">
+        <div id="qs-result" style="font-size: 0.8rem; color: #c9d1d9; max-height: 200px; overflow-y: auto;">
+            <span style="color:#8b949e">Os resultados aparecerão aqui.</span>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+        const tbody = document.getElementById('orcamento-tbody');
+        const fileInput = document.getElementById('file-upload');
+        const toast = document.getElementById('toast');
+
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.style.opacity = '1';
+            setTimeout(() => toast.style.opacity = '0', 3000);
+        }
+
+        async function carregarDados() {
+            try {
+                const res = await fetch('/api/orcamento/dados');
+                const data = await res.json();
+                tbody.innerHTML = '';
+                if (data.dados && data.dados.length > 0) {
+                    data.dados.forEach(r => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML =
+                            '<td contenteditable="true">' + (r.ativo || '') + '</td>' +
+                            '<td contenteditable="true">' + (r.desc_ativo || '') + '</td>' +
+                            '<td contenteditable="true">' + (r.componente || '') + '</td>' +
+                            '<td contenteditable="true">' + (r.projeto || '') + '</td>' +
+                            '<td contenteditable="true">' + (r.mdo || '') + '</td>' +
+                            '<td contenteditable="true">' + (r.codigo || '') + '</td>' +
+                            '<td contenteditable="true">' + (r.desc_codigo || '') + '</td>' +
+                            '<td contenteditable="true">' + r.fator_i + '</td>' +
+                            '<td contenteditable="true">' + r.fator_r + '</td>' +
+                            '<td style="text-align:center; cursor:pointer;" onclick="this.parentElement.remove()" title="Excluir">🗑</td>';
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px; color:#8b949e;">Nenhuma tabela base carregada. Clique em "Carregar CSV" para importar.</td></tr>';
+                }
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                showToast('Carregando arquivo...');
+                const res = await fetch('/api/orcamento/upload', { method: 'POST', body: formData });
+                const result = await res.json();
+                if (res.ok) {
+                    showToast('Tabela base carregada com sucesso!');
+                    carregarDados();
+                } else {
+                    alert('Erro: ' + result.error);
+                }
+            } catch(e) {
+                alert('Erro ao enviar arquivo.');
+            }
+            fileInput.value = '';
+        });
+
+        carregarDados();
+
+        // ---- Lógica de Inserção e Salvamento ----
+        function adicionarLinha(focus = true) {
+            if (tbody.querySelector('td[colspan="10"]')) tbody.innerHTML = ''; 
+            const tr = document.createElement('tr');
+            let tds = '';
+            for (let i=0; i<9; i++) tds += '<td contenteditable="true"></td>';
+            tds += '<td style="text-align:center; cursor:pointer;" onclick="this.parentElement.remove()" title="Excluir">🗑</td>';
+            tr.innerHTML = tds;
+            tbody.appendChild(tr);
+            if(focus) tr.cells[0].focus();
+        }
+
+        async function salvarAlteracoes() {
+            const trs = Array.from(tbody.querySelectorAll("tr"));
+            if (trs.length === 1 && trs[0].querySelector('td[colspan="10"]')) {
+                alert("Tabela vazia."); return;
+            }
+            
+            const dados = [];
+            trs.forEach(tr => {
+                const c = tr.cells;
+                if (c.length < 9) return;
+                
+                // Ignorar linha completamente em branco
+                let isBlank = true;
+                for(let i=0; i<9; i++) { if(c[i].innerText.trim() !== "") isBlank = false; }
+                if (isBlank) return;
+                
+                dados.push({
+                    "ativo": c[0].innerText.trim(),
+                    "desc_ativo": c[1].innerText.trim(),
+                    "componente": c[2].innerText.trim(),
+                    "projeto": c[3].innerText.trim(),
+                    "mdo": c[4].innerText.trim(),
+                    "codigo": c[5].innerText.trim(),
+                    "desc_codigo": c[6].innerText.trim(),
+                    "fator_i": c[7].innerText.trim(),
+                    "fator_r": c[8].innerText.trim()
+                });
+            });
+            
+            try {
+                showToast("Salvando no banco de dados...");
+                const res = await fetch('/api/orcamento/salvar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ dados: dados })
+                });
+                const result = await res.json();
+                if (res.ok) {
+                    showToast("Base atualizada com sucesso!");
+                } else {
+                    alert("Erro ao salvar: " + result.error);
+                }
+            } catch(e) {
+                alert("Erro ao se conectar com servidor.");
+            }
+        }
+
+        // ---- Lógica do Buscador Rápido ----
+        function quickSearch() {
+            const query = document.getElementById('qs-input').value.toUpperCase().trim();
+            const resDiv = document.getElementById('qs-result');
+            if (!query) {
+                resDiv.innerHTML = '<span style="color:#8b949e">Os resultados aparecerão aqui.</span>';
+                return;
+            }
+            
+            const trs = Array.from(tbody.querySelectorAll("tr"));
+            let html = "";
+            let matches = 0;
+            trs.forEach(tr => {
+                if (matches > 15) return; 
+                const c = tr.cells;
+                if (c.length < 9) return;
+                
+                const ativo = c[0].innerText.toUpperCase();
+                const comp = c[2].innerText.toUpperCase();
+                const cod = c[5].innerText.toUpperCase();
+                
+                if (ativo.includes(query) || comp.includes(query) || cod.includes(query)) {
+                    html += `<div style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; margin-bottom: 8px;">
+                                <strong style="color:#58a6ff">CÓD: ${c[5].innerText.trim() || '-'}</strong> | Atv: ${c[0].innerText.trim() || '-'} | Comp: ${c[2].innerText.trim() || '-'}<br>
+                                <span style="font-size: 0.75rem; color:#8b949e;">${c[6].innerText.trim() || '-'}</span>
+                             </div>`;
+                    matches++;
+                }
+            });
+            if (matches === 0) {
+                resDiv.innerHTML = '<span style="color:#ff7b72">Nenhum resultado encontrado.</span>';
+            } else {
+                resDiv.innerHTML = html;
+            }
+        }
+
+        // ---- Suporte a Colar Múltiplas Células (Excel) ----
+        tbody.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const text = (e.originalEvent || e).clipboardData.getData('text/plain');
+            if (!text) return;
+            
+            const rows = text.split(/\r\n|\n|\r/);
+            let currentCell = document.activeElement;
+            if (currentCell.tagName !== 'TD') return;
+
+            let tr = currentCell.parentElement;
+            let startColIndex = Array.from(tr.children).indexOf(currentCell);
+
+            for (let i = 0; i < rows.length; i++) {
+                if (!rows[i] && i === rows.length - 1) continue; // ignora linha em branco no final
+                const cols = rows[i].split('\t');
+                
+                if (!tr) {
+                    adicionarLinha(false);
+                    tr = tbody.lastElementChild;
+                }
+                
+                for (let j = 0; j < cols.length; j++) {
+                    const cellIndex = startColIndex + j;
+                    if (cellIndex < tr.cells.length - 1) { // não sobrescreve a coluna de exclusão
+                        tr.cells[cellIndex].innerText = cols[j].trim();
+                    }
+                }
+                
+                tr = tr.nextElementSibling;
+            }
+        });
+    </script>
+</body>
+</html>
