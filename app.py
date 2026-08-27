@@ -829,6 +829,118 @@ async def extract_local(path: str):
     except Exception as e:
         return {"error": str(e), "data": []}
 
+@app.post("/api/importar-rec-pdf")
+async def importar_rec_pdf(orcamento: UploadFile = File(...), lista: UploadFile = File(...)):
+    try:
+        orcamento_contents = await orcamento.read()
+        lista_contents = await lista.read()
+        
+        extracted_items = []
+        
+        # Processa ORÇAMENTO
+        doc_orc = pymupdf.open(stream=orcamento_contents, filetype="pdf")
+        current_mdo = "MÃO-DE-OBRA"
+        
+        for page in doc_orc:
+            blocks = page.get_text("dict", flags=11)["blocks"]
+            texts = []
+            for b in blocks:
+                if "lines" not in b: continue
+                for l in b["lines"]:
+                    if "spans" not in l: continue
+                    for s in l["spans"]:
+                        text = s["text"].strip()
+                        if text:
+                            texts.append(text)
+            
+            for i, text in enumerate(texts):
+                if text == "MAO-DE-OBRA":
+                    current_mdo = "MÃO-DE-OBRA"
+                elif text == "MATERIAL":
+                    current_mdo = "MATERIAL"
+                
+                if re.match(r'^\d{6}$', text):
+                    codigo = text.lstrip('0') or '0'
+                    desc = texts[i-1] if i > 0 else ""
+                    
+                    qtd = 1.0
+                    for j in range(i-1, max(-1, i-5), -1):
+                        # Aceita números no formato 1.040,43 ou 1040.43 ou 1040,43
+                        if re.match(r'^-?\d{1,3}(\.\d{3})*(,\d+)?$', texts[j]) or re.match(r'^-?\d+(,\d+)?$', texts[j]) or re.match(r'^-?\d+(\.\d+)?$', texts[j]):
+                            try:
+                                # Remove pontos de milhar, troca vírgula por ponto
+                                clean_val = texts[j].replace('.', '') if ',' in texts[j] and texts[j].count('.') >= 1 else texts[j]
+                                clean_val = clean_val.replace(',', '.')
+                                qtd = float(clean_val)
+                                break
+                            except ValueError:
+                                pass
+                    
+                    op = texts[i+1] if i + 1 < len(texts) else "I"
+                    if op not in ['I', 'R']:
+                        op = 'I'
+                    
+                    extracted_items.append({
+                        "operacao": op,
+                        "mdo": current_mdo,
+                        "codigo": codigo,
+                        "desc_codigo": desc,
+                        "total": qtd
+                    })
+        doc_orc.close()
+
+        # Processa LISTA
+        doc_lista = pymupdf.open(stream=lista_contents, filetype="pdf")
+        for page in doc_lista:
+            blocks = page.get_text("dict", flags=11)["blocks"]
+            texts = []
+            for b in blocks:
+                if "lines" not in b: continue
+                for l in b["lines"]:
+                    if "spans" not in l: continue
+                    for s in l["spans"]:
+                        text = s["text"].strip()
+                        if text:
+                            texts.append(text)
+            
+            for i, text in enumerate(texts):
+                if re.match(r'^\d{6}$', text):
+                    codigo = text.lstrip('0') or '0'
+                    requisitar = None
+                    devolver = None
+                    desc = ""
+                    
+                    # Look ahead up to 10 elements to find Requisitar, Devolver, and Description
+                    for j in range(i+1, min(i+10, len(texts))):
+                        if re.match(r'^-?\d{1,3}(\.\d{3})*(,\d+)?$', texts[j]) or re.match(r'^-?\d+(,\d+)?$', texts[j]) or re.match(r'^-?\d+(\.\d+)?$', texts[j]):
+                            try:
+                                clean_val = texts[j].replace('.', '') if ',' in texts[j] and texts[j].count('.') >= 1 else texts[j]
+                                clean_val = clean_val.replace(',', '.')
+                                val = float(clean_val)
+                                if requisitar is None:
+                                    requisitar = val
+                                elif devolver is None:
+                                    devolver = val
+                                    if j + 1 < len(texts):
+                                        desc = texts[j+1]
+                                    break
+                            except ValueError:
+                                pass
+                    
+                    if devolver and devolver > 0:
+                        extracted_items.append({
+                            "operacao": "R",
+                            "mdo": "MATERIAL",
+                            "codigo": codigo,
+                            "desc_codigo": desc,
+                            "total": devolver
+                        })
+        doc_lista.close()
+        
+        return {"resultado": extracted_items}
+    except Exception as e:
+        return {"error": str(e)}
+
 # =====================================================
 # STATIC FILES
 # =====================================================
@@ -1287,10 +1399,10 @@ def calcular_orcamento(req: OrcamentoRequest):
         v = codigos[key]
         if v["soma_i"] > 0:
             resultado.append({"operacao": "I", "mdo": v["mdo"], "codigo": v["codigo"],
-                               "desc_codigo": v["desc_codigo"], "total": round(v["soma_i"], 4)})
+                               "desc_codigo": v["desc_codigo"], "total": round(v["soma_i"], 2)})
         if v["soma_r"] > 0:
             resultado.append({"operacao": "R", "mdo": v["mdo"], "codigo": v["codigo"],
-                               "desc_codigo": v["desc_codigo"], "total": round(v["soma_r"], 4)})
+                               "desc_codigo": v["desc_codigo"], "total": round(v["soma_r"], 2)})
 
     # Ordenar: Descrição A-Z, depois Operação A-Z, depois MDO A-Z
     resultado.sort(key=lambda x: (x["desc_codigo"].upper(), x["operacao"], x["mdo"].upper()))
