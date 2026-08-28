@@ -61,6 +61,21 @@
         .data-table tbody tr:hover { background: rgba(88,166,255,0.06); }
         .data-table tbody td { padding: 8px 12px; font-size: 0.82rem; color: #c9d1d9; }
 
+        .col-filter {
+            width: 100%;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(48,54,61,0.8);
+            border-radius: 4px;
+            padding: 3px 5px;
+            font-size: 0.7rem;
+            color: #c9d1d9;
+            margin-top: 5px;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+            box-sizing: border-box;
+        }
+        .col-filter:focus { border-color: #58a6ff; }
+
         .table-scroll { max-height: calc(100vh - 180px); overflow-y: auto; }
 
         #toast {
@@ -97,20 +112,21 @@
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>ATIVO</th>
-                            <th>DESC ATIVO</th>
-                            <th>COMPONENTE</th>
-                            <th>PROJETO</th>
-                            <th>MDO</th>
-                            <th>CÓDIGO</th>
-                            <th>DESC CÓDIGO</th>
-                            <th>FATOR I</th>
-                            <th>FATOR R</th>
+                            <th>ATIVO<br><input type="text" class="col-filter" data-col="0" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th>DESC ATIVO<br><input type="text" class="col-filter" data-col="1" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th>COMPONENTE<br><input type="text" class="col-filter" data-col="2" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th>PROJETO<br><input type="text" class="col-filter" data-col="3" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th>MDO<br><input type="text" class="col-filter" data-col="4" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th>CÓDIGO<br><input type="text" class="col-filter" data-col="5" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th>DESC CÓDIGO<br><input type="text" class="col-filter" data-col="6" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th>FATOR I<br><input type="text" class="col-filter" data-col="7" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th>FATOR R<br><input type="text" class="col-filter" data-col="8" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th>FILTRO<br><input type="text" class="col-filter" data-col="9" placeholder="Filtro..." onkeyup="filterTable()"></th>
                             <th style="width: 40px; text-align: center;">AÇÕES</th>
                         </tr>
                     </thead>
                     <tbody id="orcamento-tbody">
-                        <tr><td colspan="10" style="text-align:center; padding:30px; color:#8b949e;">Nenhuma tabela base carregada. Clique em "Carregar CSV" para importar.</td></tr>
+                        <tr><td colspan="11" style="text-align:center; padding:30px; color:#8b949e;">Nenhuma tabela base carregada. Clique em "Carregar CSV" para importar.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -156,11 +172,12 @@
                             '<td contenteditable="true">' + (r.desc_codigo || '') + '</td>' +
                             '<td contenteditable="true">' + r.fator_i + '</td>' +
                             '<td contenteditable="true">' + r.fator_r + '</td>' +
+                            '<td contenteditable="true">' + (r.filtro || '') + '</td>' +
                             '<td style="text-align:center; cursor:pointer;" onclick="this.parentElement.remove()" title="Excluir">🗑</td>';
                         tbody.appendChild(tr);
                     });
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px; color:#8b949e;">Nenhuma tabela base carregada. Clique em "Carregar CSV" para importar.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#8b949e;">Nenhuma tabela base carregada. Clique em "Carregar CSV" para importar.</td></tr>';
                 }
             } catch(e) {
                 console.error(e);
@@ -192,10 +209,10 @@
 
         // ---- Lógica de Inserção e Salvamento ----
         function adicionarLinha(focus = true) {
-            if (tbody.querySelector('td[colspan="10"]')) tbody.innerHTML = ''; 
+            if (tbody.querySelector('td[colspan="11"]')) tbody.innerHTML = ''; 
             const tr = document.createElement('tr');
             let tds = '';
-            for (let i=0; i<9; i++) tds += '<td contenteditable="true"></td>';
+            for (let i=0; i<10; i++) tds += '<td contenteditable="true"></td>';
             tds += '<td style="text-align:center; cursor:pointer;" onclick="this.parentElement.remove()" title="Excluir">🗑</td>';
             tr.innerHTML = tds;
             tbody.appendChild(tr);
@@ -204,18 +221,18 @@
 
         async function salvarAlteracoes() {
             const trs = Array.from(tbody.querySelectorAll("tr"));
-            if (trs.length === 1 && trs[0].querySelector('td[colspan="10"]')) {
+            if (trs.length === 1 && trs[0].querySelector('td[colspan="11"]')) {
                 alert("Tabela vazia."); return;
             }
             
             const dados = [];
             trs.forEach(tr => {
                 const c = tr.cells;
-                if (c.length < 9) return;
+                if (c.length < 10) return;
                 
                 // Ignorar linha completamente em branco
                 let isBlank = true;
-                for(let i=0; i<9; i++) { if(c[i].innerText.trim() !== "") isBlank = false; }
+                for(let i=0; i<10; i++) { if(c[i].innerText.trim() !== "") isBlank = false; }
                 if (isBlank) return;
                 
                 dados.push({
@@ -227,7 +244,8 @@
                     "codigo": c[5].innerText.trim(),
                     "desc_codigo": c[6].innerText.trim(),
                     "fator_i": c[7].innerText.trim(),
-                    "fator_r": c[8].innerText.trim()
+                    "fator_r": c[8].innerText.trim(),
+                    "filtro": c[9].innerText.trim()
                 });
             });
             
@@ -247,6 +265,26 @@
             } catch(e) {
                 alert("Erro ao se conectar com servidor.");
             }
+        }
+
+        function filterTable() {
+            const inputs = Array.from(document.querySelectorAll('.col-filter'));
+            const filters = inputs.map(i => ({ col: parseInt(i.dataset.col), val: i.value.toLowerCase().trim() }));
+            
+            const trs = tbody.querySelectorAll('tr');
+            trs.forEach(tr => {
+                if(tr.querySelector('td[colspan="11"]')) return;
+                let show = true;
+                for (let f of filters) {
+                    if (f.val === "") continue;
+                    const text = (tr.cells[f.col]?.innerText || "").toLowerCase();
+                    if (!text.includes(f.val)) {
+                        show = false;
+                        break;
+                    }
+                }
+                tr.style.display = show ? "" : "none";
+            });
         }
 
         // ---- Lógica do Buscador Rápido ----

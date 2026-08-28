@@ -1637,10 +1637,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnMontarOrcamento) {
         btnMontarOrcamento.addEventListener('click', async () => {
+            const selectProj = document.getElementById('select-projeto');
+            const projVal = selectProj ? selectProj.value : "";
+            const projCode = selectProj && selectProj.selectedIndex >= 0 ? selectProj.options[selectProj.selectedIndex].dataset.codigo : "";
+            
             const payload = {
                 cabos: tableStates.cabos.data.filter(r => r !== null),
-                outros: tableStates.outros.data.filter(r => r !== null)
+                outros: tableStates.outros.data.filter(r => r !== null),
+                projeto: projVal
             };
+            
+            if(selectProj) {
+                localStorage.setItem('projeto_selecionado', projVal);
+                localStorage.setItem('projeto_selecionado_codigo', projCode);
+            }
             
             localStorage.setItem('orcamentoPayload', JSON.stringify(payload));
             window.open('/static/resultado_orcamento.html', '_blank');

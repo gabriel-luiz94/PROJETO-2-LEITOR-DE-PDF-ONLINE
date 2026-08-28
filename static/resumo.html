@@ -471,7 +471,14 @@
 
     <main class="container">
         <header class="report-header">
-            <h1 class="report-title">Resumo do <span class="highlight">Orçamento</span></h1>
+            <div style="display:flex; align-items:center; gap: 10px;">
+                <h1 class="report-title">Resumo do <span class="highlight">Orçamento</span></h1>
+                <div style="display:flex; align-items:center; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                    <label style="font-size: 0.75rem; color: #8b949e; margin-right: 6px;">Projeto:</label>
+                    <select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;"></select>
+                    <button class="btn-primary" onclick="abrirModalNovoProjeto()" style="padding: 2px 6px; font-size: 0.75rem; margin-left: 8px; border-radius: 4px;" title="Cadastrar Novo Projeto">➕</button>
+                </div>
+            </div>
             <div class="header-actions">
                 <!-- Undo / Redo -->
                 <button id="btn-undo" class="btn-undo" disabled title="Desfazer (Ctrl+Z)">
@@ -500,6 +507,9 @@
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                                 <path d="M1.5 1.5A1.5 1.5 0 0 1 3 0h10a1.5 1.5 0 0 1 1.5 1.5v13a1.5 1.5 0 0 1-1.5 1.5H3a1.5 1.5 0 0 1-1.5-1.5v-13zm1.5 0v13h10v-13H3z"/>
                             </svg> Tabela Orçamento
+                        </button>
+                        <button class="btn-secondary" id="btn-open-search" onclick="abrirPesquisa()" title="Pesquisar Ativos/Códigos">
+                            🔍 Pesquisar Ativos
                         </button>
                         <button class="btn-secondary" id="btn-config-api" title="Configurar API">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -537,15 +547,24 @@
                 </div>
             </div>
             <!-- Action Bar -->
-            <div style="padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; background: var(--bg-card); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
-                <div>
-                    <button class="btn-primary" id="btn-montar-orcamento" style="background-color: #238636;">
-                        Montar Orçamento
-                    </button>
+            <div style="padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px; background: var(--bg-card); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <div>
+                        <button class="btn-primary" id="btn-montar-orcamento" style="background-color: #238636;">
+                            Montar Orçamento
+                        </button>
+                    </div>
+                    <div>
+                        <button class="btn-secondary" id="btn-limpar-tabelas" style="color: #f85149; margin-right: 10px;">Limpar Tudo</button>
+                        <button class="btn-primary" id="btn-salvar-alteracoes">Salvar no PDF</button>
+                    </div>
                 </div>
-                <div>
-                    <button class="btn-secondary" id="btn-limpar-tabelas" style="color: #f85149; margin-right: 10px;">Limpar Tudo</button>
-                    <button class="btn-primary" id="btn-salvar-alteracoes">Salvar no PDF</button>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: -5px;">
+                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(88,166,255,0.3); color: #58a6ff;" title="Função futura">🔗 CONEXÕES</button>
+                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(88,166,255,0.3); color: #58a6ff;" title="Função futura">🏠 RAMAIS</button>
+                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(88,166,255,0.3); color: #58a6ff;" title="Função futura">🔄 RETENSIONAMENTO</button>
+                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(88,166,255,0.3); color: #58a6ff;" title="Função futura">➕ ADICIONAIS</button>
+                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(227,179,65,0.4); color: #e3b341;" title="Função futura">⚡ LINHA VIVA</button>
                 </div>
             </div>
         </section>
@@ -575,6 +594,58 @@
                     <button class="btn-secondary" onclick="document.getElementById('modal-apikey').classList.add('hidden')">Cancelar</button>
                     <button class="btn-primary" id="btn-save-apikey">💾 Salvar</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Modal Novo Projeto -->
+        <div id="modal-novo-projeto" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 400px; width: 90%;">
+                <div class="modal-header">
+                    <h3>➕ Cadastrar Novo Projeto</h3>
+                    <button class="close-modal" onclick="document.getElementById('modal-novo-projeto').classList.add('hidden')">×</button>
+                </div>
+                <div class="modal-body">
+                    <label style="font-size:0.8rem; color:#8b949e; margin-bottom:4px; display:block;">NOME DO PROJETO</label>
+                    <input type="text" id="input-proj-nome" class="modal-input" placeholder="Ex: SAO PAULO" style="margin-bottom:15px; text-transform:uppercase;">
+                    
+                    <label style="font-size:0.8rem; color:#8b949e; margin-bottom:4px; display:block;">CÓDIGO (PREFIXO)</label>
+                    <input type="text" id="input-proj-codigo" class="modal-input" placeholder="Ex: 011" style="margin-bottom:15px;">
+                    
+                    <button class="btn-primary" onclick="salvarNovoProjeto()" style="width: 100%;">Salvar Projeto</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Pesquisa de Ativos -->
+        <div id="modal-search" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 800px; width: 90%;">
+                <div class="modal-header">
+                    <h3>🔍 Pesquisa de Ativos / Componentes / Códigos</h3>
+                    <button class="close-modal" onclick="document.getElementById('modal-search').classList.add('hidden')">×</button>
+                </div>
+                <div class="modal-body">
+                    <div style="display:flex; gap:10px; margin-bottom: 15px;">
+                        <input type="text" id="input-search-db" placeholder="Digite o nome, código ou componente..." class="modal-input" style="flex:1;" onkeyup="if(event.key === 'Enter') pesquisarAtivo()">
+                        <button class="btn-primary" onclick="pesquisarAtivo()">Pesquisar</button>
+                    </div>
+                    <div style="max-height: 350px; overflow-y: auto; border: 1px solid rgba(48,54,61,0.8); border-radius: 8px;">
+                        <table class="data-table" style="width: 100%;">
+                            <thead style="position: sticky; top: 0; background: var(--bg-card); z-index: 1;">
+                                <tr>
+                                    <th>CÓDIGO</th>
+                                    <th>ATIVO</th>
+                                    <th>DESCRIÇÃO</th>
+                                    <th style="width: 100px;">AÇÃO</th>
+                                </tr>
+                            </thead>
+                            <tbody id="search-results-tbody">
+                                <tr><td colspan="4" style="text-align:center; color:#8b949e; padding: 20px;">Digite algo e clique em Pesquisar...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     <!-- Modal Orçamento Resultado -->
     <div id="modal-orcamento" class="modal-overlay hidden">
@@ -761,6 +832,111 @@
 
     <!-- Toast -->
     <div id="resumo-toast"></div>
+
+    <script>
+        async function pesquisarAtivo() {
+            const q = document.getElementById('input-search-db').value;
+            const tbody = document.getElementById('search-results-tbody');
+            if (q.trim() === '') {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#8b949e; padding: 20px;">Digite algo para pesquisar...</td></tr>';
+                return;
+            }
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#8b949e; padding: 20px;">Buscando...</td></tr>';
+            try {
+                const res = await fetch('/api/orcamento/search?q=' + encodeURIComponent(q));
+                const data = await res.json();
+                tbody.innerHTML = '';
+                if (data.resultados && data.resultados.length > 0) {
+                    data.resultados.forEach(item => {
+                        const tr = document.createElement('tr');
+                        const nomeParaAdd = item.ativo || item.codigo;
+                        tr.innerHTML = `
+                            <td style="padding: 8px 12px; font-size: 0.82rem; border-bottom: 1px solid rgba(48,54,61,0.5);">${item.codigo || ''}</td>
+                            <td style="padding: 8px 12px; font-size: 0.82rem; border-bottom: 1px solid rgba(48,54,61,0.5);">${item.ativo || ''}</td>
+                            <td style="padding: 8px 12px; font-size: 0.82rem; border-bottom: 1px solid rgba(48,54,61,0.5);">${item.desc_codigo || item.desc_ativo || ''}</td>
+                            <td style="text-align:center; padding: 8px 12px; border-bottom: 1px solid rgba(48,54,61,0.5);">
+                                <button class="btn-primary" style="padding:4px 8px; font-size:0.75rem;" onclick="adicionarPesquisado('${nomeParaAdd.replace(/'/g, "\\'")}')">Adicionar</button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#8b949e; padding: 20px;">Nenhum resultado encontrado.</td></tr>';
+                }
+            } catch (e) {
+                console.error(e);
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#ff7b72; padding: 20px;">Erro ao buscar.</td></tr>';
+            }
+        }
+
+        function abrirPesquisa() {
+            document.getElementById('input-search-db').value = '';
+            document.getElementById('search-results-tbody').innerHTML = '<tr><td colspan="4" style="text-align:center; color:#8b949e; padding: 20px;">Digite algo e pressione Enter...</td></tr>';
+            document.getElementById('modal-search').classList.remove('hidden');
+            setTimeout(() => document.getElementById('input-search-db').focus(), 100);
+        }
+
+        function adicionarPesquisado(ativo) {
+            const strAtivo = `1-${ativo}`;
+            if (typeof tableStates !== 'undefined') {
+                tableStates['outros'].data.push({ entidade: '0', operacao: 'I', ativo: strAtivo });
+                if (typeof renderTable === 'function') renderTable('outros');
+                if (typeof pushHistory === 'function') pushHistory();
+                if (typeof refreshAllFilters === 'function') refreshAllFilters('outros');
+            }
+            
+            const toast = document.getElementById('resumo-toast');
+            toast.textContent = "Adicionado 1x " + ativo;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        async function carregarProjetos() {
+            try {
+                const res = await fetch('/api/projetos');
+                const data = await res.json();
+                const sel = document.getElementById('select-projeto');
+                if(!sel) return;
+                sel.innerHTML = '';
+                if(data.projetos) {
+                    data.projetos.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.nome;
+                        opt.dataset.codigo = p.codigo;
+                        opt.textContent = `${p.nome} (${p.codigo})`;
+                        sel.appendChild(opt);
+                    });
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        function abrirModalNovoProjeto() {
+            document.getElementById('input-proj-nome').value = '';
+            document.getElementById('input-proj-codigo').value = '';
+            document.getElementById('modal-novo-projeto').classList.remove('hidden');
+        }
+
+        async function salvarNovoProjeto() {
+            const nome = document.getElementById('input-proj-nome').value.trim();
+            const codigo = document.getElementById('input-proj-codigo').value.trim();
+            if(!nome || !codigo) { alert('Preencha nome e código!'); return; }
+            try {
+                const res = await fetch('/api/projetos', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({nome, codigo})
+                });
+                if(res.ok) {
+                    document.getElementById('modal-novo-projeto').classList.add('hidden');
+                    carregarProjetos();
+                } else {
+                    alert('Erro ao salvar projeto.');
+                }
+            } catch(e) { console.error(e); alert('Erro de rede.'); }
+        }
+
+        document.addEventListener('DOMContentLoaded', carregarProjetos);
+    </script>
 
     <script src="/static/resumo.js?v=4.6"></script>
 </body>

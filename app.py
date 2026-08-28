@@ -111,9 +111,14 @@ def init_db():
             codigo TEXT,
             desc_codigo TEXT,
             fator_i REAL,
-            fator_r REAL
+            fator_r REAL,
+            filtro TEXT
         )
     ''')
+    try:
+        cursor.execute("ALTER TABLE tabela_orcamento ADD COLUMN filtro TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS historico_rec (
             numero_obra TEXT PRIMARY KEY,
@@ -121,6 +126,15 @@ def init_db():
             data_criacao TEXT NOT NULL
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS projetos (
+            nome TEXT PRIMARY KEY,
+            codigo TEXT NOT NULL
+        )
+    ''')
+    cursor.execute("INSERT OR IGNORE INTO projetos (nome, codigo) VALUES ('PARAIBA', '027')")
+    cursor.execute("INSERT OR IGNORE INTO projetos (nome, codigo) VALUES ('RONDONIA', '229')")
+    
     conn.commit()
     conn.close()
 
@@ -989,6 +1003,7 @@ def open_browser(url):
 class OrcamentoRequest(BaseModel):
     cabos: List[Dict[str, Any]]
     outros: List[Dict[str, Any]]
+    projeto: Optional[str] = None
 
 @app.post("/api/orcamento/upload")
 async def upload_orcamento(file: UploadFile = File(...)):
@@ -1002,7 +1017,7 @@ async def upload_orcamento(file: UploadFile = File(...)):
         if not reader.fieldnames or len(reader.fieldnames) < 2:
             reader = csv.DictReader(io.StringIO(text), delimiter=",")
             
-        required_cols = ["ATIVO", "DESC ATIVO", "COMPONENTE", "PROJETO", "MDO", "CODIGO", "DESC CODIGO", "FATOR I", "FATOR R"]
+        required_cols = ["ATIVO", "DESC ATIVO", "COMPONENTE", "PROJETO", "MDO", "CODIGO", "DESC CODIGO", "FATOR I", "FATOR R", "FILTRO"]
         # Convert to upper just in case
         actual_cols = [c.strip().upper() for c in (reader.fieldnames or []) if c]
         
@@ -1030,8 +1045,8 @@ async def upload_orcamento(file: UploadFile = File(...)):
                 fator_r = 0.0
                 
             cursor.execute('''
-                INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 ativo,
                 row_upper.get("DESC ATIVO", ""),
@@ -1041,7 +1056,8 @@ async def upload_orcamento(file: UploadFile = File(...)):
                 row_upper.get("CODIGO", ""),
                 row_upper.get("DESC CODIGO", ""),
                 fator_i,
-                fator_r
+                fator_r,
+                row_upper.get("FILTRO", "")
             ))
             
         conn.commit()
@@ -1088,8 +1104,8 @@ def salvar_orcamento(req: SalvarOrcamentoRequest):
                 fator_r = 0.0
                 
             cursor.execute('''
-                INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 ativo,
                 row.get("desc_ativo", "").strip(),
@@ -1099,12 +1115,63 @@ def salvar_orcamento(req: SalvarOrcamentoRequest):
                 codigo,
                 row.get("desc_codigo", "").strip(),
                 fator_i,
-                fator_r
+                fator_r,
+                row.get("filtro", "").strip()
             ))
             
         conn.commit()
         conn.close()
         return {"status": "ok", "message": "Tabela atualizada com sucesso."}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+@app.get("/api/orcamento/search")
+def search_orcamento(q: str = ""):
+    if not q.strip():
+        return {"resultados": []}
+    
+    termo = f"%{q.strip().upper()}%"
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    query = """
+        SELECT * FROM tabela_orcamento 
+        WHERE upper(ativo) LIKE ? 
+           OR upper(desc_ativo) LIKE ? 
+           OR upper(codigo) LIKE ? 
+           OR upper(desc_codigo) LIKE ?
+           OR upper(filtro) LIKE ?
+        LIMIT 50
+    """
+    cursor.execute(query, (termo, termo, termo, termo, termo))
+    rows = cursor.fetchall()
+    conn.close()
+    
+    return {"resultados": [dict(r) for r in rows]}
+
+class ProjetoRequest(BaseModel):
+    nome: str
+    codigo: str
+
+@app.get("/api/projetos")
+def get_projetos():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM projetos ORDER BY nome")
+    rows = cursor.fetchall()
+    conn.close()
+    return {"projetos": [dict(r) for r in rows]}
+
+@app.post("/api/projetos")
+def add_projeto(req: ProjetoRequest):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR REPLACE INTO projetos (nome, codigo) VALUES (?, ?)", (req.nome.strip().upper(), req.codigo.strip()))
+        conn.commit()
+        conn.close()
+        return {"status": "ok"}
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": str(e)})
 
@@ -1183,8 +1250,15 @@ def calcular_orcamento(req: OrcamentoRequest):
     conn.close()
 
     # ── 1. Índice ATIVO → linhas do orçamento (O(1) lookup) ─────────────────
+    req_proj = (req.projeto or "").strip().upper()
     orcamento_dict = {}
     for r in orcamento_rows:
+        row_proj = (r["projeto"] or "").strip().upper()
+        if req_proj and row_proj:
+            valid_projs = [p.strip() for p in row_proj.split("/")]
+            if req_proj not in valid_projs:
+                continue
+
         key = r["ativo"].strip().upper()
         orcamento_dict.setdefault(key, []).append(dict(r))
 
