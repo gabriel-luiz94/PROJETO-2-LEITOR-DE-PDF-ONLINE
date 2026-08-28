@@ -68,7 +68,27 @@ async def websocket_endpoint(websocket: WebSocket):
 # =====================================================
 # BANCO DE DADOS (MEMÓRIA DE OBRAS E REGRAS)
 # =====================================================
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "banco_resumo.db")
+def _get_base_dir():
+    """Retorna diretório base: ao lado do .exe em modo frozen, ou ao lado do app.py em modo dev."""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.abspath(__file__))
+
+def _get_resource_path(relative: str) -> str:
+    """Resolve caminho de recurso empacotado (static, prompt, seed). Funciona em dev e frozen."""
+    if getattr(sys, "frozen", False):
+        # _MEIPASS = temp onde PyInstaller extrai datas
+        meipass = getattr(sys, "_MEIPASS", _get_base_dir())
+        # Tenta _MEIPASS primeiro (recurso empacotado), depois pasta do .exe (persistente)
+        p1 = os.path.join(meipass, relative)
+        if os.path.exists(p1):
+            return p1
+        return os.path.join(_get_base_dir(), relative)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative)
+
+DB_PATH = os.path.join(_get_base_dir(), "banco_resumo.db")
+PROMPT_PATH = _get_resource_path("prompt_rede_eletrica.txt")
+SEED_CSV_PATH = _get_resource_path(os.path.join("data", "tabela_seed.csv"))
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -136,6 +156,55 @@ def init_db():
     cursor.execute("INSERT OR IGNORE INTO projetos (nome, codigo) VALUES ('RONDONIA', '229')")
     
     conn.commit()
+
+    # ── Seed automático da tabela_orcamento (resolve "tabela não encontrada" em instalação limpa) ──
+    try:
+        cursor.execute("SELECT COUNT(*) FROM tabela_orcamento")
+        count = cursor.fetchone()[0]
+        if count == 0 and os.path.exists(SEED_CSV_PATH):
+            print(f"[DB] tabela_orcamento vazia -> importando seed de {SEED_CSV_PATH}")
+            import csv, io
+            with open(SEED_CSV_PATH, "r", encoding="utf-8-sig") as f:
+                text = f.read()
+                reader = csv.DictReader(io.StringIO(text), delimiter=";")
+                if not reader.fieldnames or len(reader.fieldnames) < 2:
+                    f.seek(0)
+                    reader = csv.DictReader(io.StringIO(f.read()), delimiter=",")
+                for row in reader:
+                    row_upper = {k.strip().upper(): v for k, v in row.items() if k}
+                    ativo = row_upper.get("ATIVO", "")
+                    codigo = row_upper.get("CODIGO", "")
+                    if not ativo and not codigo:
+                        continue
+                    try:
+                        fator_i = float(row_upper.get("FATOR I", "0").replace(",", "."))
+                    except ValueError:
+                        fator_i = 0.0
+                    try:
+                        fator_r = float(row_upper.get("FATOR R", "0").replace(",", "."))
+                    except ValueError:
+                        fator_r = 0.0
+                    cursor.execute('''
+                        INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        ativo,
+                        row_upper.get("DESC ATIVO", ""),
+                        row_upper.get("COMPONENTE", ""),
+                        row_upper.get("PROJETO", ""),
+                        row_upper.get("MDO", ""),
+                        row_upper.get("CODIGO", ""),
+                        row_upper.get("DESC CODIGO", ""),
+                        fator_i,
+                        fator_r,
+                        row_upper.get("FILTRO", "")
+                    ))
+            conn.commit()
+            cursor.execute("SELECT COUNT(*) FROM tabela_orcamento")
+            print(f"[DB] Seed concluido: {cursor.fetchone()[0]} linhas importadas.")
+    except Exception as e:
+        print(f"[DB] Erro no seed automático: {e}")
+
     conn.close()
 
 init_db()
@@ -259,11 +328,11 @@ class ChatRequest(BaseModel):
 
 @app.get("/api/gemini/models")
 def get_gemini_models(request: Request):
-    api_key = request.headers.get("X-Gemini-Key")
+    api_key = request.headers.get("X-Gemini-Key") or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     provider = request.headers.get("X-Provider", "gemini")
     openai_base_url = request.headers.get("X-OpenAI-Base-URL", "")
 
-    conn = sqlite3.connect("banco_resumo.db")
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT valor FROM configuracoes WHERE chave = 'gemini_api_key'")
     row = cursor.fetchone()
@@ -323,12 +392,12 @@ async def gemini_chat(req: ChatRequest, request: Request):
     from fastapi.responses import StreamingResponse, PlainTextResponse
 
     # ── 1. Resolver API Key e Modelo ──
-    api_key = request.headers.get("X-Gemini-Key")
+    api_key = request.headers.get("X-Gemini-Key") or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     custom_model = request.headers.get("X-Gemini-Model")
     provider = req.provider or "gemini"
     openai_base_url = req.openai_base_url or ""
 
-    conn = sqlite3.connect("banco_resumo.db")
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT valor FROM configuracoes WHERE chave = 'gemini_api_key'")
     row = cursor.fetchone()
@@ -391,7 +460,7 @@ async def gemini_chat(req: ChatRequest, request: Request):
         prompt_final = req.prompt.strip()
 
     # ── 4. Carregar System Prompt ──
-    prompt_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompt_rede_eletrica.txt")
+    prompt_path = PROMPT_PATH
     system_instruction = "Você é um especialista em redes elétricas."
     if os.path.exists(prompt_path):
         with open(prompt_path, "r", encoding="utf-8") as f:
@@ -960,12 +1029,17 @@ async def importar_rec_pdf(orcamento: UploadFile = File(...), lista: UploadFile 
 # =====================================================
 
 if getattr(sys, "frozen", False):
-    base_dir = sys._MEIPASS
+    base_dir = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(sys.executable)))
 else:
     base_dir = os.path.dirname(os.path.abspath(__file__))
 
 static_dir = os.path.join(base_dir, "static")
-if not os.path.exists(static_dir): os.makedirs(static_dir)
+# Fallback: se static não estiver em _MEIPASS (ex: .exe portável), tenta ao lado do executável
+if not os.path.exists(static_dir) and getattr(sys, "frozen", False):
+    alt_static = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "static")
+    if os.path.exists(alt_static):
+        static_dir = alt_static
+if not os.path.exists(static_dir): os.makedirs(static_dir, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
@@ -996,6 +1070,53 @@ async def serve_resumo_js():
     with open(js_path, "r", encoding="utf-8") as f:
         from fastapi.responses import Response
         return Response(content=f.read(), media_type="application/javascript", headers=NO_CACHE_HEADERS)
+
+@app.get("/api/health")
+def health_check():
+    """Diagnóstico para uso na empresa: verifica DB, prompt e IA."""
+    info = {}
+    # DB
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM tabela_orcamento")
+        info["tabela_orcamento_count"] = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM configuracoes")
+        info["configuracoes_count"] = cur.fetchone()[0]
+        conn.close()
+        info["db_path"] = DB_PATH
+        info["db_ok"] = True
+    except Exception as e:
+        info["db_ok"] = False
+        info["db_error"] = str(e)
+    # Prompt
+    info["prompt_path"] = PROMPT_PATH
+    info["prompt_exists"] = os.path.exists(PROMPT_PATH)
+    info["seed_path"] = SEED_CSV_PATH
+    info["seed_exists"] = os.path.exists(SEED_CSV_PATH)
+    # ENV
+    info["env_gemini_key"] = bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
+    info["frozen"] = getattr(sys, "frozen", False)
+    info["static_dir"] = static_dir
+    return info
+
+@app.get("/api/backup/export")
+def backup_export():
+    """Exporta tabela_orcamento + regras + projetos como JSON para backup portátil."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM tabela_orcamento")
+        orcamento = [dict(r) for r in cur.fetchall()]
+        cur.execute("SELECT * FROM regras")
+        regras = [dict(r) for r in cur.fetchall()]
+        cur.execute("SELECT * FROM projetos")
+        projetos = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        return {"tabela_orcamento": orcamento, "regras": regras, "projetos": projetos}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 def open_browser(url):
     webbrowser.open(url)

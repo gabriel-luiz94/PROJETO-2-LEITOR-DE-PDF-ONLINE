@@ -59,7 +59,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='Leitor_PDF_Pro_v30',
+    name='Leitor_PDF_Pro_v32',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

@@ -4,3 +4,5 @@ pymupdf
 python-multipart
 websockets
 ezdxf
+google-genai
+openai
