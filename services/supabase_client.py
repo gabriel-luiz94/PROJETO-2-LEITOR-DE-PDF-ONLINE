@@ -13,8 +13,8 @@ def get_supabase() -> Client | None:
     Se não encontrar, tenta buscar na tabela configuracoes local.
     Retorna None se as chaves não estiverem disponíveis.
     """
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_KEY")
+    url = os.environ.get("SUPABASE_URL") or "https://mmurxpgrdctidvbkjklw.supabase.co"
+    key = os.environ.get("SUPABASE_KEY") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tdXJ4cGdyZGN0aWR2Ymtqa2x3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MjUwMDcsImV4cCI6MjEwMzUwMTAwN30.bdHvZ3uecXX3RkvfewcltrdNQF0KDbsaViJbMLCwwdw"
 
     if not url or not key:
         try:
