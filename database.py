@@ -111,6 +111,27 @@ def init_db():
         )
     ''')
 
+    # Tabela de Usuários Locais (Para Login Offline e Painel Admin)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS usuarios_locais (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            senha_hash TEXT NOT NULL,
+            is_admin BOOLEAN DEFAULT 0
+        )
+    ''')
+    
+    # Inserir admin padrao caso a tabela de usuarios esteja vazia
+    cursor.execute("SELECT COUNT(*) FROM usuarios_locais")
+    if cursor.fetchone()[0] == 0:
+        import hashlib
+        # Hash SHA-256 para a senha padrao "admin123"
+        senha_padrao_hash = hashlib.sha256("admin123".encode()).hexdigest()
+        cursor.execute('''
+            INSERT INTO usuarios_locais (email, senha_hash, is_admin)
+            VALUES ('valdecinunesaf@gmail.com', ?, 1)
+        ''', (senha_padrao_hash,))
+
     # Tabela Histórico REC
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS historico_rec (

@@ -74,6 +74,14 @@ async def serve_resumo_js():
         from fastapi.responses import Response
         return Response(content=f.read(), media_type="application/javascript", headers=NO_CACHE_HEADERS)
 
+@app.get("/admin")
+async def serve_admin():
+    admin_path = os.path.join(STATIC_DIR, "admin.html")
+    if not os.path.exists(admin_path): 
+        return HTMLResponse("admin.html não encontrado na pasta static")
+    with open(admin_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(f.read(), headers=NO_CACHE_HEADERS)
+
 # ── WebSocket ───────────────────────────────────────────────────────────────
 @app.websocket("/ws")
 async def websocket_endpoint(websocket):
@@ -85,6 +93,7 @@ async def websocket_endpoint(websocket):
         manager.disconnect(websocket)
 
 # ── Montagem dos Routers ────────────────────────────────────────────────────
+app.include_router(auth.router)
 app.include_router(obras.router)
 app.include_router(regras.router)
 app.include_router(recs.router)
@@ -93,7 +102,6 @@ app.include_router(orcamento.router)
 app.include_router(ai_chat.router)
 app.include_router(upload.router)
 app.include_router(health.router)
-app.include_router(auth.router)
 app.include_router(admin.router)
 
 

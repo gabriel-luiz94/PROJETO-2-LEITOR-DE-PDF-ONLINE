@@ -26,39 +26,67 @@ class AuthResponse(BaseModel):
 
 @router.post("/login", response_model=AuthResponse)
 def login(req: LoginRequest):
+    import hashlib
+    import uuid
+    
+    # 1. Primeiro tentamos validar no banco de usuários locais.
+    conn = get_row_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM usuarios_locais WHERE email = ?", (req.email,))
+    user_local = cur.fetchone()
+    conn.close()
+
+    if user_local:
+        senha_hash_entrada = hashlib.sha256(req.password.encode()).hexdigest()
+        if senha_hash_entrada == user_local["senha_hash"]:
+            # Login local bem sucedido
+            user_id = str(user_local["id"])
+            email = user_local["email"]
+            is_admin = bool(user_local["is_admin"])
+            
+            # Gera um token falso para sessao local offline
+            access_token = f"local_token_{uuid.uuid4().hex}"
+            
+            conn = get_connection()
+            cur = conn.cursor()
+            cur.execute('''
+                INSERT OR REPLACE INTO sessoes (user_id, email, access_token, refresh_token, is_admin, ultimo_login)
+                VALUES (?, ?, ?, ?, ?, datetime('now'))
+            ''', (user_id, email, access_token, "", int(is_admin)))
+            conn.commit()
+            conn.close()
+            
+            return {
+                "access_token": access_token,
+                "user_id": user_id,
+                "email": email,
+                "is_admin": is_admin
+            }
+
+    # 2. Se não encontrou usuário local, tenta o Supabase (online) na tabela `usuarios_nuvem`
     supabase = get_supabase()
     if not supabase:
-        # Modo Offline: Tenta buscar na sessão local
-        conn = get_row_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM sessoes WHERE email = ?", (req.email,))
-        sessao = cur.fetchone()
-        conn.close()
-        
-        if sessao:
-            # Em modo estritamente offline, não podemos validar a senha de forma segura se não salvamos o hash.
-            # Se a sessão existe localmente, assumimos que o token ainda é válido para acesso offline.
-            # NOTA: Em produção real, deveríamos salvar um hash local ou usar o refresh token quando voltar a internet.
-            return {
-                "access_token": sessao["access_token"],
-                "user_id": sessao["user_id"],
-                "email": sessao["email"],
-                "is_admin": bool(sessao["is_admin"])
-            }
-        raise HTTPException(status_code=503, detail="Sem conexão com servidor de login e sem sessão offline salva.")
+        # Se não há conexão e também não era usuário local
+        raise HTTPException(status_code=503, detail="Sem conexão com servidor de login e usuário local não encontrado.")
 
     try:
-        # Tenta logar via Supabase
-        res = supabase.auth.sign_in_with_password({"email": req.email, "password": req.password})
+        res = supabase.table("usuarios_nuvem").select("*").eq("email", req.email).execute()
+        if not res.data:
+            raise HTTPException(status_code=401, detail="Credenciais inválidas ou usuário não encontrado.")
+            
+        user_cloud = res.data[0]
+        senha_hash_entrada = hashlib.sha256(req.password.encode()).hexdigest()
         
-        user_id = res.user.id
-        email = res.user.email
-        access_token = res.session.access_token
-        refresh_token = res.session.refresh_token
+        if senha_hash_entrada != user_cloud.get("senha_hash"):
+            raise HTTPException(status_code=401, detail="Credenciais inválidas.")
+            
+        user_id = str(user_cloud.get("id"))
+        email = user_cloud.get("email")
+        is_admin = bool(user_cloud.get("is_admin"))
         
-        # Simples verificação de admin
-        ADMIN_EMAILS = ["valdecinunesaf@gmail.com"]
-        is_admin = email in ADMIN_EMAILS 
+        # Gera token temporário
+        access_token = f"cloud_token_{uuid.uuid4().hex}"
+        refresh_token = ""
         
         # Salva na sessão local (SQLite)
         conn = get_connection()
@@ -67,6 +95,13 @@ def login(req: LoginRequest):
             INSERT OR REPLACE INTO sessoes (user_id, email, access_token, refresh_token, is_admin, ultimo_login)
             VALUES (?, ?, ?, ?, ?, datetime('now'))
         ''', (user_id, email, access_token, refresh_token, int(is_admin)))
+        
+        # Sincroniza esse usuário para a tabela de offline
+        cur.execute('''
+            INSERT OR REPLACE INTO usuarios_locais (email, senha_hash, is_admin)
+            VALUES (?, ?, ?)
+        ''', (email, user_cloud.get("senha_hash"), int(is_admin)))
+        
         conn.commit()
         conn.close()
         
@@ -77,9 +112,11 @@ def login(req: LoginRequest):
             "is_admin": is_admin
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Erro no login: {e}")
-        raise HTTPException(status_code=401, detail="Credenciais inválidas.")
+        logger.error(f"Erro no login (cloud): {e}")
+        raise HTTPException(status_code=401, detail="Erro de conexão com servidor ou credenciais inválidas.")
 
 
 @router.get("/me")

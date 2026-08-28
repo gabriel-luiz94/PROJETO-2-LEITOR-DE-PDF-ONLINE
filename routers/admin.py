@@ -1,136 +1,184 @@
 """
-routers/admin.py — Rotas exclusivas para o Administrador.
+routers/admin.py — Rotas para gerenciamento local de usuários (Painel Admin).
 """
-import io
-import csv
-from fastapi import APIRouter, UploadFile, File, Request, HTTPException
-from fastapi.responses import JSONResponse
+import hashlib
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from database import get_connection, get_row_connection
+from routers.auth import get_current_user
 from services.supabase_client import get_supabase
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-@router.post("/upload-master")
-async def upload_master_csv(request: Request, file: UploadFile = File(...)):
-    # 1. Valida se o usuário é admin
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Não autorizado")
-    
-    token = auth_header.split(" ")[1]
-    
-    supabase = get_supabase()
-    if not supabase:
-        raise HTTPException(status_code=503, detail="Supabase não configurado.")
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    is_admin: bool
 
-    try:
-        # Pega o usuário logado no Supabase a partir do token
-        user_res = supabase.auth.get_user(token)
-        if not user_res or not user_res.user:
-            raise HTTPException(status_code=401, detail="Sessão inválida.")
+
+class UserUpdate(BaseModel):
+    is_admin: bool
+
+
+def require_admin(token: str):
+    user = get_current_user(token)
+    if not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores podem acessar este recurso.")
+    return user
+
+
+@router.get("/users")
+def list_users(token: str):
+    """Lista todos os usuários. Sincroniza da nuvem para o local se houver internet."""
+    require_admin(token)
+    supabase = get_supabase()
+    conn = get_row_connection()
+    cur = conn.cursor()
+    
+    if supabase:
+        try:
+            # Sincroniza Nuvem -> Local
+            res = supabase.table("usuarios_nuvem").select("*").execute()
+            cloud_users = res.data
+            for cu in cloud_users:
+                cur.execute('''
+                    INSERT OR REPLACE INTO usuarios_locais (email, senha_hash, is_admin)
+                    VALUES (?, ?, ?)
+                ''', (cu["email"], cu["senha_hash"], int(cu["is_admin"])))
+            conn.commit()
+        except Exception:
+            pass # Ignora falhas de sync
             
-        # (Futuro) Verificar na tabela profiles se o user é admin.
-        # Por enquanto, assumimos que quem chega aqui com token válido e sabe usar a tela pode subir.
-        # Em produção restrita, você checaria: if user_res.user.email != 'seuemail@admin.com': raise ...
-    except Exception as e:
-        raise HTTPException(status_code=401, detail="Sessão inválida ou erro de auth.")
-
-    # 2. Processa o CSV
-    try:
-        contents = await file.read()
-        text = contents.decode("utf-8-sig")
-        reader = csv.DictReader(io.StringIO(text), delimiter=";")
-
-        if not reader.fieldnames or len(reader.fieldnames) < 2:
-            reader = csv.DictReader(io.StringIO(text), delimiter=",")
-
-        records_to_insert = []
-        for row in reader:
-            row_upper = {k.strip().upper(): v for k, v in row.items() if k}
-            ativo = row_upper.get("ATIVO", "")
-            codigo = row_upper.get("CODIGO", "")
-            if not ativo and not codigo:
-                continue
-
-            try:
-                fator_i = float(row_upper.get("FATOR I", "0").replace(",", "."))
-            except ValueError:
-                fator_i = 0.0
-
-            try:
-                fator_r = float(row_upper.get("FATOR R", "0").replace(",", "."))
-            except ValueError:
-                fator_r = 0.0
-
-            records_to_insert.append({
-                "ativo": ativo,
-                "desc_ativo": row_upper.get("DESC ATIVO", ""),
-                "componente": row_upper.get("COMPONENTE", ""),
-                "projeto": row_upper.get("PROJETO", ""),
-                "mdo": row_upper.get("MDO", ""),
-                "codigo": row_upper.get("CODIGO", ""),
-                "desc_codigo": row_upper.get("DESC CODIGO", ""),
-                "fator_i": fator_i,
-                "fator_r": fator_r,
-                "filtro": row_upper.get("FILTRO", "")
-            })
-
-        # 3. Limpa a tabela e sobe os novos pro Supabase
-        # IMPORTANTE: Supabase REST API não tem um TRUNCATE simples que retorne tudo,
-        # geralmente deletamos onde id > 0 ou usando rpc.
-        # Vamos usar um DELETE com filtro.
-        supabase.table("tabela_orcamento_master").delete().neq("id", 0).execute()
-        
-        # Insere em lotes se for muito grande
-        batch_size = 500
-        for i in range(0, len(records_to_insert), batch_size):
-            batch = records_to_insert[i:i + batch_size]
-            supabase.table("tabela_orcamento_master").insert(batch).execute()
-
-        return {"status": "ok", "message": f"{len(records_to_insert)} registros atualizados na Nuvem."}
-    except Exception as e:
-        return JSONResponse(status_code=400, content={"error": str(e)})
+    cur.execute("SELECT id, email, is_admin FROM usuarios_locais")
+    users = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return users
 
 
-@router.post("/add-row")
-async def add_master_row(request: Request):
-    # 1. Valida se o usuário é admin
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Não autorizado")
+@router.post("/users")
+def add_user(req: UserCreate, token: str):
+    """Adiciona um novo usuário (Nuvem + Local)."""
+    require_admin(token)
     
-    token = auth_header.split(" ")[1]
+    if len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 6 caracteres.")
+        
+    senha_hash = hashlib.sha256(req.password.encode()).hexdigest()
+    supabase = get_supabase()
+    
+    if supabase:
+        try:
+            # Tenta inserir na nuvem primeiro
+            supabase.table("usuarios_nuvem").insert({
+                "email": req.email,
+                "senha_hash": senha_hash,
+                "is_admin": req.is_admin
+            }).execute()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Erro ao inserir na nuvem: o e-mail já pode existir.")
+            
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute('''
+            INSERT OR REPLACE INTO usuarios_locais (email, senha_hash, is_admin)
+            VALUES (?, ?, ?)
+        ''', (req.email, senha_hash, int(req.is_admin)))
+        conn.commit()
+        user_id = cur.lastrowid
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Erro local: E-mail já está em uso.")
+        
+    conn.close()
+    
+    return {"id": user_id, "email": req.email, "is_admin": req.is_admin, "msg": "Usuário criado com sucesso!"}
+
+
+@router.delete("/users/{user_id}")
+def delete_user(user_id: int, token: str):
+    """Remove um usuário."""
+    require_admin(token)
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    # Precisamos do e-mail para deletar na nuvem, pois o ID pode ser diferente
+    cur.execute("SELECT email FROM usuarios_locais WHERE id = ?", (user_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    email = row[0]
     
     supabase = get_supabase()
-    if not supabase:
-        raise HTTPException(status_code=503, detail="Supabase não configurado.")
+    if supabase:
+        try:
+            supabase.table("usuarios_nuvem").delete().eq("email", email).execute()
+        except Exception:
+            pass
+            
+    cur.execute("DELETE FROM usuarios_locais WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return {"msg": "Usuário removido com sucesso."}
 
-    try:
-        user_res = supabase.auth.get_user(token)
-        if not user_res or not user_res.user:
-            raise HTTPException(status_code=401, detail="Sessão inválida.")
-    except Exception as e:
-        raise HTTPException(status_code=401, detail="Sessão inválida ou erro de auth.")
 
-    data = await request.json()
+@router.put("/users/{user_id}/admin")
+def toggle_admin(user_id: int, req: UserUpdate, token: str):
+    """Ativa ou desativa os privilégios de admin."""
+    require_admin(token)
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    cur.execute("SELECT email FROM usuarios_locais WHERE id = ?", (user_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    email = row[0]
+    
+    supabase = get_supabase()
+    if supabase:
+        try:
+            supabase.table("usuarios_nuvem").update({"is_admin": req.is_admin}).eq("email", email).execute()
+        except Exception:
+            pass
+            
+    cur.execute("UPDATE usuarios_locais SET is_admin = ? WHERE id = ?", (int(req.is_admin), user_id))
+    conn.commit()
+    conn.close()
+class PasswordUpdate(BaseModel):
+    password: str
 
-    # Prepara o payload
-    row_data = {
-        "ativo": data.get("ativo", ""),
-        "desc_ativo": data.get("desc_ativo", ""),
-        "componente": data.get("componente", ""),
-        "projeto": data.get("projeto", ""),
-        "mdo": data.get("mdo", ""),
-        "codigo": data.get("codigo", ""),
-        "desc_codigo": data.get("desc_codigo", ""),
-        "fator_i": data.get("fator_i", 0.0),
-        "fator_r": data.get("fator_r", 0.0),
-        "filtro": data.get("filtro", "")
-    }
-
-    try:
-        # Insere a nova linha no Supabase
-        supabase.table("tabela_orcamento_master").insert(row_data).execute()
-        return {"status": "ok", "message": "Linha inserida com sucesso."}
-    except Exception as e:
-        return JSONResponse(status_code=400, content={"error": str(e)})
+@router.put("/users/{user_id}/password")
+def update_password(user_id: int, req: PasswordUpdate, token: str):
+    """Redefine a senha de um usuário."""
+    require_admin(token)
+    
+    if len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 6 caracteres.")
+        
+    senha_hash = hashlib.sha256(req.password.encode()).hexdigest()
+    
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    cur.execute("SELECT email FROM usuarios_locais WHERE id = ?", (user_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    email = row[0]
+    
+    supabase = get_supabase()
+    if supabase:
+        try:
+            supabase.table("usuarios_nuvem").update({"senha_hash": senha_hash}).eq("email", email).execute()
+        except Exception:
+            pass
+            
+    cur.execute("UPDATE usuarios_locais SET senha_hash = ? WHERE id = ?", (senha_hash, user_id))
+    conn.commit()
+    conn.close()
+    return {"msg": "Senha redefinida com sucesso."}

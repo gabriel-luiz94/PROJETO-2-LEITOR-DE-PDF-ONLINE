@@ -11,6 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch(e => console.error('Erro no sync background:', e));
     }
     
+    const is_admin = localStorage.getItem('is_admin') === 'true';
+    if (is_admin) {
+        const btnAdmin = document.getElementById('btn-admin');
+        if (btnAdmin) btnAdmin.style.display = 'block';
+    }
+    
     // WebSocket for remote file triggers
     let socket;
     try {
