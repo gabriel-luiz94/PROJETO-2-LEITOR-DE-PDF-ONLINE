@@ -11,16 +11,17 @@
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <div class="background-animation">
-        <div class="blob shape1"></div>
-        <div class="blob shape2"></div>
-        <div class="blob shape3"></div>
-    </div>
 
     <main class="container">
-        <header>
-            <h1 class="title">Leitor de <span class="highlight">Projetos</span></h1>
-            <p class="subtitle">Extraia textos, fontes, cores e mais com precisão. <span style="font-size: 0.8rem; opacity: 0.6;">v3.0</span></p>
+        <header style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0;">
+            <div>
+                <h1 class="title">Leitor de <span class="highlight">Projetos</span></h1>
+                <p class="subtitle">Extraia textos, fontes, cores e mais com precisão. <span style="font-size: 0.8rem; opacity: 0.6;">v3.0</span></p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button id="btn-recs" class="btn-secondary" title="Histórico REC" onclick="abrirModalRecs()">Histórico REC</button>
+                <button id="btn-logout" class="btn-secondary" style="background-color: #fee2e2; color: #b91c1c; border-color: #f87171;" title="Sair">Sair</button>
+            </div>
         </header>
 
         <section class="upload-section">
@@ -41,6 +42,7 @@
                     <span id="file-name">documento.pdf</span>
                 </div>
                 <button class="btn-secondary" id="remove-file">Remover</button>
+                <button id="btn-export-dxf" class="btn btn-outline" style="display:none;" title="Exportar para DXF"><i class="fas fa-file-export"></i> DXF</button>
                 <button class="btn-action hidden" id="extract-btn">
                     <span>Extrair Dados</span>
                     <div class="spinner hidden" id="loading-spinner"></div>
@@ -93,7 +95,6 @@
                             </th>
                         </tr>
                     </thead>
-                    <tbody id="table-body">
                         <!-- Linhas serão inseridas aqui via JS -->
                     </tbody>
                 </table>

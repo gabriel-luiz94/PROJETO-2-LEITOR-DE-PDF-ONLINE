@@ -36,6 +36,11 @@ wheels/
 .env
 .venv
 .vscode/
+*.spec
+*.db
+*.pdf
+*.dxf
+.env
 *.log
 test.pdf
 # Banco local (não versionar dados sensíveis do usuário; seed versionado em data/)

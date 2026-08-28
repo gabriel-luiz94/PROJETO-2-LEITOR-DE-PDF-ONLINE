@@ -1,4 +1,16 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // ====== AUTENTICAÇÃO E SYNC ======
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    } else {
+        fetch('/api/health/sync-master', {method: 'POST'})
+            .then(r => r.json())
+            .then(d => console.log('Sync Mestre:', d.status))
+            .catch(e => console.error('Erro no sync background:', e));
+    }
+    
     // WebSocket for remote file triggers
     let socket;
     try {

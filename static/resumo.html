@@ -42,7 +42,7 @@
             transition: all 0.18s;
             font-family: 'Inter', sans-serif;
         }
-        .btn-undo:hover { background: rgba(88,166,255,0.15); border-color: #58a6ff; color: #58a6ff; }
+        .btn-undo:hover { background: rgba(217,119,6,0.15); border-color: #d97706; color: #d97706; }
         .btn-redo:hover { background: rgba(137,87,229,0.15); border-color: #8957e5; color: #c792ff; }
         .btn-undo:disabled, .btn-redo:disabled { opacity: 0.3; cursor: not-allowed; }
         .btn-undo:disabled:hover, .btn-redo:disabled:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.15); color: #c9d1d9; }
@@ -77,14 +77,14 @@
         .section-title {
             font-size: 1rem;
             font-weight: 700;
-            color: #58a6ff;
+            color: #d97706;
             margin: 0;
             display: flex;
             align-items: center;
             gap: 8px;
         }
         .badge-count {
-            background: #1f6feb;
+            background: #b45309;
             color: white;
             padding: 1px 9px;
             border-radius: 20px;
@@ -123,15 +123,15 @@
         .btn-copy-table {
             display: flex; align-items: center; gap: 5px;
             background: rgba(31, 111, 235, 0.15);
-            border: 1px solid rgba(88,166,255,0.35);
+            border: 1px solid rgba(217,119,6,0.35);
             border-radius: 7px;
-            color: #58a6ff;
+            color: #d97706;
             padding: 6px 11px;
             font-size: 0.76rem; font-weight: 600;
             cursor: pointer; transition: all 0.18s;
             font-family: 'Inter', sans-serif;
         }
-        .btn-copy-table:hover { background: rgba(88,166,255,0.2); border-color: #58a6ff; }
+        .btn-copy-table:hover { background: rgba(217,119,6,0.2); border-color: #d97706; }
 
         /* ── Table container ── */
         .table-wrap {
@@ -230,7 +230,7 @@
             flex-shrink: 0;
         }
         .r-filter-indicator {
-            background: #58a6ff;
+            background: #d97706;
             width: 6px; height: 6px;
             border-radius: 50%;
             position: absolute;
@@ -266,7 +266,7 @@
             outline: none;
             font-family: 'Inter', sans-serif;
         }
-        .r-filter-search:focus { border-color: #58a6ff; }
+        .r-filter-search:focus { border-color: #d97706; }
         .r-filter-actions {
             display: flex;
             justify-content: space-between;
@@ -276,14 +276,14 @@
         .r-btn-filter-action {
             background: transparent;
             border: none;
-            color: #58a6ff;
+            color: #d97706;
             font-size: 0.72rem;
             cursor: pointer;
             padding: 3px 7px;
             border-radius: 4px;
             font-family: 'Inter', sans-serif;
         }
-        .r-btn-filter-action:hover { background: rgba(88,166,255,0.1); }
+        .r-btn-filter-action:hover { background: rgba(217,119,6,0.1); }
         .r-filter-options-list {
             overflow-y: auto;
             max-height: 220px;
@@ -307,7 +307,7 @@
             font-family: 'Inter', sans-serif;
         }
         .r-filter-option:hover { background: rgba(255,255,255,0.05); }
-        .r-filter-option input[type="checkbox"] { width: 13px; height: 13px; cursor: pointer; flex-shrink: 0; accent-color: #58a6ff; }
+        .r-filter-option input[type="checkbox"] { width: 13px; height: 13px; cursor: pointer; flex-shrink: 0; accent-color: #d97706; }
         .r-filter-option span { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; }
 
         .resumo-table td {
@@ -316,7 +316,7 @@
             vertical-align: middle;
         }
         .resumo-table tbody tr:hover { background: rgba(255,255,255,0.025); }
-        .resumo-table tbody tr.row-selected { background: rgba(88,166,255,0.1) !important; }
+        .resumo-table tbody tr.row-selected { background: rgba(217,119,6,0.1) !important; }
 
         /* ── Entidade select ── */
         .sel-entidade {
@@ -369,8 +369,8 @@
             box-sizing: border-box;
         }
         .inp-ativo:focus {
-            border-bottom-color: #58a6ff;
-            background: rgba(88,166,255,0.04);
+            border-bottom-color: #d97706;
+            background: rgba(217,119,6,0.04);
         }
 
         /* ── Delete row button ── */
@@ -391,7 +391,7 @@
         .autocomplete-list {
             position: absolute;
             background: #1c1f26;
-            border: 1px solid rgba(88,166,255,0.35);
+            border: 1px solid rgba(217,119,6,0.35);
             border-radius: 7px;
             max-height: 180px;
             overflow-y: auto;
@@ -408,8 +408,8 @@
             transition: background 0.12s;
         }
         .autocomplete-item:hover, .autocomplete-item.active {
-            background: rgba(88,166,255,0.15);
-            color: #58a6ff;
+            background: rgba(217,119,6,0.15);
+            color: #d97706;
         }
 
         /* ── Context menu ── */
@@ -443,8 +443,8 @@
         #resumo-toast {
             position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
             background: rgba(30,35,45,0.97);
-            border: 1px solid rgba(88,166,255,0.35);
-            color: #58a6ff;
+            border: 1px solid rgba(217,119,6,0.35);
+            color: #d97706;
             padding: 9px 20px;
             border-radius: 30px;
             font-size: 0.82rem; font-weight: 600;
@@ -463,12 +463,6 @@
     </style>
 </head>
 <body>
-    <div class="background-animation">
-        <div class="blob shape1"></div>
-        <div class="blob shape2"></div>
-        <div class="blob shape3"></div>
-    </div>
-
     <main class="container">
         <header class="report-header">
             <div style="display:flex; align-items:center; gap: 10px;">
@@ -560,10 +554,10 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: -5px;">
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(88,166,255,0.3); color: #58a6ff;" title="Função futura">🔗 CONEXÕES</button>
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(88,166,255,0.3); color: #58a6ff;" title="Função futura">🏠 RAMAIS</button>
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(88,166,255,0.3); color: #58a6ff;" title="Função futura">🔄 RETENSIONAMENTO</button>
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(88,166,255,0.3); color: #58a6ff;" title="Função futura">➕ ADICIONAIS</button>
+                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">🔗 CONEXÕES</button>
+                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">🏠 RAMAIS</button>
+                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">🔄 RETENSIONAMENTO</button>
+                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">➕ ADICIONAIS</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(227,179,65,0.4); color: #e3b341;" title="Função futura">⚡ LINHA VIVA</button>
                 </div>
             </div>
@@ -577,7 +571,7 @@
 
                 <p style="font-size:0.75rem;color:#8b949e;margin:10px 0 4px;">PROVEDOR DE IA</p>
                 <div style="display:flex;gap:8px;margin-bottom:12px;">
-                    <button class="btn-provider active" data-provider="gemini" style="flex:1;padding:8px;border-radius:8px;border:2px solid #1f6feb;background:#0d1117;color:#58a6ff;font-size:0.8rem;cursor:pointer;transition:all .2s;">🔷 Google Gemini</button>
+                    <button class="btn-provider active" data-provider="gemini" style="flex:1;padding:8px;border-radius:8px;border:2px solid #b45309;background:#0d1117;color:#d97706;font-size:0.8rem;cursor:pointer;transition:all .2s;">🔷 Google Gemini</button>
                 </div>
 
                 <!-- Seção Gemini -->

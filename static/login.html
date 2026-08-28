@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Leitor de Projetos Pro</title>
+    <!-- Tailwind via CDN para prototipagem rápida e visual bonito -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #e6edf3;
+        }
+        .glass {
+            background: rgba(22, 27, 34, 0.9);
+            border: 1px solid rgba(48, 54, 61, 0.8);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="h-screen flex items-center justify-center bg-[#0d1117]">
+    <div class="glass p-8 rounded-xl shadow-2xl w-full max-w-md">
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold text-[#e6edf3]">Leitor de Projetos Pro</h1>
+            <p class="text-[#8b949e] mt-2">Faça login para acessar ou trabalhar offline</p>
+        </div>
+
+        <form id="loginForm" class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-[#c9d1d9]">Email</label>
+                <input type="email" id="email" required class="mt-1 block w-full px-4 py-2 border border-[#30363d] bg-[#0d1117] text-[#e6edf3] rounded-md focus:ring-[#d97706] focus:border-[#d97706]" placeholder="seu@email.com">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-[#c9d1d9]">Senha</label>
+                <input type="password" id="password" required class="mt-1 block w-full px-4 py-2 border border-[#30363d] bg-[#0d1117] text-[#e6edf3] rounded-md focus:ring-[#d97706] focus:border-[#d97706]" placeholder="••••••••">
+            </div>
+
+            <div class="flex items-center">
+                <input id="lembrar" type="checkbox" class="h-4 w-4 text-[#d97706] border-[#30363d] rounded bg-[#0d1117]" checked>
+                <label for="lembrar" class="ml-2 block text-sm text-[#c9d1d9]">
+                    Lembrar-me (Trabalhar Offline)
+                </label>
+            </div>
+
+            <div id="errorMsg" class="hidden text-red-500 text-sm text-center"></div>
+
+            <button type="submit" id="btnSubmit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-[#161b22] bg-[#d97706] hover:bg-[#b45309] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#b45309] focus:ring-offset-[#0d1117] transition-colors">
+                Entrar
+            </button>
+        </form>
+    </div>
+
+    <script src="/static/login.js"></script>
+</body>
+</html>

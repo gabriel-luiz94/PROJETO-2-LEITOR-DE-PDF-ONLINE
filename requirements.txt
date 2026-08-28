@@ -6,3 +6,5 @@ websockets
 ezdxf
 google-genai
 openai
+supabase
+python-dotenv

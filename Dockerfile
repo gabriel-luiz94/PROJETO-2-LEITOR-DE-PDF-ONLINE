@@ -20,7 +20,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia o código da aplicação
-COPY app.py .
+COPY config.py database.py models.py websocket_manager.py ./
+COPY app.py ./
+COPY routers/ ./routers/
+COPY services/ ./services/
 COPY static/ ./static/
 
 # Expõe a porta interna

@@ -26,8 +26,8 @@
         .header-actions { display: flex; gap: 10px; align-items: center; }
 
         .btn-primary-custom {
-            display: flex; align-items: center; gap: 6px;
-            background: linear-gradient(135deg, #1f6feb, #8957e5);
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            background: linear-gradient(135deg, #d97706, #b45309);
             border: none;
             border-radius: 9px;
             color: white;
@@ -35,9 +35,37 @@
             font-size: 0.85rem; font-weight: 600;
             cursor: pointer; transition: all 0.22s;
             font-family: 'Inter', sans-serif;
-            box-shadow: 0 4px 15px rgba(88,166,255,0.2);
+            box-shadow: 0 4px 15px rgba(217,119,6,0.2);
         }
-        .btn-primary-custom:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(88,166,255,0.35); }
+        .btn-primary-custom:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(217,119,6,0.35); }
+
+        .btn-success-custom {
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            background: linear-gradient(135deg, #238636, #2ea043);
+            border: none;
+            border-radius: 9px;
+            color: white;
+            padding: 9px 18px;
+            font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: all 0.22s;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 4px 15px rgba(46,160,67,0.2);
+        }
+        .btn-success-custom:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(46,160,67,0.35); }
+
+        .btn-master-custom {
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            background: linear-gradient(135deg, #8957e5, #6d28d9);
+            border: none;
+            border-radius: 9px;
+            color: white;
+            padding: 9px 18px;
+            font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: all 0.22s;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 4px 15px rgba(137,87,229,0.2);
+        }
+        .btn-master-custom:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(137,87,229,0.35); }
 
         .report-section {
             background: rgba(22, 27, 34, 0.65);
@@ -50,15 +78,15 @@
         .data-table { width: 100%; border-collapse: collapse; }
         .data-table thead th {
             background: rgba(31, 111, 235, 0.15);
-            border-bottom: 1px solid rgba(88,166,255,0.3);
-            color: #58a6ff;
+            border-bottom: 1px solid rgba(217,119,6,0.3);
+            color: #d97706;
             font-size: 0.72rem; font-weight: 700;
             text-transform: uppercase; letter-spacing: 0.08em;
             padding: 10px 12px;
             position: sticky; top: 0; z-index: 10;
         }
         .data-table tbody tr { border-bottom: 1px solid rgba(48,54,61,0.5); transition: background 0.15s; }
-        .data-table tbody tr:hover { background: rgba(88,166,255,0.06); }
+        .data-table tbody tr:hover { background: rgba(217,119,6,0.06); }
         .data-table tbody td { padding: 8px 12px; font-size: 0.82rem; color: #c9d1d9; }
 
         .col-filter {
@@ -74,7 +102,7 @@
             font-family: 'Inter', sans-serif;
             box-sizing: border-box;
         }
-        .col-filter:focus { border-color: #58a6ff; }
+        .col-filter:focus { border-color: #d97706; }
 
         .table-scroll { max-height: calc(100vh - 180px); overflow-y: auto; }
 
@@ -95,14 +123,22 @@
             <h1 class="report-title">📋 Tabela Base de Orçamento</h1>
             <div class="header-actions">
                 <input type="file" id="file-upload" accept=".csv" style="display: none;">
-                <button class="btn-primary-custom" onclick="adicionarLinha()" style="background: linear-gradient(135deg, #1f6feb, #3b82f6);">
+                <input type="file" id="file-upload-master" accept=".csv" style="display: none;">
+                
+                <button class="btn-primary-custom" onclick="adicionarLinha()" title="Adiciona na sua tabela local">
                     ➕ Adicionar Linha
                 </button>
-                <button class="btn-primary-custom" onclick="salvarAlteracoes()" style="background: linear-gradient(135deg, #238636, #2ea043);">
+                <button id="btn-admin-add" class="btn-master-custom hidden" onclick="adicionarLinhaMaster()" title="Adiciona para TODOS os usuários (Nuvem)">
+                    ➕ Linha Master
+                </button>
+                <button class="btn-success-custom" onclick="salvarAlteracoes()" title="Salva alterações na sua tabela local">
                     💾 Salvar Alterações
                 </button>
-                <button class="btn-primary-custom" onclick="document.getElementById('file-upload').click()">
-                    ⬆ Carregar CSV (Sobrescrever)
+                <button class="btn-primary-custom" onclick="document.getElementById('file-upload').click()" title="Sobrescreve a sua tabela local">
+                    ⬆ Carregar CSV (Local)
+                </button>
+                <button id="btn-admin-csv" class="btn-master-custom hidden" onclick="document.getElementById('file-upload-master').click()" title="Sobrescreve a tabela mestre de TODOS os usuários">
+                    ⬆ CSV Master
                 </button>
             </div>
         </div>
@@ -133,8 +169,8 @@
         </div>
     </div>
 
-    <div id="quick-search" style="position: fixed; bottom: 80px; right: 20px; background: rgba(22, 27, 34, 0.95); border: 1px solid rgba(88,166,255,0.4); padding: 15px; border-radius: 12px; width: 340px; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 100;">
-        <h4 style="margin:0 0 10px 0; color:#58a6ff; font-size:0.95rem;">🔍 Consulta Rápida (Ativo/Comp/Cód)</h4>
+    <div id="quick-search" style="position: fixed; bottom: 80px; right: 20px; background: rgba(22, 27, 34, 0.95); border: 1px solid rgba(217,119,6,0.4); padding: 15px; border-radius: 12px; width: 340px; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 100;">
+        <h4 style="margin:0 0 10px 0; color:#d97706; font-size:0.95rem;">🔍 Consulta Rápida (Ativo/Comp/Cód)</h4>
         <input type="text" id="qs-input" placeholder="Digite para buscar..." onkeyup="quickSearch()" style="width:100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: #0d1117; color: #fff; margin-bottom: 10px; font-family: 'Inter', sans-serif;">
         <div id="qs-result" style="font-size: 0.8rem; color: #c9d1d9; max-height: 200px; overflow-y: auto;">
             <span style="color:#8b949e">Os resultados aparecerão aqui.</span>
@@ -154,6 +190,12 @@
             setTimeout(() => toast.style.opacity = '0', 3000);
         }
 
+        // Controle de Admin UI
+        if (localStorage.getItem('is_admin') === 'true') {
+            document.getElementById('btn-admin-add').classList.remove('hidden');
+            document.getElementById('btn-admin-csv').classList.remove('hidden');
+        }
+
         async function carregarDados() {
             try {
                 const res = await fetch('/api/orcamento/dados');
@@ -163,155 +205,196 @@
                     data.dados.forEach(r => {
                         const tr = document.createElement('tr');
                         tr.innerHTML =
-                            '<td contenteditable="true">' + (r.ativo || '') + '</td>' +
-                            '<td contenteditable="true">' + (r.desc_ativo || '') + '</td>' +
-                            '<td contenteditable="true">' + (r.componente || '') + '</td>' +
-                            '<td contenteditable="true">' + (r.projeto || '') + '</td>' +
-                            '<td contenteditable="true">' + (r.mdo || '') + '</td>' +
-                            '<td contenteditable="true">' + (r.codigo || '') + '</td>' +
-                            '<td contenteditable="true">' + (r.desc_codigo || '') + '</td>' +
-                            '<td contenteditable="true">' + r.fator_i + '</td>' +
-                            '<td contenteditable="true">' + r.fator_r + '</td>' +
-                            '<td contenteditable="true">' + (r.filtro || '') + '</td>' +
-                            '<td style="text-align:center; cursor:pointer;" onclick="this.parentElement.remove()" title="Excluir">🗑</td>';
+                            `<td><input type="text" class="cell-input" value="${r.ativo || ''}"></td>` +
+                            `<td><input type="text" class="cell-input" value="${r.desc_ativo || ''}"></td>` +
+                            `<td><input type="text" class="cell-input" value="${r.componente || ''}"></td>` +
+                            `<td><input type="text" class="cell-input" value="${r.projeto || ''}"></td>` +
+                            `<td><input type="text" class="cell-input" value="${r.mdo || ''}"></td>` +
+                            `<td><input type="text" class="cell-input" value="${r.codigo || ''}"></td>` +
+                            `<td><input type="text" class="cell-input" value="${r.desc_codigo || ''}"></td>` +
+                            `<td><input type="number" step="0.01" class="cell-input" value="${r.fator_i !== null ? r.fator_i : ''}"></td>` +
+                            `<td><input type="number" step="0.01" class="cell-input" value="${r.fator_r !== null ? r.fator_r : ''}"></td>` +
+                            `<td><input type="text" class="cell-input" value="${r.filtro || ''}"></td>` +
+                            '<td style="text-align:center; cursor:pointer;"><button class="btn-del" onclick="this.closest(\'tr\').remove()" title="Excluir">Excluir</button></td>';
                         tbody.appendChild(tr);
                     });
                 } else {
                     tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#8b949e;">Nenhuma tabela base carregada. Clique em "Carregar CSV" para importar.</td></tr>';
                 }
-            } catch(e) {
-                console.error(e);
-            }
+            } catch(e) { console.error(e); }
         }
 
-        fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const formData = new FormData();
-            formData.append('file', file);
-            try {
-                showToast('Carregando arquivo...');
-                const res = await fetch('/api/orcamento/upload', { method: 'POST', body: formData });
-                const result = await res.json();
-                if (res.ok) {
-                    showToast('Tabela base carregada com sucesso!');
-                    carregarDados();
-                } else {
-                    alert('Erro: ' + result.error);
-                }
-            } catch(e) {
-                alert('Erro ao enviar arquivo.');
-            }
-            fileInput.value = '';
-        });
-
+        // Call the function on page load
         carregarDados();
 
-        // ---- Lógica de Inserção e Salvamento ----
-        function adicionarLinha(focus = true) {
-            if (tbody.querySelector('td[colspan="11"]')) tbody.innerHTML = ''; 
+        document.getElementById('file-upload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/api/upload/csv-orcamento', { method: 'POST', body: formData });
+                if (res.ok) {
+                    showToast("CSV Local carregado com sucesso!");
+                    carregarDados();
+                }
+            } catch (err) { console.error(err); }
+        });
+
+        document.getElementById('file-upload-master').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            showToast("Fazendo upload para a Nuvem Master...");
+            const formData = new FormData();
+            formData.append('file', file);
+            const token = localStorage.getItem('auth_token');
+
+            try {
+                const res = await fetch('/api/admin/upload-master', { 
+                    method: 'POST', 
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData 
+                });
+                
+                if (res.ok) {
+                    showToast("Tabela Mestre atualizada para TODOS!");
+                    await fetch('/api/health/sync-master', {method: 'POST'});
+                    carregarDados();
+                } else {
+                    showToast("Erro ao fazer upload Master.");
+                }
+            } catch (err) { 
+                showToast("Erro de conexão."); 
+            }
+        });
+
+        function adicionarLinha() {
             const tr = document.createElement('tr');
-            let tds = '';
-            for (let i=0; i<10; i++) tds += '<td contenteditable="true"></td>';
-            tds += '<td style="text-align:center; cursor:pointer;" onclick="this.parentElement.remove()" title="Excluir">🗑</td>';
-            tr.innerHTML = tds;
-            tbody.appendChild(tr);
-            if(focus) tr.cells[0].focus();
+            tr.innerHTML = `
+                <td><input type="text" class="cell-input"></td>
+                <td><input type="text" class="cell-input"></td>
+                <td><input type="text" class="cell-input"></td>
+                <td><input type="text" class="cell-input"></td>
+                <td><input type="text" class="cell-input"></td>
+                <td><input type="text" class="cell-input"></td>
+                <td><input type="text" class="cell-input"></td>
+                <td><input type="number" step="0.01" class="cell-input"></td>
+                <td><input type="number" step="0.01" class="cell-input"></td>
+                <td><input type="text" class="cell-input"></td>
+                <td><button class="btn-del" onclick="this.closest('tr').remove()">Excluir</button></td>
+            `;
+            tbody.insertBefore(tr, tbody.firstChild);
+        }
+
+        function adicionarLinhaMaster() {
+            const tr = document.createElement('tr');
+            tr.style.backgroundColor = 'rgba(217,119,6, 0.1)';
+            tr.innerHTML = `
+                <td><input type="text" class="cell-input" placeholder="Novo Master"></td>
+                <td><input type="text" class="cell-input"></td>
+                <td><input type="text" class="cell-input"></td>
+                <td><input type="text" class="cell-input"></td>
+                <td><input type="text" class="cell-input"></td>
+                <td><input type="text" class="cell-input"></td>
+                <td><input type="text" class="cell-input"></td>
+                <td><input type="number" step="0.01" class="cell-input"></td>
+                <td><input type="number" step="0.01" class="cell-input"></td>
+                <td><input type="text" class="cell-input"></td>
+                <td><button class="btn-del" style="background:#d97706;" onclick="salvarLinhaMaster(this)">Salvar Nuvem</button></td>
+            `;
+            tbody.insertBefore(tr, tbody.firstChild);
+        }
+
+        async function salvarLinhaMaster(btn) {
+            const tr = btn.closest('tr');
+            const inputs = tr.querySelectorAll('.cell-input');
+            const payload = {
+                ativo: inputs[0].value,
+                desc_ativo: inputs[1].value,
+                componente: inputs[2].value,
+                projeto: inputs[3].value,
+                mdo: inputs[4].value,
+                codigo: inputs[5].value,
+                desc_codigo: inputs[6].value,
+                fator_i: inputs[7].value ? parseFloat(inputs[7].value) : 0,
+                fator_r: inputs[8].value ? parseFloat(inputs[8].value) : 0,
+                filtro: inputs[9].value
+            };
+
+            const token = localStorage.getItem('auth_token');
+            try {
+                const res = await fetch('/api/admin/add-row', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    showToast("Linha Master salva com sucesso na nuvem!");
+                    tr.style.backgroundColor = '';
+                    btn.innerText = "Excluir";
+                    btn.style.background = "";
+                    btn.onclick = function() { tr.remove(); };
+                } else {
+                    showToast("Erro ao salvar Master.");
+                }
+            } catch (err) {
+                showToast("Erro de conexão.");
+            }
         }
 
         async function salvarAlteracoes() {
             const trs = Array.from(tbody.querySelectorAll("tr"));
-            if (trs.length === 1 && trs[0].querySelector('td[colspan="11"]')) {
-                alert("Tabela vazia."); return;
-            }
-            
-            const dados = [];
-            trs.forEach(tr => {
-                const c = tr.cells;
-                if (c.length < 10) return;
-                
-                // Ignorar linha completamente em branco
-                let isBlank = true;
-                for(let i=0; i<10; i++) { if(c[i].innerText.trim() !== "") isBlank = false; }
-                if (isBlank) return;
-                
-                dados.push({
-                    "ativo": c[0].innerText.trim(),
-                    "desc_ativo": c[1].innerText.trim(),
-                    "componente": c[2].innerText.trim(),
-                    "projeto": c[3].innerText.trim(),
-                    "mdo": c[4].innerText.trim(),
-                    "codigo": c[5].innerText.trim(),
-                    "desc_codigo": c[6].innerText.trim(),
-                    "fator_i": c[7].innerText.trim(),
-                    "fator_r": c[8].innerText.trim(),
-                    "filtro": c[9].innerText.trim()
-                });
-            });
+            const dados = trs.map(tr => {
+                const inputs = tr.querySelectorAll('.cell-input');
+                if (inputs.length < 10) return null;
+                return {
+                    ativo: inputs[0].value, desc_ativo: inputs[1].value, componente: inputs[2].value,
+                    projeto: inputs[3].value, mdo: inputs[4].value, codigo: inputs[5].value,
+                    desc_codigo: inputs[6].value, fator_i: inputs[7].value, fator_r: inputs[8].value, filtro: inputs[9].value
+                };
+            }).filter(d => d);
             
             try {
-                showToast("Salvando no banco de dados...");
+                showToast("Salvando...");
                 const res = await fetch('/api/orcamento/salvar', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ dados: dados })
                 });
-                const result = await res.json();
-                if (res.ok) {
-                    showToast("Base atualizada com sucesso!");
-                } else {
-                    alert("Erro ao salvar: " + result.error);
-                }
-            } catch(e) {
-                alert("Erro ao se conectar com servidor.");
-            }
+                if (res.ok) showToast("Base atualizada!");
+            } catch(e) { alert("Erro de conexão."); }
         }
 
         function filterTable() {
             const inputs = Array.from(document.querySelectorAll('.col-filter'));
             const filters = inputs.map(i => ({ col: parseInt(i.dataset.col), val: i.value.toLowerCase().trim() }));
-            
-            const trs = tbody.querySelectorAll('tr');
-            trs.forEach(tr => {
-                if(tr.querySelector('td[colspan="11"]')) return;
+            tbody.querySelectorAll('tr').forEach(tr => {
                 let show = true;
-                for (let f of filters) {
-                    if (f.val === "") continue;
-                    const text = (tr.cells[f.col]?.innerText || "").toLowerCase();
-                    if (!text.includes(f.val)) {
-                        show = false;
-                        break;
-                    }
-                }
+                filters.forEach(f => {
+                    const cell = tr.cells[f.col]?.querySelector('input');
+                    if (f.val && cell && !cell.value.toLowerCase().includes(f.val)) show = false;
+                });
                 tr.style.display = show ? "" : "none";
             });
         }
 
-        // ---- Lógica do Buscador Rápido ----
         function quickSearch() {
             const query = document.getElementById('qs-input').value.toUpperCase().trim();
             const resDiv = document.getElementById('qs-result');
-            if (!query) {
-                resDiv.innerHTML = '<span style="color:#8b949e">Os resultados aparecerão aqui.</span>';
-                return;
-            }
+            if (!query) { resDiv.innerHTML = '<span style="color:#8b949e">Os resultados aparecerão aqui.</span>'; return; }
             
-            const trs = Array.from(tbody.querySelectorAll("tr"));
             let html = "";
             let matches = 0;
-            trs.forEach(tr => {
-                if (matches > 15) return; 
-                const c = tr.cells;
-                if (c.length < 9) return;
-                
-                const ativo = c[0].innerText.toUpperCase();
-                const comp = c[2].innerText.toUpperCase();
-                const cod = c[5].innerText.toUpperCase();
-                
-                if (ativo.includes(query) || comp.includes(query) || cod.includes(query)) {
+            tbody.querySelectorAll("tr").forEach(tr => {
+                if (matches > 10) return;
+                const inputs = tr.querySelectorAll(".cell-input");
+                if (inputs[0].value.toUpperCase().includes(query) || inputs[2].value.toUpperCase().includes(query) || inputs[5].value.toUpperCase().includes(query)) {
                     html += `<div style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; margin-bottom: 8px;">
-                                <strong style="color:#58a6ff">CÓD: ${c[5].innerText.trim() || '-'}</strong> | Atv: ${c[0].innerText.trim() || '-'} | Comp: ${c[2].innerText.trim() || '-'}<br>
-                                <span style="font-size: 0.75rem; color:#8b949e;">${c[6].innerText.trim() || '-'}</span>
+                                <strong style="color:#d97706">CÓD: ${inputs[5].value || '-'}</strong> | Atv: ${inputs[0].value || '-'} | Comp: ${inputs[2].value || '-'}<br>
+                                <span style="font-size: 0.75rem; color:#8b949e;">${inputs[6].value || '-'}</span>
                              </div>`;
                     matches++;
                 }

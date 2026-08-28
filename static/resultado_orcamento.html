@@ -27,7 +27,7 @@
 
         .btn-print {
             display: flex; align-items: center; gap: 6px;
-            background: linear-gradient(135deg, #1f6feb, #8957e5);
+            background: linear-gradient(135deg, #b45309, #8957e5);
             border: none;
             border-radius: 9px;
             color: white;
@@ -35,9 +35,37 @@
             font-size: 0.85rem; font-weight: 600;
             cursor: pointer; transition: all 0.22s;
             font-family: 'Inter', sans-serif;
-            box-shadow: 0 4px 15px rgba(88,166,255,0.2);
+            box-shadow: 0 4px 15px rgba(217,119,6,0.2);
         }
-        .btn-print:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(88,166,255,0.35); }
+        .btn-print:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(217,119,6,0.35); }
+
+        .btn-primary-custom {
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            background: linear-gradient(135deg, #d97706, #b45309);
+            border: none;
+            border-radius: 9px;
+            color: white;
+            padding: 9px 18px;
+            font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: all 0.22s;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 4px 15px rgba(217,119,6,0.2);
+        }
+        .btn-primary-custom:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(217,119,6,0.35); }
+
+        .btn-success-custom {
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            background: linear-gradient(135deg, #238636, #2ea043);
+            border: none;
+            border-radius: 9px;
+            color: white;
+            padding: 9px 18px;
+            font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: all 0.22s;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 4px 15px rgba(46,160,67,0.2);
+        }
+        .btn-success-custom:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(46,160,67,0.35); }
 
         .status-bar {
             margin-bottom: 14px;
@@ -80,7 +108,7 @@
             font-size: 0.72rem; font-weight: 700;
             letter-spacing: 0.06em;
         }
-        .badge-i { background: rgba(31,111,235,0.2); color: #58a6ff; border: 1px solid rgba(88,166,255,0.35); }
+        .badge-i { background: rgba(180,83,9,0.2); color: #d97706; border: 1px solid rgba(217,119,6,0.35); }
         .badge-r { background: rgba(255,123,114,0.15); color: #ff7b72; border: 1px solid rgba(255,123,114,0.35); }
 
         .table-scroll { max-height: calc(100vh - 230px); overflow-y: auto; }
@@ -97,23 +125,26 @@
     <div class="container">
         <div class="report-header">
             <h1 class="report-title">💰 Resultado do Orçamento</h1>
-            <div class="header-actions" style="flex-wrap: wrap; gap: 8px;">
+            <div class="header-actions">
                 <input type="text" id="obra-numero" placeholder="Nº da obra" class="action-input" style="width:120px; padding: 8px; border-radius: 6px;">
                 <select id="obra-uf" class="action-input" style="padding: 8px; border-radius: 6px;">
                     <option value="RONDONIA">RONDÔNIA</option>
                     <option value="PARAIBA">PARAÍBA</option>
                 </select>
-                <button class="btn-primary-custom" onclick="salvarRecBanco()" style="background: linear-gradient(135deg, #1f6feb, #238636);">💾 Salvar Banco (REC)</button>
-                <button class="btn-primary-custom" onclick="baixarRecExterno()" style="background: linear-gradient(135deg, #1f6feb, #238636);">⬇️ Baixar .rec Externo</button>
-                <div style="width:1px; height:30px; background:rgba(255,255,255,0.2); margin:0 5px;"></div>
-                <button class="btn-primary-custom" onclick="document.getElementById('file-rec-externo').click()" style="background: linear-gradient(135deg, #1f6feb, #3b82f6);">📥 Somar REC Externo</button>
-                <input type="file" id="file-rec-externo" accept=".rec" style="display:none" onchange="carregarRecExterno(event, false)">
-                <button class="btn-primary-custom" onclick="document.getElementById('file-rec-subtrair').click()" style="background: linear-gradient(135deg, #1f6feb, #3b82f6);">📤 Subtrair REC Externo</button>
-                <input type="file" id="file-rec-subtrair" accept=".rec" style="display:none" onchange="carregarRecExterno(event, true)">
-                <button class="btn-primary-custom" onclick="abrirModalRecs()" style="background: linear-gradient(135deg, #1f6feb, #3b82f6);">🗄️ Somar REC do Banco</button>
-                <button class="btn-primary-custom" onclick="abrirModalImportarPdfs()" style="background: linear-gradient(135deg, #238636, #2ea043); color: white; border: none; font-weight: 600;">📄 Importar REC via PDFs</button>
-                <button class="btn-primary-custom" onclick="adicionarLinhaManual()" style="background: rgba(88,166,255,0.15); border: 1px solid rgba(88,166,255,0.4); color: #58a6ff;">➕ Adicionar Linha</button>
-                <button class="btn-primary-custom" onclick="limparTabela()" style="background: rgba(218,54,51,0.15); border: 1px solid rgba(218,54,51,0.4); color: #ff7b72;">🗑 Limpar Tabela</button>
+                <input type="file" id="file-rec-externo" accept=".rec, .json" style="display: none;" onchange="importarRecExterno(event, 'somar')">
+                <input type="file" id="file-rec-subtrair" accept=".rec, .json" style="display: none;" onchange="importarRecExterno(event, 'subtrair')">
+                
+                <button class="btn-success-custom" onclick="salvarRecBanco()">💾 Salvar Banco (REC)</button>
+                <button class="btn-success-custom" onclick="baixarRecExterno()">⬇️ Baixar .rec Externo</button>
+                
+                <button class="btn-primary-custom" onclick="document.getElementById('file-rec-externo').click()">📥 Somar REC Externo</button>
+                
+                <button class="btn-primary-custom" onclick="document.getElementById('file-rec-subtrair').click()">📤 Subtrair REC Externo</button>
+                
+                <button class="btn-primary-custom" onclick="abrirModalRecs()">🗄️ Somar REC do Banco</button>
+                <button class="btn-success-custom" onclick="abrirModalImportarPdfs()">📄 Importar REC via PDFs</button>
+                <button class="btn-primary-custom" onclick="adicionarLinhaManual()">➕ Adicionar Linha</button>
+                <button class="btn-primary-custom" onclick="limparTabela()">🗑 Limpar Tabela</button>
 
                 
                 <div style="width:1px; height:30px; background:rgba(255,255,255,0.2); margin:0 5px;"></div>
@@ -164,7 +195,7 @@
                 </div>
                 <div style="text-align: right; margin-top: 16px; display: flex; justify-content: flex-end; gap: 10px;">
                     <button onclick="document.getElementById('modal-importar-pdfs').style.display='none'" class="btn-primary-custom" style="background: #30363d;">Cancelar</button>
-                    <button onclick="importarPdfs()" class="btn-primary-custom" style="background: linear-gradient(135deg, #1f6feb, #8957e5); border: none; color: white;" id="btn-importar-pdfs">Importar e Mesclar</button>
+                    <button onclick="importarPdfs()" class="btn-primary-custom" id="btn-importar-pdfs">Importar e Mesclar</button>
                 </div>
             </div>
         </div>
