@@ -6,6 +6,7 @@
     <title>Resultado do Orçamento - Leitor Pro</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="/static/auth_fetch.js"></script>
     <link rel="stylesheet" href="/static/styles.css">
     <style>
         body { display: flex; justify-content: flex-start; }
@@ -124,10 +125,10 @@
 <body>
     <div class="container">
         <div class="report-header">
-            <h1 class="report-title">📋 Resultado do Orçamento</h1>
+            <h1 class="report-title">Resultado do Orçamento</h1>
             <div class="header-actions">
-                <button class="btn-print" style="background: #30363d; color: #c9d1d9; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;" onclick="window.location.href='/'">
-                    ← Voltar
+                <button class="btn-print" style="background: #30363d; color: #c9d1d9; border: none; padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem;" onclick="window.location.href='/'">
+                    Voltar
                 </button>
                 <input type="text" id="obra-numero" placeholder="Nº da obra" class="action-input" style="width:120px; padding: 8px; border-radius: 6px;">
                 <select id="obra-uf" class="action-input" style="padding: 8px; border-radius: 6px;">
@@ -137,30 +138,27 @@
                 <input type="file" id="file-rec-externo" accept=".rec, .json" style="display: none;" onchange="importarRecExterno(event, 'somar')">
                 <input type="file" id="file-rec-subtrair" accept=".rec, .json" style="display: none;" onchange="importarRecExterno(event, 'subtrair')">
                 
-                <button class="btn-success-custom" onclick="salvarRecBanco()">💾 Salvar Banco (REC)</button>
-                <button class="btn-success-custom" onclick="baixarRecExterno()">⬇️ Baixar .rec Externo</button>
+                <button class="btn-success-custom" onclick="salvarRecBanco()">Salvar no Banco</button>
+                <button class="btn-success-custom" onclick="baixarRecExterno()">Exportar .rec</button>
                 
-                <button class="btn-primary-custom" onclick="document.getElementById('file-rec-externo').click()">📥 Somar REC Externo</button>
-                
-                <button class="btn-primary-custom" onclick="document.getElementById('file-rec-subtrair').click()">📤 Subtrair REC Externo</button>
-                
-                <button class="btn-primary-custom" onclick="abrirModalRecs()">🗄️ Somar REC do Banco</button>
-                <button class="btn-success-custom" onclick="abrirModalImportarPdfs()">📄 Importar REC via PDFs</button>
-                <button class="btn-primary-custom" onclick="adicionarLinhaManual()">➕ Adicionar Linha</button>
-                <button class="btn-primary-custom" onclick="limparTabela()">🗑 Limpar Tabela</button>
+                <button class="btn-primary-custom" onclick="document.getElementById('file-rec-externo').click()">Somar REC Externo</button>
+                <button class="btn-primary-custom" onclick="document.getElementById('file-rec-subtrair').click()">Subtrair REC Externo</button>
+                <button class="btn-primary-custom" onclick="abrirModalRecs()">Somar do Banco</button>
+                <button class="btn-success-custom" onclick="abrirModalImportarPdfs()">Importar de PDFs</button>
+                <button class="btn-primary-custom" onclick="adicionarLinhaManual()">Adicionar Linha</button>
+                <button class="btn-primary-custom" onclick="limparTabela()" style="background: #21262d; border: 1px solid #30363d; color: #f85149;">Limpar Tabela</button>
 
-                
-                <div style="width:1px; height:30px; background:rgba(255,255,255,0.2); margin:0 5px;"></div>
-                <input type="text" id="searchInput" placeholder="Busca Geral..." onkeyup="applyAllFilters()" style="padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; width: 120px;">
-                <button class="btn-print" onclick="window.print()">🖨</button>
-                <button class="btn-print" onclick="copiarTudo()">📋</button>
+                <div style="width:1px; height:30px; background:rgba(255,255,255,0.15); margin:0 4px;"></div>
+                <input type="text" id="searchInput" placeholder="Busca geral..." onkeyup="applyAllFilters()" style="padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; width: 120px;">
+                <button class="btn-print" onclick="window.print()" title="Imprimir Relatório">Imprimir</button>
+                <button class="btn-print" onclick="copiarTudo()" title="Copiar Tabela">Copiar</button>
             </div>
         </div>
 
         <!-- Modal RECs Salvos -->
         <div id="modal-recs" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:100; align-items:center; justify-content:center;">
             <div style="background: #161b22; padding: 24px; border-radius: 12px; width: 600px; max-width: 90%; border: 1px solid #30363d; color: white;">
-                <h2 style="margin-top:0;">📂 RECs Salvos no Banco</h2>
+                <h2 style="margin-top:0; font-size:1.25rem;">Histórico de RECs no Banco</h2>
                 <input type="text" id="search-recs" placeholder="Buscar por número..." onkeyup="filtrarModalRecs()" style="width: 100%; padding: 8px; margin-bottom: 12px; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 6px;">
                 <div style="max-height: 300px; overflow-y: auto;">
                     <table style="width: 100%; border-collapse: collapse;">
@@ -184,7 +182,7 @@
         <!-- Modal Importar PDFs -->
         <div id="modal-importar-pdfs" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:100; align-items:center; justify-content:center;">
             <div style="background: #161b22; padding: 24px; border-radius: 12px; width: 450px; max-width: 90%; border: 1px solid #30363d; color: white;">
-                <h2 style="margin-top:0;">📄 Importar Orçamento e Lista</h2>
+                <h2 style="margin-top:0; font-size:1.25rem;">Importar Orçamento e Lista (PDF)</h2>
                 <p style="font-size: 0.9rem; color: #8b949e; margin-bottom: 20px;">
                     Selecione os PDFs de Orçamento e Lista para mesclar automaticamente na tabela.
                 </p>
@@ -329,7 +327,7 @@
                     if (data.nao_encontrados && data.nao_encontrados.length > 0) {
                         const notFoundAlert = document.createElement('div');
                         notFoundAlert.style = "background: rgba(210, 153, 34, 0.15); border: 1px solid rgba(210, 153, 34, 0.4); color: #d29922; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-weight: 500; font-size: 0.85rem;";
-                        notFoundAlert.innerHTML = `⚠️ <b>Atenção:</b> Os seguintes itens ou códigos não foram encontrados no banco e foram ignorados: <b>${data.nao_encontrados.join(', ')}</b>`;
+                        notFoundAlert.innerHTML = `<b>Atenção:</b> Os seguintes itens ou códigos não foram encontrados no banco e foram ignorados: <b>${data.nao_encontrados.join(', ')}</b>`;
                         document.querySelector('.report-section').insertAdjacentElement('beforebegin', notFoundAlert);
                     }
 
@@ -351,7 +349,14 @@
             }
         }
 
-        montarOrcamento();
+        const urlParams = new URLSearchParams(window.location.search);
+        const recParam = urlParams.get('rec');
+        if (recParam) {
+            document.getElementById('obra-numero').value = recParam;
+            carregarRecBanco(recParam, false);
+        } else {
+            montarOrcamento();
+        }
 
         // Funcionalidade de Filtro
         function filterTable() {
@@ -455,7 +460,18 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ numero_obra: numObra, dados_json: conteudo })
                 });
-                if (res.ok) log(`✔️ Obra Nº ${numObra} salva no banco com sucesso!`);
+                const data = await res.json();
+                if (res.ok) {
+                    if (data.is_copy) {
+                        document.getElementById("obra-numero").value = data.numero_obra;
+                        log(data.message);
+                        alert(data.message);
+                    } else {
+                        log(data.message || 'Obra salva no banco com sucesso!');
+                    }
+                } else {
+                    alert(data.detail || "Erro ao salvar.");
+                }
             } catch(e) {
                 alert("Erro ao salvar.");
             }
@@ -482,7 +498,7 @@
                     const writable = await handle.createWritable();
                     await writable.write(conteudo);
                     await writable.close();
-                    log(`✔️ Arquivo salvo com sucesso!`);
+                    log('Arquivo salvo com sucesso!');
                 } else {
                     // Fallback
                     const blob = new Blob([conteudo], { type: "text/plain" });
@@ -494,7 +510,7 @@
                     a.click();
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
-                    log(`✔️ Download iniciado!`);
+                    log('Download iniciado!');
                 }
             } catch (err) {
                 if (err.name !== 'AbortError') {

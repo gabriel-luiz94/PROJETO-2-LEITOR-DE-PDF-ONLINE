@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel Admin - Gerenciar Usuários</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/auth_fetch.js"></script>
     <style>
         body {
             background-color: #0d1117;
@@ -47,9 +48,12 @@
                         <label class="block text-sm font-medium text-[#c9d1d9]">Senha (mínimo 6)</label>
                         <input type="password" id="newPassword" required minlength="6" class="mt-1 block w-full px-3 py-2 border border-[#30363d] bg-[#0d1117] text-white rounded-md focus:ring-[#d97706] focus:border-[#d97706]">
                     </div>
-                    <div class="flex items-center mt-4">
-                        <input type="checkbox" id="newIsAdmin" class="h-4 w-4 text-[#d97706] border-[#30363d] rounded bg-[#0d1117]">
-                        <label for="newIsAdmin" class="ml-2 block text-sm text-[#c9d1d9]">Tornar Admin</label>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-[#c9d1d9] mb-1">Nível de Acesso (Role)</label>
+                        <select id="newRole" class="block w-full px-3 py-2 border border-[#30363d] bg-[#0d1117] text-white rounded-md focus:ring-[#d97706] focus:border-[#d97706]">
+                            <option value="operador">Operador (Uso normal)</option>
+                            <option value="admin">Administrador (Total)</option>
+                        </select>
                     </div>
                     <button type="submit" class="w-full btn-primary font-medium py-2 px-4 rounded-md shadow-sm transition-colors mt-6">
                         Criar Usuário

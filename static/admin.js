@@ -18,13 +18,13 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const email = document.getElementById('newEmail').value;
         const password = document.getElementById('newPassword').value;
-        const isAdmin = document.getElementById('newIsAdmin').checked;
+        const role = document.getElementById('newRole').value;
         
         try {
             const res = await fetch(`/api/admin/users?token=${token}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password, is_admin: isAdmin })
+                body: JSON.stringify({ email, password, role: role })
             });
             const data = await res.json();
             
@@ -68,8 +68,8 @@ async function loadUsers() {
             const tdType = document.createElement('td');
             tdType.className = 'px-6 py-4';
             const badge = document.createElement('span');
-            badge.className = user.is_admin ? 'px-2 py-1 bg-[#d97706] text-black text-xs font-bold rounded' : 'px-2 py-1 bg-[#30363d] text-gray-300 text-xs rounded';
-            badge.textContent = user.is_admin ? 'Admin' : 'Usuário';
+            badge.className = user.role === 'admin' ? 'px-2 py-1 bg-[#d97706] text-black text-xs font-bold rounded' : 'px-2 py-1 bg-[#30363d] text-gray-300 text-xs rounded';
+            badge.textContent = user.role === 'admin' ? 'Admin' : 'Operador';
             tdType.appendChild(badge);
             
             const tdAction = document.createElement('td');
@@ -77,8 +77,8 @@ async function loadUsers() {
             
             const btnToggle = document.createElement('button');
             btnToggle.className = 'text-sm text-blue-400 hover:text-blue-300 transition-colors';
-            btnToggle.textContent = user.is_admin ? 'Rebaixar' : 'Promover';
-            btnToggle.onclick = () => toggleAdmin(user.id, !user.is_admin);
+            btnToggle.textContent = user.role === 'admin' ? 'Rebaixar p/ Operador' : 'Promover p/ Admin';
+            btnToggle.onclick = () => updateRole(user.id, user.role === 'admin' ? 'operador' : 'admin');
             
             const btnReset = document.createElement('button');
             btnReset.className = 'text-sm text-yellow-500 hover:text-yellow-400 transition-colors ml-4';
@@ -108,13 +108,13 @@ async function loadUsers() {
     }
 }
 
-async function toggleAdmin(userId, newStatus) {
+async function updateRole(userId, newRole) {
     const token = localStorage.getItem('auth_token');
     try {
-        const res = await fetch(`/api/admin/users/${userId}/admin?token=${token}`, {
+        const res = await fetch(`/api/admin/users/${userId}/role?token=${token}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ is_admin: newStatus })
+            body: JSON.stringify({ role: newRole })
         });
         if (res.ok) {
             loadUsers();

@@ -1,4 +1,40 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // ====== AUTO-UPDATER ======
+    fetch('/api/update/check')
+        .then(r => r.json())
+        .then(d => {
+            if (d.has_update) {
+                const notif = document.getElementById('update-notification');
+                if (notif) {
+                    document.getElementById('update-version').textContent = d.latest_version;
+                    document.getElementById('update-notes').textContent = d.release_notes || '';
+                    notif.classList.remove('hidden');
+                    
+                    document.getElementById('btn-apply-update').onclick = () => {
+                        document.getElementById('btn-apply-update').textContent = 'Baixando...';
+                        fetch('/api/update/apply', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ download_url: d.download_url })
+                        }).then(async r => {
+                            const res = await r.json();
+                            if (r.ok) {
+                                document.getElementById('btn-apply-update').textContent = 'Reiniciando...';
+                                setTimeout(() => window.location.reload(), 3000); // Tenta recarregar após um tempo
+                            } else {
+                                alert('Erro: ' + (res.detail || 'Desconhecido'));
+                                document.getElementById('btn-apply-update').textContent = 'Instalar e Reiniciar';
+                            }
+                        }).catch(e => {
+                            alert('Erro de conexão ao atualizar.');
+                            document.getElementById('btn-apply-update').textContent = 'Instalar e Reiniciar';
+                        });
+                    };
+                }
+            }
+        })
+        .catch(e => console.log('Auto-update verificação falhou:', e));
+
     // ====== AUTENTICAÇÃO E SYNC ======
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -9,6 +45,18 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(r => r.json())
             .then(d => console.log('Sync Mestre:', d.status))
             .catch(e => console.error('Erro no sync background:', e));
+    }
+
+    // ====== LOGOUT ======
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+        btnLogout.addEventListener('click', () => {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_id');
+            localStorage.removeItem('user_email');
+            localStorage.removeItem('is_admin');
+            window.location.href = '/login';
+        });
     }
     
     const is_admin = localStorage.getItem('is_admin') === 'true';
@@ -1085,3 +1133,103 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('localFile')) autoExtractLocal(urlParams.get('localFile'));
 });
+
+/* ═══════════════════════════════════════
+   HISTÓRICO DE RECS (Página Inicial)
+═══════════════════════════════════════ */
+async function abrirModalRecs() {
+    const modal = document.getElementById('modal-recs');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    const tbody = document.getElementById('tbody-recs-salvos-index');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px; color:#8b949e;">Carregando RECs...</td></tr>';
+    
+    try {
+        const res = await fetch('/api/recs');
+        if (!res.ok) throw new Error('Erro ao listar RECs');
+        const recs = await res.json();
+        tbody.innerHTML = '';
+        
+        if (!recs || recs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px; color:#8b949e;">Nenhum REC salvo no banco ainda.</td></tr>';
+            return;
+        }
+
+        recs.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid rgba(255,255,255,0.08)';
+            tr.innerHTML = `
+                <td style="padding: 10px; font-weight: 600; color: #fff;">${r.numero_obra}</td>
+                <td style="padding: 10px; color: #8b949e;">${r.data_criacao || '-'}</td>
+                <td style="padding: 10px; text-align: right; white-space: nowrap;">
+                    <button onclick="abrirRecNoOrcamento('${encodeURIComponent(r.numero_obra)}')" style="background:#238636; color:white; border:none; padding:4px 9px; border-radius:4px; cursor:pointer; font-size:0.8rem; margin-right:4px;" title="Abrir esta obra na tela de Orçamento">Abrir Orçamento</button>
+                    <button onclick="baixarRecDireto('${encodeURIComponent(r.numero_obra)}')" style="background:#1f6feb; color:white; border:none; padding:4px 9px; border-radius:4px; cursor:pointer; font-size:0.8rem; margin-right:4px;" title="Exportar arquivo .rec">Baixar .rec</button>
+                    <button onclick="excluirRecIndex('${encodeURIComponent(r.numero_obra)}')" style="background:#da3633; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8rem;" title="Excluir do banco">✖</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch(e) {
+        console.error("Erro ao carregar RECs:", e);
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px; color:#f85149;">Erro ao carregar histórico de RECs.</td></tr>';
+    }
+}
+
+function filtrarModalRecsIndex() {
+    const input = document.getElementById("search-recs-index");
+    if (!input) return;
+    const filter = input.value.toUpperCase();
+    const tbody = document.getElementById("tbody-recs-salvos-index");
+    if (!tbody) return;
+    const trs = tbody.getElementsByTagName("tr");
+    for (let i = 0; i < trs.length; i++) {
+        const td = trs[i].getElementsByTagName("td")[0];
+        if (td) {
+            const txt = td.textContent || td.innerText;
+            trs[i].style.display = txt.toUpperCase().indexOf(filter) > -1 ? "" : "none";
+        }
+    }
+}
+
+function abrirRecNoOrcamento(numObra) {
+    const decoded = decodeURIComponent(numObra);
+    window.location.href = `/static/resultado_orcamento.html?rec=${encodeURIComponent(decoded)}`;
+}
+
+async function baixarRecDireto(numObra) {
+    const decoded = decodeURIComponent(numObra);
+    try {
+        const res = await fetch(`/api/recs/${encodeURIComponent(decoded)}`);
+        if (!res.ok) throw new Error('Obra não encontrada');
+        const data = await res.json();
+        const conteudo = data.dados_json;
+        if (!conteudo) { alert("Esta obra não possui conteúdo REC."); return; }
+
+        const filename = `${decoded}_ODI.rec`;
+        const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } catch(e) {
+        alert("Erro ao baixar arquivo .rec: " + e.message);
+    }
+}
+
+async function excluirRecIndex(numObra) {
+    const decoded = decodeURIComponent(numObra);
+    if (!confirm(`Deseja realmente excluir a obra ${decoded} do banco?`)) return;
+    try {
+        const res = await fetch(`/api/recs/${encodeURIComponent(decoded)}`, { method: 'DELETE' });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Erro ao excluir');
+        }
+        abrirModalRecs(); // Recarrega lista
+    } catch(e) {
+        alert("Erro ao excluir: " + e.message);
+    }
+}

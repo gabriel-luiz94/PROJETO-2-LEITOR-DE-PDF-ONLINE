@@ -1,23 +1,59 @@
 """
 database.py — Inicialização do banco de dados SQLite e acesso centralizado.
+
+Usa bcrypt para hashing de senhas. Admin inicial configurado via variáveis de ambiente.
+Inclui tabela sync_log para controle de sincronização offline-first.
 """
 import sqlite3
 import csv
 import io
 import os
+import bcrypt
 from config import DB_PATH, SEED_CSV_PATH, logger
 
 
 def get_connection() -> sqlite3.Connection:
     """Retorna uma conexão SQLite configurada. Caller é responsável por fechar."""
-    return sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA journal_mode=WAL")  # Melhor concorrência
+    return conn
 
 
 def get_row_connection() -> sqlite3.Connection:
     """Retorna uma conexão SQLite com row_factory = sqlite3.Row."""
     conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def hash_password(password: str) -> str:
+    """Hash de senha usando bcrypt (com salt automático)."""
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verifica senha contra hash bcrypt. Suporta legado SHA-256 para migração."""
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
+    except (ValueError, TypeError):
+        # Fallback: tenta SHA-256 para senhas legadas (migração automática)
+        import hashlib
+        if hashlib.sha256(password.encode()).hexdigest() == hashed:
+            return True
+        return False
+
+
+def _migrate_legacy_password(email: str, password: str, conn: sqlite3.Connection):
+    """Migra senha legada SHA-256 para bcrypt automaticamente."""
+    new_hash = hash_password(password)
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE usuarios_locais SET senha_hash = ? WHERE email = ?",
+        (new_hash, email)
+    )
+    conn.commit()
+    logger.info(f"Senha migrada para bcrypt: {email}")
 
 
 def init_db():
@@ -31,22 +67,37 @@ def init_db():
             id TEXT PRIMARY KEY,
             nome TEXT NOT NULL,
             data TEXT NOT NULL,
-            dados_json TEXT NOT NULL
+            dados_json TEXT NOT NULL,
+            user_id TEXT,
+            updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
+    try:
+        cursor.execute("ALTER TABLE obras ADD COLUMN user_id TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE obras ADD COLUMN updated_at TEXT")
+    except sqlite3.OperationalError:
+        pass
 
     # Tabela Regras de Aprendizado
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS regras (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             conteudo TEXT NOT NULL,
-            embedding TEXT
+            embedding TEXT,
+            updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
     try:
         cursor.execute("ALTER TABLE regras ADD COLUMN embedding TEXT")
     except sqlite3.OperationalError:
         pass  # Column already exists
+    try:
+        cursor.execute("ALTER TABLE regras ADD COLUMN updated_at TEXT")
+    except sqlite3.OperationalError:
+        pass
 
     # Tabela Configurações
     cursor.execute('''
@@ -70,7 +121,8 @@ def init_db():
             desc_codigo TEXT,
             fator_i REAL,
             fator_r REAL,
-            filtro TEXT
+            filtro TEXT,
+            updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
     try:
@@ -79,6 +131,10 @@ def init_db():
         pass
     try:
         cursor.execute("ALTER TABLE tabela_orcamento ADD COLUMN user_id TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE tabela_orcamento ADD COLUMN updated_at TEXT")
     except sqlite3.OperationalError:
         pass
 
@@ -95,9 +151,14 @@ def init_db():
             desc_codigo TEXT,
             fator_i REAL,
             fator_r REAL,
-            filtro TEXT
+            filtro TEXT,
+            updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
+    try:
+        cursor.execute("ALTER TABLE tabela_orcamento_master ADD COLUMN updated_at TEXT")
+    except sqlite3.OperationalError:
+        pass
 
     # Tabela de Sessão Local (Login offline)
     cursor.execute('''
@@ -107,9 +168,14 @@ def init_db():
             access_token TEXT NOT NULL,
             refresh_token TEXT,
             is_admin BOOLEAN DEFAULT 0,
+            role TEXT DEFAULT 'viewer',
             ultimo_login TEXT
         )
     ''')
+    try:
+        cursor.execute("ALTER TABLE sessoes ADD COLUMN role TEXT DEFAULT 'viewer'")
+    except sqlite3.OperationalError:
+        pass
 
     # Tabela de Usuários Locais (Para Login Offline e Painel Admin)
     cursor.execute('''
@@ -117,39 +183,105 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE NOT NULL,
             senha_hash TEXT NOT NULL,
-            is_admin BOOLEAN DEFAULT 0
+            is_admin BOOLEAN DEFAULT 0,
+            role TEXT DEFAULT 'viewer',
+            ativo BOOLEAN DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
-    
-    # Inserir admin padrao caso a tabela de usuarios esteja vazia
+    try:
+        cursor.execute("ALTER TABLE usuarios_locais ADD COLUMN role TEXT DEFAULT 'viewer'")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE usuarios_locais ADD COLUMN ativo BOOLEAN DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE usuarios_locais ADD COLUMN created_at TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE usuarios_locais ADD COLUMN updated_at TEXT")
+    except sqlite3.OperationalError:
+        pass
+
+    # Inserir admin padrão caso a tabela de usuarios esteja vazia
+    # Credenciais lidas de variáveis de ambiente (nunca hardcoded)
     cursor.execute("SELECT COUNT(*) FROM usuarios_locais")
     if cursor.fetchone()[0] == 0:
-        import hashlib
-        # Hash SHA-256 para a senha padrao "admin123"
-        senha_padrao_hash = hashlib.sha256("admin123".encode()).hexdigest()
+        admin_email = os.environ.get("ADMIN_EMAIL", "admin@local.com")
+        admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
+        senha_hash = hash_password(admin_password)
         cursor.execute('''
-            INSERT INTO usuarios_locais (email, senha_hash, is_admin)
-            VALUES ('valdecinunesaf@gmail.com', ?, 1)
-        ''', (senha_padrao_hash,))
+            INSERT INTO usuarios_locais (email, senha_hash, is_admin, role)
+            VALUES (?, ?, 1, 'admin')
+        ''', (admin_email, senha_hash))
+        logger.info(f"Admin inicial criado: {admin_email}")
 
     # Tabela Histórico REC
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS historico_rec (
             numero_obra TEXT PRIMARY KEY,
             dados_json TEXT NOT NULL,
-            data_criacao TEXT NOT NULL
+            data_criacao TEXT NOT NULL,
+            user_id TEXT,
+            updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
+    try:
+        cursor.execute("ALTER TABLE historico_rec ADD COLUMN user_id TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE historico_rec ADD COLUMN updated_at TEXT")
+    except sqlite3.OperationalError:
+        pass
 
     # Tabela Projetos
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS projetos (
             nome TEXT PRIMARY KEY,
-            codigo TEXT NOT NULL
+            codigo TEXT NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
+    try:
+        cursor.execute("ALTER TABLE projetos ADD COLUMN updated_at TEXT")
+    except sqlite3.OperationalError:
+        pass
     cursor.execute("INSERT OR IGNORE INTO projetos (nome, codigo) VALUES ('PARAIBA', '027')")
     cursor.execute("INSERT OR IGNORE INTO projetos (nome, codigo) VALUES ('RONDONIA', '229')")
+
+    # ── Tabela de Sync Log (controle de sincronização offline-first) ──
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sync_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tabela TEXT NOT NULL,
+            operacao TEXT NOT NULL,
+            registro_id TEXT,
+            dados_json TEXT,
+            timestamp TEXT DEFAULT (datetime('now')),
+            sincronizado BOOLEAN DEFAULT 0,
+            tentativas INTEGER DEFAULT 0,
+            erro TEXT
+        )
+    ''')
+
+    # ── Tabela de Audit Log (quem fez o quê e quando) ──
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT,
+            email TEXT,
+            action TEXT NOT NULL,
+            table_name TEXT,
+            record_id TEXT,
+            details TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
 
     conn.commit()
 

@@ -1,40 +1,60 @@
 """
 services/supabase_client.py — Cliente centralizado para acesso ao Supabase.
+
+Singleton thread-safe. Lê credenciais EXCLUSIVAMENTE de variáveis de ambiente (.env).
+Nunca armazena chaves no código-fonte.
 """
 import os
+import threading
 from supabase import create_client, Client
 from config import logger
-from database import get_connection
+
+
+_supabase_client: Client | None = None
+_client_lock = threading.Lock()
+_client_initialized = False
+
 
 def get_supabase() -> Client | None:
     """
-    Inicializa e retorna o cliente Supabase.
-    Tenta pegar as chaves do .env (variáveis de ambiente).
-    Se não encontrar, tenta buscar na tabela configuracoes local.
-    Retorna None se as chaves não estiverem disponíveis.
+    Retorna o cliente Supabase singleton.
+    Lê SUPABASE_URL e SUPABASE_KEY exclusivamente de variáveis de ambiente.
+    Retorna None se as credenciais não estiverem configuradas.
     """
-    url = os.environ.get("SUPABASE_URL") or "https://mmurxpgrdctidvbkjklw.supabase.co"
-    key = os.environ.get("SUPABASE_KEY") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tdXJ4cGdyZGN0aWR2Ymtqa2x3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MjUwMDcsImV4cCI6MjEwMzUwMTAwN30.bdHvZ3uecXX3RkvfewcltrdNQF0KDbsaViJbMLCwwdw"
+    global _supabase_client, _client_initialized
 
-    if not url or not key:
-        try:
-            conn = get_connection()
-            cur = conn.cursor()
-            cur.execute("SELECT valor FROM configuracoes WHERE chave = 'supabase_url'")
-            row_url = cur.fetchone()
-            if row_url: url = row_url[0]
-            
-            cur.execute("SELECT valor FROM configuracoes WHERE chave = 'supabase_key'")
-            row_key = cur.fetchone()
-            if row_key: key = row_key[0]
-            conn.close()
-        except Exception as e:
-            logger.warning(f"Erro ao buscar credenciais do Supabase no banco local: {e}")
+    if _client_initialized:
+        return _supabase_client
 
-    if url and key:
+    with _client_lock:
+        # Double-check após adquirir o lock
+        if _client_initialized:
+            return _supabase_client
+
+        url = os.environ.get("SUPABASE_URL", "").strip()
+        key = os.environ.get("SUPABASE_KEY", "").strip()
+
+        if not url or not key:
+            logger.warning(
+                "Supabase não configurado: defina SUPABASE_URL e SUPABASE_KEY no arquivo .env"
+            )
+            _client_initialized = True
+            return None
+
         try:
-            return create_client(url, key)
+            _supabase_client = create_client(url, key)
+            logger.info("Cliente Supabase inicializado com sucesso.")
         except Exception as e:
             logger.error(f"Erro ao inicializar cliente Supabase: {e}")
-            return None
-    return None
+            _supabase_client = None
+
+        _client_initialized = True
+        return _supabase_client
+
+
+def reset_supabase_client():
+    """Reseta o singleton (útil para reconexão após mudança de credenciais)."""
+    global _supabase_client, _client_initialized
+    with _client_lock:
+        _supabase_client = None
+        _client_initialized = False

@@ -6,6 +6,9 @@
  */
 document.addEventListener('DOMContentLoaded', () => {
 
+    /* ── Helpers ── */
+    function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+
     /* ═══════════════════════════════════════
        DADOS GLOBAIS
     ═══════════════════════════════════════ */
@@ -310,8 +313,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             selEnt.addEventListener('change', () => {
                 const old = row.entidade;
-                row.entidade = selEnt.value;
-                if (old !== selEnt.value) { pushHistory(); refreshAllFilters(type); }
+                if (old !== selEnt.value) {
+                    pushHistory();  // snapshot ANTES da mudança
+                    row.entidade = selEnt.value;
+                    refreshAllFilters(type);
+                }
             });
             tdEnt.appendChild(selEnt);
             tr.appendChild(tdEnt);
@@ -329,8 +335,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             selOp.addEventListener('change', () => {
                 const old = row.operacao;
-                row.operacao = selOp.value;
-                if (old !== selOp.value) { pushHistory(); refreshAllFilters(type); }
+                if (old !== selOp.value) {
+                    pushHistory();  // snapshot ANTES da mudança
+                    row.operacao = selOp.value;
+                    refreshAllFilters(type);
+                }
             });
             tdOp.appendChild(selOp);
             tr.appendChild(tdOp);
@@ -374,7 +383,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => {
                     hideAutocomplete();
                     if (inpAt.value !== prevAtivo) {
+                        const snapAtivo = prevAtivo;  // guarda o valor antes
                         prevAtivo = inpAt.value;
+                        // Restaura temporariamente o valor antigo para capturar o snapshot correto
+                        row.ativo = snapAtivo;
+                        pushHistory();  // snapshot com valor ANTES
+                        row.ativo = inpAt.value;  // aplica o novo valor
                         buildAtivoSets();
                         buildDataLists();
                         if (type === 'cabos') {
@@ -391,7 +405,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                 });
                             }
                         }
-                        pushHistory();
                         refreshAllFilters(type);
                     }
                 }, 150);
@@ -419,12 +432,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 inpQtd.addEventListener('blur', () => {
                     const val = inpQtd.value.trim();
                     const num = val === '' ? 0 : parseInt(val, 10);
-                    if (!isNaN(num)) {
-                        row.qtdAtivos = num;
-                    }
                     if (inpQtd.value !== prevQtd) {
+                        pushHistory();  // snapshot ANTES da mudança
                         prevQtd = inpQtd.value;
-                        pushHistory();
+                        if (!isNaN(num)) {
+                            row.qtdAtivos = num;
+                        }
                     }
                 });
 
@@ -466,14 +479,15 @@ document.addEventListener('DOMContentLoaded', () => {
        CRUD
     ═══════════════════════════════════════ */
     function deleteRow(type, idx) {
+        pushHistory();  // snapshot ANTES da exclusão
         tableStates[type].data.splice(idx, 1);
         renderTable(type);
         buildAtivoSets(); buildDataLists();
-        pushHistory();
         refreshAllFilters(type);
     }
 
     function addRow(type, afterIdx = -1) {
+        pushHistory();  // snapshot ANTES da inserção
         let op = 'I';
         if (afterIdx >= 0 && tableStates[type].data[afterIdx]) {
             op = tableStates[type].data[afterIdx].operacao;
@@ -492,7 +506,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const inp = target.querySelector('.inp-ativo');
             if (inp) { setTimeout(() => inp.focus(), 30); }
         }
-        pushHistory();
         refreshAllFilters(type);
     }
 
@@ -510,16 +523,20 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('btn-clear-cabos').addEventListener('click', () => {
         if(confirm('Tem certeza que deseja limpar toda a tabela Cabos?')) {
+            pushHistory();  // snapshot ANTES de limpar
             tableStates['cabos'].data = [];
-            pushHistory();
             renderTable('cabos');
+            buildAtivoSets(); buildDataLists();
+            refreshAllFilters('cabos');
         }
     });
     document.getElementById('btn-clear-outros').addEventListener('click', () => {
         if(confirm('Tem certeza que deseja limpar toda a tabela Outros?')) {
+            pushHistory();  // snapshot ANTES de limpar
             tableStates['outros'].data = [];
-            pushHistory();
             renderTable('outros');
+            buildAtivoSets(); buildDataLists();
+            refreshAllFilters('outros');
         }
     });
 
@@ -662,20 +679,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const body = document.getElementById(tableStates[type].bodyId);
         const selected = Array.from(body.querySelectorAll('tr.row-selected'));
         if (selected.length > 0) {
+            pushHistory();  // snapshot ANTES da exclusão em lote
             // Remove de trás pra frente para não deslocar índices
             const idxs = selected.map(tr => parseInt(tr.dataset.index)).sort((a,b) => b-a);
             idxs.forEach(i => tableStates[type].data.splice(i, 1));
             renderTable(type);
             buildAtivoSets(); buildDataLists();
-            pushHistory();
             refreshAllFilters(type);
         } else {
             // Remove a última linha
             if (tableStates[type].data.length > 0) {
+                pushHistory();  // snapshot ANTES da exclusão
                 tableStates[type].data.pop();
                 renderTable(type);
                 buildAtivoSets(); buildDataLists();
-                pushHistory();
                 refreshAllFilters(type);
             }
         }
@@ -872,18 +889,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function undo() {
         if (historyIdx <= 0) return;
         historyIdx--;
-        restoreSnapshot(history[historyIdx]);
+        applyUndoRedoSnapshot(history[historyIdx]);
         showToast('Desfeito');
     }
 
     function redo() {
         if (historyIdx >= history.length - 1) return;
         historyIdx++;
-        restoreSnapshot(history[historyIdx]);
+        applyUndoRedoSnapshot(history[historyIdx]);
         showToast('Refeito');
     }
 
-    function restoreSnapshot(snap) {
+    function applyUndoRedoSnapshot(snap) {
         tableStates.cabos.data  = snap.cabos.map(deepClone);
         tableStates.outros.data = snap.outros.map(deepClone);
         renderTable('cabos');
@@ -1183,13 +1200,22 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ═══════════════════════════════════════
        INTEGRAÇÃO IA (GEMINI) E MEMÓRIA
     ═══════════════════════════════════════ */
-    function restoreSnapshot(snap) {
-        if (!snap || !snap.cabos || !snap.outros) {
+    function restoreObraSnapshot(snap) {
+        if (!snap) { showToast("Dados da obra inválidos."); return; }
+
+        // Normaliza: o snap pode ser tableStates completo {cabos:{data,bodyId}, outros:{data,bodyId}}
+        // ou um snap direto {cabos:[...], outros:[...]}
+        const cabosData  = Array.isArray(snap.cabos)  ? snap.cabos  : (snap.cabos  && snap.cabos.data  ? snap.cabos.data  : null);
+        const outrosData = Array.isArray(snap.outros) ? snap.outros : (snap.outros && snap.outros.data ? snap.outros.data : null);
+
+        if (!cabosData && !outrosData) {
             showToast("Dados da obra inválidos.");
             return;
         }
-        tableStates.cabos.data = snap.cabos.data || [];
-        tableStates.outros.data = snap.outros.data || [];
+
+        pushHistory();  // snapshot ANTES de substituir
+        tableStates.cabos.data  = (cabosData  || []).map(deepClone);
+        tableStates.outros.data = (outrosData || []).map(deepClone);
         recalcAllQtdAtivos();
         renderTable('cabos');
         renderTable('outros');
@@ -1197,7 +1223,7 @@ document.addEventListener('DOMContentLoaded', () => {
         buildDataLists();
         refreshAllFilters('cabos');
         refreshAllFilters('outros');
-        pushHistory();
+        updateHistoryUI();
     }
 
     const aiChatMessages = document.getElementById('chat-messages');
@@ -1233,21 +1259,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     inputApikey.addEventListener('blur', fetchModels);
 
-    document.getElementById('btn-config-api').addEventListener('click', () => {
-        // Restaurar valores salvos
-        inputApikey.value = localStorage.getItem('gemini_api_key') || '';
-        inputModel.value = localStorage.getItem('gemini_model') || '';
-        fetchModels();
-        modalApikey.classList.remove('hidden');
-    });
+    const btnConfigApi = document.getElementById('btn-config-api');
+    if (btnConfigApi) {
+        btnConfigApi.addEventListener('click', () => {
+            inputApikey.value = localStorage.getItem('gemini_api_key') || '';
+            inputModel.value = localStorage.getItem('gemini_model') || '';
+            fetchModels();
+            modalApikey.classList.remove('hidden');
+        });
+    }
 
-    document.getElementById('btn-save-apikey').addEventListener('click', () => {
-        localStorage.setItem('ai_provider', 'gemini');
-        localStorage.setItem('gemini_api_key', inputApikey.value.trim());
-        localStorage.setItem('gemini_model', inputModel.value.trim());
-        modalApikey.classList.add('hidden');
-        showToast('Configurações salvas!');
-    });
+    const btnSaveApiKey = document.getElementById('btn-save-apikey');
+    if (btnSaveApiKey) {
+        btnSaveApiKey.addEventListener('click', () => {
+            localStorage.setItem('ai_provider', 'gemini');
+            localStorage.setItem('gemini_api_key', inputApikey.value.trim());
+            localStorage.setItem('gemini_model', inputModel.value.trim());
+            modalApikey.classList.add('hidden');
+            showToast('Configurações salvas!');
+        });
+    }
 
     // Chat logic
     let chatHistory = [];
@@ -1391,14 +1422,14 @@ document.addEventListener('DOMContentLoaded', () => {
             // Detectar se a resposta é vazia ou um erro do backend
             if (!replyText.trim()) {
                 div.className = 'chat-message error';
-                div.innerHTML = '⚠️ A IA não retornou resposta. Verifique a API Key e o modelo selecionado.';
+                div.innerHTML = 'A IA não retornou resposta. Verifique a API Key e o modelo selecionado.';
                 aiChatInput.disabled = false;
                 btnSendChat.disabled = false;
                 return;
             }
             if (replyText.trim().startsWith('[ERRO]')) {
                 div.className = 'chat-message error';
-                div.innerHTML = '⚠️ ' + replyText.replace(/\n/g, '<br>');
+                div.innerHTML = replyText.replace(/\n/g, '<br>');
                 aiChatInput.disabled = false;
                 btnSendChat.disabled = false;
                 return;
@@ -1467,12 +1498,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Limpar os nulos deixados por exclusões
                 tableStates.cabos.data = tableStates.cabos.data.filter(r => r !== null);
                 tableStates.outros.data = tableStates.outros.data.filter(r => r !== null);
+                pushHistory();  // snapshot ANTES do render/atualização -- já inserimos, agora registramos a ação
                 recalcAllQtdAtivos();
                 renderTable('cabos');
                 renderTable('outros');
                 buildAtivoSets(); 
                 buildDataLists();
-                pushHistory();
                 refreshAllFilters('cabos');
                 refreshAllFilters('outros');
                 showToast(`+${tableData.length} ativos inseridos!`);
@@ -1541,6 +1572,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 listDiv.innerHTML = '<div style="color:#8b949e;padding:10px;">Nenhuma obra salva ainda.</div>';
             } else {
                 obras.forEach(o => {
+                    // Parse do JSON salvo (pode ser tableStates completo ou snap simples)
+                    let snap;
+                    try {
+                        snap = typeof o.dados_json === 'string' ? JSON.parse(o.dados_json) : o.dados_json;
+                    } catch (err) {
+                        snap = null;
+                    }
+
                     const item = document.createElement('div');
                     item.className = 'obra-item';
                     item.innerHTML = `
@@ -1549,28 +1588,38 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="obra-data">${o.data}</span>
                         </div>
                         <div class="obra-actions">
-                            <button class="btn-primary btn-load-item" data-json='${o.dados_json}' style="background:#238636; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Carregar</button>
-                            <button class="btn-secondary btn-add-item" data-json='${o.dados_json}' style="background:#1f6feb; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Adicionar</button>
-                            <button class="btn-secondary btn-sub-item" data-json='${o.dados_json}' style="background:#d29922; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Subtrair</button>
+                            <button class="btn-primary btn-load-item"  style="background:#238636; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Carregar</button>
+                            <button class="btn-secondary btn-add-item"  style="background:#1f6feb; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Adicionar</button>
+                            <button class="btn-secondary btn-sub-item"  style="background:#d29922; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Subtrair</button>
                             <button class="btn-secondary btn-del-item" data-id="${o.id}" style="background:#da3633; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Excluir</button>
                         </div>
                     `;
-                    
-                    item.querySelector('.btn-load-item').addEventListener('click', (e) => {
-                        const stateStr = e.target.getAttribute('data-json');
-                        const snap = JSON.parse(stateStr);
-                        restoreSnapshot(snap);
+
+                    // Guarda o snap diretamente no elemento via propriedade JS (sem HTML encoding)
+                    const btnLoad = item.querySelector('.btn-load-item');
+                    const btnAdd  = item.querySelector('.btn-add-item');
+                    const btnSub  = item.querySelector('.btn-sub-item');
+                    const btnDel  = item.querySelector('.btn-del-item');
+
+                    btnLoad._snap = snap;
+                    btnAdd._snap  = snap;
+                    btnSub._snap  = snap;
+
+                    btnLoad.addEventListener('click', () => {
+                        if (!btnLoad._snap) { showToast('Dados da obra inválidos.'); return; }
+                        restoreObraSnapshot(btnLoad._snap);
                         modalLoadObra.classList.add('hidden');
                         showToast('Obra carregada!');
                     });
 
-                    item.querySelector('.btn-add-item').addEventListener('click', (e) => {
-                        const stateStr = e.target.getAttribute('data-json');
-                        const snap = JSON.parse(stateStr);
+                    btnAdd.addEventListener('click', () => {
+                        if (!btnAdd._snap) { showToast('Dados da obra inválidos.'); return; }
+                        const s = btnAdd._snap;
+                        pushHistory();  // snapshot ANTES de adicionar
                         ['cabos', 'outros'].forEach(type => {
-                            if (snap[type] && snap[type].data) {
-                                snap[type].data.forEach(row => {
-                                    if(row) tableStates[type].data.push(JSON.parse(JSON.stringify(row)));
+                            if (s[type] && s[type].data) {
+                                s[type].data.forEach(row => {
+                                    if (row) tableStates[type].data.push(JSON.parse(JSON.stringify(row)));
                                 });
                                 if (type === 'cabos') recalcAllQtdAtivos();
                                 renderTable(type);
@@ -1579,18 +1628,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                         buildAtivoSets();
                         buildDataLists();
-                        pushHistory();
                         modalLoadObra.classList.add('hidden');
                         showToast('Obra adicionada!');
                     });
 
-                    item.querySelector('.btn-sub-item').addEventListener('click', (e) => {
-                        const stateStr = e.target.getAttribute('data-json');
-                        const snap = JSON.parse(stateStr);
+                    btnSub.addEventListener('click', () => {
+                        if (!btnSub._snap) { showToast('Dados da obra inválidos.'); return; }
+                        const s = btnSub._snap;
+                        pushHistory();  // snapshot ANTES de subtrair
                         ['cabos', 'outros'].forEach(type => {
-                            if (snap[type] && snap[type].data) {
-                                snap[type].data.forEach(row => {
-                                    if(row) {
+                            if (s[type] && s[type].data) {
+                                s[type].data.forEach(row => {
+                                    if (row) {
                                         let clonedRow = JSON.parse(JSON.stringify(row));
                                         if (type === 'cabos') {
                                             clonedRow.qtdAtivos = "-" + Math.abs(clonedRow.qtdAtivos || 0);
@@ -1606,19 +1655,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                         buildAtivoSets();
                         buildDataLists();
-                        pushHistory();
                         modalLoadObra.classList.add('hidden');
                         showToast('Obra subtraída!');
                     });
 
-                    item.querySelector('.btn-del-item').addEventListener('click', async (e) => {
-                        const btn = e.target;
-                        btn.disabled = true;
+                    btnDel.addEventListener('click', async () => {
+                        btnDel.disabled = true;
                         try {
                             await fetch(`/api/obras/${o.id}`, { method: 'DELETE' });
                             item.remove();
                         } catch (err) {
-                            btn.disabled = false;
+                            btnDel.disabled = false;
                         }
                     });
 
@@ -1627,6 +1674,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             modalLoadObra.classList.remove('hidden');
         } catch (e) {
+            console.error('Erro ao carregar obras:', e);
             showToast('Erro ao carregar obras');
         }
     });
@@ -1654,6 +1702,36 @@ document.addEventListener('DOMContentLoaded', () => {
             
             localStorage.setItem('orcamentoPayload', JSON.stringify(payload));
             window.open('/static/resultado_orcamento.html', '_blank');
+        });
+    }
+
+    /* ═══════════════════════════════════════
+       LIMPAR TUDO (ao lado do Salvar no PDF)
+    ═══════════════════════════════════════ */
+    const btnLimparTabelas = document.getElementById('btn-limpar-tabelas');
+    if (btnLimparTabelas) {
+        btnLimparTabelas.addEventListener('click', () => {
+            const totalLinhas = tableStates.cabos.data.length + tableStates.outros.data.length;
+            if (totalLinhas === 0) {
+                showToast('As tabelas já estão vazias.');
+                return;
+            }
+            if (!confirm('Tem certeza que deseja limpar TODAS as tabelas (Cabos e Outros)?\nEsta ação pode ser desfeita com Ctrl+Z.')) return;
+
+            pushHistory(); // snapshot ANTES de limpar
+
+            tableStates.cabos.data  = [];
+            tableStates.outros.data = [];
+            localStorage.removeItem('processar_dados');
+
+            renderTable('cabos');
+            renderTable('outros');
+            buildAtivoSets();
+            buildDataLists();
+            refreshAllFilters('cabos');
+            refreshAllFilters('outros');
+
+            showToast('Tabelas limpas! Use Ctrl+Z para desfazer.');
         });
     }
 

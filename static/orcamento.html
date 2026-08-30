@@ -6,6 +6,7 @@
     <title>Base de Orçamento - Leitor Pro</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="/static/auth_fetch.js"></script>
     <link rel="stylesheet" href="/static/styles.css">
     <style>
         body { display: flex; justify-content: flex-start; }
@@ -120,28 +121,28 @@
 <body>
     <div class="container">
         <div class="report-header">
-            <h1 class="report-title">📦 Tabela Base de Orçamento</h1>
+            <h1 class="report-title">Base de Orçamento</h1>
             <div class="header-actions">
                 <button class="btn-primary-custom" style="background: #30363d; color: #c9d1d9;" onclick="window.location.href='/'">
-                    ← Voltar ao Início
+                    Voltar
                 </button>
                 <input type="file" id="file-upload" accept=".csv" style="display: none;">
                 <input type="file" id="file-upload-master" accept=".csv" style="display: none;">
                 
                 <button class="btn-primary-custom" onclick="adicionarLinha()" title="Adiciona na sua tabela local">
-                    ➕ Adicionar Linha
+                    Adicionar Linha
                 </button>
                 <button id="btn-admin-add" class="btn-master-custom hidden" onclick="adicionarLinhaMaster()" title="Adiciona para TODOS os usuários (Nuvem)">
-                    ➕ Linha Master
+                    Nova Linha Master
                 </button>
                 <button class="btn-success-custom" onclick="salvarAlteracoes()" title="Salva alterações na sua tabela local">
-                    💾 Salvar Alterações
+                    Salvar Alterações
                 </button>
                 <button class="btn-primary-custom" onclick="document.getElementById('file-upload').click()" title="Sobrescreve a sua tabela local">
-                    ⬆ Carregar CSV (Local)
+                    Importar CSV Local
                 </button>
                 <button id="btn-admin-csv" class="btn-master-custom hidden" onclick="document.getElementById('file-upload-master').click()" title="Sobrescreve a tabela mestre de TODOS os usuários">
-                    ⬆ CSV Master
+                    Importar CSV Master
                 </button>
             </div>
         </div>
@@ -173,7 +174,7 @@
     </div>
 
     <div id="quick-search" style="position: fixed; bottom: 80px; right: 20px; background: rgba(22, 27, 34, 0.95); border: 1px solid rgba(217,119,6,0.4); padding: 15px; border-radius: 12px; width: 340px; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 100;">
-        <h4 style="margin:0 0 10px 0; color:#d97706; font-size:0.95rem;">🔍 Consulta Rápida (Ativo/Comp/Cód)</h4>
+        <h4 style="margin:0 0 10px 0; color:#d97706; font-size:0.95rem;">Consulta Rápida (Ativo / Comp / Cód)</h4>
         <input type="text" id="qs-input" placeholder="Digite para buscar..." onkeyup="quickSearch()" style="width:100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: #0d1117; color: #fff; margin-bottom: 10px; font-family: 'Inter', sans-serif;">
         <div id="qs-result" style="font-size: 0.8rem; color: #c9d1d9; max-height: 200px; overflow-y: auto;">
             <span style="color:#8b949e">Os resultados aparecerão aqui.</span>
@@ -191,6 +192,12 @@
             toast.textContent = msg;
             toast.style.opacity = '1';
             setTimeout(() => toast.style.opacity = '0', 3000);
+        }
+
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+            alert("Acesso restrito. Faça login como Administrador para gerenciar a base de orçamento.");
+            window.location.href = '/login';
         }
 
         // Controle de Admin UI
@@ -328,20 +335,29 @@
             };
 
             const token = localStorage.getItem('auth_token');
+            if (!token) {
+                alert("Você precisa estar autenticado como Administrador.");
+                window.location.href = '/login';
+                return;
+            }
+
             try {
                 const res = await fetch('/api/admin/add-row', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify(payload)
                 });
+                const data = await res.json();
                 if (res.ok) {
-                    showToast("Linha Master salva com sucesso na nuvem!");
+                    showToast(data.msg || "Linha Master salva com sucesso na nuvem!");
                     tr.style.backgroundColor = '';
                     btn.innerText = "Excluir";
                     btn.style.background = "";
                     btn.onclick = function() { tr.remove(); };
                 } else {
-                    showToast("Erro ao salvar Master.");
+                    const msg = data.detail || "Erro ao salvar Master.";
+                    showToast(msg);
+                    alert(msg);
                 }
             } catch (err) {
                 showToast("Erro de conexão.");
@@ -360,14 +376,28 @@
                 };
             }).filter(d => d);
             
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                alert("Você precisa estar autenticado como Administrador.");
+                window.location.href = '/login';
+                return;
+            }
+
             try {
                 showToast("Salvando...");
                 const res = await fetch('/api/orcamento/salvar', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
                     body: JSON.stringify({ dados: dados })
                 });
-                if (res.ok) showToast("Base atualizada!");
+                const data = await res.json();
+                if (res.ok) {
+                    showToast("Base atualizada!");
+                } else {
+                    const msg = data.detail || "Erro ao salvar.";
+                    showToast(msg);
+                    alert(msg);
+                }
             } catch(e) { alert("Erro de conexão."); }
         }
 

@@ -5,18 +5,40 @@ import re
 
 
 def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcamento_rows: list) -> dict:
-    # ── 1. Índice ATIVO → linhas do orçamento (O(1) lookup) ─────────────────
+    # ── 1. Índice ATIVO → linhas do orçamento (O(1) lookup com Fallback de Projeto) ──
     req_proj = (req_projeto or "").strip().upper()
-    orcamento_dict = {}
+    
+    raw_by_ativo = {}
     for r in orcamento_rows:
-        row_proj = (r["projeto"] or "").strip().upper()
-        if req_proj and row_proj:
-            valid_projs = [p.strip() for p in row_proj.split("/")]
-            if req_proj not in valid_projs:
-                continue
+        key = (r.get("ativo") or "").strip().upper()
+        if key:
+            raw_by_ativo.setdefault(key, []).append(dict(r))
 
-        key = r["ativo"].strip().upper()
-        orcamento_dict.setdefault(key, []).append(dict(r))
+    orcamento_dict = {}
+    for key, rows in raw_by_ativo.items():
+        exact_matches = []
+        generic_matches = []
+        fallback_matches = []
+
+        for r in rows:
+            row_proj = (r.get("projeto") or "").strip().upper()
+            if not row_proj:
+                generic_matches.append(r)
+            else:
+                valid_projs = [p.strip() for p in row_proj.split("/")]
+                if req_proj and req_proj in valid_projs:
+                    exact_matches.append(r)
+                else:
+                    fallback_matches.append(r)
+
+        if exact_matches:
+            orcamento_dict[key] = exact_matches
+        elif generic_matches:
+            orcamento_dict[key] = generic_matches
+        elif fallback_matches:
+            orcamento_dict[key] = fallback_matches
+        else:
+            orcamento_dict[key] = rows
 
     # ── 2. Extrair tabela interna [ativo, qtd, operacao] ────────────────────
     ativos_qtd = []

@@ -1,5 +1,9 @@
 """
-app.py — Ponto de entrada da aplicação FastAPI (refatorado).
+app.py — Ponto de entrada da aplicação FastAPI (v2.0 - Profissionalizado).
+
+Suporta dois modos de operação:
+  - "desktop": app local (.exe ou dev), CORS aberto, permite /extract-local
+  - "server":  deploy na nuvem, CORS restrito, HTTPS, sem acesso local
 """
 import os
 import sys
@@ -11,28 +15,46 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 # Configurações e Banco
-from config import STATIC_DIR, NO_CACHE_HEADERS, logger
+from config import STATIC_DIR, NO_CACHE_HEADERS, APP_VERSION, APP_MODE, logger
 from database import init_db
+
+# Middleware de Autenticação
+from middleware.auth_middleware import AuthMiddleware
 
 # WebSocket
 from websocket_manager import manager
 
 # Routers
-from routers import obras, regras, recs, projetos, orcamento, ai_chat, upload, health, auth, admin
+from routers import obras, regras, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update
 
 
-app = FastAPI(title="Leitor de Projetos Online Pro")
+app = FastAPI(
+    title="Leitor de Projetos Online Pro",
+    version=APP_VERSION,
+    description="Sistema profissional de leitura e análise de projetos PDF/DXF",
+)
 
 # ── CORS ────────────────────────────────────────────────────────────────────
-# Em modo frozen (.exe), mantemos aberto para uso local (localhost, file://)
-# Quando formos para a nuvem/login, restringiremos isso.
+if APP_MODE == "server":
+    # Modo servidor: CORS restrito a origens conhecidas
+    allowed_origins = os.environ.get("CORS_ORIGINS", "").split(",")
+    allowed_origins = [o.strip() for o in allowed_origins if o.strip()]
+    if not allowed_origins:
+        allowed_origins = ["*"]  # Fallback temporário
+else:
+    # Modo desktop: CORS aberto para uso local (localhost, file://)
+    allowed_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Middleware de Autenticação JWT ───────────────────────────────────────────
+app.add_middleware(AuthMiddleware)
 
 # ── Inicialização do Banco ──────────────────────────────────────────────────
 init_db()
@@ -82,6 +104,11 @@ async def serve_admin():
     with open(admin_path, "r", encoding="utf-8") as f:
         return HTMLResponse(f.read(), headers=NO_CACHE_HEADERS)
 
+# ── Endpoint de Versão ──────────────────────────────────────────────────────
+@app.get("/api/version")
+async def get_version():
+    return {"version": APP_VERSION, "mode": APP_MODE}
+
 # ── WebSocket ───────────────────────────────────────────────────────────────
 @app.websocket("/ws")
 async def websocket_endpoint(websocket):
@@ -103,17 +130,50 @@ app.include_router(ai_chat.router)
 app.include_router(upload.router)
 app.include_router(health.router)
 app.include_router(admin.router)
+app.include_router(update.router)
 
 
-def open_browser(url):
-    webbrowser.open(url)
+# ── Inicialização Desktop / Servidor ─────────────────────────────────────────
+
+def run_uvicorn(host: str, port: int):
+    """Executa o servidor Uvicorn em uma thread separada."""
+    import uvicorn
+    config = uvicorn.Config(app, host=host, port=port, log_level="warning")
+    server = uvicorn.Server(config)
+    server.run()
 
 
 if __name__ == "__main__":
-    import uvicorn
     port = int(os.environ.get("PORT", 8000))
-    if "PORT" not in os.environ:
-        threading.Timer(1.5, open_browser, args=(f"http://127.0.0.1:{port}",)).start()
-    
-    logger.info("Iniciando Leitor de Projetos Pro...")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    is_headless = os.environ.get("HEADLESS", "0") == "1" or APP_MODE == "server"
+
+    logger.info(f"Iniciando Leitor de Projetos Pro v{APP_VERSION} [modo: {APP_MODE}]...")
+
+    if is_headless:
+        # Modo Servidor / Cloud (Deploy sem janela gráfica)
+        import uvicorn
+        uvicorn.run(app, host="0.0.0.0", port=port)
+    else:
+        # Modo Desktop Nativo (Janela de aplicativo independente)
+        server_thread = threading.Thread(target=run_uvicorn, args=("127.0.0.1", port), daemon=True)
+        server_thread.start()
+
+        app_url = f"http://127.0.0.1:{port}"
+        
+        try:
+            import webview
+            window = webview.create_window(
+                title=f"Leitor de Projetos Pro v{APP_VERSION}",
+                url=app_url,
+                width=1320,
+                height=860,
+                min_size=(960, 640),
+                background_color="#0d1117",
+                text_select=True,
+                zoomable=True
+            )
+            webview.start(private_mode=False)
+        except Exception as e:
+            logger.warning(f"Janela nativa indisponível ({e}). Abrindo no navegador...")
+            webbrowser.open(app_url)
+            server_thread.join()

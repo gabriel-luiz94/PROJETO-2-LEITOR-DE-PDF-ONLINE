@@ -2,6 +2,7 @@
 services/sync_service.py — Lógica de Sincronização Offline-First (Supabase <-> SQLite)
 """
 from services.supabase_client import get_supabase
+from services.offline_queue import process_queue
 from database import get_connection, get_row_connection
 from config import logger
 
@@ -9,6 +10,7 @@ from config import logger
 def sync_tabela_master():
     """
     Baixa a tabela mestre (Admin) do Supabase e atualiza o SQLite local.
+    Suporta paginação para baixar mais de 1000 registros do Supabase.
     """
     supabase = get_supabase()
     if not supabase:
@@ -16,18 +18,23 @@ def sync_tabela_master():
         return False
 
     try:
-        # Busca todas as linhas da tabela master no Supabase
-        # Limitado a 5000 inicialmente; se o banco for muito grande, precisa paginar
-        response = supabase.table("tabela_orcamento_master").select("*").limit(5000).execute()
-        master_rows = response.data
+        process_queue()
 
-        if not master_rows:
-            return True # Vazia, nada a fazer
+        # Busca todas as páginas do Supabase (1000 por lote)
+        master_rows = []
+        page_size = 1000
+        start = 0
+        while True:
+            res = supabase.table("tabela_orcamento_master").select("*").range(start, start + page_size - 1).execute()
+            data = res.data or []
+            master_rows.extend(data)
+            if len(data) < page_size:
+                break
+            start += page_size
 
         conn = get_connection()
         cursor = conn.cursor()
         
-        # Inicia uma transação local para garantir consistência
         cursor.execute("BEGIN TRANSACTION")
         cursor.execute("DELETE FROM tabela_orcamento_master")
         
@@ -56,7 +63,6 @@ def sync_tabela_master():
 
     except Exception as e:
         logger.error(f"Erro ao sincronizar tabela master: {e}")
-        # Tenta fazer rollback caso a transação tenha falhado
         try:
             conn = get_connection()
             conn.cursor().execute("ROLLBACK")
@@ -68,18 +74,21 @@ def sync_tabela_master():
 
 def get_merged_orcamento(user_id: str = None) -> list[dict]:
     """
-    Retorna a tabela de orçamento fundida:
-    - Prioridade 1: tabela_orcamento_master (O que o admin subir sempre sobrepõe).
-    - Prioridade 2: tabela_orcamento (Alterações locais do usuário, se não houver código correspondente no Master).
+    Retorna a tabela de orçamento do Supabase (tabela_orcamento_master)
+    com fallback para a tabela local se o Supabase ainda não tiver sido sincronizado.
     """
     conn = get_row_connection()
     cursor = conn.cursor()
     
-    # Busca tabela Mestre
+    # 1. Tabela Master oficial sincronizada do Supabase
     cursor.execute("SELECT * FROM tabela_orcamento_master")
     master_rows = [dict(r) for r in cursor.fetchall()]
     
-    # Busca tabela do Usuário (se tiver user_id, busca só dele; senão busca tudo que estiver local, para compatibilidade offline/single-user)
+    if master_rows and len(master_rows) > 0:
+        conn.close()
+        return master_rows
+    
+    # 2. Fallback para tabela local se a master estiver vazia
     if user_id:
         cursor.execute("SELECT * FROM tabela_orcamento WHERE user_id = ? OR user_id IS NULL", (user_id,))
     else:
@@ -87,26 +96,4 @@ def get_merged_orcamento(user_id: str = None) -> list[dict]:
     
     user_rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
-    
-    # A fusão ("Merge"):
-    # Chave de sobreposição ideal é o "código". Mas alguns ativos não têm código (são identificados por 'ativo' e 'componente').
-    # Vamos usar uma tupla (codigo, ativo) como chave de sobreposição.
-    
-    merged_dict = {}
-    
-    # 1. Adiciona os dados do usuário (Prioridade Baixa)
-    for row in user_rows:
-        cod = (row.get("codigo") or "").strip()
-        atv = (row.get("ativo") or "").strip()
-        key = f"{cod}##{atv}"
-        merged_dict[key] = row
-        
-    # 2. Adiciona os dados Mestre (Prioridade Alta - Sobrescreve)
-    for row in master_rows:
-        cod = (row.get("codigo") or "").strip()
-        atv = (row.get("ativo") or "").strip()
-        key = f"{cod}##{atv}"
-        # Sobrescreve o que o usuário tinha com o do Master
-        merged_dict[key] = row
-        
-    return list(merged_dict.values())
+    return user_rows

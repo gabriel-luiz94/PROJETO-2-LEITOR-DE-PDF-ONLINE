@@ -2,6 +2,9 @@
 config.py — Configurações centralizadas e resolução de caminhos.
 Suporta modo dev (python app.py) e modo frozen (PyInstaller .exe).
 """
+
+# ── Versão da Aplicação ─────────────────────────────────────────────────────
+APP_VERSION = "2.0.0"
 import os
 import sys
 import logging
@@ -75,3 +78,13 @@ NO_CACHE_HEADERS = {
 # ── Verificação de modo ─────────────────────────────────────────────────────
 
 IS_FROZEN = getattr(sys, "frozen", False)
+
+# ── Modo de operação ────────────────────────────────────────────────────────
+# "desktop" = app local (.exe ou dev), "server" = deploy na nuvem
+APP_MODE = os.environ.get("APP_MODE", "desktop" if IS_FROZEN else "desktop")
+
+# ── JWT ─────────────────────────────────────────────────────────────────────
+JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret-change-in-production")
+
+# ── URLs do servidor central (para auto-update e sync) ──────────────────────
+SERVER_URL = os.environ.get("SERVER_URL", "")

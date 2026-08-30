@@ -9,13 +9,19 @@ from fastapi.responses import JSONResponse
 from database import get_connection, get_row_connection
 from models import SalvarOrcamentoRequest, OrcamentoRequest, DetalhesRequest
 from services.orcamento_calc import processar_calculo
-from services.sync_service import get_merged_orcamento
+from services.sync_service import get_merged_orcamento, sync_tabela_master
+from middleware.auth_middleware import get_current_user_from_state
 
 router = APIRouter(prefix="/api/orcamento", tags=["orcamento"])
 
 
+from fastapi import APIRouter, UploadFile, File, Request, HTTPException
+
 @router.post("/upload")
-async def upload_orcamento(file: UploadFile = File(...)):
+async def upload_orcamento(request: Request, file: UploadFile = File(...)):
+    user = get_current_user_from_state(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem atualizar a base de orçamento.")
     try:
         contents = await file.read()
         # Decode and parse CSV
@@ -75,17 +81,20 @@ async def upload_orcamento(file: UploadFile = File(...)):
 
 @router.get("/dados")
 def get_orcamento_dados(request: Request):
-    # TODO: Extrair user_id do token/sessão local (request.state.user_id) na Fase 3
-    user_id = None
+    user = getattr(request.state, "user", None)
+    user_id = user["user_id"] if user else None
+    sync_tabela_master()
     merged_rows = get_merged_orcamento(user_id)
     return {"dados": merged_rows}
 
 
 @router.post("/salvar")
 def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
+    user = get_current_user_from_state(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem atualizar a base de orçamento.")
     try:
-        # TODO: Extrair user_id do token/sessão na Fase 3
-        user_id = None
+        user_id = user["user_id"]
         conn = get_connection()
         cursor = conn.cursor()
         if user_id:
@@ -180,7 +189,7 @@ def get_detalhes_codigos(req: DetalhesRequest):
 
 @router.post("/calcular")
 def calcular_orcamento(req: OrcamentoRequest, request: Request):
-    # TODO: Extrair user_id do token na Fase 3
-    user_id = None
+    user = getattr(request.state, "user", None)
+    user_id = user["user_id"] if user else None
     merged_rows = get_merged_orcamento(user_id)
     return processar_calculo(req.cabos, req.outros, req.projeto, merged_rows)

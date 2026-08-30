@@ -8,3 +8,6 @@ google-genai
 openai
 supabase
 python-dotenv
+bcrypt
+pyjwt
+pywebview
