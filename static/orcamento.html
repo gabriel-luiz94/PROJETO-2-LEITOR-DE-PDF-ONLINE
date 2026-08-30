@@ -5,179 +5,413 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Base de Orçamento - Leitor Pro</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="/static/auth_fetch.js"></script>
     <link rel="stylesheet" href="/static/styles.css">
     <style>
-        body { display: flex; justify-content: flex-start; }
-        .container { max-width: 100%; width: 100%; padding: 24px 32px 50px; }
+        :root {
+            --bg-canvas: #090d12;
+            --bg-surface: #12171f;
+            --bg-subtle: #1a202c;
+            --bg-hover: #242c3d;
+            --border-default: #262e3d;
+            --border-muted: #1e2533;
+            --text-primary: #e6edf3;
+            --text-secondary: #919bb0;
+            --text-muted: #656f84;
+            --btn-primary-bg: #d97706;
+            --btn-primary-text: #ffffff;
+            --btn-primary-hover: #b45309;
+            --btn-neutral-bg: #161c26;
+            --btn-neutral-border: #262e3d;
+            --btn-neutral-text: #c5cddb;
+            --btn-neutral-hover: #1f2735;
+            --btn-neutral-hover-border: #d97706;
+            --btn-danger-color: #f87171;
+            --btn-danger-border: #3b2426;
+        }
 
-        .report-header {
+        body {
+            background-color: var(--bg-canvas);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
+        }
+
+        .container-base {
+            width: 100%;
+            max-width: 1680px;
+            padding: 20px 24px 40px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* Top Header */
+        .page-header-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            padding: 14px 18px;
+            display: flex;
+            flex-wrap: wrap;
             align-items: center;
-            margin-bottom: 22px;
-            padding: 16px 22px;
-            background: rgba(255,255,255,0.04);
-            border-radius: 14px;
-            border: 1px solid rgba(255,255,255,0.08);
-            backdrop-filter: blur(10px);
+            justify-content: space-between;
+            gap: 12px;
         }
-        .report-title { font-size: 1.6rem; font-weight: 700; color: #fff; margin: 0; }
-        .header-actions { display: flex; gap: 10px; align-items: center; }
 
-        .btn-primary-custom {
-            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-            background: linear-gradient(135deg, #d97706, #b45309);
-            border: none;
-            border-radius: 9px;
-            color: white;
-            padding: 9px 18px;
-            font-size: 0.85rem; font-weight: 600;
-            cursor: pointer; transition: all 0.22s;
+        .header-title-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn-nav-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background-color: var(--btn-neutral-bg);
+            color: var(--btn-neutral-text);
+            border: 1px solid var(--btn-neutral-border);
+            padding: 6px 12px;
+            border-radius: 5px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .btn-nav-back:hover {
+            background-color: var(--btn-neutral-hover);
+            border-color: var(--btn-neutral-hover-border);
+            color: var(--text-primary);
+        }
+
+        .page-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: -0.01em;
+        }
+
+        /* Toolbar Actions */
+        .toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        /* Minimalist Buttons */
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background-color: var(--btn-neutral-bg);
+            border: 1px solid var(--btn-neutral-border);
+            color: var(--btn-neutral-text);
+            padding: 6px 12px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
             font-family: 'Inter', sans-serif;
-            box-shadow: 0 4px 15px rgba(217,119,6,0.2);
+            white-space: nowrap;
+            user-select: none;
         }
-        .btn-primary-custom:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(217,119,6,0.35); }
-
-        .btn-success-custom {
-            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-            background: linear-gradient(135deg, #238636, #2ea043);
-            border: none;
-            border-radius: 9px;
-            color: white;
-            padding: 9px 18px;
-            font-size: 0.85rem; font-weight: 600;
-            cursor: pointer; transition: all 0.22s;
-            font-family: 'Inter', sans-serif;
-            box-shadow: 0 4px 15px rgba(46,160,67,0.2);
+        .btn-action:hover {
+            background-color: var(--btn-neutral-hover);
+            border-color: var(--btn-neutral-hover-border);
+            color: var(--text-primary);
         }
-        .btn-success-custom:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(46,160,67,0.35); }
-
-        .btn-master-custom {
-            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-            background: linear-gradient(135deg, #8957e5, #6d28d9);
-            border: none;
-            border-radius: 9px;
-            color: white;
-            padding: 9px 18px;
-            font-size: 0.85rem; font-weight: 600;
-            cursor: pointer; transition: all 0.22s;
-            font-family: 'Inter', sans-serif;
-            box-shadow: 0 4px 15px rgba(137,87,229,0.2);
+        .btn-action:active {
+            transform: scale(0.99);
         }
-        .btn-master-custom:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(137,87,229,0.35); }
 
-        .report-section {
-            background: rgba(22, 27, 34, 0.65);
-            border: 1px solid rgba(48, 54, 61, 0.8);
-            border-radius: 14px;
-            backdrop-filter: blur(12px);
+        .btn-action.btn-save {
+            background-color: var(--btn-primary-bg);
+            border-color: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
+            font-weight: 600;
+        }
+        .btn-action.btn-save:hover {
+            background-color: var(--btn-primary-hover);
+            border-color: var(--btn-primary-hover);
+            color: #ffffff;
+        }
+
+        .btn-action.btn-master {
+            background-color: #212836;
+            border-color: #323d52;
+            color: #dbe2ef;
+            font-weight: 500;
+        }
+        .btn-action.btn-master:hover {
+            background-color: #2b3547;
+            border-color: #43516c;
+            color: #ffffff;
+        }
+
+        /* Table Card Section */
+        .table-section-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
             overflow: hidden;
         }
 
-        .data-table { width: 100%; border-collapse: collapse; }
-        .data-table thead th {
-            background: rgba(31, 111, 235, 0.15);
-            border-bottom: 1px solid rgba(217,119,6,0.3);
-            color: #d97706;
-            font-size: 0.72rem; font-weight: 700;
-            text-transform: uppercase; letter-spacing: 0.08em;
-            padding: 10px 12px;
-            position: sticky; top: 0; z-index: 10;
+        .table-scroll-wrapper {
+            max-height: calc(100vh - 190px);
+            min-height: 400px;
+            overflow: auto;
         }
-        .data-table tbody tr { border-bottom: 1px solid rgba(48,54,61,0.5); transition: background 0.15s; }
-        .data-table tbody tr:hover { background: rgba(217,119,6,0.06); }
-        .data-table tbody td { padding: 8px 12px; font-size: 0.82rem; color: #c9d1d9; }
+
+        .base-data-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.81rem;
+        }
+
+        .base-data-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #151a24;
+            box-shadow: 0 1px 0 var(--border-default);
+        }
+
+        .base-data-table thead th {
+            padding: 8px 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border-default);
+            user-select: none;
+            white-space: nowrap;
+            vertical-align: top;
+        }
 
         .col-filter {
             width: 100%;
-            background: rgba(0,0,0,0.25);
-            border: 1px solid rgba(48,54,61,0.8);
+            background-color: var(--bg-canvas);
+            border: 1px solid var(--border-default);
             border-radius: 4px;
             padding: 3px 5px;
-            font-size: 0.7rem;
-            color: #c9d1d9;
+            font-size: 0.72rem;
+            color: var(--text-primary);
             margin-top: 5px;
             outline: none;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+        .col-filter:focus {
+            border-color: var(--btn-neutral-hover-border);
+        }
+
+        .base-data-table tbody tr {
+            border-bottom: 1px solid var(--border-muted);
+            transition: background-color 0.1s;
+        }
+        .base-data-table tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .base-data-table tbody td {
+            padding: 3px 5px;
+            color: var(--text-primary);
+            vertical-align: middle;
+        }
+
+        .cell-input {
+            width: 100%;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 3px;
+            color: var(--text-primary);
+            padding: 4px 5px;
+            font-size: 0.79rem;
             font-family: 'Inter', sans-serif;
             box-sizing: border-box;
+            outline: none;
         }
-        .col-filter:focus { border-color: #d97706; }
+        .cell-input:focus {
+            background-color: var(--bg-canvas);
+            border-color: var(--border-default);
+        }
 
-        .table-scroll { max-height: calc(100vh - 180px); overflow-y: auto; }
+        .btn-del {
+            background-color: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 0.73rem;
+            transition: color 0.12s;
+        }
+        .btn-del:hover {
+            color: var(--btn-danger-color);
+        }
+
+        /* Quick Search Floater */
+        #quick-search {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-default);
+            padding: 14px;
+            border-radius: 6px;
+            width: 340px;
+            max-width: 90vw;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            z-index: 100;
+        }
+
+        #qs-input {
+            width: 100%;
+            padding: 6px 9px;
+            border-radius: 5px;
+            border: 1px solid var(--border-default);
+            background-color: var(--bg-canvas);
+            color: #fff;
+            margin-bottom: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            outline: none;
+            box-sizing: border-box;
+        }
+        #qs-input:focus {
+            border-color: var(--btn-neutral-hover-border);
+        }
 
         #toast {
-            position: fixed; bottom: 20px; right: 20px;
-            background: linear-gradient(135deg, #238636, #2ea043);
-            color: white; padding: 12px 20px;
-            border-radius: 10px; font-weight: 600; font-size: 0.85rem;
-            opacity: 0; transition: opacity 0.3s;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-weight: 500;
+            font-size: 0.82rem;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
             pointer-events: none;
-            box-shadow: 0 4px 20px rgba(46,160,67,0.4);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            z-index: 2000;
+        }
+        #toast.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-4px);
+        }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 900px) {
+            .page-header-card {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .toolbar-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+            #quick-search {
+                bottom: 10px;
+                right: 10px;
+                width: calc(100vw - 20px);
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="report-header">
-            <h1 class="report-title">Base de Orçamento</h1>
-            <div class="header-actions">
-                <button class="btn-primary-custom" style="background: #30363d; color: #c9d1d9;" onclick="window.location.href='/'">
+    <div class="container-base">
+        <header class="page-header-card">
+            <div class="header-title-group">
+                <button class="btn-nav-back" onclick="window.location.href='/'" title="Voltar ao início">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                        <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                    </svg>
                     Voltar
                 </button>
+                <h1 class="page-title">Base de Orçamento</h1>
+            </div>
+
+            <div class="toolbar-actions">
                 <input type="file" id="file-upload" accept=".csv" style="display: none;">
                 <input type="file" id="file-upload-master" accept=".csv" style="display: none;">
                 
-                <button class="btn-primary-custom" onclick="adicionarLinha()" title="Adiciona na sua tabela local">
-                    Adicionar Linha
+                <button class="btn-action" onclick="adicionarLinha()" title="Adiciona na sua tabela local">
+                    + Adicionar Linha
                 </button>
-                <button id="btn-admin-add" class="btn-master-custom hidden" onclick="adicionarLinhaMaster()" title="Adiciona para TODOS os usuários (Nuvem)">
-                    Nova Linha Master
+                <button id="btn-admin-add" class="btn-action btn-master hidden" onclick="adicionarLinhaMaster()" title="Adiciona para TODOS os usuários (Nuvem)">
+                    + Nova Linha Master
                 </button>
-                <button class="btn-success-custom" onclick="salvarAlteracoes()" title="Salva alterações na sua tabela local">
+                <button class="btn-action btn-save" onclick="salvarAlteracoes()" title="Salva alterações na sua tabela local">
                     Salvar Alterações
                 </button>
-                <button class="btn-primary-custom" onclick="document.getElementById('file-upload').click()" title="Sobrescreve a sua tabela local">
+                <button class="btn-action" onclick="document.getElementById('file-upload').click()" title="Sobrescreve a sua tabela local">
                     Importar CSV Local
                 </button>
-                <button id="btn-admin-csv" class="btn-master-custom hidden" onclick="document.getElementById('file-upload-master').click()" title="Sobrescreve a tabela mestre de TODOS os usuários">
+                <button id="btn-admin-csv" class="btn-action btn-master hidden" onclick="document.getElementById('file-upload-master').click()" title="Sobrescreve a tabela mestre de TODOS os usuários">
                     Importar CSV Master
                 </button>
             </div>
-        </div>
+        </header>
 
-        <div class="report-section">
-            <div class="table-scroll">
-                <table class="data-table">
+        <main class="table-section-card">
+            <div class="table-scroll-wrapper">
+                <table class="base-data-table">
                     <thead>
                         <tr>
-                            <th>ATIVO<br><input type="text" class="col-filter" data-col="0" placeholder="Filtro..." onkeyup="filterTable()"></th>
-                            <th>DESC ATIVO<br><input type="text" class="col-filter" data-col="1" placeholder="Filtro..." onkeyup="filterTable()"></th>
-                            <th>COMPONENTE<br><input type="text" class="col-filter" data-col="2" placeholder="Filtro..." onkeyup="filterTable()"></th>
-                            <th>PROJETO<br><input type="text" class="col-filter" data-col="3" placeholder="Filtro..." onkeyup="filterTable()"></th>
-                            <th>MDO<br><input type="text" class="col-filter" data-col="4" placeholder="Filtro..." onkeyup="filterTable()"></th>
-                            <th>CÓDIGO<br><input type="text" class="col-filter" data-col="5" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th style="width: 90px;">ATIVO<br><input type="text" class="col-filter" data-col="0" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th style="width: 140px;">DESC ATIVO<br><input type="text" class="col-filter" data-col="1" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th style="width: 130px;">COMPONENTE<br><input type="text" class="col-filter" data-col="2" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th style="width: 90px;">PROJETO<br><input type="text" class="col-filter" data-col="3" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th style="width: 120px;">MDO<br><input type="text" class="col-filter" data-col="4" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th style="width: 100px;">CÓDIGO<br><input type="text" class="col-filter" data-col="5" placeholder="Filtro..." onkeyup="filterTable()"></th>
                             <th>DESC CÓDIGO<br><input type="text" class="col-filter" data-col="6" placeholder="Filtro..." onkeyup="filterTable()"></th>
-                            <th>FATOR I<br><input type="text" class="col-filter" data-col="7" placeholder="Filtro..." onkeyup="filterTable()"></th>
-                            <th>FATOR R<br><input type="text" class="col-filter" data-col="8" placeholder="Filtro..." onkeyup="filterTable()"></th>
-                            <th>FILTRO<br><input type="text" class="col-filter" data-col="9" placeholder="Filtro..." onkeyup="filterTable()"></th>
-                            <th style="width: 40px; text-align: center;">AÇÕES</th>
+                            <th style="width: 75px;">FATOR I<br><input type="text" class="col-filter" data-col="7" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th style="width: 75px;">FATOR R<br><input type="text" class="col-filter" data-col="8" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th style="width: 85px;">FILTRO<br><input type="text" class="col-filter" data-col="9" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th style="width: 50px; text-align: center;">AÇÃO</th>
                         </tr>
                     </thead>
                     <tbody id="orcamento-tbody">
-                        <tr><td colspan="11" style="text-align:center; padding:30px; color:#8b949e;">Nenhuma tabela base carregada. Clique em "Carregar CSV" para importar.</td></tr>
+                        <tr><td colspan="11" style="text-align:center; padding:35px; color:var(--text-secondary);">Carregando dados da tabela base...</td></tr>
                     </tbody>
                 </table>
             </div>
-        </div>
+        </main>
     </div>
 
-    <div id="quick-search" style="position: fixed; bottom: 80px; right: 20px; background: rgba(22, 27, 34, 0.95); border: 1px solid rgba(217,119,6,0.4); padding: 15px; border-radius: 12px; width: 340px; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 100;">
-        <h4 style="margin:0 0 10px 0; color:#d97706; font-size:0.95rem;">Consulta Rápida (Ativo / Comp / Cód)</h4>
-        <input type="text" id="qs-input" placeholder="Digite para buscar..." onkeyup="quickSearch()" style="width:100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: #0d1117; color: #fff; margin-bottom: 10px; font-family: 'Inter', sans-serif;">
-        <div id="qs-result" style="font-size: 0.8rem; color: #c9d1d9; max-height: 200px; overflow-y: auto;">
-            <span style="color:#8b949e">Os resultados aparecerão aqui.</span>
+    <div id="quick-search">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+            <h4 style="margin:0; color:var(--text-primary); font-size:0.84rem; font-weight:600;">Consulta Rápida</h4>
+            <span style="font-size:0.72rem; color:var(--text-secondary);">Ativo / Comp / Cód</span>
+        </div>
+        <input type="text" id="qs-input" placeholder="Digite para buscar..." onkeyup="quickSearch()">
+        <div id="qs-result" style="font-size: 0.78rem; color: var(--text-secondary); max-height: 160px; overflow-y: auto;">
+            <span>Os resultados aparecerão aqui.</span>
         </div>
     </div>
 
@@ -190,8 +424,8 @@
 
         function showToast(msg) {
             toast.textContent = msg;
-            toast.style.opacity = '1';
-            setTimeout(() => toast.style.opacity = '0', 3000);
+            toast.classList.add('visible');
+            setTimeout(() => toast.classList.remove('visible'), 3000);
         }
 
         const token = localStorage.getItem('auth_token');
@@ -225,16 +459,18 @@
                             `<td><input type="number" step="0.01" class="cell-input" value="${r.fator_i !== null ? r.fator_i : ''}"></td>` +
                             `<td><input type="number" step="0.01" class="cell-input" value="${r.fator_r !== null ? r.fator_r : ''}"></td>` +
                             `<td><input type="text" class="cell-input" value="${r.filtro || ''}"></td>` +
-                            '<td style="text-align:center; cursor:pointer;"><button class="btn-del" onclick="this.closest(\'tr\').remove()" title="Excluir">Excluir</button></td>';
+                            '<td style="text-align:center;"><button class="btn-del" onclick="this.closest(\'tr\').remove()" title="Excluir">Excluir</button></td>';
                         tbody.appendChild(tr);
                     });
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#8b949e;">Nenhuma tabela base carregada. Clique em "Carregar CSV" para importar.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhuma tabela base carregada. Clique em "Importar CSV Local" para carregar.</td></tr>';
                 }
-            } catch(e) { console.error(e); }
+            } catch(e) { 
+                console.error(e); 
+                tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:35px; color:#f87171;">Erro ao carregar dados da base.</td></tr>';
+            }
         }
 
-        // Call the function on page load
         carregarDados();
 
         document.getElementById('file-upload').addEventListener('change', async (e) => {
@@ -245,12 +481,18 @@
             formData.append('file', file);
 
             try {
+                showToast("Importando CSV...");
                 const res = await fetch('/api/upload/csv-orcamento', { method: 'POST', body: formData });
                 if (res.ok) {
                     showToast("CSV Local carregado com sucesso!");
                     carregarDados();
+                } else {
+                    showToast("Erro ao importar CSV Local.");
                 }
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error(err);
+                showToast("Erro de conexão.");
+            }
         });
 
         document.getElementById('file-upload-master').addEventListener('change', async (e) => {
@@ -294,14 +536,14 @@
                 <td><input type="number" step="0.01" class="cell-input"></td>
                 <td><input type="number" step="0.01" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
-                <td><button class="btn-del" onclick="this.closest('tr').remove()">Excluir</button></td>
+                <td style="text-align:center;"><button class="btn-del" onclick="this.closest('tr').remove()">Excluir</button></td>
             `;
             tbody.insertBefore(tr, tbody.firstChild);
         }
 
         function adicionarLinhaMaster() {
             const tr = document.createElement('tr');
-            tr.style.backgroundColor = 'rgba(217,119,6, 0.1)';
+            tr.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
             tr.innerHTML = `
                 <td><input type="text" class="cell-input" placeholder="Novo Master"></td>
                 <td><input type="text" class="cell-input"></td>
@@ -313,7 +555,7 @@
                 <td><input type="number" step="0.01" class="cell-input"></td>
                 <td><input type="number" step="0.01" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
-                <td><button class="btn-del" style="background:#d97706;" onclick="salvarLinhaMaster(this)">Salvar Nuvem</button></td>
+                <td style="text-align:center;"><button class="btn-del" style="color:#dbe2ef;" onclick="salvarLinhaMaster(this)">Salvar Nuvem</button></td>
             `;
             tbody.insertBefore(tr, tbody.firstChild);
         }
@@ -352,7 +594,7 @@
                     showToast(data.msg || "Linha Master salva com sucesso na nuvem!");
                     tr.style.backgroundColor = '';
                     btn.innerText = "Excluir";
-                    btn.style.background = "";
+                    btn.style.color = "";
                     btn.onclick = function() { tr.remove(); };
                 } else {
                     const msg = data.detail || "Erro ao salvar Master.";
@@ -384,7 +626,7 @@
             }
 
             try {
-                showToast("Salvando...");
+                showToast("Salvando alterações...");
                 const res = await fetch('/api/orcamento/salvar', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
@@ -392,7 +634,7 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    showToast("Base atualizada!");
+                    showToast("Base de orçamento atualizada com sucesso!");
                 } else {
                     const msg = data.detail || "Erro ao salvar.";
                     showToast(msg);
@@ -417,29 +659,28 @@
         function quickSearch() {
             const query = document.getElementById('qs-input').value.toUpperCase().trim();
             const resDiv = document.getElementById('qs-result');
-            if (!query) { resDiv.innerHTML = '<span style="color:#8b949e">Os resultados aparecerão aqui.</span>'; return; }
+            if (!query) { resDiv.innerHTML = '<span style="color:var(--text-secondary)">Os resultados aparecerão aqui.</span>'; return; }
             
             let html = "";
             let matches = 0;
             tbody.querySelectorAll("tr").forEach(tr => {
                 if (matches > 10) return;
                 const inputs = tr.querySelectorAll(".cell-input");
-                if (inputs[0].value.toUpperCase().includes(query) || inputs[2].value.toUpperCase().includes(query) || inputs[5].value.toUpperCase().includes(query)) {
-                    html += `<div style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; margin-bottom: 8px;">
-                                <strong style="color:#d97706">CÓD: ${inputs[5].value || '-'}</strong> | Atv: ${inputs[0].value || '-'} | Comp: ${inputs[2].value || '-'}<br>
-                                <span style="font-size: 0.75rem; color:#8b949e;">${inputs[6].value || '-'}</span>
+                if (inputs.length >= 7 && (inputs[0].value.toUpperCase().includes(query) || inputs[2].value.toUpperCase().includes(query) || inputs[5].value.toUpperCase().includes(query))) {
+                    html += `<div style="border-bottom: 1px solid var(--border-muted); padding-bottom: 5px; margin-bottom: 5px;">
+                                <strong style="color:var(--text-primary)">CÓD: ${inputs[5].value || '-'}</strong> | Atv: ${inputs[0].value || '-'} | Comp: ${inputs[2].value || '-'}<br>
+                                <span style="font-size: 0.74rem; color:var(--text-secondary);">${inputs[6].value || '-'}</span>
                              </div>`;
                     matches++;
                 }
             });
             if (matches === 0) {
-                resDiv.innerHTML = '<span style="color:#ff7b72">Nenhum resultado encontrado.</span>';
+                resDiv.innerHTML = '<span style="color:var(--btn-danger-color)">Nenhum resultado encontrado.</span>';
             } else {
                 resDiv.innerHTML = html;
             }
         }
 
-        // ---- Suporte a Colar Múltiplas Células (Excel) ----
         tbody.addEventListener('paste', function(e) {
             e.preventDefault();
             const text = (e.originalEvent || e).clipboardData.getData('text/plain');
@@ -447,24 +688,26 @@
             
             const rows = text.split(/\r\n|\n|\r/);
             let currentCell = document.activeElement;
-            if (currentCell.tagName !== 'TD') return;
+            if (currentCell.tagName !== 'INPUT' && currentCell.tagName !== 'TD') return;
 
-            let tr = currentCell.parentElement;
-            let startColIndex = Array.from(tr.children).indexOf(currentCell);
+            let tr = currentCell.closest('tr');
+            let td = currentCell.closest('td');
+            let startColIndex = Array.from(tr.children).indexOf(td);
 
             for (let i = 0; i < rows.length; i++) {
-                if (!rows[i] && i === rows.length - 1) continue; // ignora linha em branco no final
+                if (!rows[i] && i === rows.length - 1) continue;
                 const cols = rows[i].split('\t');
                 
                 if (!tr) {
-                    adicionarLinha(false);
+                    adicionarLinha();
                     tr = tbody.lastElementChild;
                 }
                 
                 for (let j = 0; j < cols.length; j++) {
                     const cellIndex = startColIndex + j;
-                    if (cellIndex < tr.cells.length - 1) { // não sobrescreve a coluna de exclusão
-                        tr.cells[cellIndex].innerText = cols[j].trim();
+                    if (cellIndex < tr.cells.length - 1) {
+                        const input = tr.cells[cellIndex].querySelector('input');
+                        if (input) input.value = cols[j].trim();
                     }
                 }
                 
