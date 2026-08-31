@@ -129,34 +129,45 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             i += 2
 
     # ── 3. Cross-reference: Ativo → 1º match → Componente → todos os Códigos ─
+    
+    # Filtrar orcamento_rows (todas as linhas) pelo projeto
+    valid_rows = []
+    for r in orcamento_rows:
+        row_proj = (r.get("projeto") or "").strip().upper()
+        if not row_proj:
+            valid_rows.append(r)
+        else:
+            valid_projs = [p.strip() for p in row_proj.split("/")]
+            if not req_proj or req_proj in valid_projs:
+                valid_rows.append(r)
+
     # Índice auxiliar: COMPONENTE → lista de todas as linhas daquele componente
     componente_dict = {}
-    for rows_list in orcamento_dict.values():
-        for row in rows_list:
-            comp = row.get("componente", "").strip().upper()
-            if comp:
-                componente_dict.setdefault(comp, []).append(row)
+    for row in valid_rows:
+        comp = row.get("componente", "").strip().upper()
+        if comp:
+            componente_dict.setdefault(comp, []).append(row)
 
     # Mapa garantido: codigo → row representativa (prioriza as que têm MDO)
     codigo_lookup = {}
-    for rows_list in orcamento_dict.values():
-        for row in rows_list:
-            codigo = row["codigo"]
-            if codigo not in codigo_lookup:
-                codigo_lookup[codigo] = row
-            elif (row.get("mdo") or "").strip() and not (codigo_lookup[codigo].get("mdo") or "").strip():
-                codigo_lookup[codigo] = row
+    for row in valid_rows:
+        codigo = row.get("codigo")
+        if not codigo:
+            continue
+        if codigo not in codigo_lookup:
+            codigo_lookup[codigo] = row
+        elif (row.get("mdo") or "").strip() and not (codigo_lookup[codigo].get("mdo") or "").strip():
+            codigo_lookup[codigo] = row
 
     componentes_qtd = []
     nao_encontrados = []
 
     # Índice auxiliar: DESC_ATIVO (upper) → lista de rows (para busca parcial)
     desc_ativo_index = {}
-    for rows_list in orcamento_dict.values():
-        for row in rows_list:
-            desc = (row.get("desc_ativo") or "").strip().upper()
-            if desc:
-                desc_ativo_index.setdefault(desc, []).append(row)
+    for row in valid_rows:
+        desc = (row.get("desc_ativo") or "").strip().upper()
+        if desc:
+            desc_ativo_index.setdefault(desc, []).append(row)
 
     for av in ativos_qtd:
         nome_ativo = av["ativo"]
