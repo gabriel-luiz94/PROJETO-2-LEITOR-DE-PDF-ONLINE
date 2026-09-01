@@ -142,23 +142,29 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
 
 
 @router.get("/search")
-def search_orcamento(q: str = ""):
+def search_orcamento(q: str = "", col: str = None):
     if not q.strip():
         return {"resultados": []}
 
     termo = f"%{q.strip().upper()}%"
     conn = get_row_connection()
     cursor = conn.cursor()
-    query = """
-        SELECT * FROM tabela_orcamento 
-        WHERE upper(ativo) LIKE ? 
-           OR upper(desc_ativo) LIKE ? 
-           OR upper(codigo) LIKE ? 
-           OR upper(desc_codigo) LIKE ?
-           OR upper(filtro) LIKE ?
-        LIMIT 50
-    """
-    cursor.execute(query, (termo, termo, termo, termo, termo))
+    
+    if col == "ativo":
+        query = "SELECT * FROM tabela_orcamento WHERE upper(ativo) LIKE ? LIMIT 50"
+        cursor.execute(query, (termo,))
+    else:
+        query = """
+            SELECT * FROM tabela_orcamento 
+            WHERE upper(ativo) LIKE ? 
+               OR upper(desc_ativo) LIKE ? 
+               OR upper(codigo) LIKE ? 
+               OR upper(desc_codigo) LIKE ?
+               OR upper(filtro) LIKE ?
+            LIMIT 50
+        """
+        cursor.execute(query, (termo, termo, termo, termo, termo))
+        
     rows = cursor.fetchall()
     conn.close()
 

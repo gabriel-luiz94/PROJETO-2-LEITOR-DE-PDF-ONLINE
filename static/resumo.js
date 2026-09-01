@@ -1735,4 +1735,150 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    /* ═══════════════════════════════════════
+       GERADOR DE CÓDIGOS - CABOS
+    ═══════════════════════════════════════ */
+    let linhasModalCabos = [];
+    let debounceTimeoutCabos = null;
+
+    window.abrirModalCabos = function() {
+        linhasModalCabos = [{ op: 'I', ativo: '', fase: 'ABC', comp: 80, qtd: 1, desc: '' }];
+        renderizarTabelaModalCabos();
+        document.getElementById('modal-cabos-gerador').classList.remove('hidden');
+    };
+
+    window.adicionarLinhaCabos = function() {
+        linhasModalCabos.push({ op: 'I', ativo: '', fase: 'ABC', comp: 80, qtd: 1, desc: '' });
+        renderizarTabelaModalCabos();
+    };
+
+    window.removerLinhaCabos = function(index) {
+        linhasModalCabos.splice(index, 1);
+        renderizarTabelaModalCabos();
+    };
+
+    async function buscarDescricaoAtivo(index) {
+        const linha = linhasModalCabos[index];
+        const ativoStr = (linha.ativo || '').trim();
+        if (!ativoStr) {
+            linha.desc = '';
+            renderizarTabelaModalCabos();
+            return;
+        }
+
+        const upperStr = ativoStr.toUpperCase();
+        if (upperStr.includes('MULT') || upperStr.includes('MTX')) {
+            linha.comp = 40;
+        } else {
+            linha.comp = 80;
+        }
+
+        const queryStr = ativoStr.replace(/\s+/g, '');
+
+        try {
+            const res = await fetch('/api/orcamento/search?q=' + encodeURIComponent(queryStr) + '&col=ativo');
+            const data = await res.json();
+            if (data.resultados && data.resultados.length > 0) {
+                linha.desc = data.resultados[0].desc_ativo || 'Ativo encontrado';
+            } else {
+                linha.desc = 'Ativo não encontrado';
+            }
+        } catch (e) {
+            linha.desc = 'Erro na busca';
+        }
+        
+        // Atualiza o DOM diretamente para evitar recriação da tabela e perda de foco
+        const tbody = document.getElementById('body-modal-cabos');
+        if (tbody && tbody.children[index]) {
+            const tr = tbody.children[index];
+            const inComp = tr.children[3]?.querySelector('input');
+            if (inComp) inComp.value = linha.comp;
+            const tdDesc = tr.children[5];
+            if (tdDesc) tdDesc.textContent = linha.desc;
+        }
+    }
+
+    window.atualizarLinhaCabos = function(index, field, value) {
+        linhasModalCabos[index][field] = value;
+        
+        if (field === 'ativo') {
+            buscarDescricaoAtivo(index);
+        }
+    };
+
+    function renderizarTabelaModalCabos() {
+        const tbody = document.getElementById('body-modal-cabos');
+        if(!tbody) return;
+        tbody.innerHTML = '';
+
+        linhasModalCabos.forEach((linha, index) => {
+            const tr = document.createElement('tr');
+            
+            const tdOp = document.createElement('td');
+            tdOp.innerHTML = `<select class="modal-input" style="width:100%; padding:4px;" onchange="atualizarLinhaCabos(${index}, 'op', this.value)">
+                ${OPERACOES.map(op => `<option value="${op}" ${linha.op === op ? 'selected' : ''}>${op}</option>`).join('')}
+            </select>`;
+            
+            const tdAtivo = document.createElement('td');
+            tdAtivo.innerHTML = `<input type="text" class="modal-input" style="width:100%; padding:4px;" value="${linha.ativo}" onchange="atualizarLinhaCabos(${index}, 'ativo', this.value)" placeholder="Digite o ativo...">`;
+            
+            const tdFase = document.createElement('td');
+            const fases = ['ABC', 'A', 'B', 'C', 'AC'];
+            tdFase.innerHTML = `<select class="modal-input" style="width:100%; padding:4px;" onchange="atualizarLinhaCabos(${index}, 'fase', this.value)">
+                ${fases.map(f => `<option value="${f}" ${linha.fase === f ? 'selected' : ''}>${f}</option>`).join('')}
+            </select>`;
+            
+            const tdComp = document.createElement('td');
+            tdComp.innerHTML = `<input type="number" class="modal-input" style="width:100%; padding:4px;" value="${linha.comp}" oninput="atualizarLinhaCabos(${index}, 'comp', parseFloat(this.value) || 0)">`;
+            
+            const tdQtd = document.createElement('td');
+            tdQtd.innerHTML = `<input type="number" class="modal-input" style="width:100%; padding:4px;" value="${linha.qtd}" min="1" oninput="atualizarLinhaCabos(${index}, 'qtd', parseInt(this.value) || 1)">`;
+            
+            const tdDesc = document.createElement('td');
+            tdDesc.style.fontSize = '0.75rem';
+            tdDesc.style.color = '#8b949e';
+            tdDesc.textContent = linha.desc;
+            
+            const tdDel = document.createElement('td');
+            tdDel.innerHTML = `<button class="btn-danger-icon" onclick="removerLinhaCabos(${index})" title="Excluir" style="padding: 4px 8px; border: none; background: none; color: #f85149; cursor: pointer;">✖</button>`;
+            
+            tr.appendChild(tdOp);
+            tr.appendChild(tdAtivo);
+            tr.appendChild(tdFase);
+            tr.appendChild(tdComp);
+            tr.appendChild(tdQtd);
+            tr.appendChild(tdDesc);
+            tr.appendChild(tdDel);
+            
+            tbody.appendChild(tr);
+        });
+    }
+
+    window.inserirGeradorNaTabelaCabos = function() {
+        if (!linhasModalCabos.length) return;
+        
+        pushHistory(); 
+        
+        linhasModalCabos.forEach(linha => {
+            const ativoBase = (linha.ativo || '').trim();
+            if (!ativoBase) return;
+            
+            const ativoFinal = `${ativoBase} ${linha.fase} ${linha.comp} m`;
+            
+            for (let i = 0; i < linha.qtd; i++) {
+                tableStates.cabos.data.push({
+                    entidade: 'CABO',
+                    operacao: linha.op,
+                    ativo: ativoFinal
+                });
+            }
+        });
+        
+        recalcAllQtdAtivos();
+        renderTable('cabos');
+        document.getElementById('modal-cabos-gerador').classList.add('hidden');
+        buildAtivoSets();
+        buildDataLists();
+    };
+
 }); // end DOMContentLoaded
