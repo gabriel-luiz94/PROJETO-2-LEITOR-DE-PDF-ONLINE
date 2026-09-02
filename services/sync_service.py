@@ -74,26 +74,30 @@ def sync_tabela_master():
 
 def get_merged_orcamento(user_id: str = None) -> list[dict]:
     """
-    Retorna a tabela de orçamento do Supabase (tabela_orcamento_master)
-    com fallback para a tabela local se o Supabase ainda não tiver sido sincronizado.
+    Retorna a tabela de orçamento priorizando as edições locais do usuário.
+    Se o usuário não tiver salvo edições locais, retorna a tabela Master do Supabase.
+    Se a Master estiver vazia, retorna o seed inicial (user_id IS NULL).
     """
     conn = get_row_connection()
     cursor = conn.cursor()
     
-    # 1. Tabela Master oficial sincronizada do Supabase
+    # 1. Tabela local com as modificações do próprio usuário
+    if user_id:
+        cursor.execute("SELECT * FROM tabela_orcamento WHERE user_id = ?", (user_id,))
+        user_rows = [dict(r) for r in cursor.fetchall()]
+        if user_rows:
+            conn.close()
+            return user_rows
+
+    # 2. Tabela Master oficial sincronizada do Supabase
     cursor.execute("SELECT * FROM tabela_orcamento_master")
     master_rows = [dict(r) for r in cursor.fetchall()]
-    
     if master_rows and len(master_rows) > 0:
         conn.close()
         return master_rows
     
-    # 2. Fallback para tabela local se a master estiver vazia
-    if user_id:
-        cursor.execute("SELECT * FROM tabela_orcamento WHERE user_id = ? OR user_id IS NULL", (user_id,))
-    else:
-        cursor.execute("SELECT * FROM tabela_orcamento")
-    
-    user_rows = [dict(r) for r in cursor.fetchall()]
+    # 3. Fallback genérico (Seed sem user_id)
+    cursor.execute("SELECT * FROM tabela_orcamento WHERE user_id IS NULL")
+    seed_rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
-    return user_rows
+    return seed_rows

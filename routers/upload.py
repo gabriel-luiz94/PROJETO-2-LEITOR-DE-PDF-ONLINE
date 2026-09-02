@@ -70,7 +70,7 @@ async def importar_rec_pdf(orcamento: UploadFile = File(...), lista: UploadFile 
         
         # Processa ORÇAMENTO
         doc_orc = pymupdf.open(stream=orcamento_contents, filetype="pdf")
-        current_mdo = "MÃO-DE-OBRA"
+        current_mdo = "MAO-DE-OBRA"
         
         for page in doc_orc:
             blocks = page.get_text("dict", flags=11)["blocks"]
@@ -86,7 +86,7 @@ async def importar_rec_pdf(orcamento: UploadFile = File(...), lista: UploadFile 
             
             for i, text in enumerate(texts):
                 if text == "MAO-DE-OBRA":
-                    current_mdo = "MÃO-DE-OBRA"
+                    current_mdo = "MAO-DE-OBRA"
                 elif text == "MATERIAL":
                     current_mdo = "MATERIAL"
                 

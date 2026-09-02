@@ -12,6 +12,7 @@ from database import get_connection, get_row_connection, hash_password
 from services.supabase_client import get_supabase
 from middleware.auth_middleware import get_current_user_from_state
 from config import logger
+from models import SalvarOrcamentoRequest
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -436,3 +437,72 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...)):
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro ao processar CSV Master: {e}")
+
+@router.post("/sync-master-all")
+def sync_master_all(req: SalvarOrcamentoRequest, request: Request):
+    """(Admin) Sobrescreve toda a tabela master da nuvem e local com os dados fornecidos."""
+    admin = _require_admin(request)
+    
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    rows_to_insert = []
+    
+    cur.execute("BEGIN TRANSACTION")
+    cur.execute("DELETE FROM tabela_orcamento_master")
+    
+    for row in req.dados:
+        ativo = row.get("ativo", "").strip()
+        codigo = row.get("codigo", "").strip()
+        if not ativo and not codigo:
+            continue
+            
+        try:
+            fator_i = float(str(row.get("fator_i", "0")).replace(",", "."))
+        except ValueError:
+            fator_i = 0.0
+            
+        try:
+            fator_r = float(str(row.get("fator_r", "0")).replace(",", "."))
+        except ValueError:
+            fator_r = 0.0
+            
+        item_dict = {
+            "ativo": ativo,
+            "desc_ativo": row.get("desc_ativo", "").strip(),
+            "componente": row.get("componente", "").strip(),
+            "projeto": row.get("projeto", "").strip(),
+            "mdo": row.get("mdo", "").strip(),
+            "codigo": codigo,
+            "desc_codigo": row.get("desc_codigo", "").strip(),
+            "fator_i": fator_i,
+            "fator_r": fator_r,
+            "filtro": row.get("filtro", "").strip()
+        }
+        rows_to_insert.append(item_dict)
+        
+        cur.execute('''
+            INSERT INTO tabela_orcamento_master 
+            (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            item_dict["ativo"], item_dict["desc_ativo"], item_dict["componente"],
+            item_dict["projeto"], item_dict["mdo"], item_dict["codigo"],
+            item_dict["desc_codigo"], item_dict["fator_i"], item_dict["fator_r"], item_dict["filtro"]
+        ))
+    
+    cur.execute("COMMIT")
+    conn.close()
+    
+    supabase = get_supabase()
+    if supabase and rows_to_insert:
+        try:
+            supabase.table("tabela_orcamento_master").delete().neq("id", 0).execute()
+            for i in range(0, len(rows_to_insert), 500):
+                supabase.table("tabela_orcamento_master").insert(rows_to_insert[i:i+500]).execute()
+        except Exception as e:
+            logger.warning(f"Erro ao enviar Master all para Supabase: {e}")
+            raise HTTPException(status_code=500, detail=f"Erro ao sincronizar com Supabase: {e}")
+            
+    _audit(admin, "SYNC_MASTER_ALL", "tabela_orcamento_master", None, f"total_rows={len(rows_to_insert)}")
+    return {"status": "ok", "msg": f"Tabela Master na nuvem atualizada com {len(rows_to_insert)} linhas."}

@@ -375,6 +375,9 @@
                 <button id="btn-admin-csv" class="btn-action btn-master hidden" onclick="document.getElementById('file-upload-master').click()" title="Sobrescreve a tabela mestre de TODOS os usuários">
                     Importar CSV Master
                 </button>
+                <button id="btn-admin-sync-all" class="btn-action btn-master hidden" onclick="sincronizarTudoNuvem()" title="Envia toda a sua tabela local atual para a nuvem">
+                    Sincronizar Tudo com a Nuvem
+                </button>
             </div>
         </header>
 
@@ -438,6 +441,7 @@
         if (localStorage.getItem('is_admin') === 'true') {
             document.getElementById('btn-admin-add').classList.remove('hidden');
             document.getElementById('btn-admin-csv').classList.remove('hidden');
+            document.getElementById('btn-admin-sync-all').classList.remove('hidden');
         }
 
         async function carregarDados() {
@@ -637,6 +641,46 @@
                     showToast("Base de orçamento atualizada com sucesso!");
                 } else {
                     const msg = data.detail || "Erro ao salvar.";
+                    showToast(msg);
+                    alert(msg);
+                }
+            } catch(e) { alert("Erro de conexão."); }
+        }
+
+        async function sincronizarTudoNuvem() {
+            if (!confirm("Isso vai apagar a tabela master atual da nuvem e substituí-la por TODA a tabela que você está vendo agora. Tem certeza?")) return;
+            
+            const trs = Array.from(tbody.querySelectorAll("tr"));
+            const dados = trs.map(tr => {
+                const inputs = tr.querySelectorAll('.cell-input');
+                if (inputs.length < 10) return null;
+                return {
+                    ativo: inputs[0].value, desc_ativo: inputs[1].value, componente: inputs[2].value,
+                    projeto: inputs[3].value, mdo: inputs[4].value, codigo: inputs[5].value,
+                    desc_codigo: inputs[6].value, fator_i: inputs[7].value, fator_r: inputs[8].value, filtro: inputs[9].value
+                };
+            }).filter(d => d);
+            
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                alert("Você precisa estar autenticado como Administrador.");
+                window.location.href = '/login';
+                return;
+            }
+
+            try {
+                showToast("Sincronizando tudo com a nuvem...");
+                const res = await fetch('/api/admin/sync-master-all', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+                    body: JSON.stringify({ dados: dados })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.msg || "Nuvem atualizada com sucesso!");
+                    alert(data.msg || "Nuvem atualizada com sucesso!");
+                } else {
+                    const msg = data.detail || "Erro ao sincronizar.";
                     showToast(msg);
                     alert(msg);
                 }

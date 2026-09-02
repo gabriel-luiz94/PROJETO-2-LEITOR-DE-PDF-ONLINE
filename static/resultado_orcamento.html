@@ -858,14 +858,20 @@
                             <th class="sortable-th" onclick="sortTable(2)" style="width: 120px;" title="Ordenar por Código">CÓDIGO ↕</th>
                             <th class="sortable-th" onclick="sortTable(3)" title="Ordenar por Descrição">DESCRIÇÃO ↕</th>
                             <th class="sortable-th" onclick="sortTable(4)" style="width: 120px; text-align: right;" title="Ordenar por Quantidade">QUANTIDADE ↕</th>
+                            <th class="sortable-th" onclick="sortTable(5)" style="width: 120px;" title="Ordenar por Filtro">FILTRO ↕</th>
                             <th style="text-align: center; width: 50px;">AÇÃO</th>
                         </tr>
                         <tr class="filters-row">
-                            <th><input type="text" onkeyup="applyAllFilters()" placeholder="Filtro..." class="col-filter-input"></th>
-                            <th><input type="text" onkeyup="applyAllFilters()" placeholder="Filtro..." class="col-filter-input"></th>
-                            <th><input type="text" onkeyup="applyAllFilters()" placeholder="Filtro..." class="col-filter-input"></th>
-                            <th><input type="text" onkeyup="applyAllFilters()" placeholder="Filtro..." class="col-filter-input"></th>
+                            <th><input type="text" oninput="applyAllFilters()" placeholder="Filtro..." class="col-filter-input"></th>
+                            <th><input type="text" oninput="applyAllFilters()" placeholder="Filtro..." class="col-filter-input"></th>
+                            <th><input type="text" oninput="applyAllFilters()" placeholder="Filtro..." class="col-filter-input"></th>
+                            <th><input type="text" oninput="applyAllFilters()" placeholder="Filtro..." class="col-filter-input"></th>
                             <th></th>
+                            <th>
+                                <select id="filtro-col-select" onchange="applyAllFilters()" class="col-filter-input" style="width: 100%; padding: 4px; background: transparent; color: var(--text-primary); border: 1px solid var(--border-default); outline: none; appearance: auto;">
+                                    <option value="">Todos</option>
+                                </select>
+                            </th>
                             <th></th>
                         </tr>
                     </thead>
@@ -985,7 +991,8 @@
                 const mdo = tr.cells[1].innerText.trim();
                 const codigo = tr.cells[2].innerText.trim();
                 const desc = tr.cells[3].innerText.trim();
-                const qtdStr = tr.cells[4].innerText.trim().replace(/\./g, '').replace(',', '.');
+                const qtdStr = tr.cells[4] ? tr.cells[4].innerText.trim().replace(/\./g, '').replace(',', '.') : '0';
+                const filtro = tr.cells[5] ? tr.cells[5].innerText.trim() : '';
                 const qtd = parseFloat(qtdStr) || 0;
                 
                 if (codigo || desc) {
@@ -994,6 +1001,7 @@
                         mdo: mdo, 
                         codigo: codigo, 
                         desc_codigo: desc, 
+                        filtro: filtro,
                         total: parseFloat(qtd.toFixed(2)) 
                     });
                 }
@@ -1002,8 +1010,32 @@
         }
 
         function renderRowsData(data) {
+            // Nova ordenação: Descrição A-Z, Operação A-Z, TIPO MDO A-Z
+            data.sort((a, b) => {
+                const descA = (a.desc_codigo || '').toUpperCase();
+                const descB = (b.desc_codigo || '').toUpperCase();
+                if (descA < descB) return -1;
+                if (descA > descB) return 1;
+                
+                const opA = (a.operacao || '').toUpperCase();
+                const opB = (b.operacao || '').toUpperCase();
+                if (opA < opB) return -1;
+                if (opA > opB) return 1;
+                
+                const mdoA = (a.mdo || '').toUpperCase();
+                const mdoB = (b.mdo || '').toUpperCase();
+                if (mdoA < mdoB) return -1;
+                if (mdoA > mdoB) return 1;
+                
+                return 0;
+            });
+
+            const uniqueFiltros = new Set();
+
             tbody.innerHTML = '';
             data.forEach(item => {
+                if (item.filtro) uniqueFiltros.add(item.filtro.trim());
+
                 const isRetirada = item.operacao === 'R';
                 const badgeClass = isRetirada ? 'badge-r' : 'badge-i';
                 const opText = isRetirada ? 'R' : 'I';
@@ -1011,10 +1043,11 @@
                 
                 tr.innerHTML = `
                     <td contenteditable="true" style="text-align: center;"><span class="badge-op ${badgeClass}" contenteditable="false">${opText}</span></td>
-                    <td contenteditable="true">${item.mdo || 'MÃO-DE-OBRA'}</td>
+                    <td contenteditable="true">${item.mdo || 'MAO-DE-OBRA'}</td>
                     <td contenteditable="true" class="cell-mono">${item.codigo || ''}</td>
                     <td contenteditable="true">${item.desc_codigo || ''}</td>
                     <td contenteditable="true" class="cell-qty">${(item.total || 0).toFixed(2).replace('.', ',')}</td>
+                    <td contenteditable="true">${item.filtro || ''}</td>
                     <td style="text-align:center;">
                         <button class="btn-delete-row" onclick="removerLinha(this)" title="Excluir Linha">
                             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
@@ -1027,7 +1060,23 @@
             });
 
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum item presente na tabela.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum item presente na tabela.</td></tr>';
+            }
+
+            const selectFiltro = document.getElementById("filtro-col-select");
+            if (selectFiltro) {
+                const currentVal = selectFiltro.value;
+                selectFiltro.innerHTML = '<option value="">Todos</option>';
+                Array.from(uniqueFiltros).sort().forEach(f => {
+                    if (!f) return;
+                    const opt = document.createElement("option");
+                    opt.value = f;
+                    opt.textContent = f;
+                    selectFiltro.appendChild(opt);
+                });
+                if (uniqueFiltros.has(currentVal)) {
+                    selectFiltro.value = currentVal;
+                }
             }
 
             updateStats(data);
@@ -1046,7 +1095,7 @@
             let map = {};
             data.forEach(item => {
                 let op = (item.operacao || 'I').toUpperCase();
-                let mdo = item.mdo || 'MÃO-DE-OBRA';
+                let mdo = item.mdo || 'MAO-DE-OBRA';
                 let cod = item.codigo || '';
                 let key = `${op}|${mdo}|${cod}`;
                 
@@ -1158,21 +1207,18 @@
                 return;
             }
             
-            let tsv = "OPERAÇÃO\tTIPO MDO\tCÓDIGO\tDESCRIÇÃO\tQUANTIDADE\n";
+            let tsv = "";
             trs.forEach(tr => {
                 if (tr.style.display === "none" || tr.cells.length < 5) return;
-                const rowData = [
-                    tr.cells[0].innerText.trim(),
-                    tr.cells[1].innerText.trim(),
-                    tr.cells[2].innerText.trim(),
-                    tr.cells[3].innerText.trim(),
-                    tr.cells[4].innerText.trim()
-                ].join("\t");
-                tsv += rowData + "\n";
+                let rowData = [];
+                for (let c = 0; c < 5; c++) {
+                    rowData.push(tr.cells[c].innerText.trim());
+                }
+                tsv += rowData.join("\t") + "\n";
             });
             
             navigator.clipboard.writeText(tsv).then(() => {
-                log('Tabela copiada.');
+                log('Tabela copiada sem cabeçalho.');
                 alert("Tabela copiada para a área de transferência!");
             }).catch(err => {
                 console.error("Erro ao copiar: ", err);
@@ -1302,7 +1348,7 @@
                 const opCode = parts[3].trim().toUpperCase();
                 
                 const operacao = opCode === 'IN' ? 'I' : 'R';
-                const mdo = mdoCode === 'S' ? 'MÃO-DE-OBRA' : 'MATERIAL';
+                const mdo = mdoCode === 'S' ? 'MAO-DE-OBRA' : 'MATERIAL';
                 
                 itemsToFetch.push({ codigo, operacao, mdo, qtd: isSubtrair ? -qtd : qtd });
             });
@@ -1418,6 +1464,8 @@
         function applyAllFilters() {
             const globalFilter = document.getElementById("searchInput").value.toUpperCase();
             const colInputs = document.querySelectorAll('.filters-row input');
+            const selectElement = document.getElementById("filtro-col-select");
+            const selectFiltro = selectElement ? selectElement.value.toUpperCase() : "";
             const trs = tbody.getElementsByTagName("tr");
             
             for (let i = 0; i < trs.length; i++) {
@@ -1436,6 +1484,13 @@
                             show = false;
                             break;
                         }
+                    }
+                }
+
+                if (show && selectFiltro) {
+                    const cellFiltro = trs[i].cells[5].innerText.toUpperCase();
+                    if (cellFiltro !== selectFiltro) {
+                        show = false;
                     }
                 }
                 
@@ -1540,7 +1595,7 @@
                     const parts = line.split('\t').map(p => p.trim());
                     if (parts.length >= 3) {
                         let operacao = parts[0].toUpperCase() === 'R' ? 'R' : 'I';
-                        let mdo = (parts[1] && parts[1].toUpperCase().includes('MATERIAL')) ? 'MATERIAL' : 'MÃO-DE-OBRA';
+                        let mdo = (parts[1] && parts[1].toUpperCase().includes('MATERIAL')) ? 'MATERIAL' : 'MAO-DE-OBRA';
                         let codigo = parts[2] || '';
                         let pastedDesc = parts[3] || '';
                         let qtdStr = parts[4] || '1';

@@ -248,6 +248,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
                 "mdo":       mdo,
                 "codigo":    codigo,
                 "desc_codigo": row.get("desc_codigo", ""),
+                "filtro":    row.get("filtro", ""),
                 "soma_i":    0.0,
                 "soma_r":    0.0,
             }
@@ -262,10 +263,10 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
         v = codigos[key]
         if v["soma_i"] > 0:
             resultado.append({"operacao": "I", "mdo": v["mdo"], "codigo": v["codigo"],
-                               "desc_codigo": v["desc_codigo"], "total": round(v["soma_i"], 2)})
+                               "desc_codigo": v["desc_codigo"], "filtro": v["filtro"], "total": round(v["soma_i"], 2)})
         if v["soma_r"] > 0:
             resultado.append({"operacao": "R", "mdo": v["mdo"], "codigo": v["codigo"],
-                               "desc_codigo": v["desc_codigo"], "total": round(v["soma_r"], 2)})
+                               "desc_codigo": v["desc_codigo"], "filtro": v["filtro"], "total": round(v["soma_r"], 2)})
 
     # Ordenar: Descrição A-Z, depois Operação A-Z, depois MDO A-Z
     resultado.sort(key=lambda x: (x["desc_codigo"].upper(), x["operacao"], x["mdo"].upper()))
