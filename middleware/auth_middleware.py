@@ -23,12 +23,16 @@ PUBLIC_ROUTES = {
     "/api/health",
     "/api/health/sync-master",
     "/api/update/check",
-    "/api/projetos",
     "/api/orcamento/dados",
     "/api/orcamento/calcular",
     "/api/orcamento/search",
     "/api/orcamento/detalhes",
     "/trigger-file",
+}
+
+# Rotas que aceitam token OPCIONAL — se enviado, injeta o user; se não, passa sem user
+OPTIONAL_AUTH_ROUTES = {
+    "/api/projetos",
 }
 
 # Prefixos que NÃO exigem autenticação (frontend, static, etc.)
@@ -99,6 +103,20 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # Rotas públicas — passa direto
         if path in PUBLIC_ROUTES:
+            return await call_next(request)
+
+        # Rotas com auth opcional — injeta user se token existir, mas não bloqueia se não existir
+        if path in OPTIONAL_AUTH_ROUTES:
+            auth_header = request.headers.get("Authorization", "")
+            token = auth_header[7:] if auth_header.startswith("Bearer ") else request.query_params.get("token", "")
+            if token:
+                payload = decode_jwt_token(token)
+                if payload:
+                    request.state.user = {
+                        "user_id": payload.get("sub"),
+                        "email": payload.get("email"),
+                        "role": payload.get("role", "operador"),
+                    }
             return await call_next(request)
 
         # Prefixos públicos — passa direto

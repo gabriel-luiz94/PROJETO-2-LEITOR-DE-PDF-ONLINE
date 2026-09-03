@@ -470,7 +470,7 @@
                 <h1 class="report-title">Resumo do <span class="highlight">Orçamento</span></h1>
                 <div style="display:flex; align-items:center; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
                     <label style="font-size: 0.75rem; color: #8b949e; margin-right: 6px;">Projeto:</label>
-                    <select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;"></select>
+                    <select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;" onchange="const o=this.options[this.selectedIndex]; localStorage.setItem('projeto_selecionado', this.value); localStorage.setItem('projeto_selecionado_codigo', o?.dataset.codigo||'');"></select>
                     <button id="btn-novo-projeto" class="btn-primary" onclick="abrirModalNovoProjeto()" style="display: none; padding: 2px 8px; font-size: 0.75rem; margin-left: 8px; border-radius: 4px;" title="Cadastrar Novo Projeto">+ Novo</button>
                 </div>
             <div class="header-actions">
@@ -917,17 +917,25 @@
             const nome = document.getElementById('input-proj-nome').value.trim();
             const codigo = document.getElementById('input-proj-codigo').value.trim();
             if(!nome || !codigo) { alert('Preencha nome e código!'); return; }
+            const token = localStorage.getItem('auth_token');
+            if(!token) { alert('Você precisa estar autenticado como Administrador.'); return; }
             try {
                 const res = await fetch('/api/projetos', {
                     method: 'POST',
-                    headers: {'Content-Type':'application/json'},
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
                     body: JSON.stringify({nome, codigo})
                 });
+                const data = await res.json();
                 if(res.ok) {
                     document.getElementById('modal-novo-projeto').classList.add('hidden');
                     carregarProjetos();
+                    alert(`Projeto "${data.nome || nome}" salvo com sucesso!`);
                 } else {
-                    alert('Erro ao salvar projeto.');
+                    const msg = data.detail || data.error || 'Erro desconhecido ao salvar projeto.';
+                    alert(`Erro: ${msg}`);
                 }
             } catch(e) { console.error(e); alert('Erro de rede.'); }
         }

@@ -728,9 +728,8 @@
                     <input type="text" id="obra-numero" placeholder="Ex: 916892196" class="input-obra">
                 </div>
                 
-                <select id="obra-uf" class="select-uf" title="Estado / Concessionária">
-                    <option value="RONDONIA">RONDÔNIA</option>
-                    <option value="PARAIBA">PARAÍBA</option>
+                <select id="obra-uf" class="select-uf" title="Estado / Projeto">
+                    <option value="" data-codigo="">Carregando...</option>
                 </select>
 
                 <button class="btn-action btn-save" onclick="salvarRecBanco()" title="Salva os dados do REC no banco de dados local">
@@ -958,6 +957,36 @@
                 statusDot.classList.remove('loading');
             }
         }
+
+        // ── Carregar projetos dinamicamente no select ──────────────────────────
+        async function carregarProjetosSelect() {
+            const select = document.getElementById('obra-uf');
+            try {
+                const res = await fetch('/api/projetos');
+                const data = await res.json();
+                const projetos = data.projetos || [];
+
+                select.innerHTML = '';
+                projetos.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.nome;
+                    opt.dataset.codigo = p.codigo || '000';
+                    opt.textContent = p.nome;
+                    select.appendChild(opt);
+                });
+
+                // Pré-seleciona com base no que foi escolhido na aba Resumo
+                const projSalvo = localStorage.getItem('projeto_selecionado');
+                if (projSalvo) {
+                    const match = Array.from(select.options).find(o => o.value === projSalvo);
+                    if (match) select.value = projSalvo;
+                }
+            } catch(e) {
+                console.error('Erro ao carregar projetos:', e);
+                select.innerHTML = '<option value="" data-codigo="000">Erro ao carregar</option>';
+            }
+        }
+        carregarProjetosSelect();
 
         function updateStats(data) {
             if (!data) data = getRowsData();
@@ -1288,11 +1317,11 @@
 
         async function baixarRecExterno() {
             const numObra = document.getElementById("obra-numero").value.trim() || "EXPORT";
-            const estado = document.getElementById("obra-uf").value;
+            const selectUf = document.getElementById("obra-uf");
+            const prefix = selectUf.options[selectUf.selectedIndex]?.dataset.codigo || "000";
             const conteudo = gerarConteudoRec();
             if (!conteudo) return alert("Não há dados para exportar.");
 
-            let prefix = estado === "RONDONIA" ? "229" : "027";
             const filename = `${prefix}_${numObra}_ODI.rec`;
 
             try {
