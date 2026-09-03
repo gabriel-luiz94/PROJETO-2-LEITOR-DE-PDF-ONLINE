@@ -147,6 +147,25 @@ header {
     background: rgba(255, 123, 114, 0.1);
 }
 
+.btn-cable-preset {
+    background: rgba(88, 166, 255, 0.08);
+    color: #58a6ff;
+    border: 1px solid rgba(88, 166, 255, 0.3);
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-size: 0.76rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+}
+
+.btn-cable-preset:hover {
+    background: rgba(88, 166, 255, 0.2);
+    border-color: #58a6ff;
+    transform: translateY(-1px);
+}
+
 .btn-action {
     background: linear-gradient(90deg, var(--gradient-2), var(--gradient-1));
     color: #fff;

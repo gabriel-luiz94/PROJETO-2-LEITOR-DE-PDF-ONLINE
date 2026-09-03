@@ -549,7 +549,7 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: -5px;">
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">POSTES E ESTRUTURAS</button>
+                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Gerador de Postes e Estruturas" onclick="abrirModalPostes()">POSTES E ESTRUTURAS</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Gerador de Cabos" onclick="abrirModalCabos()">CABOS</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">CONEXÕES</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">RAMAIS</button>
@@ -944,6 +944,23 @@
                     <button class="close-modal" onclick="document.getElementById('modal-cabos-gerador').classList.add('hidden')">×</button>
                 </div>
                 <div class="modal-body" style="padding: 10px 20px;">
+                    <!-- Atalhos de cabos -->
+                    <div style="margin-bottom: 10px;">
+                        <p style="font-size: 0.72rem; color: #8b949e; margin: 0 0 6px;">ATALHOS RÁPIDOS</p>
+                        <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                            <button class="btn-cable-preset" onclick="adicionarCaboPreset('CAA 2', 80)">CAA 2</button>
+                            <button class="btn-cable-preset" onclick="adicionarCaboPreset('CAA 1/0', 80)">CAA 1/0</button>
+                            <button class="btn-cable-preset" onclick="adicionarCaboPreset('CAA 4/0', 80)">CAA 4/0</button>
+                            <button class="btn-cable-preset" onclick="adicionarCaboPreset('CAA 336,4', 80)">CAA 336,4</button>
+                            <button class="btn-cable-preset" onclick="adicionarCaboPreset('M3x1x35+35', 40)">M3x1x35+35</button>
+                            <button class="btn-cable-preset" onclick="adicionarCaboPreset('M3x1x70+70', 40)">M3x1x70+70</button>
+                            <button class="btn-cable-preset" onclick="adicionarCaboPreset('M3x1x120+70', 40)">M3x1x120+70</button>
+                            <button class="btn-cable-preset" onclick="adicionarCaboPreset('P 50', 80)">P 50</button>
+                            <button class="btn-cable-preset" onclick="adicionarCaboPreset('P 120', 80)">P 120</button>
+                            <button class="btn-cable-preset" onclick="adicionarCaboPreset('P 185', 80)">P 185</button>
+                            <button class="btn-cable-preset" onclick="adicionarCaboPreset('CAZ 9,5', 40)">CAZ 9,5</button>
+                        </div>
+                    </div>
                     <div style="max-height: 400px; overflow-y: auto;">
                         <table class="data-table" style="width: 100%; border-collapse: collapse;">
                             <thead>
@@ -965,6 +982,90 @@
                     <div style="display: flex; justify-content: space-between; margin-top: 15px;">
                         <button class="btn-secondary" onclick="adicionarLinhaCabos()">+ Adicionar Linha</button>
                         <button class="btn-primary" onclick="inserirGeradorNaTabelaCabos()">Inserir na Tabela Cabos</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Gerador de Postes e Estruturas -->
+        <div id="modal-postes-gerador" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 960px; width: 95%;">
+                <div class="modal-header">
+                    <h3>Gerador de Códigos - POSTES E ESTRUTURAS</h3>
+                    <button class="close-modal" onclick="document.getElementById('modal-postes-gerador').classList.add('hidden')">×</button>
+                </div>
+                <div class="modal-body" style="padding: 10px 20px;">
+                    <!-- Painel de atalhos em 3 colunas -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                        <!-- Coluna 1: Postes -->
+                        <div style="background: rgba(88,166,255,0.05); border: 1px solid rgba(88,166,255,0.2); border-radius: 8px; padding: 10px;">
+                            <p style="font-size: 0.72rem; color: #58a6ff; margin: 0 0 7px; font-weight: 600; letter-spacing: 0.05em;">POSTES</p>
+                            <p style="font-size: 0.65rem; color: #6e7681; margin: 0 0 7px;">Cada clique = nova linha</p>
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                <button class="btn-cable-preset" onclick="clicouPoste('DT11/300')">DT11/300</button>
+                                <button class="btn-cable-preset" onclick="clicouPoste('DT11/600')">DT11/600</button>
+                                <button class="btn-cable-preset" onclick="clicouPoste('DT11/1000')">DT11/1000</button>
+                                <button class="btn-cable-preset" onclick="clicouPoste('DT12/600')">DT12/600</button>
+                                <button class="btn-cable-preset" onclick="clicouPoste('DT10/300')">DT10/300</button>
+                                <button class="btn-cable-preset" onclick="clicouPoste('DT10/150')">DT10/150</button>
+                            </div>
+                        </div>
+                        <!-- Coluna 2: Estrutura MT -->
+                        <div style="background: rgba(210,153,34,0.05); border: 1px solid rgba(210,153,34,0.2); border-radius: 8px; padding: 10px;">
+                            <p style="font-size: 0.72rem; color: #d2991e; margin: 0 0 7px; font-weight: 600; letter-spacing: 0.05em;">ESTRUTURA MT</p>
+                            <p style="font-size: 0.65rem; color: #6e7681; margin: 0 0 7px;">Acumula quantidade na linha</p>
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('N1')">N1</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('N2')">N2</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('N3')">N3</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('N4')">N4</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('B1')">B1</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('B2')">B2</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('B3')">B3</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('B4')">B4</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('CE1')">CE1</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('CE2')">CE2</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('CE3')">CE3</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('CE4')">CE4</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('U1')">U1</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('U2')">U2</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('U3')">U3</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(210,153,34,0.4); color: #d2991e;" onclick="clicouEstrutura('U4')">U4</button>
+                            </div>
+                        </div>
+                        <!-- Coluna 3: Estruturas BT -->
+                        <div style="background: rgba(63,185,80,0.05); border: 1px solid rgba(63,185,80,0.2); border-radius: 8px; padding: 10px;">
+                            <p style="font-size: 0.72rem; color: #3fb950; margin: 0 0 7px; font-weight: 600; letter-spacing: 0.05em;">ESTRUTURAS BT</p>
+                            <p style="font-size: 0.65rem; color: #6e7681; margin: 0 0 7px;">Acumula quantidade na linha</p>
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                <button class="btn-cable-preset" style="border-color: rgba(63,185,80,0.4); color: #3fb950;" onclick="clicouEstrutura('SI1')">SI1</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(63,185,80,0.4); color: #3fb950;" onclick="clicouEstrutura('SI3')">SI3</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(63,185,80,0.4); color: #3fb950;" onclick="clicouEstrutura('SI4')">SI4</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(63,185,80,0.4); color: #3fb950;" onclick="clicouEstrutura('RA2')">RA2</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(63,185,80,0.4); color: #3fb950;" onclick="clicouEstrutura('S2')">S2</button>
+                                <button class="btn-cable-preset" style="border-color: rgba(63,185,80,0.4); color: #3fb950;" onclick="clicouEstrutura('S4')">S4</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 10%;">OP</th>
+                                    <th style="width: 50%;">ATIVO</th>
+                                    <th style="width: 10%;">QTD</th>
+                                    <th style="width: 25%;">DESC (Automático)</th>
+                                    <th style="width: 5%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="body-modal-postes">
+                                <!-- Linhas injetadas via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+                        <button class="btn-secondary" onclick="adicionarLinhaPostes()">+ Adicionar Linha em Branco</button>
+                        <button class="btn-primary" onclick="inserirGeradorNaTabelaOutros()">Inserir na Tabela Outros</button>
                     </div>
                 </div>
             </div>

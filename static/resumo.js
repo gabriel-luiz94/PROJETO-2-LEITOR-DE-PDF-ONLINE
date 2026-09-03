@@ -1881,4 +1881,205 @@ document.addEventListener('DOMContentLoaded', () => {
         buildDataLists();
     };
 
+    /* ═══════════════════════════════════════
+       CABOS — Preset rápido de cabo
+    ═══════════════════════════════════════ */
+    window.adicionarCaboPreset = function(ativo, comp) {
+        linhasModalCabos.push({ op: 'I', ativo: ativo, fase: 'ABC', comp: comp, qtd: 1, desc: '' });
+        renderizarTabelaModalCabos();
+        // Busca desc do ativo pra última linha adicionada
+        const idx = linhasModalCabos.length - 1;
+        buscarDescricaoAtivo(idx);
+    };
+
+    /* ═══════════════════════════════════════
+       POSTES E ESTRUTURAS — Modal Gerador
+    ═══════════════════════════════════════ */
+    let linhasModalPostes = [];
+
+    window.abrirModalPostes = function() {
+        linhasModalPostes = [{ op: 'I', ativo: '', qtd: 1, desc: '' }];
+        renderizarTabelaModalPostes();
+        document.getElementById('modal-postes-gerador').classList.remove('hidden');
+    };
+
+    window.adicionarLinhaPostes = function() {
+        linhasModalPostes.push({ op: 'I', ativo: '', qtd: 1, desc: '' });
+        renderizarTabelaModalPostes();
+    };
+
+    window.removerLinhaPostes = function(index) {
+        linhasModalPostes.splice(index, 1);
+        renderizarTabelaModalPostes();
+    };
+
+    window.atualizarLinhaPostes = function(index, field, value) {
+        linhasModalPostes[index][field] = value;
+        if (field === 'ativo') {
+            buscarDescricaoPoste(index);
+        }
+    };
+
+    window.adicionarPostePreset = function(ativo) {
+        linhasModalPostes.push({ op: 'I', ativo: ativo, qtd: 1, desc: '' });
+        const idx = linhasModalPostes.length - 1;
+        renderizarTabelaModalPostes();
+        buscarDescricaoPoste(idx);
+    };
+
+    /* 
+     * clicouPoste: postes sempre criam uma nova linha com o nome do poste.
+     * Se a última linha estiver vazia, reutiliza ela. Se não, cria nova.
+     */
+    window.clicouPoste = function(nome) {
+        const last = linhasModalPostes[linhasModalPostes.length - 1];
+        const opAtual = last ? last.op : 'I';
+        if (!last || last.ativo.trim() !== '') {
+            // Última linha já tem conteúdo → cria nova linha
+            linhasModalPostes.push({ op: opAtual, ativo: nome, qtd: 1, desc: '' });
+        } else {
+            // Linha em branco → preenche
+            last.ativo = nome;
+        }
+        renderizarTabelaModalPostes();
+        buscarDescricaoPoste(linhasModalPostes.length - 1);
+    };
+
+    /*
+     * clicouEstrutura: SEMPRE acumula na linha atual, independente do conteúdo.
+     * Ex: "DT11/300" + clique N3 → "DT11/300 1-N3"
+     *     "DT11/300 1-N3" + clique N3 → "DT11/300 2-N3"
+     *     "DT11/300 1-N3" + clique B2 → "DT11/300 1-N3 1-B2"
+     * Nova linha apenas com clicouPoste() ou botão Adicionar Linha em Branco.
+     */
+    window.clicouEstrutura = function(nome) {
+        if (linhasModalPostes.length === 0) {
+            linhasModalPostes.push({ op: 'I', ativo: `1-${nome}`, qtd: 1, desc: '' });
+            renderizarTabelaModalPostes();
+            return;
+        }
+        
+        const last = linhasModalPostes[linhasModalPostes.length - 1];
+        const partes = last.ativo.trim() ? last.ativo.trim().split(/\s+/) : [];
+        
+        // Procura se esta estrutura já existe na linha no formato "X-nome"
+        const escaped = nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`^(\\d+)-${escaped}$`);
+        
+        let encontrado = false;
+        for (let i = 0; i < partes.length; i++) {
+            const m = partes[i].match(regex);
+            if (m) {
+                partes[i] = `${parseInt(m[1]) + 1}-${nome}`;
+                encontrado = true;
+                break;
+            }
+        }
+        
+        if (!encontrado) {
+            partes.push(`1-${nome}`);
+        }
+        
+        last.ativo = partes.join(' ');
+        
+        // Atualiza o campo no DOM diretamente (sem rerender para não perder foco)
+        const tbody = document.getElementById('body-modal-postes');
+        const lastIdx = linhasModalPostes.length - 1;
+        if (tbody && tbody.children[lastIdx]) {
+            const inputAtivo = tbody.children[lastIdx].children[1]?.querySelector('input');
+            if (inputAtivo) inputAtivo.value = last.ativo;
+        }
+    };
+
+    async function buscarDescricaoPoste(index) {
+        const linha = linhasModalPostes[index];
+        const ativoStr = (linha.ativo || '').trim();
+        if (!ativoStr) {
+            linha.desc = '';
+            renderizarTabelaModalPostes();
+            return;
+        }
+
+        const queryStr = ativoStr.replace(/\s+/g, '');
+        try {
+            const res = await fetch('/api/orcamento/search?q=' + encodeURIComponent(queryStr) + '&col=ativo');
+            const data = await res.json();
+            if (data.resultados && data.resultados.length > 0) {
+                linha.desc = data.resultados[0].desc_ativo || 'Ativo encontrado';
+            } else {
+                linha.desc = 'Ativo não encontrado';
+            }
+        } catch (e) {
+            linha.desc = 'Erro na busca';
+        }
+
+        const tbody = document.getElementById('body-modal-postes');
+        if (tbody && tbody.children[index]) {
+            const tr = tbody.children[index];
+            const tdDesc = tr.children[3];
+            if (tdDesc) tdDesc.textContent = linha.desc;
+        }
+    }
+
+    function renderizarTabelaModalPostes() {
+        const tbody = document.getElementById('body-modal-postes');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        linhasModalPostes.forEach((linha, index) => {
+            const tr = document.createElement('tr');
+
+            const tdOp = document.createElement('td');
+            tdOp.innerHTML = `<select class="modal-input" style="width:100%; padding:4px;" onchange="atualizarLinhaPostes(${index}, 'op', this.value)">
+                ${OPERACOES.map(op => `<option value="${op}" ${linha.op === op ? 'selected' : ''}>${op}</option>`).join('')}
+            </select>`;
+
+            const tdAtivo = document.createElement('td');
+            tdAtivo.innerHTML = `<input type="text" class="modal-input" style="width:100%; padding:4px;" value="${linha.ativo}" onchange="atualizarLinhaPostes(${index}, 'ativo', this.value)" placeholder="Digite o ativo (ex: PC 9 200)...">`;
+
+            const tdQtd = document.createElement('td');
+            tdQtd.innerHTML = `<input type="number" class="modal-input" style="width:100%; padding:4px;" value="${linha.qtd}" min="1" oninput="atualizarLinhaPostes(${index}, 'qtd', parseInt(this.value) || 1)">`;
+
+            const tdDesc = document.createElement('td');
+            tdDesc.style.fontSize = '0.75rem';
+            tdDesc.style.color = '#8b949e';
+            tdDesc.textContent = linha.desc;
+
+            const tdDel = document.createElement('td');
+            tdDel.innerHTML = `<button class="btn-danger-icon" onclick="removerLinhaPostes(${index})" title="Excluir" style="padding: 4px 8px; border: none; background: none; color: #f85149; cursor: pointer;">✖</button>`;
+
+            tr.appendChild(tdOp);
+            tr.appendChild(tdAtivo);
+            tr.appendChild(tdQtd);
+            tr.appendChild(tdDesc);
+            tr.appendChild(tdDel);
+            tbody.appendChild(tr);
+        });
+    }
+
+    window.inserirGeradorNaTabelaOutros = function() {
+        if (!linhasModalPostes.length) return;
+
+        pushHistory();
+
+        linhasModalPostes.forEach(linha => {
+            const ativoBase = (linha.ativo || '').trim();
+            if (!ativoBase) return;
+
+            for (let i = 0; i < linha.qtd; i++) {
+                tableStates.outros.data.push({
+                    entidade: 'OUTRO',
+                    operacao: linha.op,
+                    ativo: ativoBase
+                });
+            }
+        });
+
+        recalcAllQtdAtivos();
+        renderTable('outros');
+        document.getElementById('modal-postes-gerador').classList.add('hidden');
+        buildAtivoSets();
+        buildDataLists();
+    };
+
 }); // end DOMContentLoaded
