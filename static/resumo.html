@@ -552,7 +552,10 @@
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Gerador de Postes e Estruturas" onclick="abrirModalPostes()">POSTES E ESTRUTURAS</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Gerador de Cabos" onclick="abrirModalCabos()">CABOS</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">CONEXÕES</button>
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">RAMAIS</button>
+                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706; position: relative;" title="Ver Ramais, IPs e Apoios detectados" onclick="abrirModalRamais()">
+                        RAMAIS
+                        <span id="badge-ramais" style="display:none; position:absolute; top:-6px; right:-6px; min-width:16px; height:16px; background-color:#f85149; border-radius:8px; box-shadow:0 0 0 2px #0d1117; color:white; font-size:10px; font-weight:bold; align-items:center; justify-content:center; padding:0 4px; box-sizing:border-box;"></span>
+                    </button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">RETENSIONAMENTO</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">ADICIONAIS</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(227,179,65,0.4); color: #e3b341;" title="Função futura">LINHA VIVA</button>
@@ -944,6 +947,72 @@
 
     </script>
 
+        <!-- Modal RAMAIS -->
+        <div id="modal-ramais" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 1000px; width: 95%;">
+                <div class="modal-header">
+                    <h3>RAMAIS — Itens Detectados no Processamento</h3>
+                    <button class="close-modal" onclick="document.getElementById('modal-ramais').classList.add('hidden')">×</button>
+                </div>
+                <div class="modal-body" style="padding: 10px 20px;">
+                    <p style="font-size: 0.72rem; color: #8b949e; margin: 0 0 10px;">
+                        Tabela com os itens <strong style="color:#58a6ff;">RAMAIS</strong>, <strong style="color:#d2991e;">IP</strong> e <strong style="color:#3fb950;">Apoios de Conc BASE / REC Calçada</strong> detectados no leitor.
+                        A coluna <em>TEXTO</em> contém o texto bruto do leitor e é editável para processamento manual.
+                    </p>
+
+                    <div style="background: rgba(13, 17, 23, 0.5); border: 1px solid var(--border-default); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
+                            <div style="flex: 1;">
+                                <div style="margin-bottom: 8px;">
+                                    <span style="font-size: 0.75rem; font-weight: 600; color: #c9d1d9; margin-right: 10px;">ÁREA DE CORROSÃO:</span>
+                                    <label style="font-size: 0.8rem; margin-right: 10px; cursor: pointer;">
+                                        <input type="radio" name="ramais-corrosao" value="sim" onchange="recalcularAtivosRamais()"> Sim
+                                    </label>
+                                    <label style="font-size: 0.8rem; cursor: pointer;">
+                                        <input type="radio" name="ramais-corrosao" value="nao" checked onchange="recalcularAtivosRamais()"> Não
+                                    </label>
+                                </div>
+                                <div style="font-family: monospace; font-size: 0.85rem; color: #58a6ff; margin-bottom: 4px;">
+                                    <strong>INSTALANDO:</strong> <span id="ramais-instalando">-</span>
+                                </div>
+                                <div style="font-family: monospace; font-size: 0.85rem; color: #f85149;">
+                                    <strong>REMOVENDO:</strong> <span id="ramais-removendo">-</span>
+                                </div>
+                            </div>
+                            <div>
+                                <button class="btn-primary" onclick="adicionarAtivosRamais()" style="background-color: #238636; padding: 6px 12px; font-size: 0.8rem;">
+                                    ADICIONAR ATIVOS
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="max-height: 450px; overflow-y: auto; border: 1px solid var(--border-default); border-radius: 6px;">
+                        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 90px;">TIPO</th>
+                                    <th>TEXTO (editável)</th>
+                                    <th style="width: 70px; text-align:center;">PÁGINA</th>
+                                </tr>
+                            </thead>
+                            <tbody id="body-modal-ramais">
+                                <tr><td colspan="3" style="text-align:center; color:#8b949e; padding:20px;">Abra um arquivo no leitor e clique em Processar para ver os RAMAIS.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+                        <span style="font-size: 0.72rem; color: #6e7681;">💡 Clique em qualquer célula de texto para editar. O botão Copiar exporta no formato TSV (compatível com Excel).</span>
+                        <button id="btn-copy-ramais" class="btn-secondary" onclick="copyRamaisTable()" style="display:flex; align-items:center; gap:6px;">
+                            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>
+                            Copiar Tabela
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
         <!-- Modal Gerador de Cabos -->
         <div id="modal-cabos-gerador" class="modal-overlay hidden">
             <div class="modal-content" style="max-width: 1000px; width: 95%;">
@@ -1079,6 +1148,6 @@
             </div>
         </div>
 
-    <script src="/static/resumo.js?v=4.6"></script>
+    <script src="/static/resumo.js?v=4.9"></script>
 </body>
 </html>

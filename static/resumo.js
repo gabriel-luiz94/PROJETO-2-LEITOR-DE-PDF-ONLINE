@@ -71,8 +71,26 @@ document.addEventListener('DOMContentLoaded', () => {
         .map(deepClone);
 
     tableStates.outros.data = allProcessed
-        .filter(r => r.entidade !== 'CABO' && r.entidade !== '0')
+        .filter(r => r.entidade !== 'CABO' && r.entidade !== '0' && r.entidade !== 'RAMAIS')
         .map(deepClone);
+
+    // Popula dados para o modal RAMAIS (RAMAIS, IP e APOIO condicional)
+    window._ramaisData = allProcessed
+        .filter(r => {
+            if (r.entidade === 'RAMAIS' || r.entidade === 'IP') return true;
+            if (r.entidade === 'APOIO') {
+                const txt = ((r._raw && r._raw.texto) || r.ativo || '').toUpperCase();
+                return /REC.*CAL[CÇ]ADA/i.test(txt) || /CONC.*BASE/i.test(txt);
+            }
+            return false;
+        })
+        .map(r => ({
+            entidade: r.entidade,
+            texto: (r._raw && r._raw.texto) || r.ativo || '',
+            _textoOriginal: (r._raw && r._raw.texto) || '',
+            _raw: r._raw || null,
+            pagina: r._raw && r._raw.pagina != null ? r._raw.pagina : '-'
+        }));
 
     // Garante que ao menos os campos necessários existam
     ['cabos', 'outros'].forEach(type => {
@@ -2081,5 +2099,206 @@ document.addEventListener('DOMContentLoaded', () => {
         buildAtivoSets();
         buildDataLists();
     };
+
+
+    // Mostrar badge na aba RAMAIS caso existam itens
+    if (window._ramaisData && window._ramaisData.length > 0) {
+        const badge = document.getElementById('badge-ramais');
+        if (badge) {
+            badge.style.display = 'inline-flex';
+            badge.textContent = window._ramaisData.length;
+        }
+    }
+
+
+/* ═══════════════════════════════════════════════════════
+   MODAL RAMAIS — lógica 
+═══════════════════════════════════════════════════════ */
+
+window.abrirModalRamais = function() {
+    const dados = window._ramaisData || [];
+    renderizarTabelaRamais(dados);
+    document.getElementById('modal-ramais').classList.remove('hidden');
+};
+
+function renderizarTabelaRamais(dados) {
+    const tbody = document.getElementById('body-modal-ramais');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (dados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#8b949e; padding:20px;">Nenhum item de RAMAIS, IP ou Apoio relevante encontrado no processamento.</td></tr>';
+        return;
+    }
+
+    dados.forEach((r) => {
+        const tr = document.createElement('tr');
+
+        const tdTipo = document.createElement('td');
+        const tipoColor = r.entidade === 'RAMAIS' ? '#58a6ff' : r.entidade === 'IP' ? '#d2991e' : '#3fb950';
+        tdTipo.innerHTML = `<span style="background:${tipoColor}22; color:${tipoColor}; border:1px solid ${tipoColor}44; padding:2px 7px; border-radius:4px; font-size:0.72rem; font-weight:600;">${r.entidade}</span>`;
+        tdTipo.style.cssText = 'padding:6px 8px; white-space:nowrap;';
+
+        const tdTexto = document.createElement('td');
+        tdTexto.style.cssText = 'padding:4px 8px;';
+        tdTexto.contentEditable = 'true';
+        tdTexto.style.outline = 'none';
+        tdTexto.textContent = r._textoOriginal || (r._raw && r._raw.texto) || r.texto || '';
+        tdTexto.addEventListener('focus', () => tdTexto.style.background = 'rgba(88,166,255,0.06)');
+        tdTexto.addEventListener('blur',  () => {
+            tdTexto.style.background = '';
+            window.recalcularAtivosRamais();
+        });
+
+        const tdPag = document.createElement('td');
+        tdPag.style.cssText = 'padding:6px 8px; text-align:center; color:#8b949e; font-size:0.78rem;';
+        const pagVal = (r._raw && r._raw.pagina != null) ? r._raw.pagina : (r.pagina != null ? r.pagina : '-');
+        tdPag.textContent = pagVal;
+
+        tr.appendChild(tdTipo);
+        tr.appendChild(tdTexto);
+        tr.appendChild(tdPag);
+        tbody.appendChild(tr);
+    });
+
+    window.recalcularAtivosRamais();
+}
+
+window.recalcularAtivosRamais = function() {
+    const isCorrosao = document.querySelector('input[name="ramais-corrosao"][value="sim"]')?.checked;
+    const rows = document.querySelectorAll('#body-modal-ramais tr');
+    
+    window._ramaisAtivosInstalando = {};
+    window._ramaisAtivosRemovendo = {};
+
+    function addAtivo(dict, ativo, qty) {
+        if (!dict[ativo]) dict[ativo] = 0;
+        dict[ativo] += qty;
+    }
+
+    rows.forEach(tr => {
+        const cells = tr.querySelectorAll('td');
+        if (cells.length < 3) return;
+        
+        const texto = cells[1].textContent.trim();
+        
+        const matchTrocar = texto.match(/TROCAR\s+(\d+)\s+RS/i);
+        const qtyTroca = matchTrocar ? parseInt(matchTrocar[1], 10) : (texto.match(/TROCAR\s+RS/i) ? 1 : 0);
+
+        if (qtyTroca > 0) {
+            const upText = texto.toUpperCase();
+            
+            if (upText.includes('RS M AC') || upText.includes('RS MAC')) {
+                addAtivo(window._ramaisAtivosInstalando, 'MAC', qtyTroca * 20);
+                addAtivo(window._ramaisAtivosRemovendo, 'MAC', qtyTroca * 15);
+            } else if (upText.includes('RS M AM') || upText.includes('RS MAM')) {
+                addAtivo(window._ramaisAtivosInstalando, 'MAM', qtyTroca * 20);
+                addAtivo(window._ramaisAtivosRemovendo, 'MAM', qtyTroca * 15);
+            } else if (upText.includes('RS T AM') || upText.includes('RS TAM')) {
+                addAtivo(window._ramaisAtivosInstalando, 'TAM', qtyTroca * 20);
+                addAtivo(window._ramaisAtivosRemovendo, 'TAM', qtyTroca * 15);
+            } else if (upText.includes('RS M AA') || upText.includes('RS MAA')) {
+                addAtivo(window._ramaisAtivosInstalando, 'MAM', qtyTroca * 20);
+                addAtivo(window._ramaisAtivosInstalando, 'MAA', qtyTroca * 1);
+            } else if (upText.includes('RS T AA') || upText.includes('RS TAA')) {
+                addAtivo(window._ramaisAtivosInstalando, 'TAM', qtyTroca * 20);
+                addAtivo(window._ramaisAtivosRemovendo, 'MAA', qtyTroca * 2);
+            }
+
+            if (upText.includes('CP-REDE') || upText.includes('CP REDE') || upText.includes('CPREDE')) {
+                addAtivo(window._ramaisAtivosInstalando, 'CPREDE', qtyTroca * 1);
+            }
+        }
+    });
+
+    const formatDict = (dict) => Object.keys(dict).sort().map(k => dict[k]+"-"+k).join(' ');
+    
+    const strInstalando = formatDict(window._ramaisAtivosInstalando);
+    const strRemovendo = formatDict(window._ramaisAtivosRemovendo);
+
+    const spanInstalando = document.getElementById('ramais-instalando');
+    const spanRemovendo = document.getElementById('ramais-removendo');
+    
+    if (spanInstalando) spanInstalando.textContent = strInstalando || '-';
+    if (spanRemovendo) spanRemovendo.textContent = strRemovendo || '-';
+};
+
+window.adicionarAtivosRamais = function() {
+    const instDict = window._ramaisAtivosInstalando || {};
+    const remDict = window._ramaisAtivosRemovendo || {};
+
+    const instKeys = Object.keys(instDict);
+    const remKeys = Object.keys(remDict);
+
+    if (instKeys.length === 0 && remKeys.length === 0) {
+        alert('Não há ativos calculados para adicionar.');
+        return;
+    }
+
+    if (!confirm('Deseja adicionar esses ativos gerados à tabela OUTROS?')) {
+        return;
+    }
+
+    if (typeof pushHistory === 'function') pushHistory();
+
+    instKeys.forEach(k => {
+        tableStates.outros.data.push({
+            entidade: '0',
+            operacao: 'I',
+            ativo: instDict[k] + "-" + k,
+            texto: 'RAMAIS (GERADO)'
+        });
+    });
+
+    remKeys.forEach(k => {
+        tableStates.outros.data.push({
+            entidade: '0',
+            operacao: 'R',
+            ativo: remDict[k] + "-" + k,
+            texto: 'RAMAIS (GERADO)'
+        });
+    });
+    
+    if (typeof recalcAllQtdAtivos === 'function') recalcAllQtdAtivos();
+    if (typeof renderTable === 'function') renderTable('outros');
+    if (typeof updateCounters === 'function') updateCounters();
+    if (typeof updateHistoryUI === 'function') updateHistoryUI();
+    if (typeof buildAtivoSets === 'function') buildAtivoSets();
+    if (typeof buildDataLists === 'function') buildDataLists();
+    
+    document.getElementById('modal-ramais')?.classList.add('hidden');
+    
+    const btn = document.querySelector('#modal-ramais button.btn-primary');
+    if (btn) {
+        const orig = btn.textContent;
+        btn.textContent = 'Adicionado!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+    }
+};
+
+window.copyRamaisTable = function() {
+    const rows = document.querySelectorAll('#body-modal-ramais tr');
+    if (!rows.length) return;
+
+    const lines = [];
+    rows.forEach(tr => {
+        const cells = tr.querySelectorAll('td');
+        if (cells.length < 2) return;
+        const texto = cells[1].textContent.trim();
+        if (texto) lines.push(texto);
+    });
+
+    if (!lines.length) return;
+
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+        const btn = document.getElementById('btn-copy-ramais');
+        if (btn) {
+            const orig = btn.textContent;
+            btn.textContent = '✓ Copiado!';
+            btn.style.color = '#3fb950';
+            setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1800);
+        }
+    }).catch(() => alert('Não foi possível copiar. Use Ctrl+C manualmente.'));
+};
 
 }); // end DOMContentLoaded
