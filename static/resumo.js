@@ -1337,6 +1337,57 @@ document.addEventListener('DOMContentLoaded', () => {
         return result;
     }
 
+    function executeUiAction(action) {
+        const alvos = action.alvo === 'ambos' ? ['cabos', 'outros'] : [action.alvo];
+        
+        alvos.forEach(alvo => {
+            if (!tableStates[alvo]) return;
+
+            if (action.acao_ui === 'ordenar') {
+                pushHistory();
+                tableStates[alvo].data.sort((a, b) => {
+                    let valA = (a[action.coluna] || '').toString();
+                    let valB = (b[action.coluna] || '').toString();
+                    if (action.ordem === 'desc') return valB.localeCompare(valA);
+                    return valA.localeCompare(valB);
+                });
+                renderTable(alvo);
+                showToast(`Tabela ${alvo} ordenada!`);
+            } 
+            else if (action.acao_ui === 'filtrar') {
+                filterSelections[alvo][action.coluna].clear();
+                filterSelections[alvo][action.coluna].add(action.valor);
+                applyFilters(alvo);
+                
+                // Atualiza visualmente o dropdown
+                const containerId = FILTER_CONTAINERS[alvo][action.coluna];
+                const container = document.getElementById(containerId);
+                if (container) {
+                    const trigger = container.querySelector('.r-filter-trigger span');
+                    const ind = container.querySelector('.r-filter-indicator');
+                    if (trigger) trigger.textContent = '1 sel';
+                    if (ind) ind.classList.add('active');
+                    
+                    const inner = container.querySelector('.r-options-inner');
+                    if (inner) {
+                        inner.querySelectorAll('input').forEach(cb => {
+                            cb.checked = cb.parentElement.dataset.value === action.valor;
+                        });
+                    }
+                    const mainChk = container.querySelector('.r-select-all-opt input');
+                    if (mainChk) mainChk.checked = false;
+                }
+                showToast(`Filtro aplicado na tabela ${alvo}!`);
+            }
+            else if (action.acao_ui === 'limpar_filtros') {
+                FILTER_FIELDS.forEach(field => filterSelections[alvo][field].clear());
+                applyFilters(alvo);
+                refreshAllFilters(alvo);
+                showToast(`Filtros limpos na tabela ${alvo}!`);
+            }
+        });
+    }
+
     async function sendToGemini() {
         const text = aiChatInput.value.trim();
         if (!text) return;
@@ -1453,7 +1504,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            div.innerHTML = replyText.replace(/\n/g, '<br>');
+            // --- NOVO: Interceptar Ações de UI (JSON) ---
+            const uiActionMatch = replyText.match(/\{[\s\S]*?"acao_ui"[\s\S]*?\}/);
+            if (uiActionMatch) {
+                try {
+                    const action = JSON.parse(uiActionMatch[0]);
+                    div.innerHTML = `<span style="color:#3fb950;">Ação de interface concluída: ${action.acao_ui}</span>`;
+                    chatHistory.push({ role: 'user', parts: [{ text: text }] });
+                    chatHistory.push({ role: 'model', parts: [{ text: "*(Ação de UI executada)*" }] });
+                    executeUiAction(action);
+                    aiChatInput.disabled = false;
+                    btnSendChat.disabled = false;
+                    aiChatInput.focus();
+                    return;
+                } catch(e) {
+                    console.error("Erro ao parsear JSON de UI:", e);
+                    div.innerHTML = `<span style="color:#ff0000;">Falha ao executar ação de interface. Verifique o console.</span><br>` + replyText.replace(/\n/g, '<br>');
+                }
+            } else {
+                div.innerHTML = replyText.replace(/\n/g, '<br>');
+            }
+            // --------------------------------------------
 
             chatHistory.push({ role: 'user', parts: [{ text: text }] });
             chatHistory.push({ role: 'model', parts: [{ text: replyText }] });
