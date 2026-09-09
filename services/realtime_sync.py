@@ -36,8 +36,8 @@ def _realtime_worker():
                 if event_type == "INSERT" or event_type == "UPDATE":
                     cur.execute('''
                         INSERT OR REPLACE INTO tabela_orcamento_master 
-                        (id, ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        (id, ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         record.get("id"),
                         record.get("ativo", ""),
@@ -50,6 +50,7 @@ def _realtime_worker():
                         record.get("fator_i", 0.0),
                         record.get("fator_r", 0.0),
                         record.get("filtro", ""),
+                        record.get("origem", ""),
                         record.get("updated_at")
                     ))
                 elif event_type == "DELETE":

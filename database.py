@@ -122,6 +122,7 @@ def init_db():
             fator_i REAL,
             fator_r REAL,
             filtro TEXT,
+            origem TEXT,
             updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
@@ -135,6 +136,10 @@ def init_db():
         pass
     try:
         cursor.execute("ALTER TABLE tabela_orcamento ADD COLUMN updated_at TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE tabela_orcamento ADD COLUMN origem TEXT")
     except sqlite3.OperationalError:
         pass
 
@@ -152,11 +157,16 @@ def init_db():
             fator_i REAL,
             fator_r REAL,
             filtro TEXT,
+            origem TEXT,
             updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
     try:
         cursor.execute("ALTER TABLE tabela_orcamento_master ADD COLUMN updated_at TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE tabela_orcamento_master ADD COLUMN origem TEXT")
     except sqlite3.OperationalError:
         pass
 

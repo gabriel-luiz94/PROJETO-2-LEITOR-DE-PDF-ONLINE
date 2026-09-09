@@ -16,10 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const OPERACOES = ['I', '*I', 'R', '*R', 'M', '*M'];
 
     let extractedDataCache = [];
-    // tableStates: data é array de { entidade, operacao, ativo }
     const tableStates = {
         cabos: { bodyId: 'body-cabos', data: [] },
-        outros: { bodyId: 'body-outros', data: [] }
+        outros: { bodyId: 'body-outros', data: [] },
+        totalizadora: { bodyId: 'body-totalizadora', data: [] },
+        regras: { bodyId: 'body-regras', data: [] }
     };
 
     /* ─── Column filters ─── */
@@ -1225,8 +1226,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // ou um snap direto {cabos:[...], outros:[...]}
         const cabosData  = Array.isArray(snap.cabos)  ? snap.cabos  : (snap.cabos  && snap.cabos.data  ? snap.cabos.data  : null);
         const outrosData = Array.isArray(snap.outros) ? snap.outros : (snap.outros && snap.outros.data ? snap.outros.data : null);
+        const totData    = Array.isArray(snap.totalizadora) ? snap.totalizadora : (snap.totalizadora && snap.totalizadora.data ? snap.totalizadora.data : null);
 
-        if (!cabosData && !outrosData) {
+        if (!cabosData && !outrosData && !totData) {
             showToast("Dados da obra inválidos.");
             return;
         }
@@ -1234,9 +1236,18 @@ document.addEventListener('DOMContentLoaded', () => {
         pushHistory();  // snapshot ANTES de substituir
         tableStates.cabos.data  = (cabosData  || []).map(deepClone);
         tableStates.outros.data = (outrosData || []).map(deepClone);
+        
+        if (totData) {
+            tableStates.totalizadora.data = totData.map(r => JSON.parse(JSON.stringify(r)));
+        } else {
+            tableStates.totalizadora.data = [];
+        }
+
         recalcAllQtdAtivos();
         renderTable('cabos');
         renderTable('outros');
+        if (window.renderTotalizadora) window.renderTotalizadora();
+        
         buildAtivoSets();
         buildDataLists();
         refreshAllFilters('cabos');
@@ -1778,9 +1789,59 @@ document.addEventListener('DOMContentLoaded', () => {
             const projVal = selectProj ? selectProj.value : "";
             const projCode = selectProj && selectProj.selectedIndex >= 0 ? selectProj.options[selectProj.selectedIndex].dataset.codigo : "";
             
+            let payloadCabos = [];
+            let payloadOutros = [];
+
+            // Se estivermos no modo padrão (Cabos e Postes), atualiza a totalizadora silenciosamente antes
+            const radioPadrao = document.querySelector('input[name="view_mode"][value="padrao"]');
+            if (radioPadrao && radioPadrao.checked) {
+                await syncTotalizadora(false);
+            }
+            
+            // Agora, INVARIAVELMENTE, constrói o payload a partir da Totalizadora
+            tableStates.totalizadora.data.forEach(item => {
+                if (!item) return;
+                
+                let qStr = item.qtd;
+                if (qStr === '' || qStr === null || qStr === undefined || parseFloat(qStr) === 0) {
+                    return; // Ignora itens com quantidade vazia ou zerada no cálculo do orçamento
+                }
+
+                let operacao = item.operacao || 'I';
+                
+                // Reconstruir o campo "ativo"
+                let ativoFinal = item.ativo;
+                
+                if (typeof qStr === 'number' && qStr < 0) {
+                    qStr = '*' + Math.abs(qStr);
+                } else if (typeof qStr === 'string' && qStr.startsWith('-')) {
+                    qStr = '*' + qStr.substring(1);
+                }
+
+                if (item.origem === 'CABOS') {
+                    // Backend espera: [Nome] [Fases] [Comprimento]. Enviamos o nome e a qtd (comprimento)
+                    ativoFinal = `${item.ativo} 1 ${item.qtd}`; 
+                } else {
+                    // Ex: 4-TERRA3 ou *1-TERRA3 para negativos
+                    ativoFinal = `${qStr}-${item.ativo}`;
+                }
+
+                const obj = {
+                    entidade: item.obs || '0',
+                    operacao: operacao,
+                    ativo: ativoFinal
+                };
+
+                if (item.origem === 'CABOS') {
+                    payloadCabos.push(obj);
+                } else {
+                    payloadOutros.push(obj);
+                }
+            });
+
             const payload = {
-                cabos: tableStates.cabos.data.filter(r => r !== null),
-                outros: tableStates.outros.data.filter(r => r !== null),
+                cabos: payloadCabos,
+                outros: payloadOutros,
                 projeto: projVal
             };
             
@@ -2370,6 +2431,697 @@ window.copyRamaisTable = function() {
             setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1800);
         }
     }).catch(() => alert('Não foi possível copiar. Use Ctrl+C manualmente.'));
+};
+
+/* ═══════════════════════════════════════
+   TABELA TOTALIZADORA
+═══════════════════════════════════════ */
+window.toggleViewMode = function() {
+    const isPadrao = document.querySelector('input[name="view_mode"][value="padrao"]').checked;
+    const viewPadrao = document.getElementById('view-padrao');
+    const viewTotalizadora = document.getElementById('view-totalizadora');
+    const btnGerar = document.getElementById('btn-gerar-totalizadora');
+
+    if (isPadrao) {
+        viewPadrao.classList.remove('hidden');
+        viewTotalizadora.classList.add('hidden');
+        btnGerar.style.display = 'none';
+    } else {
+        viewPadrao.classList.add('hidden');
+        viewTotalizadora.classList.remove('hidden');
+        btnGerar.style.display = 'inline-block';
+        
+        carregarRegras();
+        // Se a totalizadora estiver vazia, preencher automaticamente
+        if (tableStates.totalizadora.data.length === 0) {
+            syncTotalizadora(false);
+        }
+    }
+};
+
+/* ═══════════════════════════════════════
+   TABELA DE REGRAS DE CONVERSÃO
+═══════════════════════════════════════ */
+window.toggleRegras = function() {
+    const content = document.getElementById('regras-content');
+    const icon = document.getElementById('regras-toggle-icon');
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        icon.textContent = '▲ Ocultar';
+    } else {
+        content.classList.add('hidden');
+        icon.textContent = '▼ Mostrar';
+    }
+};
+
+window.carregarRegras = function() {
+    try {
+        const projCode = localStorage.getItem('projeto_selecionado_codigo') || 'DEFAULT';
+        const key = `regras_orcamento_${projCode}`;
+        const saved = localStorage.getItem(key);
+        if (saved) {
+            tableStates.regras.data = JSON.parse(saved);
+        } else {
+            const legacy = localStorage.getItem('regras_orcamento');
+            if (legacy && projCode === 'DEFAULT') {
+                tableStates.regras.data = JSON.parse(legacy);
+            } else {
+                tableStates.regras.data = [{
+                    origem: 'CABOS', op_de: '', ativo_de: '',
+                    op_para: '', ativo_para: '', fator: 1.05,
+                    arredondamento: 'NORMAL', val_min: '', val_max: ''
+                }];
+            }
+        }
+        renderRegrasTable();
+    } catch (e) {
+        console.error("Erro ao carregar regras", e);
+    }
+};
+
+window.salvarRegras = function() {
+    const projCode = localStorage.getItem('projeto_selecionado_codigo') || 'DEFAULT';
+    localStorage.setItem(`regras_orcamento_${projCode}`, JSON.stringify(tableStates.regras.data));
+};
+
+window.exportarRegrasCSV = function() {
+    if (!tableStates.regras.data || tableStates.regras.data.length === 0) {
+        alert("Nenhuma regra para exportar.");
+        return;
+    }
+    const headers = ["ORIGEM", "OP_DE", "ATIVO_DE", "OP_PARA", "ATIVO_PARA", "FATOR", "ARREDONDAMENTO", "VAL_MIN", "VAL_MAX"];
+    const rows = tableStates.regras.data.map(r => [
+        r.origem || "", r.op_de || "", r.ativo_de || "", r.op_para || "", r.ativo_para || "",
+        r.fator !== undefined && r.fator !== null ? String(r.fator).replace(".", ",") : "",
+        r.arredondamento || "", r.val_min || "", r.val_max || ""
+    ]);
+    
+    let csvContent = headers.join(";") + "\n";
+    rows.forEach(row => {
+        csvContent += row.map(v => `"${v}"`).join(";") + "\n";
+    });
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const projCode = localStorage.getItem('projeto_selecionado_codigo') || 'DEFAULT';
+    link.setAttribute("href", url);
+    link.setAttribute("download", `regras_${projCode}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+window.importarRegrasCSV = function(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.split("\n").filter(l => l.trim() !== "");
+        if (lines.length < 2) {
+            alert("O arquivo não possui regras válidas.");
+            return;
+        }
+        
+        const newRegras = [];
+        for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(";").map(c => c.replace(/^"|"$/g, "").trim());
+            if (cols.length >= 9) {
+                newRegras.push({
+                    origem: cols[0],
+                    op_de: cols[1],
+                    ativo_de: cols[2],
+                    op_para: cols[3],
+                    ativo_para: cols[4],
+                    fator: parseFloat(cols[5].replace(",", ".")) || 1.0,
+                    arredondamento: cols[6] || "NORMAL",
+                    val_min: cols[7],
+                    val_max: cols[8]
+                });
+            }
+        }
+        
+        if (newRegras.length > 0) {
+            tableStates.regras.data = newRegras;
+            salvarRegras();
+            renderRegrasTable();
+            alert("Regras importadas com sucesso!");
+        } else {
+            alert("Nenhuma regra pôde ser importada. Verifique o formato.");
+        }
+        input.value = ""; // limpa o input
+    };
+    reader.readAsText(file, "utf-8");
+};
+
+window.renderRegrasTable = function() {
+    const tbody = document.getElementById('body-regras');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    tableStates.regras.data.forEach((r, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <select class="tot-input" onchange="updateRegraRow(${index}, 'origem', this.value)">
+                    <option value="" ${r.origem === '' ? 'selected' : ''}>Qqlr</option>
+                    <option value="CABOS" ${r.origem === 'CABOS' ? 'selected' : ''}>CABOS</option>
+                    <option value="OUTROS" ${r.origem === 'OUTROS' ? 'selected' : ''}>OUTROS</option>
+                </select>
+            </td>
+            <td><input type="text" class="tot-input" placeholder="Qqlr" value="${r.op_de || ''}" onchange="updateRegraRow(${index}, 'op_de', this.value)"></td>
+            <td><input type="text" class="tot-input" placeholder="Qqlr" value="${r.ativo_de || ''}" onchange="updateRegraRow(${index}, 'ativo_de', this.value)"></td>
+            <td><input type="text" class="tot-input" placeholder="Manter" value="${r.op_para || ''}" onchange="updateRegraRow(${index}, 'op_para', this.value)"></td>
+            <td><input type="text" class="tot-input" placeholder="Manter" value="${r.ativo_para || ''}" onchange="updateRegraRow(${index}, 'ativo_para', this.value)"></td>
+            <td><input type="number" step="0.01" class="tot-input" value="${r.fator || 1}" onchange="updateRegraRow(${index}, 'fator', this.value)"></td>
+            <td>
+                <select class="tot-input" onchange="updateRegraRow(${index}, 'arredondamento', this.value)">
+                    <option value="NORMAL" ${r.arredondamento === 'NORMAL' ? 'selected' : ''}>NORMAL</option>
+                    <option value="PARA CIMA" ${r.arredondamento === 'PARA CIMA' ? 'selected' : ''}>CIMA</option>
+                    <option value="PARA BAIXO" ${r.arredondamento === 'PARA BAIXO' ? 'selected' : ''}>BAIXO</option>
+                    <option value="INTEIRO" ${r.arredondamento === 'INTEIRO' ? 'selected' : ''}>INTEIRO</option>
+                </select>
+            </td>
+            <td><input type="number" step="0.01" class="tot-input" placeholder="-" value="${r.val_min !== '' && r.val_min != null ? r.val_min : ''}" onchange="updateRegraRow(${index}, 'val_min', this.value)"></td>
+            <td><input type="number" step="0.01" class="tot-input" placeholder="-" value="${r.val_max !== '' && r.val_max != null ? r.val_max : ''}" onchange="updateRegraRow(${index}, 'val_max', this.value)"></td>
+            <td style="text-align: center;">
+                <button class="btn-primary" style="background-color: transparent; border: none; color: #f85149; padding: 4px;" onclick="excluirRegra(${index})" title="Excluir">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+};
+
+window.adicionarRegra = function() {
+    tableStates.regras.data.push({
+        origem: '', op_de: '', ativo_de: '',
+        op_para: '', ativo_para: '', fator: 1,
+        arredondamento: 'NORMAL', val_min: '', val_max: ''
+    });
+    salvarRegras();
+    renderRegrasTable();
+};
+
+window.excluirRegra = function(index) {
+    tableStates.regras.data.splice(index, 1);
+    salvarRegras();
+    renderRegrasTable();
+};
+
+window.updateRegraRow = function(index, field, value) {
+    if (tableStates.regras.data[index]) {
+        if (field === 'fator' || field === 'val_min' || field === 'val_max') {
+            if (value === '') {
+                value = '';
+            } else {
+                value = parseFloat(value);
+                if (isNaN(value)) value = field === 'fator' ? 1 : '';
+            }
+        } else if (field === 'origem' || field === 'op_de' || field === 'ativo_de' || field === 'op_para' || field === 'ativo_para') {
+            value = value.toUpperCase().trim();
+        }
+        tableStates.regras.data[index][field] = value;
+        salvarRegras();
+    }
+};
+
+let orcamentoBaseData = [];
+
+window.syncTotalizadora = async function(forceUpdate = true) {
+    if (tableStates.regras.data.length === 0) {
+        carregarRegras();
+    }
+
+    if (forceUpdate && tableStates.totalizadora.data.length > 0) {
+        if (!confirm("Isso irá apagar todas as edições manuais feitas na Tabela Totalizadora e puxar os dados novamente das tabelas Cabos e Outros. Deseja continuar?")) {
+            return;
+        }
+    }
+
+    const btnGerar = document.getElementById('btn-gerar-totalizadora');
+    const originalText = btnGerar ? btnGerar.textContent : '';
+    if (btnGerar) btnGerar.textContent = 'Carregando Base...';
+
+    // Carregar a base técnica caso não tenha carregado
+    if (orcamentoBaseData.length === 0) {
+        try {
+            const res = await fetch('/api/orcamento/dados');
+            const data = await res.json();
+            orcamentoBaseData = data.dados || [];
+        } catch(e) {
+            console.error("Erro ao carregar base de orçamento", e);
+        }
+    }
+
+    if (btnGerar) btnGerar.textContent = originalText;
+
+    function buscarDescricao(ativoNome) {
+        const ativoUpper = (ativoNome || '').trim().toUpperCase();
+        const row = orcamentoBaseData.find(r => (r.ativo || '').toUpperCase() === ativoUpper || (r.codigo || '').toUpperCase() === ativoUpper);
+        if (row) {
+            return row.desc_ativo || row.componente || row.desc_codigo || '';
+        }
+        return '';
+    }
+
+    const rawItems = [];
+    let baseIdCounter = 1;
+
+    // Processar Cabos
+    const cabosData = tableStates.cabos.data;
+    for (let idx = 0; idx < cabosData.length; idx++) {
+        const item = cabosData[idx];
+        if (!item) continue;
+        const currentBaseId = baseIdCounter++;
+        let q = 1;
+        let at = item.ativo;
+        const m1 = item.ativo.match(/([\d\.,]+)\s*m\s*\|\s*(.*)/i);
+        if (m1) {
+            q = parseFloat(m1[1].replace(',', '.'));
+            at = m1[2].trim();
+        } else {
+            const m2 = item.ativo.match(/(.+?)\s+([\d\.,]+)\s*m$/i);
+            if (m2) {
+                q = parseFloat(m2[2].replace(',', '.'));
+                at = m2[1].trim();
+            } else {
+                // Tenta herdar comprimento da próxima linha para casos standalone (ex: P 50)
+                if (typeof isStandaloneLine === 'function' && isStandaloneLine(item.ativo)) {
+                    if (idx + 1 < cabosData.length) {
+                        const nextItem = cabosData[idx + 1];
+                        if (nextItem && nextItem.ativo) {
+                            const nextM1 = nextItem.ativo.match(/([\d\.,]+)\s*m\s*\|\s*(.*)/i);
+                            const nextM2 = nextItem.ativo.match(/(.+?)\s+([\d\.,]+)\s*m$/i);
+                            if (nextM1) q = parseFloat(nextM1[1].replace(',', '.'));
+                            else if (nextM2) q = parseFloat(nextM2[2].replace(',', '.'));
+                        }
+                    }
+                }
+            }
+        }
+        
+        let formatado = at.toUpperCase().replace("CAA ", "CAA").replace("CA ", "CA").replace("CU ", "CU").replace("CAZ ", "CAZ").replace("P ", "P");
+        let parts = formatado.trim().split(/\s+/);
+        let baseAtivo = parts[0] || at;
+        let desc = buscarDescricao(baseAtivo);
+
+        let iteracoes = 1;
+        if (item.qtdAtivos) {
+            let parsedQtd = parseFloat(item.qtdAtivos);
+            if (!isNaN(parsedQtd) && parsedQtd > 0) {
+                iteracoes = Math.floor(parsedQtd); // Tratar como linhas separadas
+            }
+        }
+
+        for (let i = 0; i < iteracoes; i++) {
+            rawItems.push({
+                baseId: `TOT-${currentBaseId}`,
+                obs: item.entidade,
+                operacao: item.operacao || 'I',
+                ativo: baseAtivo,
+                qtd: q,
+                desc: desc,
+                origem: 'CABOS'
+            });
+        }
+    }
+
+    // Processar Outros
+    tableStates.outros.data.forEach(item => {
+        if (!item) return;
+        const currentBaseId = baseIdCounter++;
+        
+        const parts = item.ativo.split(/\s+/);
+
+        parts.forEach(p => {
+            if (!p.trim()) return;
+            let q = 1;
+            let aName = p.trim();
+            const m = p.match(/^([\*\-]?\d+(?:\.\d+)?)[Xx\-](.+)$/i);
+            if (m) {
+                let qStr = m[1];
+                let isNegative = false;
+                if (qStr.startsWith('*') || qStr.startsWith('-')) {
+                    isNegative = true;
+                    qStr = qStr.substring(1);
+                }
+                q = parseFloat(qStr);
+                if (isNegative) q = -q;
+                aName = m[2].trim();
+            }
+            
+            let desc = buscarDescricao(aName);
+
+            rawItems.push({
+                baseId: `TOT-${currentBaseId}`,
+                obs: item.entidade,
+                operacao: item.operacao || 'I',
+                ativo: aName,
+                qtd: q,
+                desc: desc, 
+                origem: 'OUTROS'
+            });
+        });
+    });
+
+    // MOTOR DE REGRAS
+    const newData = [];
+    const regras = tableStates.regras.data;
+
+    rawItems.forEach(item => {
+        let matchEncontrado = false;
+        
+        regras.forEach(rule => {
+            const ruleOrigem = (rule.origem || '').trim().toUpperCase();
+            const ruleOp = (rule.op_de || '').trim().toUpperCase();
+            const ruleAtivo = (rule.ativo_de || '').trim().toUpperCase();
+
+            // Verifica se a regra se aplica ao item
+            let applies = true;
+            if (ruleOrigem !== '' && ruleOrigem !== item.origem) applies = false;
+            if (ruleOp !== '' && ruleOp !== item.operacao) applies = false;
+            if (ruleAtivo !== '' && ruleAtivo !== item.ativo) applies = false;
+
+            if (applies) {
+                matchEncontrado = true;
+                
+                // Aplica a regra
+                let newOp = rule.op_para ? rule.op_para.trim().toUpperCase() : item.operacao;
+                let newAtivo = rule.ativo_para ? rule.ativo_para.trim().toUpperCase() : item.ativo;
+                
+                let newQtd = item.qtd;
+                let fator = parseFloat(rule.fator);
+                if (!isNaN(fator)) newQtd = newQtd * fator;
+                
+                const arr = rule.arredondamento;
+                if (arr === 'PARA CIMA') newQtd = Math.ceil(newQtd);
+                else if (arr === 'PARA BAIXO') newQtd = Math.floor(newQtd);
+                else if (arr === 'INTEIRO') newQtd = Math.round(newQtd);
+                else newQtd = Math.round(newQtd * 100) / 100; // NORMAL (duas casas)
+                
+                if (rule.val_min !== '' && rule.val_min != null) {
+                    const min = parseFloat(rule.val_min);
+                    if (!isNaN(min) && newQtd < min) newQtd = min;
+                }
+                if (rule.val_max !== '' && rule.val_max != null) {
+                    const max = parseFloat(rule.val_max);
+                    if (!isNaN(max) && newQtd > max) newQtd = max;
+                }
+                
+                newData.push({
+                    id: item.baseId,
+                    obs: item.obs,
+                    operacao: newOp,
+                    ativo: newAtivo,
+                    qtd: newQtd,
+                    desc: buscarDescricao(newAtivo),
+                    origem: item.origem
+                });
+            }
+        });
+        
+        if (!matchEncontrado) {
+            // Se nenhuma regra se aplicar, passa o item adiante 1 pra 1
+            item.id = item.baseId;
+            newData.push(item);
+        }
+    });
+
+    tableStates.totalizadora.data = newData;
+    renderTotalizadora();
+    showToast("Tabela Totalizadora atualizada!");
+};
+
+window.renderTotalizadora = function() {
+    const tbody = document.getElementById('body-totalizadora');
+    const emptyMsg = document.getElementById('tot-empty-msg');
+    
+    tbody.innerHTML = '';
+    
+    if (tableStates.totalizadora.data.length === 0) {
+        emptyMsg.style.display = 'block';
+        return;
+    }
+    
+    emptyMsg.style.display = 'none';
+
+    tableStates.totalizadora.data.forEach((row, index) => {
+        const tr = document.createElement('tr');
+        
+        tr.innerHTML = `
+            <td style="font-weight: bold; color: var(--text-secondary); text-align: center;">${row.id}</td>
+            <td><input type="text" class="tot-input" value="${row.obs || ''}" onchange="updateTotRow(${index}, 'obs', this.value)"></td>
+            <td>
+                <select class="tot-input" style="text-align: center;" onchange="updateTotRow(${index}, 'operacao', this.value)">
+                    ${(typeof OPERACOES !== 'undefined' ? OPERACOES : ['I', 'R', 'M']).map(op => `<option value="${op}" ${row.operacao === op ? 'selected' : ''}>${op}</option>`).join('')}
+                </select>
+            </td>
+            <td><input type="text" class="tot-input tot-ativo-input" value="${row.ativo || ''}" onchange="updateTotRow(${index}, 'ativo', this.value)" onkeydown="handleTotKeydown(event, ${index}, 'ativo')" onpaste="handleTotPaste(event, ${index})"></td>
+            <td><input type="number" step="0.01" class="tot-input" style="width: 70px; text-align: center;" value="${row.qtd !== undefined && row.qtd !== null ? row.qtd : ''}" onchange="updateTotRow(${index}, 'qtd', this.value)" onkeydown="handleTotKeydown(event, ${index}, 'qtd')" onpaste="handleTotPaste(event, ${index})"></td>
+            <td><input type="text" id="tot-desc-${index}" class="tot-input" value="${row.desc || ''}" placeholder="Opcional" onchange="updateTotRow(${index}, 'desc', this.value)"></td>
+            <td>
+                <select class="tot-input" onchange="updateTotRow(${index}, 'origem', this.value)">
+                    <option value="OUTROS" ${row.origem === 'OUTROS' ? 'selected' : ''}>OUTROS</option>
+                    <option value="CABOS" ${row.origem === 'CABOS' ? 'selected' : ''}>CABOS</option>
+                </select>
+            </td>
+            <td style="text-align: center;">
+                <button class="btn-primary" style="background-color: transparent; border: none; color: #f85149; padding: 4px;" onclick="excluirTotRow(${index})" title="Excluir">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+};
+
+window.updateTotRow = async function(index, field, value) {
+    if (tableStates.totalizadora.data[index]) {
+        if (field === 'qtd') {
+            const parsed = parseFloat(value);
+            if (!isNaN(parsed)) {
+                value = parsed;
+            } else if (value === '' || value === '-' || value === '*') {
+                // não força para 1 enquanto o usuário digita
+            } else {
+                value = 1;
+            }
+        }
+        tableStates.totalizadora.data[index][field] = value;
+
+        if (field === 'ativo') {
+            // Garante que a base de orçamentos está carregada
+            if (orcamentoBaseData.length === 0) {
+                try {
+                    const res = await fetch('/api/orcamento/dados');
+                    const data = await res.json();
+                    orcamentoBaseData = data.dados || [];
+                } catch(e) {
+                    console.error("Erro ao carregar base de orçamento", e);
+                }
+            }
+            
+            // Tenta buscar a descrição baseada no ativo
+            const ativoUpper = (value || '').trim().toUpperCase();
+            const row = orcamentoBaseData.find(r => 
+                (r.ativo || '').toUpperCase() === ativoUpper || 
+                (r.componente || '').toUpperCase() === ativoUpper ||
+                (r.codigo || '').toUpperCase() === ativoUpper
+            );
+            
+            if (row) {
+                let desc = '';
+                if ((row.codigo || '').toUpperCase() === ativoUpper) {
+                    desc = row.desc_codigo || '';
+                } else {
+                    desc = row.desc_ativo || '';
+                }
+                
+                tableStates.totalizadora.data[index].desc = desc;
+                
+                // Atualiza visualmente o input de descrição sem dar re-render na tabela para não perder o foco atual do usuário
+                const descInput = document.getElementById(`tot-desc-${index}`);
+                if (descInput) {
+                    descInput.value = desc;
+                }
+            }
+        }
+    }
+};
+
+window.excluirTotRow = function(index) {
+    tableStates.totalizadora.data.splice(index, 1);
+    renderTotalizadora();
+};
+
+window.adicionarLinhaTotalizadora = function() {
+    let nextIdNumber = 1;
+    tableStates.totalizadora.data.forEach(r => {
+        const m = r.id.match(/TOT-(\d+)/);
+        if (m) {
+            const num = parseInt(m[1], 10);
+            if (num >= nextIdNumber) nextIdNumber = num + 1;
+        }
+    });
+
+    tableStates.totalizadora.data.push({
+        id: `TOT-${nextIdNumber}`,
+        obs: '0',
+        operacao: 'I',
+        ativo: '',
+        qtd: 1,
+        desc: '',
+        origem: 'OUTROS'
+    });
+    renderTotalizadora();
+};
+
+window.handleTotKeydown = function(e, index, field = 'ativo') {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        
+        if (field === 'qtd' && index + 1 < tableStates.totalizadora.data.length) {
+            // Apenas move o foco para a quantidade da linha de baixo
+            const nextRowTr = document.getElementById('body-totalizadora').children[index + 1];
+            if (nextRowTr) {
+                const nextInput = nextRowTr.querySelector('input[type="number"]');
+                if (nextInput) {
+                    nextInput.focus();
+                    nextInput.select();
+                }
+            }
+            return;
+        }
+
+        let nextIdNumber = 1;
+        tableStates.totalizadora.data.forEach(r => {
+            const m = r.id.match(/TOT-(\d+)/);
+            if (m) {
+                const num = parseInt(m[1], 10);
+                if (num >= nextIdNumber) nextIdNumber = num + 1;
+            }
+        });
+        
+        const newRow = {
+            id: `TOT-${nextIdNumber}`,
+            obs: '0',
+            operacao: 'I',
+            ativo: '',
+            qtd: 1,
+            desc: '',
+            origem: 'OUTROS'
+        };
+        
+        tableStates.totalizadora.data.splice(index + 1, 0, newRow);
+        renderTotalizadora();
+        
+        setTimeout(() => {
+            const newRowTr = document.getElementById('body-totalizadora').children[index + 1];
+            if (newRowTr) {
+                const selector = field === 'ativo' ? '.tot-ativo-input' : 'input[type="number"]';
+                const newInputs = newRowTr.querySelectorAll(selector);
+                if (newInputs && newInputs.length > 0) newInputs[0].focus();
+            }
+        }, 50);
+    } else if (e.key === 'Delete') {
+        if (field === 'qtd') {
+            e.preventDefault();
+            e.target.value = '';
+            updateTotRow(index, 'qtd', '');
+        } else if (e.target.value === '') {
+            e.preventDefault();
+            excluirTotRow(index);
+        }
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const nextIndex = e.key === 'ArrowUp' ? index - 1 : index + 1;
+        if (nextIndex >= 0 && nextIndex < tableStates.totalizadora.data.length) {
+            const nextRowTr = document.getElementById('body-totalizadora').children[nextIndex];
+            if (nextRowTr) {
+                const selector = field === 'ativo' ? '.tot-ativo-input' : 'input[type="number"]';
+                const nextInput = nextRowTr.querySelector(selector);
+                if (nextInput) {
+                    nextInput.focus();
+                    nextInput.select();
+                }
+            }
+        }
+    }
+};
+
+window.handleTotPaste = function(e, index) {
+    const paste = (e.clipboardData || window.clipboardData).getData('text');
+    if (!paste) return;
+    
+    const lines = paste.split(/\r?\n/).filter(line => line.trim() !== '');
+    if (lines.length === 0) return;
+    
+    const hasMultipleColumns = lines[0].includes('\t');
+    if (lines.length <= 1 && !hasMultipleColumns) return;
+    
+    e.preventDefault();
+    
+    let currentIndex = index;
+    
+    for (let i = 0; i < lines.length; i++) {
+        let ativo = lines[i].trim();
+        let qtd = "";
+        
+        if (ativo.includes('\t')) {
+            const cols = lines[i].split('\t');
+            ativo = cols[0].trim();
+            qtd = cols.length > 1 ? cols[1].trim() : "";
+        }
+        
+        if (i === 0) {
+            e.target.value = ativo;
+            updateTotRow(index, 'ativo', ativo);
+            if (qtd !== "") {
+                updateTotRow(index, 'qtd', qtd);
+                // Also update the input visually if the event target was not the qtd field
+                const rowTr = document.getElementById('body-totalizadora').children[index];
+                if (rowTr) {
+                    const qtdInput = rowTr.querySelector('input[type="number"]');
+                    if (qtdInput) qtdInput.value = qtd;
+                }
+            }
+        } else {
+            let nextIdNumber = 1;
+            tableStates.totalizadora.data.forEach(r => {
+                const m = r.id.match(/TOT-(\d+)/);
+                if (m) {
+                    const num = parseInt(m[1], 10);
+                    if (num >= nextIdNumber) nextIdNumber = num + 1;
+                }
+            });
+            
+            const newRow = {
+                baseId: `TOT-${nextIdNumber}`,
+                id: `TOT-${nextIdNumber}`,
+                obs: '0',
+                operacao: 'I',
+                ativo: ativo,
+                qtd: qtd !== "" ? qtd : "",
+                desc: '',
+                origem: 'OUTROS'
+            };
+            
+            tableStates.totalizadora.data.splice(currentIndex + 1, 0, newRow);
+            currentIndex++;
+        }
+    }
+    
+    renderTotalizadora();
+    
+    // Processa a busca das descrições das linhas inseridas
+    for (let i = 0; i < lines.length; i++) {
+        const rowAtivo = tableStates.totalizadora.data[index + i].ativo;
+        updateTotRow(index + i, 'ativo', rowAtivo);
+    }
 };
 
 }); // end DOMContentLoaded

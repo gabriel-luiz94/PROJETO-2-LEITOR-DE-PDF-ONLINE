@@ -391,16 +391,17 @@
                             <th style="width: 130px;">COMPONENTE<br><input type="text" class="col-filter" data-col="2" placeholder="Filtro..." onkeyup="filterTable()"></th>
                             <th style="width: 90px;">PROJETO<br><input type="text" class="col-filter" data-col="3" placeholder="Filtro..." onkeyup="filterTable()"></th>
                             <th style="width: 120px;">MDO<br><input type="text" class="col-filter" data-col="4" placeholder="Filtro..." onkeyup="filterTable()"></th>
-                            <th style="width: 100px;">CÓDIGO<br><input type="text" class="col-filter" data-col="5" placeholder="Filtro..." onkeyup="filterTable()"></th>
-                            <th>DESC CÓDIGO<br><input type="text" class="col-filter" data-col="6" placeholder="Filtro..." onkeyup="filterTable()"></th>
-                            <th style="width: 75px;">FATOR I<br><input type="text" class="col-filter" data-col="7" placeholder="Filtro..." onkeyup="filterTable()"></th>
-                            <th style="width: 75px;">FATOR R<br><input type="text" class="col-filter" data-col="8" placeholder="Filtro..." onkeyup="filterTable()"></th>
-                            <th style="width: 85px;">FILTRO<br><input type="text" class="col-filter" data-col="9" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th style="width: 80px;">ORIGEM<br><input type="text" class="col-filter" data-col="5" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th style="width: 100px;">CÓDIGO<br><input type="text" class="col-filter" data-col="6" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th>DESC CÓDIGO<br><input type="text" class="col-filter" data-col="7" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th style="width: 75px;">FATOR I<br><input type="text" class="col-filter" data-col="8" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th style="width: 75px;">FATOR R<br><input type="text" class="col-filter" data-col="9" placeholder="Filtro..." onkeyup="filterTable()"></th>
+                            <th style="width: 85px;">FILTRO<br><input type="text" class="col-filter" data-col="10" placeholder="Filtro..." onkeyup="filterTable()"></th>
                             <th style="width: 50px; text-align: center;">AÇÃO</th>
                         </tr>
                     </thead>
                     <tbody id="orcamento-tbody">
-                        <tr><td colspan="11" style="text-align:center; padding:35px; color:var(--text-secondary);">Carregando dados da tabela base...</td></tr>
+                        <tr><td colspan="12" style="text-align:center; padding:35px; color:var(--text-secondary);">Carregando dados da tabela base...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -458,6 +459,7 @@
                             `<td><input type="text" class="cell-input" value="${r.componente || ''}"></td>` +
                             `<td><input type="text" class="cell-input" value="${r.projeto || ''}"></td>` +
                             `<td><input type="text" class="cell-input" value="${r.mdo || ''}"></td>` +
+                            `<td><input type="text" class="cell-input" value="${r.origem || ''}"></td>` +
                             `<td><input type="text" class="cell-input" value="${r.codigo || ''}"></td>` +
                             `<td><input type="text" class="cell-input" value="${r.desc_codigo || ''}"></td>` +
                             `<td><input type="number" step="0.01" class="cell-input" value="${r.fator_i !== null ? r.fator_i : ''}"></td>` +
@@ -467,7 +469,7 @@
                         tbody.appendChild(tr);
                     });
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhuma tabela base carregada. Clique em "Importar CSV Local" para carregar.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhuma tabela base carregada. Clique em "Importar CSV Local" para carregar.</td></tr>';
                 }
             } catch(e) { 
                 console.error(e); 
@@ -537,6 +539,7 @@
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
+                <td><input type="text" class="cell-input"></td>
                 <td><input type="number" step="0.01" class="cell-input"></td>
                 <td><input type="number" step="0.01" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
@@ -550,6 +553,7 @@
             tr.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
             tr.innerHTML = `
                 <td><input type="text" class="cell-input" placeholder="Novo Master"></td>
+                <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
@@ -573,11 +577,12 @@
                 componente: inputs[2].value,
                 projeto: inputs[3].value,
                 mdo: inputs[4].value,
-                codigo: inputs[5].value,
-                desc_codigo: inputs[6].value,
-                fator_i: inputs[7].value ? parseFloat(inputs[7].value) : 0,
-                fator_r: inputs[8].value ? parseFloat(inputs[8].value) : 0,
-                filtro: inputs[9].value
+                origem: inputs[5].value,
+                codigo: inputs[6].value,
+                desc_codigo: inputs[7].value,
+                fator_i: inputs[8].value ? parseFloat(inputs[8].value) : 0,
+                fator_r: inputs[9].value ? parseFloat(inputs[9].value) : 0,
+                filtro: inputs[10].value
             };
 
             const token = localStorage.getItem('auth_token');
@@ -614,11 +619,11 @@
             const trs = Array.from(tbody.querySelectorAll("tr"));
             const dados = trs.map(tr => {
                 const inputs = tr.querySelectorAll('.cell-input');
-                if (inputs.length < 10) return null;
+                if (inputs.length < 11) return null;
                 return {
                     ativo: inputs[0].value, desc_ativo: inputs[1].value, componente: inputs[2].value,
-                    projeto: inputs[3].value, mdo: inputs[4].value, codigo: inputs[5].value,
-                    desc_codigo: inputs[6].value, fator_i: inputs[7].value, fator_r: inputs[8].value, filtro: inputs[9].value
+                    projeto: inputs[3].value, mdo: inputs[4].value, origem: inputs[5].value, codigo: inputs[6].value,
+                    desc_codigo: inputs[7].value, fator_i: inputs[8].value, fator_r: inputs[9].value, filtro: inputs[10].value
                 };
             }).filter(d => d);
             
@@ -653,11 +658,11 @@
             const trs = Array.from(tbody.querySelectorAll("tr"));
             const dados = trs.map(tr => {
                 const inputs = tr.querySelectorAll('.cell-input');
-                if (inputs.length < 10) return null;
+                if (inputs.length < 11) return null;
                 return {
                     ativo: inputs[0].value, desc_ativo: inputs[1].value, componente: inputs[2].value,
-                    projeto: inputs[3].value, mdo: inputs[4].value, codigo: inputs[5].value,
-                    desc_codigo: inputs[6].value, fator_i: inputs[7].value, fator_r: inputs[8].value, filtro: inputs[9].value
+                    projeto: inputs[3].value, mdo: inputs[4].value, origem: inputs[5].value, codigo: inputs[6].value,
+                    desc_codigo: inputs[7].value, fator_i: inputs[8].value, fator_r: inputs[9].value, filtro: inputs[10].value
                 };
             }).filter(d => d);
             

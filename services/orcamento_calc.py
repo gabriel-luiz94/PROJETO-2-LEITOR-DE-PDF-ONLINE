@@ -97,10 +97,11 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
         else:
             multiplicador = fases
             
-        # Adiciona a margem de 5% sobre a quantidade processada (comprimento * multiplicador)
-        qtd_final = (comprimento * multiplicador) * 1.05
+        # Calcula a quantidade final processada (comprimento * multiplicador). 
+        # A margem de perdas (ex: +5%) agora é gerida pela Tabela de Regras no frontend.
+        qtd_final = comprimento * multiplicador
         
-        ativos_qtd.append({"ativo": nome_ativo, "qtd": qtd_final, "operacao": operacao})
+        ativos_qtd.append({"ativo": nome_ativo, "qtd": qtd_final, "operacao": operacao, "origem": "CABOS"})
 
     # 2b. OUTROS: texto separado por espaços no modelo "[qtd]-[ativo] [qtd]-[ativo] ..."
     for item in req_outros:
@@ -125,7 +126,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             except ValueError:
                 qtd = 1.0
             nome_str = tokens[i + 1].upper()
-            ativos_qtd.append({"ativo": nome_str, "qtd": qtd, "operacao": operacao})
+            ativos_qtd.append({"ativo": nome_str, "qtd": qtd, "operacao": operacao, "origem": "OUTROS"})
             i += 2
 
     # ── 3. Cross-reference: Ativo → 1º match → Componente → todos os Códigos ─
@@ -171,27 +172,33 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
 
     for av in ativos_qtd:
         nome_ativo = av["ativo"]
-        linhas_ativo = orcamento_dict.get(nome_ativo, [])
+        origem_req = av.get("origem", "").upper()
+
+        def _matches_origem(row):
+            row_origem = (row.get("origem") or "").strip().upper()
+            return not row_origem or row_origem == origem_req
+
+        linhas_ativo = [r for r in orcamento_dict.get(nome_ativo, []) if _matches_origem(r)]
 
         if not linhas_ativo:
             # ── Passo 2: busca por COMPONENTE exato ─────────────────────────
             if nome_ativo in componente_dict:
-                linhas_ativo = componente_dict[nome_ativo]
+                linhas_ativo = [r for r in componente_dict[nome_ativo] if _matches_origem(r)]
 
         if not linhas_ativo:
             # ── Passo 3: busca por DESC_ATIVO exato ─────────────────────────
             if nome_ativo in desc_ativo_index:
-                linhas_ativo = desc_ativo_index[nome_ativo]
+                linhas_ativo = [r for r in desc_ativo_index[nome_ativo] if _matches_origem(r)]
 
         if not linhas_ativo:
             # ── Passo 4: busca parcial em DESC_ATIVO (nome_ativo contido na desc) ─
             matches = [rows for desc, rows in desc_ativo_index.items() if nome_ativo in desc]
             if matches:
-                linhas_ativo = matches[0]  # Usa o primeiro match parcial
+                linhas_ativo = [r for r in matches[0] if _matches_origem(r)]
 
         if not linhas_ativo:
             # ── Passo 5: busca como CÓDIGO direto ───────────────────────────
-            if nome_ativo in codigo_lookup:
+            if nome_ativo in codigo_lookup and _matches_origem(codigo_lookup[nome_ativo]):
                 row_clone = dict(codigo_lookup[nome_ativo])
                 row_clone["fator_i"] = 1.0
                 row_clone["fator_r"] = 1.0
@@ -209,9 +216,9 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
         if not componente:
             continue
 
-        # Agora busca TODOS os códigos desse componente
+        # Agora busca TODOS os códigos desse componente filtrados pela origem
         # Para cada código, garante que a row escolhida tem mdo preenchido (se existir)
-        linhas_componente = componente_dict.get(componente, [])
+        linhas_componente = [r for r in componente_dict.get(componente, []) if _matches_origem(r)]
         
         # Agrupa linhas por codigo, priorizando as que têm mdo não-vazio
         melhor_row_por_codigo = {}

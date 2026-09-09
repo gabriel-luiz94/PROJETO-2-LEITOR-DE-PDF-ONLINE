@@ -45,6 +45,7 @@ class MasterRowCreate(BaseModel):
     fator_i: float = 0.0
     fator_r: float = 0.0
     filtro: str = ""
+    origem: str = ""
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -323,8 +324,8 @@ def add_master_row(req: MasterRowCreate, request: Request):
     cur = conn.cursor()
     cur.execute('''
         INSERT INTO tabela_orcamento_master 
-        (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         req.ativo.strip(),
         req.desc_ativo.strip(),
@@ -335,7 +336,8 @@ def add_master_row(req: MasterRowCreate, request: Request):
         req.desc_codigo.strip(),
         req.fator_i,
         req.fator_r,
-        req.filtro.strip()
+        req.filtro.strip(),
+        req.origem.strip() if hasattr(req, 'origem') and req.origem else ""
     ))
     conn.commit()
     row_id = cur.lastrowid
@@ -354,7 +356,8 @@ def add_master_row(req: MasterRowCreate, request: Request):
                 "desc_codigo": req.desc_codigo.strip(),
                 "fator_i": req.fator_i,
                 "fator_r": req.fator_r,
-                "filtro": req.filtro.strip()
+                "filtro": req.filtro.strip(),
+                "origem": req.origem.strip() if hasattr(req, 'origem') and req.origem else ""
             }).execute()
         except Exception as e:
             logger.warning(f"Erro ao salvar linha master no Supabase: {e}")
@@ -406,18 +409,19 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...)):
                 "desc_codigo": row_upper.get("DESC CODIGO", "").strip(),
                 "fator_i": fator_i,
                 "fator_r": fator_r,
-                "filtro": row_upper.get("FILTRO", "").strip()
+                "filtro": row_upper.get("FILTRO", "").strip(),
+                "origem": row_upper.get("ORIGEM", "").strip()
             }
             rows_to_insert.append(item_dict)
 
             cur.execute('''
                 INSERT INTO tabela_orcamento_master 
-                (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 item_dict["ativo"], item_dict["desc_ativo"], item_dict["componente"],
                 item_dict["projeto"], item_dict["mdo"], item_dict["codigo"],
-                item_dict["desc_codigo"], item_dict["fator_i"], item_dict["fator_r"], item_dict["filtro"]
+                item_dict["desc_codigo"], item_dict["fator_i"], item_dict["fator_r"], item_dict["filtro"], item_dict["origem"]
             ))
 
         conn.commit()

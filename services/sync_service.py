@@ -41,8 +41,8 @@ def sync_tabela_master():
         for row in master_rows:
             cursor.execute('''
                 INSERT INTO tabela_orcamento_master 
-                (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 row.get("ativo", ""),
                 row.get("desc_ativo", ""),
@@ -53,7 +53,8 @@ def sync_tabela_master():
                 row.get("desc_codigo", ""),
                 row.get("fator_i", 0.0),
                 row.get("fator_r", 0.0),
-                row.get("filtro", "")
+                row.get("filtro", ""),
+                row.get("origem", "")
             ))
             
         cursor.execute("COMMIT")
