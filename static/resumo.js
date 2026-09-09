@@ -2331,7 +2331,7 @@ window.recalcularAtivosRamais = function() {
                 addAtivo(window._ramaisAtivosRemovendo, 'TAM', qtyTroca * 15);
             } else if (upText.includes('RS M AA') || upText.includes('RS MAA')) {
                 addAtivo(window._ramaisAtivosInstalando, 'MAM', qtyTroca * 20);
-                addAtivo(window._ramaisAtivosInstalando, 'MAA', qtyTroca * 1);
+                addAtivo(window._ramaisAtivosRemovendo, 'MAA', qtyTroca * 1);
             } else if (upText.includes('RS T AA') || upText.includes('RS TAA')) {
                 addAtivo(window._ramaisAtivosInstalando, 'TAM', qtyTroca * 20);
                 addAtivo(window._ramaisAtivosRemovendo, 'MAA', qtyTroca * 2);
