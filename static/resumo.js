@@ -2509,9 +2509,9 @@ window.exportarRegrasCSV = function() {
         alert("Nenhuma regra para exportar.");
         return;
     }
-    const headers = ["ORIGEM", "OP_DE", "ATIVO_DE", "OP_PARA", "ATIVO_PARA", "FATOR", "ARREDONDAMENTO", "VAL_MIN", "VAL_MAX"];
+    const headers = ["ORIGEM", "OP_DE", "ATIVO_DE", "ACAO", "OP_PARA", "ATIVO_PARA", "FATOR", "ARREDONDAMENTO", "VAL_MIN", "VAL_MAX"];
     const rows = tableStates.regras.data.map(r => [
-        r.origem || "", r.op_de || "", r.ativo_de || "", r.op_para || "", r.ativo_para || "",
+        r.origem || "", r.op_de || "", r.ativo_de || "", r.acao || "ADIÇÃO", r.op_para || "", r.ativo_para || "",
         r.fator !== undefined && r.fator !== null ? String(r.fator).replace(".", ",") : "",
         r.arredondamento || "", r.val_min || "", r.val_max || ""
     ]);
@@ -2549,16 +2549,18 @@ window.importarRegrasCSV = function(input) {
         for (let i = 1; i < lines.length; i++) {
             const cols = lines[i].split(";").map(c => c.replace(/^"|"$/g, "").trim());
             if (cols.length >= 9) {
+                let hasAcao = cols.length >= 10;
                 newRegras.push({
                     origem: cols[0],
                     op_de: cols[1],
                     ativo_de: cols[2],
-                    op_para: cols[3],
-                    ativo_para: cols[4],
-                    fator: parseFloat(cols[5].replace(",", ".")) || 1.0,
-                    arredondamento: cols[6] || "NORMAL",
-                    val_min: cols[7],
-                    val_max: cols[8]
+                    acao: hasAcao ? cols[3].toUpperCase() : 'ADIÇÃO',
+                    op_para: hasAcao ? cols[4] : cols[3],
+                    ativo_para: hasAcao ? cols[5] : cols[4],
+                    fator: parseFloat((hasAcao ? cols[6] : cols[5]).replace(",", ".")) || 1.0,
+                    arredondamento: hasAcao ? cols[7] : (cols[6] || "NORMAL"),
+                    val_min: hasAcao ? cols[8] : cols[7],
+                    val_max: hasAcao ? cols[9] : cols[8]
                 });
             }
         }
@@ -2593,6 +2595,12 @@ window.renderRegrasTable = function() {
             </td>
             <td><input type="text" class="tot-input" placeholder="Qqlr" value="${r.op_de || ''}" onchange="updateRegraRow(${index}, 'op_de', this.value)"></td>
             <td><input type="text" class="tot-input" placeholder="Qqlr" value="${r.ativo_de || ''}" onchange="updateRegraRow(${index}, 'ativo_de', this.value)"></td>
+            <td>
+                <select class="tot-input" onchange="updateRegraRow(${index}, 'acao', this.value)">
+                    <option value="ADIÇÃO" ${r.acao !== 'SUBSTITUIÇÃO' ? 'selected' : ''}>ADIÇÃO</option>
+                    <option value="SUBSTITUIÇÃO" ${r.acao === 'SUBSTITUIÇÃO' ? 'selected' : ''}>SUBST.</option>
+                </select>
+            </td>
             <td><input type="text" class="tot-input" placeholder="Manter" value="${r.op_para || ''}" onchange="updateRegraRow(${index}, 'op_para', this.value)"></td>
             <td><input type="text" class="tot-input" placeholder="Manter" value="${r.ativo_para || ''}" onchange="updateRegraRow(${index}, 'ativo_para', this.value)"></td>
             <td><input type="number" step="0.01" class="tot-input" value="${r.fator || 1}" onchange="updateRegraRow(${index}, 'fator', this.value)"></td>
@@ -2618,7 +2626,7 @@ window.renderRegrasTable = function() {
 
 window.adicionarRegra = function() {
     tableStates.regras.data.push({
-        origem: '', op_de: '', ativo_de: '',
+        origem: '', op_de: '', ativo_de: '', acao: 'ADIÇÃO',
         op_para: '', ativo_para: '', fator: 1,
         arredondamento: 'NORMAL', val_min: '', val_max: ''
     });
@@ -2794,6 +2802,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
 
     rawItems.forEach(item => {
         let matchEncontrado = false;
+        let requiresSubstitution = false;
         
         regras.forEach(rule => {
             const ruleOrigem = (rule.origem || '').trim().toUpperCase();
@@ -2808,6 +2817,9 @@ window.syncTotalizadora = async function(forceUpdate = true) {
 
             if (applies) {
                 matchEncontrado = true;
+                if (rule.acao === 'SUBSTITUIÇÃO') {
+                    requiresSubstitution = true;
+                }
                 
                 // Aplica a regra
                 let newOp = rule.op_para ? rule.op_para.trim().toUpperCase() : item.operacao;
@@ -2844,10 +2856,11 @@ window.syncTotalizadora = async function(forceUpdate = true) {
             }
         });
         
-        if (!matchEncontrado) {
-            // Se nenhuma regra se aplicar, passa o item adiante 1 pra 1
-            item.id = item.baseId;
-            newData.push(item);
+        if (!matchEncontrado || !requiresSubstitution) {
+            // Se nenhuma regra se aplicar OU se as regras aplicadas foram apenas de ADIÇÃO, mantemos o item original
+            const itemClone = { ...item };
+            itemClone.id = item.baseId;
+            newData.push(itemClone);
         }
     });
 
