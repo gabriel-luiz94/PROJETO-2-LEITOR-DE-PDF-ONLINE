@@ -517,7 +517,10 @@
             <div class="ai-header">
                 <!-- Header da Aba de Resumo -->
                 <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                    <h2 class="card-title">Resumo do Projeto</h2>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <h2 class="card-title" style="margin: 0;">Resumo do Projeto</h2>
+                        <input type="text" id="input-num-obra" placeholder="Nº da Obra" title="Número da Obra" style="padding: 6px 10px; border-radius: 5px; border: 1px solid var(--border-default); background: var(--bg-canvas); color: var(--text-primary); font-family: 'Inter', sans-serif; font-size: 0.9rem; width: 140px; outline: none;">
+                    </div>
                     <div style="display: flex; gap: 10px;">
                         <button class="btn-secondary" id="btn-tabela-orcamento" onclick="window.open('/static/orcamento.html', '_blank')">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -863,6 +866,10 @@
                             <button class="btn-secondary" style="font-size: 0.75rem; padding: 4px 8px; color: #8b949e; border-color: rgba(139,148,158,0.3);" onclick="exportarRegrasCSV()" title="Exportar CSV">
                                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                                 Exportar
+                            </button>
+                            <button class="btn-secondary" style="font-size: 0.75rem; padding: 4px 8px; color: #3fb950; border-color: rgba(63,185,80,0.4);" onclick="salvarRegrasNuvem()" title="Salvar na Nuvem">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                Salvar na Nuvem
                             </button>
                             <button class="btn-add-row" onclick="adicionarRegra()" title="Adicionar Regra">
                                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1275,5 +1282,19 @@
         </div>
 
     <script src="/static/resumo.js?v=5.1"></script>
+    <script>
+        // Sincronização do número de obra com o localStorage
+        (function() {
+            const inp = document.getElementById('input-num-obra');
+            if (!inp) return;
+            // Carrega valor salvo
+            const saved = localStorage.getItem('numero_obra');
+            if (saved) inp.value = saved;
+            // Salva ao digitar
+            inp.addEventListener('input', function() {
+                localStorage.setItem('numero_obra', inp.value);
+            });
+        })();
+    </script>
 </body>
 </html>

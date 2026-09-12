@@ -56,6 +56,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
         txt = txt.replace("CU ", "CU")
         txt = txt.replace("CAZ ", "CAZ")
         txt = txt.replace("P ", "P")
+        txt = txt.replace("/", "")
         
         # O 'm' final pode ser removido
         txt = re.sub(r'\s+m\s*$', '', txt, flags=re.IGNORECASE)
@@ -275,7 +276,16 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             resultado.append({"operacao": "R", "mdo": v["mdo"], "codigo": v["codigo"],
                                "desc_codigo": v["desc_codigo"], "filtro": v["filtro"], "total": round(v["soma_r"], 2)})
 
-    # Ordenar: Descrição A-Z, depois Operação A-Z, depois MDO A-Z
-    resultado.sort(key=lambda x: (x["desc_codigo"].upper(), x["operacao"], x["mdo"].upper()))
+    def get_mdo_rank(mdo_val):
+        m = (mdo_val or "").strip().upper()
+        # Vazio ou '-' = MAO-DE-OBRA (padrão), rank 1
+        if m in ("", "-", "MAO-DE-OBRA", "MÃO-DE-OBRA", "MAO DE OBRA"):
+            return 1
+        elif m == "MATERIAL":
+            return 2
+        return 3
+
+    # Ordenar: MDO explícito (MAO-DE-OBRA = 1 < MATERIAL = 2), Operação A-Z (I < R), Descrição A-Z
+    resultado.sort(key=lambda x: (get_mdo_rank(x["mdo"]), x["operacao"], x["desc_codigo"].upper()))
 
     return {"resultado": resultado, "nao_encontrados": list(set(nao_encontrados))}

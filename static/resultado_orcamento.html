@@ -1041,22 +1041,27 @@
         function renderRowsData(data) {
             // Nova ordenação: Descrição A-Z, Operação A-Z, TIPO MDO A-Z
             data.sort((a, b) => {
-                const descA = (a.desc_codigo || '').toUpperCase();
-                const descB = (b.desc_codigo || '').toUpperCase();
-                if (descA < descB) return -1;
-                if (descA > descB) return 1;
+                // 1. TIPO MDO: Forçado (vazio, '-' ou MAO-DE-OBRA = 1, MATERIAL = 2)
+                const getMdoRank = (mdoVal) => {
+                    const m = (mdoVal || '').trim().toUpperCase();
+                    if (m === '' || m === '-' || m === 'MAO-DE-OBRA' || m === 'MÃO-DE-OBRA') return 1;
+                    if (m === 'MATERIAL') return 2;
+                    return 3;
+                };
+                const rankA = getMdoRank(a.mdo);
+                const rankB = getMdoRank(b.mdo);
+                if (rankA !== rankB) return rankA - rankB;
                 
+                // 2. OPERAÇÃO: I antes de R (I < R)
                 const opA = (a.operacao || '').toUpperCase();
                 const opB = (b.operacao || '').toUpperCase();
-                if (opA < opB) return -1;
-                if (opA > opB) return 1;
+                const compOp = opA.localeCompare(opB, 'pt-BR');
+                if (compOp !== 0) return compOp;
                 
-                const mdoA = (a.mdo || '').toUpperCase();
-                const mdoB = (b.mdo || '').toUpperCase();
-                if (mdoA < mdoB) return -1;
-                if (mdoA > mdoB) return 1;
-                
-                return 0;
+                // 3. DESCRIÇÃO: A-Z
+                const descA = (a.desc_codigo || '').toUpperCase();
+                const descB = (b.desc_codigo || '').toUpperCase();
+                return descA.localeCompare(descB, 'pt-BR');
             });
 
             const uniqueFiltros = new Set();
@@ -1195,10 +1200,22 @@
             }
         }
 
+        const numObraInput = document.getElementById('obra-numero');
+        const savedObra = localStorage.getItem('numero_obra');
+        if (savedObra && numObraInput) {
+            numObraInput.value = savedObra;
+        }
+
+        if (numObraInput) {
+            numObraInput.addEventListener('input', (e) => {
+                localStorage.setItem('numero_obra', e.target.value);
+            });
+        }
+
         const urlParams = new URLSearchParams(window.location.search);
         const recParam = urlParams.get('rec');
         if (recParam) {
-            document.getElementById('obra-numero').value = recParam;
+            numObraInput.value = recParam;
             carregarRecBanco(recParam, false);
         } else {
             montarOrcamento();

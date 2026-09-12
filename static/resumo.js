@@ -381,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (oldVal !== upperVal) {
                     const cursor = inpAt.selectionStart;
                     inpAt.value = upperVal;
-                    inpAt.setSelectionRange(cursor, cursor);
+                    if (cursor !== null) inpAt.setSelectionRange(cursor, cursor);
                 }
                 row.ativo = inpAt.value;
                 showAutocomplete(inpAt, type);
@@ -411,15 +411,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         buildAtivoSets();
                         buildDataLists();
                         if (type === 'cabos') {
-                            recalcAllQtdAtivos();
+                            const currentIdx = parseInt(tr.dataset.index);
+                            recalcRowAndAbove(currentIdx);
                             // Atualiza visualmente os inputs de qtdAtivos
                             const body = document.getElementById(state.bodyId);
                             if (body) {
-                                Array.from(body.children).forEach(tr => {
-                                    const trIdx = parseInt(tr.dataset.index);
-                                    const qtdInp = tr.querySelector('.inp-qtd-ativos');
-                                    if (qtdInp && state.data[trIdx]) {
-                                        qtdInp.value = state.data[trIdx].qtdAtivos !== undefined ? state.data[trIdx].qtdAtivos : '';
+                                Array.from(body.children).forEach(trLoop => {
+                                    const loopIdx = parseInt(trLoop.dataset.index);
+                                    if (loopIdx === currentIdx || loopIdx === currentIdx - 1) {
+                                        const qtdInp = trLoop.querySelector('.inp-qtd-ativos');
+                                        if (qtdInp && state.data[loopIdx]) {
+                                            qtdInp.value = state.data[loopIdx].qtdAtivos !== undefined ? state.data[loopIdx].qtdAtivos : '';
+                                        }
                                     }
                                 });
                             }
@@ -1057,6 +1060,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Normaliza prefixos: "CAA 2" → "CAA2", "CA 4" → "CA4", "P 50" → "P50"
         const txtNorm = txt
+            .replace(/\//g, '')
             .replace(/^CAA\s+(\d)/i, 'CAA$1')
             .replace(/^CA\s+(\d)/i, 'CA$1')
             .replace(/^CU\s+(\d)/i, 'CU$1')
@@ -1137,6 +1141,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let txt = ativoTexto.trim().toUpperCase();
         const txtNorm = txt
+            .replace(/\//g, '')
             .replace(/^CAA\s+(\d)/i, 'CAA$1')
             .replace(/^CA\s+(\d)/i, 'CA$1')
             .replace(/^CU\s+(\d)/i, 'CU$1')
@@ -1159,6 +1164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!ativoTexto || !ativoTexto.trim()) return false;
         let txt = ativoTexto.trim().toUpperCase();
         const txtNorm = txt
+            .replace(/\//g, '')
             .replace(/^CAA\s+(\d)/i, 'CAA$1')
             .replace(/^CA\s+(\d)/i, 'CA$1')
             .replace(/^CU\s+(\d)/i, 'CU$1')
@@ -1194,6 +1200,32 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 row.qtdAtivos = newVal;
             }
+        }
+    }
+
+    /**
+     * Recalcula qtdAtivos apenas para a linha alterada e a anterior (se for standalone).
+     */
+    function recalcRowAndAbove(index) {
+        const data = tableStates.cabos.data;
+        if (index < 0 || index >= data.length) return;
+
+        function calc(i) {
+            if (i < 0 || i >= data.length) return;
+            const r = data[i];
+            if (!r) return;
+            let faseNext = null;
+            if (isStandaloneLine(r.ativo) && i + 1 < data.length) {
+                faseNext = extrairFase(data[i + 1].ativo);
+            }
+            const isNeg = r.qtdAtivos !== undefined && r.qtdAtivos !== null && r.qtdAtivos.toString().trim().startsWith('-');
+            let nv = calcularQtdAtivos(r.ativo, faseNext);
+            r.qtdAtivos = (isNeg && nv > 0) ? "-" + nv : nv;
+        }
+
+        calc(index);
+        if (index - 1 >= 0 && isStandaloneLine(data[index - 1].ativo)) {
+            calc(index - 1);
         }
     }
 
@@ -2009,6 +2041,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         pushHistory(); 
         
+        const lenBefore = tableStates.cabos.data.length;
+        
         linhasModalCabos.forEach(linha => {
             const ativoBase = (linha.ativo || '').trim();
             if (!ativoBase) return;
@@ -2024,7 +2058,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        recalcAllQtdAtivos();
+        const lenAfter = tableStates.cabos.data.length;
+        for (let i = lenBefore; i < lenAfter; i++) {
+            recalcRowAndAbove(i);
+        }
+        // Remove linhas com ativo vazio antes de renderizar
+        tableStates.cabos.data = tableStates.cabos.data.filter(row => (row.ativo || '').trim() !== '');
         renderTable('cabos');
         document.getElementById('modal-cabos-gerador').classList.add('hidden');
         buildAtivoSets();
@@ -2225,7 +2264,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        recalcAllQtdAtivos();
         renderTable('outros');
         document.getElementById('modal-postes-gerador').classList.add('hidden');
         buildAtivoSets();
@@ -2504,6 +2542,44 @@ window.salvarRegras = function() {
     localStorage.setItem(`regras_orcamento_${projCode}`, JSON.stringify(tableStates.regras.data));
 };
 
+window.salvarRegrasNuvem = async function() {
+    const projCode = localStorage.getItem('projeto_selecionado_codigo') || 'DEFAULT';
+    salvarRegras(); // Salva localmente também
+    try {
+        const res = await fetch('/api/regras/conversao', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projeto_codigo: projCode, regras: tableStates.regras.data })
+        });
+        if (res.ok) {
+            showToast('✓ Regras salvas na nuvem!');
+        } else {
+            showToast('Erro ao salvar na nuvem.');
+        }
+    } catch(e) {
+        showToast('Erro de conexão ao salvar.');
+    }
+};
+
+window.carregarRegrasNuvem = async function() {
+    const projCode = localStorage.getItem('projeto_selecionado_codigo') || 'DEFAULT';
+    try {
+        const res = await fetch(`/api/regras/conversao?projeto_codigo=${encodeURIComponent(projCode)}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.regras && data.regras.length > 0) {
+                tableStates.regras.data = data.regras;
+                salvarRegras(); // Sincroniza com localStorage
+                renderRegrasTable();
+                showToast('Regras carregadas da nuvem!');
+                return;
+            }
+        }
+    } catch(e) {
+        console.warn('Falha ao carregar regras da nuvem, usando localStorage.', e);
+    }
+};
+
 window.exportarRegrasCSV = function() {
     if (!tableStates.regras.data || tableStates.regras.data.length === 0) {
         alert("Nenhuma regra para exportar.");
@@ -2732,7 +2808,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
             }
         }
         
-        let formatado = at.toUpperCase().replace("CAA ", "CAA").replace("CA ", "CA").replace("CU ", "CU").replace("CAZ ", "CAZ").replace("P ", "P");
+        let formatado = at.toUpperCase().replace(/\//g, "").replace("CAA ", "CAA").replace("CA ", "CA").replace("CU ", "CU").replace("CAZ ", "CAZ").replace("P ", "P");
         let parts = formatado.trim().split(/\s+/);
         let baseAtivo = parts[0] || at;
         let desc = buscarDescricao(baseAtivo);
