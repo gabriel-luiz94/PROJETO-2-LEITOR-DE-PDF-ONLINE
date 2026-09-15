@@ -2512,10 +2512,29 @@ window.toggleRegras = function() {
     }
 };
 
-window.carregarRegras = function() {
+window.carregarRegras = async function() {
     try {
         const projCode = localStorage.getItem('projeto_selecionado_codigo') || 'DEFAULT';
         const key = `regras_orcamento_${projCode}`;
+
+        // 1. Tenta carregar da nuvem primeiro
+        try {
+            const res = await fetch(`/api/regras/conversao?projeto_codigo=${encodeURIComponent(projCode)}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.regras && data.regras.length > 0) {
+                    tableStates.regras.data = data.regras;
+                    // Sincroniza nuvem → localStorage
+                    localStorage.setItem(key, JSON.stringify(data.regras));
+                    renderRegrasTable();
+                    return;
+                }
+            }
+        } catch (netErr) {
+            console.warn('Falha ao buscar regras da nuvem, usando localStorage.', netErr);
+        }
+
+        // 2. Fallback: localStorage
         const saved = localStorage.getItem(key);
         if (saved) {
             tableStates.regras.data = JSON.parse(saved);
@@ -2525,7 +2544,7 @@ window.carregarRegras = function() {
                 tableStates.regras.data = JSON.parse(legacy);
             } else {
                 tableStates.regras.data = [{
-                    origem: 'CABOS', op_de: '', ativo_de: '',
+                    origem: 'CABOS', op_de: '', ativo_de: '', acao: 'ADICAO',
                     op_para: '', ativo_para: '', fator: 1.05,
                     arredondamento: 'NORMAL', val_min: '', val_max: ''
                 }];
@@ -2630,7 +2649,7 @@ window.importarRegrasCSV = function(input) {
                     origem: cols[0],
                     op_de: cols[1],
                     ativo_de: cols[2],
-                    acao: hasAcao ? cols[3].toUpperCase() : 'ADIÇÃO',
+                    acao: hasAcao ? (cols[3].toUpperCase().includes('SUBST') ? 'SUBST' : 'ADICAO') : 'ADICAO',
                     op_para: hasAcao ? cols[4] : cols[3],
                     ativo_para: hasAcao ? cols[5] : cols[4],
                     fator: parseFloat((hasAcao ? cols[6] : cols[5]).replace(",", ".")) || 1.0,
@@ -2673,8 +2692,8 @@ window.renderRegrasTable = function() {
             <td><input type="text" class="tot-input" placeholder="Qqlr" value="${r.ativo_de || ''}" onchange="updateRegraRow(${index}, 'ativo_de', this.value)"></td>
             <td>
                 <select class="tot-input" onchange="updateRegraRow(${index}, 'acao', this.value)">
-                    <option value="ADIÇÃO" ${r.acao !== 'SUBSTITUIÇÃO' ? 'selected' : ''}>ADIÇÃO</option>
-                    <option value="SUBSTITUIÇÃO" ${r.acao === 'SUBSTITUIÇÃO' ? 'selected' : ''}>SUBST.</option>
+                    <option value="ADICAO" ${(!r.acao || r.acao === 'ADICAO' || r.acao === 'ADI\u00C7\u00C3O' || r.acao === 'ADIC\u00C3O') ? 'selected' : ''}>ADI\u00C7\u00C3O</option>
+                    <option value="SUBST" ${(r.acao === 'SUBST' || r.acao === 'SUBSTITUI\u00C7\u00C3O' || r.acao === 'SUBSTITUICAO') ? 'selected' : ''}>SUBST.</option>
                 </select>
             </td>
             <td><input type="text" class="tot-input" placeholder="Manter" value="${r.op_para || ''}" onchange="updateRegraRow(${index}, 'op_para', this.value)"></td>
@@ -2702,7 +2721,7 @@ window.renderRegrasTable = function() {
 
 window.adicionarRegra = function() {
     tableStates.regras.data.push({
-        origem: '', op_de: '', ativo_de: '', acao: 'ADIÇÃO',
+        origem: '', op_de: '', ativo_de: '', acao: 'ADICAO',
         op_para: '', ativo_para: '', fator: 1,
         arredondamento: 'NORMAL', val_min: '', val_max: ''
     });
@@ -2727,6 +2746,11 @@ window.updateRegraRow = function(index, field, value) {
             }
         } else if (field === 'origem' || field === 'op_de' || field === 'ativo_de' || field === 'op_para' || field === 'ativo_para') {
             value = value.toUpperCase().trim();
+        } else if (field === 'acao') {
+            // Normaliza para valores simples sem acento
+            const v = (value || '').toUpperCase();
+            if (v === 'SUBST' || v.includes('SUBSTITU')) value = 'SUBST';
+            else value = 'ADICAO';
         }
         tableStates.regras.data[index][field] = value;
         salvarRegras();
@@ -2893,7 +2917,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
 
             if (applies) {
                 matchEncontrado = true;
-                if (rule.acao === 'SUBSTITUIÇÃO') {
+                if (rule.acao === 'SUBST' || rule.acao === 'SUBSTITUIÇÃO' || rule.acao === 'SUBSTITUICAO') {
                     requiresSubstitution = true;
                 }
                 
