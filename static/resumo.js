@@ -2527,6 +2527,7 @@ window.carregarRegras = async function() {
                     // Sincroniza nuvem → localStorage
                     localStorage.setItem(key, JSON.stringify(data.regras));
                     renderRegrasTable();
+                    refreshTotalizadoraProjectData();
                     return;
                 }
             }
@@ -2551,10 +2552,21 @@ window.carregarRegras = async function() {
             }
         }
         renderRegrasTable();
+        refreshTotalizadoraProjectData();
     } catch (e) {
         console.error("Erro ao carregar regras", e);
     }
 };
+
+async function refreshTotalizadoraProjectData() {
+    if (tableStates.totalizadora && tableStates.totalizadora.data && tableStates.totalizadora.data.length > 0) {
+        for(let i=0; i<tableStates.totalizadora.data.length; i++) {
+            if (window.updateTotRow) {
+                await window.updateTotRow(i, 'ativo', tableStates.totalizadora.data[i].ativo);
+            }
+        }
+    }
+}
 
 window.salvarRegras = function() {
     const projCode = localStorage.getItem('projeto_selecionado_codigo') || 'DEFAULT';
@@ -2789,11 +2801,16 @@ window.syncTotalizadora = async function(forceUpdate = true) {
 
     function buscarDescricao(ativoNome) {
         const ativoUpper = (ativoNome || '').trim().toUpperCase();
-        const row = orcamentoBaseData.find(r => (r.ativo || '').toUpperCase() === ativoUpper || (r.codigo || '').toUpperCase() === ativoUpper);
+        const projName = (localStorage.getItem('projeto_selecionado') || '').toUpperCase();
+        
+        const row = orcamentoBaseData.find(r => 
+            ((r.ativo || '').toUpperCase() === ativoUpper || (r.codigo || '').toUpperCase() === ativoUpper) &&
+            ((r.projeto || '').trim().toUpperCase() === projName || (r.projeto || '').trim() === '')
+        );
         if (row) {
-            return row.desc_ativo || row.componente || row.desc_codigo || '';
+            return { desc: row.desc_ativo || row.componente || row.desc_codigo || '', naoEncontrado: false };
         }
-        return '';
+        return { desc: '', naoEncontrado: true };
     }
 
     const rawItems = [];
@@ -2832,10 +2849,10 @@ window.syncTotalizadora = async function(forceUpdate = true) {
             }
         }
         
-        let formatado = at.toUpperCase().replace(/\//g, "").replace("CAA ", "CAA").replace("CA ", "CA").replace("CU ", "CU").replace("CAZ ", "CAZ").replace("P ", "P");
+        let formatado = at.toUpperCase().replace(/\//g, "").replace("CAA ", "CAA").replace("CA ", "CA").replace("CU ", "CU").replace("CAZ ", "CAZ").replace(/\bP\s+/g, "P");
         let parts = formatado.trim().split(/\s+/);
         let baseAtivo = parts[0] || at;
-        let desc = buscarDescricao(baseAtivo);
+        let resDesc = buscarDescricao(baseAtivo);
 
         let iteracoes = 1;
         if (item.qtdAtivos) {
@@ -2852,7 +2869,8 @@ window.syncTotalizadora = async function(forceUpdate = true) {
                 operacao: item.operacao || 'I',
                 ativo: baseAtivo,
                 qtd: q,
-                desc: desc,
+                desc: resDesc.desc,
+                naoEncontrado: resDesc.naoEncontrado,
                 origem: 'CABOS'
             });
         }
@@ -2882,7 +2900,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
                 aName = m[2].trim();
             }
             
-            let desc = buscarDescricao(aName);
+            let resDesc = buscarDescricao(aName);
 
             rawItems.push({
                 baseId: `TOT-${currentBaseId}`,
@@ -2890,7 +2908,8 @@ window.syncTotalizadora = async function(forceUpdate = true) {
                 operacao: item.operacao || 'I',
                 ativo: aName,
                 qtd: q,
-                desc: desc, 
+                desc: resDesc.desc,
+                naoEncontrado: resDesc.naoEncontrado,
                 origem: 'OUTROS'
             });
         });
@@ -2910,10 +2929,30 @@ window.syncTotalizadora = async function(forceUpdate = true) {
             const ruleAtivo = (rule.ativo_de || '').trim().toUpperCase();
 
             // Verifica se a regra se aplica ao item
+            const checkMatch = (rulePattern, targetStr) => {
+                if (rulePattern === '') return true;
+                if (rulePattern === targetStr) return true;
+                
+                try {
+                    let regexStr = rulePattern;
+                    if (rulePattern.includes('%')) {
+                        // Estilo LIKE: escapa caracteres especiais e converte % em .*
+                        regexStr = '^' + rulePattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*') + '$';
+                    } else {
+                        // Estilo Regex: exige match completo caso não ancorado (preserva retrocompatibilidade)
+                        if (!regexStr.startsWith('^')) regexStr = '^' + regexStr;
+                        if (!regexStr.endsWith('$')) regexStr = regexStr + '$';
+                    }
+                    return new RegExp(regexStr, 'i').test(targetStr);
+                } catch (e) {
+                    return false;
+                }
+            };
+
             let applies = true;
-            if (ruleOrigem !== '' && ruleOrigem !== item.origem) applies = false;
-            if (ruleOp !== '' && ruleOp !== item.operacao) applies = false;
-            if (ruleAtivo !== '' && ruleAtivo !== item.ativo) applies = false;
+            if (!checkMatch(ruleOrigem, item.origem)) applies = false;
+            if (!checkMatch(ruleOp, item.operacao)) applies = false;
+            if (!checkMatch(ruleAtivo, item.ativo)) applies = false;
 
             if (applies) {
                 matchEncontrado = true;
@@ -2944,15 +2983,17 @@ window.syncTotalizadora = async function(forceUpdate = true) {
                     if (!isNaN(max) && newQtd > max) newQtd = max;
                 }
                 
-                newData.push({
-                    id: item.baseId,
-                    obs: item.obs,
-                    operacao: newOp,
-                    ativo: newAtivo,
-                    qtd: newQtd,
-                    desc: buscarDescricao(newAtivo),
-                    origem: item.origem
-                });
+                    let resNewDesc = buscarDescricao(newAtivo);
+                    newData.push({
+                        id: item.baseId,
+                        obs: item.obs,
+                        operacao: newOp,
+                        ativo: newAtivo,
+                        qtd: newQtd,
+                        desc: resNewDesc.desc,
+                        naoEncontrado: resNewDesc.naoEncontrado,
+                        origem: item.origem
+                    });
             }
         });
         
@@ -2984,6 +3025,10 @@ window.renderTotalizadora = function() {
 
     tableStates.totalizadora.data.forEach((row, index) => {
         const tr = document.createElement('tr');
+        tr.id = `tot-row-${index}`;
+        if (row.naoEncontrado) {
+            tr.style.backgroundColor = 'rgba(248, 81, 73, 0.15)';
+        }
         
         tr.innerHTML = `
             <td style="font-weight: bold; color: var(--text-secondary); text-align: center;">${row.id}</td>
@@ -3040,10 +3085,13 @@ window.updateTotRow = async function(index, field, value) {
             
             // Tenta buscar a descrição baseada no ativo
             const ativoUpper = (value || '').trim().toUpperCase();
+            const projName = (localStorage.getItem('projeto_selecionado') || '').toUpperCase();
+            
             const row = orcamentoBaseData.find(r => 
-                (r.ativo || '').toUpperCase() === ativoUpper || 
-                (r.componente || '').toUpperCase() === ativoUpper ||
-                (r.codigo || '').toUpperCase() === ativoUpper
+                ((r.ativo || '').toUpperCase() === ativoUpper || 
+                 (r.componente || '').toUpperCase() === ativoUpper ||
+                 (r.codigo || '').toUpperCase() === ativoUpper) &&
+                ((r.projeto || '').trim().toUpperCase() === projName || (r.projeto || '').trim() === '')
             );
             
             if (row) {
@@ -3055,12 +3103,22 @@ window.updateTotRow = async function(index, field, value) {
                 }
                 
                 tableStates.totalizadora.data[index].desc = desc;
+                tableStates.totalizadora.data[index].naoEncontrado = false;
                 
-                // Atualiza visualmente o input de descrição sem dar re-render na tabela para não perder o foco atual do usuário
                 const descInput = document.getElementById(`tot-desc-${index}`);
-                if (descInput) {
-                    descInput.value = desc;
-                }
+                if (descInput) descInput.value = desc;
+                
+                const tr = document.getElementById(`tot-row-${index}`);
+                if (tr) tr.style.backgroundColor = '';
+            } else {
+                tableStates.totalizadora.data[index].desc = '';
+                tableStates.totalizadora.data[index].naoEncontrado = true;
+                
+                const descInput = document.getElementById(`tot-desc-${index}`);
+                if (descInput) descInput.value = '';
+                
+                const tr = document.getElementById(`tot-row-${index}`);
+                if (tr) tr.style.backgroundColor = 'rgba(248, 81, 73, 0.15)';
             }
         }
     }

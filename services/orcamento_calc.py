@@ -51,15 +51,6 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             continue
             
         txt = ativo_raw
-        txt = txt.replace("CAA ", "CAA")
-        txt = txt.replace("CA ", "CA")
-        txt = txt.replace("CU ", "CU")
-        txt = txt.replace("CAZ ", "CAZ")
-        txt = txt.replace("P ", "P")
-        txt = txt.replace("/", "")
-        
-        # O 'm' final pode ser removido
-        txt = re.sub(r'\s+m\s*$', '', txt, flags=re.IGNORECASE)
         
         parts = txt.split()
         if not parts:
