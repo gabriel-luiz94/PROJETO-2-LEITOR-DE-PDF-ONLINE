@@ -3296,3 +3296,186 @@ window.handleTotPaste = function(e, index) {
 };
 
 }); // end DOMContentLoaded
+
+// ==========================================
+// MODAL DE CONEXÕES
+// ==========================================
+const dadosCunha = [
+    { tipo: "CAA 4 P/ C AA4", ativo_com: "C4", ativo_glv: "GLV2" },
+    { tipo: "CAA 4 P/ C AA2", ativo_com: "C24", ativo_glv: "GLV2" },
+    { tipo: "CAA 2 P/ C AA2", ativo_com: "C2", ativo_glv: "GLV2" },
+    { tipo: "CAA 1/0 P/ C AA2", ativo_com: "C102", ativo_glv: "GLV10" },
+    { tipo: "CAA 1/0 P/ C AA1/0", ativo_com: "C10", ativo_glv: "GLV10" },
+    { tipo: "CAA 4/0 P/ CAA4", ativo_com: "C404", ativo_glv: "GLV40" },
+    { tipo: "CAA 4/0 P/ CAA2", ativo_com: "C402", ativo_glv: "GLV40" },
+    { tipo: "CAA 4/0 P/ CAA1/0", ativo_com: "C4010", ativo_glv: "GLV4010" },
+    { tipo: "CAA 4/0 P/CAA4/0", ativo_com: "C40", ativo_glv: "GLV40" },
+    { tipo: "CAA 336 P/ CAA4", ativo_com: "C3364", ativo_glv: "GLV336" },
+    { tipo: "CAA 336 P/ CAA2", ativo_com: "C3362", ativo_glv: "GLV336" },
+    { tipo: "CAA 336 P/ CAA1/0", ativo_com: "C33610", ativo_glv: "GLV336" },
+    { tipo: "CAA 336 P/ CAA4/0", ativo_com: "C33640", ativo_glv: "GLV336" },
+    { tipo: "CAA 336 P/ CAA336", ativo_com: "C336", ativo_glv: "GLV336" },
+    { tipo: "CAA2 P/P50", ativo_com: "C502", ativo_glv: "GLV50" },
+    { tipo: "P50 P/ P50", ativo_com: "C50", ativo_glv: "GLV50" },
+    { tipo: "P50 P/ CAA2", ativo_com: "C502", ativo_glv: "GLV50" },
+    { tipo: "P120 P/ P50", ativo_com: "C12050", ativo_glv: "GLV120" },
+    { tipo: "P120 P/ CAA2", ativo_com: "C1202", ativo_glv: "GLV120" },
+    { tipo: "P120 P/ P120", ativo_com: "C120", ativo_glv: "GLV120" },
+    { tipo: "P185 P/ P50", ativo_com: "C18550", ativo_glv: "GLV185" },
+    { tipo: "P185 P/ CAA2", ativo_com: "C1852", ativo_glv: "GLV185" },
+    { tipo: "P185 P/ P120", ativo_com: "C185120", ativo_glv: "GLV185" },
+    { tipo: "P185 P/ P185", ativo_com: "C185", ativo_glv: "GLV185" },
+    { tipo: "aterramento temporario", ativo_com: "", ativo_glv: "" }
+];
+
+let conexoesRendered = false;
+
+window.abrirModalConexoes = function() {
+    document.getElementById('modal-conexoes').classList.remove('hidden');
+    if (!conexoesRendered) {
+        renderizarTabelaConexoes('tbody-conexoes-cunha', dadosCunha);
+        // As outras ficam vazias por enquanto
+        renderizarTabelaConexoes('tbody-conexoes-estrang', []);
+        renderizarTabelaConexoes('tbody-conexoes-perf', []);
+        conexoesRendered = true;
+    }
+    recalcularTotaisConexoes();
+};
+
+window.fecharModalConexoes = function() {
+    document.getElementById('modal-conexoes').classList.add('hidden');
+};
+
+window.switchTabConexoes = function(tabName) {
+    const tabs = ['cunha', 'estrang', 'perf'];
+    tabs.forEach(t => {
+        document.getElementById(`tab-con-${t}`).className = 'btn-secondary';
+        document.getElementById(`tab-con-${t}`).style.background = '';
+        document.getElementById(`panel-con-${t}`).style.display = 'none';
+    });
+
+    const activeTab = document.getElementById(`tab-con-${tabName}`);
+    activeTab.className = 'btn-primary';
+    activeTab.style.background = '#238636';
+    document.getElementById(`panel-con-${tabName}`).style.display = 'block';
+};
+
+function renderizarTabelaConexoes(tbodyId, dados) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    if (dados.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #8b949e; padding: 20px;">Sem dados por enquanto</td></tr>`;
+        return;
+    }
+
+    dados.forEach((d, idx) => {
+        const isAterr = d.tipo.toLowerCase().includes('aterramento');
+        const tr = document.createElement('tr');
+        
+        // Define as cores de fundo especiais para aterramento temporário
+        const styleMono = isAterr ? 'background-color: rgba(140, 227, 102, 0.4);' : '';
+        const styleTri = isAterr ? 'background-color: rgba(255, 194, 32, 0.4);' : '';
+        
+        tr.innerHTML = `
+            <td style="font-size: 0.8rem; padding: 4px 8px;">${d.tipo}</td>
+            <td style="text-align: center; padding: 2px; ${styleMono}"><input type="number" min="0" class="modal-input con-mono" data-id="${tbodyId}-${idx}" data-ativo="${d.ativo_com}" style="width: 50px; text-align: center; padding: 2px;"></td>
+            <td style="text-align: center; padding: 2px; ${styleTri}"><input type="number" min="0" class="modal-input con-tri" data-id="${tbodyId}-${idx}" data-ativo="${d.ativo_com}" style="width: 50px; text-align: center; padding: 2px;"></td>
+            <td style="text-align: center; padding: 2px;"><input type="number" min="0" class="modal-input con-glv" data-id="${tbodyId}-${idx}" data-ativo="${d.ativo_glv}" style="width: 50px; text-align: center; padding: 2px;"></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('input[type="number"]').forEach(input => {
+        input.addEventListener('input', recalcularTotaisConexoes);
+    });
+}
+
+function recalcularTotaisConexoes() {
+    const totais = acumularTotaisConexoes();
+    const painel = document.getElementById('conexoes-totalizador');
+    
+    let summary = [];
+    let count = 0;
+    
+    for (const [ativo, qtd] of Object.entries(totais)) {
+        if (qtd > 0) {
+            summary.push(`<b>${ativo}</b>: ${qtd}`);
+            count += qtd;
+        }
+    }
+    
+    if (count === 0) {
+        painel.innerHTML = 'Nenhum item selecionado.';
+    } else {
+        painel.innerHTML = `Total a gerar: ${summary.join(' | ')}`;
+    }
+}
+
+function acumularTotaisConexoes() {
+    const totais = {};
+    const add = (ativo, qtd) => {
+        if (!ativo || qtd <= 0) return;
+        if (!totais[ativo]) totais[ativo] = 0;
+        totais[ativo] += qtd;
+    };
+
+    const container = document.getElementById('modal-conexoes');
+    
+    // MONO (Qtd * 1)
+    container.querySelectorAll('.con-mono').forEach(input => {
+        const val = parseInt(input.value) || 0;
+        const ativo = input.getAttribute('data-ativo');
+        add(ativo, val * 1);
+    });
+
+    // TRI (Qtd * 3)
+    container.querySelectorAll('.con-tri').forEach(input => {
+        const val = parseInt(input.value) || 0;
+        const ativo = input.getAttribute('data-ativo');
+        add(ativo, val * 3);
+    });
+
+    // GLV (Qtd * 1)
+    container.querySelectorAll('.con-glv').forEach(input => {
+        const val = parseInt(input.value) || 0;
+        const ativo = input.getAttribute('data-ativo');
+        add(ativo, val * 1);
+    });
+    
+    return totais;
+}
+
+window.adicionarConexoesAosOutros = function() {
+    const totais = acumularTotaisConexoes();
+    let adicionados = 0;
+
+    for (const [ativo, qtd] of Object.entries(totais)) {
+        if (qtd > 0) {
+            // Adiciona na Tabela Outros no formato "qtd-ativo"
+            tableStates.outros.data.push({
+                entidade: '',
+                operacao: 'I',
+                ativo: qtd + "-" + ativo
+            });
+            adicionados++;
+        }
+    }
+
+    if (adicionados > 0) {
+        renderOutrosTable();
+        // Limpar inputs após adicionar
+        document.querySelectorAll('#modal-conexoes input[type="number"]').forEach(i => i.value = '');
+        recalcularTotaisConexoes();
+        
+        // Verifica se a tabela Outros está visível, se não, muda a view para PADRÃO para o usuário ver o resultado
+        const radioPadrao = document.querySelector('input[name="view_mode"][value="padrao"]');
+        if (radioPadrao && !radioPadrao.checked) {
+            radioPadrao.checked = true;
+            radioPadrao.dispatchEvent(new Event('change'));
+        }
+    }
+    
+    fecharModalConexoes();
+};

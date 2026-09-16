@@ -582,7 +582,7 @@
                 <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: -5px;">
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Gerador de Postes e Estruturas" onclick="abrirModalPostes()">POSTES E ESTRUTURAS</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Gerador de Cabos" onclick="abrirModalCabos()">CABOS</button>
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">CONEXÕES</button>
+                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Gerador de Conexões" onclick="abrirModalConexoes()">CONEXÕES</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706; position: relative;" title="Ver Ramais, IPs e Apoios detectados" onclick="abrirModalRamais()">
                         RAMAIS
                         <span id="badge-ramais" style="display:none; position:absolute; top:-6px; right:-6px; min-width:16px; height:16px; background-color:#f85149; border-radius:8px; box-shadow:0 0 0 2px #0d1117; color:white; font-size:10px; font-weight:bold; align-items:center; justify-content:center; padding:0 4px; box-sizing:border-box;"></span>
@@ -1276,6 +1276,84 @@
                     <div style="display: flex; justify-content: space-between; margin-top: 15px;">
                         <button class="btn-secondary" onclick="adicionarLinhaPostes()">+ Adicionar Linha em Branco</button>
                         <button class="btn-primary" onclick="inserirGeradorNaTabelaOutros()">Inserir na Tabela Outros</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Conexões -->
+        <div id="modal-conexoes" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 800px; width: 95%;">
+                <div class="modal-header">
+                    <h3>Gerador - CONEXÕES</h3>
+                    <button class="close-modal" onclick="fecharModalConexoes()">×</button>
+                </div>
+                <div class="modal-body" style="padding: 10px 20px;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button id="tab-con-cunha" class="btn-primary" style="background: #238636;" onclick="switchTabConexoes('cunha')">CUNHA</button>
+                        <button id="tab-con-estrang" class="btn-secondary" onclick="switchTabConexoes('estrang')">ESTRANG</button>
+                        <button id="tab-con-perf" class="btn-secondary" onclick="switchTabConexoes('perf')">PERF. E COMPRESSÃO</button>
+                    </div>
+
+                    <!-- Tabela CUNHA -->
+                    <div id="panel-con-cunha" style="max-height: 400px; overflow-y: auto;">
+                        <table class="data-table" style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left;">TIPO CONEXÃO</th>
+                                    <th style="width: 80px; text-align: center;">MONO</th>
+                                    <th style="width: 80px; text-align: center;">TRI</th>
+                                    <th style="width: 80px; text-align: center;">GLV</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-conexoes-cunha">
+                                <!-- Gerado dinamicamente via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Tabela ESTRANG -->
+                    <div id="panel-con-estrang" style="max-height: 400px; overflow-y: auto; display: none;">
+                        <table class="data-table" style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left;">TIPO CONEXÃO</th>
+                                    <th style="width: 80px; text-align: center;">MONO</th>
+                                    <th style="width: 80px; text-align: center;">TRI</th>
+                                    <th style="width: 80px; text-align: center;">GLV</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-conexoes-estrang">
+                                <!-- Vazias por enquanto -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Tabela PERF -->
+                    <div id="panel-con-perf" style="max-height: 400px; overflow-y: auto; display: none;">
+                        <table class="data-table" style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left;">TIPO CONEXÃO</th>
+                                    <th style="width: 80px; text-align: center;">MONO</th>
+                                    <th style="width: 80px; text-align: center;">TRI</th>
+                                    <th style="width: 80px; text-align: center;">GLV</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-conexoes-perf">
+                                <!-- Vazias por enquanto -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="modal-actions" style="margin-top: 0; padding: 10px 20px; background: rgba(0,0,0,0.2); border-top: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center;">
+                    <div id="conexoes-totalizador" style="font-size: 0.85rem; color: #8b949e; flex: 1;">
+                        Nenhum item selecionado.
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-secondary" onclick="fecharModalConexoes()">Cancelar</button>
+                        <button class="btn-primary" onclick="adicionarConexoesAosOutros()">Adicionar à Tabela Outros</button>
                     </div>
                 </div>
             </div>
