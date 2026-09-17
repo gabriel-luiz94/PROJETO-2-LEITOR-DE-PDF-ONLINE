@@ -430,11 +430,15 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...)):
         supabase = get_supabase()
         if supabase and rows_to_insert:
             try:
+                # A coluna 'origem' não existe no Supabase - removemos antes do insert
+                rows_supabase = [{k: v for k, v in r.items() if k != 'origem'} for r in rows_to_insert]
                 supabase.table("tabela_orcamento_master").delete().neq("id", 0).execute()
-                for i in range(0, len(rows_to_insert), 500):
-                    supabase.table("tabela_orcamento_master").insert(rows_to_insert[i:i+500]).execute()
+                for i in range(0, len(rows_supabase), 500):
+                    supabase.table("tabela_orcamento_master").insert(rows_supabase[i:i+500]).execute()
+                logger.info(f"Master sincronizado com Supabase: {len(rows_supabase)} linhas")
             except Exception as e:
-                logger.warning(f"Erro ao enviar Master para Supabase: {e}")
+                logger.error(f"Erro ao enviar Master para Supabase: {e}")
+                raise HTTPException(status_code=500, detail=f"Importado localmente mas falhou no Supabase: {e}")
 
         _audit(admin, "UPLOAD_MASTER_CSV", "tabela_orcamento_master", None, f"total_rows={len(rows_to_insert)}")
         return {"status": "ok", "msg": f"Tabela Master atualizada com {len(rows_to_insert)} linhas."}
@@ -501,9 +505,11 @@ def sync_master_all(req: SalvarOrcamentoRequest, request: Request):
     supabase = get_supabase()
     if supabase and rows_to_insert:
         try:
+            # A coluna 'origem' não existe no Supabase - removemos antes do insert
+            rows_supabase = [{k: v for k, v in r.items() if k != 'origem'} for r in rows_to_insert]
             supabase.table("tabela_orcamento_master").delete().neq("id", 0).execute()
-            for i in range(0, len(rows_to_insert), 500):
-                supabase.table("tabela_orcamento_master").insert(rows_to_insert[i:i+500]).execute()
+            for i in range(0, len(rows_supabase), 500):
+                supabase.table("tabela_orcamento_master").insert(rows_supabase[i:i+500]).execute()
         except Exception as e:
             logger.warning(f"Erro ao enviar Master all para Supabase: {e}")
             raise HTTPException(status_code=500, detail=f"Erro ao sincronizar com Supabase: {e}")
