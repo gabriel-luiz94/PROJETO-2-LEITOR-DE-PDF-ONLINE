@@ -28,8 +28,9 @@ fix já aplicado.
 enviar `origem` ao Supabase como qualquer outra coluna, no mesmo padrão já usado por
 `add_master_row`.
 
-**Não corrigido nesta etapa** (depende de o usuário reimportar a base e confirmar): efeito
-observável em `GET /api/orcamento/dados` após o deploy refletir este commit.
+**Mesclado em `main`** via PR #3 (commit de merge `36de3aa`). Usuário redeployou/reconstruiu o
+ambiente, reimportou a base master e **confirmou**: `ORIGEM` aparece corretamente preenchida em
+`GET /api/orcamento/dados` após recarregar a tela. **TASK-002 encerrada.**
 
 ---
 
