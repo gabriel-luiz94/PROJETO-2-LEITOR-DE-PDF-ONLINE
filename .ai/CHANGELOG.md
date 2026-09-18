@@ -8,9 +8,10 @@
 
 ---
 
-## 2026-09-18 — TASK-001: diagnóstico de login/cadastro via Supabase
+## 2026-09-18 — TASK-001: login/cadastro via Supabase restabelecidos (desktop + Render.com)
 
-**Tipo:** correção de schema + diagnóstico · **Tarefa:** `.ai/tasks/TASK-001-18-09-2026.md`
+**Tipo:** correção de schema (dados) + diagnóstico (código) · **Tarefa:**
+`.ai/tasks/TASK-001-18-09-2026.md` · **Status final: CONCLUÍDA**
 
 Investigado com o usuário por que login e cadastro de usuário (Supabase) haviam parado de
 funcionar. RLS descartado (estava desabilitado). Confirmado que a tabela real `usuarios_nuvem`
@@ -18,7 +19,7 @@ do usuário tinha `is_admin` mas não tinha `role` — coluna que `routers/admin
 `POST /api/admin/users` (falha visível, com mensagem enganosa de "e-mail duplicado") e em
 `PUT /api/admin/users/{id}/role` (falha silenciosa).
 
-**Alterado:**
+**Alterado no código:**
 - `scripts/schema_supabase.sql` — migração idempotente adicionando `role` a `usuarios_nuvem`
 - `routers/health.py` — `GET /api/health` ganhou `supabase_configured`, `supabase_reachable` e
   `usuarios_nuvem_has_rows`, sem expor dados de usuário (rota é pública)
@@ -28,9 +29,18 @@ que não influenciam este diagnóstico); `/api/health` testado com Supabase não
 credenciais configuradas porém inválidas — os dois casos respondem corretamente, sem quebrar a
 rota.
 
-**Não corrigido nesta etapa** (depende de ação do usuário, fora do alcance deste ambiente): rodar
-o `ALTER TABLE` no projeto Supabase real; e, se após isso o login ainda falhar, apurar se é
-diferença de e-mail (maiúsculas/espaço) ou usuário criado fora da tabela `usuarios_nuvem`.
+**Feito pelo usuário, fora deste ambiente (sem acesso a Supabase/Render a partir daqui):**
+1. `ALTER TABLE ... ADD COLUMN role` no Supabase real → destravou login e cadastro
+2. Efeito colateral descoberto e corrigido: o `DEFAULT 'operador'` do passo 1 fez backfill em
+   **todas** as linhas existentes, inclusive contas admin — derrubando o acesso ao painel admin
+   até um `UPDATE` reconciliando `role` com `is_admin` (ver detalhe em STATE.md, problema 8, e no
+   arquivo da tarefa)
+3. Configuradas `SUPABASE_URL`/`SUPABASE_KEY` nas env vars do serviço Render.com (nunca haviam
+   sido definidas lá — ambiente de deploy adicional, não documentado antes desta tarefa) e forçado
+   um redeploy manual para pegar o código já mesclado em `main`
+
+**Resultado confirmado pelo usuário:** login, painel admin e cadastro de usuário funcionando tanto
+no desktop quanto na aplicação online (Render.com).
 
 **Não alterado** (fora do escopo pedido): qualquer lógica de `orcamento_calc.py` ou das tabelas de
 orçamento.

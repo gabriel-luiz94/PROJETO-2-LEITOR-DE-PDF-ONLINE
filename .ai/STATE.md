@@ -164,6 +164,15 @@ arquivo em `.ai/tasks/`.
    - `auth_middleware.py` usa `"operador"` como fallback e `auth.py:58` usa
      `"admin" if is_admin else "operador"`.
    Um usuário criado pela migração com role `viewer` não casa com nenhuma verificação de permissão.
+   ⚠️ **Manifestação real observada — TASK-001 (2026-09-18):** a migração que adicionou a coluna
+   `role` a `usuarios_nuvem` (problema 6) fez o Postgres preencher **todas** as linhas existentes
+   com o default `'operador'`, inclusive contas com `is_admin = true`. Como `auth.py:58` prioriza
+   `role` sobre `is_admin`, isso derrubou o acesso admin de uma conta real até uma correção manual
+   via SQL (`UPDATE ... SET role = 'admin' WHERE is_admin = true AND role <> 'admin'`). Qualquer
+   `ALTER TABLE ... ADD COLUMN ... DEFAULT` futuro que crie uma coluna já lida em conjunto com
+   outra (aqui, `role` vs. `is_admin`) tem esse mesmo risco de backfill — differenciar "coluna
+   nova, valor desconhecido" de "coluna nova, valor default real" não é possível só com `DEFAULT`.
+   Ver `.ai/tasks/TASK-001-18-09-2026.md`.
 9. `admin.py:toggle_admin` (endpoint de compatibilidade `PUT /api/admin/users/{id}/admin`)
    **ignora o corpo da requisição e sempre define `role="admin"`**, mesmo quando a intenção seria
    remover o privilégio. Também executa uma consulta cujo resultado é descartado.
