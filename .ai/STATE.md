@@ -140,8 +140,23 @@ arquivo em `.ai/tasks/`.
 ### Divergências de schema (SQLite ↔ Supabase)
 5. `tabela_orcamento_master` **não tem a coluna `origem`** em `scripts/schema_supabase.sql`, mas
    `admin.py` (`add-row`, `upload-master`) a envia e `sync_service.py:57` a lê. Em um Supabase criado
-   a partir do schema versionado, essas escritas falham ou perdem o campo. **Fora do escopo de
-   TASK-001** (restrição explícita do usuário: não mexer na base de orçamento).
+   a partir do schema versionado, essas escritas falham ou perdem o campo.
+   ✅ **Corrigido — TASK-002 (2026-09-18):** confirmado num caso real (mesmo padrão da TASK-001):
+   o `INSERT` do Supabase em `upload_master_csv` falhava com o erro engolido em silêncio
+   (`except Exception: logger.warning(...)`, resposta continuava "ok"), e a próxima chamada a
+   `GET /api/orcamento/dados` sobrescrevia o local com a master antiga da nuvem, apagando o
+   `origem` que tinha acabado de ser importado. `scripts/schema_supabase.sql` ganhou a coluna na
+   `CREATE TABLE` e uma migração idempotente para instalações existentes. Além disso,
+   `admin.py:sync_master_all` (o botão "Sincronizar Tudo com a Nuvem") **nunca lia nem gravava
+   `origem`** — bug de código independente do schema, também corrigido (agora segue o mesmo
+   padrão de `upload_master_csv`/`add_master_row`). E `upload_master_csv` passou a repassar ao
+   admin, via `HTTPException` 500, quando a sincronização com o Supabase falha, em vez de mascarar
+   como sucesso — mudança espelhada no frontend (`orcamento.html`) para mostrar a mensagem real.
+   Falta o usuário rodar a migração no Supabase real. Ver `.ai/tasks/TASK-002-18-09-2026.md`.
+   Achados relacionados, fora do escopo desta tarefa: o botão "Importar CSV Local" chama
+   `/api/upload/csv-orcamento`, endpoint que **não existe** no backend (404); e a tabela pessoal
+   do usuário (`routers/orcamento.py` `/upload` e `/salvar`) também não trata `origem`, mas nunca
+   sincroniza com a nuvem.
 6. `usuarios_nuvem` **não tem a coluna `is_admin`** no schema versionado, mas `auth.py:57` e
    `admin.py:102,106` leem e escrevem `is_admin`.
    ✅ **Confirmado e corrigido — TASK-001 (2026-09-18):** o inverso também ocorre e foi verificado
@@ -164,6 +179,15 @@ arquivo em `.ai/tasks/`.
    - `auth_middleware.py` usa `"operador"` como fallback e `auth.py:58` usa
      `"admin" if is_admin else "operador"`.
    Um usuário criado pela migração com role `viewer` não casa com nenhuma verificação de permissão.
+   ⚠️ **Manifestação real observada — TASK-001 (2026-09-18):** a migração que adicionou a coluna
+   `role` a `usuarios_nuvem` (problema 6) fez o Postgres preencher **todas** as linhas existentes
+   com o default `'operador'`, inclusive contas com `is_admin = true`. Como `auth.py:58` prioriza
+   `role` sobre `is_admin`, isso derrubou o acesso admin de uma conta real até uma correção manual
+   via SQL (`UPDATE ... SET role = 'admin' WHERE is_admin = true AND role <> 'admin'`). Qualquer
+   `ALTER TABLE ... ADD COLUMN ... DEFAULT` futuro que crie uma coluna já lida em conjunto com
+   outra (aqui, `role` vs. `is_admin`) tem esse mesmo risco de backfill — differenciar "coluna
+   nova, valor desconhecido" de "coluna nova, valor default real" não é possível só com `DEFAULT`.
+   Ver `.ai/tasks/TASK-001-18-09-2026.md`.
 9. `admin.py:toggle_admin` (endpoint de compatibilidade `PUT /api/admin/users/{id}/admin`)
    **ignora o corpo da requisição e sempre define `role="admin"`**, mesmo quando a intenção seria
    remover o privilégio. Também executa uma consulta cujo resultado é descartado.

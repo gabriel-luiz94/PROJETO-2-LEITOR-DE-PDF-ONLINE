@@ -8,9 +8,57 @@
 
 ---
 
-## 2026-09-18 — TASK-001: diagnóstico de login/cadastro via Supabase
+## 2026-09-18 — TASK-002: coluna `origem` restabelecida na tabela master de orçamento
 
-**Tipo:** correção de schema + diagnóstico · **Tarefa:** `.ai/tasks/TASK-001-18-09-2026.md`
+**Tipo:** correção de schema + bug de código + diagnóstico · **Tarefa:**
+`.ai/tasks/TASK-002-18-09-2026.md`
+
+Investigado por que a coluna `ORIGEM`, ao ser importada num CSV para a tabela master, não ficava
+disponível depois de recarregar a tela. Dois problemas distintos, mesma raiz de família da
+TASK-001: schema do Supabase desatualizado em relação ao código.
+
+**Causa raiz:** `tabela_orcamento_master` no Supabase real nunca teve a coluna `origem`
+(`scripts/schema_supabase.sql` não a declarava). `admin.py:upload_master_csv` lia e gravava
+`origem` certo no CSV e no SQLite local, mas o `INSERT` espelhado no Supabase falhava com o erro
+**engolido em silêncio** — a resposta ao admin continuava dizendo sucesso. Na sequência, o próximo
+`GET /api/orcamento/dados` puxava a master antiga da nuvem e sobrescrevia o local, apagando o dado
+que tinha acabado de ser importado.
+
+**Bug de código independente:** `admin.py:sync_master_all` (botão "Sincronizar Tudo com a Nuvem")
+nunca lia nem gravava `origem` em lugar nenhum, apesar do frontend já enviar o campo — não
+dependia do schema do Supabase, era um bug puro no Python.
+
+**Alterado:**
+- `scripts/schema_supabase.sql` — coluna `origem` adicionada ao `CREATE TABLE
+  tabela_orcamento_master` + migração idempotente para instalações existentes
+- `routers/admin.py:sync_master_all` — passou a ler/gravar `origem`, alinhado com
+  `upload_master_csv`/`add_master_row`
+- `routers/admin.py:upload_master_csv` — falha de sincronização com o Supabase agora vira
+  `HTTPException` 500 visível ao admin (`"Tabela local atualizada, mas falhou ao sincronizar com a
+  nuvem (Supabase): {erro}"`), em vez de log silencioso; adicionado `except HTTPException: raise`
+  para essa exceção não ser reembrulhada pelo handler genérico da função (que trocaria o status
+  500 por 400 e duplicaria a mensagem) — **melhoria aprovada explicitamente pelo usuário**
+- `static/orcamento.html` — o botão "Sobrescreve a tabela mestre" passou a mostrar a mensagem real
+  de erro (`data.detail`), no mesmo padrão já usado pelo botão "Sincronizar Tudo com a Nuvem"
+
+**Validado:** servidor real subido localmente; `POST /api/admin/sync-master-all` com `origem`
+preenchida confirmado persistindo no SQLite; `POST /api/admin/upload-master` com Supabase
+configurado mas inválido confirmado retornando `500` com mensagem clara (não mais `400`
+reembrulhado) e, mesmo assim, salvando `origem` corretamente no SQLite local.
+
+**Não corrigido nesta etapa** (depende de ação do usuário, fora do alcance deste ambiente): rodar
+o `ALTER TABLE` no Supabase real.
+
+**Achados registrados, não corrigidos** (fora do escopo pedido): o botão "Importar CSV Local"
+chama um endpoint (`/api/upload/csv-orcamento`) que não existe no backend; a tabela pessoal do
+usuário (`routers/orcamento.py`) também não trata `origem`, mas nunca sincroniza com a nuvem.
+
+---
+
+## 2026-09-18 — TASK-001: login/cadastro via Supabase restabelecidos (desktop + Render.com)
+
+**Tipo:** correção de schema (dados) + diagnóstico (código) · **Tarefa:**
+`.ai/tasks/TASK-001-18-09-2026.md` · **Status final: CONCLUÍDA**
 
 Investigado com o usuário por que login e cadastro de usuário (Supabase) haviam parado de
 funcionar. RLS descartado (estava desabilitado). Confirmado que a tabela real `usuarios_nuvem`
@@ -18,7 +66,7 @@ do usuário tinha `is_admin` mas não tinha `role` — coluna que `routers/admin
 `POST /api/admin/users` (falha visível, com mensagem enganosa de "e-mail duplicado") e em
 `PUT /api/admin/users/{id}/role` (falha silenciosa).
 
-**Alterado:**
+**Alterado no código:**
 - `scripts/schema_supabase.sql` — migração idempotente adicionando `role` a `usuarios_nuvem`
 - `routers/health.py` — `GET /api/health` ganhou `supabase_configured`, `supabase_reachable` e
   `usuarios_nuvem_has_rows`, sem expor dados de usuário (rota é pública)
@@ -28,9 +76,18 @@ que não influenciam este diagnóstico); `/api/health` testado com Supabase não
 credenciais configuradas porém inválidas — os dois casos respondem corretamente, sem quebrar a
 rota.
 
-**Não corrigido nesta etapa** (depende de ação do usuário, fora do alcance deste ambiente): rodar
-o `ALTER TABLE` no projeto Supabase real; e, se após isso o login ainda falhar, apurar se é
-diferença de e-mail (maiúsculas/espaço) ou usuário criado fora da tabela `usuarios_nuvem`.
+**Feito pelo usuário, fora deste ambiente (sem acesso a Supabase/Render a partir daqui):**
+1. `ALTER TABLE ... ADD COLUMN role` no Supabase real → destravou login e cadastro
+2. Efeito colateral descoberto e corrigido: o `DEFAULT 'operador'` do passo 1 fez backfill em
+   **todas** as linhas existentes, inclusive contas admin — derrubando o acesso ao painel admin
+   até um `UPDATE` reconciliando `role` com `is_admin` (ver detalhe em STATE.md, problema 8, e no
+   arquivo da tarefa)
+3. Configuradas `SUPABASE_URL`/`SUPABASE_KEY` nas env vars do serviço Render.com (nunca haviam
+   sido definidas lá — ambiente de deploy adicional, não documentado antes desta tarefa) e forçado
+   um redeploy manual para pegar o código já mesclado em `main`
+
+**Resultado confirmado pelo usuário:** login, painel admin e cadastro de usuário funcionando tanto
+no desktop quanto na aplicação online (Render.com).
 
 **Não alterado** (fora do escopo pedido): qualquer lógica de `orcamento_calc.py` ou das tabelas de
 orçamento.
