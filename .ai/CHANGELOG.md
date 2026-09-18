@@ -42,8 +42,9 @@ ambiente ou reiniciar o servidor.
 - `POST` seguido de `GET` do mesmo `projeto_codigo`, com Supabase "fake" funcionando → o `GET`
   retornou exatamente o que foi salvo, vindo da nuvem
 
-**Não corrigido nesta etapa** (depende do usuário, fora do alcance deste ambiente): rodar a
-migração da tabela `regras_conversao` no Supabase real.
+**Mesclado em `main`** via PR #5 (commit de merge `cac4b85`). Usuário rodou a migração no
+Supabase real, redeployou e **confirmou**: regras salvas na nuvem persistem tanto no desktop
+quanto na versão online. **TASK-003 encerrada.**
 
 ---
 
