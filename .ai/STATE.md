@@ -152,11 +152,20 @@ arquivo em `.ai/tasks/`.
    padrão de `upload_master_csv`/`add_master_row`). E `upload_master_csv` passou a repassar ao
    admin, via `HTTPException` 500, quando a sincronização com o Supabase falha, em vez de mascarar
    como sucesso — mudança espelhada no frontend (`orcamento.html`) para mostrar a mensagem real.
-   Falta o usuário rodar a migração no Supabase real. Ver `.ai/tasks/TASK-002-18-09-2026.md`.
    Achados relacionados, fora do escopo desta tarefa: o botão "Importar CSV Local" chama
    `/api/upload/csv-orcamento`, endpoint que **não existe** no backend (404); e a tabela pessoal
    do usuário (`routers/orcamento.py` `/upload` e `/salvar`) também não trata `origem`, mas nunca
    sincroniza com a nuvem.
+   ✅ **Segunda causa raiz encontrada e corrigida (2026-09-18):** usuário rodou a migração no
+   Supabase real e reimportou a base, mas `origem` continuava `null`, sem nenhum erro. Achado um
+   commit anterior a esta tarefa (`08cd044`, feito manualmente pelo usuário em 17/09, quando a
+   coluna `origem` de fato ainda não existia no Supabase) que **filtrava `origem` para fora do
+   payload** antes de todo `INSERT` no Supabase, em `upload_master_csv` e `sync_master_all`
+   (`rows_supabase = [{k: v for k, v in r.items() if k != 'origem'} for r in rows_to_insert]`).
+   Esse trecho sobreviveu a um merge de `main` para a branch de trabalho e continuou removendo
+   `origem` mesmo depois do schema já ter a coluna — por isso o insert nunca falhava (sem erro
+   visível) e `origem` nunca chegava na nuvem. Removido nos dois handlers.
+   Ver diagnóstico completo em `.ai/tasks/TASK-002-18-09-2026.md`.
 6. `usuarios_nuvem` **não tem a coluna `is_admin`** no schema versionado, mas `auth.py:57` e
    `admin.py:102,106` leem e escrevem `is_admin`.
    ✅ **Confirmado e corrigido — TASK-001 (2026-09-18):** o inverso também ocorre e foi verificado
