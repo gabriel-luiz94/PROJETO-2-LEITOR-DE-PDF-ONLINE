@@ -8,6 +8,45 @@
 
 ---
 
+## 2026-09-18 — TASK-003: regras de conversão passam a persistir de fato no Supabase
+
+**Tipo:** nova tabela + correção de código · **Tarefa:** `.ai/tasks/TASK-003-18-09-2026.md`
+
+O botão "Salvar na Nuvem" das regras de conversão (CABOS/OUTROS → totalizadora, em
+`resumo.html`/`resumo.js`) nunca escrevia no Supabase — `routers/regras.py` lia e gravava apenas
+na tabela `configuracoes` do SQLite local. Cada instância do backend (desktop, Render) tem seu
+próprio arquivo de banco, sem nenhum compartilhamento; por isso as regras "somem" ao trocar de
+ambiente ou reiniciar o servidor.
+
+**Alterado:**
+- `scripts/schema_supabase.sql` — nova tabela `regras_conversao` (`projeto_codigo` PK,
+  `regras_json`), bloco idempotente no mesmo padrão das migrações anteriores.
+- `routers/regras.py:get_regras_conversao` — passa a consultar o Supabase primeiro (fonte de
+  verdade quando configurado/alcançável), com fallback para o SQLite local, no mesmo padrão de
+  `routers/obras.py:get_obras`.
+- `routers/regras.py:save_regras_conversao` — passa a gravar local **e** fazer upsert no
+  Supabase; diferente de `obras.py` (que engole erro de Supabase em silêncio — problema 21 do
+  `STATE.md`, não corrigido aqui por estar fora do escopo pedido), aqui a falha de sincronização
+  vira `HTTPException` 500 visível, no padrão já aprovado na TASK-002.
+- `static/resumo.js:salvarRegrasNuvem` — passa a mostrar `data.detail` (mensagem real de erro) em
+  vez de um texto genérico, no mesmo padrão já usado em `orcamento.html`.
+
+**Validado:** servidor real subido a partir de uma cópia isolada do projeto (stubs para `ezdxf`,
+`pymupdf` e `supabase`, técnica já usada nas tarefas anteriores), autenticado como admin:
+- `POST` sem Supabase configurado → `200`, grava só local (comportamento preservado)
+- `POST` com Supabase configurado porém falhando → `500` com mensagem clara, e SQLite local
+  confirmado gravado mesmo assim
+- `GET` de um `projeto_codigo` que só existia no Supabase "fake" (nunca gravado localmente) →
+  retornou o dado da nuvem corretamente, confirmando que a integração é real e não um fallback
+  disfarçado
+- `POST` seguido de `GET` do mesmo `projeto_codigo`, com Supabase "fake" funcionando → o `GET`
+  retornou exatamente o que foi salvo, vindo da nuvem
+
+**Não corrigido nesta etapa** (depende do usuário, fora do alcance deste ambiente): rodar a
+migração da tabela `regras_conversao` no Supabase real.
+
+---
+
 ## 2026-09-18 — TASK-002 (continuação): `origem` era removida do payload antes do envio ao Supabase
 
 **Tipo:** correção de código · **Tarefa:** `.ai/tasks/TASK-002-18-09-2026.md`

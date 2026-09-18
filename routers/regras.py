@@ -3,10 +3,12 @@ routers/regras.py — Rotas para gerenciamento de regras de aprendizado da IA
                e regras de conversão de orçamento.
 """
 import json
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from database import get_connection
 from models import RegraModel
+from services.supabase_client import get_supabase
+from config import logger
 
 router = APIRouter(prefix="/api/regras", tags=["regras"])
 
@@ -41,6 +43,16 @@ class RegrasConversaoModel(BaseModel):
 @router.get("/conversao")
 def get_regras_conversao(projeto_codigo: str = "DEFAULT"):
     chave = f"regras_conversao_{projeto_codigo}"
+
+    supabase = get_supabase()
+    if supabase:
+        try:
+            res = supabase.table("regras_conversao").select("regras_json").eq("projeto_codigo", projeto_codigo).execute()
+            if res.data:
+                return {"regras": json.loads(res.data[0]["regras_json"])}
+        except Exception as e:
+            logger.warning(f"Falha ao buscar regras de conversão no Supabase: {e}")
+
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT valor FROM configuracoes WHERE chave = ?", (chave,))
@@ -66,4 +78,16 @@ def save_regras_conversao(payload: RegrasConversaoModel):
     )
     conn.commit()
     conn.close()
+
+    supabase = get_supabase()
+    if supabase:
+        try:
+            supabase.table("regras_conversao").upsert({
+                "projeto_codigo": payload.projeto_codigo,
+                "regras_json": valor
+            }).execute()
+        except Exception as e:
+            logger.warning(f"Erro ao salvar regras de conversão no Supabase: {e}")
+            raise HTTPException(status_code=500, detail=f"Regras salvas localmente, mas falharam ao sincronizar com a nuvem (Supabase): {e}")
+
     return {"status": "success"}

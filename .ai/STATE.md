@@ -251,6 +251,17 @@ arquivo em `.ai/tasks/`.
 24. O repositório continha PDFs, DXFs e o `banco_resumo.db` com dados reais de obra, versionados
     antes das regras do `.gitignore`. **Removidos no commit `530d5cc`**; o histórico do Git ainda os
     contém. Mencionado aqui para que ninguém os re-adicione.
+25. `routers/regras.py` (regras de conversão CABOS/OUTROS → totalizadora, botão "Salvar na Nuvem"
+    em `resumo.html`) gravava e lia **somente no SQLite local**, apesar do rótulo "nuvem" —
+    desktop e Render tinham cada um sua própria cópia, sem nenhum compartilhamento, e o dado se
+    perdia ao trocar de ambiente ou reiniciar o servidor.
+    ✅ **Corrigido — TASK-003 (2026-09-18):** criada a tabela `regras_conversao` no Supabase
+    (`scripts/schema_supabase.sql`); `GET/POST /api/regras/conversao` passaram a ler da nuvem
+    primeiro (fallback local se o Supabase não estiver configurado/alcançável) e a gravar em
+    ambos, no mesmo padrão de `obras.py`. Diferente de `obras.py` (item 21 acima), a falha de
+    sincronização aqui **não é engolida em silêncio** — vira `HTTPException` 500 visível ao
+    usuário. Falta o usuário rodar a migração da nova tabela no Supabase real. Ver
+    `.ai/tasks/TASK-003-18-09-2026.md`.
 
 ---
 
