@@ -260,8 +260,9 @@ arquivo em `.ai/tasks/`.
     primeiro (fallback local se o Supabase não estiver configurado/alcançável) e a gravar em
     ambos, no mesmo padrão de `obras.py`. Diferente de `obras.py` (item 21 acima), a falha de
     sincronização aqui **não é engolida em silêncio** — vira `HTTPException` 500 visível ao
-    usuário. Falta o usuário rodar a migração da nova tabela no Supabase real. Ver
-    `.ai/tasks/TASK-003-18-09-2026.md`.
+    usuário. Mesclado em `main` (PR #5, commit `cac4b85`) e **confirmado funcionando pelo usuário
+    em produção** (desktop e online compartilhando as mesmas regras). Ver
+    `.ai/tasks/TASK-003-18-09-2026.md` (status: CONCLUÍDA).
 
 ---
 
