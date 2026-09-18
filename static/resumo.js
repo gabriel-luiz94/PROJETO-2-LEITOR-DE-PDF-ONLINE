@@ -2585,7 +2585,8 @@ window.salvarRegrasNuvem = async function() {
         if (res.ok) {
             showToast('✓ Regras salvas na nuvem!');
         } else {
-            showToast('Erro ao salvar na nuvem.');
+            const data = await res.json().catch(() => ({}));
+            showToast(data.detail || 'Erro ao salvar na nuvem.');
         }
     } catch(e) {
         showToast('Erro de conexão ao salvar.');

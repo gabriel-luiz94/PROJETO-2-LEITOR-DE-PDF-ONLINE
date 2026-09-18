@@ -98,3 +98,15 @@ ALTER TABLE public.usuarios_nuvem ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'op
 -- lógica de cálculo, então não há valor de backfill "errado" a evitar aqui
 -- (diferente do caso de `role` acima).
 ALTER TABLE public.tabela_orcamento_master ADD COLUMN IF NOT EXISTS origem TEXT;
+
+-- Projetos criados antes desta revisão não têm a tabela `regras_conversao`. Ela guarda a tabela
+-- de regras que traduz as entradas CABOS/OUTROS para a totalizadora (botão "Salvar na Nuvem" em
+-- resumo.html/resumo.js), uma por `projeto_codigo`. Antes desta revisão, o botão só gravava no
+-- SQLite local de cada instância do backend (desktop e Render não compartilhavam nada), por isso
+-- as regras "somem" ao trocar de ambiente ou reiniciar o servidor.
+CREATE TABLE IF NOT EXISTS public.regras_conversao (
+    projeto_codigo TEXT PRIMARY KEY,
+    regras_json TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.regras_conversao DISABLE ROW LEVEL SECURITY;
