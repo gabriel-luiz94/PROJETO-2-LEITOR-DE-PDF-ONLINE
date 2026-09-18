@@ -520,15 +520,19 @@
                     body: formData 
                 });
                 
+                const data = await res.json().catch(() => ({}));
+
                 if (res.ok) {
                     showToast("Tabela Mestre atualizada para TODOS!");
                     await fetch('/api/health/sync-master', {method: 'POST'});
                     carregarDados();
                 } else {
-                    showToast("Erro ao fazer upload Master.");
+                    const msg = data.detail || "Erro ao fazer upload Master.";
+                    showToast(msg);
+                    alert(msg);
                 }
-            } catch (err) { 
-                showToast("Erro de conexão."); 
+            } catch (err) {
+                showToast("Erro de conexão.");
             }
         });
 

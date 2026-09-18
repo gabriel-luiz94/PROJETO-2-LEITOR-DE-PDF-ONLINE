@@ -140,8 +140,23 @@ arquivo em `.ai/tasks/`.
 ### Divergências de schema (SQLite ↔ Supabase)
 5. `tabela_orcamento_master` **não tem a coluna `origem`** em `scripts/schema_supabase.sql`, mas
    `admin.py` (`add-row`, `upload-master`) a envia e `sync_service.py:57` a lê. Em um Supabase criado
-   a partir do schema versionado, essas escritas falham ou perdem o campo. **Fora do escopo de
-   TASK-001** (restrição explícita do usuário: não mexer na base de orçamento).
+   a partir do schema versionado, essas escritas falham ou perdem o campo.
+   ✅ **Corrigido — TASK-002 (2026-09-18):** confirmado num caso real (mesmo padrão da TASK-001):
+   o `INSERT` do Supabase em `upload_master_csv` falhava com o erro engolido em silêncio
+   (`except Exception: logger.warning(...)`, resposta continuava "ok"), e a próxima chamada a
+   `GET /api/orcamento/dados` sobrescrevia o local com a master antiga da nuvem, apagando o
+   `origem` que tinha acabado de ser importado. `scripts/schema_supabase.sql` ganhou a coluna na
+   `CREATE TABLE` e uma migração idempotente para instalações existentes. Além disso,
+   `admin.py:sync_master_all` (o botão "Sincronizar Tudo com a Nuvem") **nunca lia nem gravava
+   `origem`** — bug de código independente do schema, também corrigido (agora segue o mesmo
+   padrão de `upload_master_csv`/`add_master_row`). E `upload_master_csv` passou a repassar ao
+   admin, via `HTTPException` 500, quando a sincronização com o Supabase falha, em vez de mascarar
+   como sucesso — mudança espelhada no frontend (`orcamento.html`) para mostrar a mensagem real.
+   Falta o usuário rodar a migração no Supabase real. Ver `.ai/tasks/TASK-002-18-09-2026.md`.
+   Achados relacionados, fora do escopo desta tarefa: o botão "Importar CSV Local" chama
+   `/api/upload/csv-orcamento`, endpoint que **não existe** no backend (404); e a tabela pessoal
+   do usuário (`routers/orcamento.py` `/upload` e `/salvar`) também não trata `origem`, mas nunca
+   sincroniza com a nuvem.
 6. `usuarios_nuvem` **não tem a coluna `is_admin`** no schema versionado, mas `auth.py:57` e
    `admin.py:102,106` leem e escrevem `is_admin`.
    ✅ **Confirmado e corrigido — TASK-001 (2026-09-18):** o inverso também ocorre e foi verificado

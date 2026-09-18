@@ -435,10 +435,13 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...)):
                     supabase.table("tabela_orcamento_master").insert(rows_to_insert[i:i+500]).execute()
             except Exception as e:
                 logger.warning(f"Erro ao enviar Master para Supabase: {e}")
+                raise HTTPException(status_code=500, detail=f"Tabela local atualizada, mas falhou ao sincronizar com a nuvem (Supabase): {e}")
 
         _audit(admin, "UPLOAD_MASTER_CSV", "tabela_orcamento_master", None, f"total_rows={len(rows_to_insert)}")
         return {"status": "ok", "msg": f"Tabela Master atualizada com {len(rows_to_insert)} linhas."}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro ao processar CSV Master: {e}")
 
@@ -481,18 +484,19 @@ def sync_master_all(req: SalvarOrcamentoRequest, request: Request):
             "desc_codigo": row.get("desc_codigo", "").strip(),
             "fator_i": fator_i,
             "fator_r": fator_r,
-            "filtro": row.get("filtro", "").strip()
+            "filtro": row.get("filtro", "").strip(),
+            "origem": row.get("origem", "").strip()
         }
         rows_to_insert.append(item_dict)
-        
+
         cur.execute('''
-            INSERT INTO tabela_orcamento_master 
-            (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO tabela_orcamento_master
+            (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             item_dict["ativo"], item_dict["desc_ativo"], item_dict["componente"],
             item_dict["projeto"], item_dict["mdo"], item_dict["codigo"],
-            item_dict["desc_codigo"], item_dict["fator_i"], item_dict["fator_r"], item_dict["filtro"]
+            item_dict["desc_codigo"], item_dict["fator_i"], item_dict["fator_r"], item_dict["filtro"], item_dict["origem"]
         ))
     
     cur.execute("COMMIT")

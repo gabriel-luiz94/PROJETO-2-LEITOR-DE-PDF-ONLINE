@@ -8,6 +8,53 @@
 
 ---
 
+## 2026-09-18 — TASK-002: coluna `origem` restabelecida na tabela master de orçamento
+
+**Tipo:** correção de schema + bug de código + diagnóstico · **Tarefa:**
+`.ai/tasks/TASK-002-18-09-2026.md`
+
+Investigado por que a coluna `ORIGEM`, ao ser importada num CSV para a tabela master, não ficava
+disponível depois de recarregar a tela. Dois problemas distintos, mesma raiz de família da
+TASK-001: schema do Supabase desatualizado em relação ao código.
+
+**Causa raiz:** `tabela_orcamento_master` no Supabase real nunca teve a coluna `origem`
+(`scripts/schema_supabase.sql` não a declarava). `admin.py:upload_master_csv` lia e gravava
+`origem` certo no CSV e no SQLite local, mas o `INSERT` espelhado no Supabase falhava com o erro
+**engolido em silêncio** — a resposta ao admin continuava dizendo sucesso. Na sequência, o próximo
+`GET /api/orcamento/dados` puxava a master antiga da nuvem e sobrescrevia o local, apagando o dado
+que tinha acabado de ser importado.
+
+**Bug de código independente:** `admin.py:sync_master_all` (botão "Sincronizar Tudo com a Nuvem")
+nunca lia nem gravava `origem` em lugar nenhum, apesar do frontend já enviar o campo — não
+dependia do schema do Supabase, era um bug puro no Python.
+
+**Alterado:**
+- `scripts/schema_supabase.sql` — coluna `origem` adicionada ao `CREATE TABLE
+  tabela_orcamento_master` + migração idempotente para instalações existentes
+- `routers/admin.py:sync_master_all` — passou a ler/gravar `origem`, alinhado com
+  `upload_master_csv`/`add_master_row`
+- `routers/admin.py:upload_master_csv` — falha de sincronização com o Supabase agora vira
+  `HTTPException` 500 visível ao admin (`"Tabela local atualizada, mas falhou ao sincronizar com a
+  nuvem (Supabase): {erro}"`), em vez de log silencioso; adicionado `except HTTPException: raise`
+  para essa exceção não ser reembrulhada pelo handler genérico da função (que trocaria o status
+  500 por 400 e duplicaria a mensagem) — **melhoria aprovada explicitamente pelo usuário**
+- `static/orcamento.html` — o botão "Sobrescreve a tabela mestre" passou a mostrar a mensagem real
+  de erro (`data.detail`), no mesmo padrão já usado pelo botão "Sincronizar Tudo com a Nuvem"
+
+**Validado:** servidor real subido localmente; `POST /api/admin/sync-master-all` com `origem`
+preenchida confirmado persistindo no SQLite; `POST /api/admin/upload-master` com Supabase
+configurado mas inválido confirmado retornando `500` com mensagem clara (não mais `400`
+reembrulhado) e, mesmo assim, salvando `origem` corretamente no SQLite local.
+
+**Não corrigido nesta etapa** (depende de ação do usuário, fora do alcance deste ambiente): rodar
+o `ALTER TABLE` no Supabase real.
+
+**Achados registrados, não corrigidos** (fora do escopo pedido): o botão "Importar CSV Local"
+chama um endpoint (`/api/upload/csv-orcamento`) que não existe no backend; a tabela pessoal do
+usuário (`routers/orcamento.py`) também não trata `origem`, mas nunca sincroniza com a nuvem.
+
+---
+
 ## 2026-09-18 — TASK-001: login/cadastro via Supabase restabelecidos (desktop + Render.com)
 
 **Tipo:** correção de schema (dados) + diagnóstico (código) · **Tarefa:**

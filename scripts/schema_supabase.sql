@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS public.tabela_orcamento_master (
     fator_i NUMERIC,
     fator_r NUMERIC,
     filtro TEXT,
+    origem TEXT,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -87,3 +88,13 @@ ALTER TABLE public.usuarios_nuvem DISABLE ROW LEVEL SECURITY;
 -- (PUT /api/admin/users/{id}/role) falha em silêncio.
 -- =============================================================================
 ALTER TABLE public.usuarios_nuvem ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'operador';
+
+-- Projetos criados antes desta revisão podem não ter a coluna `origem` em
+-- tabela_orcamento_master. routers/admin.py grava essa coluna ao importar CSV
+-- master ou sincronizar tudo; services/orcamento_calc.py a lê para restringir
+-- o match de um ativo a uma origem específica ("CABOS" ou "OUTROS"). Sem ela,
+-- o INSERT no Supabase falha e a tabela master na nuvem nunca reflete o que
+-- foi importado. Sem DEFAULT: NULL/vazio já significa "qualquer origem" na
+-- lógica de cálculo, então não há valor de backfill "errado" a evitar aqui
+-- (diferente do caso de `role` acima).
+ALTER TABLE public.tabela_orcamento_master ADD COLUMN IF NOT EXISTS origem TEXT;
