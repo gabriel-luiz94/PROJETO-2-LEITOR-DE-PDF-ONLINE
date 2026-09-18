@@ -144,12 +144,15 @@ arquivo em `.ai/tasks/`.
    TASK-001** (restrição explícita do usuário: não mexer na base de orçamento).
 6. `usuarios_nuvem` **não tem a coluna `is_admin`** no schema versionado, mas `auth.py:57` e
    `admin.py:102,106` leem e escrevem `is_admin`.
-   ✅ **Confirmado e corrigido em parte — TASK-001 (2026-09-18):** o inverso também ocorre e foi
-   verificado num caso real: o Supabase de um usuário tinha `is_admin` mas **não tinha `role`**,
-   quebrando `POST /api/admin/users` (insere `role`) e fazendo `PUT /api/admin/users/{id}/role`
-   falhar em silêncio. `scripts/schema_supabase.sql` ganhou uma migração idempotente
-   (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS role`); falta o usuário rodar o mesmo `ALTER TABLE`
-   no projeto Supabase real (não executável a partir daqui). Ver `.ai/tasks/TASK-001-18-09-2026.md`.
+   ✅ **Confirmado e corrigido — TASK-001 (2026-09-18):** o inverso também ocorre e foi verificado
+   num caso real: o Supabase de um usuário tinha `is_admin` mas **não tinha `role`**, quebrando
+   `POST /api/admin/users` (insere `role`) e fazendo `PUT /api/admin/users/{id}/role` falhar em
+   silêncio — e, por consequência, o login também falhava para credenciais válidas.
+   `scripts/schema_supabase.sql` ganhou uma migração idempotente
+   (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS role`). O usuário rodou a migração no Supabase real
+   e confirmou: `GET /api/health` retornou `supabase_configured: true`, `supabase_reachable: true`,
+   `usuarios_nuvem_has_rows: true`, e o **login voltou a funcionar**. Cadastro de novo usuário
+   ainda não testado na prática — ver `.ai/tasks/TASK-001-18-09-2026.md`.
 7. `admin.py:sync_master_all` grava a master **sem** a coluna `origem`, enquanto `upload_master_csv`
    grava **com**. Os dois caminhos produzem resultados diferentes.
 
