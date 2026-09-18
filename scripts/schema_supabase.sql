@@ -76,3 +76,14 @@ ALTER TABLE public.obras DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.projetos DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tabela_orcamento_master DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.usuarios_nuvem DISABLE ROW LEVEL SECURITY;
+
+-- =============================================================================
+-- 8. Migrações (idempotentes — seguro rodar de novo em um banco já existente)
+--
+-- Projetos criados antes desta revisão do script (ou cuja tabela usuarios_nuvem
+-- foi montada manualmente pelo Table Editor) podem não ter a coluna `role`.
+-- O backend grava e lê essa coluna (routers/admin.py, routers/auth.py); sem
+-- ela, a criação de usuário (POST /api/admin/users) falha e a troca de role
+-- (PUT /api/admin/users/{id}/role) falha em silêncio.
+-- =============================================================================
+ALTER TABLE public.usuarios_nuvem ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'operador';

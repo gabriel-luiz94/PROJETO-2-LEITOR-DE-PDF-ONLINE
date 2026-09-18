@@ -51,7 +51,9 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 - [x] Download paginado da tabela master do Supabase (`sync_tabela_master`)
 - [x] Fallback silencioso para SQLite em obras, RECs e projetos quando o Supabase falha
 - [x] Preservação de REC de outro usuário via cópia nomeada
-- [x] Backup em JSON (`/api/backup/export`) e diagnóstico (`/api/health`)
+- [x] Backup em JSON (`/api/backup/export`) e diagnóstico (`/api/health`), incluindo desde
+      2026-09-18 checagem de configuração e alcançabilidade do Supabase (`supabase_configured`,
+      `supabase_reachable`, `usuarios_nuvem_has_rows`) — ver TASK-001
 
 ### Autenticação e administração
 - [x] Login com JWT (24 h) + refresh token (30 d), bcrypt e fallback offline
@@ -138,9 +140,16 @@ arquivo em `.ai/tasks/`.
 ### Divergências de schema (SQLite ↔ Supabase)
 5. `tabela_orcamento_master` **não tem a coluna `origem`** em `scripts/schema_supabase.sql`, mas
    `admin.py` (`add-row`, `upload-master`) a envia e `sync_service.py:57` a lê. Em um Supabase criado
-   a partir do schema versionado, essas escritas falham ou perdem o campo.
+   a partir do schema versionado, essas escritas falham ou perdem o campo. **Fora do escopo de
+   TASK-001** (restrição explícita do usuário: não mexer na base de orçamento).
 6. `usuarios_nuvem` **não tem a coluna `is_admin`** no schema versionado, mas `auth.py:57` e
    `admin.py:102,106` leem e escrevem `is_admin`.
+   ✅ **Confirmado e corrigido em parte — TASK-001 (2026-09-18):** o inverso também ocorre e foi
+   verificado num caso real: o Supabase de um usuário tinha `is_admin` mas **não tinha `role`**,
+   quebrando `POST /api/admin/users` (insere `role`) e fazendo `PUT /api/admin/users/{id}/role`
+   falhar em silêncio. `scripts/schema_supabase.sql` ganhou uma migração idempotente
+   (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS role`); falta o usuário rodar o mesmo `ALTER TABLE`
+   no projeto Supabase real (não executável a partir daqui). Ver `.ai/tasks/TASK-001-18-09-2026.md`.
 7. `admin.py:sync_master_all` grava a master **sem** a coluna `origem`, enquanto `upload_master_csv`
    grava **com**. Os dois caminhos produzem resultados diferentes.
 

@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from database import get_row_connection
 from config import DB_PATH, PROMPT_PATH, SEED_CSV_PATH, STATIC_DIR
 from services.sync_service import sync_tabela_master
+from services.supabase_client import get_supabase
 
 router = APIRouter(tags=["health"])
 
@@ -41,6 +42,27 @@ def health_check():
     info["env_gemini_key"] = bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
     info["frozen"] = getattr(sys, "frozen", False)
     info["static_dir"] = STATIC_DIR
+
+    # Supabase — diagnóstico de login/cadastro de usuários (nunca expõe dados de usuário aqui,
+    # só booleans/contagens; este endpoint é público)
+    supabase_url = os.environ.get("SUPABASE_URL", "").strip()
+    supabase_key = os.environ.get("SUPABASE_KEY", "").strip()
+    info["supabase_configured"] = bool(supabase_url and supabase_key)
+
+    supabase = get_supabase()
+    if supabase:
+        try:
+            res = supabase.table("usuarios_nuvem").select("id").limit(1).execute()
+            info["supabase_reachable"] = True
+            info["usuarios_nuvem_has_rows"] = bool(res.data)
+        except Exception as e:
+            info["supabase_reachable"] = False
+            info["supabase_error"] = str(e)
+    else:
+        info["supabase_reachable"] = False
+        if not info["supabase_configured"]:
+            info["supabase_error"] = "SUPABASE_URL/SUPABASE_KEY não configuradas neste ambiente."
+
     return info
 
 
