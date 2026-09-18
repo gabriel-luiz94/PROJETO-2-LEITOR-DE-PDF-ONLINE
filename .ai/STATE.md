@@ -164,8 +164,9 @@ arquivo em `.ai/tasks/`.
    (`rows_supabase = [{k: v for k, v in r.items() if k != 'origem'} for r in rows_to_insert]`).
    Esse trecho sobreviveu a um merge de `main` para a branch de trabalho e continuou removendo
    `origem` mesmo depois do schema já ter a coluna — por isso o insert nunca falhava (sem erro
-   visível) e `origem` nunca chegava na nuvem. Removido nos dois handlers.
-   Ver diagnóstico completo em `.ai/tasks/TASK-002-18-09-2026.md`.
+   visível) e `origem` nunca chegava na nuvem. Removido nos dois handlers, mesclado em `main`
+   (PR #3, commit `36de3aa`) e **confirmado funcionando pelo usuário em produção** após reimportar
+   a base. Problema encerrado. Ver `.ai/tasks/TASK-002-18-09-2026.md` (status: CONCLUÍDA).
 6. `usuarios_nuvem` **não tem a coluna `is_admin`** no schema versionado, mas `auth.py:57` e
    `admin.py:102,106` leem e escrevem `is_admin`.
    ✅ **Confirmado e corrigido — TASK-001 (2026-09-18):** o inverso também ocorre e foi verificado
