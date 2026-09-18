@@ -8,6 +8,31 @@
 
 ---
 
+## 2026-09-18 — TASK-002 (continuação): `origem` era removida do payload antes do envio ao Supabase
+
+**Tipo:** correção de código · **Tarefa:** `.ai/tasks/TASK-002-18-09-2026.md`
+
+Depois que o usuário rodou a migração `ALTER TABLE ... ADD COLUMN origem` no Supabase real e
+reimportou a base master completa, `origem` continuava `null` em todas as linhas, sem nenhum erro
+sendo reportado. Achado um trecho em `routers/admin.py` (`upload_master_csv` e `sync_master_all`)
+que filtrava `origem` para fora do dicionário antes de cada `INSERT`/`DELETE` no Supabase
+(`rows_supabase = [{k: v for k, v in r.items() if k != 'origem'} for r in rows_to_insert]`), com o
+comentário "A coluna 'origem' não existe no Supabase - removemos antes do insert". Esse trecho
+veio de um commit anterior à TASK-002 (`08cd044`, 17/09), feito quando a coluna de fato ainda não
+existia — e sobreviveu a um merge de `main` de volta para a branch de trabalho sem gerar conflito,
+continuando a remover `origem` mesmo depois do schema já ter a coluna. Por isso o `INSERT` nunca
+falhava (sem erro visível) e `origem` nunca chegava na nuvem, independentemente de qualquer outro
+fix já aplicado.
+
+**Alterado:** removida a filtragem `rows_supabase = [...]` nos dois handlers; ambos voltam a
+enviar `origem` ao Supabase como qualquer outra coluna, no mesmo padrão já usado por
+`add_master_row`.
+
+**Não corrigido nesta etapa** (depende de o usuário reimportar a base e confirmar): efeito
+observável em `GET /api/orcamento/dados` após o deploy refletir este commit.
+
+---
+
 ## 2026-09-18 — TASK-002: coluna `origem` restabelecida na tabela master de orçamento
 
 **Tipo:** correção de schema + bug de código + diagnóstico · **Tarefa:**
