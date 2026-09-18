@@ -8,6 +8,35 @@
 
 ---
 
+## 2026-09-18 — TASK-001: diagnóstico de login/cadastro via Supabase
+
+**Tipo:** correção de schema + diagnóstico · **Tarefa:** `.ai/tasks/TASK-001-18-09-2026.md`
+
+Investigado com o usuário por que login e cadastro de usuário (Supabase) haviam parado de
+funcionar. RLS descartado (estava desabilitado). Confirmado que a tabela real `usuarios_nuvem`
+do usuário tinha `is_admin` mas não tinha `role` — coluna que `routers/admin.py` grava em
+`POST /api/admin/users` (falha visível, com mensagem enganosa de "e-mail duplicado") e em
+`PUT /api/admin/users/{id}/role` (falha silenciosa).
+
+**Alterado:**
+- `scripts/schema_supabase.sql` — migração idempotente adicionando `role` a `usuarios_nuvem`
+- `routers/health.py` — `GET /api/health` ganhou `supabase_configured`, `supabase_reachable` e
+  `usuarios_nuvem_has_rows`, sem expor dados de usuário (rota é pública)
+
+**Validado:** servidor real subido localmente (dependências pesadas substituídas por stubs, já
+que não influenciam este diagnóstico); `/api/health` testado com Supabase não configurado e com
+credenciais configuradas porém inválidas — os dois casos respondem corretamente, sem quebrar a
+rota.
+
+**Não corrigido nesta etapa** (depende de ação do usuário, fora do alcance deste ambiente): rodar
+o `ALTER TABLE` no projeto Supabase real; e, se após isso o login ainda falhar, apurar se é
+diferença de e-mail (maiúsculas/espaço) ou usuário criado fora da tabela `usuarios_nuvem`.
+
+**Não alterado** (fora do escopo pedido): qualquer lógica de `orcamento_calc.py` ou das tabelas de
+orçamento.
+
+---
+
 ## 2026-09-18 — Estrutura de contexto IA-First criada
 
 **Tipo:** documentação · **Alterações de código: nenhuma**
