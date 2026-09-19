@@ -8,7 +8,27 @@
 
 ---
 
-## 2026-09-18 — TASK-003: regras de conversão passam a persistir de fato no Supabase
+## 2026-09-19 — TASK-001-19-09-2026: botão "Manipular Orçamentos" adicionado à página inicial
+
+**Tipo:** melhoria de UI · **Tarefa:** `.ai/tasks/TASK-001-19-09-2026.md`
+
+A página inicial (`index.html`) exibia apenas dois caminhos de entrada: "Procurar Arquivo"
+e "Montar Projeto". O usuário não tinha como navegar diretamente para a tela de resultado
+de orçamento (`resultado_orcamento.html`) sem antes passar por outra tela.
+
+**Alterado:**
+- `static/index.html` — adicionados `<p>ou acesse os orçamentos</p>` e
+  `<button id="btn-manipular-orcamentos">Manipular Orçamentos</button>` no `upload-card`,
+  após o botão "Montar Projeto". O botão navega para `/static/resultado_orcamento.html`
+  via `window.location.href`, no mesmo padrão já usado pelo botão "Montar Projeto".
+
+**Não alterado:** nenhuma funcionalidade das abas, nenhuma rota de API, nenhum banco
+de dados, nenhum contrato de `localStorage`.
+
+**Validado:** servidor já em execução; alteração visível ao recarregar a página inicial.
+
+---
+
 
 **Tipo:** nova tabela + correção de código · **Tarefa:** `.ai/tasks/TASK-003-18-09-2026.md`
 

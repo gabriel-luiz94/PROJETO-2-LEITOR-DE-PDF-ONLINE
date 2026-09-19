@@ -313,8 +313,6 @@ função pura, sem I/O, sem dependências internas, concentrando as regras RN-03
 
 ## Última atualização
 
-**Data:** 2026-09-18
-**Motivo:** Criação da estrutura de contexto IA-First (`.ai/`). Levantamento inicial do estado do
-projeto por leitura completa do backend, dos serviços, do middleware e dos módulos de negócio do
-frontend (`script.js`, `resumo.js`, `resultado_orcamento.html`).
-**Alterações de código:** nenhuma.
+**Data:** 2026-09-19
+**Motivo:** TASK-001-19-09-2026 — adicionado botão "Manipular Orçamentos" na página inicial.
+**Alterações de código:** `static/index.html` (novo botão de navegação para `resultado_orcamento.html`).
