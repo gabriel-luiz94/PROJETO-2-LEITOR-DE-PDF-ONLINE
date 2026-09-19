@@ -21,6 +21,9 @@ from database import init_db
 # Middleware de Autenticação
 from middleware.auth_middleware import AuthMiddleware
 
+# Middleware de No-Cache para HTML estático
+from middleware.nocache_middleware import NoCacheHtmlMiddleware
+
 # WebSocket
 from websocket_manager import manager
 
@@ -56,8 +59,45 @@ app.add_middleware(
 # ── Middleware de Autenticação JWT ───────────────────────────────────────────
 app.add_middleware(AuthMiddleware)
 
+# ── Middleware de No-Cache para HTML estático ──────────────────────────────
+# Garante que /static/*.html nunca seja servido com cache pelo navegador.
+app.add_middleware(NoCacheHtmlMiddleware)
+
 # ── Inicialização do Banco ──────────────────────────────────────────────────
 init_db()
+
+# ── Rotas JS sem cache (devem vir ANTES do app.mount para ter prioridade) ──────
+# O StaticFiles mount captura /static/* por prefixo; rotas explícitas registradas
+# antes do mount têm precedência no Starlette e permitem servir com NO_CACHE_HEADERS.
+from fastapi.responses import Response as _JSResponse
+
+def _serve_js(filename: str):
+    """Abre e serve um arquivo JS com cabeçalhos de no-cache."""
+    js_path = os.path.join(STATIC_DIR, filename)
+    if not os.path.exists(js_path):
+        return HTMLResponse(f"{filename} não encontrado", status_code=404)
+    with open(js_path, "r", encoding="utf-8") as f:
+        return _JSResponse(content=f.read(), media_type="application/javascript", headers=NO_CACHE_HEADERS)
+
+@app.get("/static/resumo.js")
+async def serve_resumo_js():
+    return _serve_js("resumo.js")
+
+@app.get("/static/script.js")
+async def serve_script_js():
+    return _serve_js("script.js")
+
+@app.get("/static/login.js")
+async def serve_login_js():
+    return _serve_js("login.js")
+
+@app.get("/static/admin.js")
+async def serve_admin_js():
+    return _serve_js("admin.js")
+
+@app.get("/static/auth_fetch.js")
+async def serve_auth_fetch_js():
+    return _serve_js("auth_fetch.js")
 
 # ── Rotas Estáticas (Frontend) ──────────────────────────────────────────────
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -87,14 +127,21 @@ async def serve_resumo():
     with open(resumo_path, "r", encoding="utf-8") as f:
         return HTMLResponse(f.read(), headers=NO_CACHE_HEADERS)
 
-@app.get("/static/resumo.js")
-async def serve_resumo_js():
-    js_path = os.path.join(STATIC_DIR, "resumo.js")
-    if not os.path.exists(js_path): 
-        return HTMLResponse("resumo.js não encontrado")
-    with open(js_path, "r", encoding="utf-8") as f:
-        from fastapi.responses import Response
-        return Response(content=f.read(), media_type="application/javascript", headers=NO_CACHE_HEADERS)
+@app.get("/resultado_orcamento")
+async def serve_resultado_orcamento():
+    resultado_path = os.path.join(STATIC_DIR, "resultado_orcamento.html")
+    if not os.path.exists(resultado_path): 
+        return HTMLResponse("resultado_orcamento.html não encontrado na pasta static")
+    with open(resultado_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(f.read(), headers=NO_CACHE_HEADERS)
+
+@app.get("/orcamento")
+async def serve_orcamento():
+    orc_path = os.path.join(STATIC_DIR, "orcamento.html")
+    if not os.path.exists(orc_path): 
+        return HTMLResponse("orcamento.html não encontrado na pasta static")
+    with open(orc_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(f.read(), headers=NO_CACHE_HEADERS)
 
 @app.get("/admin")
 async def serve_admin():
@@ -108,6 +155,23 @@ async def serve_admin():
 @app.get("/api/version")
 async def get_version():
     return {"version": APP_VERSION, "mode": APP_MODE}
+
+# ── Endpoint de Encerramento (apenas modo desktop) ───────────────────────────
+@app.get("/api/shutdown")
+async def shutdown():
+    """Encerra o processo do servidor. Bloqueado em modo server (segurança)."""
+    if APP_MODE == "server":
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Encerramento remoto não permitido no modo servidor.")
+    import signal
+    logger.info("Encerramento solicitado pelo usuário via /api/shutdown.")
+    # Agenda o encerramento em thread separada para a resposta HTTP chegar antes
+    def _encerrar():
+        import time
+        time.sleep(0.5)
+        os.kill(os.getpid(), signal.SIGTERM)
+    threading.Thread(target=_encerrar, daemon=True).start()
+    return {"status": "encerrando"}
 
 # ── WebSocket ───────────────────────────────────────────────────────────────
 @app.websocket("/ws")
@@ -158,13 +222,15 @@ if __name__ == "__main__":
         server_thread = threading.Thread(target=run_uvicorn, args=("127.0.0.1", port), daemon=True)
         server_thread.start()
 
+        # Abre sempre na tela de login com ?new_session=1 para limpar sessão anterior
         app_url = f"http://127.0.0.1:{port}"
-        
+        login_url = f"{app_url}/login?new_session=1"
+
         try:
             import webview
             window = webview.create_window(
                 title=f"Leitor de Projetos Pro v{APP_VERSION}",
-                url=app_url,
+                url=login_url,
                 width=1320,
                 height=860,
                 min_size=(960, 640),
@@ -175,5 +241,5 @@ if __name__ == "__main__":
             webview.start(private_mode=False)
         except Exception as e:
             logger.warning(f"Janela nativa indisponível ({e}). Abrindo no navegador...")
-            webbrowser.open(app_url)
+            webbrowser.open(login_url)
             server_thread.join()

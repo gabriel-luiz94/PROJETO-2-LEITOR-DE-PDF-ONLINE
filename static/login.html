@@ -54,6 +54,27 @@
         </form>
     </div>
 
+    <script>
+        // Ao iniciar com ?new_session=1, limpa sessão anterior e pré-preenche email
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('new_session') === '1') {
+                const lastEmail = localStorage.getItem('user_email') || '';
+                // Limpa todos os dados de sessão
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('user_id');
+                localStorage.removeItem('user_email');
+                localStorage.removeItem('is_admin');
+                // Pré-preenche o email para conveniência do usuário
+                window.addEventListener('DOMContentLoaded', function() {
+                    if (lastEmail) {
+                        const emailInput = document.getElementById('email');
+                        if (emailInput) emailInput.value = lastEmail;
+                    }
+                });
+            }
+        })();
+    </script>
     <script src="/static/login.js"></script>
 </body>
 </html>

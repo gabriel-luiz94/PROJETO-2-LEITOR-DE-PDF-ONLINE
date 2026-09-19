@@ -314,5 +314,7 @@ função pura, sem I/O, sem dependências internas, concentrando as regras RN-03
 ## Última atualização
 
 **Data:** 2026-09-19
-**Motivo:** TASK-001-19-09-2026 — adicionado botão "Manipular Orçamentos" na página inicial.
-**Alterações de código:** `static/index.html` (novo botão de navegação para `resultado_orcamento.html`).
+**Motivo:** TASK-004-19-09-2026 — correção definitiva de cache de arquivos estáticos.
+Navegação via URL `/static/*.html` gerava hard-cache no navegador local; substituída por novas 
+rotas limpas (`/resultado_orcamento`, `/orcamento`) no FastAPI para forçar requisições frescas.
+**Alterações de código:** `app.py`, `middleware/nocache_middleware.py`, `static/index.html`, `static/resumo.html`, `static/script.js`, `static/resumo.js`.
