@@ -9,6 +9,7 @@ from fastapi.responses import PlainTextResponse, StreamingResponse
 from database import get_connection
 from models import ChatRequest
 from config import PROMPT_PATH, logger
+from routers.regras import get_regras
 
 router = APIRouter(prefix="/api/gemini", tags=["ai"])
 
@@ -147,13 +148,9 @@ async def gemini_chat(req: ChatRequest, request: Request):
             system_instruction = f.read()
 
     try:
-        conn2 = get_connection()
-        cursor2 = conn2.cursor()
-        cursor2.execute("SELECT conteudo FROM regras")
-        regras = cursor2.fetchall()
-        conn2.close()
+        regras = get_regras(projeto_codigo=req.projeto_codigo)
         if regras:
-            regras_txt = "\n".join(f"- {r[0]}" for r in regras)
+            regras_txt = "\n".join(f"- {r['conteudo']}" for r in regras)
             system_instruction += f"\n\n🔹 REGRAS APRENDIDAS:\n{regras_txt}"
     except Exception as e:
         logger.warning(f"Erro ao carregar regras: {e}")

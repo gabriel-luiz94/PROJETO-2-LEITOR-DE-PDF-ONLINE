@@ -1,0 +1,178 @@
+[
+  {
+    "ordem": 5,
+    "ativo_regex": "^1-RTR\\d$",
+    "entidade": "TRAFO",
+    "parar": true
+  },
+  {
+    "ordem": 6,
+    "ativo_regex": "^\\d-RCFU$",
+    "entidade": "CHAVE",
+    "parar": true
+  },
+  {
+    "ordem": 7,
+    "ativo_regex": "^1-RFLY$",
+    "entidade": "ESTRUTURA",
+    "parar": true
+  },
+  {
+    "ordem": 8,
+    "ativo_regex": "^1-FLY$",
+    "entidade": "ESTRUTURA",
+    "parar": true
+  },
+  {
+    "ordem": 9,
+    "ativo_regex": "^1-TERRA3$",
+    "entidade": "ATERRAMENTO",
+    "parar": true
+  },
+  {
+    "ordem": 10,
+    "layer_em": [
+      "01_ORCAMENTO",
+      "01_ORCAMENTO_LV"
+    ],
+    "entidade": "AVULSO",
+    "parar": true
+  },
+  {
+    "ordem": 18,
+    "texto_regex": "APOIOS|LARGURA|(?=.*BASE)(?=.*CAL[CÇ]ADA)",
+    "parar": true
+  },
+  {
+    "ordem": 19,
+    "ativo_regex": "(?=.*-ROCO)(?=.*-RECAL)|(?=.*-ROCO)(?=.*-BASE)|(?=.*-ROCO)(?=.*-CAVA)|(?=.*-ROCO)(?=.*PODA)|(?=.*-RECAL)(?=.*-BASE)|(?=.*-RECAL)(?=.*-CAVA)|(?=.*-RECAL)(?=.*PODA)|(?=.*-BASE)(?=.*-CAVA)|(?=.*-BASE)(?=.*PODA)|(?=.*-CAVA)(?=.*PODA)",
+    "parar": true
+  },
+  {
+    "ordem": 20,
+    "texto_regex": "\\sRS\\s+[MT]\\s",
+    "entidade": "RAMAIS",
+    "operacao_ajustada": "I",
+    "parar": true
+  },
+  {
+    "ordem": 21,
+    "ativo_regex": "-ROCO",
+    "entidade": "APOIO",
+    "operacao_ajustada": "I",
+    "parar": true
+  },
+  {
+    "ordem": 22,
+    "ativo_regex": "-IP|\\bIP\\b",
+    "entidade": "IP",
+    "operacao_ajustada": "I",
+    "parar": true
+  },
+  {
+    "ordem": 23,
+    "ativo_regex": "^1-AF$",
+    "entidade": "ESTRUTURA",
+    "parar": true
+  },
+  {
+    "ordem": 24,
+    "ativo_regex": "-RECAL|-BASE|-CAVA",
+    "entidade": "APOIO",
+    "operacao_ajustada": "I",
+    "parar": true
+  },
+  {
+    "ordem": 25,
+    "cor_em": [
+      "VERMELHO",
+      "CINZA"
+    ],
+    "texto_regex": "(?=.*(?:DT|CV))(?=.*/)",
+    "entidade": "POSTE",
+    "parar": true
+  },
+  {
+    "ordem": 30,
+    "cor_em": [
+      "VERMELHO",
+      "CINZA"
+    ],
+    "texto_regex": "^(?!.*\\b(?:DT|CV|AWG|#)\\b)(?:\\bM?\\d+x\\d+|(?=.*ABC)(?=.*\\d+\\s*M$)|^CU\\s*\\d|\\bCU\\s*\\d{0,3}|^CA\\s+\\d|^CA\\d|\\b(?:CAL|CAA|CAZ)\\s*\\d|\\bP\\s*(?:16|25|35|50|70|95|120|150|185|240)\\b|(?=.*X1X)(?=.*\\d+\\s*M$))",
+    "entidade": "CABO",
+    "parar": true
+  },
+  {
+    "ordem": 32,
+    "layer_em": [
+      "01_RETENS"
+    ],
+    "texto_regex": "^(?!.*\\b(?:DT|CV|AWG|#)\\b)(?:\\bM?\\d+x\\d+|(?=.*ABC)(?=.*\\d+\\s*M$)|^CU\\s*\\d|\\bCU\\s*\\d{0,3}|^CA\\s+\\d|^CA\\d|\\b(?:CAL|CAA|CAZ)\\s*\\d|\\bP\\s*(?:16|25|35|50|70|95|120|150|185|240)\\b|(?=.*X1X)(?=.*\\d+\\s*M$))",
+    "entidade": "CABO",
+    "operacao_ajustada": "M",
+    "parar": true
+  },
+  {
+    "ordem": 33,
+    "layer_em": [
+      "01_RETENS_LV"
+    ],
+    "texto_regex": "^(?!.*\\b(?:DT|CV|AWG|#)\\b)(?:\\bM?\\d+x\\d+|(?=.*ABC)(?=.*\\d+\\s*M$)|^CU\\s*\\d|\\bCU\\s*\\d{0,3}|^CA\\s+\\d|^CA\\d|\\b(?:CAL|CAA|CAZ)\\s*\\d|\\bP\\s*(?:16|25|35|50|70|95|120|150|185|240)\\b|(?=.*X1X)(?=.*\\d+\\s*M$))",
+    "entidade": "CABO",
+    "operacao_ajustada": "*M",
+    "parar": true
+  },
+  {
+    "ordem": 40,
+    "ativo_regex": "FIOS",
+    "entidade": "CERCA",
+    "cor_nao_em": [
+      "AZUL"
+    ],
+    "parar": true
+  },
+  {
+    "ordem": 41,
+    "operacao_em": [
+      "I",
+      "R",
+      "*I",
+      "*R"
+    ],
+    "ativo_regex": "-CF|-EF",
+    "entidade": "CHAVE",
+    "parar": true
+  },
+  {
+    "ordem": 42,
+    "operacao_em": [
+      "I",
+      "R",
+      "*I",
+      "*R"
+    ],
+    "ativo_regex": "-TR",
+    "entidade": "TRAFO",
+    "parar": true
+  },
+  {
+    "ordem": 43,
+    "ativo_regex": "PODA",
+    "entidade": "APOIO",
+    "operacao_ajustada": "I",
+    "parar": true
+  },
+  {
+    "ordem": 50,
+    "texto_regex": "^(?!.*APOIOS)",
+    "operacao_em": [
+      "I",
+      "R",
+      "*I",
+      "*R"
+    ],
+    "ativo_regex": "(?=^(?:\\d+-\\S+\\s*)+$)\\b\\d+\\s*-\\s*(?:\\d+[A-Z]{1,2}\\d*|\\d*[A-Z]{1,2}\\d+|ISOL|SI\\d+|RA\\d+|BI\\d+|CE\\d+|N\\d+|U\\d+|T\\d+|R\\d+|B\\d+|S\\d+)\\b",
+    "entidade": "ESTRUTURA",
+    "parar": true
+  }
+]

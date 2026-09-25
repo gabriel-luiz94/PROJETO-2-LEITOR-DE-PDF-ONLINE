@@ -10,15 +10,18 @@ class ObraModel(BaseModel):
     nome: str
     data: str
     dados_json: str
+    projeto: str = "229"
 
 
 class RegraModel(BaseModel):
     conteudo: str
+    projeto_codigo: str = "229"
 
 
 class RecModel(BaseModel):
     numero_obra: str
     dados_json: str
+    projeto: str = "229"
 
 
 class ChatRequest(BaseModel):
@@ -27,6 +30,7 @@ class ChatRequest(BaseModel):
     history: List[Dict[str, Any]]
     provider: str = "gemini"          # "gemini" | "openai"
     openai_base_url: str = ""         # ex: http://localhost:11434/v1 (Ollama) ou https://openrouter.ai/api/v1
+    projeto_codigo: str = "229"
 
 
 class OrcamentoRequest(BaseModel):
@@ -51,3 +55,4 @@ class DetalhesRequest(BaseModel):
 class RecSaveRequest(BaseModel):
     numero_obra: str
     dados: List[Dict[str, Any]]
+    projeto: str = "229"

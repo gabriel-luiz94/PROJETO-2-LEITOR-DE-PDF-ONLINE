@@ -16,11 +16,14 @@ router = APIRouter(tags=["recs"])
 from services.supabase_client import get_supabase
 
 @router.get("/api/recs")
-def get_recs(request: Request):
+def get_recs(request: Request, projeto: str = None):
     supabase = get_supabase()
     if supabase:
         try:
-            res = supabase.table("historico_rec").select("numero_obra, data_criacao, user_id").order("data_criacao", desc=True).execute()
+            query = supabase.table("historico_rec").select("numero_obra, data_criacao, user_id, projeto")
+            if projeto:
+                query = query.eq("projeto", projeto)
+            res = query.order("data_criacao", desc=True).execute()
             if res.data is not None:
                 return res.data
         except Exception:
@@ -28,7 +31,10 @@ def get_recs(request: Request):
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT numero_obra, data_criacao FROM historico_rec ORDER BY data_criacao DESC")
+    if projeto:
+        cursor.execute("SELECT numero_obra, data_criacao FROM historico_rec WHERE projeto = ? ORDER BY data_criacao DESC", (projeto,))
+    else:
+        cursor.execute("SELECT numero_obra, data_criacao FROM historico_rec ORDER BY data_criacao DESC")
     rows = cursor.fetchall()
     conn.close()
     return [{"numero_obra": r[0], "data_criacao": r[1]} for r in rows]
@@ -100,7 +106,8 @@ def save_rec(rec: RecModel, request: Request):
                 "numero_obra": num_obra_alvo,
                 "dados_json": rec.dados_json,
                 "data_criacao": agora,
-                "user_id": user_id
+                "user_id": user_id,
+                "projeto": rec.projeto
             }).execute()
         except Exception:
             pass
@@ -108,8 +115,8 @@ def save_rec(rec: RecModel, request: Request):
     # 4. Salva no SQLite local
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT OR REPLACE INTO historico_rec (numero_obra, dados_json, data_criacao, user_id) VALUES (?, ?, ?, ?)",
-                   (num_obra_alvo, rec.dados_json, agora, user_id))
+    cursor.execute("INSERT OR REPLACE INTO historico_rec (numero_obra, dados_json, data_criacao, user_id, projeto) VALUES (?, ?, ?, ?, ?)",
+                   (num_obra_alvo, rec.dados_json, agora, user_id, rec.projeto))
     conn.commit()
     conn.close()
     return {
@@ -164,8 +171,8 @@ def salvar_rec_alt(req: RecSaveRequest, request: Request):
         data_agora = datetime.now().isoformat()
         dados_str = json.dumps(req.dados)
 
-        cursor.execute("INSERT OR REPLACE INTO historico_rec (numero_obra, dados_json, data_criacao, user_id) VALUES (?, ?, ?, ?)",
-                       (req.numero_obra.strip(), dados_str, data_agora, user["user_id"]))
+        cursor.execute("INSERT OR REPLACE INTO historico_rec (numero_obra, dados_json, data_criacao, user_id, projeto) VALUES (?, ?, ?, ?, ?)",
+                       (req.numero_obra.strip(), dados_str, data_agora, user["user_id"], req.projeto))
         conn.commit()
         conn.close()
         return {"status": "ok"}

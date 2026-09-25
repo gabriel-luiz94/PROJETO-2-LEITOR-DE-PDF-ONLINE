@@ -14,22 +14,48 @@ router = APIRouter(prefix="/api/regras", tags=["regras"])
 
 
 @router.get("")
-def get_regras():
+def get_regras(projeto_codigo: str = None):
+    supabase = get_supabase()
+    if supabase:
+        try:
+            query = supabase.table("regras").select("id, conteudo, projeto_codigo")
+            if projeto_codigo:
+                query = query.eq("projeto_codigo", projeto_codigo)
+            res = query.order("id").execute()
+            if res.data is not None:
+                return res.data
+        except Exception as e:
+            logger.warning(f"Falha ao buscar regras de IA no Supabase: {e}")
+
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, conteudo FROM regras ORDER BY id ASC")
+    if projeto_codigo:
+        cursor.execute("SELECT id, conteudo, projeto_codigo FROM regras WHERE projeto_codigo = ? ORDER BY id ASC", (projeto_codigo,))
+    else:
+        cursor.execute("SELECT id, conteudo, projeto_codigo FROM regras ORDER BY id ASC")
     rows = cursor.fetchall()
     conn.close()
-    return [{"id": r[0], "conteudo": r[1]} for r in rows]
+    return [{"id": r[0], "conteudo": r[1], "projeto_codigo": r[2]} for r in rows]
 
 
 @router.post("")
 def save_regra(regra: RegraModel):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO regras (conteudo, embedding) VALUES (?, NULL)", (regra.conteudo,))
+    cursor.execute("INSERT INTO regras (conteudo, embedding, projeto_codigo) VALUES (?, NULL, ?)", (regra.conteudo, regra.projeto_codigo))
     conn.commit()
     conn.close()
+
+    supabase = get_supabase()
+    if supabase:
+        try:
+            supabase.table("regras").insert({
+                "conteudo": regra.conteudo,
+                "projeto_codigo": regra.projeto_codigo
+            }).execute()
+        except Exception as e:
+            logger.warning(f"Erro ao salvar regra de IA no Supabase: {e}")
+            raise HTTPException(status_code=500, detail=f"Regra salva localmente, mas falhou ao sincronizar com a nuvem (Supabase): {e}")
     return {"status": "success"}
 
 

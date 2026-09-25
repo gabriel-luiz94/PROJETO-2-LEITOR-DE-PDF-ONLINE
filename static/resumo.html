@@ -489,7 +489,7 @@
                 <h1 class="report-title">Resumo do <span class="highlight">Orçamento</span></h1>
                 <div style="display:flex; align-items:center; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
                     <label style="font-size: 0.75rem; color: #8b949e; margin-right: 6px;">Projeto:</label>
-                    <select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;" onchange="const o=this.options[this.selectedIndex]; localStorage.setItem('projeto_selecionado', this.value); localStorage.setItem('projeto_selecionado_codigo', o?.dataset.codigo||''); carregarRegras();"></select>
+                    <select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;" onchange="const o=this.options[this.selectedIndex]; const cod=o?.dataset.codigo||''; localStorage.setItem('projeto_selecionado', this.value); localStorage.setItem('projeto_selecionado_codigo', cod); carregarRegras(); carregarRegrasLeitorResumo(cod);"></select>
                     <button id="btn-novo-projeto" class="btn-primary" onclick="abrirModalNovoProjeto()" style="display: none; padding: 2px 8px; font-size: 0.75rem; margin-left: 8px; border-radius: 4px;" title="Cadastrar Novo Projeto">+ Novo</button>
                 </div>
             <div class="header-actions">
@@ -1035,6 +1035,12 @@
                     });
                     const saved = localStorage.getItem('projeto_selecionado');
                     if (saved) sel.value = saved;
+                    const selecionado = sel.options[sel.selectedIndex];
+                    const codigoAtual = selecionado ? (selecionado.dataset.codigo || '') : '';
+                    if (codigoAtual) {
+                        localStorage.setItem('projeto_selecionado_codigo', codigoAtual);
+                        if (window.carregarRegrasLeitorResumo) carregarRegrasLeitorResumo(codigoAtual);
+                    }
                 }
                 if (localStorage.getItem('is_admin') === 'true') {
                     const btnNovo = document.getElementById('btn-novo-projeto');
@@ -1359,6 +1365,7 @@
             </div>
         </div>
 
+    <script src="/static/regras_leitor_engine.js"></script>
     <script src="/static/resumo.js?v=5.2"></script>
     <script>
         // Sincronização do número de obra com o localStorage

@@ -8,8 +8,12 @@ import sqlite3
 import csv
 import io
 import os
+import json
 import bcrypt
-from config import DB_PATH, SEED_CSV_PATH, logger
+from config import (
+    DB_PATH, SEED_CSV_PATH, logger,
+    REGRAS_LEITOR_PROCESSAMENTO_SEED_PATH, REGRAS_LEITOR_CLASSIFICACAO_SEED_PATH,
+)
 
 
 def get_connection() -> sqlite3.Connection:
@@ -56,6 +60,42 @@ def _migrate_legacy_password(email: str, password: str, conn: sqlite3.Connection
     logger.info(f"Senha migrada para bcrypt: {email}")
 
 
+def _seed_regras_leitor(cursor: sqlite3.Cursor):
+    """
+    Seed inicial das regras do leitor (TASK-006), para os projetos PARAIBA (código "027") e
+    RONDONIA (código "229"), só se as tabelas ainda estiverem vazias. Ambos os projetos recebem
+    o mesmo conjunto de regras — a transcrição fiel do comportamento hoje embutido em
+    static/script.js — já que hoje a classificação é idêntica para qualquer projeto. Depois do
+    seed, cada projeto pode editar suas próprias regras livremente.
+    """
+    cursor.execute("SELECT COUNT(*) FROM regras_leitor_processamento")
+    if cursor.fetchone()[0] > 0:
+        return  # já semeado
+
+    try:
+        with open(REGRAS_LEITOR_PROCESSAMENTO_SEED_PATH, "r", encoding="utf-8") as f:
+            regras_proc = json.load(f)
+        with open(REGRAS_LEITOR_CLASSIFICACAO_SEED_PATH, "r", encoding="utf-8") as f:
+            regras_cls = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logger.warning(f"Seed de regras do leitor não encontrado/inválido: {e}")
+        return
+
+    # Chave é o CÓDIGO do projeto ("027"/"229"), não o nome — mesma convenção de
+    # projeto_selecionado_codigo/regras_conversao.projeto_codigo em todo o resto do app.
+    for projeto_codigo in ("027", "229"):
+        cursor.execute(
+            "INSERT OR IGNORE INTO regras_leitor_processamento (projeto_codigo, regras_json) VALUES (?, ?)",
+            (projeto_codigo, json.dumps(regras_proc, ensure_ascii=False))
+        )
+        cursor.execute(
+            "INSERT OR IGNORE INTO regras_leitor_classificacao (projeto_codigo, regras_json) VALUES (?, ?)",
+            (projeto_codigo, json.dumps(regras_cls, ensure_ascii=False))
+        )
+    logger.info(f"Seed de regras do leitor concluído: {len(regras_proc)} regras de processamento, "
+                f"{len(regras_cls)} de classificação, para PARAIBA e RONDONIA.")
+
+
 def init_db():
     """Cria todas as tabelas e faz seed automático se necessário."""
     conn = get_connection()
@@ -80,6 +120,10 @@ def init_db():
         cursor.execute("ALTER TABLE obras ADD COLUMN updated_at TEXT")
     except sqlite3.OperationalError:
         pass
+    try:
+        cursor.execute("ALTER TABLE obras ADD COLUMN projeto TEXT DEFAULT '229'")
+    except sqlite3.OperationalError:
+        pass
 
     # Tabela Regras de Aprendizado
     cursor.execute('''
@@ -98,6 +142,10 @@ def init_db():
         cursor.execute("ALTER TABLE regras ADD COLUMN updated_at TEXT")
     except sqlite3.OperationalError:
         pass
+    try:
+        cursor.execute("ALTER TABLE regras ADD COLUMN projeto_codigo TEXT DEFAULT '229'")
+    except sqlite3.OperationalError:
+        pass
 
     # Tabela Configurações
     cursor.execute('''
@@ -106,6 +154,24 @@ def init_db():
             valor TEXT NOT NULL
         )
     ''')
+
+    # Tabelas Regras do Leitor (TASK-006) — Processamento e Classificação, uma linha por projeto
+    # com um array JSON de regras (mesmo padrão de regras_conversao/TASK-003).
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS regras_leitor_processamento (
+            projeto_codigo TEXT PRIMARY KEY,
+            regras_json TEXT NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS regras_leitor_classificacao (
+            projeto_codigo TEXT PRIMARY KEY,
+            regras_json TEXT NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    _seed_regras_leitor(cursor)
 
     # Tabela Orçamento (Customizado do Usuário)
     cursor.execute('''
@@ -246,6 +312,10 @@ def init_db():
         pass
     try:
         cursor.execute("ALTER TABLE historico_rec ADD COLUMN updated_at TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE historico_rec ADD COLUMN projeto TEXT DEFAULT '229'")
     except sqlite3.OperationalError:
         pass
 

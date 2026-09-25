@@ -1310,7 +1310,7 @@
                 const res = await fetch('/api/recs', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ numero_obra: numObra, dados_json: conteudo })
+                    body: JSON.stringify({ numero_obra: numObra, dados_json: conteudo, projeto: localStorage.getItem('projeto_selecionado_codigo') || '229' })
                 });
                 const data = await res.json();
                 if (res.ok) {
@@ -1458,7 +1458,8 @@
             const tbodyModal = document.getElementById('tbody-recs-salvos');
             tbodyModal.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:15px; color:var(--text-secondary);">Carregando histórico...</td></tr>';
             try {
-                const res = await fetch('/api/recs');
+                const projCodeRecs = localStorage.getItem('projeto_selecionado_codigo') || '229';
+                const res = await fetch(`/api/recs?projeto=${encodeURIComponent(projCodeRecs)}`);
                 const recs = await res.json();
                 tbodyModal.innerHTML = '';
                 if (!recs || recs.length === 0) {

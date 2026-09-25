@@ -12,14 +12,17 @@ router = APIRouter(prefix="/api/obras", tags=["obras"])
 from services.supabase_client import get_supabase
 
 @router.get("")
-def get_obras(request: Request):
+def get_obras(request: Request, projeto: str = None):
     user = get_current_user_from_state(request)
     user_id = user["user_id"]
-    
+
     supabase = get_supabase()
     if supabase:
         try:
-            res = supabase.table("obras").select("*").eq("user_id", user_id).order("data", desc=True).execute()
+            query = supabase.table("obras").select("*").eq("user_id", user_id)
+            if projeto:
+                query = query.eq("projeto", projeto)
+            res = query.order("data", desc=True).execute()
             if res.data is not None:
                 return res.data
         except Exception:
@@ -27,10 +30,19 @@ def get_obras(request: Request):
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, nome, data, dados_json FROM obras WHERE user_id = ? OR user_id IS NULL ORDER BY data DESC", (user_id,))
+    if projeto:
+        cursor.execute(
+            "SELECT id, nome, data, dados_json, projeto FROM obras WHERE (user_id = ? OR user_id IS NULL) AND projeto = ? ORDER BY data DESC",
+            (user_id, projeto)
+        )
+    else:
+        cursor.execute(
+            "SELECT id, nome, data, dados_json, projeto FROM obras WHERE user_id = ? OR user_id IS NULL ORDER BY data DESC",
+            (user_id,)
+        )
     rows = cursor.fetchall()
     conn.close()
-    return [{"id": r[0], "nome": r[1], "data": r[2], "dados_json": r[3]} for r in rows]
+    return [{"id": r[0], "nome": r[1], "data": r[2], "dados_json": r[3], "projeto": r[4]} for r in rows]
 
 
 @router.post("")
@@ -46,15 +58,16 @@ def save_obra(obra: ObraModel, request: Request):
                 "nome": obra.nome,
                 "data": obra.data,
                 "dados_json": obra.dados_json,
-                "user_id": user_id
+                "user_id": user_id,
+                "projeto": obra.projeto
             }).execute()
         except Exception:
             pass
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT OR REPLACE INTO obras (id, nome, data, dados_json, user_id) VALUES (?, ?, ?, ?, ?)",
-                   (obra.id, obra.nome, obra.data, obra.dados_json, user_id))
+    cursor.execute("INSERT OR REPLACE INTO obras (id, nome, data, dados_json, user_id, projeto) VALUES (?, ?, ?, ?, ?, ?)",
+                   (obra.id, obra.nome, obra.data, obra.dados_json, user_id, obra.projeto))
     conn.commit()
     conn.close()
     return {"status": "success"}

@@ -16,6 +16,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const OPERACOES = ['I', '*I', 'R', '*R', 'M', '*M'];
 
     let extractedDataCache = [];
+
+    // ── Regras do Leitor (TASK-006) — reusadas aqui via a Tabela de Classificação ──────────────
+    window.__regrasLeitorProcessamento = [];
+    window.__regrasLeitorClassificacao = [];
+    window.carregarRegrasLeitorResumo = async function (projetoCodigo) {
+        if (!projetoCodigo) return;
+        try {
+            const [resProc, resCls] = await Promise.all([
+                fetch(`/api/regras-leitor/processamento?projeto_codigo=${encodeURIComponent(projetoCodigo)}`),
+                fetch(`/api/regras-leitor/classificacao?projeto_codigo=${encodeURIComponent(projetoCodigo)}`)
+            ]);
+            const dataProc = resProc.ok ? await resProc.json() : { regras: [] };
+            const dataCls = resCls.ok ? await resCls.json() : { regras: [] };
+            window.__regrasLeitorProcessamento = dataProc.regras || [];
+            window.__regrasLeitorClassificacao = dataCls.regras || [];
+        } catch (e) {
+            console.error('Erro ao carregar regras do leitor:', e);
+        }
+    };
+
     const tableStates = {
         cabos: { bodyId: 'body-cabos', data: [] },
         outros: { bodyId: 'body-outros', data: [] },
@@ -123,61 +143,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    /* ═══════════════════════════════════════
-       LÓGICA DE NEGÓCIO (portada do resumo.js antigo)
-    ═══════════════════════════════════════ */
-    function isGray(hex) {
-        if (!hex || hex.length < 7) return false;
-        const r = parseInt(hex.substring(1, 3), 16);
-        const g = parseInt(hex.substring(3, 5), 16);
-        const b = parseInt(hex.substring(5, 7), 16);
-        return Math.abs(r-g) < 5 && Math.abs(g-b) < 5 && r > 20 && r < 230;
-    }
+    // isGray/processAtivoFormula foram substituidas pelo motor de regras do leitor
+    // (TASK-006) -- ver static/regras_leitor_engine.js.
 
-    function processAtivoFormula(col2) {
-        if (!col2) return '';
-        let normalized = col2.replace(/[\u00AD\u2010-\u2015\u2212]/g, '-').replace(/\u00A0/g, ' ');
-        const cleanArrume = t => t.replace(/\s*-\s*/g, '-').trim().replace(/\s+/g, ' ');
-        const tArrume = cleanArrume(normalized);
-        const tUpperMatched = tArrume.toUpperCase();
-        if (tUpperMatched.includes('AFASTADOR')) return '1-AF';
-        let text1 = '';
-        const instMatch = tUpperMatched.match(/INST\.?(?:AL(?:AR|A)?)?\s+0*(\d+)\s*(?:-| )?\s*(\d*SI\d*|\d*RA\d*|\d*BI\d*|\d*R\d*|\d*B\d*|\d*S\d*|\d*CE\d*|\d*N\d*|\d*U\d*|\d*T\d*|ISOL)/);
-        if (instMatch) {
-            text1 = instMatch[1] + '-' + instMatch[2].replace(/\s/g, '');
-        } else if (tUpperMatched.includes(' METROS')) {
-            const match = tUpperMatched.match(/(\d+(?:[.,]\d+)?)\s*METROS/);
-            if (match) text1 = match[1] + '-ROCO';
-            else text1 = tArrume.replace(/ METROS/gi, '-ROCO');
-        } else if (/CAL[CÇ]ADA|RECAL|REC\.\s*CAL/i.test(tUpperMatched)) {
-            const matchQty = tUpperMatched.match(/(\d+)\s*X/i) || tUpperMatched.match(/\(\s*(\d+)/) || tUpperMatched.match(/X\s*(\d+)/i);
-            text1 = (matchQty ? matchQty[1] : '1') + '-RECAL';
-        } else if (/\bIP\b/i.test(tUpperMatched)) {
-            const matchQty = tUpperMatched.match(/(\d+)\s*X/i) || tUpperMatched.match(/\(\s*(\d+)/) || tUpperMatched.match(/X\s*(\d+)/i);
-            text1 = (matchQty ? matchQty[1] : '1') + '-IP';
-        } else if (tUpperMatched.includes('CONC') && tUpperMatched.includes('BASE')) {
-            const matchQty = tUpperMatched.match(/(\d+)\s*X/i) || tUpperMatched.match(/\(\s*(\d+)/) || tUpperMatched.match(/X\s*(\d+)/i);
-            text1 = (matchQty ? matchQty[1] : '1') + '-BASE';
-        } else if (/\bCOMPRESSOR\b/i.test(tUpperMatched) || /\bCAVA\b/i.test(tUpperMatched)) {
-            const matchQty = tUpperMatched.match(/(\d+)\s*X/i) || tUpperMatched.match(/\(\s*(\d+)/) || tUpperMatched.match(/X\s*(\d+)/i);
-            text1 = (matchQty ? matchQty[1] : '1') + '-CAVA';
-        } else {
-            if (!tUpperMatched.includes('FIOS')) text1 = tArrume;
-            else {
-                const arrumeRaw = col2.trim().replace(/\s+/g, ' ');
-                text1 = '1-' + arrumeRaw.substring(0, Math.max(0, arrumeRaw.length - 5)) + 'F ';
-            }
-        }
-        let text2 = text1.replace(/TR\s*-\s*3\s*-\s*/g, '1-TR3').replace(/kVA/gi, '').replace(/TR\s*-\s*1\s*-\s*/g, '1-TR1').replace(/TR\s*-\s*2\s*-\s*/g, '1-TR2');
-        const comboMatch = text2.match(/([13])\s*-\s*100A\s*-\s*(\d+(?:,\d+)?(?:H|K))/i);
-        if (comboMatch) {
-            const q = comboMatch[1], e = comboMatch[2].replace(',', '').replace(' ', '');
-            return `${q}-CFU ${q}-EF${e}`;
-        }
-        if (text2.includes('-100A-')) text2 = text2.replace('-100A-', `-CFU ${text2.charAt(0)}-EF`);
-        return text2.replace(/3CF-400A/g, '3-CFA').replace(/112,5/g, '112').replace(/0,5H/g, '05H').replace(/PODAS/g, 'PODA').replace(/PODA M/g, 'PODA').replace(/PODA G/g, 'PODA').replace(/PODA P/g, 'PODA').replace(/ PODA/g, '-PODA').replace(/3CL-300A/g, '3-CFU 3-CL').replace(/TR15/g, 'TR105').trim();
-    }
-
+    // computeRowLogic foi religada ao motor de regras do leitor (TASK-006) -- a cascata embutida
+    // antiga foi removida (ver static/regras_leitor_engine.js e window.__regrasLeitorProcessamento/
+    // Classificacao, carregadas por projeto em carregarRegrasLeitorResumo()).
     function computeRowLogic(item) {
         // Se a entidade e ativo já vieram definidos da aba principal, confiar neles diretamente
         // (evita re-derivação que descartaria a classificação manual do usuário)
@@ -190,120 +161,21 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
 
-        const displayColor = (item.cor || '#000000').toUpperCase();
-        let textoAtivo = processAtivoFormula(item.texto || '');
-        let opAuto = 'M';
-        if (displayColor === '#FF0000') opAuto = 'I';
-        else if (isGray(displayColor)) opAuto = 'R';
-
-        const uAtivo = textoAtivo.toUpperCase();
-        const tUpper = (item.texto || '').replace(/[\u00AD\u2010-\u2015\u2212]/g, '-').replace(/\u00A0/g, ' ').toUpperCase().trim();
-        const itemLayer = (item.layer || '').trim().toUpperCase();
-        let entAuto = '0';
-
-        const isRedOrGray = (displayColor === '#FF0000') || isGray(displayColor);
-        const isRed = displayColor === '#FF0000';
-
-        const elosFusivel = ['0,5H','1H','2H','3H','5H','6K','8K','10K','12K','15K','25K','30K','40K'];
-        if (elosFusivel.includes(tUpper) && isRedOrGray) {
-            entAuto = 'CHAVE';
-            const globalIdx = extractedDataCache.indexOf(item);
-            if (globalIdx !== -1) {
-                let qtyFound = '';
-                const start = Math.max(0, globalIdx - 10), end = Math.min(extractedDataCache.length - 1, globalIdx + 10);
-                for (let i = start; i <= end; i++) {
-                    if (i === globalIdx) continue;
-                    const neighbor = extractedDataCache[i];
-                    if (neighbor.pagina !== item.pagina) continue;
-                    const m = neighbor.texto.replace(/\u00A0/g, ' ').toUpperCase().match(/([13])\s*-\s*100A/);
-                    if (m) { qtyFound = m[1]; break; }
-                }
-                if (qtyFound) textoAtivo = `${qtyFound}-EF${tUpper.replace(',','').replace(' ','')}`;
-            }
-        }
-
-        entAuto = '0';
-
-        if (!tUpper.includes('BLOCO')) {
-            if (isRed && tUpper.includes('FLY')) {
-                if (tUpper.includes('REF'))  { textoAtivo = '1-RFLY'; opAuto = 'I'; entAuto = 'ESTRUTURA'; }
-                else if (tUpper.includes('DESF')) { textoAtivo = '1-FLY'; opAuto = 'R'; entAuto = 'ESTRUTURA'; }
-                else if (tUpper.includes('INST')) { textoAtivo = '1-FLY'; opAuto = 'I'; entAuto = 'ESTRUTURA'; }
-            }
-        } else { textoAtivo = ''; opAuto = 'M'; entAuto = '0'; }
-
-        const apoioMarkers = ['-ROCO','-RECAL','-BASE','-CAVA','PODA'];
-        const foundApoioCount = apoioMarkers.filter(m => uAtivo.includes(m)).length;
-        const hasApoioConflict = tUpper.includes('APOIOS') || tUpper.includes('LARGURA') || (tUpper.includes('BASE') && tUpper.includes('CALÇADA')) || foundApoioCount > 1;
-
-        if (entAuto === '0') {
-            const isBlack = !isRedOrGray;
-            const isRetens = itemLayer === '01_RETENS' || itemLayer === '01_RETENS_LV' || itemLayer === '01_LV';
-
-            if (isBlack && isRetens) {
-                const trafoMatch = tUpper.match(/TR\s*-\s*([123])/);
-                if (trafoMatch) {
-                    const qty = trafoMatch[1];
-                    entAuto = 'TRAFO';
-                    textoAtivo = `1-RTR${qty}`;
-                    opAuto = (itemLayer === '01_RETENS_LV' || itemLayer === '01_LV') ? '*I' : 'I';
-                }
-            }
-
-            if (isBlack && isRetens && entAuto === '0') {
-                const chaveMatch = tUpper.match(/^([123])\s*-\s*100\s*A/);
-                if (chaveMatch) {
-                    const qty = chaveMatch[1];
-                    entAuto = 'CHAVE';
-                    textoAtivo = `${qty}-RCFU`;
-                    opAuto = (itemLayer === '01_RETENS_LV' || itemLayer === '01_LV') ? '*I' : 'I';
-                }
-            }
-
-            if (entAuto === '0') {
-                if (/\sRS\s+[MT]\s/i.test(item.texto || '')) entAuto = 'RAMAIS';
-                else if (uAtivo.includes('-ROCO') && !hasApoioConflict) entAuto = 'APOIO';
-                else if (uAtivo.includes('-IP') || /\bIP\b/i.test(item.texto || '')) entAuto = 'IP';
-                else if (uAtivo === '1-AF') entAuto = 'ESTRUTURA';
-                else if ((uAtivo.includes('-RECAL') || uAtivo.includes('-BASE') || uAtivo.includes('-CAVA')) && !hasApoioConflict) entAuto = 'APOIO';
-                else if ((tUpper.includes('DT') || tUpper.includes('CV')) && tUpper.includes('/') && isRedOrGray) entAuto = 'POSTE';
-                else if (!tUpper.includes('DT') && !tUpper.includes('CV') && !tUpper.includes('AWG') && !tUpper.includes('#') && (() => {
-                    if (/\bM?\d+x\d+/.test(tUpper)) return true;
-                    if (tUpper.includes('ABC') && /\d+\s*M$/.test(tUpper)) return true;
-                    if (/^CU\s*\d/.test(tUpper) || /\bCU\s*\d/.test(tUpper.substring(0, 5))) return true;
-                    if (/^CA\s+\d/.test(tUpper) || /^CA\d/.test(tUpper)) return true;
-                    if (/\b(?:CAL|CAA|CAZ)(?:\s|\d)/.test(tUpper)) return true;
-                    if (/\bP\s*(16|25|35|50|70|95|120|150|185|240)\b/.test(tUpper)) return true;
-                    if (tUpper.includes('X1X') && /\d+\s*M$/.test(tUpper)) return true;
-                    return false;
-                })()) {
-                    if (isRedOrGray) entAuto = 'CABO';
-                    else if (!isRedOrGray && (itemLayer === '01_RETENS' || itemLayer === '01_RETENS_LV')) {
-                        entAuto = 'CABO';
-                        opAuto = itemLayer === '01_RETENS_LV' ? '*M' : 'M';
-                    }
-                }
-                else if (tUpper.includes('FIOS')) entAuto = 'CERCA';
-                else if ((uAtivo.includes('-CF') || uAtivo.includes('-EF')) && opAuto !== 'M') entAuto = 'CHAVE';
-                else if (uAtivo.includes('-TR') && opAuto !== 'M') {
-                    entAuto = 'TRAFO';
-                    const match = textoAtivo.match(/(1-TR\d+)/i);
-                    if (match) textoAtivo = match[1].toUpperCase();
-                }
-                else if (uAtivo.includes('PODA') && opAuto !== 'M' && !hasApoioConflict) entAuto = 'APOIO';
-            }
-        }
-
-        if (['IP','APOIO','CERCA','RAMAIS'].includes(entAuto)) opAuto = 'I';
-        if (entAuto === '0' && !tUpper.includes('APOIOS')) {
-            const hasEstruturaPattern = /\b\d+\s*-\s*(\d+[A-Z]{1,2}\d*|\d*[A-Z]{1,2}\d+|ISOL)\b/i.test(uAtivo) || /\b\d+\s*-\s*(SI|RA|BI|CE|N|U|T|R|B|S)\d+/i.test(uAtivo);
-            const words = textoAtivo.trim().split(/\s+/);
-            const allWordsValid = words.length > 0 && words.every(w => /^\d+-\S+$/i.test(w));
-            if (hasEstruturaPattern && allWordsValid && (opAuto === 'I' || opAuto === 'R')) entAuto = 'ESTRUTURA';
-        }
-        if (itemLayer === '01_LV' && opAuto && !opAuto.startsWith('*')) opAuto = '*' + opAuto;
-
-        return { entidade: entAuto, operacao: opAuto, ativo: textoAtivo, _raw: item };
+        const globalIdx = extractedDataCache.indexOf(item);
+        const engineItem = {
+            texto: item.texto || '',
+            cor: item.cor || '#000000',
+            layer: item.layer || '',
+            pagina: item.pagina,
+            index: globalIdx >= 0 ? globalIdx : 0,
+            allItems: extractedDataCache
+        };
+        const resultado = RegrasLeitorEngine.processarEClassificar(
+            engineItem,
+            window.__regrasLeitorProcessamento || [],
+            window.__regrasLeitorClassificacao || []
+        );
+        return { entidade: resultado.entidade, operacao: resultado.operacao, ativo: resultado.ativo, _raw: item };
     }
 
     /* ═══════════════════════════════════════
@@ -1003,46 +875,21 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ═══════════════════════════════════════
        CLASSIFICAÇÃO AUTOMÁTICA DE ENTIDADE
     ═══════════════════════════════════════ */
+    // autoClassifyEntidade foi religada ao motor de regras do leitor (TASK-006), reusando a
+    // mesma Tabela de Classificacao da aba Leitor. Operacao fixa em 'I' (neutro) porque esta
+    // funcao so recebe o texto do ativo, sem operacao real conhecida -- nenhuma regra de
+    // classificacao hoje exige um valor de operacao que 'I' nao satisfaca. O texto do ativo e
+    // passado tambem como "texto bruto" porque e exatamente isso que o codigo original
+    // verificava aqui (ver .ai/tasks/TASK-006-25-09-2026.md).
     function autoClassifyEntidade(ativoTexto) {
         if (!ativoTexto) return '0';
-        const tUpper = ativoTexto.toUpperCase().trim();
-        
-        // Verifica primeiro se não tem conflitos de APOIO
-        const apoioMarkers = ["-ROCO", "-RECAL", "-BASE", "-CAVA", "PODA"];
-        const foundApoioCount = apoioMarkers.filter(m => tUpper.includes(m)).length;
-        const hasApoioConflict = tUpper.includes("APOIOS") || tUpper.includes("LARGURA") || (tUpper.includes("BASE") && tUpper.includes("CALÇADA")) || foundApoioCount > 1;
-
-        if (tUpper.includes("-RTR")) return "TRAFO";
-        if (tUpper.includes("-RCFU")) return "CHAVE";
-        if (/\sRS\s+[MT]\s/i.test(tUpper)) return "RAMAIS";
-        if (tUpper.includes("-ROCO") && !hasApoioConflict) return "APOIO";
-        if (tUpper.includes("-IP") || /\bIP\b/i.test(tUpper)) return "IP";
-        if (tUpper === "1-AF") return "ESTRUTURA";
-        if ((tUpper.includes("-RECAL")||tUpper.includes("-BASE")||tUpper.includes("-CAVA")) && !hasApoioConflict) return "APOIO";
-        if ((tUpper.includes("DT") || tUpper.includes("CV")) && tUpper.includes("/")) return "POSTE";
-        
-        // Cabos
-        if (!tUpper.includes("DT") && !tUpper.includes("CV") && !tUpper.includes("AWG") && !tUpper.includes("#")) {
-            if (/\bM?\d+x\d+/.test(tUpper)) return "CABO";
-            if (tUpper.includes("ABC") && /\d+\s*M$/.test(tUpper)) return "CABO";
-            if (/^CU\s*\d/.test(tUpper) || /\bCU\s*\d/.test(tUpper.substring(0, 5))) return "CABO";
-            if (/^CA\s+\d/.test(tUpper) || /^CA\d/.test(tUpper) || /\b(?:CAL|CAA|CAZ)\s*\d/.test(tUpper)) return "CABO";
-            if (/\bP\s*(16|25|35|50|70|95|120|150|185|240)\b/.test(tUpper)) return "CABO";
-            if (tUpper.includes("X1X") && /\d+\s*M$/.test(tUpper)) return "CABO";
-        }
-        
-        if (tUpper.includes("FIOS")) return "CERCA";
-        if (tUpper.includes("-CF") || tUpper.includes("-EF")) return "CHAVE";
-        if (tUpper.includes("-TR")) return "TRAFO";
-        if (tUpper.includes("PODA") && !hasApoioConflict) return "APOIO";
-        
-        // Estrutura
-        const hasEstruturaPattern = /\b\d+\s*-\s*(\d+[A-Z]{1,2}\d*|\d*[A-Z]{1,2}\d+|ISOL)\b/i.test(tUpper) || 
-                                   /\b\d+\s*-\s*(SI|RA|BI|CE|N|U|T|R|B|S)\d+/i.test(tUpper);
-        if (hasEstruturaPattern) return "ESTRUTURA";
-
-        return "0"; // Default
+        const resultado = RegrasLeitorEngine.classificar(
+            'I', ativoTexto, '', '', ativoTexto,
+            window.__regrasLeitorClassificacao || []
+        );
+        return resultado.entidade;
     }
+
 
     /* ═══════════════════════════════════════
        CÁLCULO DE QTD ATIVOS (CABOS)
@@ -1450,7 +1297,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await fetch('/api/regras', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ conteudo: text })
+                    body: JSON.stringify({ conteudo: text, projeto_codigo: localStorage.getItem('projeto_selecionado_codigo') || '229' })
                 });
                 showToast('Regra aprendida!');
             } catch (e) {
@@ -1483,7 +1330,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 table_context: tableContext,
                 history: chatHistory,
                 provider: "gemini",
-                openai_base_url: ""
+                openai_base_url: "",
+                projeto_codigo: localStorage.getItem('projeto_selecionado_codigo') || '229'
             };
             const response = await fetch('/api/gemini/chat', {
                 method: 'POST',
@@ -1675,7 +1523,8 @@ document.addEventListener('DOMContentLoaded', () => {
             id: 'obra_' + Date.now(),
             nome: nome,
             data: new Date().toLocaleString(),
-            dados_json: JSON.stringify(tableStates)
+            dados_json: JSON.stringify(tableStates),
+            projeto: localStorage.getItem('projeto_selecionado_codigo') || '229'
         };
 
         try {
@@ -1693,7 +1542,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('btn-load-obra').addEventListener('click', async () => {
         try {
-            const res = await fetch('/api/obras');
+            const projCodeObras = localStorage.getItem('projeto_selecionado_codigo') || '229';
+            const res = await fetch(`/api/obras?projeto=${encodeURIComponent(projCodeObras)}`);
             if (!res.ok) throw new Error('Falha ao listar obras');
             const obras = await res.json();
             
