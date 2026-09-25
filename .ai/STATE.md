@@ -115,6 +115,11 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [ ] Implementar o botão "LINHA VIVA" (marcado como "Função futura" na UI)
 - [ ] Completar `scripts/release.py:push_to_cloud` (código de referência já está comentado no arquivo)
 - [ ] Adicionar `Dockerfile` e `fly.toml`, exigidos pelo workflow de deploy do backend
+- [ ] `.ai/tasks/TASK-004-25-09-2026.md` — separar obras, RECs, regras de IA e regras do leitor
+      por projeto (status: PLANEJAMENTO)
+- [ ] `.ai/tasks/TASK-005-25-09-2026.md` — transformar as regras de classificação do leitor
+      (hoje embutidas em `script.js`/`resumo.js`) em tabela editável por projeto (status:
+      PLANEJAMENTO; pré-requisito de parte do escopo da TASK-004)
 
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
