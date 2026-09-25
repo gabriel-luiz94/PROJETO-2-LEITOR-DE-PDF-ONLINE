@@ -50,6 +50,8 @@ BASE_DIR = _get_base_dir()
 DB_PATH = os.path.join(BASE_DIR, "banco_resumo.db")
 PROMPT_PATH = _get_resource_path("prompt_rede_eletrica.txt")
 SEED_CSV_PATH = _get_resource_path(os.path.join("data", "tabela_seed.csv"))
+REGRAS_LEITOR_PROCESSAMENTO_SEED_PATH = _get_resource_path(os.path.join("data", "regras_leitor_processamento_seed.json"))
+REGRAS_LEITOR_CLASSIFICACAO_SEED_PATH = _get_resource_path(os.path.join("data", "regras_leitor_classificacao_seed.json"))
 
 # ── Diretório static ────────────────────────────────────────────────────────
 

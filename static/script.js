@@ -64,7 +64,116 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnAdmin = document.getElementById('btn-admin');
         if (btnAdmin) btnAdmin.style.display = 'block';
     }
-    
+
+    // ====== SELETOR DE PROJETO (aba Leitor) + REGRAS DO LEITOR (TASK-006) ======
+    window.__regrasLeitorProcessamento = [];
+    window.__regrasLeitorClassificacao = [];
+    window.__regrasLeitorProjetoCarregado = null; // projeto_codigo cujas regras estão carregadas
+    window.__listaProjetosCache = [];
+
+    async function carregarProjetosLeitor() {
+        try {
+            const res = await fetch('/api/projetos');
+            const data = await res.json();
+            window.__listaProjetosCache = data.projetos || [];
+            const sel = document.getElementById('select-projeto-leitor');
+            if (!sel) return;
+            sel.innerHTML = '';
+            if (data.projetos && data.projetos.length > 0) {
+                data.projetos.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.nome;
+                    opt.dataset.codigo = p.codigo;
+                    opt.textContent = `${p.nome} (${p.codigo})`;
+                    sel.appendChild(opt);
+                });
+                const saved = localStorage.getItem('projeto_selecionado');
+                if (saved) sel.value = saved;
+                // Garante que projeto_selecionado_codigo reflita a opção efetivamente selecionada
+                const selected = sel.options[sel.selectedIndex];
+                const codigo = selected ? (selected.dataset.codigo || '') : '';
+                if (selected) localStorage.setItem('projeto_selecionado_codigo', codigo);
+                await carregarRegrasLeitor(codigo);
+            }
+        } catch (e) {
+            console.error('Erro ao carregar projetos:', e);
+        }
+    }
+    carregarProjetosLeitor();
+
+    // Busca as regras de Processamento + Classificação do projeto informado e guarda em
+    // window.__regrasLeitor*. Se o projeto não tiver nenhuma regra, oferece usar as regras de
+    // outro projeto SÓ para esta sessão de leitura (não associa permanentemente) — TASK-006.
+    let _carregandoRegrasLeitor = false;
+    async function carregarRegrasLeitor(projetoCodigo) {
+        if (!projetoCodigo || _carregandoRegrasLeitor) return;
+        _carregandoRegrasLeitor = true;
+        try {
+            const [resProc, resCls] = await Promise.all([
+                fetch(`/api/regras-leitor/processamento?projeto_codigo=${encodeURIComponent(projetoCodigo)}`),
+                fetch(`/api/regras-leitor/classificacao?projeto_codigo=${encodeURIComponent(projetoCodigo)}`)
+            ]);
+            const dataProc = resProc.ok ? await resProc.json() : { regras: [] };
+            const dataCls = resCls.ok ? await resCls.json() : { regras: [] };
+
+            if ((!dataProc.regras || dataProc.regras.length === 0) && (!dataCls.regras || dataCls.regras.length === 0)) {
+                window.__regrasLeitorProcessamento = [];
+                window.__regrasLeitorClassificacao = [];
+                window.__regrasLeitorProjetoCarregado = projetoCodigo;
+                await ofereceRegrasDeOutroProjeto(projetoCodigo);
+                return;
+            }
+
+            window.__regrasLeitorProcessamento = dataProc.regras || [];
+            window.__regrasLeitorClassificacao = dataCls.regras || [];
+            window.__regrasLeitorProjetoCarregado = projetoCodigo;
+        } catch (e) {
+            console.error('Erro ao carregar regras do leitor:', e);
+        } finally {
+            _carregandoRegrasLeitor = false;
+        }
+    }
+
+    async function ofereceRegrasDeOutroProjeto(projetoSemRegras) {
+        const outros = (window.__listaProjetosCache || []).filter(p => p.codigo !== projetoSemRegras);
+        if (outros.length === 0) return;
+        const usar = confirm(
+            `O projeto selecionado não tem regras do leitor cadastradas.\n\n` +
+            `Deseja usar as regras de outro projeto só para esta leitura? (elas não ficam associadas a este projeto)`
+        );
+        if (!usar) return;
+
+        const nomes = outros.map((p, i) => `${i + 1}. ${p.nome} (${p.codigo})`).join('\n');
+        const escolha = prompt(`Escolha o número do projeto de origem das regras:\n\n${nomes}`);
+        const idx = parseInt(escolha, 10) - 1;
+        if (isNaN(idx) || idx < 0 || idx >= outros.length) return;
+
+        const origem = outros[idx];
+        try {
+            const [resProc, resCls] = await Promise.all([
+                fetch(`/api/regras-leitor/processamento?projeto_codigo=${encodeURIComponent(origem.codigo)}`),
+                fetch(`/api/regras-leitor/classificacao?projeto_codigo=${encodeURIComponent(origem.codigo)}`)
+            ]);
+            const dataProc = resProc.ok ? await resProc.json() : { regras: [] };
+            const dataCls = resCls.ok ? await resCls.json() : { regras: [] };
+            window.__regrasLeitorProcessamento = dataProc.regras || [];
+            window.__regrasLeitorClassificacao = dataCls.regras || [];
+            alert(`Usando as regras do projeto ${origem.nome} (${origem.codigo}) só para esta leitura.`);
+        } catch (e) {
+            console.error('Erro ao carregar regras do projeto de origem:', e);
+        }
+    }
+
+    // Reage à troca de projeto no seletor da aba Leitor (o select já grava o localStorage sozinho
+    // via onchange inline no HTML — aqui só recarregamos as regras do novo projeto).
+    document.addEventListener('change', (e) => {
+        if (e.target && e.target.id === 'select-projeto-leitor') {
+            const opt = e.target.options[e.target.selectedIndex];
+            const codigo = opt ? (opt.dataset.codigo || '') : '';
+            carregarRegrasLeitor(codigo);
+        }
+    });
+
     // WebSocket for remote file triggers
     let socket;
     try {
@@ -275,292 +384,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function isGray(hex) {
-        if (!hex || hex.length < 7) return false;
-        const r = parseInt(hex.substring(1, 3), 16);
-        const g = parseInt(hex.substring(3, 5), 16);
-        const b = parseInt(hex.substring(5, 7), 16);
-        return Math.abs(r-g)<5 && Math.abs(g-b)<5 && r>20 && r<230;
-    }
-
-    function isBlue(hex) {
-        if (!hex || hex.length < 7) return false;
-        const r = parseInt(hex.substring(1, 3), 16);
-        const g = parseInt(hex.substring(3, 5), 16);
-        const b = parseInt(hex.substring(5, 7), 16);
-        // Azul dominante: canal b claramente maior que r e g
-        return b > 80 && b > r * 1.5 && b > g * 1.5;
-    }
-
-    function processAtivoFormula(col2) {
-        if (!col2) return "";
-        // Transforma todos os tipos de hífens PDF em hífen comum e limpa espaços
-        let normalized = col2.replace(/[\u00AD\u2010-\u2015\u2212]/g, "-").replace(/\u00A0/g, " ");
-        const cleanArrume = (t) => t.replace(/\s*-\s*/g, "-").trim().replace(/\s+/g, ' ');
-        const tArrume = cleanArrume(normalized);
-        const tUpperMatched = tArrume.toUpperCase();
-
-        if (tUpperMatched.includes("AFASTADOR")) return "1-AF";
-
-        let text1 = "";
-        const instMatch = tUpperMatched.match(/INST\.?(?:AL(?:AR|A)?)?\s+0*(\d+)\s*(?:-| )?\s*(\d*SI\d*|\d*RA\d*|\d*BI\d*|\d*R\d*|\d*B\d*|\d*S\d*|\d*CE\d*|\d*N\d*|\d*U\d*|\d*T\d*|ISOL)/);
-        
-        if (instMatch) {
-            text1 = instMatch[1] + "-" + instMatch[2].replace(/\s/g, "");
-        } else if (tUpperMatched.includes(" METROS")) {
-            const match = tUpperMatched.match(/(\d+(?:[.,]\d+)?)\s*METROS/);
-            if (match) text1 = match[1] + "-ROCO";
-            else text1 = tArrume.replace(/ METROS/gi, "-ROCO");
-        }
-        else if (/REC[.\s]*CAL[CÇ]ADA|RECAL|REC\.\s*CAL/i.test(tUpperMatched)) {
-            const matchQty = tUpperMatched.match(/(\d+)\s*X/i) || tUpperMatched.match(/\(\s*(\d+)/) || tUpperMatched.match(/X\s*(\d+)/i);
-            const qty = matchQty ? matchQty[1] : "1";
-            text1 = qty + "-RECAL";
-        }
-        else if (/\bIP\b/i.test(tUpperMatched)) {
-            const matchQty = tUpperMatched.match(/(\d+)\s*X/i) || tUpperMatched.match(/\(\s*(\d+)/) || tUpperMatched.match(/X\s*(\d+)/i);
-            const qty = matchQty ? matchQty[1] : "1";
-            text1 = qty + "-IP";
-        }
-        else if (tUpperMatched.includes("CONC") && tUpperMatched.includes("BASE")) {
-            const matchQty = tUpperMatched.match(/(\d+)\s*X/i) || tUpperMatched.match(/\(\s*(\d+)/) || tUpperMatched.match(/X\s*(\d+)/i);
-            const qty = matchQty ? matchQty[1] : "1";
-            text1 = qty + "-BASE";
-        }
-        else if (/\bCOMPRESSOR\b/i.test(tUpperMatched) || /\bCAVA\b/i.test(tUpperMatched)) {
-            const matchQty = tUpperMatched.match(/(\d+)\s*X/i) || tUpperMatched.match(/\(\s*(\d+)/) || tUpperMatched.match(/X\s*(\d+)/i);
-            const qty = matchQty ? matchQty[1] : "1";
-            text1 = qty + "-CAVA";
-        }
-        else {
-            if (!tUpperMatched.includes("FIOS")) text1 = tArrume;
-            else {
-                const arrumeRaw = col2.trim().replace(/\s+/g, ' ');
-                text1 = "1-" + arrumeRaw.substring(0, Math.max(0, arrumeRaw.length - 5)) + "F ";
-            }
-        }
-
-        let text2 = text1.replace(/TR\s*-\s*3\s*-\s*/g, "1-TR3")
-                         .replace(/kVA/gi, "")
-                         .replace(/TR\s*-\s*1\s*-\s*/g, "1-TR1")
-                         .replace(/TR\s*-\s*2\s*-\s*/g, "1-TR2");
-
-        // Regra para padrão combinado: 3 - 100A - 3H
-        const comboMatch = text2.match(/([13])\s*-\s*100A\s*-\s*(\d+(?:,\d+)?(?:H|K))/i);
-        if (comboMatch) {
-            const q = comboMatch[1];
-            const e = comboMatch[2].replace(",", "").replace(" ", "");
-            return `${q}-CFU ${q}-EF${e}`;
-        }
-
-        if (text2.includes("-100A-")) text2 = text2.replace("-100A-", `-CFU ${text2.charAt(0)}-EF`);
-        return text2.replace(/3CF-400A/g, "3-CFA").replace(/112,5/g, "112").replace(/0,5H/g, "05H").replace(/PODAS/g, "PODA").replace(/PODA M/g, "PODA").replace(/PODA G/g, "PODA").replace(/PODA P/g, "PODA").replace(/ PODA/g, "-PODA").replace(/3CL-300A/g, "3-CFU 3-CL").replace(/TR15/g, "TR105").trim();
-    }
-
+    // isGray/isBlue/processAtivoFormula foram substituidas pelo motor de regras do leitor
+    // (TASK-006) -- ver static/regras_leitor_engine.js e .ai/tasks/TASK-006-25-09-2026.md.
     function updateRowLogic(index, tr) {
         const item = extractedDataCache[index];
-        const displayColor = item.cor || "#000000";
-        let textoAtivo = processAtivoFormula(item.texto);
-        let opAuto = "M";
-        if (displayColor.toLowerCase() === "#ff0000") opAuto = "I";
-        else if (isGray(displayColor)) opAuto = "R";
-        
-        const uAtivo = textoAtivo.toUpperCase();
-        // Normaliza hífens e espaços para comparação robusta
-        const tUpper = item.texto.replace(/[\u00AD\u2010-\u2015\u2212]/g, "-").replace(/\u00A0/g, " ").toUpperCase().trim();
-        const itemLayer = (item.layer || "").trim().toUpperCase();
-        let entAuto = "0";
-
-        const isRedOrGray = (displayColor.toLowerCase() === "#ff0000") || (isGray(displayColor));
-        
-        // --- NOVA REGRA: ELO FUSÍVEL (EF) ---
-        const elosFusivel = ["0,5H", "1H", "2H", "3H", "5H", "6K", "8K", "10K", "12K", "15K", "25K", "30K", "40K"];
-        if (elosFusivel.includes(tUpper) && isRedOrGray) {
-            entAuto = "CHAVE";
-            // Busca contexto nas proximidades (mesma página, +/- 10 linhas)
-            let qtyFound = "";
-            const searchRange = 10;
-            const start = Math.max(0, index - searchRange);
-            const end = Math.min(extractedDataCache.length - 1, index + searchRange);
-            
-            for (let i = start; i <= end; i++) {
-                if (i === index) continue;
-                const neighbor = extractedDataCache[i];
-                if (!neighbor || !neighbor.texto || neighbor.pagina !== item.pagina) continue;
-                
-                const nText = neighbor.texto.replace(/\u00A0/g, " ").toUpperCase();
-                const m = nText.match(/([13])\s*-\s*100A/);
-                if (m) {
-                    qtyFound = m[1];
-                    break;
-                }
-            }
-            
-            if (qtyFound) {
-                const eloVal = tUpper.replace(",", "").replace(" ", ""); // 0,5H -> 05H
-                textoAtivo = `${qtyFound}-EF${eloVal}`;
-            }
-        }
-
-        const isRed = (displayColor.toLowerCase() === "#ff0000");
-
-        if (!tUpper.includes("BLOCO")) {
-            if (isRed && tUpper.includes("FLY")) {
-                if (tUpper.includes("REF")) {
-                    textoAtivo = "1-RFLY";
-                    opAuto = "I";
-                    entAuto = "ESTRUTURA";
-                } else if (tUpper.includes("DESF")) {
-                    textoAtivo = "1-FLY";
-                    opAuto = "R";
-                    entAuto = "ESTRUTURA";
-                } else if (tUpper.includes("INST")) {
-                    textoAtivo = "1-FLY";
-                    opAuto = "I";
-                    entAuto = "ESTRUTURA";
-                }
-            }
-        } else {
-            // === BLOCO: detecta aterramento (TERRA3 e variantes) ===
-            if (/TERRA3/i.test(tUpper)) {
-                entAuto = "ATERRAMENTO";
-                textoAtivo = "1-TERRA3";
-                opAuto = displayColor.toLowerCase() === "#ff0000" ? "I" : (isGray(displayColor) ? "R" : "I");
-            } else {
-                // Se for BLOCO genérico, resetamos as automações para manual/vazio
-                textoAtivo = "";
-                opAuto = "M";
-                entAuto = "0";
-            }
-        }
-        
-        const apoioMarkers = ["-ROCO", "-RECAL", "-BASE", "-CAVA", "PODA"];
-        const foundApoioCount = apoioMarkers.filter(m => uAtivo.includes(m)).length;
-        const hasApoioConflict = tUpper.includes("APOIOS") || tUpper.includes("LARGURA") || (tUpper.includes("BASE") && tUpper.includes("CALÇADA")) || foundApoioCount > 1;
-        
-        if (entAuto === "0") {
-            const isBlack = !isRedOrGray;
-            const isRetens = itemLayer === "01_RETENS" || itemLayer === "01_RETENS_LV" || itemLayer === "01_LV";
-
-            // --- REINSTALAÇÃO DE TRAFO (preto + 01_RETENS/01_LV) ---
-            // Ex: TR - 3 - 75kVA → 1-RTR3 com op I (ou *I se 01_LV/01_RETENS_LV)
-            if (isBlack && isRetens) {
-                const trafoMatch = tUpper.match(/TR\s*-\s*([123])/);
-                if (trafoMatch) {
-                    const qty = trafoMatch[1];
-                    entAuto = "TRAFO";
-                    textoAtivo = `1-RTR${qty}`;
-                    opAuto = (itemLayer === "01_RETENS_LV" || itemLayer === "01_LV") ? "*I" : "I";
-                }
-            }
-
-            // --- REINSTALAÇÃO DE CHAVE (preto + 01_RETENS/01_LV) ---
-            // Ex: 3 - 100A → 3-RCFU com op I (ou *I se 01_LV/01_RETENS_LV)
-            if (isBlack && isRetens && entAuto === "0") {
-                // Regex mais flexível para chaves (aceita 3-100A, 3 - 100A, etc)
-                const chaveMatch = tUpper.match(/^([123])\s*-\s*100\s*A/);
-                if (chaveMatch) {
-                    const qty = chaveMatch[1];
-                    entAuto = "CHAVE";
-                    textoAtivo = `${qty}-RCFU`;
-                    opAuto = (itemLayer === "01_RETENS_LV" || itemLayer === "01_LV") ? "*I" : "I";
-                }
-            }
-
-            if (entAuto === "0") {
-            if (/\sRS\s+[MT]\s/i.test(item.texto)) entAuto = "RAMAIS";
-            else if (uAtivo.includes("-ROCO") && !hasApoioConflict) entAuto = "APOIO";
-            else if (uAtivo.includes("-IP") || /\bIP\b/i.test(item.texto)) entAuto = "IP";
-            else if (uAtivo === "1-AF") entAuto = "ESTRUTURA";
-            else if ((uAtivo.includes("-RECAL")||uAtivo.includes("-BASE")||uAtivo.includes("-CAVA")) && !hasApoioConflict) entAuto = "APOIO";
-            else if ((tUpper.includes("DT") || tUpper.includes("CV")) && tUpper.includes("/") && isRedOrGray) entAuto = "POSTE";
-            else if (!tUpper.includes("DT") && !tUpper.includes("CV") && !tUpper.includes("AWG") && !tUpper.includes("#") && (() => {
-                // Multiplexados (M3x1..., 3x1x..., etc)
-                if (/\bM?\d+x\d+/.test(tUpper)) return true;
-                if (tUpper.includes("ABC") && /\d+\s*M$/.test(tUpper)) return true;
-                
-                // CU (Cobre)
-                if (/^CU\s*\d/.test(tUpper) || /\bCU\s*\d/.test(tUpper.substring(0, 5))) return true;
-                // CA / CAL / CAA (Alumínio)
-                if (/^CA\s+\d/.test(tUpper) || /^CA\d/.test(tUpper)) return true;
-                if (/\b(?:CAL|CAA|CAZ)\s*\d/.test(tUpper)) return true;
-                
-                // Bitolas P (protoduto) - Somente se seguido de bitola válida
-                if (/\bP\s*(16|25|35|50|70|95|120|150|185|240)\b/.test(tUpper)) return true;
-                
-                // Multiplex padrão antigo
-                if (tUpper.includes("X1X") && /\d+\s*M$/.test(tUpper)) return true;
-                
-                return false;
-            })()) {
-                if (isRedOrGray) {
-                    entAuto = "CABO";
-                } else if (!isRedOrGray && (itemLayer === "01_RETENS" || itemLayer === "01_RETENS_LV")) {
-                    entAuto = "CABO";
-                    opAuto = itemLayer === "01_RETENS_LV" ? "*M" : "M";
-                }
-            }
-            else if (tUpper.includes("FIOS") && !isBlue(displayColor)) entAuto = "CERCA";
-            else if ((uAtivo.includes("-CF") || uAtivo.includes("-EF")) && opAuto !== "M") entAuto = "CHAVE";
-            else if (uAtivo.includes("-TR") && opAuto !== "M") {
-                entAuto = "TRAFO";
-                const match = textoAtivo.match(/(1-TR\d+)/i);
-                if (match) textoAtivo = match[1].toUpperCase();
-            }
-            else if (uAtivo.includes("PODA") && opAuto !== "M" && !hasApoioConflict) entAuto = "APOIO";
-            } // end entAuto === "0" inner
-        }
-        
-        // Força "I" para exceções que não dependem da cor (Apoios, Cercas, IP, Ramais)
-        if (entAuto === "IP" || entAuto === "APOIO" || entAuto === "CERCA" || entAuto === "RAMAIS") opAuto = "I";
-
-        if (entAuto === "0" && !tUpper.includes("APOIOS")) {
-            // Refined regex: prefixes like R, B, S, T, N, U, SI, RA must be followed by at least one digit if they are alone 
-            // OR are part of the standard list. We use \d+ suffix for short prefixes to avoid matching RECAL or BASE.
-            const hasEstruturaPattern = /\b\d+\s*-\s*(\d+[A-Z]{1,2}\d*|\d*[A-Z]{1,2}\d+|ISOL)\b/i.test(uAtivo) || 
-                                       /\b\d+\s*-\s*(SI|RA|BI|CE|N|U|T|R|B|S)\d+/i.test(uAtivo);
-            
-            // Nova validação: TODAS as palavras em textoAtivo devem ser do tipo 1-SI3 (QUANTIDADE-ATIVO)
-            const words = textoAtivo.trim().split(/\s+/);
-            const allWordsValid = words.length > 0 && words.every(w => /^\d+-\S+$/i.test(w));
-            
-            if (hasEstruturaPattern && allWordsValid && (opAuto === "I" || opAuto === "R")) entAuto = "ESTRUTURA";
-        }
-        
-        // === LAYER 01_ORCAMENTO / 01_ORCAMENTO_LV ===
-        // Qualquer texto nessas layers recebe I ou R (ou *I / *R) baseado na cor, e entidade AVULSO.
-        if (itemLayer === "01_ORCAMENTO" || itemLayer === "01_ORCAMENTO_LV") {
-            const isOrcLV = itemLayer === "01_ORCAMENTO_LV";
-            const prefix = isOrcLV ? "*" : "";
-            if (displayColor.toLowerCase() === "#ff0000") opAuto = prefix + "I";
-            else if (isGray(displayColor)) opAuto = prefix + "R";
-            else opAuto = prefix + "I"; // demais cores: instalação por padrão
-            entAuto = "AVULSO";
-        }
-
-        if (itemLayer === "01_LV" && opAuto && !opAuto.startsWith("*")) {
-            opAuto = "*" + opAuto;
-        }
-
-        // === COR AZUL: força operação "0" (ignorar), exceto nas layers RETENS/LV ===
-        const _blueExemptLayers = ["01_LV", "01_RETENS", "01_RETENS_LV"];
-        if (isBlue(displayColor) && !_blueExemptLayers.includes(itemLayer)) {
-            opAuto = "0";
-        }
-
-        // === LAYER 01_PARTICULAR: ignora completamente (entidade e operação = 0) ===
-        if (itemLayer === "01_PARTICULAR") {
-            entAuto = "0";
-            opAuto = "0";
-        }
-
-        userFields[index] = { entidade: entAuto, operacao: opAuto, ativo: textoAtivo };
+        const engineItem = {
+            texto: item.texto,
+            cor: item.cor || "#000000",
+            layer: item.layer || "",
+            pagina: item.pagina,
+            index: index,
+            allItems: extractedDataCache
+        };
+        const resultado = RegrasLeitorEngine.processarEClassificar(
+            engineItem,
+            window.__regrasLeitorProcessamento || [],
+            window.__regrasLeitorClassificacao || []
+        );
+        userFields[index] = { entidade: resultado.entidade, operacao: resultado.operacao, ativo: resultado.ativo };
         const entInput = tr.querySelector('[data-field="entidade"]');
         const opInput = tr.querySelector('[data-field="operacao"]');
         const atInput = tr.querySelector('[data-field="ativo"]');
-        if(entInput) entInput.value = entAuto;
-        if(opInput) opInput.value = opAuto;
-        if(atInput) atInput.value = textoAtivo;
+        if (entInput) entInput.value = resultado.entidade;
+        if (opInput) opInput.value = resultado.operacao;
+        if (atInput) atInput.value = resultado.ativo;
     }
 
     function renderTable(data) {
@@ -1135,6 +982,83 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ═══════════════════════════════════════
+   REGRAS DO LEITOR (TASK-006)
+═══════════════════════════════════════ */
+// escapeHtml já existe dentro do DOMContentLoaded (usado pela extração), mas essas funções
+// rodam em escopo top-level (como abrirModalRecs) — cópia local para não depender do fechamento.
+function _escapeHtmlRegrasLeitor(u) {
+    return String(u || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+}
+
+function _descreverRegraProcessamento(r) {
+    const partes = [];
+    if (r.cor_em && r.cor_em.length) partes.push(`cor: ${r.cor_em.join('/')}`);
+    if (r.layer_em && r.layer_em.length) partes.push(`layer: ${r.layer_em.join('/')}`);
+    if (r.texto_regex) partes.push(`texto ~ /${r.texto_regex}/`);
+    if (r.ativo_regex) partes.push(`ativo ~ /${r.ativo_regex}/`);
+    if (r.vizinhanca) partes.push(`vizinhança (±${r.vizinhanca.janela || 10} linhas)`);
+    const condicao = partes.length ? partes.join(', ') : 'qualquer';
+    const acoes = [];
+    if (r.operacao) acoes.push(`operação=${r.operacao}`);
+    if (r.ativo_template !== undefined && r.ativo_template !== null) acoes.push(`ativo="${r.ativo_template}"`);
+    return `<div style="padding:6px 8px; border-bottom:1px solid #21262d;">
+        <span style="color:#8b949e;">[fase ${r.fase || 3} · ordem ${r.ordem}] ${r.modo || 'DEFINIR'}</span> —
+        <b>se</b> ${_escapeHtmlRegrasLeitor(condicao)} <b>então</b> ${_escapeHtmlRegrasLeitor(acoes.join(', ') || '(sem ação)')}
+        ${r.parar ? '<span style="color:#f0883e;">· para</span>' : ''}
+    </div>`;
+}
+
+function _descreverRegraClassificacao(r) {
+    const partes = [];
+    if (r.operacao_em && r.operacao_em.length) partes.push(`operação: ${r.operacao_em.join('/')}`);
+    if (r.cor_em && r.cor_em.length) partes.push(`cor: ${r.cor_em.join('/')}`);
+    if (r.cor_nao_em && r.cor_nao_em.length) partes.push(`cor ≠ ${r.cor_nao_em.join('/')}`);
+    if (r.layer_em && r.layer_em.length) partes.push(`layer: ${r.layer_em.join('/')}`);
+    if (r.ativo_regex) partes.push(`ativo ~ /${r.ativo_regex}/`);
+    if (r.texto_regex) partes.push(`texto ~ /${r.texto_regex}/`);
+    const condicao = partes.length ? partes.join(', ') : 'qualquer';
+    const acoes = [];
+    if (r.entidade) acoes.push(`entidade=${r.entidade}`);
+    if (r.operacao_ajustada) acoes.push(`operação=${r.operacao_ajustada}`);
+    return `<div style="padding:6px 8px; border-bottom:1px solid #21262d;">
+        <span style="color:#8b949e;">[ordem ${r.ordem}]</span> —
+        <b>se</b> ${_escapeHtmlRegrasLeitor(condicao)} <b>então</b> ${_escapeHtmlRegrasLeitor(acoes.join(', ') || '(bloqueia sem classificar)')}
+        ${r.parar ? '<span style="color:#f0883e;">· para</span>' : ''}
+    </div>`;
+}
+
+function abrirModalRegrasLeitor() {
+    const modal = document.getElementById('modal-regras-leitor');
+    if (!modal) return;
+    modal.style.display = 'flex';
+
+    const sel = document.getElementById('select-projeto-leitor');
+    const opt = sel ? sel.options[sel.selectedIndex] : null;
+    const nomeProjeto = opt ? opt.value : '(nenhum projeto selecionado)';
+    const infoEl = document.getElementById('regras-leitor-projeto-atual');
+    if (infoEl) {
+        infoEl.textContent = `Projeto selecionado: ${nomeProjeto}` +
+            (window.__regrasLeitorProjetoCarregado ? ` — regras carregadas de: ${window.__regrasLeitorProjetoCarregado}` : '');
+    }
+
+    const proc = window.__regrasLeitorProcessamento || [];
+    const cls = window.__regrasLeitorClassificacao || [];
+
+    const procEl = document.getElementById('regras-leitor-processamento-lista');
+    const clsEl = document.getElementById('regras-leitor-classificacao-lista');
+    if (procEl) {
+        procEl.innerHTML = proc.length
+            ? proc.slice().sort((a, b) => (a.fase || 3) - (b.fase || 3) || (a.ordem || 0) - (b.ordem || 0)).map(_descreverRegraProcessamento).join('')
+            : '<div style="color:#8b949e; padding:8px;">Nenhuma regra de processamento carregada para este projeto.</div>';
+    }
+    if (clsEl) {
+        clsEl.innerHTML = cls.length
+            ? cls.slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0)).map(_descreverRegraClassificacao).join('')
+            : '<div style="color:#8b949e; padding:8px;">Nenhuma regra de classificação carregada para este projeto.</div>';
+    }
+}
+
+/* ═══════════════════════════════════════
    HISTÓRICO DE RECS (Página Inicial)
 ═══════════════════════════════════════ */
 async function abrirModalRecs() {
@@ -1146,7 +1070,8 @@ async function abrirModalRecs() {
     tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px; color:#8b949e;">Carregando RECs...</td></tr>';
     
     try {
-        const res = await fetch('/api/recs');
+        const projCodeLeitor = localStorage.getItem('projeto_selecionado_codigo') || '229';
+        const res = await fetch(`/api/recs?projeto=${encodeURIComponent(projCodeLeitor)}`);
         if (!res.ok) throw new Error('Erro ao listar RECs');
         const recs = await res.json();
         tbody.innerHTML = '';

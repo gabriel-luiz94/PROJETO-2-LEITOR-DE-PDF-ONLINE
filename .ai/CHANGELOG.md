@@ -8,6 +8,67 @@
 
 ---
 
+## 2026-09-25 — TASK-006: classificação do leitor vira motor de regras editável por projeto
+
+**Tipo:** nova arquitetura (motor de regras) · **Tarefa:** `.ai/tasks/TASK-006-25-09-2026.md`
+
+A classificação automática do leitor (entidade/operação/ativo a partir de texto/cor/layer),
+antes embutida em `processAtivoFormula`/`computeRowLogic`/`updateRowLogic`/`autoClassifyEntidade`
+(duplicada e já divergente entre `script.js` e `resumo.js`), virou duas tabelas de regras por
+projeto — **Processamento** (texto/cor/layer → operação/ativo, em 3 fases: seleção de ramo,
+pós-processamento, overrides por cor/layer) e **Classificação** (operação/ativo/cor/layer/texto →
+operação/entidade, reutilizada também em `resumo.js`) — interpretadas por um motor genérico
+(`static/regras_leitor_engine.js`).
+
+**Decisão de unificação:** o comportamento das duas abas foi unificado usando `script.js` (o mais
+completo) como canônico. Dois bugs reais do código original foram corrigidos por decisão do
+usuário em vez de replicados: elo fusível nunca classificava como `CHAVE` (variável `uAtivo`
+desatualizada) e a detecção de cabo multiplexado `M3x1` nunca funcionava (regex case-sensitive
+contra texto já maiúsculo).
+
+**Alterado/criado:**
+- `static/regras_leitor_engine.js` (novo) — motor de regras, roda em navegador e Node
+- `data/regras_leitor_{processamento,classificacao}_seed.json` (novos) — transcrição fiel de
+  `script.js` (45 + 22 regras), semeada automaticamente para os projetos `027`/`229`
+- `database.py`, `scripts/schema_supabase.sql` — duas tabelas novas por projeto
+- `routers/regras_leitor.py` (novo) — CRUD nuvem-primeiro, mesmo padrão de `regras_conversao`
+- `static/script.js`, `static/resumo.js` — cascata antiga removida, religada ao motor; botão
+  "Regras do Leitor" (visualização) + aviso/escolha de projeto alternativo quando o projeto
+  selecionado não tem regras cadastradas
+
+**Validado:** porta fiel do código original para Node.js ("oráculo"), comparada contra o motor
+novo em 66 casos sintéticos (63 idênticos, 3 divergências aprovadas — os bugs corrigidos, 0
+falhas não explicadas); servidor real + navegador real via Playwright confirmando que o motor
+carrega as regras pela API de verdade e produz os mesmos resultados dentro do navegador.
+
+**Não corrigido nesta etapa:** `.ai/CONTEXT.md`/`.ai/ARCHITECTURE.md` ainda descrevem a
+classificação como lógica fixa em código (desatualizado); nenhuma UI de edição das regras foi
+construída (só visualização, que era o que o critério de aceite pedia).
+
+---
+
+## 2026-09-25 — TASK-005: obras, RECs e regras de IA isolados por projeto
+
+**Tipo:** schema + backend + frontend · **Tarefa:** `.ai/tasks/TASK-005-25-09-2026.md`
+
+Obras salvas, RECs e regras de IA (aprendizado do chat) apareciam em todos os projetos,
+independentemente de onde foram salvos. Adicionada a coluna/campo `projeto`/`projeto_codigo` em
+`obras`, `historico_rec` e `regras` (SQLite + Supabase), com filtro em todas as rotas de
+leitura/escrita relevantes. Regras de IA, que nunca tinham sincronização com o Supabase (só
+SQLite local de cada instância), ganharam esse suporte pela primeira vez, no mesmo padrão de
+`regras_conversao` (TASK-003).
+
+**Correção de convenção:** o valor de backfill/`DEFAULT` usado é o **código** do projeto (`"229"`
+para RONDÔNIA), não o nome — corrigido depois de descoberto, durante o teste end-to-end da
+TASK-006, que o nome não é a chave técnica usada em nenhum outro lugar do app para agrupar por
+projeto (`regras_conversao.projeto_codigo`, `localStorage['projeto_selecionado_codigo']`).
+
+**Validado:** simulado um banco "antigo" sem as colunas novas e confirmado o backfill via
+`ALTER TABLE ... DEFAULT`; testado via HTTP real que salvar/listar obras, RECs e regras de IA em
+projetos diferentes fica isolado, e que a listagem sem filtro preserva o comportamento anterior.
+
+---
+
 ## 2026-09-19 — TASK-004-19-09-2026: correção de cache de JS no navegador (Revisão)
 
 **Tipo:** correção de infraestrutura · **Tarefa:** `.ai/tasks/TASK-004-19-09-2026.md`

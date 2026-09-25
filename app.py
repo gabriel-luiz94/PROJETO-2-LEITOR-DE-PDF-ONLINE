@@ -28,7 +28,7 @@ from middleware.nocache_middleware import NoCacheHtmlMiddleware
 from websocket_manager import manager
 
 # Routers
-from routers import obras, regras, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update
+from routers import obras, regras, regras_leitor, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update
 
 
 app = FastAPI(
@@ -187,6 +187,7 @@ async def websocket_endpoint(websocket):
 app.include_router(auth.router)
 app.include_router(obras.router)
 app.include_router(regras.router)
+app.include_router(regras_leitor.router)
 app.include_router(recs.router)
 app.include_router(projetos.router)
 app.include_router(orcamento.router)

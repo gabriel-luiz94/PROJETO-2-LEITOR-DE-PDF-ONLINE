@@ -28,8 +28,13 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 - [x] Trigger de arquivo via WebSocket (`/trigger-file` + `trigger.py`)
 
 ### Classificação e regras
-- [x] Classificação automática de entidade/operação/ativo por cor, layer e texto (`computeRowLogic`)
-- [x] Normalização de texto livre para fórmula de ativo (`processAtivoFormula`)
+- [x] Classificação automática de entidade/operação/ativo por cor, layer e texto, via **motor de
+      regras do leitor** orientado a dados (`static/regras_leitor_engine.js`,
+      `RegrasLeitorEngine.processarEClassificar`) — substituiu a lógica antes fixa em
+      `computeRowLogic`/`updateRowLogic`/`processAtivoFormula`/`autoClassifyEntidade`
+      (TASK-006, 2026-09-25). Duas tabelas por projeto (Processamento, Classificação), editáveis
+      via Supabase/SQLite; botão "Regras do Leitor" visualiza (não edita ainda) as regras do
+      projeto selecionado. Ver `.ai/tasks/TASK-006-25-09-2026.md`.
 - [x] Reclassificação automática ao sair do campo Ativo quando a entidade está em `0`
 - [x] Cálculo de `qtdAtivos` com herança de fase para linhas standalone
 - [x] Camada unificada com `baseId` e `origem` (`syncTotalizadora`)
@@ -51,6 +56,9 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 - [x] Download paginado da tabela master do Supabase (`sync_tabela_master`)
 - [x] Fallback silencioso para SQLite em obras, RECs e projetos quando o Supabase falha
 - [x] Preservação de REC de outro usuário via cópia nomeada
+- [x] Obras, RECs e regras de IA (aprendizado do chat) isolados por projeto (coluna/campo
+      `projeto`/`projeto_codigo`) — TASK-005, 2026-09-25; regras de IA passaram a sincronizar com
+      o Supabase pela primeira vez (antes só existiam no SQLite local de cada instância)
 - [x] Backup em JSON (`/api/backup/export`) e diagnóstico (`/api/health`), incluindo desde
       2026-09-18 checagem de configuração e alcançabilidade do Supabase (`supabase_configured`,
       `supabase_reachable`, `usuarios_nuvem_has_rows`) — ver TASK-001
@@ -115,11 +123,11 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [ ] Implementar o botão "LINHA VIVA" (marcado como "Função futura" na UI)
 - [ ] Completar `scripts/release.py:push_to_cloud` (código de referência já está comentado no arquivo)
 - [ ] Adicionar `Dockerfile` e `fly.toml`, exigidos pelo workflow de deploy do backend
-- [ ] `.ai/tasks/TASK-005-25-09-2026.md` — separar obras, RECs, regras de IA e regras do leitor
-      por projeto (status: PLANEJAMENTO)
-- [ ] `.ai/tasks/TASK-006-25-09-2026.md` — transformar as regras de classificação do leitor
-      (hoje embutidas em `script.js`/`resumo.js`) em tabela editável por projeto (status:
-      PLANEJAMENTO; pré-requisito de parte do escopo da TASK-005)
+- [ ] Atualizar `.ai/CONTEXT.md` §7 (RN-01 a RN-05) e `.ai/ARCHITECTURE.md` para descrever o motor
+      de regras do leitor (TASK-006) em vez da lógica fixa em código, agora obsoleta nesses
+      documentos
+- [ ] Construir uma UI de **edição** das regras do leitor (TASK-006 só entregou visualização,
+      que era o que o critério de aceite pedia — editar ainda exige acesso direto ao banco)
 
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
