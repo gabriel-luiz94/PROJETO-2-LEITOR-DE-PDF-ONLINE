@@ -1817,73 +1817,84 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnMontarOrcamento) {
         btnMontarOrcamento.addEventListener('click', async () => {
-            const selectProj = document.getElementById('select-projeto');
-            const projVal = selectProj ? selectProj.value : "";
-            const projCode = selectProj && selectProj.selectedIndex >= 0 ? selectProj.options[selectProj.selectedIndex].dataset.codigo : "";
-            
-            let payloadCabos = [];
-            let payloadOutros = [];
+            // Feedback visual: desabilita botão e exibe "Calculando..."
+            const textoOriginal = btnMontarOrcamento.textContent.trim();
+            btnMontarOrcamento.disabled = true;
+            btnMontarOrcamento.textContent = 'Calculando...';
 
-            // Se estivermos no modo padrão (Cabos e Postes), atualiza a totalizadora silenciosamente antes
-            const radioPadrao = document.querySelector('input[name="view_mode"][value="padrao"]');
-            if (radioPadrao && radioPadrao.checked) {
-                await syncTotalizadora(false);
-            }
-            
-            // Agora, INVARIAVELMENTE, constrói o payload a partir da Totalizadora
-            tableStates.totalizadora.data.forEach(item => {
-                if (!item) return;
+            try {
+                const selectProj = document.getElementById('select-projeto');
+                const projVal = selectProj ? selectProj.value : "";
+                const projCode = selectProj && selectProj.selectedIndex >= 0 ? selectProj.options[selectProj.selectedIndex].dataset.codigo : "";
                 
-                let qStr = item.qtd;
-                if (qStr === '' || qStr === null || qStr === undefined || parseFloat(qStr) === 0) {
-                    return; // Ignora itens com quantidade vazia ou zerada no cálculo do orçamento
-                }
+                let payloadCabos = [];
+                let payloadOutros = [];
 
-                let operacao = item.operacao || 'I';
+                // Se estivermos no modo padrão (Cabos e Postes), atualiza a totalizadora silenciosamente antes
+                const radioPadrao = document.querySelector('input[name="view_mode"][value="padrao"]');
+                if (radioPadrao && radioPadrao.checked) {
+                    await syncTotalizadora(false);
+                }
                 
-                // Reconstruir o campo "ativo"
-                let ativoFinal = item.ativo;
-                
-                if (typeof qStr === 'number' && qStr < 0) {
-                    qStr = '*' + Math.abs(qStr);
-                } else if (typeof qStr === 'string' && qStr.startsWith('-')) {
-                    qStr = '*' + qStr.substring(1);
-                }
+                // Agora, INVARIAVELMENTE, constrói o payload a partir da Totalizadora
+                tableStates.totalizadora.data.forEach(item => {
+                    if (!item) return;
+                    
+                    let qStr = item.qtd;
+                    if (qStr === '' || qStr === null || qStr === undefined || parseFloat(qStr) === 0) {
+                        return; // Ignora itens com quantidade vazia ou zerada no cálculo do orçamento
+                    }
 
-                if (item.origem === 'CABOS') {
-                    // Backend espera: [Nome] [Fases] [Comprimento]. Enviamos o nome e a qtd (comprimento)
-                    ativoFinal = `${item.ativo} 1 ${item.qtd}`; 
-                } else {
-                    // Ex: 4-TERRA3 ou *1-TERRA3 para negativos
-                    ativoFinal = `${qStr}-${item.ativo}`;
-                }
+                    let operacao = item.operacao || 'I';
+                    
+                    // Reconstruir o campo "ativo"
+                    let ativoFinal = item.ativo;
+                    
+                    if (typeof qStr === 'number' && qStr < 0) {
+                        qStr = '*' + Math.abs(qStr);
+                    } else if (typeof qStr === 'string' && qStr.startsWith('-')) {
+                        qStr = '*' + qStr.substring(1);
+                    }
 
-                const obj = {
-                    entidade: item.obs || '0',
-                    operacao: operacao,
-                    ativo: ativoFinal
+                    if (item.origem === 'CABOS') {
+                        // Backend espera: [Nome] [Fases] [Comprimento]. Enviamos o nome e a qtd (comprimento)
+                        ativoFinal = `${item.ativo} 1 ${item.qtd}`; 
+                    } else {
+                        // Ex: 4-TERRA3 ou *1-TERRA3 para negativos
+                        ativoFinal = `${qStr}-${item.ativo}`;
+                    }
+
+                    const obj = {
+                        entidade: item.obs || '0',
+                        operacao: operacao,
+                        ativo: ativoFinal
+                    };
+
+                    if (item.origem === 'CABOS') {
+                        payloadCabos.push(obj);
+                    } else {
+                        payloadOutros.push(obj);
+                    }
+                });
+
+                const payload = {
+                    cabos: payloadCabos,
+                    outros: payloadOutros,
+                    projeto: projVal
                 };
-
-                if (item.origem === 'CABOS') {
-                    payloadCabos.push(obj);
-                } else {
-                    payloadOutros.push(obj);
+                
+                if(selectProj) {
+                    localStorage.setItem('projeto_selecionado', projVal);
+                    localStorage.setItem('projeto_selecionado_codigo', projCode);
                 }
-            });
-
-            const payload = {
-                cabos: payloadCabos,
-                outros: payloadOutros,
-                projeto: projVal
-            };
-            
-            if(selectProj) {
-                localStorage.setItem('projeto_selecionado', projVal);
-                localStorage.setItem('projeto_selecionado_codigo', projCode);
+                
+                localStorage.setItem('orcamentoPayload', JSON.stringify(payload));
+                window.open('/resultado_orcamento', '_blank');
+            } finally {
+                // Restaura o botão independentemente de sucesso ou erro
+                btnMontarOrcamento.disabled = false;
+                btnMontarOrcamento.textContent = textoOriginal;
             }
-            
-            localStorage.setItem('orcamentoPayload', JSON.stringify(payload));
-            window.open('/static/resultado_orcamento.html', '_blank');
         });
     }
 

@@ -28,6 +28,7 @@ PUBLIC_ROUTES = {
     "/api/orcamento/search",
     "/api/orcamento/detalhes",
     "/trigger-file",
+    "/api/shutdown",   # Encerramento do processo desktop (bloqueado no modo server pelo próprio endpoint)
 }
 
 # Rotas que aceitam token OPCIONAL — se enviado, injeta o user; se não, passa sem user

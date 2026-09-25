@@ -8,7 +8,69 @@
 
 ---
 
-## 2026-09-18 — TASK-003: regras de conversão passam a persistir de fato no Supabase
+## 2026-09-19 — TASK-004-19-09-2026: correção de cache de JS no navegador (Revisão)
+
+**Tipo:** correção de infraestrutura · **Tarefa:** `.ai/tasks/TASK-004-19-09-2026.md`
+
+Alterações nos arquivos JS só carregavam em aba privativa (incognito). Causa raiz: o navegador
+armazenava um "hard cache" dos arquivos `.html` (ex: `/static/resumo.html`). Por causa
+do cache local, o navegador nunca pedia o arquivo ao servidor, e assim nunca recebia os
+cabeçalhos de `NO_CACHE` criados. Para invalidar o hard cache local, era preciso alterar 
+a URL de navegação (ex: de `/static/resumo.html` para `/resumo`).
+
+**Alterado:**
+- `app.py` — Novas rotas `@app.get("/resultado_orcamento")` e `@app.get("/orcamento")` servindo as páginas sem cache.
+- `static/index.html`, `static/resumo.html`, `static/script.js`, `static/resumo.js` — Alteradas todas as navegações `window.location` e `window.open` que apontavam para `/static/*.html`, alterando para as rotas limpas do `app.py` (ex: `/resumo`, `/resultado_orcamento`).
+- `middleware/nocache_middleware.py` — Injeta `NO_CACHE_HEADERS` em respostas `/static/*.html` (implementado no passo anterior, mantido por precaução).
+
+**Validado:** aguardando confirmação do usuário em aba normal após reinício do servidor.
+
+---
+
+
+**Tipo:** melhoria de UX + segurança de processo · **Tarefa:** `.ai/tasks/TASK-002-19-09-2026.md`
+
+Ao iniciar o programa, o navegador abria diretamente na página principal com dados em cache,
+sem exigir novo login. Além disso, o processo Python na porta 8000 ficava ativo mesmo após
+fechar todas as abas do navegador, sem forma simples de encerrá-lo pela UI.
+
+**Alterado:**
+- `app.py` — URL de abertura mudada de `/` para `/login?new_session=1`; novo endpoint
+  `GET /api/shutdown` que envia `SIGTERM` ao processo após 500 ms (bloqueado com HTTP 403
+  em `APP_MODE == "server"`).
+- `middleware/auth_middleware.py` — `/api/shutdown` adicionado a `PUBLIC_ROUTES`.
+- `static/login.html` — script IIFE que, ao detectar `?new_session=1`, limpa `auth_token`,
+  `user_id`, `user_email` e `is_admin` do `localStorage` e pré-preenche o campo email com
+  o último email usado (conveniência — senha nunca armazenada).
+- `static/index.html` — botão "Encerrar Servidor" adicionado ao header; ao confirmar o
+  diálogo, chama `GET /api/shutdown` e exibe mensagem "Servidor encerrado. Pode fechar esta aba."
+
+**Validado:** servidor real reiniciado; navegador abriu em `/login?new_session=1` ✅;
+login realizado com dados da nuvem carregados corretamente ✅; botão "Encerrar Servidor"
+acionado com confirmação — log: `Encerramento solicitado pelo usuário via /api/shutdown.` ✅
+
+---
+
+
+**Tipo:** melhoria de UI · **Tarefa:** `.ai/tasks/TASK-001-19-09-2026.md`
+
+A página inicial (`index.html`) exibia apenas dois caminhos de entrada: "Procurar Arquivo"
+e "Montar Projeto". O usuário não tinha como navegar diretamente para a tela de resultado
+de orçamento (`resultado_orcamento.html`) sem antes passar por outra tela.
+
+**Alterado:**
+- `static/index.html` — adicionados `<p>ou acesse os orçamentos</p>` e
+  `<button id="btn-manipular-orcamentos">Manipular Orçamentos</button>` no `upload-card`,
+  após o botão "Montar Projeto". O botão navega para `/static/resultado_orcamento.html`
+  via `window.location.href`, no mesmo padrão já usado pelo botão "Montar Projeto".
+
+**Não alterado:** nenhuma funcionalidade das abas, nenhuma rota de API, nenhum banco
+de dados, nenhum contrato de `localStorage`.
+
+**Validado:** servidor já em execução; alteração visível ao recarregar a página inicial.
+
+---
+
 
 **Tipo:** nova tabela + correção de código · **Tarefa:** `.ai/tasks/TASK-003-18-09-2026.md`
 

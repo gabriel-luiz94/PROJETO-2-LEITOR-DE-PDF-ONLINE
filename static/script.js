@@ -834,7 +834,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             localStorage.setItem('processar_dados', JSON.stringify(exportData));
-            window.open('/static/resumo.html', '_blank');
+            window.open('/resumo', '_blank');
         });
     }
 
@@ -1194,7 +1194,7 @@ function filtrarModalRecsIndex() {
 
 function abrirRecNoOrcamento(numObra) {
     const decoded = decodeURIComponent(numObra);
-    window.location.href = `/static/resultado_orcamento.html?rec=${encodeURIComponent(decoded)}`;
+    window.location.href = `/resultado_orcamento?rec=${encodeURIComponent(decoded)}`;
 }
 
 async function baixarRecDireto(numObra) {

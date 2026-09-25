@@ -318,8 +318,8 @@ função pura, sem I/O, sem dependências internas, concentrando as regras RN-03
 
 ## Última atualização
 
-**Data:** 2026-09-18
-**Motivo:** Criação da estrutura de contexto IA-First (`.ai/`). Levantamento inicial do estado do
-projeto por leitura completa do backend, dos serviços, do middleware e dos módulos de negócio do
-frontend (`script.js`, `resumo.js`, `resultado_orcamento.html`).
-**Alterações de código:** nenhuma.
+**Data:** 2026-09-19
+**Motivo:** TASK-004-19-09-2026 — correção definitiva de cache de arquivos estáticos.
+Navegação via URL `/static/*.html` gerava hard-cache no navegador local; substituída por novas 
+rotas limpas (`/resultado_orcamento`, `/orcamento`) no FastAPI para forçar requisições frescas.
+**Alterações de código:** `app.py`, `middleware/nocache_middleware.py`, `static/index.html`, `static/resumo.html`, `static/script.js`, `static/resumo.js`.
