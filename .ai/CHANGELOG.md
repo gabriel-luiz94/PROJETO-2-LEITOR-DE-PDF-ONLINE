@@ -8,6 +8,27 @@
 
 ---
 
+## 2026-09-29 — Correção: regra de CERCA ("FIOS") sempre saía com operação R quando a cor era cinza
+
+**Tipo:** correção de dado (seed) · fora do escopo de uma TASK, reportado pelo usuário via edição
+manual no admin
+
+A regra de Classificação que atribui `entidade: CERCA` a partir do texto "FIOS"
+(`data/regras_leitor_classificacao_seed.json`, ordem 40) estava sem o campo
+`operacao_ajustada: "I"` — o mesmo campo que todas as regras irmãs (RAMAIS, APOIO, IP) usam para
+forçar a operação. Sem ele, a operação de uma linha de cerca ficava com o que a Tabela de
+Processamento decidisse (a regra de "FIOS" lá também não define operação), caindo no fallback por
+cor (`operacaoPelaCor`: vermelho→I, **cinza→R**, resto→M) — cercas desenhadas em cinza saíam como
+"R" em vez de sempre "I". A própria `.ai/tasks/TASK-006-25-09-2026.md` já documentava que CERCA
+deveria forçar operação I junto com RAMAIS/APOIO/IP; ficou de fora só dessa regra no seed, uma
+omissão de transcrição.
+
+Corrigido o seed (`operacao_ajustada: "I"` adicionado). O usuário já havia corrigido o dado no
+banco em produção diretamente pelo editor de regras (TASK-007) antes desta correção do seed —
+esta mudança só evita que o mesmo bug volte a aparecer em uma instalação nova/reset do banco.
+
+---
+
 ## 2026-09-29 — TASK-007: regras do leitor ficam editáveis pela UI (admin)
 
 **Tipo:** nova funcionalidade (backend + frontend) · **Tarefa:** `.ai/tasks/TASK-007-29-09-2026.md`
