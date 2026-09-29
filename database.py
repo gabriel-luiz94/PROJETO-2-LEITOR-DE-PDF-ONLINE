@@ -171,6 +171,27 @@ def init_db():
             updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
+
+    # Histórico de versões das Regras do Leitor (TASK-007) — a versão sobrescrita por um POST
+    # é preservada aqui antes de ser substituída, para permitir reverter pela UI (admin).
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS regras_leitor_processamento_historico (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            projeto_codigo TEXT NOT NULL,
+            regras_json TEXT NOT NULL,
+            criado_em TEXT DEFAULT (datetime('now')),
+            criado_por TEXT
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS regras_leitor_classificacao_historico (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            projeto_codigo TEXT NOT NULL,
+            regras_json TEXT NOT NULL,
+            criado_em TEXT DEFAULT (datetime('now')),
+            criado_por TEXT
+        )
+    ''')
     _seed_regras_leitor(cursor)
 
     # Tabela Orçamento (Customizado do Usuário)

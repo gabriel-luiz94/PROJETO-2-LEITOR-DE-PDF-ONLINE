@@ -8,6 +8,33 @@
 
 ---
 
+## 2026-09-29 — TASK-007: regras do leitor ficam editáveis pela UI (admin)
+
+**Tipo:** nova funcionalidade (backend + frontend) · **Tarefa:** `.ai/tasks/TASK-007-29-09-2026.md`
+
+O modal "Regras do Leitor" (TASK-006, antes só visualização) ganha edição completa das duas
+tabelas de regras, restrita a usuários com role `admin`: formulário estruturado por regra (campos
+condicionais por modo — `DEFINIR`/`SUBSTITUIR`/`SUBSTITUIR_TOTAL` — e fase), reordenação por
+drag-and-drop, painel de teste que roda `RegrasLeitorEngine` no navegador contra o conjunto de
+regras em edição (ainda não salvas, sem round-trip ao backend), validação de schema no backend
+antes de salvar (toda regex precisa compilar, campos obrigatórios por modo — nunca aceita um
+payload que quebraria o motor), e histórico de versões com reversão (cada salvamento preserva a
+versão anterior; reverter também vira uma nova entrada de histórico, a cadeia nunca perde uma
+versão). Rotas `POST` protegidas por `Depends(require_role("admin"))`; `GET` continua aberto a
+qualquer usuário autenticado.
+
+**Correção de planejamento descoberta na implementação:** o refinamento inicial da tarefa assumia
+que a ordem de execução das regras era a posição delas no array/JSON — na verdade o motor
+(`regras_leitor_engine.js`) ordena por um campo `ordem` explícito dentro de cada fase. O
+drag-and-drop reescreve esse campo (múltiplos de 10, mesmo espaçamento do seed) em vez de só
+reordenar o array.
+
+Novas tabelas `regras_leitor_processamento_historico`/`_classificacao_historico` (SQLite +
+Supabase). Duplicação de lógica registrada como risco conhecido: a validação de schema do backend
+precisa se manter em sincronia com o que `regras_leitor_engine.js` de fato interpreta.
+
+---
+
 ## 2026-09-29 — TASK-008: painel "Resumo da rede" na aba Resumo
 
 **Tipo:** nova funcionalidade (frontend) · **Tarefa:** `.ai/tasks/TASK-008-29-09-2026.md`
