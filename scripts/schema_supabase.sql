@@ -145,3 +145,25 @@ CREATE TABLE IF NOT EXISTS public.regras_leitor_classificacao (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE public.regras_leitor_classificacao DISABLE ROW LEVEL SECURITY;
+
+-- TASK-007: histórico de versões das Regras do Leitor — a versão sobrescrita por um POST é
+-- preservada aqui antes de ser substituída, para permitir reverter pela UI (admin).
+CREATE TABLE IF NOT EXISTS public.regras_leitor_processamento_historico (
+    id BIGSERIAL PRIMARY KEY,
+    projeto_codigo TEXT NOT NULL,
+    regras_json TEXT NOT NULL,
+    criado_em TIMESTAMPTZ DEFAULT NOW(),
+    criado_por TEXT
+);
+ALTER TABLE public.regras_leitor_processamento_historico DISABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_regras_leitor_proc_hist_projeto ON public.regras_leitor_processamento_historico(projeto_codigo);
+
+CREATE TABLE IF NOT EXISTS public.regras_leitor_classificacao_historico (
+    id BIGSERIAL PRIMARY KEY,
+    projeto_codigo TEXT NOT NULL,
+    regras_json TEXT NOT NULL,
+    criado_em TIMESTAMPTZ DEFAULT NOW(),
+    criado_por TEXT
+);
+ALTER TABLE public.regras_leitor_classificacao_historico DISABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_regras_leitor_cls_hist_projeto ON public.regras_leitor_classificacao_historico(projeto_codigo);

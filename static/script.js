@@ -1002,6 +1002,7 @@ function _descreverRegraProcessamento(r) {
     if (r.operacao) acoes.push(`operação=${r.operacao}`);
     if (r.ativo_template !== undefined && r.ativo_template !== null) acoes.push(`ativo="${r.ativo_template}"`);
     return `<div style="padding:6px 8px; border-bottom:1px solid #21262d;">
+        ${r.descricao ? `<div style="color:#c9d1d9; font-weight:600;">${_escapeHtmlRegrasLeitor(r.descricao)}</div>` : ''}
         <span style="color:#8b949e;">[fase ${r.fase || 3} · ordem ${r.ordem}] ${r.modo || 'DEFINIR'}</span> —
         <b>se</b> ${_escapeHtmlRegrasLeitor(condicao)} <b>então</b> ${_escapeHtmlRegrasLeitor(acoes.join(', ') || '(sem ação)')}
         ${r.parar ? '<span style="color:#f0883e;">· para</span>' : ''}
@@ -1021,6 +1022,7 @@ function _descreverRegraClassificacao(r) {
     if (r.entidade) acoes.push(`entidade=${r.entidade}`);
     if (r.operacao_ajustada) acoes.push(`operação=${r.operacao_ajustada}`);
     return `<div style="padding:6px 8px; border-bottom:1px solid #21262d;">
+        ${r.descricao ? `<div style="color:#c9d1d9; font-weight:600;">${_escapeHtmlRegrasLeitor(r.descricao)}</div>` : ''}
         <span style="color:#8b949e;">[ordem ${r.ordem}]</span> —
         <b>se</b> ${_escapeHtmlRegrasLeitor(condicao)} <b>então</b> ${_escapeHtmlRegrasLeitor(acoes.join(', ') || '(bloqueia sem classificar)')}
         ${r.parar ? '<span style="color:#f0883e;">· para</span>' : ''}
@@ -1038,23 +1040,559 @@ function abrirModalRegrasLeitor() {
     const infoEl = document.getElementById('regras-leitor-projeto-atual');
     if (infoEl) {
         infoEl.textContent = `Projeto selecionado: ${nomeProjeto}` +
-            (window.__regrasLeitorProjetoCarregado ? ` — regras carregadas de: ${window.__regrasLeitorProjetoCarregado}` : '');
+            (window.__regrasLeitorProjetoCarregado ? ` — regras carregadas de: ${window.__regrasLeitorProjetoCarregado}` : '') +
+            (_regrasLeitorEhAdmin() ? ' — modo admin: edição habilitada' : '');
     }
 
-    const proc = window.__regrasLeitorProcessamento || [];
-    const cls = window.__regrasLeitorClassificacao || [];
+    // Reinicia os rascunhos de edição a cada abertura (descarta mudanças não salvas de uma
+    // sessão anterior do modal, se houver).
+    _regrasLeitorResetDraft('processamento');
+    _regrasLeitorResetDraft('classificacao');
+    _renderRegrasLeitorTabela('processamento');
+    _renderRegrasLeitorTabela('classificacao');
+}
 
-    const procEl = document.getElementById('regras-leitor-processamento-lista');
-    const clsEl = document.getElementById('regras-leitor-classificacao-lista');
-    if (procEl) {
-        procEl.innerHTML = proc.length
-            ? proc.slice().sort((a, b) => (a.fase || 3) - (b.fase || 3) || (a.ordem || 0) - (b.ordem || 0)).map(_descreverRegraProcessamento).join('')
-            : '<div style="color:#8b949e; padding:8px;">Nenhuma regra de processamento carregada para este projeto.</div>';
+/* ═══════════════════════════════════════
+   EDIÇÃO DAS REGRAS DO LEITOR (TASK-007, restrito a admin)
+═══════════════════════════════════════ */
+const REGRAS_LEITOR_CORES = ['VERMELHO', 'CINZA', 'AZUL', 'PRETO', 'OUTRA'];
+const RLE_INPUT_STYLE = "width:100%; box-sizing:border-box; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:white; padding:6px 8px; font-size:0.85rem;";
+let _regraLeitorEditorEstado = null; // { tabela, indice (ou null p/ nova), regra }
+
+function _regrasLeitorEhAdmin() {
+    return localStorage.getItem('is_admin') === 'true';
+}
+
+function _regrasLeitorDraft(tabela) {
+    window.__regrasLeitorDraft = window.__regrasLeitorDraft || {};
+    if (!window.__regrasLeitorDraft[tabela]) {
+        const origem = tabela === 'processamento' ? window.__regrasLeitorProcessamento : window.__regrasLeitorClassificacao;
+        window.__regrasLeitorDraft[tabela] = JSON.parse(JSON.stringify(origem || []));
     }
-    if (clsEl) {
-        clsEl.innerHTML = cls.length
-            ? cls.slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0)).map(_descreverRegraClassificacao).join('')
-            : '<div style="color:#8b949e; padding:8px;">Nenhuma regra de classificação carregada para este projeto.</div>';
+    return window.__regrasLeitorDraft[tabela];
+}
+
+function _regrasLeitorResetDraft(tabela) {
+    const origem = tabela === 'processamento' ? window.__regrasLeitorProcessamento : window.__regrasLeitorClassificacao;
+    window.__regrasLeitorDraft = window.__regrasLeitorDraft || {};
+    window.__regrasLeitorDraft[tabela] = JSON.parse(JSON.stringify(origem || []));
+}
+
+function _regrasLeitorProximaOrdem(lista, fase) {
+    const relevantes = fase !== undefined ? lista.filter(r => (r.fase || 3) === fase) : lista;
+    const max = relevantes.reduce((m, r) => Math.max(m, r.ordem || 0), 0);
+    return max + 10;
+}
+
+function _renderRegrasLeitorTabela(tabela) {
+    const containerId = tabela === 'processamento' ? 'regras-leitor-processamento-lista' : 'regras-leitor-classificacao-lista';
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    const draft = _regrasLeitorDraft(tabela);
+    const admin = _regrasLeitorEhAdmin();
+
+    let html = '';
+    if (admin) {
+        html += `<div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+            <button type="button" onclick="abrirEditorRegraLeitor('${tabela}', null)" class="btn-secondary" style="font-size:0.75rem; padding:4px 10px;">+ Nova regra</button>
+            <button type="button" onclick="abrirHistoricoRegrasLeitor('${tabela}')" class="btn-secondary" style="font-size:0.75rem; padding:4px 10px;">Histórico</button>
+            <button type="button" onclick="salvarRegrasLeitorTabela('${tabela}')" class="btn-primary" style="font-size:0.75rem; padding:4px 10px; background:#238636;">Salvar alterações</button>
+        </div>`;
+    }
+
+    if (!draft.length) {
+        html += `<div style="color:#8b949e; padding:8px;">Nenhuma regra de ${tabela === 'processamento' ? 'processamento' : 'classificação'} carregada para este projeto.</div>`;
+    } else if (tabela === 'processamento') {
+        [1, 2, 3].forEach(fase => {
+            const doFase = draft.map((r, i) => ({ r, i })).filter(x => (x.r.fase || 3) === fase).sort((a, b) => (a.r.ordem || 0) - (b.r.ordem || 0));
+            if (!doFase.length) return;
+            html += `<h4 style="font-size:0.8rem; color:#8b949e; margin:10px 0 4px;">Fase ${fase}</h4>`;
+            html += `<div class="regras-leitor-dragzone" data-fase="${fase}">`;
+            doFase.forEach(({ r, i }) => { html += _regrasLeitorLinhaHtml(tabela, r, i, admin); });
+            html += `</div>`;
+        });
+    } else {
+        const ordenadas = draft.map((r, i) => ({ r, i })).sort((a, b) => (a.r.ordem || 0) - (b.r.ordem || 0));
+        html += `<div class="regras-leitor-dragzone">`;
+        ordenadas.forEach(({ r, i }) => { html += _regrasLeitorLinhaHtml(tabela, r, i, admin); });
+        html += `</div>`;
+    }
+
+    el.innerHTML = html;
+    if (admin) _ativarDragDropRegrasLeitor(el, tabela);
+}
+
+function _regrasLeitorLinhaHtml(tabela, r, indice, admin) {
+    const desc = tabela === 'processamento' ? _descreverRegraProcessamento(r) : _descreverRegraClassificacao(r);
+    if (!admin) return desc;
+    return `<div class="regras-leitor-linha" draggable="true" data-indice="${indice}" style="display:flex; align-items:stretch; gap:6px; margin-bottom:2px;">
+        <div class="regras-leitor-handle" title="Arrastar para reordenar" style="cursor:grab; color:#6e7681; padding:6px 4px; user-select:none;">⠿</div>
+        <div style="flex:1; min-width:0;">${desc}</div>
+        <div style="display:flex; flex-direction:column; gap:2px;">
+            <button type="button" onclick="abrirEditorRegraLeitor('${tabela}', ${indice})" title="Editar" style="background:none; border:1px solid #30363d; color:#58a6ff; border-radius:4px; cursor:pointer; font-size:0.7rem; padding:2px 6px;">✎</button>
+            <button type="button" onclick="removerRegraLeitor('${tabela}', ${indice})" title="Remover" style="background:none; border:1px solid #30363d; color:#f85149; border-radius:4px; cursor:pointer; font-size:0.7rem; padding:2px 6px;">✕</button>
+        </div>
+    </div>`;
+}
+
+function _ativarDragDropRegrasLeitor(container, tabela) {
+    container.querySelectorAll('.regras-leitor-dragzone').forEach(zone => {
+        let dragIndice = null;
+        zone.querySelectorAll('.regras-leitor-linha').forEach(linha => {
+            linha.addEventListener('dragstart', () => { dragIndice = parseInt(linha.dataset.indice, 10); linha.style.opacity = '0.4'; });
+            linha.addEventListener('dragend', () => { linha.style.opacity = '1'; });
+            linha.addEventListener('dragover', (e) => { e.preventDefault(); });
+            linha.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const alvoIndice = parseInt(linha.dataset.indice, 10);
+                if (dragIndice === null || alvoIndice === dragIndice) return;
+                const fase = zone.dataset.fase ? parseInt(zone.dataset.fase, 10) : null;
+                _reordenarRegraLeitor(tabela, fase, dragIndice, alvoIndice);
+            });
+        });
+    });
+}
+
+function _reordenarRegraLeitor(tabela, fase, indiceOrigem, indiceAlvo) {
+    const draft = _regrasLeitorDraft(tabela);
+    const grupo = draft
+        .map((r, i) => ({ r, i }))
+        .filter(x => fase === null || (x.r.fase || 3) === fase)
+        .sort((a, b) => (a.r.ordem || 0) - (b.r.ordem || 0));
+
+    const posOrigem = grupo.findIndex(x => x.i === indiceOrigem);
+    const posAlvo = grupo.findIndex(x => x.i === indiceAlvo);
+    if (posOrigem === -1 || posAlvo === -1) return;
+
+    const [movido] = grupo.splice(posOrigem, 1);
+    grupo.splice(posAlvo, 0, movido);
+    grupo.forEach((x, pos) => { x.r.ordem = (pos + 1) * 10; });
+
+    _renderRegrasLeitorTabela(tabela);
+}
+
+function removerRegraLeitor(tabela, indice) {
+    if (!confirm('Remover esta regra? Só passa a valer depois de clicar em "Salvar alterações".')) return;
+    const draft = _regrasLeitorDraft(tabela);
+    draft.splice(indice, 1);
+    _renderRegrasLeitorTabela(tabela);
+}
+
+async function salvarRegrasLeitorTabela(tabela) {
+    const projetoCodigo = window.__regrasLeitorProjetoCarregado || localStorage.getItem('projeto_selecionado_codigo');
+    if (!projetoCodigo) { alert('Nenhum projeto selecionado.'); return; }
+    const draft = _regrasLeitorDraft(tabela);
+    try {
+        const res = await fetch(`/api/regras-leitor/${tabela}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projeto_codigo: projetoCodigo, regras: draft })
+        });
+        if (res.status === 403) { alert('Só usuários admin podem salvar regras do leitor.'); return; }
+        if (!res.ok) {
+            const erro = await res.json().catch(() => ({}));
+            const detalhe = erro && erro.detail;
+            const lista = detalhe && detalhe.erros ? detalhe.erros.join('\n') : (typeof detalhe === 'string' ? detalhe : 'Erro ao salvar.');
+            alert('Não foi possível salvar:\n' + lista);
+            return;
+        }
+        if (tabela === 'processamento') window.__regrasLeitorProcessamento = JSON.parse(JSON.stringify(draft));
+        else window.__regrasLeitorClassificacao = JSON.parse(JSON.stringify(draft));
+        showToastRegrasLeitor('Regras salvas com sucesso.');
+        _renderRegrasLeitorTabela(tabela);
+    } catch (e) {
+        console.error('Erro ao salvar regras do leitor:', e);
+        alert('Erro de rede ao salvar as regras.');
+    }
+}
+
+function showToastRegrasLeitor(msg) {
+    // Sem um sistema de toast top-level nesta página — usa alert simples por consistência com o
+    // resto do modal (confirm/alert já usados aqui).
+    alert(msg);
+}
+
+/* ── Formulário estruturado por regra ── */
+function abrirEditorRegraLeitor(tabela, indice) {
+    const draft = _regrasLeitorDraft(tabela);
+    const regra = indice !== null && indice !== undefined
+        ? JSON.parse(JSON.stringify(draft[indice]))
+        : Object.assign(
+            { descricao: '', ativa: true, ordem: _regrasLeitorProximaOrdem(draft, tabela === 'processamento' ? 3 : undefined), parar: false },
+            tabela === 'processamento' ? { fase: 3, modo: 'DEFINIR' } : {}
+        );
+    _regraLeitorEditorEstado = { tabela, indice: (indice === undefined ? null : indice), regra };
+
+    const tituloEl = document.getElementById('regra-leitor-editor-titulo');
+    if (tituloEl) {
+        tituloEl.textContent = (indice !== null && indice !== undefined ? 'Editar regra' : 'Nova regra') +
+            (tabela === 'processamento' ? ' — Processamento' : ' — Classificação');
+    }
+
+    const formEl = document.getElementById('regra-leitor-editor-form');
+    if (!formEl) return;
+    formEl.innerHTML = tabela === 'processamento' ? _formHtmlRegraProcessamento(regra) : _formHtmlRegraClassificacao(regra);
+
+    if (tabela === 'processamento') {
+        _atualizarCamposModoRegraLeitor();
+        document.getElementById('rle-viz-usar').addEventListener('change', _atualizarCamposVizinhancaRegraLeitor);
+        _atualizarCamposVizinhancaRegraLeitor();
+    }
+
+    document.getElementById('modal-regra-leitor-editor').style.display = 'flex';
+}
+
+function fecharEditorRegraLeitor() {
+    const modal = document.getElementById('modal-regra-leitor-editor');
+    if (modal) modal.style.display = 'none';
+    _regraLeitorEditorEstado = null;
+}
+
+function _campoHtml(label, inputHtml, hint) {
+    return `<div style="margin-bottom:10px;">
+        <label style="display:block; font-size:0.78rem; color:#8b949e; margin-bottom:3px;">${label}</label>
+        ${inputHtml}
+        ${hint ? `<div style="font-size:0.7rem; color:#6e7681; margin-top:2px;">${hint}</div>` : ''}
+    </div>`;
+}
+
+function _checkboxesCorHtml(idClasse, valoresAtuais) {
+    valoresAtuais = valoresAtuais || [];
+    return REGRAS_LEITOR_CORES.map(c => `
+        <label style="display:inline-flex; align-items:center; gap:3px; margin-right:10px; font-size:0.8rem;">
+            <input type="checkbox" class="${idClasse}" value="${c}" ${valoresAtuais.indexOf(c) !== -1 ? 'checked' : ''}> ${c}
+        </label>`).join('');
+}
+
+function _lerCheckboxesCor(idClasse) {
+    return Array.from(document.querySelectorAll(`.${idClasse}:checked`)).map(el => el.value);
+}
+
+function _formHtmlRegraProcessamento(r) {
+    const esc = _escapeHtmlRegrasLeitor;
+    return `
+        ${_campoHtml('Descrição (opcional)', `<input id="rle-descricao" style="${RLE_INPUT_STYLE}" value="${esc(r.descricao || '')}">`)}
+        <div style="display:flex; gap:10px;">
+            <div style="flex:1;">${_campoHtml('Fase', `<select id="rle-fase" style="${RLE_INPUT_STYLE}">
+                <option value="1" ${r.fase === 1 ? 'selected' : ''}>1 — seleção de ramo</option>
+                <option value="2" ${r.fase === 2 ? 'selected' : ''}>2 — pós-processamento</option>
+                <option value="3" ${(!r.fase || r.fase === 3) ? 'selected' : ''}>3 — overrides cor/layer</option>
+            </select>`)}</div>
+            <div style="flex:1;">${_campoHtml('Ordem', `<input type="number" id="rle-ordem" style="${RLE_INPUT_STYLE}" value="${r.ordem != null ? r.ordem : ''}">`, 'Menor executa primeiro na mesma fase.')}</div>
+            <div style="flex:1;">${_campoHtml('Modo', `<select id="rle-modo" style="${RLE_INPUT_STYLE}" onchange="_atualizarCamposModoRegraLeitor()">
+                <option value="DEFINIR" ${(!r.modo || r.modo === 'DEFINIR') ? 'selected' : ''}>DEFINIR</option>
+                <option value="SUBSTITUIR" ${r.modo === 'SUBSTITUIR' ? 'selected' : ''}>SUBSTITUIR</option>
+                <option value="SUBSTITUIR_TOTAL" ${r.modo === 'SUBSTITUIR_TOTAL' ? 'selected' : ''}>SUBSTITUIR_TOTAL</option>
+            </select>`)}</div>
+        </div>
+        <label style="display:flex; align-items:center; gap:5px; font-size:0.8rem; margin-bottom:10px;">
+            <input type="checkbox" id="rle-ativa" ${r.ativa !== false ? 'checked' : ''}> Regra ativa
+        </label>
+        ${_campoHtml('Cor exigida (cor_em) — nenhuma marcada = qualquer cor', _checkboxesCorHtml('rle-cor-em', r.cor_em))}
+        ${_campoHtml('Cor excluída (cor_nao_em)', _checkboxesCorHtml('rle-cor-nao-em', r.cor_nao_em))}
+        ${_campoHtml('Layers (layer_em) — separados por vírgula, vazio = qualquer layer', `<input id="rle-layer-em" style="${RLE_INPUT_STYLE}" value="${esc((r.layer_em || []).join(', '))}">`)}
+
+        <div id="rle-campo-texto-regex">
+            ${_campoHtml('Texto (regex sobre o texto bruto)', `<input id="rle-texto-regex" style="${RLE_INPUT_STYLE}" value="${esc(r.texto_regex || '')}">`, 'Só usado no modo DEFINIR. Vazio = casa qualquer texto (útil para overrides incondicionais por cor/layer).')}
+        </div>
+
+        <div id="rle-campo-vizinhanca" style="border:1px solid #21262d; border-radius:6px; padding:8px; margin-bottom:10px;">
+            <label style="display:flex; align-items:center; gap:5px; font-size:0.8rem;">
+                <input type="checkbox" id="rle-viz-usar" ${r.vizinhanca ? 'checked' : ''}> Usar vizinhança de linhas (ex.: elo fusível)
+            </label>
+            <div id="rle-campos-vizinhanca-detalhe" style="margin-top:8px;">
+                ${_campoHtml('Regex da vizinhança', `<input id="rle-viz-regex" style="${RLE_INPUT_STYLE}" value="${esc((r.vizinhanca && r.vizinhanca.regex) || '')}">`)}
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;">${_campoHtml('Janela (nº de linhas)', `<input type="number" id="rle-viz-janela" style="${RLE_INPUT_STYLE}" value="${(r.vizinhanca && r.vizinhanca.janela) || 10}">`)}</div>
+                    <div style="flex:1; display:flex; align-items:flex-end; padding-bottom:10px;">
+                        <label style="display:flex; align-items:center; gap:5px; font-size:0.8rem;">
+                            <input type="checkbox" id="rle-viz-mesma-pagina" ${!r.vizinhanca || r.vizinhanca.mesma_pagina !== false ? 'checked' : ''}> Só mesma página
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="rle-campo-ativo-regex">
+            ${_campoHtml('Ativo (regex sobre o ativo já calculado)', `<input id="rle-ativo-regex" style="${RLE_INPUT_STYLE}" value="${esc(r.ativo_regex || '')}">`, 'Obrigatório nos modos SUBSTITUIR/SUBSTITUIR_TOTAL — sem isso a regra nunca casa com nada.')}
+        </div>
+
+        <div id="rle-hint-ativo-template" style="font-size:0.7rem; color:#6e7681; margin:-6px 0 3px;"></div>
+        ${_campoHtml('Ativo resultante (ativo_template)', `<input id="rle-ativo-template" style="${RLE_INPUT_STYLE}" value="${esc(r.ativo_template != null ? r.ativo_template : '')}">`)}
+
+        ${_campoHtml('Operação', `<input id="rle-operacao" style="${RLE_INPUT_STYLE}" value="${esc(r.operacao || '')}">`, 'Valores especiais: PELA_COR (vermelho→I, cinza→R, resto→M), 0 (ignora a linha). Um valor literal (I, R, M, *I...) fixa a operação. Vazio = não altera a operação já decidida.')}
+
+        <label style="display:flex; align-items:center; gap:5px; font-size:0.8rem; margin-bottom:14px;">
+            <input type="checkbox" id="rle-parar" ${r.parar ? 'checked' : ''}> Parar (encerra a fase ao casar)
+        </label>
+
+        ${_painelTestarProcessamentoHtml()}
+
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+            <button type="button" onclick="fecharEditorRegraLeitor()" class="btn-secondary" style="padding:6px 14px; font-size:0.85rem;">Cancelar</button>
+            <button type="button" onclick="salvarRegraLeitorDoFormulario()" class="btn-primary" style="padding:6px 14px; font-size:0.85rem; background:#238636;">Salvar regra</button>
+        </div>
+    `;
+}
+
+function _formHtmlRegraClassificacao(r) {
+    const esc = _escapeHtmlRegrasLeitor;
+    return `
+        ${_campoHtml('Descrição (opcional)', `<input id="rle-descricao" style="${RLE_INPUT_STYLE}" value="${esc(r.descricao || '')}">`)}
+        <div style="display:flex; gap:10px;">
+            <div style="flex:1;">${_campoHtml('Ordem', `<input type="number" id="rle-ordem" style="${RLE_INPUT_STYLE}" value="${r.ordem != null ? r.ordem : ''}">`, 'Menor executa primeiro.')}</div>
+            <div style="flex:1; display:flex; align-items:flex-end; padding-bottom:10px;">
+                <label style="display:flex; align-items:center; gap:5px; font-size:0.8rem;">
+                    <input type="checkbox" id="rle-ativa" ${r.ativa !== false ? 'checked' : ''}> Regra ativa
+                </label>
+            </div>
+        </div>
+        ${_campoHtml('Operação exigida (operacao_em) — separadas por vírgula, vazio = qualquer', `<input id="rle-operacao-em" style="${RLE_INPUT_STYLE}" value="${esc((r.operacao_em || []).join(', '))}">`)}
+        ${_campoHtml('Cor exigida (cor_em) — nenhuma marcada = qualquer cor', _checkboxesCorHtml('rle-cor-em', r.cor_em))}
+        ${_campoHtml('Cor excluída (cor_nao_em)', _checkboxesCorHtml('rle-cor-nao-em', r.cor_nao_em))}
+        ${_campoHtml('Layers (layer_em) — separados por vírgula, vazio = qualquer layer', `<input id="rle-layer-em" style="${RLE_INPUT_STYLE}" value="${esc((r.layer_em || []).join(', '))}">`)}
+        ${_campoHtml('Ativo (regex)', `<input id="rle-ativo-regex" style="${RLE_INPUT_STYLE}" value="${esc(r.ativo_regex || '')}">`)}
+        ${_campoHtml('Texto bruto (regex)', `<input id="rle-texto-regex" style="${RLE_INPUT_STYLE}" value="${esc(r.texto_regex || '')}">`, 'Ex.: bloquear falso-positivo quando o texto bruto contém uma palavra específica.')}
+        ${_campoHtml('Entidade (deixe vazio para não classificar, só controlar o fluxo)', `<input id="rle-entidade" style="${RLE_INPUT_STYLE}" value="${esc(r.entidade || '')}">`)}
+        ${_campoHtml('Operação ajustada (opcional — sobrescreve a operação)', `<input id="rle-operacao-ajustada" style="${RLE_INPUT_STYLE}" value="${esc(r.operacao_ajustada || '')}">`)}
+        <label style="display:flex; align-items:center; gap:5px; font-size:0.8rem; margin-bottom:14px;">
+            <input type="checkbox" id="rle-parar" ${r.parar ? 'checked' : ''}> Parar (encerra a classificação ao casar)
+        </label>
+
+        ${_painelTestarClassificacaoHtml()}
+
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+            <button type="button" onclick="fecharEditorRegraLeitor()" class="btn-secondary" style="padding:6px 14px; font-size:0.85rem;">Cancelar</button>
+            <button type="button" onclick="salvarRegraLeitorDoFormulario()" class="btn-primary" style="padding:6px 14px; font-size:0.85rem; background:#238636;">Salvar regra</button>
+        </div>
+    `;
+}
+
+function _atualizarCamposModoRegraLeitor() {
+    const modoEl = document.getElementById('rle-modo');
+    if (!modoEl) return;
+    const modo = modoEl.value;
+    const textoRegexEl = document.getElementById('rle-campo-texto-regex');
+    const vizEl = document.getElementById('rle-campo-vizinhanca');
+    const ativoRegexEl = document.getElementById('rle-campo-ativo-regex');
+    const hintEl = document.getElementById('rle-hint-ativo-template');
+
+    const ehDefinir = modo === 'DEFINIR';
+    if (textoRegexEl) textoRegexEl.style.display = ehDefinir ? '' : 'none';
+    if (vizEl) vizEl.style.display = ehDefinir ? '' : 'none';
+    if (ativoRegexEl) ativoRegexEl.style.display = ehDefinir ? 'none' : '';
+    if (hintEl) {
+        hintEl.textContent = modo === 'SUBSTITUIR'
+            ? 'Sintaxe nativa do JS String.replace: use $1, $2... para os grupos capturados pelo Ativo (regex).'
+            : 'Placeholders: {1}, {2}... (grupos capturados), {TEXTO_LIMPO}, {vizinhanca}, {TEXTO_SEM_ULTIMOS5}.';
+    }
+}
+
+function _atualizarCamposVizinhancaRegraLeitor() {
+    const usarEl = document.getElementById('rle-viz-usar');
+    const detalheEl = document.getElementById('rle-campos-vizinhanca-detalhe');
+    if (!usarEl || !detalheEl) return;
+    detalheEl.style.display = usarEl.checked ? '' : 'none';
+}
+
+function _painelTestarProcessamentoHtml() {
+    return `<div style="border-top:1px solid #21262d; padding-top:10px; margin-top:6px;">
+        <h4 style="font-size:0.85rem; color:#58a6ff; margin:0 0 6px;">Testar com as regras em edição</h4>
+        <div style="font-size:0.7rem; color:#6e7681; margin-bottom:6px;">
+            Roda o motor no navegador contra o conjunto de regras de Processamento como estão agora
+            (incluindo mudanças ainda não salvas). Não simula linhas vizinhas de outras páginas.
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <input id="rle-teste-texto" placeholder="Texto de exemplo" style="${RLE_INPUT_STYLE}; width:180px;">
+            <input id="rle-teste-cor" placeholder="#FF0000" style="${RLE_INPUT_STYLE}; width:110px;">
+            <input id="rle-teste-layer" placeholder="Layer" style="${RLE_INPUT_STYLE}; width:130px;">
+            <button type="button" onclick="rodarTesteRegraLeitorProcessamento()" class="btn-secondary" style="padding:6px 10px; font-size:0.8rem; white-space:nowrap;">Rodar teste</button>
+        </div>
+        <div id="rle-teste-resultado" style="margin-top:8px; font-size:0.82rem;"></div>
+    </div>`;
+}
+
+function _painelTestarClassificacaoHtml() {
+    return `<div style="border-top:1px solid #21262d; padding-top:10px; margin-top:6px;">
+        <h4 style="font-size:0.85rem; color:#58a6ff; margin:0 0 6px;">Testar com as regras em edição</h4>
+        <div style="font-size:0.7rem; color:#6e7681; margin-bottom:6px;">
+            Roda o motor no navegador contra o conjunto de regras de Classificação como estão agora
+            (incluindo mudanças ainda não salvas).
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <input id="rle-teste-operacao" placeholder="Operação (ex: I)" style="${RLE_INPUT_STYLE}; width:110px;">
+            <input id="rle-teste-ativo" placeholder="Ativo (ex: 1-SI3)" style="${RLE_INPUT_STYLE}; width:140px;">
+            <input id="rle-teste-cor" placeholder="#FF0000" style="${RLE_INPUT_STYLE}; width:100px;">
+            <input id="rle-teste-layer" placeholder="Layer" style="${RLE_INPUT_STYLE}; width:120px;">
+            <input id="rle-teste-texto" placeholder="Texto bruto" style="${RLE_INPUT_STYLE}; width:150px;">
+            <button type="button" onclick="rodarTesteRegraLeitorClassificacao()" class="btn-secondary" style="padding:6px 10px; font-size:0.8rem; white-space:nowrap;">Rodar teste</button>
+        </div>
+        <div id="rle-teste-resultado" style="margin-top:8px; font-size:0.82rem;"></div>
+    </div>`;
+}
+
+function _lerFormularioRegraProcessamento() {
+    const layerEmTxt = document.getElementById('rle-layer-em').value.trim();
+    const usarViz = document.getElementById('rle-viz-usar').checked;
+    const regra = {
+        descricao: document.getElementById('rle-descricao').value.trim() || undefined,
+        fase: parseInt(document.getElementById('rle-fase').value, 10),
+        ordem: parseFloat(document.getElementById('rle-ordem').value),
+        ativa: document.getElementById('rle-ativa').checked,
+        modo: document.getElementById('rle-modo').value,
+        cor_em: _lerCheckboxesCor('rle-cor-em'),
+        cor_nao_em: _lerCheckboxesCor('rle-cor-nao-em'),
+        layer_em: layerEmTxt ? layerEmTxt.split(',').map(s => s.trim()).filter(Boolean) : [],
+        texto_regex: document.getElementById('rle-texto-regex').value.trim() || undefined,
+        ativo_regex: document.getElementById('rle-ativo-regex').value.trim() || undefined,
+        ativo_template: document.getElementById('rle-ativo-template').value,
+        operacao: document.getElementById('rle-operacao').value.trim(),
+        parar: document.getElementById('rle-parar').checked
+    };
+    if (usarViz) {
+        regra.vizinhanca = {
+            regex: document.getElementById('rle-viz-regex').value.trim(),
+            janela: parseInt(document.getElementById('rle-viz-janela').value, 10) || 10,
+            mesma_pagina: document.getElementById('rle-viz-mesma-pagina').checked
+        };
+    }
+    if (!regra.cor_em.length) delete regra.cor_em;
+    if (!regra.cor_nao_em.length) delete regra.cor_nao_em;
+    if (!regra.layer_em.length) delete regra.layer_em;
+    return regra;
+}
+
+function _lerFormularioRegraClassificacao() {
+    const operacaoEmTxt = document.getElementById('rle-operacao-em').value.trim();
+    const layerEmTxt = document.getElementById('rle-layer-em').value.trim();
+    const regra = {
+        descricao: document.getElementById('rle-descricao').value.trim() || undefined,
+        ordem: parseFloat(document.getElementById('rle-ordem').value),
+        ativa: document.getElementById('rle-ativa').checked,
+        operacao_em: operacaoEmTxt ? operacaoEmTxt.split(',').map(s => s.trim()).filter(Boolean) : [],
+        cor_em: _lerCheckboxesCor('rle-cor-em'),
+        cor_nao_em: _lerCheckboxesCor('rle-cor-nao-em'),
+        layer_em: layerEmTxt ? layerEmTxt.split(',').map(s => s.trim()).filter(Boolean) : [],
+        ativo_regex: document.getElementById('rle-ativo-regex').value.trim() || undefined,
+        texto_regex: document.getElementById('rle-texto-regex').value.trim() || undefined,
+        entidade: document.getElementById('rle-entidade').value.trim() || undefined,
+        operacao_ajustada: document.getElementById('rle-operacao-ajustada').value.trim() || undefined,
+        parar: document.getElementById('rle-parar').checked
+    };
+    if (!regra.operacao_em.length) delete regra.operacao_em;
+    if (!regra.cor_em.length) delete regra.cor_em;
+    if (!regra.cor_nao_em.length) delete regra.cor_nao_em;
+    if (!regra.layer_em.length) delete regra.layer_em;
+    return regra;
+}
+
+function salvarRegraLeitorDoFormulario() {
+    if (!_regraLeitorEditorEstado) return;
+    const { tabela, indice } = _regraLeitorEditorEstado;
+    const regra = tabela === 'processamento' ? _lerFormularioRegraProcessamento() : _lerFormularioRegraClassificacao();
+
+    if (!isFinite(regra.ordem)) {
+        alert('Preencha o campo "Ordem" com um número.');
+        return;
+    }
+    if (tabela === 'processamento' && (regra.modo === 'SUBSTITUIR' || regra.modo === 'SUBSTITUIR_TOTAL') && !regra.ativo_regex) {
+        alert('O modo ' + regra.modo + ' exige o campo "Ativo (regex)" preenchido.');
+        return;
+    }
+
+    const draft = _regrasLeitorDraft(tabela);
+    if (indice !== null) draft[indice] = regra;
+    else draft.push(regra);
+
+    fecharEditorRegraLeitor();
+    _renderRegrasLeitorTabela(tabela);
+}
+
+function rodarTesteRegraLeitorProcessamento() {
+    if (!_regraLeitorEditorEstado) return;
+    const regraAtualizada = _lerFormularioRegraProcessamento();
+    const draft = _regrasLeitorDraft('processamento').slice();
+    if (_regraLeitorEditorEstado.indice !== null) draft[_regraLeitorEditorEstado.indice] = regraAtualizada;
+    else draft.push(regraAtualizada);
+
+    const texto = document.getElementById('rle-teste-texto').value;
+    const cor = document.getElementById('rle-teste-cor').value || '#000000';
+    const layer = document.getElementById('rle-teste-layer').value;
+
+    const item = { texto, cor, layer, pagina: 1, index: 0, allItems: [{ texto, cor, layer, pagina: 1 }] };
+    const resultado = RegrasLeitorEngine.processar(item, draft);
+    document.getElementById('rle-teste-resultado').innerHTML =
+        `<b>operação:</b> ${_escapeHtmlRegrasLeitor(resultado.operacao)} &nbsp; <b>ativo:</b> "${_escapeHtmlRegrasLeitor(resultado.ativo)}"`;
+}
+
+function rodarTesteRegraLeitorClassificacao() {
+    if (!_regraLeitorEditorEstado) return;
+    const regraAtualizada = _lerFormularioRegraClassificacao();
+    const draft = _regrasLeitorDraft('classificacao').slice();
+    if (_regraLeitorEditorEstado.indice !== null) draft[_regraLeitorEditorEstado.indice] = regraAtualizada;
+    else draft.push(regraAtualizada);
+
+    const operacao = document.getElementById('rle-teste-operacao').value || 'I';
+    const ativo = document.getElementById('rle-teste-ativo').value;
+    const cor = document.getElementById('rle-teste-cor').value || '#000000';
+    const layer = document.getElementById('rle-teste-layer').value;
+    const texto = document.getElementById('rle-teste-texto').value;
+
+    const resultado = RegrasLeitorEngine.classificar(operacao, ativo, cor, layer, texto, draft);
+    document.getElementById('rle-teste-resultado').innerHTML =
+        `<b>operação:</b> ${_escapeHtmlRegrasLeitor(resultado.operacao)} &nbsp; <b>entidade:</b> ${_escapeHtmlRegrasLeitor(resultado.entidade)}`;
+}
+
+/* ── Histórico de versões (TASK-007) ── */
+async function abrirHistoricoRegrasLeitor(tabela) {
+    const projetoCodigo = window.__regrasLeitorProjetoCarregado || localStorage.getItem('projeto_selecionado_codigo');
+    const modal = document.getElementById('modal-regra-leitor-historico');
+    const lista = document.getElementById('regra-leitor-historico-lista');
+    if (!modal || !lista || !projetoCodigo) return;
+    lista.innerHTML = 'Carregando...';
+    modal.style.display = 'flex';
+    try {
+        const res = await fetch(`/api/regras-leitor/${tabela}/historico?projeto_codigo=${encodeURIComponent(projetoCodigo)}`);
+        if (res.status === 403) { lista.innerHTML = 'Só admin pode ver o histórico.'; return; }
+        const data = await res.json();
+        const historico = data.historico || [];
+        if (!historico.length) {
+            lista.innerHTML = '<div style="color:#8b949e;">Nenhuma versão anterior salva ainda para este projeto.</div>';
+            return;
+        }
+        lista.innerHTML = historico.map(h => `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #21262d;">
+                <div>
+                    <div>${_escapeHtmlRegrasLeitor(h.criado_em || '')}</div>
+                    <div style="font-size:0.75rem; color:#8b949e;">${h.quantidade_regras} regra(s)${h.criado_por ? ' — por ' + _escapeHtmlRegrasLeitor(h.criado_por) : ''}</div>
+                </div>
+                <button type="button" onclick="reverterVersaoRegraLeitor('${tabela}', ${h.id})" class="btn-secondary" style="font-size:0.75rem; padding:4px 10px;">Reverter</button>
+            </div>`).join('');
+    } catch (e) {
+        lista.innerHTML = 'Erro ao carregar histórico.';
+    }
+}
+
+async function reverterVersaoRegraLeitor(tabela, historicoId) {
+    const projetoCodigo = window.__regrasLeitorProjetoCarregado || localStorage.getItem('projeto_selecionado_codigo');
+    if (!confirm('Reverter para esta versão? A versão atual também será guardada no histórico.')) return;
+    try {
+        const res = await fetch(`/api/regras-leitor/${tabela}/reverter`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projeto_codigo: projetoCodigo, historico_id: historicoId })
+        });
+        if (!res.ok) { alert('Não foi possível reverter.'); return; }
+        const resGet = await fetch(`/api/regras-leitor/${tabela}?projeto_codigo=${encodeURIComponent(projetoCodigo)}`);
+        const novo = await resGet.json();
+        if (tabela === 'processamento') window.__regrasLeitorProcessamento = novo.regras || [];
+        else window.__regrasLeitorClassificacao = novo.regras || [];
+        _regrasLeitorResetDraft(tabela);
+        document.getElementById('modal-regra-leitor-historico').style.display = 'none';
+        _renderRegrasLeitorTabela(tabela);
+        alert('Revertido com sucesso.');
+    } catch (e) {
+        alert('Erro de rede ao reverter.');
     }
 }
 

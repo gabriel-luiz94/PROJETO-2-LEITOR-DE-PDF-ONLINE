@@ -32,9 +32,17 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
       regras do leitor** orientado a dados (`static/regras_leitor_engine.js`,
       `RegrasLeitorEngine.processarEClassificar`) — substituiu a lógica antes fixa em
       `computeRowLogic`/`updateRowLogic`/`processAtivoFormula`/`autoClassifyEntidade`
-      (TASK-006, 2026-09-25). Duas tabelas por projeto (Processamento, Classificação), editáveis
-      via Supabase/SQLite; botão "Regras do Leitor" visualiza (não edita ainda) as regras do
-      projeto selecionado. Ver `.ai/tasks/TASK-006-25-09-2026.md`.
+      (TASK-006, 2026-09-25). Duas tabelas por projeto (Processamento, Classificação), persistidas
+      via Supabase/SQLite. Botão "Regras do Leitor" visualiza as regras do projeto selecionado.
+      Ver `.ai/tasks/TASK-006-25-09-2026.md`.
+- [x] Edição das regras do leitor pela UI, restrita a usuários `admin` (TASK-007, 2026-09-29):
+      formulário estruturado por regra (campos condicionais por modo/fase), reordenação por
+      drag-and-drop (reescreve o campo `ordem`, que é o que o motor de fato usa para ordenar — não
+      a posição no array/JSON), painel de teste que roda o motor no navegador contra o conjunto de
+      regras em edição (ainda não salvas), validação de schema no backend antes de salvar (regex
+      compila, campos obrigatórios por modo), histórico de versões com reversão. Rotas de escrita
+      (`POST`) exigem role `admin`; leitura continua aberta a qualquer usuário autenticado. Ver
+      `.ai/tasks/TASK-007-29-09-2026.md`.
 - [x] Reclassificação automática ao sair do campo Ativo quando a entidade está em `0`
 - [x] Cálculo de `qtdAtivos` com herança de fase para linhas standalone
 - [x] Camada unificada com `baseId` e `origem` (`syncTotalizadora`)
@@ -129,11 +137,6 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [ ] Atualizar `.ai/CONTEXT.md` §7 (RN-01 a RN-05) e `.ai/ARCHITECTURE.md` para descrever o motor
       de regras do leitor (TASK-006) em vez da lógica fixa em código, agora obsoleta nesses
       documentos
-- [ ] Construir uma UI de **edição** das regras do leitor, restrita a usuários `admin` — registrada
-      em `.ai/tasks/TASK-007-29-09-2026.md`, em **stand-by** aguardando refinamento (TASK-006 só
-      entregou visualização, que era o que o critério de aceite pedia — editar ainda exige acesso
-      direto ao banco)
-
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -332,8 +335,9 @@ função pura, sem I/O, sem dependências internas, concentrando as regras RN-03
 ## Última atualização
 
 **Data:** 2026-09-29
-**Motivo:** TASK-008-29-09-2026 — painel "Resumo da rede" na aba Resumo (4 contagens em tempo
-real: postes, rede de média, rede de baixa e equipamentos instalando).
-Navegação via URL `/static/*.html` gerava hard-cache no navegador local; substituída por novas 
-rotas limpas (`/resultado_orcamento`, `/orcamento`) no FastAPI para forçar requisições frescas.
-**Alterações de código:** `app.py`, `middleware/nocache_middleware.py`, `static/index.html`, `static/resumo.html`, `static/script.js`, `static/resumo.js`.
+**Motivo:** TASK-007-29-09-2026 — regras do leitor (TASK-006) ganham edição pela UI, restrita a
+usuários `admin`: formulário estruturado por regra, drag-and-drop (reescreve o campo `ordem`, que
+é o que o motor realmente usa para ordenar), painel de teste no navegador contra o rascunho em
+edição, validação de schema no backend, histórico de versões com reversão.
+**Alterações de código:** `database.py`, `routers/regras_leitor.py`, `scripts/schema_supabase.sql`,
+`static/index.html`, `static/script.js`.

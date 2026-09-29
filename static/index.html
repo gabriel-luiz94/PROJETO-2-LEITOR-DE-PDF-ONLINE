@@ -179,6 +179,26 @@
             </div>
         </div>
     </div>
+    <!-- Editor de Regra do Leitor (TASK-007, só admin) -->
+    <div id="modal-regra-leitor-editor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.82); z-index:1100; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
+        <div style="background: #161b22; padding: 22px; border-radius: 12px; width: 640px; max-width: 94%; max-height: 88vh; overflow-y: auto; border: 1px solid #30363d; color: white; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 id="regra-leitor-editor-titulo" style="margin:0; font-size:1.05rem;">Editar regra</h3>
+                <button onclick="fecharEditorRegraLeitor()" style="background: transparent; border: none; color: #8b949e; font-size: 1.2rem; cursor: pointer;">✕</button>
+            </div>
+            <div id="regra-leitor-editor-form"></div>
+        </div>
+    </div>
+    <!-- Histórico de Regras do Leitor (TASK-007, só admin) -->
+    <div id="modal-regra-leitor-historico" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.82); z-index:1100; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
+        <div style="background: #161b22; padding: 22px; border-radius: 12px; width: 480px; max-width: 94%; max-height: 80vh; overflow-y: auto; border: 1px solid #30363d; color: white; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin:0; font-size:1.05rem;">Histórico de versões</h3>
+                <button onclick="document.getElementById('modal-regra-leitor-historico').style.display='none'" style="background: transparent; border: none; color: #8b949e; font-size: 1.2rem; cursor: pointer;">✕</button>
+            </div>
+            <div id="regra-leitor-historico-lista" style="font-size:0.85rem;"></div>
+        </div>
+    </div>
     <script src="/static/regras_leitor_engine.js"></script>
     <script src="/static/script.js?v=3.5"></script>
 </body>
