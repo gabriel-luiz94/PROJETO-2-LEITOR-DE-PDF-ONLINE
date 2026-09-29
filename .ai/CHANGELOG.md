@@ -8,6 +8,32 @@
 
 ---
 
+## 2026-09-29 — TASK-008: painel "Resumo da rede" na aba Resumo
+
+**Tipo:** nova funcionalidade (frontend) · **Tarefa:** `.ai/tasks/TASK-008-29-09-2026.md`
+
+Adicionado um painel com 4 contagens em tempo real na aba Resumo, logo abaixo da barra de botões
+dos modais geradores (Postes/Cabos/Conexões/Ramais/...): **postes instalando** (soma de quantidade
+dos tokens `qtd-ativo` da tabela Outros que começam com `DT`/`CV`), **rede de média instalando**
+(soma do comprimento bruto dos Cabos que começam com `CAA`/`P`/`CAL`), **rede de baixa instalando**
+(idem para `M2X`/`M3X`) e **equipamentos instalando** (soma de quantidade dos tokens Outros que
+começam com `TR`/`CFU`/`CFA`). Todas as 4 consideram só linhas com operação `I`.
+
+**Duplicação de parsing (risco registrado):** `static/resumo.js` ganhou uma porta em JavaScript do
+parsing `qtd-ativo` (Outros) e `ATIVO FASE COMPRIMENTO` (Cabos) que hoje só existia em Python
+(`services/orcamento_calc.py`), necessária para recalcular em tempo real no navegador sem round-trip
+ao backend. **O comprimento usado nunca é multiplicado pela quantidade de ativos/fases** —
+diferente do cálculo de orçamento, que multiplica — decisão explícita do usuário.
+
+Não persiste em banco — é só um cálculo em cima de `tableStates.cabos.data`/`outros.data` já
+carregados na tela, atualizado a cada render e a cada edição direta (mudança de operação/entidade,
+edição do texto do ativo).
+
+Junto: registrada (não implementada) `.ai/tasks/TASK-007-29-09-2026.md` — tornar as regras do
+leitor (TASK-006) editáveis via UI para usuários `admin`, em stand-by até refinamento posterior.
+
+---
+
 ## 2026-09-25 — TASK-006: classificação do leitor vira motor de regras editável por projeto
 
 **Tipo:** nova arquitetura (motor de regras) · **Tarefa:** `.ai/tasks/TASK-006-25-09-2026.md`
