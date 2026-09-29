@@ -94,6 +94,24 @@
         }
         .section-actions { display: flex; gap: 7px; align-items: center; }
 
+        /* ── Resumo da rede (TASK-008) ── */
+        .resumo-rede-painel {
+            display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px;
+            padding-top: 12px; border-top: 1px solid var(--border-color);
+        }
+        .resumo-rede-item {
+            display: flex; flex-direction: column; gap: 2px;
+            padding: 6px 14px; border-radius: 6px;
+            background: rgba(255,255,255,0.03); border: 1px solid var(--border-default);
+            min-width: 130px;
+        }
+        .resumo-rede-label {
+            font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em;
+        }
+        .resumo-rede-valor {
+            font-size: 1.05rem; font-weight: 700; color: var(--text-primary);
+        }
+
         /* ── Action buttons ── */
         .btn-add-row {
             display: flex; align-items: center; gap: 5px;
@@ -590,6 +608,25 @@
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">RETENSIONAMENTO</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">ADICIONAIS</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(227,179,65,0.4); color: #e3b341;" title="Função futura">LINHA VIVA</button>
+                </div>
+                <!-- Resumo da rede (TASK-008) -->
+                <div class="resumo-rede-painel" id="resumo-rede-painel">
+                    <div class="resumo-rede-item">
+                        <span class="resumo-rede-label">Postes instalando</span>
+                        <span class="resumo-rede-valor" id="resumo-rede-postes">0</span>
+                    </div>
+                    <div class="resumo-rede-item">
+                        <span class="resumo-rede-label">Rede de média instalando</span>
+                        <span class="resumo-rede-valor" id="resumo-rede-media">0 m</span>
+                    </div>
+                    <div class="resumo-rede-item">
+                        <span class="resumo-rede-label">Rede de baixa instalando</span>
+                        <span class="resumo-rede-valor" id="resumo-rede-baixa">0 m</span>
+                    </div>
+                    <div class="resumo-rede-item">
+                        <span class="resumo-rede-label">Equipamentos instalando</span>
+                        <span class="resumo-rede-valor" id="resumo-rede-equipamentos">0</span>
+                    </div>
                 </div>
             </div>
         </section>

@@ -208,6 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     pushHistory();  // snapshot ANTES da mudança
                     row.entidade = selEnt.value;
                     refreshAllFilters(type);
+                    atualizarResumoRedeUI();
                 }
             });
             tdEnt.appendChild(selEnt);
@@ -230,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     pushHistory();  // snapshot ANTES da mudança
                     row.operacao = selOp.value;
                     refreshAllFilters(type);
+                    atualizarResumoRedeUI();
                 }
             });
             tdOp.appendChild(selOp);
@@ -300,6 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
                         refreshAllFilters(type);
+                        atualizarResumoRedeUI();
                     }
                 }, 150);
             });
@@ -364,6 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         updateCounters();
+        atualizarResumoRedeUI();
 
         // Após render, aplica filtros ativos sem rebuildar dropdowns
         applyFilters(type);
@@ -849,6 +853,111 @@ document.addEventListener('DOMContentLoaded', () => {
             const badge   = document.getElementById(`count-${type}`);
             if (badge) badge.textContent = visible < total ? `${visible}/${total}` : total;
         });
+    }
+
+    /* ═══════════════════════════════════════
+       RESUMO DA REDE (TASK-008)
+    ═══════════════════════════════════════ */
+    /**
+     * Extrai os pares "qtd-ativo" de uma linha da tabela Outros. Uma linha pode conter mais de
+     * um par (ex.: "3-DT9 2-CV8"). Mesma lógica de services/orcamento_calc.py:98-122: "-" separa
+     * quantidade do ativo, "*" representa linha viva (vira "-" antes de virar espaço), e "DT"/"CV"
+     * sem quantidade explícita ganham "1-" automaticamente.
+     */
+    function extrairParesQtdAtivoOutros(ativoRaw) {
+        if (!ativoRaw) return [];
+        let txt = ativoRaw.trim();
+        if (!txt) return [];
+        if (/^(DT|CV)/i.test(txt) && !/^\d/.test(txt)) {
+            txt = '1-' + txt;
+        }
+        txt = txt.replace(/-/g, ' ').replace(/\*/g, '-');
+        const tokens = txt.split(/\s+/).filter(Boolean);
+        const pares = [];
+        let i = 0;
+        while (i + 1 < tokens.length) {
+            let qtd = parseFloat(tokens[i].replace(',', '.'));
+            if (isNaN(qtd)) qtd = 1;
+            pares.push({ ativo: tokens[i + 1].toUpperCase(), qtd });
+            i += 2;
+        }
+        return pares;
+    }
+
+    /**
+     * Extrai o prefixo do ativo e o comprimento (metros) de uma linha da tabela Cabos, no formato
+     * "ATIVO FASE COMPRIMENTO". Mesma normalização de calcularQtdAtivos() (linha ~903): funde
+     * prefixos partidos por espaço ("CAA 2" → "CAA2") antes de separar os tokens, senão o
+     * comprimento e a fase seriam lidos errado nesse formato. O comprimento retornado é o valor
+     * bruto (último token) — nunca multiplicado por qtdAtivos/fases (RULES.md Regra 8, confirmado
+     * pelo usuário em TASK-008-29-09-2026.md).
+     */
+    function extrairPrefixoEComprimentoCabo(ativoRaw) {
+        if (!ativoRaw || !ativoRaw.trim()) return null;
+        const txt = ativoRaw.trim().toUpperCase();
+        const txtNorm = txt
+            .replace(/\//g, '')
+            .replace(/^CAA\s+(\d)/i, 'CAA$1')
+            .replace(/^CA\s+(\d)/i, 'CA$1')
+            .replace(/^CU\s+(\d)/i, 'CU$1')
+            .replace(/^CAZ\s+(\d)/i, 'CAZ$1')
+            .replace(/^P\s+(\d)/i, 'P$1');
+        const cleaned = txtNorm.replace(/\s+M\s*$/i, '').trim();
+        const tokens = cleaned.split(/\s+/).filter(Boolean);
+        if (tokens.length < 2) return null;  // sem comprimento identificável
+        const prefixo = tokens[0];
+        const comprimento = parseFloat(tokens[tokens.length - 1].replace(',', '.'));
+        if (isNaN(comprimento)) return null;
+        return { prefixo, comprimento };
+    }
+
+    /**
+     * Calcula as 4 contagens da "Resumo da rede": postes, rede de média, rede de baixa e
+     * equipamentos — todas considerando só linhas com operação "I" (instalando).
+     */
+    function calcularResumoRede() {
+        const resumo = { postes: 0, redeMedia: 0, redeBaixa: 0, equipamentos: 0 };
+
+        tableStates.outros.data.forEach(row => {
+            if ((row.operacao || '').toUpperCase() !== 'I') return;
+            extrairParesQtdAtivoOutros(row.ativo).forEach(({ ativo, qtd }) => {
+                if (/^(DT|CV)/i.test(ativo)) {
+                    resumo.postes += qtd;
+                } else if (/^(TR|CFU|CFA)/i.test(ativo)) {
+                    resumo.equipamentos += qtd;
+                }
+            });
+        });
+
+        tableStates.cabos.data.forEach(row => {
+            if ((row.operacao || '').toUpperCase() !== 'I') return;
+            const info = extrairPrefixoEComprimentoCabo(row.ativo);
+            if (!info) return;
+            if (/^(CAA|CAL|P)/i.test(info.prefixo)) {
+                resumo.redeMedia += info.comprimento;
+            } else if (/^(M2X|M3X)/i.test(info.prefixo)) {
+                resumo.redeBaixa += info.comprimento;
+            }
+        });
+
+        return resumo;
+    }
+
+    function formatarNumeroResumoRede(n) {
+        const arredondado = Math.round(n * 100) / 100;
+        return arredondado % 1 === 0 ? String(arredondado) : arredondado.toFixed(2).replace('.', ',');
+    }
+
+    function atualizarResumoRedeUI() {
+        const resumo = calcularResumoRede();
+        const elPostes = document.getElementById('resumo-rede-postes');
+        const elMedia = document.getElementById('resumo-rede-media');
+        const elBaixa = document.getElementById('resumo-rede-baixa');
+        const elEquip = document.getElementById('resumo-rede-equipamentos');
+        if (elPostes) elPostes.textContent = formatarNumeroResumoRede(resumo.postes);
+        if (elMedia) elMedia.textContent = `${formatarNumeroResumoRede(resumo.redeMedia)} m`;
+        if (elBaixa) elBaixa.textContent = `${formatarNumeroResumoRede(resumo.redeBaixa)} m`;
+        if (elEquip) elEquip.textContent = formatarNumeroResumoRede(resumo.equipamentos);
     }
 
     /* ═══════════════════════════════════════

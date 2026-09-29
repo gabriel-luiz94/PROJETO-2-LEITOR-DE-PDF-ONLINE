@@ -84,6 +84,9 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 - [x] Modais geradores: Cabos, Postes e Estruturas, Ramais, Conexões
 - [x] Tabela Totalizadora editável com destaque de ativo não encontrado
 - [x] Tela de resultado com consolidação, edição manual, salvamento de REC e exportação
+- [x] Painel "Resumo da rede" (TASK-008) — 4 contagens em tempo real (postes, rede de média, rede
+      de baixa e equipamentos instalando) calculadas a partir das tabelas Cabos/Outros já
+      carregadas na tela, sem persistência em banco (`static/resumo.js:calcularResumoRede`)
 
 ### Empacotamento e deploy
 - [x] Modo desktop com janela nativa (pywebview) e fallback para navegador
@@ -126,8 +129,10 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [ ] Atualizar `.ai/CONTEXT.md` §7 (RN-01 a RN-05) e `.ai/ARCHITECTURE.md` para descrever o motor
       de regras do leitor (TASK-006) em vez da lógica fixa em código, agora obsoleta nesses
       documentos
-- [ ] Construir uma UI de **edição** das regras do leitor (TASK-006 só entregou visualização,
-      que era o que o critério de aceite pedia — editar ainda exige acesso direto ao banco)
+- [ ] Construir uma UI de **edição** das regras do leitor, restrita a usuários `admin` — registrada
+      em `.ai/tasks/TASK-007-29-09-2026.md`, em **stand-by** aguardando refinamento (TASK-006 só
+      entregou visualização, que era o que o critério de aceite pedia — editar ainda exige acesso
+      direto ao banco)
 
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
@@ -326,8 +331,9 @@ função pura, sem I/O, sem dependências internas, concentrando as regras RN-03
 
 ## Última atualização
 
-**Data:** 2026-09-19
-**Motivo:** TASK-004-19-09-2026 — correção definitiva de cache de arquivos estáticos.
+**Data:** 2026-09-29
+**Motivo:** TASK-008-29-09-2026 — painel "Resumo da rede" na aba Resumo (4 contagens em tempo
+real: postes, rede de média, rede de baixa e equipamentos instalando).
 Navegação via URL `/static/*.html` gerava hard-cache no navegador local; substituída por novas 
 rotas limpas (`/resultado_orcamento`, `/orcamento`) no FastAPI para forçar requisições frescas.
 **Alterações de código:** `app.py`, `middleware/nocache_middleware.py`, `static/index.html`, `static/resumo.html`, `static/script.js`, `static/resumo.js`.
