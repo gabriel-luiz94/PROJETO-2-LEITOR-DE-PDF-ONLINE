@@ -126,6 +126,7 @@
     "ordem": 40,
     "ativo_regex": "FIOS",
     "entidade": "CERCA",
+    "operacao_ajustada": "I",
     "cor_nao_em": [
       "AZUL"
     ],
