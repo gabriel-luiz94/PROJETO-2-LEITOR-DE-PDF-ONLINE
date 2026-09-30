@@ -10,7 +10,7 @@
 
 - **Camada 1** — contrato, em código, **não editável**. **Camada 2** — regra de domínio, dados, **editável pelo admin**. **Camada 3** — IA, prompt salvo, editável pelo admin.
 - **Severidade:** `erro` · `aviso` · `info`.
-- **Status:** `DERIVADA DO CÓDIGO` (comportamento verificado em `orcamento_calc.py`) · `DECIDIDA` (camada 2: ambiguidades resolvidas pelo usuário, falta só o motor da TASK-013) · `A CONFIRMAR` (vem de `prompt_rede_eletrica.txt §5`, que é instrução ao modelo, não especificação validada) · `CONFIRMADA`.
+- **Status:** `DERIVADA DO CÓDIGO` (comportamento verificado em `orcamento_calc.py`) · `IMPLEMENTADA` (regra decidida e executada pelo motor; desligada na semente até o admin ligar) · `A CONFIRMAR` (vem de `prompt_rede_eletrica.txt §5`, que é instrução ao modelo, não especificação validada) · `CONFIRMADA`.
 
 ## Por que a camada 1 existe (achado)
 
@@ -59,23 +59,29 @@ Exemplos: `CAA 2 ABC 35 m` ok · `3-CFU` em Cabos → C1-CABO-PARTE · `CAA 2 35
 
 ## Camada 2 — Regras de domínio (editáveis pelo admin)
 
-Fonte: `prompt_rede_eletrica.txt §5`. **Todas entram na semente com `ativa: false`.**
-As ambiguidades abaixo precisam de resposta do usuário antes de virar regra.
+**IMPLEMENTADA (TASK-013)** — `services/regras_dominio.py` (motor e schema), `routers/validacao_regras.py`
+(`/api/validacao/regras`), tabelas `regras_dominio`/`regras_dominio_historico`, editor e painel de teste no
+painel admin. Fonte das regras: `prompt_rede_eletrica.txt §5` (o arquivo não foi alterado).
+**Todas entram na semente com `ativa: false`**; o admin liga uma a uma. Unidade de avaliação: a **linha da
+tabela Outros** (cada linha é um poste ou conjunto de ativos soltos); só o P50 cruza Cabos e Outros.
+Por padrão as regras valem só para operações **I e *I** (decisão do usuário; editável por regra).
+Tipos: `requer`, `proibe`, `nao_isolado`, `texto`, `minimo_total` (parâmetros no docstring do módulo).
+As três regras de P50 viraram **uma só**, `C2-P50` (`minimo_total`), porque a exigência é uma soma
+(2 m por trafo mono/bi + 6 m por trafo tri + 1 m por PR15): avaliadas separadamente, cada uma compararia o
+total de P50 com um pedaço da exigência e daria alerta errado.
 
 | id | escopo | regra | sev. sugerida | status | ambiguidade a resolver |
 |---|---|---|---|---|---|
-| C2-CFU-SUPL | outros | linha com `CFU` exige `1-SUPL` | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
-| C2-CFU-EF | outros | `CFU` exige elo fusível `EF…` no mesmo poste | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
+| C2-CFU-SUPL | outros | linha com `CFU` exige `1-SUPL` | aviso | IMPLEMENTADA | resolvida (ver decisões abaixo) |
+| C2-CFU-EF | outros | `CFU` exige elo fusível `EF…` no mesmo poste | aviso | IMPLEMENTADA | resolvida (ver decisões abaixo) |
 | C2-TR-EF | outros | poste com `TR…` **sem** chave não deve ter `EF…` | aviso | A CONFIRMAR | — |
-| C2-TR-PR15 | outros | poste com `TR…` exige `1-PR15`, exceto se houver `RPR` | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
-| C2-TR-PR220-MONO | outros | trafo monofásico exige ≥ `2-PR220` (dobra com duas descidas) | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
-| C2-TR-PR220-TRI | outros | trafo trifásico exige ≥ `3-PR220` (dobra com duas descidas) | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
-| C2-P50-MONO | cabos+outros | trafo monofásico: mín. 2 m de `P50` além dos dos PR15 | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
-| C2-P50-TRI | cabos+outros | trafo trifásico: mín. 6 m de `P50` além dos dos PR15 | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
-| C2-P50-PR15 | cabos+outros | +1 m de `P50` por cada `PR15` | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
-| C2-POSTE10-MT | outros | poste de 10 m (`DT10/…`, `CV10…`) não pode ser usado em MT | erro | DECIDIDA | resolvida (ver decisões abaixo) |
-| C2-ESTR-ISOL | outros | estrutura `U3/N3/R3…` não pode estar sozinha no poste: exige outra estrutura MT ou `TR…` | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
-| C2-POSTE-FMT | outros | poste no formato `DT…`/`CV…`, não `POSTE11`, `1-DT11/300`, `DT11` | info | DECIDIDA | resolvida (ver decisões abaixo) |
+| C2-TR-PR15 | outros | poste com `TR…` exige `1-PR15`, exceto se houver `RPR` | aviso | IMPLEMENTADA | resolvida (ver decisões abaixo) |
+| C2-TR-PR220-MONO | outros | trafo monofásico exige ≥ `2-PR220` (dobra com duas descidas) | aviso | IMPLEMENTADA | resolvida (ver decisões abaixo) |
+| C2-TR-PR220-TRI | outros | trafo trifásico exige ≥ `3-PR220` (dobra com duas descidas) | aviso | IMPLEMENTADA | resolvida (ver decisões abaixo) |
+| C2-P50 | cabos+outros | P50 total (Cabos, comprimento **bruto**) ≥ 2 m por trafo TR1xx/TR2xx + 6 m por trafo TR3xx + 1 m por PR15 (Outros) | aviso | IMPLEMENTADA | — |
+| C2-POSTE10-MT | outros | poste de 10 m (`DT10/…`, `CV10…`) não pode ser usado em MT | erro | IMPLEMENTADA | resolvida (ver decisões abaixo) |
+| C2-ESTR-ISOL | outros | estrutura `U3/N3/R3…` não pode estar sozinha no poste: exige outra estrutura MT ou `TR…` | aviso | IMPLEMENTADA | resolvida (ver decisões abaixo) |
+| C2-POSTE-FMT | outros | poste no formato `DT…`/`CV…`, não `POSTE11`, `1-DT11/300`, `DT11` | info | IMPLEMENTADA | resolvida (ver decisões abaixo) |
 | C2-BT-EXT | outros | extensão BT (SI): passante SI1/SI2, fim SI3, amarração SI4 | info | A CONFIRMAR | é regra de validação ou só orientação de geração? |
 
 ### Decisões do usuário (2026-09-30) — entram na TASK-013
@@ -86,8 +92,9 @@ As ambiguidades abaixo precisam de resposta do usuário antes de virar regra.
 - **Duas descidas (dobra PR220):** no poste do trafo há `1-SI4` **ou** `2-SI3` → duas descidas. Só `1-SI3`
   ou outra estrutura de BT → uma descida.
 - **Estruturas isoladas:** `U3, N3, R3, T3` e variantes (`U3C`, `N3IV`…).
-- **P50:** validar pelo **total da planilha** (P50 em metros na tabela Cabos, operação I, contra o exigido
-  por todos os trafos e PR15 de Outros, operação I). Um aviso único, sem vínculo a poste.
+- **P50:** validar pelo **total da planilha** (P50 na tabela Cabos, operação I/*I, contra o exigido
+  por todos os trafos e PR15 de Outros, operação I/*I). Um aviso único (`linha_id` "GERAL"), sem vínculo a
+  poste. Metros = **comprimento bruto** do último token (`P50 ABC 2 m` conta 2 m, sem multiplicar pelas fases).
 - **Chave e elo fusível:** `CFU` e `CFUR` exigem `EF…` no mesmo poste (`CFA` fora).
 - **Poste `1-DT11/300`:** severidade **info** (o parser aceita). Duplicidade de ativo: **aviso**.
 
@@ -96,7 +103,9 @@ As ambiguidades abaixo precisam de resposta do usuário antes de virar regra.
 - **Duas descidas:** `SI3` com quantidade **≥ 2** também conta (além de `1-SI4`).
 - **CFU e SUPL:** basta `1-SUPL` (qtd ≥ 1) na linha do poste, em qualquer posição; vale só para `CFU`.
 
-Sem pendências de definição para as regras com status `DECIDIDA`. Continuam `A CONFIRMAR`: `C2-TR-EF` e
+- **Operações:** as regras valem só para linhas de instalação (`I`, `*I`); linha `R`/`M` não é validada.
+
+Sem pendências de definição para as regras `IMPLEMENTADA`. Continuam `A CONFIRMAR` e **fora da semente**: `C2-TR-EF` e
 `C2-BT-EXT` (o usuário ainda não se pronunciou). Termo sem definição no GLOSSARY: "poste associado à linha"
 (a TASK-013 define poste = linha de Outros que abre com DT/CV, sem inventar além disso).
 

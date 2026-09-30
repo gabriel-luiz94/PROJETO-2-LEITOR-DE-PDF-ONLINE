@@ -13,7 +13,7 @@ import bcrypt
 from config import (
     DB_PATH, SEED_CSV_PATH, logger,
     REGRAS_LEITOR_PROCESSAMENTO_SEED_PATH, REGRAS_LEITOR_CLASSIFICACAO_SEED_PATH,
-    VALIDACOES_SEED_DIR,
+    VALIDACOES_SEED_DIR, REGRAS_DOMINIO_SEED_PATH,
 )
 from services.prompts_validacao import ler_sementes
 
@@ -112,6 +112,26 @@ def _seed_prompts_validacao(cursor: sqlite3.Cursor):
             "INSERT OR IGNORE INTO prompts_validacao (projeto_codigo, prompt_id, conteudo) VALUES ('DEFAULT', ?, ?)",
             (prompt_id, texto)
         )
+
+
+def _seed_regras_dominio(cursor: sqlite3.Cursor):
+    """
+    Seed das regras de domínio (TASK-013) sob o projeto "DEFAULT", só se ainda não houver versão
+    DEFAULT. Todas as regras da semente vêm com ativa=false: o admin liga cada uma depois de revisar.
+    """
+    cursor.execute("SELECT COUNT(*) FROM regras_dominio WHERE projeto_codigo = 'DEFAULT'")
+    if cursor.fetchone()[0] > 0:
+        return
+    try:
+        with open(REGRAS_DOMINIO_SEED_PATH, "r", encoding="utf-8") as f:
+            regras = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logger.warning(f"Seed de regras de domínio não encontrado/inválido: {e}")
+        return
+    cursor.execute(
+        "INSERT OR IGNORE INTO regras_dominio (projeto_codigo, regras_json) VALUES ('DEFAULT', ?)",
+        (json.dumps(regras, ensure_ascii=False),)
+    )
 
 
 def init_db():
@@ -235,6 +255,26 @@ def init_db():
         )
     ''')
     _seed_prompts_validacao(cursor)
+
+    # Regras de domínio (TASK-013) — array JSON de regras por projeto ("DEFAULT" = padrão de quem
+    # não tem versão própria) + histórico de versões para reverter pela UI (admin).
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS regras_dominio (
+            projeto_codigo TEXT PRIMARY KEY,
+            regras_json TEXT NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS regras_dominio_historico (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            projeto_codigo TEXT NOT NULL,
+            regras_json TEXT NOT NULL,
+            criado_em TEXT DEFAULT (datetime('now')),
+            criado_por TEXT
+        )
+    ''')
+    _seed_regras_dominio(cursor)
 
     # Tabela Orçamento (Customizado do Usuário)
     cursor.execute('''

@@ -8,6 +8,19 @@
 
 ---
 
+## 2026-09-30 — TASK-013: regras de domínio da validação (camada 2), editáveis pelo admin
+
+**Tipo:** nova funcionalidade (backend, banco, painel admin) · `.ai/tasks/TASK-013-30-09-2026.md`
+
+Motor `services/regras_dominio.py` com 5 tipos de regra declarativa, avaliadas por linha da tabela Outros
+(P50 pelo total da planilha). Regras por projeto com fallback `DEFAULT`, histórico e reversão, painel de teste
+do rascunho e editor no painel admin. Semente com 9 regras derivadas do `prompt_rede_eletrica.txt §5`
+(intocado), **todas desligadas**; valem só para operações I/*I. As 3 regras de P50 do catálogo viraram uma
+(a exigência é uma soma). `POST /api/validacao/planilhas` passa a incluir a camada 2.
+**Ação necessária:** rodar o trecho novo de `scripts/schema_supabase.sql` no Supabase real.
+
+---
+
 ## 2026-09-30 — TASK-012: prompts de validação editáveis pelo admin
 
 **Tipo:** nova funcionalidade (backend, banco, painel admin) · `.ai/tasks/TASK-012-30-09-2026.md`

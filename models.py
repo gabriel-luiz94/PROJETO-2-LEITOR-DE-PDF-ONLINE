@@ -48,6 +48,9 @@ class ValidacaoPlanilhasRequest(BaseModel):
     cabos: List[Dict[str, Any]] = []
     outros: List[Dict[str, Any]] = []
     projeto: Optional[str] = None
+    # Código do projeto (ex.: "229") para escolher as regras de domínio; sem ele, usa o padrão DEFAULT.
+    projeto_codigo: Optional[str] = None
+    incluir_dominio: bool = True
     # Payload de cálculo (Totalizadora, após as regras de conversão). Se enviado, também checa a base técnica.
     payload_calculo: Optional[PayloadCalculo] = None
 

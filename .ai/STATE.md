@@ -89,6 +89,11 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
       /api/validacao/planilhas` (formato, operação, quantidade, duplicidade e, sobre o payload de
       cálculo, ativo ausente da base). Só backend — sem botão/painel ainda (TASK-014). Catálogo em
       `.ai/VALIDACOES.md`.
+- [x] Regras de domínio da validação (TASK-013, 2026-09-30): 9 regras (CFU/SUPL, CFU-CFUR/EF, trafo/PR15,
+      trafo/PR220 com dobro por duas descidas, P50 total, poste de 10 m em MT, estrutura isolada, formato do
+      poste), por projeto com fallback `DEFAULT`, **todas desligadas até o admin ligar**. Editor, histórico e
+      teste do rascunho no painel admin; a rota `/api/validacao/planilhas` já as aplica. Sem botão/painel na tela
+      de trabalho ainda (TASK-014). Fora: `C2-TR-EF` e `C2-BT-EXT` (decisão pendente).
 - [x] Prompts de validação editáveis pelo admin (TASK-012, 2026-09-30): dois prompts semeados
       (`validar-planilhas`, `corrigir-planilhas`), versão por projeto com fallback `DEFAULT`, histórico e
       reversão, editor no painel admin. Ainda **não são usados** por nenhuma chamada de IA (TASK-014).
@@ -149,8 +154,8 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [ ] Atualizar `.ai/CONTEXT.md` §7 (RN-01 a RN-05) e `.ai/ARCHITECTURE.md` para descrever o motor
       de regras do leitor (TASK-006) em vez da lógica fixa em código, agora obsoleta nesses
       documentos
-- [ ] Sistema de validação das planilhas Cabos/Outros em camadas (ADR-004, TASK-013 a TASK-015);
-      TASK-009 a TASK-012 concluídas. Catálogo em `.ai/VALIDACOES.md`
+- [ ] Sistema de validação das planilhas Cabos/Outros em camadas (ADR-004, TASK-014 e TASK-015);
+      TASK-009 a TASK-013 concluídas. Catálogo em `.ai/VALIDACOES.md`
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -342,10 +347,11 @@ Ver `.ai/decisions/`.
 
 ## Testes
 
-**Status: mínimo (TASK-011, 2026-09-30).**
+**Status: focado na validação das planilhas (TASK-011 a TASK-013, 2026-09-30).**
 
-- Suíte `pytest` em `tests/` (41 testes): `test_validacao_planilhas.py` (camada 1, `C1-BASE`,
-  paridade de tokenização e não-regressão de `processar_calculo`) e `test_rota_validacao.py`.
+- Suíte `pytest` em `tests/` (144 testes): `test_validacao_planilhas.py` e `test_rota_validacao.py` (camada 1,
+  `C1-BASE`, paridade de tokenização, não-regressão de `processar_calculo`), `test_prompts_validacao.py`
+  (TASK-012) e `test_regras_dominio.py` (TASK-013). Testes de rota usam banco temporário, nunca o de desenvolvimento.
 - Dependências só de desenvolvimento: `requirements-dev.txt` (`pytest`, `httpx`); `pytest.ini` na raiz.
 - CI de testes: nenhum (os dois workflows só fazem deploy). Frontend: nenhum teste.
 
@@ -357,8 +363,8 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-09-30
-**Motivo:** TASK-012 — prompts de validação como dados editáveis pelo admin (semente, tabelas, rotas,
-histórico/reversão, editor no painel admin). Requer rodar o trecho novo de `scripts/schema_supabase.sql`.
-**Alterações de código:** `services/prompts_validacao.py`, `routers/validacao_prompts.py`, `database.py`,
-`config.py`, `app.py`, `scripts/schema_supabase.sql`, `static/admin.html`, `static/admin.js`. Novo:
-`tests/test_prompts_validacao.py`.
+**Motivo:** TASK-013 — regras de domínio da validação (camada 2) como dados editáveis pelo admin, com motor,
+rotas, semente (tudo desligado), editor e painel de teste. Requer rodar o trecho novo de `scripts/schema_supabase.sql`.
+**Alterações de código:** `services/regras_dominio.py`, `routers/validacao_regras.py`, `routers/validacao.py`,
+`models.py`, `database.py`, `config.py`, `app.py`, `scripts/schema_supabase.sql`, `static/admin.html`,
+`static/admin.js`, `data/validacoes/regras_dominio_seed.json`. Novo: `tests/test_regras_dominio.py`.
