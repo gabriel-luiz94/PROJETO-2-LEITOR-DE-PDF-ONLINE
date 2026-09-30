@@ -310,6 +310,10 @@ arquivo em `.ai/tasks/`.
 24. O repositório continha PDFs, DXFs e o `banco_resumo.db` com dados reais de obra, versionados
     antes das regras do `.gitignore`. **Removidos no commit `530d5cc`**; o histórico do Git ainda os
     contém. Mencionado aqui para que ninguém os re-adicione.
+    De novo em 2026-09-30: `banco_resumo.db-shm` e `banco_resumo.db-wal` (SQLite em modo WAL, ~4 MB, dados
+    recentes do banco do usuário) foram versionados por engano na `main` (commit `625cb13`, `.gitignore` só cobria
+    `*.db` e `*.db-journal`). **Removidos do repositório e `*.db-shm`/`*.db-wal` adicionados ao `.gitignore`**; o
+    histórico do Git ainda os contém.
 25. `routers/regras.py` (regras de conversão CABOS/OUTROS → totalizadora, botão "Salvar na Nuvem"
     em `resumo.html`) gravava e lia **somente no SQLite local**, apesar do rótulo "nuvem" —
     desktop e Render tinham cada um sua própria cópia, sem nenhum compartilhamento, e o dado se

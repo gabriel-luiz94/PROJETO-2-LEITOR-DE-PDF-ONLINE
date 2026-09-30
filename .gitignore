@@ -46,6 +46,9 @@ test.pdf
 # Banco local (não versionar dados sensíveis do usuário; seed versionado em data/)
 *.db
 *.db-journal
+# Arquivos auxiliares do SQLite em modo WAL: contêm dados recentes do banco do usuário
+*.db-shm
+*.db-wal
 # Executáveis gerados
 *.exe
 # Seed gerado é versionado, mas backups não
