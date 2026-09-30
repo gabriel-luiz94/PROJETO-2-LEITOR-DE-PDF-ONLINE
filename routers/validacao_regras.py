@@ -5,8 +5,10 @@ Regras são dados editáveis pelo admin (services/regras_dominio.py define a lin
 routers/regras_leitor.py: nuvem primeiro com fallback local, validação antes de salvar, histórico com reversão,
 escrita só para admin e erro de sincronização visível. "DEFAULT" vale para o projeto sem versão própria.
 
-Formato guardado em `regras_json`: container v2 {"versao": 2, "grupos": {...}, "regras": [...]}; o formato antigo
-(lista de regras v1, TASK-013) continua sendo lido e é convertido na leitura.
+Formato guardado em `regras_json` (TASK-018, camadas): o DEFAULT guarda o container v2 completo
+{"versao": 2, "grupos": {...}, "regras": [...]}; cada projeto guarda só o *overlay* (services/regras_camadas.py) com o que
+difere do padrão. Os formatos antigos (lista v1 da TASK-013; container v2 completo num projeto) continuam sendo lidos e
+viram overlay equivalente na leitura — sem migração em lote e sem SQL novo.
 
 Não registrar o conteúdo das planilhas em log.
 """
@@ -18,6 +20,8 @@ from pydantic import BaseModel
 from config import REGRAS_DOMINIO_SEED_PATH, logger
 from database import get_connection
 from middleware.auth_middleware import require_role
+from services.regras_camadas import (efetivo, overlay_de_bruto,
+                                     overlay_de_efetivo, overlay_vazio, overlay_vazio_de)
 from services.regras_dominio import (avaliar, descrever, explicar, normalizar_regra, validar_conjunto)
 from services.supabase_client import get_supabase
 from services.validacao_planilhas import resumir
@@ -103,14 +107,29 @@ def _buscar_um(projeto_codigo: str):
     return json.loads(row[0]) if row else None
 
 
+def _padrao() -> dict:
+    bruto = _buscar_um(DEFAULT)
+    return _container(bruto) if bruto is not None else {"grupos": {}, "regras": []}
+
+
+def _overlay_do_projeto(projeto_codigo: str, padrao: dict):
+    """Overlay do projeto (convertido se estiver no formato antigo) ou None se ele não tem versão própria."""
+    bruto = _buscar_um(projeto_codigo)
+    return None if bruto is None else overlay_de_bruto(padrao, bruto)
+
+
+def resolver(projeto_codigo: str = DEFAULT):
+    """(regras, grupos, grupos_origem, avisos, overlay|None) — efetivo do projeto = padrão + overlay."""
+    padrao = _padrao()
+    overlay = None if (projeto_codigo or DEFAULT) == DEFAULT else _overlay_do_projeto(projeto_codigo, padrao)
+    regras, grupos, grupos_origem, avisos = efetivo(padrao, overlay or overlay_vazio())
+    return regras, grupos, grupos_origem, avisos, overlay
+
+
 def regras_efetivas(projeto_codigo: str = DEFAULT):
-    """(regras v2, grupos, projeto_de_origem): versão do projeto ou, na falta, a DEFAULT. Usada por /api/validacao/planilhas."""
-    for codigo in dict.fromkeys([projeto_codigo or DEFAULT, DEFAULT]):
-        bruto = _buscar_um(codigo)
-        if bruto is not None:
-            c = _container(bruto)
-            return c["regras"], c["grupos"], codigo
-    return [], {}, DEFAULT
+    """(regras v2, grupos, projeto_de_origem): padrão + ajustes do projeto. Usada por /api/validacao/planilhas."""
+    regras, grupos, _, _, overlay = resolver(projeto_codigo)
+    return regras, grupos, (projeto_codigo if overlay is not None else DEFAULT)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -148,15 +167,32 @@ def _gravar(projeto_codigo: str, objeto, usuario_email: str | None):
     return {"status": "success"}
 
 
-def _salvar(projeto_codigo: str, regras: list, grupos: dict | None, usuario_email: str | None):
-    if grupos is None:
-        bruto = _buscar_um(projeto_codigo)
-        grupos = _container(bruto if bruto is not None else _buscar_um(DEFAULT))["grupos"]
+def _erros_de_edicao(regras: list, grupos: dict):
     erros = validar_conjunto(regras, grupos)
     if erros:
         raise HTTPException(status_code=400, detail={"erros": erros})
-    return _gravar(projeto_codigo, {"versao": 2, "grupos": grupos,
-                                    "regras": [_limpa(normalizar_regra(r)) for r in regras]}, usuario_email)
+
+
+def _salvar(projeto_codigo: str, regras: list, grupos: dict | None, usuario_email: str | None):
+    """DEFAULT: grava o container completo. Projeto: `regras` é o efetivo editado; grava só a diferença para o padrão."""
+    if projeto_codigo == DEFAULT:
+        if grupos is None:
+            grupos = _padrao()["grupos"]
+        _erros_de_edicao(regras, grupos)
+        return _gravar(DEFAULT, {"versao": 2, "grupos": grupos,
+                                 "regras": [_limpa(normalizar_regra(r)) for r in regras]}, usuario_email)
+    padrao = _padrao()
+    if grupos is None:
+        grupos = resolver(projeto_codigo)[1]
+    _erros_de_edicao(regras, grupos)
+    return _salvar_overlay(projeto_codigo, overlay_de_efetivo(padrao, regras, grupos), usuario_email)
+
+
+def _salvar_overlay(projeto_codigo: str, overlay: dict, usuario_email: str | None):
+    padrao = _padrao()
+    regras, grupos, _, _ = efetivo(padrao, overlay)
+    _erros_de_edicao(regras, grupos)
+    return _gravar(projeto_codigo, overlay, usuario_email)
 
 
 def _listar_historico(projeto_codigo: str):
@@ -193,8 +229,10 @@ def _ler_semente() -> dict:
 # ═══════════════════════════════════════════════════════════════════════════
 @router.get("")
 def obter(projeto_codigo: str = DEFAULT):
-    regras, grupos, origem = regras_efetivas(projeto_codigo)
-    return {"regras": _com_frase(regras, grupos), "grupos": grupos, "versao_de": origem, "personalizado": origem != DEFAULT}
+    regras, grupos, grupos_origem, avisos, overlay = resolver(projeto_codigo)
+    personalizado = overlay is not None and not overlay_vazio_de(overlay)
+    return {"regras": _com_frase(regras, grupos), "grupos": grupos, "grupos_origem": grupos_origem, "avisos": avisos,
+            "versao_de": projeto_codigo if overlay is not None else DEFAULT, "personalizado": personalizado}
 
 
 @router.post("", dependencies=[Depends(require_role("admin"))])
@@ -204,11 +242,16 @@ def salvar(payload: SalvarRegrasPayload, request: Request):
 
 @router.get("/historico", dependencies=[Depends(require_role("admin"))])
 def historico(projeto_codigo: str = DEFAULT):
+    padrao = _padrao()
     itens = []
     for h in _listar_historico(projeto_codigo):
-        c = _container(h["bruto"])
+        if projeto_codigo == DEFAULT:
+            c = _container(h["bruto"])
+            regras, grupos = c["regras"], c["grupos"]
+        else:
+            regras, grupos, _, _ = efetivo(padrao, overlay_de_bruto(padrao, h["bruto"]))
         itens.append({"id": h["id"], "criado_em": h["criado_em"], "criado_por": h["criado_por"],
-                      "regras": c["regras"], "grupos": c["grupos"]})
+                      "regras": regras, "grupos": grupos})
     return {"historico": itens}
 
 
@@ -217,27 +260,35 @@ def reverter(payload: ReverterPayload, request: Request):
     versao = next((h for h in _listar_historico(payload.projeto_codigo) if h["id"] == payload.historico_id), None)
     if versao is None:
         raise HTTPException(status_code=404, detail="Versão de histórico não encontrada para este projeto.")
-    c = _container(versao["bruto"])
-    return _salvar(payload.projeto_codigo, c["regras"], c["grupos"], _extrair_email(request))
+    if payload.projeto_codigo == DEFAULT:
+        c = _container(versao["bruto"])
+        return _salvar(DEFAULT, c["regras"], c["grupos"], _extrair_email(request))
+    return _salvar_overlay(payload.projeto_codigo, overlay_de_bruto(_padrao(), versao["bruto"]), _extrair_email(request))
 
 
 @router.post("/restaurar-semente", dependencies=[Depends(require_role("admin"))])
 def restaurar_semente(payload: ProjetoPayload, request: Request):
+    """DEFAULT: volta ao conteúdo da semente. Projeto: descarta os ajustes do projeto (volta a ser o padrão puro)."""
+    if payload.projeto_codigo != DEFAULT:
+        return _gravar(payload.projeto_codigo, overlay_vazio(), _extrair_email(request))
     semente = _ler_semente()
-    return _salvar(payload.projeto_codigo, semente["regras"], semente["grupos"], _extrair_email(request))
+    return _salvar(DEFAULT, semente["regras"], semente["grupos"], _extrair_email(request))
 
 
 @router.post("/adicionar-novas", dependencies=[Depends(require_role("admin"))])
 def adicionar_novas(payload: ProjetoPayload, request: Request):
-    """Acrescenta à versão do projeto as regras (e grupos) da semente que ainda não existem nela — regras sempre
-    DESLIGADAS, nada existente é alterado."""
+    """Só para o DEFAULT: acrescenta as regras (e grupos) da semente que ainda não existem — regras sempre DESLIGADAS,
+    nada existente é alterado. Projetos herdam o padrão sozinhos (TASK-018): nada a fazer neles."""
+    if payload.projeto_codigo != DEFAULT:
+        return {"adicionadas": [], "grupos_adicionados": [],
+                "mensagem": "Projetos acompanham o padrão automaticamente; use este botão no DEFAULT."}
     semente = _ler_semente()
-    regras, grupos, _ = regras_efetivas(payload.projeto_codigo)
-    existentes = {r.get("id") for r in regras}
+    padrao = _padrao()
+    existentes = {r.get("id") for r in padrao["regras"]}
     novas = [{**r, "ativa": False} for r in semente["regras"] if r.get("id") not in existentes]
-    grupos_novos = {n: v for n, v in semente["grupos"].items() if n not in grupos}
+    grupos_novos = {n: v for n, v in semente["grupos"].items() if n not in padrao["grupos"]}
     if novas or grupos_novos:
-        _salvar(payload.projeto_codigo, regras + novas, {**grupos, **grupos_novos}, _extrair_email(request))
+        _salvar(DEFAULT, padrao["regras"] + novas, {**padrao["grupos"], **grupos_novos}, _extrair_email(request))
     return {"adicionadas": [r["id"] for r in novas], "grupos_adicionados": sorted(grupos_novos)}
 
 
