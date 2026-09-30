@@ -582,6 +582,18 @@
                         <button class="btn-primary" id="btn-montar-orcamento" style="background-color: #238636;">
                             Montar Orçamento
                         </button>
+                        <button class="btn-secondary" id="btn-validar" title="Verificar as planilhas Cabos e Outros (contrato, regras de domínio e IA)">
+                            Validar
+                        </button>
+                        <div class="view-toggle" title="Quando ligado, valida as planilhas antes de montar o orçamento. Preferência salva só neste navegador." style="display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-default); font-size: 0.8rem; color: var(--text-secondary);">
+                            <span>Validar ao montar:</span>
+                            <label style="display:flex; align-items:center; gap:4px; padding: 4px; cursor: pointer;">
+                                <input type="radio" name="validacao_auto" value="nao" checked> Não
+                            </label>
+                            <label style="display:flex; align-items:center; gap:4px; padding: 4px; cursor: pointer;">
+                                <input type="radio" name="validacao_auto" value="sim"> Sim
+                            </label>
+                        </div>
                         <div class="view-toggle" style="display: flex; background: rgba(255,255,255,0.05); padding: 4px; border-radius: 6px; border: 1px solid var(--border-default);">
                             <label style="display:flex; align-items:center; gap:5px; padding: 4px 8px; cursor: pointer; font-size: 0.8rem; color: var(--text-primary);">
                                 <input type="radio" name="view_mode" value="padrao" checked onchange="toggleViewMode()"> Padrão
@@ -657,6 +669,17 @@
                     <button class="btn-secondary" onclick="document.getElementById('modal-apikey').classList.add('hidden')">Cancelar</button>
                     <button class="btn-primary" id="btn-save-apikey">Salvar</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Painel de validação das planilhas (TASK-014) -->
+        <div id="modal-validacao" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 760px; width: 92%; max-height: 85vh; display: flex; flex-direction: column;">
+                <h3 id="validacao-titulo" style="margin-bottom: 6px;">Validação das planilhas</h3>
+                <p id="validacao-resumo" style="font-size: 0.8rem; color: #8b949e; margin-bottom: 8px;"></p>
+                <div id="validacao-aviso" style="display:none; font-size: 0.8rem; color: #d29922; margin-bottom: 8px;"></div>
+                <div id="validacao-lista" style="overflow: auto; flex: 1; font-size: 0.85rem;"></div>
+                <div class="modal-actions" id="validacao-acoes" style="margin-top: 14px;"></div>
             </div>
         </div>
 

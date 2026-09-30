@@ -111,7 +111,15 @@ Sem pendências de definição para as regras `IMPLEMENTADA`. Continuam `A CONFI
 
 ## Camada 3 — IA (prompts salvos)
 
-Escopo: o que não é determinístico. Recebe as linhas + os achados das camadas 1–2 (para não repetir).
+**`validar-planilhas` IMPLEMENTADA (TASK-014)** — `services/validacao_ia.py` + `POST /api/validacao/ia`.
+`corrigir-planilhas` continua pendente (TASK-015). Escopo: o que não é determinístico. Recebe as linhas + os achados das camadas 1–2 (para não repetir).
+Mecânica: linhas com ativo, em lotes de 40 (limite 400; acima disso a IA revisa só as primeiras e a resposta traz
+`truncado`); o prompt salvo do projeto (fallback `DEFAULT`) é usado com temperatura do cabeçalho (0) e o modelo do
+cabeçalho + reservas; resposta em JSON; **item com `linha_id` que não estava no lote é descartado**, severidade
+inválida vira `info`, item sem `problema` é descartado. A IA nunca corrige e nunca bloqueia: falha de rede, cota,
+prompt desativado (`ativo: false`), sem chave ou JSON quebrado viram um `status` (`erro`/`parcial`/`desativado`/
+`sem_chave`/`indisponivel`) com HTTP 200, e a tela mostra as camadas 1–2 do mesmo jeito.
+Cota: com a chave padrão do sistema vale o limite de mensagens por minuto por usuário (429 com mensagem clara).
 Sementes em `data/validacoes/`:
 
 | id do prompt | modo | verifica |
@@ -126,4 +134,4 @@ Toda correção passa novamente pela camada 1 antes de ser mostrada ao usuário 
 ## Fluxo decidido (2026-09-30)
 
 - Validação: botão sob demanda **ou** automática ao "montar orçamento", conforme radio (preferência local, `localStorage`, padrão desligado).
-- Com achados, o sistema **pergunta "continuar mesmo assim?"**. Se o usuário responder **não**, entra o fluxo de **correção** (camada 3, modo corrigir), com aceite por linha.
+- Com achados **de erro ou aviso**, o sistema **pergunta "continuar mesmo assim?"** (só achados `info` não interrompem; decisão da implementação, ajustável). Se o usuário responder **não**, entra o fluxo de **correção** (camada 3, modo corrigir), com aceite por linha.

@@ -8,6 +8,19 @@
 
 ---
 
+## 2026-09-30 — TASK-014: validação na tela (botão, opção automática) e revisão por IA (camada 3)
+
+**Tipo:** nova funcionalidade (backend + frontend) · `.ai/tasks/TASK-014-30-09-2026.md`
+
+Botão **Validar** e opção **Validar ao montar** (radio Não/Sim, `localStorage`, padrão Não) na aba Resumo, com painel
+de achados das 3 camadas e o diálogo "continuar mesmo assim?" (só erro/aviso interrompem). `POST /api/validacao/ia`
+usa o prompt salvo (TASK-012), lotes de 40 linhas, resposta JSON validada (descarta linha inventada) e nunca derruba
+as camadas 1-2: falha da IA vira aviso. Refatoração mínima: `obterPayloadCalculo()` extraída do handler de "Montar
+Orçamento" (comportamento igual). `localStorage['processar_dados']` e `orcamentoPayload` inalterados. O botão
+"Não, vou corrigir" ainda só fecha o painel (a correção é a TASK-015).
+
+---
+
 ## 2026-09-30 — TASK-013: regras de domínio da validação (camada 2), editáveis pelo admin
 
 **Tipo:** nova funcionalidade (backend, banco, painel admin) · `.ai/tasks/TASK-013-30-09-2026.md`

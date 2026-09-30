@@ -55,6 +55,15 @@ class ValidacaoPlanilhasRequest(BaseModel):
     payload_calculo: Optional[PayloadCalculo] = None
 
 
+class ValidacaoIARequest(BaseModel):
+    cabos: List[Dict[str, Any]] = []
+    outros: List[Dict[str, Any]] = []
+    projeto_codigo: Optional[str] = None
+    # Achados das camadas 1 e 2, para a IA não repeti-los
+    achados_previos: List[Dict[str, Any]] = []
+    prompt_id: str = "validar-planilhas"
+
+
 class SalvarOrcamentoRequest(BaseModel):
     dados: List[Dict[str, Any]]
 
