@@ -74,7 +74,7 @@ def item(**kw):
 
 def test_resposta_valida():
     achados, desc = interpretar_resposta(resposta(item()), IDS)
-    assert desc == 0 and achados == [{
+    assert desc == [] and achados == [{
         "linha_id": "OUTROS-1", "tabela": "outros", "regra_id": "IA:digitacao-suspeita", "severidade": "aviso",
         "mensagem": "parece CFU", "origem": "ia", "sugestao": "1-CFU"}]
 
@@ -90,7 +90,8 @@ def test_descarta_linha_inventada_e_item_malformado():
         "texto solto",                         # não é objeto
         item(linha_id="CABOS-0"),
     ), IDS)
-    assert [a["linha_id"] for a in achados] == ["CABOS-0"] and achados[0]["tabela"] == "cabos" and desc == 3
+    assert [a["linha_id"] for a in achados] == ["CABOS-0"] and achados[0]["tabela"] == "cabos" and len(desc) == 3
+    assert {d["motivo"] for d in desc} == {"linha não enviada à IA", "sem descrição do problema", "item não é um objeto"}
 
 
 def test_severidade_invalida_vira_info_e_regra_ausente_vira_ia():

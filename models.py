@@ -64,6 +64,15 @@ class ValidacaoIARequest(BaseModel):
     prompt_id: str = "validar-planilhas"
 
 
+class CorrecaoIARequest(BaseModel):
+    cabos: List[Dict[str, Any]] = []
+    outros: List[Dict[str, Any]] = []
+    projeto_codigo: Optional[str] = None
+    # Achados a corrigir (linha_id, regra_id, mensagem e, se houver, sugestao). Só as linhas citadas vão à IA.
+    achados: List[Dict[str, Any]] = []
+    prompt_id: str = "corrigir-planilhas"
+
+
 class SalvarOrcamentoRequest(BaseModel):
     dados: List[Dict[str, Any]]
 

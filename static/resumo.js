@@ -2034,6 +2034,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 sim.onclick = () => fechar('continuar');
                 acoes.append(nao, sim);
             } else {
+                if (achados.some(achadoCorrigivel)) {
+                    const corrigir = botaoPainel('Corrigir com IA', 'btn-secondary');
+                    corrigir.onclick = () => fechar('corrigir');
+                    acoes.appendChild(corrigir);
+                }
                 const ok = botaoPainel('Fechar', 'btn-primary');
                 ok.onclick = () => fechar('fechar');
                 acoes.appendChild(ok);
@@ -2050,7 +2055,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         }
         if (!res.achados.some(a => a.severidade === 'erro' || a.severidade === 'aviso')) return true;
-        return (await mostrarPainelValidacao(res, true)) === 'continuar';
+        const escolha = await mostrarPainelValidacao(res, true);
+        if (escolha === 'corrigir') await fluxoCorrecao(res.achados);  // o orçamento fica parado; depois de corrigir, clique de novo
+        return escolha === 'continuar';
     }
 
     const btnValidar = document.getElementById('btn-validar');
@@ -2062,12 +2069,189 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const res = await executarValidacao();
                 if (res.falhou) { showToast(res.falhou); return; }
-                await mostrarPainelValidacao(res, false);
+                if ((await mostrarPainelValidacao(res, false)) === 'corrigir') await fluxoCorrecao(res.achados);
             } finally {
                 btnValidar.disabled = false;
                 btnValidar.textContent = textoOriginal;
             }
         });
+    }
+
+    /* ═══════════════════════════════════════
+       CORREÇÃO ASSISTIDA (TASK-015)
+       A IA só PROPÕE (POST /api/validacao/corrigir); o usuário aceita linha a linha. Aplicar entra no histórico
+       como um único passo (um Ctrl+Z desfaz o lote inteiro). A operação da linha nunca é alterada.
+    ═══════════════════════════════════════ */
+    function achadoCorrigivel(achado) {
+        return /^(CABOS|OUTROS)-\d+$/.test(String(achado.linha_id));
+    }
+
+    function localizarLinha(linhaId) {
+        const m = /^(CABOS|OUTROS)-(\d+)$/.exec(linhaId);
+        if (!m) return null;
+        const tabela = m[1].toLowerCase();
+        const row = tableStates[tabela].data[Number(m[2])];
+        return row ? { tabela, row } : null;
+    }
+
+    /** Aplica as correções aceitas. Pula a linha que mudou desde a proposta (o "antes" não confere mais). */
+    function aplicarCorrecoes(aceitas) {
+        const validas = aceitas.filter(c => {
+            const alvo = localizarLinha(c.linha_id);
+            return alvo && (alvo.row.ativo || '').trim() === c.antes.trim();
+        });
+        if (validas.length) {
+            // Histórico: garante o estado ANTERIOR no topo e empilha também o NOVO, para um Ctrl+Z voltar exatamente ao
+            // que era antes do lote (e o Ctrl+Y reaplicar). Não basta o "pushHistory() antes de mudar" usado nas edições
+            // manuais: com o undo atual isso desfaz duas mudanças de uma vez (desvio já existente, ver STATE.md).
+            const estadoAtual = JSON.stringify(snapshotState());
+            if (historyIdx < 0 || JSON.stringify(history[historyIdx]) !== estadoAtual) pushHistory();
+            const tabelas = new Set();
+            validas.forEach(c => {
+                const { tabela, row } = localizarLinha(c.linha_id);
+                row.ativo = c.depois;
+                if (row.entidade === '0') row.entidade = autoClassifyEntidade(c.depois);  // mesma reclassificação da edição manual
+                tabelas.add(tabela);
+            });
+            if (tabelas.has('cabos')) recalcAllQtdAtivos();
+            tabelas.forEach(t => { renderTable(t); refreshAllFilters(t); });
+            buildAtivoSets();
+            buildDataLists();
+            atualizarResumoRedeUI();
+            pushHistory();  // estado NOVO
+        }
+        return { aplicadas: validas.length, ignoradas: aceitas.length - validas.length };
+    }
+
+    function linhaAntesDepois(c) {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'font-family: monospace; font-size: 0.8rem; margin-top: 4px;';
+        const antes = document.createElement('div');
+        antes.style.cssText = 'color:#f85149; text-decoration: line-through;';
+        antes.textContent = c.antes;
+        const depois = document.createElement('div');
+        depois.style.color = '#3fb950';
+        depois.textContent = c.depois;
+        wrap.append(antes, depois);
+        return wrap;
+    }
+
+    /** Mostra as propostas e resolve com { aplicadas, ignoradas } ou null (cancelou / nada a aplicar). */
+    function mostrarPainelCorrecao(resultado) {
+        return new Promise(resolve => {
+            const modal = document.getElementById('modal-correcao');
+            const lista = document.getElementById('correcao-lista');
+            const acoes = document.getElementById('correcao-acoes');
+            const resumo = document.getElementById('correcao-resumo');
+            const caixas = [];
+            lista.replaceChildren();
+            acoes.replaceChildren();
+            const fechar = valor => { modal.classList.add('hidden'); resolve(valor); };
+
+            const problema = { sem_chave: 'Sem chave de IA: informe a sua na configuração de IA.', desativado: 'A correção por IA está desativada.',
+                indisponivel: 'A correção por IA está indisponível.', erro: 'A correção por IA falhou.' }[resultado.status];
+            if (problema || !resultado.correcoes.length) {
+                resumo.textContent = (problema || 'A IA não encontrou correção segura para estes problemas.')
+                    + (resultado.mensagem && problema ? ` (${resultado.mensagem})` : '');
+            } else {
+                resumo.textContent = `${resultado.correcoes.length} proposta(s). Nada é alterado sem o seu aceite; aplicar pode ser desfeito com Ctrl+Z.`
+                    + (resultado.status === 'parcial' ? ' Parte das linhas falhou na IA.' : '');
+            }
+
+            resultado.correcoes.forEach(c => {
+                const item = document.createElement('label');
+                item.style.cssText = 'display:block; padding: 8px 10px; margin-bottom: 6px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer;';
+                const topo = document.createElement('div');
+                topo.style.cssText = 'display:flex; gap:8px; align-items:center; font-size:0.75rem; color:#8b949e;';
+                const caixa = document.createElement('input');
+                caixa.type = 'checkbox';
+                caixa.addEventListener('change', atualizarBotoes);
+                caixas.push({ caixa, c });
+                const onde = document.createElement('strong');
+                onde.style.color = '#c9d1d9';
+                onde.textContent = c.linha_id;
+                topo.append(caixa, onde);
+                item.append(topo, linhaAntesDepois(c));
+                if (c.motivo) {
+                    const m = document.createElement('div');
+                    m.style.cssText = 'margin-top:4px; font-size:0.8rem; color:#8b949e;';
+                    m.textContent = c.motivo;
+                    item.appendChild(m);
+                }
+                (c.avisos || []).forEach(a => {
+                    const w = document.createElement('div');
+                    w.style.cssText = 'margin-top:2px; font-size:0.75rem; color:#d29922;';
+                    w.textContent = `Atenção: ${a}`;
+                    item.appendChild(w);
+                });
+                lista.appendChild(item);
+            });
+
+            if ((resultado.descartadas || []).length) {
+                const det = document.createElement('details');
+                det.style.cssText = 'margin-top: 8px; font-size: 0.75rem; color: #8b949e;';
+                const sum = document.createElement('summary');
+                sum.textContent = `${resultado.descartadas.length} proposta(s) da IA descartada(s) por não passar na validação`;
+                det.appendChild(sum);
+                resultado.descartadas.forEach(d => {
+                    const p = document.createElement('div');
+                    p.textContent = `${d.linha_id || '?'}: ${d.motivo}`;
+                    det.appendChild(p);
+                });
+                lista.appendChild(det);
+            }
+
+            const cancelar = botaoPainel(resultado.correcoes.length ? 'Cancelar' : 'Fechar', 'btn-secondary');
+            cancelar.onclick = () => fechar(null);
+            const todas = botaoPainel('Aceitar todas', 'btn-secondary');
+            todas.onclick = () => { caixas.forEach(x => { x.caixa.checked = true; }); atualizarBotoes(); };
+            const aplicar = botaoPainel('Aplicar selecionadas', 'btn-primary');
+            aplicar.onclick = () => {
+                const r = aplicarCorrecoes(caixas.filter(x => x.caixa.checked).map(x => x.c));
+                fechar(r);
+            };
+            function atualizarBotoes() {
+                aplicar.disabled = !caixas.some(x => x.caixa.checked);
+                aplicar.style.opacity = aplicar.disabled ? '0.45' : '1';
+                aplicar.style.cursor = aplicar.disabled ? 'not-allowed' : 'pointer';
+            }
+            if (resultado.correcoes.length) acoes.append(cancelar, todas, aplicar); else acoes.append(cancelar);
+            atualizarBotoes();
+            modal.classList.remove('hidden');
+        });
+    }
+
+    /** Pede as propostas à IA só para as linhas editáveis citadas nos achados e abre o painel de aceite. */
+    async function fluxoCorrecao(achados) {
+        const editaveis = achados.filter(achadoCorrigivel);
+        if (!editaveis.length) {
+            showToast('Nenhum problema aponta uma linha editável; ajuste as tabelas manualmente.');
+            return;
+        }
+        const selectProj = document.getElementById('select-projeto');
+        const projetoCodigo = selectProj && selectProj.selectedIndex >= 0 ? (selectProj.options[selectProj.selectedIndex].dataset.codigo || '') : '';
+        showToast('Pedindo correções à IA...');
+        let resultado;
+        try {
+            const resp = await fetch('/api/validacao/corrigir', {
+                method: 'POST', headers: cabecalhoIA(),
+                body: JSON.stringify({
+                    cabos: linhasParaValidacao('cabos', 'CABOS'), outros: linhasParaValidacao('outros', 'OUTROS'),
+                    projeto_codigo: projetoCodigo || null,
+                    achados: editaveis.map(a => ({ linha_id: a.linha_id, regra_id: a.regra_id, mensagem: a.mensagem, sugestao: a.sugestao || null }))
+                })
+            });
+            resultado = resp.ok ? await resp.json()
+                : { status: 'erro', mensagem: await lerDetalhe(resp), correcoes: [], descartadas: [] };
+        } catch (e) {
+            resultado = { status: 'erro', mensagem: e.message, correcoes: [], descartadas: [] };
+        }
+        const aplicado = await mostrarPainelCorrecao(resultado);
+        if (aplicado) {
+            showToast(aplicado.aplicadas
+                ? `${aplicado.aplicadas} correção(ões) aplicada(s)${aplicado.ignoradas ? `; ${aplicado.ignoradas} ignorada(s) porque a linha mudou` : ''}. Valide de novo antes de montar. Ctrl+Z desfaz.`
+                : 'Nenhuma correção aplicada: as linhas mudaram desde a proposta.');
+        }
     }
 
     const btnMontarOrcamento = document.getElementById('btn-montar-orcamento');

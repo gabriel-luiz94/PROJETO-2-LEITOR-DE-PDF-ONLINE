@@ -55,8 +55,9 @@ def _formatar(itens):
 
 
 def _formatar_achados(achados, ids_do_lote):
-    linhas = [f"{a['linha_id']} | {a['regra_id']} | {a['mensagem']}" for a in achados or []
-              if a.get("linha_id") in ids_do_lote or a.get("linha_id") == "GERAL"]
+    linhas = [f"{a['linha_id']} | {a['regra_id']} | {a['mensagem']}"
+              + (f" | sugestão: {a['sugestao']}" if a.get("sugestao") else "")
+              for a in achados or [] if a.get("linha_id") in ids_do_lote or a.get("linha_id") == "GERAL"]
     return "\n".join(linhas) or "(nenhum)"
 
 
@@ -76,7 +77,7 @@ def montar_prompt(texto_prompt, lote, achados_previos):
 
 
 def interpretar_resposta(texto, ids_por_tabela):
-    """(achados, descartados). Tolera cerca ```json e descarta item malformado ou com linha_id inventado.
+    """(achados, descartados: lista de motivos). Tolera cerca ```json e descarta item malformado ou com linha_id inventado.
 
     ids_por_tabela: {"cabos": {ids}, "outros": {ids}} do lote enviado — a IA só pode apontar linhas que recebeu.
     Levanta ValueError se a resposta inteira não for um JSON com a chave "achados" em lista.
@@ -90,16 +91,17 @@ def interpretar_resposta(texto, ids_por_tabela):
     if not isinstance(itens, list):
         raise ValueError('a resposta da IA não tem a lista "achados"')
 
-    achados, descartados = [], 0
+    achados, descartados = [], []
     for item in itens:
         if not isinstance(item, dict):
-            descartados += 1
+            descartados.append({"linha_id": None, "motivo": "item não é um objeto"})
             continue
         linha_id = item.get("linha_id")
         tabela = next((t for t, ids in ids_por_tabela.items() if linha_id in ids), None)
         problema = item.get("problema")
         if tabela is None or not isinstance(problema, str) or not problema.strip():
-            descartados += 1
+            motivo = "linha não enviada à IA" if tabela is None else "sem descrição do problema"
+            descartados.append({"linha_id": linha_id if isinstance(linha_id, str) else None, "motivo": motivo})
             continue
         severidade = item.get("severidade") if item.get("severidade") in SEVERIDADES else "info"
         regra = item.get("regra") if isinstance(item.get("regra"), str) and item["regra"].strip() else "ia"
@@ -113,35 +115,45 @@ def interpretar_resposta(texto, ids_por_tabela):
     return achados, descartados
 
 
-async def validar_com_ia(chamar, texto_prompt, cabos, outros, achados_previos):
-    """Revisa em lotes. `chamar(texto) -> str` é assíncrona. Nunca levanta: devolve o status.
+async def executar_em_lotes(chamar, texto_prompt, cabos, outros, achados, tratar):
+    """Laço comum da revisão e da correção: divide em lotes, monta o prompt, chama o modelo e passa a resposta a
+    `tratar(resposta, lote) -> (itens, descartados)`. Nunca levanta: falha de um lote (JSON ilegível, rede, cota,
+    modelo) vira mensagem e não derruba os demais nem as outras camadas da validação.
 
-    Resposta: {"status": "ok"|"parcial"|"erro", "achados": [...], "mensagem": str, "lotes": n,
-               "truncado": bool, "descartados": n}. "parcial" = alguns lotes falharam.
+    Devolve {"status": "ok"|"parcial"|"erro", "itens": [...], "descartados": [...], "mensagem": str,
+             "lotes": n, "truncado": bool}. "parcial" = alguns lotes falharam.
     """
     lotes, truncado = dividir_em_lotes(cabos, outros)
-    resultado = {"status": "ok", "achados": [], "mensagem": "", "lotes": len(lotes),
-                 "truncado": truncado, "descartados": 0}
-    if not lotes:
-        return resultado
-
+    resultado = {"status": "ok", "itens": [], "descartados": [], "mensagem": "", "lotes": len(lotes),
+                 "truncado": truncado}
     falhas = []
     for n, lote in enumerate(lotes, start=1):
         try:
-            texto = montar_prompt(texto_prompt, lote, achados_previos)
-            resposta = await chamar(texto)
-            achados, descartados = interpretar_resposta(resposta, {
-                "cabos": {i for i, _, _ in lote["cabos"]}, "outros": {i for i, _, _ in lote["outros"]},
-            })
-            resultado["achados"] += achados
+            resposta = await chamar(montar_prompt(texto_prompt, lote, achados))
+            itens, descartados = tratar(resposta, lote)
+            resultado["itens"] += itens
             resultado["descartados"] += descartados
-        except Exception as e:  # JSON ilegível, rede, cota, modelo: não derruba a validação das outras camadas
+        except Exception as e:
             falhas.append(f"lote {n}: {str(e)[:200]}")
-
     if falhas:
         resultado["status"] = "erro" if len(falhas) == len(lotes) else "parcial"
         resultado["mensagem"] = "; ".join(falhas[:3])
     return resultado
+
+
+async def validar_com_ia(chamar, texto_prompt, cabos, outros, achados_previos):
+    """Revisa as planilhas. `chamar(texto) -> str` é assíncrona.
+
+    Resposta: {"status", "achados": [...], "mensagem", "lotes", "truncado", "descartados": n}.
+    """
+    def tratar(resposta, lote):
+        return interpretar_resposta(resposta, {
+            "cabos": {i for i, _, _ in lote["cabos"]}, "outros": {i for i, _, _ in lote["outros"]},
+        })
+
+    r = await executar_em_lotes(chamar, texto_prompt, cabos, outros, achados_previos, tratar)
+    return {"status": r["status"], "achados": r["itens"], "mensagem": r["mensagem"], "lotes": r["lotes"],
+            "truncado": r["truncado"], "descartados": len(r["descartados"])}
 
 
 async def chamar_gemini(api_key, modelos, texto, temperatura=0.0):

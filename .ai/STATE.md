@@ -89,6 +89,9 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
       /api/validacao/planilhas` (formato, operação, quantidade, duplicidade e, sobre o payload de
       cálculo, ativo ausente da base). Só backend — sem botão/painel ainda (TASK-014). Catálogo em
       `.ai/VALIDACOES.md`.
+- [x] Correção assistida por IA (TASK-015, 2026-09-30): propostas antes → depois com aceite por linha, aplicar
+      como um passo de histórico; a IA nunca aplica nem altera a operação; proposta que ainda reprova na
+      camada 1 é descartada com o motivo.
 - [x] Validação na tela e revisão por IA (TASK-014, 2026-09-30): botão **Validar**, opção **Validar ao montar
       orçamento** (radio local, padrão Não), painel de achados (contrato, domínio, base técnica e IA) e diálogo
       "continuar mesmo assim?" quando há erro/aviso. IA opcional, com o prompt salvo do projeto; sua falha nunca
@@ -158,8 +161,8 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [ ] Atualizar `.ai/CONTEXT.md` §7 (RN-01 a RN-05) e `.ai/ARCHITECTURE.md` para descrever o motor
       de regras do leitor (TASK-006) em vez da lógica fixa em código, agora obsoleta nesses
       documentos
-- [ ] Sistema de validação das planilhas Cabos/Outros em camadas (ADR-004, TASK-015);
-      TASK-009 a TASK-014 concluídas. Catálogo em `.ai/VALIDACOES.md`
+- [x] Sistema de validação das planilhas Cabos/Outros em camadas (ADR-004): TASK-009 a TASK-015 concluídas.
+      Pendentes de decisão do usuário: `C2-TR-EF` e `C2-BT-EXT` (regras de domínio ainda fora da semente). Catálogo em `.ai/VALIDACOES.md`
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -278,6 +281,11 @@ arquivo em `.ai/tasks/`.
     embora `GET /api/gemini/models` liste modelos da OpenAI.
 28. O rate-limit do chat é em memória e por processo.
 
+29. **Desfazer/refazer com desvio de uma posição** (`static/resumo.js`, `pushHistory`/`undo`): as edições manuais
+    empilham o estado ANTES de mudar e `undo()` volta um índice, então — confirmado no navegador — duas edições
+    seguidas são desfeitas por um só Ctrl+Z, e depois de carregar uma obra o desfazer pode levar a tabelas vazias.
+    Não corrigido (fora do escopo da TASK-015, que não depende disso).
+
 ### Qualidade de código
 18. **Lógica de negócio duplicada** entre `static/script.js` e `static/resumo.js`
     (`isGray`, `processAtivoFormula`, cascata de classificação). Alterar só um lado faz as duas abas
@@ -353,9 +361,9 @@ Ver `.ai/decisions/`.
 
 **Status: focado na validação das planilhas (TASK-011 a TASK-013, 2026-09-30).**
 
-- Suíte `pytest` em `tests/` (170 testes): `test_validacao_planilhas.py` e `test_rota_validacao.py` (camada 1,
+- Suíte `pytest` em `tests/` (203 testes): `test_validacao_planilhas.py` e `test_rota_validacao.py` (camada 1,
   `C1-BASE`, paridade de tokenização, não-regressão de `processar_calculo`), `test_prompts_validacao.py`
-  (TASK-012) `test_regras_dominio.py` (TASK-013) e `test_validacao_ia.py` (TASK-014, IA sempre simulada). Testes de rota usam banco temporário, nunca o de desenvolvimento.
+  (TASK-012) `test_regras_dominio.py` (TASK-013) e `test_validacao_ia.py` (TASK-014) e `test_correcao_ia.py` (TASK-015), IA sempre simulada. Testes de rota usam banco temporário, nunca o de desenvolvimento.
 - Dependências só de desenvolvimento: `requirements-dev.txt` (`pytest`, `httpx`); `pytest.ini` na raiz.
 - CI de testes: nenhum (os dois workflows só fazem deploy). Frontend: nenhum teste.
 
@@ -367,7 +375,7 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-09-30
-**Motivo:** TASK-014 — validação na tela (botão, opção automática ao montar orçamento, painel de achados, diálogo
-"continuar mesmo assim?") e revisão por IA (camada 3) com o prompt salvo.
-**Alterações de código:** `services/validacao_ia.py`, `routers/validacao.py`, `models.py`, `static/resumo.js`
-(inclui a extração de `obterPayloadCalculo()`), `static/resumo.html`. Novo: `tests/test_validacao_ia.py`.
+**Motivo:** TASK-015 — correção assistida por IA (propostas com aceite explícito, reconferidas no servidor),
+fechando o conjunto de validação em camadas do ADR-004 (TASK-009 a TASK-015).
+**Alterações de código:** `services/correcao_ia.py`, `services/validacao_ia.py`, `routers/validacao.py`, `models.py`,
+`static/resumo.js`, `static/resumo.html`, `data/validacoes/corrigir-planilhas.md`. Novo: `tests/test_correcao_ia.py`.

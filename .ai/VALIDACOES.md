@@ -112,7 +112,7 @@ Sem pendências de definição para as regras `IMPLEMENTADA`. Continuam `A CONFI
 ## Camada 3 — IA (prompts salvos)
 
 **`validar-planilhas` IMPLEMENTADA (TASK-014)** — `services/validacao_ia.py` + `POST /api/validacao/ia`.
-`corrigir-planilhas` continua pendente (TASK-015). Escopo: o que não é determinístico. Recebe as linhas + os achados das camadas 1–2 (para não repetir).
+`corrigir-planilhas` **IMPLEMENTADA (TASK-015)** — ver abaixo. Escopo: o que não é determinístico. Recebe as linhas + os achados das camadas 1–2 (para não repetir).
 Mecânica: linhas com ativo, em lotes de 40 (limite 400; acima disso a IA revisa só as primeiras e a resposta traz
 `truncado`); o prompt salvo do projeto (fallback `DEFAULT`) é usado com temperatura do cabeçalho (0) e o modelo do
 cabeçalho + reservas; resposta em JSON; **item com `linha_id` que não estava no lote é descartado**, severidade
@@ -125,11 +125,23 @@ Sementes em `data/validacoes/`:
 | id do prompt | modo | verifica |
 |---|---|---|
 | `validar-planilhas` | checar | coerência semântica entre ativos de uma mesma linha/poste; ativo que parece digitação errada de outro conhecido; combinações improváveis; ativo na tabela errada por sentido (não por formato) |
-| `corrigir-planilhas` | corrigir | propõe correção **por linha** para achados existentes; nunca aplica |
+| `corrigir-planilhas` | corrigir | propõe correção **por linha** para achados existentes; nunca aplica; altera só o texto do ativo (nunca a operação) |
 
 Saída obrigatória (JSON): `{"achados":[{"linha_id","tabela","severidade","regra","problema","sugestao"}]}`
 para checar, e `{"correcoes":[{"linha_id","tabela","antes","depois","motivo"}]}` para corrigir.
 Toda correção passa novamente pela camada 1 antes de ser mostrada ao usuário (ADR-004, TASK-015).
+
+### Correção assistida (TASK-015)
+
+`services/correcao_ia.py` + `POST /api/validacao/corrigir`. Só as linhas **citadas nos achados** (e editáveis:
+`CABOS-<i>`/`OUTROS-<i>`; `GERAL` e Totalizadora ficam de fora) vão à IA, junto com os achados e a sugestão da IA de
+revisão. A IA só propõe; cada proposta é reconferida no servidor e **descartada com o motivo** se: a linha não foi
+enviada, não muda nada (ignorando espaço e caixa), repete a linha, ou o texto proposto **ainda reprova na camada 1**
+(erro de formato). O "antes" exibido é sempre o texto real da linha. Aviso da camada 1 (ex.: ativo repetido) não
+descarta, mas acompanha a proposta ("Atenção"). Na tela: o usuário marca linha a linha (nada vem marcado) ou usa
+"Aceitar todas"; aplicar entra no histórico como **um passo** (um desfazer restaura o lote e refazer reaplica); se a
+linha mudou depois da proposta, ela é ignorada e o usuário é avisado. Depois de corrigir, o orçamento não segue
+sozinho: é preciso validar/montar de novo.
 
 ## Fluxo decidido (2026-09-30)
 

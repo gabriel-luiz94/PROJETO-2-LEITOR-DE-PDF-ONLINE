@@ -20,7 +20,7 @@ Formatos que a correção DEVE respeitar (contrato do sistema):
 - OUTROS: pares `<quantidade>-<ativo>` separados por espaço; um poste (DT… ou CV…) pode abrir a linha sem quantidade
 - Nunca use vírgulas, parênteses, barras extras, unidades (kVA, metros) nem descrições livres nos ativos.
 - Nunca duplique ativo idêntico: some as quantidades.
-- Operação válida: I, *I, R, *R, M, *M. Só altere a operação se o achado for sobre ela.
+- Você corrige só o texto do ativo. Nunca altere nem sugira mudar a operação da linha.
 
 Regras:
 - Corrija SOMENTE o que o achado descreve. Preserve todos os outros ativos da linha, inclusive quando

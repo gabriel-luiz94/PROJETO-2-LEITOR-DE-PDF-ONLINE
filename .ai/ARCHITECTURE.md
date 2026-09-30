@@ -128,7 +128,7 @@
 | `obras.py` | `/api/obras` | CRUD de obras por usuário (Supabase com fallback SQLite) |
 | `projetos.py` | `/api/projetos` | Lista mesclada local+nuvem; cadastro só admin |
 | `ai_chat.py` | `/api/gemini` | Listagem de modelos e chat com Gemini/OpenAI, injetando `prompt_rede_eletrica.txt` e as regras aprendidas. Chave resolvida por `resolver_credencial()`: usuário > salva > padrão do ambiente (`GEMINI_API_KEY`/`GOOGLE_API_KEY`); rate-limit por usuário só com a chave padrão (TASK-009) |
-| `validacao.py` | `/api/validacao` | Validação das planilhas Cabos/Outros: `POST /planilhas` (camadas 1 e 2, `services/validacao_planilhas.py` e `regras_dominio.py`) e `POST /ia` (camada 3, `services/validacao_ia.py`) |
+| `validacao.py` | `/api/validacao` | Validação das planilhas Cabos/Outros: `POST /planilhas` (camadas 1 e 2, `services/validacao_planilhas.py` e `regras_dominio.py`) `POST /ia` (camada 3, `services/validacao_ia.py`) e `POST /corrigir` (`services/correcao_ia.py`) |
 | `validacao_regras.py` | `/api/validacao/regras` | Regras de domínio editáveis (camada 2), histórico, reversão, semente e teste do rascunho; motor em `services/regras_dominio.py` (TASK-013) |
 | `validacao_prompts.py` | `/api/validacao/prompts` | Prompts de validação por projeto (com fallback `DEFAULT`), histórico e reversão; escrita só admin (TASK-012). `buscar_prompt()` é o ponto de leitura para a IA (TASK-014) |
 | `admin.py` | `/api/admin` | Usuários (CRUD, role, senha), tabela master (add/upload CSV/sync completo), audit log |
@@ -255,6 +255,7 @@ DEMAIS ENTIDADES (obras, recs, projetos):
 | GET | `/api/gemini/models` | JWT | Modelos disponíveis |
 | POST | `/api/gemini/chat` | JWT | Chat com contexto da tabela |
 | GET/POST/PUT/DELETE | `/api/admin/*` | JWT + admin | Usuários, master, audit log |
+| POST | `/api/validacao/corrigir` | JWT | Correção assistida: a IA PROPÕE (nada é aplicado); cada proposta é reconferida (linha existente, muda algo, passa na camada 1) |
 | POST | `/api/validacao/ia` | JWT | Camada 3 (IA) com o prompt salvo; falha da IA volta como `status` com HTTP 200; limite por minuto só com a chave padrão |
 | POST | `/api/validacao/planilhas` | JWT | Achados das camadas 1 e 2 (`erro`/`aviso`/`info`); `payload_calculo` opcional liga `C1-BASE`; `projeto_codigo` escolhe as regras de domínio |
 | GET/POST | `/api/validacao/regras[/historico\|/reverter\|/restaurar-semente\|/testar]` | JWT (POST/histórico: admin) | Regras de domínio da validação |

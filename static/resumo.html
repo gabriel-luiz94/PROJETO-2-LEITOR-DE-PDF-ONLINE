@@ -683,6 +683,16 @@
             </div>
         </div>
 
+        <!-- Correção assistida por IA (TASK-015): propostas com antes/depois, aceite por linha -->
+        <div id="modal-correcao" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 760px; width: 92%; max-height: 85vh; display: flex; flex-direction: column;">
+                <h3 style="margin-bottom: 6px;">Correções propostas pela IA</h3>
+                <p id="correcao-resumo" style="font-size: 0.8rem; color: #8b949e; margin-bottom: 8px;">Nada é alterado sem o seu aceite. Aplicar todas de uma vez pode ser desfeito com Ctrl+Z.</p>
+                <div id="correcao-lista" style="overflow: auto; flex: 1; font-size: 0.85rem;"></div>
+                <div class="modal-actions" id="correcao-acoes" style="margin-top: 14px;"></div>
+            </div>
+        </div>
+
         <!-- Modal Novo Projeto -->
         <div id="modal-novo-projeto" class="modal-overlay hidden">
             <div class="modal-content" style="max-width: 400px; width: 90%;">

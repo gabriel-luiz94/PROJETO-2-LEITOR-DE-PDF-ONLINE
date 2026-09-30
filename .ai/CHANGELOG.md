@@ -8,6 +8,20 @@
 
 ---
 
+## 2026-09-30 — TASK-015: correção assistida por IA com aceite explícito
+
+**Tipo:** nova funcionalidade (backend + frontend) · `.ai/tasks/TASK-015-30-09-2026.md`
+
+`POST /api/validacao/corrigir`: a IA propõe correções só para as linhas citadas nos achados; o servidor reconfere
+cada proposta (linha existente, muda algo, **passa de novo na camada 1**) e devolve também as descartadas com o
+motivo. Na tela, "Não, vou corrigir" e o botão "Corrigir com IA" abrem as propostas (antes → depois) com aceite por
+linha ou "Aceitar todas"; aplicar é um único passo no histórico e ignora linhas que mudaram. A operação nunca é
+alterada. Refatorações mínimas: laço de lotes compartilhado (`executar_em_lotes`) e preâmbulo da IA (`_preparar_ia`).
+O prompt `corrigir-planilhas` perdeu a frase sobre alterar a operação (instalações existentes: "Restaurar semente").
+**Fecha o conjunto ADR-004 (TASK-009 a TASK-015).**
+
+---
+
 ## 2026-09-30 — TASK-014: validação na tela (botão, opção automática) e revisão por IA (camada 3)
 
 **Tipo:** nova funcionalidade (backend + frontend) · `.ai/tasks/TASK-014-30-09-2026.md`
