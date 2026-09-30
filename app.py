@@ -95,6 +95,10 @@ async def serve_login_js():
 async def serve_admin_js():
     return _serve_js("admin.js")
 
+@app.get("/static/regras_editor.js")
+async def serve_regras_editor_js():
+    return _serve_js("regras_editor.js")
+
 @app.get("/static/auth_fetch.js")
 async def serve_auth_fetch_js():
     return _serve_js("auth_fetch.js")

@@ -8,6 +8,29 @@
 
 ---
 
+## 2026-09-30 — TASK-018 + TASK-017: regras em camadas por projeto e editor visual
+
+**Tipo:** armazenamento/regra de negócio + frontend admin · `.ai/tasks/TASK-018-30-09-2026.md`, `TASK-017-30-09-2026.md`
+
+**Camadas (TASK-018):** o `DEFAULT` guarda regras e grupos completos; cada projeto guarda só o **overlay**
+(`adicionadas`, `sobrescritas`, `ocultas`, `grupos`) no mesmo `regras_json` — **sem SQL novo**. Efetivo = padrão + overlay,
+vale a sobrescrita do projeto; o que muda no padrão chega aos projetos. Cópias integrais antigas (lista v1 ou container v2)
+são lidas como overlay equivalente (o que faltava no padrão vira "oculta"), sem mudar resultados; virarão overlay no
+próximo salvamento. Novo `services/regras_camadas.py` (funções puras) e `GET /api/validacao/regras` devolve `origem`,
+`oculta`, `frase`, `grupos_origem`, `grupos_usados`, `avisos`. `restaurar-semente` num projeto = descartar os ajustes;
+`adicionar-novas` passou a valer só no `DEFAULT`. Nova `GET /api/validacao/regras/ativos` (autocomplete).
+
+**Editor visual (TASK-017):** novo `static/regras_editor.js` substitui o editor JSON da TASK-013: cartão em frase (vinda
+do backend), selos *padrão / ajustada neste projeto / só deste projeto*, botão **−/+** (oculta/reexibe regra herdada),
+"voltar ao padrão", construtor SE/ENTÃO/EXCETO SE com E/OU/NÃO e comparador de quantidade, autocomplete de ativos e
+`@GRUPO`, editor de grupos com "usado por", assistente com 4 modelos, modo avançado (JSON) e painel de teste que explica
+também por que uma linha **não** disparou.
+
+**Correção:** os seletores de projeto do painel admin (prompts e regras) nunca listavam projetos, porque `/api/projetos`
+devolve `{projetos: [...]}` e o código esperava uma lista; agora aceitam os dois formatos.
+
+---
+
 ## 2026-09-30 — TASK-016: motor de regras de domínio v2 (ADR-005)
 
 **Tipo:** mudança de motor de regras (backend) · `.ai/tasks/TASK-016-30-09-2026.md`

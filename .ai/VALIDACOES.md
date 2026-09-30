@@ -59,6 +59,11 @@ Exemplos: `CAA 2 ABC 35 m` ok · `3-CFU` em Cabos → C1-CABO-PARTE · `CAA 2 35
 
 ## Camada 2 — Regras de domínio (editáveis pelo admin)
 
+**Camadas por projeto (TASK-018, ADR-005):** o `DEFAULT` é o padrão de todos os projetos; um projeto só guarda o que
+difere (regras próprias, ajustes de campos, regras ocultas com −, grupos redefinidos). No painel admin cada regra mostra o
+selo *padrão*, *ajustada neste projeto* ou *só deste projeto*. Quando o padrão evolui, os projetos acompanham, exceto onde
+sobrescreveram. Editor visual: TASK-017. O texto abaixo descreve as regras da semente (TASK-013) e continua válido.
+
 **IMPLEMENTADA (TASK-013)** — `services/regras_dominio.py` (motor e schema), `routers/validacao_regras.py`
 (`/api/validacao/regras`), tabelas `regras_dominio`/`regras_dominio_historico`, editor e painel de teste no
 painel admin. Fonte das regras: `prompt_rede_eletrica.txt §5` (o arquivo não foi alterado).

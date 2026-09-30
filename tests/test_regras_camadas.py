@@ -271,3 +271,20 @@ def test_migracao_de_copia_integral_antiga_nao_muda_o_resultado(client):
     assert [i for i in ids(real) if i.startswith("C2-")] == ids(esperado)
     assert get(client, "229")["personalizado"] is True
     assert por_id(get(client, "229")["regras"])["C2-BT-EXT"]["oculta"] is True
+
+
+def test_get_devolve_grupos_usados_e_ativos_da_base(client):
+    g = get(client)
+    assert "C2-BT-EXT" in g["grupos_usados"]["ESTRUTURA_SI"] and set(g["grupos_usados"]) <= set(g["grupos"])
+    assert client.get("/api/validacao/regras/ativos", headers=cab("operador")).json() == {"ativos": []}
+    conn = database.get_connection()
+    conn.execute("INSERT INTO tabela_orcamento_master (ativo) VALUES ('CFU'), ('SUPL'), ('CFU')")
+    conn.commit()
+    conn.close()
+    assert client.get("/api/validacao/regras/ativos", headers=cab("operador")).json() == {"ativos": ["CFU", "SUPL"]}
+
+
+def test_editor_visual_e_servido_e_referenciado_na_pagina_admin(client):
+    js = client.get("/static/regras_editor.js")
+    assert js.status_code == 200 and "javascript" in js.headers["content-type"] and "rdCartao" in js.text
+    assert 'src="/static/regras_editor.js"' in open("static/admin.html", encoding="utf-8").read()

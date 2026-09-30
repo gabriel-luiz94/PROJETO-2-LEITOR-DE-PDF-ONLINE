@@ -22,7 +22,7 @@ from database import get_connection
 from middleware.auth_middleware import require_role
 from services.regras_camadas import (efetivo, overlay_de_bruto,
                                      overlay_de_efetivo, overlay_vazio, overlay_vazio_de)
-from services.regras_dominio import (avaliar, descrever, explicar, normalizar_regra, validar_conjunto)
+from services.regras_dominio import (avaliar, descrever, explicar, grupos_usados, normalizar_regra, validar_conjunto)
 from services.supabase_client import get_supabase
 from services.validacao_planilhas import resumir
 
@@ -227,11 +227,35 @@ def _ler_semente() -> dict:
 # ═══════════════════════════════════════════════════════════════════════════
 # ROTAS
 # ═══════════════════════════════════════════════════════════════════════════
+def _grupos_usados(regras: list) -> dict:
+    """{GRUPO: [ids das regras que o citam]} — o editor avisa que mudar o grupo muda todas elas."""
+    usados = {}
+    for r in regras:
+        try:
+            citados = grupos_usados(r)
+        except Exception:
+            continue
+        for g in citados:
+            usados.setdefault(g, []).append(r["id"])
+    return usados
+
+
+@router.get("/ativos")
+def ativos_para_autocomplete():
+    """Códigos de ativo da base técnica (para o seletor do editor). Só leitura local; vazio se a base não foi carregada."""
+    conn = get_connection()
+    rows = conn.execute("SELECT DISTINCT ativo FROM tabela_orcamento_master WHERE ativo IS NOT NULL AND ativo != '' "
+                        "ORDER BY ativo LIMIT 3000").fetchall()
+    conn.close()
+    return {"ativos": [r[0] for r in rows]}
+
+
 @router.get("")
 def obter(projeto_codigo: str = DEFAULT):
     regras, grupos, grupos_origem, avisos, overlay = resolver(projeto_codigo)
     personalizado = overlay is not None and not overlay_vazio_de(overlay)
     return {"regras": _com_frase(regras, grupos), "grupos": grupos, "grupos_origem": grupos_origem, "avisos": avisos,
+            "grupos_usados": _grupos_usados(regras),
             "versao_de": projeto_codigo if overlay is not None else DEFAULT, "personalizado": personalizado}
 
 
