@@ -1,4 +1,6 @@
-"""tests/test_regras_dominio.py — camada 2 (TASK-013): motor, schema e rotas. Cada teste cita a decisão do usuário."""
+"""tests/test_regras_dominio.py — camada 2: as 11 regras da semente v2 (TASK-013/016), schema e rotas.
+
+Cada teste cita a decisão do usuário. A equivalência com o motor v1 está em tests/test_regras_v2.py."""
 import copy
 import json
 
@@ -9,10 +11,12 @@ import app as appmod
 import database
 from config import REGRAS_DOMINIO_SEED_PATH
 from middleware.auth_middleware import create_jwt_token
-from services.regras_dominio import avaliar, validar_regras
+from services.regras_dominio import avaliar, validar_conjunto
 
 with open(REGRAS_DOMINIO_SEED_PATH, encoding="utf-8") as f:
-    SEMENTE = json.load(f)
+    SEED = json.load(f)
+SEMENTE = SEED["regras"]
+GRUPOS = SEED["grupos"]
 
 
 def ativas(*ids):
@@ -32,17 +36,17 @@ def ids(achados):
 
 
 def rodar(regra_id, outros, cabos=()):
-    return avaliar(ativas(regra_id), list(cabos), [linha(*o) if isinstance(o, tuple) else linha(o) for o in outros])
+    return avaliar(ativas(regra_id), list(cabos), [linha(*o) if isinstance(o, tuple) else linha(o) for o in outros], GRUPOS)
 
 
 # ── semente ──────────────────────────────────────────────────────────────────
 def test_semente_e_valida_e_vem_toda_desligada():
-    assert validar_regras(SEMENTE) == []
+    assert validar_conjunto(SEMENTE, GRUPOS) == []
     assert len(SEMENTE) == 11 and not any(r["ativa"] for r in SEMENTE)
 
 
 def test_regras_inativas_nao_geram_achado():
-    assert avaliar(SEMENTE, [], [linha("DT11/300 1-CFU")]) == []
+    assert avaliar(SEMENTE, [], [linha("DT11/300 1-CFU")], GRUPOS) == []
 
 
 # ── CFU exige SUPL; CFU e CFUR exigem EF ─────────────────────────────────────
@@ -141,7 +145,7 @@ def test_regra_sem_campo_operacoes_assume_so_instalacao():
 def test_operacoes_da_regra_sao_editaveis():
     regras = ativas("C2-CFU-SUPL")
     regras[0]["operacoes"] = ["I", "*I", "R"]
-    assert avaliar(regras, [], [linha("DT11/300 1-CFU", "R")]) != []
+    assert avaliar(regras, [], [linha("DT11/300 1-CFU", "R")], GRUPOS) != []
 
 
 # ── poste de 10 m em MT ──────────────────────────────────────────────────────
@@ -249,15 +253,18 @@ def test_si_nao_e_confundido_com_s_numerico_nem_com_supl():
     assert rodar("C2-BT-EXT", ["DT11/300 1-SI3 1-SI4"]) != []       # SI não é S#
 
 
-# ── schema ───────────────────────────────────────────────────────────────────
+# ── schema (v2) ──────────────────────────────────────────────────────────────
 def erros_de(mutacao):
     regras = copy.deepcopy(SEMENTE)
     mutacao(regras)
-    return validar_regras(regras)
+    return validar_conjunto(regras, GRUPOS)
+
+
+def regra(regras, rid):
+    return next(x for x in regras if x["id"] == rid)
 
 
 @pytest.mark.parametrize("mutacao,trecho", [
-    (lambda r: r[0].update(tipo="inventado"), "'tipo'"),
     (lambda r: r[0].update(severidade="grave"), "'severidade'"),
     (lambda r: r[0].update(ativa="sim"), "'ativa'"),
     (lambda r: r[0].update(mensagem=""), "'mensagem'"),
@@ -265,22 +272,44 @@ def erros_de(mutacao):
     (lambda r: r[1].update(id=r[0]["id"]), "duplicado"),
     (lambda r: r[0].update(operacoes=["X"]), "'operacoes'"),
     (lambda r: r[0].update(operacoes=[]), "'operacoes'"),
-    (lambda r: r[0]["parametros"].update(se_regex="(["), "regex inválida"),
-    (lambda r: r[0]["parametros"].pop("exige_regex"), "exige_regex"),
-    (lambda r: r[0]["parametros"].update(qtd_min="dois"), "qtd_min"),
-    (lambda r: next(x for x in r if x["id"] == "C2-TR-EF")["parametros"].update(exceto_se_regex="(["), "exceto_se_regex"),
-    (lambda r: r[3]["parametros"].update(dobra_se="x"), "dobra_se"),
-    (lambda r: r[5]["parametros"].update(contribuicoes=[]), "contribuicoes"),
-    (lambda r: r[5]["parametros"]["contribuicoes"][0].update(metros_por_unidade="x"), "metros_por_unidade"),
-    (lambda r: r[5].update(escopo="outros"), "cabos+outros"),
-    (lambda r: r[0].update(parametros=[]), "'parametros'"),
+    (lambda r: r[0].update(versao=3), "'versao'"),
+    (lambda r: r[0].update(escopo="tudo"), "'escopo'"),
+    (lambda r: r[0].update(quandu={"tem": "X"}), "campo desconhecido 'quandu'"),
+    (lambda r: (r[0].pop("quando"), r[0].pop("entao")), "informe 'quando' e/ou 'entao'"),
+    (lambda r: r[0].update(quando={"tem": "@NAO_EXISTE"}), "grupo '@NAO_EXISTE' não existe"),
+    (lambda r: r[0].update(quando={"tem": {"regex": "(["}}), "regex inválida"),
+    (lambda r: r[0].update(quando={"tem": "CFU", "algum": []}), "condição inválida"),
+    (lambda r: r[0].update(quando={"inventada": "X"}), "condição inválida"),
+    (lambda r: r[0].update(quando={"todos": []}), "ao menos uma condição"),
+    (lambda r: r[0].update(entao={"soma": "SUPL"}), "'soma' exige 'qtd'"),
+    (lambda r: r[0].update(entao={"soma": "SUPL", "qtd": {"parecido": 1}}), "comparador 'parecido' inválido"),
+    (lambda r: r[0].update(entao={"soma": "SUPL", "qtd": {">=": "dois"}}), "número"),
+    (lambda r: r[0].update(entao={"soma": "SUPL", "qtd": {"entre": [1]}}), "[mínimo, máximo]"),
+    (lambda r: r[0].update(entao={"soma": "SUPL", "qtd": {">=": {"base": 1, "vezes": 2}}}), "só têm efeito com 'se'"),
+    (lambda r: r[0].update(quando={"texto": ""}), "regex obrigatória"),
+    (lambda r: r[0].update(quando={"texto": "x" * 501}), "longa demais"),
+    (lambda r: r[0].update(deve_ser={"esq": 1, "cmp": ">=", "dir": 2}), "é só de regra de planilha"),
+    (lambda r: regra(r, "C2-P50").update(quando={"tem": "X"}), "é só de regra de linha"),
+    (lambda r: regra(r, "C2-P50")["deve_ser"].update(cmp="entre"), "deve_ser.cmp"),
+    (lambda r: regra(r, "C2-P50")["deve_ser"].update(dir={"soma_metrosX": "P50"}), "desconhecida"),
+    (lambda r: regra(r, "C2-P50")["deve_ser"].update(dir={"vezes": ["dois", {"soma_qtd": "PR15"}]}), "[número, expressão]"),
+    (lambda r: regra(r, "C2-P50").pop("deve_ser"), "'deve_ser' precisa ser"),
 ])
 def test_schema_rejeita(mutacao, trecho):
     assert any(trecho in e for e in erros_de(mutacao)), erros_de(mutacao)
 
 
 def test_schema_rejeita_payload_que_nao_e_lista():
+    from services.regras_dominio import validar_regras
     assert validar_regras({"a": 1}) == ["O payload de regras precisa ser uma lista."]
+
+
+def test_regra_v1_antiga_continua_valida_e_e_validada_como_v1():
+    v1 = {"id": "V1", "escopo": "outros", "tipo": "requer", "severidade": "aviso", "mensagem": "m", "ativa": True,
+          "parametros": {"se_regex": "^CFU$", "exige_regex": "^SUPL$", "qtd_min": 1}}
+    assert validar_conjunto([v1], {}) == []
+    v1["parametros"]["se_regex"] = "(["
+    assert any("regex inválida" in e for e in validar_conjunto([v1], {}))
 
 
 # ── rotas (banco temporário) ─────────────────────────────────────────────────
@@ -303,7 +332,7 @@ def test_get_devolve_semente_default(client):
 def test_escrita_e_testar_so_admin(client):
     for metodo, url, corpo in [
         ("post", "/api/validacao/regras", {"projeto_codigo": "229", "regras": SEMENTE}),
-        ("post", "/api/validacao/regras/testar", {"regras": SEMENTE}),
+        ("post", "/api/validacao/regras/testar", {"regras": SEMENTE, "grupos": GRUPOS}),
         ("post", "/api/validacao/regras/restaurar-semente", {"projeto_codigo": "229"}),
         ("get", "/api/validacao/regras/historico", None),
     ]:
@@ -322,7 +351,7 @@ def test_admin_salva_regra_ligada_por_projeto_sem_tocar_no_default(client):
 
 def test_regras_invalidas_nao_sao_salvas(client):
     regras = copy.deepcopy(SEMENTE)
-    regras[0]["parametros"]["se_regex"] = "(["
+    regras[0]["quando"] = {"tem": {"regex": "(["}}
     r = client.post("/api/validacao/regras", json={"projeto_codigo": "229", "regras": regras}, headers=cab("admin"))
     assert r.status_code == 400 and any("regex" in e for e in r.json()["detail"]["erros"])
     assert client.get("/api/validacao/regras?projeto_codigo=229", headers=cab("admin")).json()["personalizado"] is False
@@ -346,12 +375,12 @@ def test_historico_reversao_e_semente(client):
 
 def test_testar_roda_rascunho_sem_salvar(client):
     r = client.post("/api/validacao/regras/testar", headers=cab("admin"),
-                    json={"regras": ativas("C2-CFU-SUPL"), "cabos": [], "outros": [linha("DT11/300 1-CFU")]})
+                    json={"regras": ativas("C2-CFU-SUPL"), "grupos": GRUPOS, "cabos": [], "outros": [linha("DT11/300 1-CFU")]})
     assert r.status_code == 200 and ids(r.json()["achados"]) == ["C2-CFU-SUPL"] and r.json()["resumo"]["aviso"] == 1
     assert client.get("/api/validacao/regras", headers=cab("admin")).json()["personalizado"] is False
     ruim = copy.deepcopy(SEMENTE)
     ruim[0]["severidade"] = "grave"
-    assert client.post("/api/validacao/regras/testar", json={"regras": ruim}, headers=cab("admin")).status_code == 400
+    assert client.post("/api/validacao/regras/testar", json={"regras": ruim, "grupos": GRUPOS}, headers=cab("admin")).status_code == 400
 
 
 def test_rota_de_planilhas_inclui_a_camada_2_do_projeto(client):
@@ -425,8 +454,8 @@ def test_adicionar_novas_so_admin(client):
 def test_regra_nova_da_semente_entra_sempre_desligada_mesmo_que_a_semente_a_traga_ligada(client, tmp_path, monkeypatch):
     import routers.validacao_regras as rv
     instalacao_antiga(client)
-    semente = copy.deepcopy(SEMENTE)
-    semente[-1]["ativa"] = True          # C2-BT-EXT ligada na semente (não deve valer no destino)
+    semente = copy.deepcopy(SEED)
+    semente["regras"][-1]["ativa"] = True          # C2-BT-EXT ligada na semente (não deve valer no destino)
     arquivo = tmp_path / "semente.json"
     arquivo.write_text(json.dumps(semente), encoding="utf-8")
     monkeypatch.setattr(rv, "REGRAS_DOMINIO_SEED_PATH", str(arquivo))

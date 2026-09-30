@@ -8,6 +8,19 @@
 
 ---
 
+## 2026-09-30 — TASK-016: motor de regras de domínio v2 (ADR-005)
+
+**Tipo:** mudança de motor de regras (backend) · `.ai/tasks/TASK-016-30-09-2026.md`
+
+Regras de domínio passam a uma linguagem declarativa v2: condições sobre **quantidade** (`=, ≠, ≥, ≤, >, <, entre`), grupos
+de ativos nomeados (`@ESTRUTURA_MT`), combinadores E/OU/NÃO, valores dinâmicos, regras sobre a **planilha inteira** (P50 e
+contagens) e `explicacao` em português em cada achado; `descrever(regra)` gera a frase. Regras v1 salvas continuam
+funcionando (conversão determinística); o resultado das 11 regras da semente é **idêntico** ao do motor anterior, provado
+contra uma cópia congelada dele em milhares de cenários. Sem SQL novo (mesmo `regras_json`, agora um container com grupos).
+Painel de achados mostra "Por quê". Camadas por projeto e editor visual: TASK-018 e TASK-017.
+
+---
+
 ## 2026-09-30 — Regras de domínio pendentes (`C2-TR-EF`, `C2-BT-EXT`) e "adicionar regras novas da semente"
 
 **Tipo:** regras de negócio (decisão do usuário) + ação do admin · `.ai/tasks/TASK-013-30-09-2026.md` (acréscimo)

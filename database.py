@@ -124,13 +124,13 @@ def _seed_regras_dominio(cursor: sqlite3.Cursor):
         return
     try:
         with open(REGRAS_DOMINIO_SEED_PATH, "r", encoding="utf-8") as f:
-            regras = json.load(f)
+            semente = json.load(f)  # container v2: {"versao": 2, "grupos": {...}, "regras": [...]}
     except (FileNotFoundError, json.JSONDecodeError) as e:
         logger.warning(f"Seed de regras de domínio não encontrado/inválido: {e}")
         return
     cursor.execute(
         "INSERT OR IGNORE INTO regras_dominio (projeto_codigo, regras_json) VALUES ('DEFAULT', ?)",
-        (json.dumps(regras, ensure_ascii=False),)
+        (json.dumps(semente, ensure_ascii=False),)
     )
 
 

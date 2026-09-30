@@ -2016,6 +2016,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 msg.style.marginTop = '2px';
                 msg.textContent = a.mensagem;
                 item.append(topo, msg);
+                if (a.explicacao) {
+                    const exp = document.createElement('div');
+                    exp.style.cssText = 'margin-top:2px; font-size:0.78rem; color:#8b949e;';
+                    exp.textContent = `Por quê: ${a.explicacao}`;
+                    item.appendChild(exp);
+                }
                 if (a.sugestao) {
                     const sug = document.createElement('div');
                     sug.style.cssText = 'margin-top:2px; font-size:0.8rem; color:#3fb950;';

@@ -6,7 +6,7 @@ from models import CorrecaoIARequest, ValidacaoPlanilhasRequest, ValidacaoIARequ
 from services.sync_service import get_merged_orcamento
 from routers.ai_chat import _checar_rate_limit, _ler_configuracao, resolver_credencial
 from routers.validacao_prompts import buscar_prompt
-from routers.validacao_regras import buscar_regras
+from routers.validacao_regras import regras_efetivas
 from services.regras_dominio import avaliar
 from services.correcao_ia import corrigir_com_ia
 from services.prompts_validacao import parse_prompt, resumo_meta
@@ -21,8 +21,8 @@ def validar(req: ValidacaoPlanilhasRequest, request: Request):
     # Não registrar o conteúdo das planilhas em log (RULES Regra 11).
     achados = validar_planilhas(req.cabos, req.outros)
     if req.incluir_dominio:
-        regras, _ = buscar_regras(req.projeto_codigo or "DEFAULT")
-        achados += avaliar(regras, req.cabos, req.outros)
+        regras, grupos, _ = regras_efetivas(req.projeto_codigo or "DEFAULT")
+        achados += avaliar(regras, req.cabos, req.outros, grupos)
     if req.payload_calculo is not None:
         user = getattr(request.state, "user", None)
         base_rows = get_merged_orcamento(user["user_id"] if user else None)

@@ -269,7 +269,8 @@ Persistidas com a chave `regras_conversao_<projeto_codigo>` em `configuracoes` (
 Três camadas, da mais barata à mais cara; catálogo completo em `.ai/VALIDACOES.md`:
 1. **Contrato (código, não editável):** formato do ativo em cada tabela, operação, quantidade zero, ativo repetido e
    ativo ausente da base técnica (esta sobre o payload já convertido pelas regras).
-2. **Regras de domínio (dados, editáveis pelo admin, por projeto):** as regras técnicas do
+2. **Regras de domínio (dados, editáveis pelo admin, por projeto; linguagem v2, ADR-005 — condições por quantidade,
+   grupos de ativos, E/OU/NÃO, regras sobre a planilha inteira, achado com explicação):** as regras técnicas do
    `prompt_rede_eletrica.txt` §5 (poste de 10 m em MT; CFU exige `1-SUPL` e EF; trafo exige PR15 e PR220, que
    dobra com duas descidas; P50 total; estrutura isolada não fica sozinha; trafo com elo só com chave; estrutura SI
    exige RA2). Valem para linhas `I`/`*I` e vêm **desligadas**: o admin liga uma a uma.
