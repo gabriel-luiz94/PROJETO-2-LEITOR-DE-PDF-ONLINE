@@ -192,5 +192,42 @@
       "texto_regex": "(?:^|\\s)(?:POSTE\\d+|\\d+(?:[.,]\\d+)?-(?:DT|CV)\\d+/\\d+|(?:DT|CV)\\d+(?=\\s|$))"
     },
     "descricao": "Sinaliza POSTE11, 1-DT11/300 e DT11."
+  },
+  {
+    "id": "C2-TR-EF",
+    "escopo": "outros",
+    "tipo": "proibe",
+    "severidade": "aviso",
+    "mensagem": "Poste com trafo e elo fusível (EF) sem chave.",
+    "ativa": false,
+    "operacoes": [
+      "I",
+      "*I"
+    ],
+    "parametros": {
+      "se_regex": "^TR\\d",
+      "com_regex": "^EF",
+      "exceto_se_regex": "^(CFU|CFUR)$"
+    },
+    "descricao": "Não inclua elo em postes com transformador, a menos que haja também uma chave. Chave = CFU ou CFUR (decisão 2026-09-30; CFA não libera)."
+  },
+  {
+    "id": "C2-BT-EXT",
+    "escopo": "outros",
+    "tipo": "requer",
+    "severidade": "aviso",
+    "mensagem": "Estrutura SI sem RA2 (e sem estrutura S#) na linha.",
+    "ativa": false,
+    "operacoes": [
+      "I",
+      "*I"
+    ],
+    "parametros": {
+      "se_regex": "^SI\\d+$",
+      "exige_regex": "^RA2$",
+      "qtd_min": 1,
+      "exceto_se_regex": "^S\\d+$"
+    },
+    "descricao": "Se houver estrutura SI (SI1, SI3, SI4…), adicionar RA2, a menos que exista estrutura tipo S# (S2, S4, S44…) (decisão 2026-09-30)."
   }
 ]

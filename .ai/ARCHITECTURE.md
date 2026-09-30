@@ -258,7 +258,7 @@ DEMAIS ENTIDADES (obras, recs, projetos):
 | POST | `/api/validacao/corrigir` | JWT | Correção assistida: a IA PROPÕE (nada é aplicado); cada proposta é reconferida (linha existente, muda algo, passa na camada 1) |
 | POST | `/api/validacao/ia` | JWT | Camada 3 (IA) com o prompt salvo; falha da IA volta como `status` com HTTP 200; limite por minuto só com a chave padrão |
 | POST | `/api/validacao/planilhas` | JWT | Achados das camadas 1 e 2 (`erro`/`aviso`/`info`); `payload_calculo` opcional liga `C1-BASE`; `projeto_codigo` escolhe as regras de domínio |
-| GET/POST | `/api/validacao/regras[/historico\|/reverter\|/restaurar-semente\|/testar]` | JWT (POST/histórico: admin) | Regras de domínio da validação |
+| GET/POST | `/api/validacao/regras[/historico\|/reverter\|/restaurar-semente\|/adicionar-novas\|/testar]` | JWT (POST/histórico: admin) | Regras de domínio da validação |
 | GET/POST | `/api/validacao/prompts[/{id}[/historico\|/reverter\|/restaurar-semente]]` | JWT (POST/histórico: admin) | Prompts de validação editáveis |
 | GET | `/api/health`, `/api/backup/export` | pública / JWT | Diagnóstico e backup (`ai_key_source` = origem da chave de IA: `salva`/`padrao`/`nenhuma`, nunca o valor) |
 | GET | `/api/update/check` | pública | Versão mais recente |

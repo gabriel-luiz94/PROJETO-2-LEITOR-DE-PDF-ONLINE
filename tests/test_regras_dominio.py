@@ -38,7 +38,7 @@ def rodar(regra_id, outros, cabos=()):
 # ── semente ──────────────────────────────────────────────────────────────────
 def test_semente_e_valida_e_vem_toda_desligada():
     assert validar_regras(SEMENTE) == []
-    assert len(SEMENTE) == 9 and not any(r["ativa"] for r in SEMENTE)
+    assert len(SEMENTE) == 11 and not any(r["ativa"] for r in SEMENTE)
 
 
 def test_regras_inativas_nao_geram_achado():
@@ -196,6 +196,59 @@ def test_poste_no_padrao_nao_gera_info():
     assert rodar("C2-POSTE-FMT", ["DT11/300 1-CFU", "CV11/600"]) == []
 
 
+# ── trafo com elo fusível só se houver chave (CFU ou CFUR) ────────────────────
+def test_trafo_com_elo_sem_chave_gera_aviso():
+    achados = rodar("C2-TR-EF", ["DT11/300 1-TR125 1-EF3H"])
+    assert ids(achados) == ["C2-TR-EF"] and achados[0]["severidade"] == "aviso"
+
+
+@pytest.mark.parametrize("linha_", [
+    "DT11/300 1-TR125 1-EF3H 1-CFU",    # chave libera o elo
+    "DT11/300 1-TR125 1-EF3H 1-CFUR",
+    "DT11/300 1-TR125",                  # trafo sem elo
+    "DT11/300 1-CFU 1-EF3H",             # elo sem trafo (é a regra CFU->EF, não esta)
+    "DT11/300 1-TR330 1-PR15",
+])
+def test_trafo_e_elo_sem_problema(linha_):
+    assert rodar("C2-TR-EF", [linha_]) == []
+
+
+@pytest.mark.parametrize("outra", ["1-CFA", "1-CL", "1-RCFU", "1-ACFU"])
+def test_so_cfu_e_cfur_liberam_o_elo(outra):
+    assert ids(rodar("C2-TR-EF", [f"DT11/300 1-TR125 1-EF3H {outra}"])) == ["C2-TR-EF"]
+
+
+def test_trafo_de_qualquer_tipo_e_elo_de_qualquer_corrente():
+    for trafo in ("TR105", "TR215", "TR330A"):
+        assert rodar("C2-TR-EF", [f"DT11/300 1-{trafo} 1-EF10K"]) != []
+
+
+# ── estrutura SI exige RA2, salvo estrutura S# ────────────────────────────────
+@pytest.mark.parametrize("si", ["SI1", "SI2", "SI3", "SI4"])
+def test_estrutura_si_sem_ra2_gera_aviso(si):
+    achados = rodar("C2-BT-EXT", [f"DT11/300 1-{si}"])
+    assert ids(achados) == ["C2-BT-EXT"] and achados[0]["severidade"] == "aviso"
+
+
+@pytest.mark.parametrize("linha_", [
+    "DT11/300 1-SI3 1-RA2",              # exemplo do prompt: SI3 + RA2
+    "DT11/300 1-SI4 1-SI3 1-RA2",        # exemplo do prompt: SI4 + SI3 + RA2
+    "DT11/300 1-SI3 1-S2",               # estrutura S# dispensa o RA2
+    "DT11/300 1-SI4 1-S4",
+    "DT11/300 1-SI1 1-S44",
+    "DT11/300 1-RA2",                    # RA2 sem SI: nada a exigir
+    "DT11/300 1-S2",
+    "DT11/300 1-U1",
+])
+def test_estrutura_si_com_ra2_ou_s_esta_ok(linha_):
+    assert rodar("C2-BT-EXT", [linha_]) == []
+
+
+def test_si_nao_e_confundido_com_s_numerico_nem_com_supl():
+    assert rodar("C2-BT-EXT", ["DT11/300 1-SI3 1-SUPL"]) != []      # SUPL não é estrutura S#
+    assert rodar("C2-BT-EXT", ["DT11/300 1-SI3 1-SI4"]) != []       # SI não é S#
+
+
 # ── schema ───────────────────────────────────────────────────────────────────
 def erros_de(mutacao):
     regras = copy.deepcopy(SEMENTE)
@@ -215,6 +268,7 @@ def erros_de(mutacao):
     (lambda r: r[0]["parametros"].update(se_regex="(["), "regex inválida"),
     (lambda r: r[0]["parametros"].pop("exige_regex"), "exige_regex"),
     (lambda r: r[0]["parametros"].update(qtd_min="dois"), "qtd_min"),
+    (lambda r: next(x for x in r if x["id"] == "C2-TR-EF")["parametros"].update(exceto_se_regex="(["), "exceto_se_regex"),
     (lambda r: r[3]["parametros"].update(dobra_se="x"), "dobra_se"),
     (lambda r: r[5]["parametros"].update(contribuicoes=[]), "contribuicoes"),
     (lambda r: r[5]["parametros"]["contribuicoes"][0].update(metros_por_unidade="x"), "metros_por_unidade"),
@@ -243,7 +297,7 @@ def cab(role):
 
 def test_get_devolve_semente_default(client):
     r = client.get("/api/validacao/regras", headers=cab("operador")).json()
-    assert r["versao_de"] == "DEFAULT" and r["personalizado"] is False and len(r["regras"]) == 9
+    assert r["versao_de"] == "DEFAULT" and r["personalizado"] is False and len(r["regras"]) == 11
 
 
 def test_escrita_e_testar_so_admin(client):
@@ -316,3 +370,66 @@ def test_seed_e_idempotente_e_nao_sobrescreve_edicao(client):
     database.init_db()
     atual = client.get("/api/validacao/regras", headers=cab("admin")).json()["regras"]
     assert [r["id"] for r in atual if r["ativa"]] == ["C2-CFU-EF"]
+
+
+# ── adicionar regras novas da semente ────────────────────────────────────────
+def instalacao_antiga(client, projeto="DEFAULT"):
+    """Simula quem já usa o sistema: só as 9 primeiras regras, uma delas ligada e editada pelo admin."""
+    regras = copy.deepcopy(SEMENTE)[:9]
+    regras[0]["ativa"] = True
+    regras[0]["mensagem"] = "Mensagem editada pelo admin"
+    assert client.post("/api/validacao/regras", json={"projeto_codigo": projeto, "regras": regras}, headers=cab("admin")).status_code == 200
+
+
+def test_adicionar_novas_acrescenta_so_o_que_falta_desligado_e_preserva_o_resto(client):
+    instalacao_antiga(client)
+    r = client.post("/api/validacao/regras/adicionar-novas", json={"projeto_codigo": "DEFAULT"}, headers=cab("admin"))
+    assert r.status_code == 200 and r.json()["adicionadas"] == ["C2-TR-EF", "C2-BT-EXT"]
+    regras = client.get("/api/validacao/regras", headers=cab("admin")).json()["regras"]
+    assert len(regras) == 11
+    por_id = {x["id"]: x for x in regras}
+    assert por_id["C2-CFU-SUPL"]["ativa"] is True and por_id["C2-CFU-SUPL"]["mensagem"] == "Mensagem editada pelo admin"
+    assert por_id["C2-TR-EF"]["ativa"] is False and por_id["C2-BT-EXT"]["ativa"] is False
+    hist = client.get("/api/validacao/regras/historico", headers=cab("admin")).json()["historico"]
+    # o banco de teste nasce com as 11 da semente; simular a instalação antiga gerou 1 entrada e adicionar-novas outra
+    assert len(hist) == 2 and len(hist[0]["regras"]) == 9          # a versão anterior (9 regras) ficou no histórico
+
+
+def test_adicionar_novas_e_idempotente(client):
+    instalacao_antiga(client)
+    client.post("/api/validacao/regras/adicionar-novas", json={"projeto_codigo": "DEFAULT"}, headers=cab("admin"))
+    r = client.post("/api/validacao/regras/adicionar-novas", json={"projeto_codigo": "DEFAULT"}, headers=cab("admin"))
+    assert r.json()["adicionadas"] == []
+    assert len(client.get("/api/validacao/regras/historico", headers=cab("admin")).json()["historico"]) == 2  # sem nova versão
+
+
+def test_adicionar_novas_na_versao_propria_do_projeto_nao_toca_no_default(client):
+    instalacao_antiga(client, "229")
+    client.post("/api/validacao/regras/adicionar-novas", json={"projeto_codigo": "229"}, headers=cab("admin"))
+    do_projeto = client.get("/api/validacao/regras?projeto_codigo=229", headers=cab("admin")).json()
+    assert do_projeto["personalizado"] is True and len(do_projeto["regras"]) == 11
+    padrao = client.get("/api/validacao/regras", headers=cab("admin")).json()
+    assert padrao["personalizado"] is False and len(padrao["regras"]) == 11   # o DEFAULT do banco novo já tinha as 11
+
+
+def test_adicionar_novas_em_projeto_herdado_cria_a_versao_do_projeto(client):
+    r = client.post("/api/validacao/regras/adicionar-novas", json={"projeto_codigo": "027"}, headers=cab("admin"))
+    assert r.json()["adicionadas"] == []        # herda o DEFAULT completo: nada a acrescentar, nada é criado
+    assert client.get("/api/validacao/regras?projeto_codigo=027", headers=cab("admin")).json()["personalizado"] is False
+
+
+def test_adicionar_novas_so_admin(client):
+    assert client.post("/api/validacao/regras/adicionar-novas", json={"projeto_codigo": "DEFAULT"}, headers=cab("operador")).status_code == 403
+
+
+def test_regra_nova_da_semente_entra_sempre_desligada_mesmo_que_a_semente_a_traga_ligada(client, tmp_path, monkeypatch):
+    import routers.validacao_regras as rv
+    instalacao_antiga(client)
+    semente = copy.deepcopy(SEMENTE)
+    semente[-1]["ativa"] = True          # C2-BT-EXT ligada na semente (não deve valer no destino)
+    arquivo = tmp_path / "semente.json"
+    arquivo.write_text(json.dumps(semente), encoding="utf-8")
+    monkeypatch.setattr(rv, "REGRAS_DOMINIO_SEED_PATH", str(arquivo))
+    client.post("/api/validacao/regras/adicionar-novas", json={"projeto_codigo": "DEFAULT"}, headers=cab("admin"))
+    regras = {r["id"]: r for r in client.get("/api/validacao/regras", headers=cab("admin")).json()["regras"]}
+    assert regras["C2-BT-EXT"]["ativa"] is False

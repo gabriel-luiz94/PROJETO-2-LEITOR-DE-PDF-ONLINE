@@ -379,6 +379,7 @@ async function iniciarRegrasDominio() {
     rdEl('rdAdicionar').addEventListener('click', rdAdicionar);
     rdEl('rdSalvar').addEventListener('click', rdSalvar);
     rdEl('rdSemente').addEventListener('click', rdRestaurarSemente);
+    rdEl('rdNovas').addEventListener('click', rdAdicionarNovas);
     rdEl('rdHistorico').addEventListener('click', rdAlternarHistorico);
     rdEl('rdTestar').addEventListener('click', rdTestar);
     rdCarregar();
@@ -507,6 +508,20 @@ async function rdRestaurarSemente() {
     });
     if (!res.ok) { showMessage('error', await rdLerErro(res)); return; }
     showMessage('success', 'Semente restaurada.');
+    await rdCarregar();
+}
+
+async function rdAdicionarNovas() {
+    rdErros(null);
+    const res = await fetch('/api/validacao/regras/adicionar-novas', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projeto_codigo: rdProjeto() })
+    });
+    if (!res.ok) { showMessage('error', await rdLerErro(res)); return; }
+    const { adicionadas } = await res.json();
+    showMessage('success', adicionadas.length
+        ? `Adicionadas (desligadas): ${adicionadas.join(', ')}.`
+        : 'Não há regras novas na semente: a lista já tem todas.');
     await rdCarregar();
 }
 

@@ -177,6 +177,26 @@ def restaurar_semente(payload: ProjetoPayload, request: Request):
     return _salvar(payload.projeto_codigo, regras, _extrair_email(request))
 
 
+@router.post("/adicionar-novas", dependencies=[Depends(require_role("admin"))])
+def adicionar_novas(payload: ProjetoPayload, request: Request):
+    """Acrescenta à versão do projeto as regras da semente que ainda não existem nela (sempre DESLIGADAS).
+
+    Não altera, religa nem remove nenhuma regra existente. Existe porque a semente só é carregada quando ainda não
+    há versão DEFAULT: instalações com regras já salvas (local ou no Supabase) não recebem as regras novas sozinhas.
+    """
+    try:
+        with open(REGRAS_DOMINIO_SEED_PATH, "r", encoding="utf-8") as f:
+            semente = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        raise HTTPException(status_code=404, detail="Semente das regras de domínio não encontrada.")
+    atuais, _ = buscar_regras(payload.projeto_codigo)
+    existentes = {r.get("id") for r in atuais}
+    novas = [{**r, "ativa": False} for r in semente if r.get("id") not in existentes]
+    if novas:
+        _salvar(payload.projeto_codigo, atuais + novas, _extrair_email(request))
+    return {"adicionadas": [r["id"] for r in novas]}
+
+
 @router.post("/testar", dependencies=[Depends(require_role("admin"))])
 def testar(payload: TestarPayload):
     """Roda um rascunho de regras (mesmo com ativa=false não são avaliadas) contra linhas de exemplo, sem salvar."""

@@ -96,11 +96,11 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
       orçamento** (radio local, padrão Não), painel de achados (contrato, domínio, base técnica e IA) e diálogo
       "continuar mesmo assim?" quando há erro/aviso. IA opcional, com o prompt salvo do projeto; sua falha nunca
       esconde os achados determinísticos. Falta a correção assistida (TASK-015).
-- [x] Regras de domínio da validação (TASK-013, 2026-09-30): 9 regras (CFU/SUPL, CFU-CFUR/EF, trafo/PR15,
-      trafo/PR220 com dobro por duas descidas, P50 total, poste de 10 m em MT, estrutura isolada, formato do
-      poste), por projeto com fallback `DEFAULT`, **todas desligadas até o admin ligar**. Editor, histórico e
+- [x] Regras de domínio da validação (TASK-013, 2026-09-30): 11 regras (CFU/SUPL, CFU-CFUR/EF, trafo/PR15,
+      trafo/PR220 com dobro por duas descidas, trafo sem chave não leva elo, P50 total, poste de 10 m em MT,
+      estrutura isolada, formato do poste, estrutura SI exige RA2), por projeto com fallback `DEFAULT`, **todas desligadas até o admin ligar**. Editor, histórico e
       teste do rascunho no painel admin; a rota `/api/validacao/planilhas` já as aplica. Sem botão/painel na tela
-      de trabalho ainda (TASK-014). Fora: `C2-TR-EF` e `C2-BT-EXT` (decisão pendente).
+      de trabalho ainda (TASK-014). Regras novas da semente chegam a quem já tem regras salvas pelo botão "Adicionar regras novas da semente".
 - [x] Prompts de validação editáveis pelo admin (TASK-012, 2026-09-30): dois prompts semeados
       (`validar-planilhas`, `corrigir-planilhas`), versão por projeto com fallback `DEFAULT`, histórico e
       reversão, editor no painel admin. Ainda **não são usados** por nenhuma chamada de IA (TASK-014).
@@ -162,7 +162,7 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       de regras do leitor (TASK-006) em vez da lógica fixa em código, agora obsoleta nesses
       documentos
 - [x] Sistema de validação das planilhas Cabos/Outros em camadas (ADR-004): TASK-009 a TASK-015 concluídas.
-      Pendentes de decisão do usuário: `C2-TR-EF` e `C2-BT-EXT` (regras de domínio ainda fora da semente). Catálogo em `.ai/VALIDACOES.md`
+      Todas as regras do catálogo estão implementadas (desligadas na semente). Catálogo em `.ai/VALIDACOES.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -361,7 +361,7 @@ Ver `.ai/decisions/`.
 
 **Status: focado na validação das planilhas (TASK-011 a TASK-013, 2026-09-30).**
 
-- Suíte `pytest` em `tests/` (203 testes): `test_validacao_planilhas.py` e `test_rota_validacao.py` (camada 1,
+- Suíte `pytest` em `tests/` (234 testes): `test_validacao_planilhas.py` e `test_rota_validacao.py` (camada 1,
   `C1-BASE`, paridade de tokenização, não-regressão de `processar_calculo`), `test_prompts_validacao.py`
   (TASK-012) `test_regras_dominio.py` (TASK-013) e `test_validacao_ia.py` (TASK-014) e `test_correcao_ia.py` (TASK-015), IA sempre simulada. Testes de rota usam banco temporário, nunca o de desenvolvimento.
 - Dependências só de desenvolvimento: `requirements-dev.txt` (`pytest`, `httpx`); `pytest.ini` na raiz.
@@ -375,7 +375,7 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-09-30
-**Motivo:** TASK-015 — correção assistida por IA (propostas com aceite explícito, reconferidas no servidor),
-fechando o conjunto de validação em camadas do ADR-004 (TASK-009 a TASK-015).
-**Alterações de código:** `services/correcao_ia.py`, `services/validacao_ia.py`, `routers/validacao.py`, `models.py`,
-`static/resumo.js`, `static/resumo.html`, `data/validacoes/corrigir-planilhas.md`. Novo: `tests/test_correcao_ia.py`.
+**Motivo:** regras de domínio `C2-TR-EF` e `C2-BT-EXT` (pendentes de decisão) implementadas após as respostas do
+usuário; nova ação do admin para acrescentar regras novas da semente a quem já tem regras salvas.
+**Alterações de código:** `services/regras_dominio.py` (`proibe` com `exceto_se_regex`), `routers/validacao_regras.py`,
+`static/admin.html`, `static/admin.js`, `data/validacoes/regras_dominio_seed.json`. Testes: `tests/test_regras_dominio.py`.

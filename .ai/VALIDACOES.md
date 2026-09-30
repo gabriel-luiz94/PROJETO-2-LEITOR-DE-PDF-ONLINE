@@ -74,7 +74,7 @@ total de P50 com um pedaço da exigência e daria alerta errado.
 |---|---|---|---|---|---|
 | C2-CFU-SUPL | outros | linha com `CFU` exige `1-SUPL` | aviso | IMPLEMENTADA | resolvida (ver decisões abaixo) |
 | C2-CFU-EF | outros | `CFU` exige elo fusível `EF…` no mesmo poste | aviso | IMPLEMENTADA | resolvida (ver decisões abaixo) |
-| C2-TR-EF | outros | poste com `TR…` **sem** chave não deve ter `EF…` | aviso | A CONFIRMAR | — |
+| C2-TR-EF | outros | poste com `TR…` e `EF…` **sem** chave (`CFU` ou `CFUR`) na linha | aviso | IMPLEMENTADA | — |
 | C2-TR-PR15 | outros | poste com `TR…` exige `1-PR15`, exceto se houver `RPR` | aviso | IMPLEMENTADA | resolvida (ver decisões abaixo) |
 | C2-TR-PR220-MONO | outros | trafo monofásico exige ≥ `2-PR220` (dobra com duas descidas) | aviso | IMPLEMENTADA | resolvida (ver decisões abaixo) |
 | C2-TR-PR220-TRI | outros | trafo trifásico exige ≥ `3-PR220` (dobra com duas descidas) | aviso | IMPLEMENTADA | resolvida (ver decisões abaixo) |
@@ -82,7 +82,7 @@ total de P50 com um pedaço da exigência e daria alerta errado.
 | C2-POSTE10-MT | outros | poste de 10 m (`DT10/…`, `CV10…`) não pode ser usado em MT | erro | IMPLEMENTADA | resolvida (ver decisões abaixo) |
 | C2-ESTR-ISOL | outros | estrutura `U3/N3/R3…` não pode estar sozinha no poste: exige outra estrutura MT ou `TR…` | aviso | IMPLEMENTADA | resolvida (ver decisões abaixo) |
 | C2-POSTE-FMT | outros | poste no formato `DT…`/`CV…`, não `POSTE11`, `1-DT11/300`, `DT11` | info | IMPLEMENTADA | resolvida (ver decisões abaixo) |
-| C2-BT-EXT | outros | extensão BT (SI): passante SI1/SI2, fim SI3, amarração SI4 | info | A CONFIRMAR | é regra de validação ou só orientação de geração? |
+| C2-BT-EXT | outros | linha com estrutura `SI` (`SI\d+`) exige `RA2`, salvo se houver estrutura `S#` (`S2`, `S4`, `S44`…) | aviso | IMPLEMENTADA | — |
 
 ### Decisões do usuário (2026-09-30) — entram na TASK-013
 
@@ -105,8 +105,15 @@ total de P50 com um pedaço da exigência e daria alerta errado.
 
 - **Operações:** as regras valem só para linhas de instalação (`I`, `*I`); linha `R`/`M` não é validada.
 
-Sem pendências de definição para as regras `IMPLEMENTADA`. Continuam `A CONFIRMAR` e **fora da semente**: `C2-TR-EF` e
-`C2-BT-EXT` (o usuário ainda não se pronunciou). Termo sem definição no GLOSSARY: "poste associado à linha"
+- **Trafo e elo (`C2-TR-EF`):** só `CFU` e `CFUR` contam como a chave que libera o elo no poste do trafo. `CFA`,
+  `CL` e as de reinstalação/abertura (`RCFU`, `ACFU`…) **não** liberam.
+- **Extensão BT (`C2-BT-EXT`):** definição do usuário: "se houver estrutura SI (SI3, SI4, SI1) adicionar RA2, caso não
+  exista estrutura tipo S# (S2, S4, S44…)". Implementada como `requer` (`SI\d+` → `RA2`, exceto `S\d+`); `SI2`
+  entra pelo mesmo padrão; severidade `aviso` (o catálogo previa `info`, mas a regra é prescritiva).
+
+Sem pendências de definição: **todas as regras do catálogo estão `IMPLEMENTADAS`** (11 na semente; o P50 reúne três
+do catálogo original). Regras novas da semente não chegam sozinhas a quem já tem regras salvas: o admin usa
+"Adicionar regras novas da semente" (só acrescenta o que falta, desligado). Termo sem definição no GLOSSARY: "poste associado à linha"
 (a TASK-013 define poste = linha de Outros que abre com DT/CV, sem inventar além disso).
 
 ## Camada 3 — IA (prompts salvos)

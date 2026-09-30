@@ -8,7 +8,7 @@ cruza Cabos e Outros, pelo total da planilha.
 
 Tipos de regra (campo `tipo`; parâmetros em `parametros`):
 - requer         se_regex, exige_regex, qtd_min=1, exceto_se_regex?, dobra_se?[{regex,qtd_min}], multiplicador=2
-- proibe         se_regex, com_regex           (os dois na mesma linha)
+- proibe         se_regex, com_regex, exceto_se_regex?   (se_regex e com_regex na mesma linha, salvo exceto_se_regex)
 - nao_isolado    se_regex, acompanhado_por_regex, min_outros=1
 - texto          texto_regex                   (casa com o texto bruto do ativo da linha)
 - minimo_total   ativo_regex, contribuicoes[{se_regex, metros_por_unidade}]
@@ -80,6 +80,7 @@ def _validar_parametros(tipo, p, prefixo, erros):
     elif tipo == "proibe":
         _regex(p.get("se_regex"), f"{prefixo}.se_regex", erros)
         _regex(p.get("com_regex"), f"{prefixo}.com_regex", erros)
+        _regex(p.get("exceto_se_regex"), f"{prefixo}.exceto_se_regex", erros, obrigatorio=False)
     elif tipo == "nao_isolado":
         _regex(p.get("se_regex"), f"{prefixo}.se_regex", erros)
         _regex(p.get("acompanhado_por_regex"), f"{prefixo}.acompanhado_por_regex", erros)
@@ -181,6 +182,8 @@ def _avaliar_linha(regra, itens, texto):
         tem = _soma(itens, p["exige_regex"])
         return f"encontrado {tem:g}, mínimo {minimo:g}" if tem < minimo else None
     if tipo == "proibe":
+        if p.get("exceto_se_regex") and _tem(itens, p["exceto_se_regex"]):
+            return None
         return "ativos incompatíveis na mesma linha" if _tem(itens, p["se_regex"]) and _tem(itens, p["com_regex"]) else None
     if tipo == "nao_isolado":
         if not _tem(itens, p["se_regex"]):

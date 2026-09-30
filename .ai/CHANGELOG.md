@@ -8,6 +8,18 @@
 
 ---
 
+## 2026-09-30 — Regras de domínio pendentes (`C2-TR-EF`, `C2-BT-EXT`) e "adicionar regras novas da semente"
+
+**Tipo:** regras de negócio (decisão do usuário) + ação do admin · `.ai/tasks/TASK-013-30-09-2026.md` (acréscimo)
+
+`C2-TR-EF`: trafo com elo fusível só é aceito com chave `CFU` ou `CFUR` no poste (`CFA`, `CL` e as de reinstalação
+não liberam). `C2-BT-EXT`: estrutura `SI` exige `RA2`, salvo estrutura `S#`. Ambas na semente, desligadas, aviso,
+operações I/*I. O tipo `proibe` ganhou `exceto_se_regex`. Nova rota admin `POST /api/validacao/regras/adicionar-novas`
+(botão no painel): acrescenta à versão do projeto só as regras da semente que faltam, sempre desligadas, sem tocar nas
+existentes — necessária porque a semente só carrega quando não há versão DEFAULT. **Fecha o catálogo de validações.**
+
+---
+
 ## 2026-09-30 — TASK-015: correção assistida por IA com aceite explícito
 
 **Tipo:** nova funcionalidade (backend + frontend) · `.ai/tasks/TASK-015-30-09-2026.md`
