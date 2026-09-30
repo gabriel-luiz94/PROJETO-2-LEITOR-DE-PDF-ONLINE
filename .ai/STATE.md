@@ -163,6 +163,10 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       documentos
 - [x] Sistema de validação das planilhas Cabos/Outros em camadas (ADR-004): TASK-009 a TASK-015 concluídas.
       Todas as regras do catálogo estão implementadas (desligadas na semente). Catálogo em `.ai/VALIDACOES.md`.
+- [ ] Melhorias das regras de domínio pedidas pelo usuário (2026-09-30), em ordem: **TASK-016** (motor v2: condição
+      por quantidade, grupos nomeados, E/OU/NÃO, explicação do disparo) → **TASK-018** (regras próprias por projeto,
+      em camadas: padrão + ajustes do projeto) e **TASK-017** (editor visual legível). Todas em PLANEJAMENTO, com
+      decisões a confirmar listadas em cada arquivo.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
