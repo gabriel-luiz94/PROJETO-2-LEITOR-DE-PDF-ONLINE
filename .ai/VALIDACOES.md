@@ -10,7 +10,7 @@
 
 - **Camada 1** — contrato, em código, **não editável**. **Camada 2** — regra de domínio, dados, **editável pelo admin**. **Camada 3** — IA, prompt salvo, editável pelo admin.
 - **Severidade:** `erro` · `aviso` · `info`.
-- **Status:** `DERIVADA DO CÓDIGO` (comportamento verificado em `orcamento_calc.py`) · `A CONFIRMAR` (vem de `prompt_rede_eletrica.txt §5`, que é instrução ao modelo, não especificação validada) · `CONFIRMADA`.
+- **Status:** `DERIVADA DO CÓDIGO` (comportamento verificado em `orcamento_calc.py`) · `DECIDIDA` (camada 2: ambiguidades resolvidas pelo usuário, falta só o motor da TASK-013) · `A CONFIRMAR` (vem de `prompt_rede_eletrica.txt §5`, que é instrução ao modelo, não especificação validada) · `CONFIRMADA`.
 
 ## Por que a camada 1 existe (achado)
 
@@ -64,18 +64,18 @@ As ambiguidades abaixo precisam de resposta do usuário antes de virar regra.
 
 | id | escopo | regra | sev. sugerida | status | ambiguidade a resolver |
 |---|---|---|---|---|---|
-| C2-CFU-SUPL | outros | linha com `CFU` exige `1-SUPL` | aviso | A CONFIRMAR | "antes da chave" é ordem dentro da linha ou só presença? |
-| C2-CFU-EF | outros | `CFU` exige elo fusível `EF…` no mesmo poste | aviso | A CONFIRMAR | vale também para CFA/CFUR? |
+| C2-CFU-SUPL | outros | linha com `CFU` exige `1-SUPL` | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
+| C2-CFU-EF | outros | `CFU` exige elo fusível `EF…` no mesmo poste | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
 | C2-TR-EF | outros | poste com `TR…` **sem** chave não deve ter `EF…` | aviso | A CONFIRMAR | — |
-| C2-TR-PR15 | outros | poste com `TR…` exige `1-PR15`, exceto se houver `RPR` | aviso | A CONFIRMAR | qual é o par com a regra de P50 (PR15 → +1 m de P50, tabela Cabos)? |
-| C2-TR-PR220-MONO | outros | trafo monofásico exige ≥ `2-PR220` (dobra com duas descidas) | aviso | A CONFIRMAR | como identificar mono/bi/trifásico pelo código (TR1xx/TR2xx/TR3xx)? como saber "duas descidas"? |
-| C2-TR-PR220-TRI | outros | trafo trifásico exige ≥ `3-PR220` (dobra com duas descidas) | aviso | A CONFIRMAR | idem |
-| C2-P50-MONO | cabos+outros | trafo monofásico: mín. 2 m de `P50` além dos dos PR15 | aviso | A CONFIRMAR | regra cruza Cabos e Outros: a que "poste" o P50 pertence? |
-| C2-P50-TRI | cabos+outros | trafo trifásico: mín. 6 m de `P50` além dos dos PR15 | aviso | A CONFIRMAR | idem |
-| C2-P50-PR15 | cabos+outros | +1 m de `P50` por cada `PR15` | aviso | A CONFIRMAR | idem |
-| C2-POSTE10-MT | outros | poste de 10 m (`DT10/…`, `CV10…`) não pode ser usado em MT | erro | A CONFIRMAR | **como saber que o poste é de MT?** (presença de estrutura MT? cabo de média na mesma rede?) |
-| C2-ESTR-ISOL | outros | estrutura `U3/N3/R3…` não pode estar sozinha no poste: exige outra estrutura MT ou `TR…` | aviso | A CONFIRMAR | quais códigos contam como "isolada"? qual lista de "estruturas MT"? |
-| C2-POSTE-FMT | outros | poste no formato `DT…`/`CV…`, não `POSTE11`, `1-DT11/300`, `DT11` | erro | A CONFIRMAR | o parser aceita `DT11/300` sem `1-`; a forma `1-DT11/300` é proibida pelo prompt mas aceita pelo parser |
+| C2-TR-PR15 | outros | poste com `TR…` exige `1-PR15`, exceto se houver `RPR` | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
+| C2-TR-PR220-MONO | outros | trafo monofásico exige ≥ `2-PR220` (dobra com duas descidas) | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
+| C2-TR-PR220-TRI | outros | trafo trifásico exige ≥ `3-PR220` (dobra com duas descidas) | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
+| C2-P50-MONO | cabos+outros | trafo monofásico: mín. 2 m de `P50` além dos dos PR15 | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
+| C2-P50-TRI | cabos+outros | trafo trifásico: mín. 6 m de `P50` além dos dos PR15 | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
+| C2-P50-PR15 | cabos+outros | +1 m de `P50` por cada `PR15` | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
+| C2-POSTE10-MT | outros | poste de 10 m (`DT10/…`, `CV10…`) não pode ser usado em MT | erro | DECIDIDA | resolvida (ver decisões abaixo) |
+| C2-ESTR-ISOL | outros | estrutura `U3/N3/R3…` não pode estar sozinha no poste: exige outra estrutura MT ou `TR…` | aviso | DECIDIDA | resolvida (ver decisões abaixo) |
+| C2-POSTE-FMT | outros | poste no formato `DT…`/`CV…`, não `POSTE11`, `1-DT11/300`, `DT11` | info | DECIDIDA | resolvida (ver decisões abaixo) |
 | C2-BT-EXT | outros | extensão BT (SI): passante SI1/SI2, fim SI3, amarração SI4 | info | A CONFIRMAR | é regra de validação ou só orientação de geração? |
 
 ### Decisões do usuário (2026-09-30) — entram na TASK-013
@@ -91,9 +91,14 @@ As ambiguidades abaixo precisam de resposta do usuário antes de virar regra.
 - **Chave e elo fusível:** `CFU` e `CFUR` exigem `EF…` no mesmo poste (`CFA` fora).
 - **Poste `1-DT11/300`:** severidade **info** (o parser aceita). Duplicidade de ativo: **aviso**.
 
-Ainda em aberto: quais códigos contam como "outra estrutura MT" para a regra de estrutura isolada;
-se 3 ou mais `SI3` também contam como duas descidas; ordem de `SUPL` "antes da chave" (presença basta?).
-Termos ainda sem definição no GLOSSARY: "poste associado à linha".
+- **Estrutura isolada:** "outra estrutura MT" = **qualquer** estrutura MT, mesmo outra isolada (U3 + N3 no
+  mesmo poste satisfaz a regra). Trafo (`TR…`) também vale.
+- **Duas descidas:** `SI3` com quantidade **≥ 2** também conta (além de `1-SI4`).
+- **CFU e SUPL:** basta `1-SUPL` (qtd ≥ 1) na linha do poste, em qualquer posição; vale só para `CFU`.
+
+Sem pendências de definição para as regras com status `DECIDIDA`. Continuam `A CONFIRMAR`: `C2-TR-EF` e
+`C2-BT-EXT` (o usuário ainda não se pronunciou). Termo sem definição no GLOSSARY: "poste associado à linha"
+(a TASK-013 define poste = linha de Outros que abre com DT/CV, sem inventar além disso).
 
 ## Camada 3 — IA (prompts salvos)
 
