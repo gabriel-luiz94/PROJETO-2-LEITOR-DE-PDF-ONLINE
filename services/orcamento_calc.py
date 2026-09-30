@@ -4,6 +4,99 @@ services/orcamento_calc.py — Lógica de cálculo do orçamento.
 import re
 
 
+def extrair_ativo_cabo(item: dict):
+    """Interpreta uma linha de CABOS ("ATIVO FASE COMPRIMENTO"). Devolve o dict de ativo ou None.
+
+    Tolerante por desenho: fase/comprimento ausentes ou não numéricos ficam em 1.0 sem aviso.
+    A validação (services/validacao_planilhas.py) reutiliza esta função para não divergir do cálculo.
+    """
+    ativo_raw = item.get("ativo", "").strip().upper()
+    operacao  = item.get("operacao", "").strip().upper()
+    if not ativo_raw:
+        return None
+
+    txt = ativo_raw
+
+    parts = txt.split()
+    if not parts:
+        return None
+
+    nome_ativo = parts[0]
+
+    fases = 1.0
+    comprimento = 1.0
+
+    if len(parts) >= 3:
+        try:
+            fases = float(parts[1].replace(",", "."))
+        except Exception:
+            pass
+        try:
+            comprimento = float(parts[2].replace(",", "."))
+        except Exception:
+            pass
+    elif len(parts) == 2:
+        # Fallback caso tenham omitido fase ou comprimento
+        try:
+            comprimento = float(parts[1].replace(",", "."))
+        except Exception:
+            pass
+
+    # Prioriza qtdAtivos calculado pelo frontend; fallback para lógica local
+    qtd_ativos_frontend = item.get("qtdAtivos")
+    if qtd_ativos_frontend is not None:
+        try:
+            multiplicador = float(qtd_ativos_frontend)
+        except (ValueError, TypeError):
+            multiplicador = fases
+    elif nome_ativo.startswith("CAZ") or nome_ativo.startswith("M"):
+        multiplicador = 1.0
+    else:
+        multiplicador = fases
+
+    # Calcula a quantidade final processada (comprimento * multiplicador).
+    # A margem de perdas (ex: +5%) agora é gerida pela Tabela de Regras no frontend.
+    qtd_final = comprimento * multiplicador
+
+    return {"ativo": nome_ativo, "qtd": qtd_final, "operacao": operacao, "origem": "CABOS"}
+
+
+def tokenizar_outros(ativo_raw: str) -> list:
+    """Quebra o texto de uma linha de OUTROS em tokens alternados [qtd, ativo, qtd, ativo, ...]."""
+    txt = (ativo_raw or "").strip()
+    if not txt:
+        return []
+    # Se inicia com DT ou CV sem quantidade, adiciona "1-"
+    if re.match(r'^(DT|CV)', txt, re.IGNORECASE) and not re.match(r'^\d', txt):
+        txt = "1-" + txt
+    # "-" → " " (separa quantidade do ativo)
+    txt = txt.replace("-", " ")
+    # "*" → "-" (representa negativo / linha viva)
+    txt = txt.replace("*", "-")
+    return txt.split()
+
+
+def extrair_ativos_outros(item: dict) -> list:
+    """Interpreta uma linha de OUTROS ("[qtd]-[ativo] [qtd]-[ativo] ..."). Devolve lista de ativos.
+
+    Tolerante por desenho: quantidade não numérica vira 1.0 e um token sobrando no fim é descartado.
+    """
+    operacao = item.get("operacao", "").strip().upper()
+    # Posições pares = quantidades, posições ímpares = ativos
+    tokens = tokenizar_outros(item.get("ativo", ""))
+    resultado = []
+    i = 0
+    while i + 1 < len(tokens):
+        try:
+            qtd = float(tokens[i].replace(",", "."))
+        except ValueError:
+            qtd = 1.0
+        nome_str = tokens[i + 1].upper()
+        resultado.append({"ativo": nome_str, "qtd": qtd, "operacao": operacao, "origem": "OUTROS"})
+        i += 2
+    return resultado
+
+
 def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcamento_rows: list) -> dict:
     # ── 1. Índice ATIVO → linhas do orçamento (O(1) lookup com Fallback de Projeto) ──
     req_proj = (req_projeto or "").strip().upper()
@@ -45,81 +138,13 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
 
     # 2a. CABOS: Regra rígida de formato "ATIVO FASE COMPRIMENTO"
     for item in req_cabos:
-        ativo_raw = item.get("ativo", "").strip().upper()
-        operacao  = item.get("operacao", "").strip().upper()
-        if not ativo_raw:
-            continue
-            
-        txt = ativo_raw
-        
-        parts = txt.split()
-        if not parts:
-            continue
-            
-        nome_ativo = parts[0]
-        
-        fases = 1.0
-        comprimento = 1.0
-        
-        if len(parts) >= 3:
-            try:
-                fases = float(parts[1].replace(",", "."))
-            except Exception:
-                pass
-            try:
-                comprimento = float(parts[2].replace(",", "."))
-            except Exception:
-                pass
-        elif len(parts) == 2:
-            # Fallback caso tenham omitido fase ou comprimento
-            try:
-                comprimento = float(parts[1].replace(",", "."))
-            except Exception:
-                pass
-                
-        # Prioriza qtdAtivos calculado pelo frontend; fallback para lógica local
-        qtd_ativos_frontend = item.get("qtdAtivos")
-        if qtd_ativos_frontend is not None:
-            try:
-                multiplicador = float(qtd_ativos_frontend)
-            except (ValueError, TypeError):
-                multiplicador = fases
-        elif nome_ativo.startswith("CAZ") or nome_ativo.startswith("M"):
-            multiplicador = 1.0
-        else:
-            multiplicador = fases
-            
-        # Calcula a quantidade final processada (comprimento * multiplicador). 
-        # A margem de perdas (ex: +5%) agora é gerida pela Tabela de Regras no frontend.
-        qtd_final = comprimento * multiplicador
-        
-        ativos_qtd.append({"ativo": nome_ativo, "qtd": qtd_final, "operacao": operacao, "origem": "CABOS"})
+        av = extrair_ativo_cabo(item)
+        if av:
+            ativos_qtd.append(av)
 
     # 2b. OUTROS: texto separado por espaços no modelo "[qtd]-[ativo] [qtd]-[ativo] ..."
     for item in req_outros:
-        ativo_raw = item.get("ativo", "").strip()
-        operacao  = item.get("operacao", "").strip().upper()
-        if not ativo_raw:
-            continue
-        txt = ativo_raw.strip()
-        # Se inicia com DT ou CV sem quantidade, adiciona "1-"
-        if re.match(r'^(DT|CV)', txt, re.IGNORECASE) and not re.match(r'^\d', txt):
-            txt = "1-" + txt
-        # "-" → " " (separa quantidade do ativo)
-        txt = txt.replace("-", " ")
-        # "*" → "-" (representa negativo / linha viva)
-        txt = txt.replace("*", "-")
-        # Posições pares = quantidades, posições ímpares = ativos
-        tokens = txt.split()
-        i = 0
-        while i + 1 < len(tokens):
-            try:
-                qtd = float(tokens[i].replace(",", "."))
-            except ValueError:
-                qtd = 1.0
-            nome_str = tokens[i + 1].upper()
-            ativos_qtd.append({"ativo": nome_str, "qtd": qtd, "operacao": operacao, "origem": "OUTROS"})
-            i += 2
+        ativos_qtd.extend(extrair_ativos_outros(item))
 
     # ── 3. Cross-reference: Ativo → 1º match → Componente → todos os Códigos ─
     

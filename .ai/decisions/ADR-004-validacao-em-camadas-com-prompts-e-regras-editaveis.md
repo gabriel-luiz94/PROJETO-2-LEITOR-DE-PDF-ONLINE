@@ -69,8 +69,9 @@ Alternativa 3. **Confirmado pelo usuário em 2026-09-30.**
 
 ## Evidência no código
 
-Ainda não implementado. Pontos de encaixe: `routers/ai_chat.py`, `routers/regras_leitor.py` (padrão de
-seed + histórico + validação de schema), `services/orcamento_calc.py:46-122` (formatos de ativo).
+Camada 1 implementada (TASK-011): `services/validacao_planilhas.py`, `routers/validacao.py`, `tests/`.
+Pontos de encaixe das demais: `routers/ai_chat.py`, `routers/regras_leitor.py` (padrão de seed +
+histórico + validação de schema), `services/orcamento_calc.py` (parsers extraídos).
 
 ## Data
 
@@ -80,4 +81,4 @@ seed + histórico + validação de schema), `services/orcamento_calc.py:46-122` 
 
 `PROPOSTA` · `ACEITA` · `SUPERADA POR ADR-YYY` · `DEPRECIADA`
 
-**Atual:** PROPOSTA (vira ACEITA quando a TASK-011 for concluída)
+**Atual:** ACEITA (2026-09-30, com a camada 1 implementada na TASK-011)

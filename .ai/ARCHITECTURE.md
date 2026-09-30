@@ -128,6 +128,7 @@
 | `obras.py` | `/api/obras` | CRUD de obras por usuário (Supabase com fallback SQLite) |
 | `projetos.py` | `/api/projetos` | Lista mesclada local+nuvem; cadastro só admin |
 | `ai_chat.py` | `/api/gemini` | Listagem de modelos e chat com Gemini/OpenAI, injetando `prompt_rede_eletrica.txt` e as regras aprendidas. Chave resolvida por `resolver_credencial()`: usuário > salva > padrão do ambiente (`GEMINI_API_KEY`/`GOOGLE_API_KEY`); rate-limit por usuário só com a chave padrão (TASK-009) |
+| `validacao.py` | `/api/validacao` | Validação de contrato das planilhas Cabos/Outros (`POST /planilhas`), sobre `services/validacao_planilhas.py` (TASK-011) |
 | `admin.py` | `/api/admin` | Usuários (CRUD, role, senha), tabela master (add/upload CSV/sync completo), audit log |
 | `health.py` | — | `/api/health`, `/api/backup/export`, `/api/health/sync-master` |
 | `update.py` | `/api/update` | `check` (público, consulta `configuracoes`) e `apply` (só desktop) |
@@ -248,6 +249,7 @@ DEMAIS ENTIDADES (obras, recs, projetos):
 | GET | `/api/gemini/models` | JWT | Modelos disponíveis |
 | POST | `/api/gemini/chat` | JWT | Chat com contexto da tabela |
 | GET/POST/PUT/DELETE | `/api/admin/*` | JWT + admin | Usuários, master, audit log |
+| POST | `/api/validacao/planilhas` | JWT | Achados da camada 1 (`erro`/`aviso`/`info`); `payload_calculo` opcional liga `C1-BASE` |
 | GET | `/api/health`, `/api/backup/export` | pública / JWT | Diagnóstico e backup (`ai_key_source` = origem da chave de IA: `salva`/`padrao`/`nenhuma`, nunca o valor) |
 | GET | `/api/update/check` | pública | Versão mais recente |
 | POST | `/api/update/apply` | JWT | Auto-update (só desktop) |
@@ -478,3 +480,7 @@ para cobertura de testes.
 
 Alterar uma regra de classificação exige alterar **todas** as cópias, senão a aba principal e a aba
 de resumo passam a discordar. Ver RULES.md, Regra 4.
+
+Também (TASK-011): a normalização do ativo da tabela **Cabos** (`CAA 2` → `CAA2`, `P 50` → `P50`, remoção
+de `/` e do `m` final) existe em `static/resumo.js` (`calcularQtdAtivos`, `extrairPrefixoEComprimentoCabo`)
+e em `services/validacao_planilhas.py` (`_tokens_cabo_tabela`). Mudou a regra no frontend → ajuste o validador.

@@ -125,10 +125,11 @@ TESTES            como a mudança será verificada
 
 ## Regra 7 — Testes
 
-⚠️ **O projeto não possui testes automatizados hoje** (ver STATE.md). Não existe framework de teste
-configurado, nem CI que rode testes.
+⚠️ **A cobertura de testes é mínima** (ver STATE.md): existe uma suíte `pytest` em `tests/`
+(`pip install -r requirements-dev.txt`; `pytest`) cobrindo a validação das planilhas e o parser de
+`orcamento_calc.py`. Não há CI que a rode, nem testes de frontend.
 
-Enquanto isso não mudar:
+Fora do que a suíte cobre:
 
 - Toda alteração relevante deve vir acompanhada de uma **verificação explícita** — o que foi
   executado e qual foi o resultado.

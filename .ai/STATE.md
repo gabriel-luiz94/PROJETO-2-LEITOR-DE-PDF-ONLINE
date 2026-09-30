@@ -85,6 +85,10 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 - [x] Interpretação da resposta como tabela `COMANDO/ID/AÇÃO/ATIVOS` aplicada às tabelas
 - [x] Ações de UI por JSON (`ordenar`, `filtrar`, `limpar_filtros`)
 - [x] Regras de aprendizado persistidas (`tabela regras`)
+- [x] Validação de contrato das planilhas Cabos e Outros (TASK-011, 2026-09-30): `POST
+      /api/validacao/planilhas` (formato, operação, quantidade, duplicidade e, sobre o payload de
+      cálculo, ativo ausente da base). Só backend — sem botão/painel ainda (TASK-014). Catálogo em
+      `.ai/VALIDACOES.md`.
 - [x] Chave de IA padrão do sistema (TASK-009, 2026-09-30): sem chave digitada, o chat usa
       `GEMINI_API_KEY`/`GOOGLE_API_KEY` (servidor: variável de ambiente; desktop: `.env` ao lado do
       `.exe`). Precedência usuário > salva > padrão; rate-limit por usuário só com a chave padrão;
@@ -142,8 +146,8 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [ ] Atualizar `.ai/CONTEXT.md` §7 (RN-01 a RN-05) e `.ai/ARCHITECTURE.md` para descrever o motor
       de regras do leitor (TASK-006) em vez da lógica fixa em código, agora obsoleta nesses
       documentos
-- [ ] Sistema de validação das planilhas Cabos/Outros em camadas (ADR-004, TASK-011 a TASK-015);
-      TASK-009 e TASK-010 concluídas. Catálogo em `.ai/VALIDACOES.md`
+- [ ] Sistema de validação das planilhas Cabos/Outros em camadas (ADR-004, TASK-012 a TASK-015);
+      TASK-009, TASK-010 e TASK-011 (camada 1) concluídas. Catálogo em `.ai/VALIDACOES.md`
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -303,7 +307,7 @@ arquivo em `.ai/tasks/`.
 
 ## Limitações atuais
 
-- **Sem testes automatizados.** Nenhum arquivo de teste, nenhum framework, nenhum CI de teste.
+- **Testes automatizados mínimos.** Só `tests/` (pytest): validação das planilhas e não-regressão do parser de `orcamento_calc.py`. Sem CI de teste e sem testes de frontend.
 - **Sem validação das regras técnicas do domínio.** As regras de engenharia em
   `prompt_rede_eletrica.txt` (poste de 10 m proibido em MT, CFU exige SUPL, trafo exige PR15 +
   PR220, mínimos de P50, estruturas tipo 3 não isoladas) são instruções ao modelo de linguagem —
@@ -335,21 +339,23 @@ Ver `.ai/decisions/`.
 
 ## Testes
 
-**Status: inexistentes.**
+**Status: mínimo (TASK-011, 2026-09-30).**
 
-- Arquivos de teste no repositório: **0**
-- Framework configurado: nenhum (`requirements.txt` não inclui pytest ou equivalente)
-- CI de testes: nenhum (os dois workflows só fazem deploy)
+- Suíte `pytest` em `tests/` (41 testes): `test_validacao_planilhas.py` (camada 1, `C1-BASE`,
+  paridade de tokenização e não-regressão de `processar_calculo`) e `test_rota_validacao.py`.
+- Dependências só de desenvolvimento: `requirements-dev.txt` (`pytest`, `httpx`); `pytest.ini` na raiz.
+- CI de testes: nenhum (os dois workflows só fazem deploy). Frontend: nenhum teste.
 
-Melhor ponto de partida, se o usuário quiser cobertura: `services/orcamento_calc.py` —
-função pura, sem I/O, sem dependências internas, concentrando as regras RN-03 a RN-10.
+Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a RN-10 de
+`services/orcamento_calc.py` além do que a TASK-011 já toca.
 
 ---
 
 ## Última atualização
 
 **Data:** 2026-09-30
-**Motivo:** TASK-009 (chave de IA padrão + correção do sentinela `SAVED_IN_BACKEND`) e TASK-010
-(catálogo de validações, prompts iniciais e semente das regras de domínio, sem ativar nenhuma).
-**Alterações de código:** `config.py`, `routers/ai_chat.py`, `routers/health.py`, `static/resumo.html`,
-`static/resumo.js`, `.env.example`, `README.md`. Novos: `.ai/VALIDACOES.md`, `data/validacoes/*`.
+**Motivo:** TASK-011 — camada 1 da validação das planilhas (contrato) + primeiros testes; ADR-004 aceita;
+decisões do usuário sobre as regras de domínio registradas em `.ai/VALIDACOES.md` (entram na TASK-013).
+**Alterações de código:** `services/orcamento_calc.py` (parsing extraído, comportamento idêntico),
+`services/validacao_planilhas.py`, `routers/validacao.py`, `models.py`, `app.py`. Novos: `tests/`,
+`pytest.ini`, `requirements-dev.txt`.

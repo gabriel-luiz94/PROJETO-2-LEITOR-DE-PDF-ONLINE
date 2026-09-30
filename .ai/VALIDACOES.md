@@ -26,23 +26,36 @@ tolerância abaixo é uma entrada errada que hoje vira número sem aviso — é 
 | Ativo vazio: linha ignorada (`continue`) | linha sem efeito |
 | Ativo sem correspondência na base: vai para `nao_encontrados` | só aparece após calcular |
 
-## Camada 1 — Contrato (código)
+## Camada 1 — Contrato (código) — IMPLEMENTADA (TASK-011)
+
+`services/validacao_planilhas.py` · `POST /api/validacao/planilhas` · testes em `tests/`.
+
+**Achado da TASK-011:** a tabela **Cabos** da tela usa `CAA 2 ABC 35 m` (o nome pode ter espaço) e o
+frontend normaliza `CAA 2` → `CAA2` (`resumo.js: calcularQtdAtivos`). O parser do backend
+(`extrair_ativo_cabo`) lê `parts[0]` e só serve ao **payload da Totalizadora** (`CAA2 1 35`). Por isso:
+Outros reutiliza o parser do backend (`tokenizar_outros`, extraído sem mudar o cálculo); Cabos tem leitor
+próprio que **espelha a normalização do frontend** (duplicação conhecida, ARCHITECTURE §11); e
+`C1-BASE` roda sobre o **payload após as regras de conversão** (ADR-003), não sobre a tabela crua,
+que daria falso positivo quando uma regra troca ou gera o ativo.
 
 | id | escopo | verifica | sev. | status |
 |---|---|---|---|---|
-| C1-CABO-FMT | cabos | 3 tokens `ATIVO FASE COMPRIMENTO`; o sufixo `m` é opcional para o parser | erro | DERIVADA DO CÓDIGO |
-| C1-CABO-NUM | cabos | FASE e COMPRIMENTO numéricos (aceita vírgula decimal) e > 0 | erro | DERIVADA DO CÓDIGO |
-| C1-CABO-PARTE | cabos | ativo em formato `<qtd>-<ativo>` na tabela Cabos | erro | DERIVADA DO CÓDIGO |
-| C1-OUT-FMT | outros | tokens no par `<qtd>-<ativo>`; DT/CV inicial sem qtd é aceito (vira `1-`) | erro | DERIVADA DO CÓDIGO |
-| C1-OUT-NUM | outros | quantidade numérica e > 0 | erro | DERIVADA DO CÓDIGO |
-| C1-OUT-ORFAO | outros | nenhum token sobrando sem par (seria descartado) | erro | DERIVADA DO CÓDIGO |
-| C1-OUT-CABO | outros | ativo terminando em `m` / formato de cabo na tabela Outros | erro | DERIVADA DO CÓDIGO |
-| C1-OP | ambas | operação ∈ `I, *I, R, *R, M, *M` (GLOSSARY › OPERAÇÃO) | erro | DERIVADA DO CÓDIGO |
-| C1-QTD-ZERO | ambas | quantidade zero/vazia (RN-17 tira do cálculo) | aviso | DERIVADA DO CÓDIGO |
-| C1-BASE | ambas | ativo resolve na base técnica pela cascata RN-06, respeitando `origem` e projeto | aviso | DERIVADA DO CÓDIGO |
-| C1-DUP | outros | mesmo ativo repetido na mesma linha (o prompt manda somar em vez de duplicar) | aviso | A CONFIRMAR |
+| C1-CABO-PARTE | cabos | ativo no formato `<qtd>-<ativo>` na tabela Cabos | erro | IMPLEMENTADA |
+| C1-CABO-NUM | cabos | com ≥ 2 tokens, o último (comprimento) é numérico (aceita vírgula) | erro | IMPLEMENTADA |
+| C1-OUT-ORFAO | outros | número ímpar de tokens: o último seria descartado no cálculo | erro | IMPLEMENTADA |
+| C1-OUT-NUM | outros | quantidade não numérica (o cálculo assumiria 1) | erro | IMPLEMENTADA |
+| C1-OUT-CABO | outros | ativo terminando em `<número> m` (formato de cabo) | erro | IMPLEMENTADA |
+| C1-OP | ambas | operação ∈ `I, *I, R, *R, M, *M` (vazio também é erro) | erro | IMPLEMENTADA |
+| C1-QTD-ZERO | ambas | comprimento/quantidade zero (RN-17 tira do cálculo) | aviso | IMPLEMENTADA |
+| C1-DUP | outros | mesmo ativo repetido na linha | aviso | IMPLEMENTADA (severidade confirmada) |
+| C1-BASE | payload | ativo não resolve na base técnica (cascata RN-06, com origem e projeto) | aviso | IMPLEMENTADA |
 
-Exemplos: `CAA 2 ABC 35 m` ok · `3-CFU` em Cabos → C1-CABO-PARTE · `CAA 2 35 m` em Outros → C1-OUT-ORFAO (o `m` seria descartado) · `3-IP RECAL` → C1-OUT-ORFAO.
+Não checado de propósito: valores válidos de FASE (não há lista confirmada), linha standalone de cabo
+(`P50` sozinho é válido, herda a fase — RN-04), e linha sem ativo (o cálculo a ignora).
+`C1-BASE` cobre só o "passo 5" da cascata (`nao_encontrados`); ativo achado com COMPONENTE vazio é
+descartado em silêncio pelo cálculo e não é detectado.
+
+Exemplos: `CAA 2 ABC 35 m` ok · `3-CFU` em Cabos → C1-CABO-PARTE · `CAA 2 35 m` em Outros → C1-OUT-CABO · `3-IP RECAL` → C1-OUT-ORFAO.
 
 ## Camada 2 — Regras de domínio (editáveis pelo admin)
 
@@ -65,8 +78,22 @@ As ambiguidades abaixo precisam de resposta do usuário antes de virar regra.
 | C2-POSTE-FMT | outros | poste no formato `DT…`/`CV…`, não `POSTE11`, `1-DT11/300`, `DT11` | erro | A CONFIRMAR | o parser aceita `DT11/300` sem `1-`; a forma `1-DT11/300` é proibida pelo prompt mas aceita pelo parser |
 | C2-BT-EXT | outros | extensão BT (SI): passante SI1/SI2, fim SI3, amarração SI4 | info | A CONFIRMAR | é regra de validação ou só orientação de geração? |
 
-Termos de domínio ainda sem definição confirmada (GLOSSARY): MT (média tensão), "descida", "poste
-associado à linha", "estrutura isolada". **Não presumir.**
+### Decisões do usuário (2026-09-30) — entram na TASK-013
+
+- **Poste em MT:** o poste é de MT se a linha de Outros tiver estrutura MT (U1–U4, N1–N4, T1–T3/TE,
+  R1–R4 e variantes) ou chave/trafo de MT.
+- **Tipo de trafo:** `TR1xx` monofásico · `TR2xx` bifásico (segue a regra do monofásico) · `TR3xx` trifásico.
+- **Duas descidas (dobra PR220):** no poste do trafo há `1-SI4` **ou** `2-SI3` → duas descidas. Só `1-SI3`
+  ou outra estrutura de BT → uma descida.
+- **Estruturas isoladas:** `U3, N3, R3, T3` e variantes (`U3C`, `N3IV`…).
+- **P50:** validar pelo **total da planilha** (P50 em metros na tabela Cabos, operação I, contra o exigido
+  por todos os trafos e PR15 de Outros, operação I). Um aviso único, sem vínculo a poste.
+- **Chave e elo fusível:** `CFU` e `CFUR` exigem `EF…` no mesmo poste (`CFA` fora).
+- **Poste `1-DT11/300`:** severidade **info** (o parser aceita). Duplicidade de ativo: **aviso**.
+
+Ainda em aberto: quais códigos contam como "outra estrutura MT" para a regra de estrutura isolada;
+se 3 ou mais `SI3` também contam como duas descidas; ordem de `SUPL` "antes da chave" (presença basta?).
+Termos ainda sem definição no GLOSSARY: "poste associado à linha".
 
 ## Camada 3 — IA (prompts salvos)
 

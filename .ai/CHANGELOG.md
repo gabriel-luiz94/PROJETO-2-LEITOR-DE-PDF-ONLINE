@@ -8,6 +8,20 @@
 
 ---
 
+## 2026-09-30 — TASK-011: camada 1 da validação das planilhas (primeiros testes do projeto)
+
+**Tipo:** nova funcionalidade (backend) + refatoração mínima · `.ai/tasks/TASK-011-30-09-2026.md`
+
+`POST /api/validacao/planilhas` valida o contrato de Cabos e Outros (formato, operação, quantidade,
+duplicidade e, opcionalmente, existência do ativo na base sobre o payload de cálculo). Para reaproveitar
+o parser sem duplicá-lo, `orcamento_calc.py` teve o parsing por linha extraído em
+`extrair_ativo_cabo`/`extrair_ativos_outros`/`tokenizar_outros` — saída do cálculo comprovadamente
+idêntica. **Achado:** a tabela Cabos da tela (`CAA 2 ABC 35 m`) e o payload de cálculo (`CAA2 1 35`) têm
+formatos diferentes; a validação de Cabos espelha a normalização do frontend (nova duplicação
+conhecida). `ADR-004` passa a ACEITA. Suíte `pytest` criada (`tests/`, dependências em `requirements-dev.txt`).
+
+---
+
 ## 2026-09-30 — TASK-009: chave de IA padrão do sistema
 
 **Tipo:** nova funcionalidade + correção (backend/frontend/config) · `.ai/tasks/TASK-009-30-09-2026.md`

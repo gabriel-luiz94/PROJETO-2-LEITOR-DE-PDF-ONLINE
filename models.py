@@ -39,6 +39,19 @@ class OrcamentoRequest(BaseModel):
     projeto: Optional[str] = None
 
 
+class PayloadCalculo(BaseModel):
+    cabos: List[Dict[str, Any]] = []
+    outros: List[Dict[str, Any]] = []
+
+
+class ValidacaoPlanilhasRequest(BaseModel):
+    cabos: List[Dict[str, Any]] = []
+    outros: List[Dict[str, Any]] = []
+    projeto: Optional[str] = None
+    # Payload de cálculo (Totalizadora, após as regras de conversão). Se enviado, também checa a base técnica.
+    payload_calculo: Optional[PayloadCalculo] = None
+
+
 class SalvarOrcamentoRequest(BaseModel):
     dados: List[Dict[str, Any]]
 
