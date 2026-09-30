@@ -265,11 +265,23 @@ Persistidas com a chave `regras_conversao_<projeto_codigo>` em `configuracoes` (
 ### RN-17 — Itens com quantidade zero ou vazia não vão para o cálculo
 📍 `resumo.js:1838-1840`
 
-### Regras de domínio que existem **apenas** no prompt da IA
-`prompt_rede_eletrica.txt` contém regras técnicas (poste de 10 m não pode ser usado em MT; CFU exige
-`1-SUPL`; trafo exige `1-PR15` e 2 ou 3 `PR220`; P50 mínimo de 2 m mono / 6 m tri + 1 m por PR15;
-estruturas `3` não podem existir sozinhas no poste; etc.). **Essas regras não são validadas por
-código** — são apenas instruções ao modelo de linguagem. Não assuma que o sistema as aplica.
+### RN-18 — Validação das planilhas Cabos e Outros (ADR-004, TASK-009 a TASK-015)
+Três camadas, da mais barata à mais cara; catálogo completo em `.ai/VALIDACOES.md`:
+1. **Contrato (código, não editável):** formato do ativo em cada tabela, operação, quantidade zero, ativo repetido e
+   ativo ausente da base técnica (esta sobre o payload já convertido pelas regras).
+2. **Regras de domínio (dados, editáveis pelo admin, por projeto):** as regras técnicas do
+   `prompt_rede_eletrica.txt` §5 (poste de 10 m em MT; CFU exige `1-SUPL` e EF; trafo exige PR15 e PR220, que
+   dobra com duas descidas; P50 total; estrutura isolada não fica sozinha; trafo com elo só com chave; estrutura SI
+   exige RA2). Valem para linhas `I`/`*I` e vêm **desligadas**: o admin liga uma a uma.
+3. **IA (prompts salvos, editáveis pelo admin):** revisão semântica e correção assistida. A IA só aponta e propõe;
+   **nada é aplicado sem aceite do usuário** e toda proposta é reconferida pela camada 1.
+Na tela: botão **Validar**, opção **Validar ao montar** (local, padrão Não) e diálogo "continuar mesmo assim?" quando há
+erro/aviso. A validação é um auxílio: falha da IA ou da própria validação não trava o orçamento.
+📍 `services/validacao_planilhas.py`, `regras_dominio.py`, `validacao_ia.py`, `correcao_ia.py`, `routers/validacao*.py`
+
+### Regras de domínio no prompt da IA do chat
+O `prompt_rede_eletrica.txt` continua sendo só instrução ao modelo do chat: **não é** onde as regras são executadas.
+A execução está na camada 2 acima, e só para as regras que o admin ligou.
 
 ---
 

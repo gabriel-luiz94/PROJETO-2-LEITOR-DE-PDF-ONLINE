@@ -328,10 +328,12 @@ arquivo em `.ai/tasks/`.
 ## Limitações atuais
 
 - **Testes automatizados mínimos.** Só `tests/` (pytest): validação das planilhas e não-regressão do parser de `orcamento_calc.py`. Sem CI de teste e sem testes de frontend.
-- **Sem validação das regras técnicas do domínio.** As regras de engenharia em
-  `prompt_rede_eletrica.txt` (poste de 10 m proibido em MT, CFU exige SUPL, trafo exige PR15 +
-  PR220, mínimos de P50, estruturas tipo 3 não isoladas) são instruções ao modelo de linguagem —
-  **o sistema não as verifica**.
+- **Validação das regras técnicas do domínio só sob demanda e só com regra ligada.** As regras de engenharia do
+  `prompt_rede_eletrica.txt` (poste de 10 m em MT, CFU/SUPL, trafo/PR15/PR220, P50, estruturas isoladas, elo,
+  SI/RA2) agora são verificáveis (ADR-004, TASK-013), mas vêm **desligadas** na semente e só rodam pelo botão
+  Validar ou com "Validar ao montar" = Sim. Cada regra precisa ser ligada pelo admin depois de testada com dados
+  reais; enquanto estiver desligada, o sistema **não** a aplica. O `prompt_rede_eletrica.txt` continua sendo
+  apenas instrução ao modelo do chat.
 - **Estado entre telas depende de `localStorage`.** Limpar o armazenamento do navegador perde o
   trabalho não salvo; não há recuperação.
 - **Frontend sem build e sem modularização.** `resumo.js` tem 3.481 linhas e `resultado_orcamento.html`

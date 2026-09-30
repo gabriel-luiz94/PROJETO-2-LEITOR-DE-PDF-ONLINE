@@ -411,3 +411,27 @@ delimitador `;`, cabeçalho `ATIVO;DESC ATIVO;COMPONENTE;PROJETO;MDO;CODIGO;DESC
 em transação que apaga e reinsere tudo.
 **Onde é utilizado:** `sync_service.sync_tabela_master`, disparado por `GET /api/orcamento/dados` e
 `POST /api/health/sync-master`.
+
+### CAMADAS DE VALIDAÇÃO (contrato · domínio · IA)
+**Definição:** as três formas de checar as planilhas Cabos e Outros (ADR-004). *Contrato* = formatos que o cálculo lê
+(código, não editável). *Domínio* = regras técnicas de engenharia como dados editáveis pelo admin, desligadas até serem
+ligadas. *IA* = revisão e correção com prompts salvos. Catálogo em `.ai/VALIDACOES.md`.
+
+### ACHADO
+**Definição:** um problema apontado pela validação: linha (`CABOS-<i>`, `OUTROS-<i>`, `GERAL` ou da Totalizadora),
+regra, severidade (`erro`/`aviso`/`info`) e mensagem. `info` sozinho não interrompe "Montar Orçamento".
+
+### DESCIDA
+**Definição (usuário, 2026-09-30):** ramal de baixa tensão saindo do poste do trafo. **Duas descidas** = o poste tem
+`1-SI4` ou `SI3` com quantidade ≥ 2 (dobra o mínimo de `PR220`); uma descida = `1-SI3` ou outra estrutura de BT.
+
+### ESTRUTURA ISOLADA
+**Definição (usuário, 2026-09-30):** `U3`, `N3`, `R3`, `T3` e variantes (`U3C`, `N3IV`…). Não fica sozinha no poste:
+exige outra estrutura MT (mesmo isolada) ou trafo.
+
+### POSTE EM MÉDIA TENSÃO
+**Definição (usuário, 2026-09-30):** linha de Outros com estrutura MT (`U1–U4`, `N1–N4`, `T1–T3/TE`, `R1–R4` e
+variantes) ou chave/trafo de MT. Base da regra "poste de 10 m não pode em MT".
+
+### TIPO DE TRAFO PELO CÓDIGO
+**Definição (usuário, 2026-09-30):** `TR1xx` monofásico, `TR2xx` bifásico (segue a regra do monofásico), `TR3xx` trifásico.

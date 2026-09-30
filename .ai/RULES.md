@@ -37,8 +37,9 @@ Quando uma regra de negócio for ambígua:
 Isto vale especialmente para:
 
 - termos marcados como `[DEFINIÇÃO NECESSITA CONFIRMAÇÃO DO USUÁRIO]` no GLOSSARY.md;
-- as regras técnicas que existem apenas em `prompt_rede_eletrica.txt` (elas **não são validadas por
-  código** — não presuma que o sistema as aplica, nem as implemente sem pedido explícito);
+- as regras técnicas do `prompt_rede_eletrica.txt`: só as do catálogo `.ai/VALIDACOES.md` estão implementadas
+  (camada 2, desligadas até o admin ligar). Qualquer outra **não é validada por código** — não presuma que o
+  sistema a aplica, nem a implemente sem pedido explícito e sem definição do usuário;
 - códigos de ativo cujo significado não está no código nem no seed.
 
 ---
