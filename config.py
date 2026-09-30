@@ -47,6 +47,9 @@ def _get_resource_path(relative: str) -> str:
 # ── Caminhos principais ─────────────────────────────────────────────────────
 
 BASE_DIR = _get_base_dir()
+# No .exe o load_dotenv() acima não enxerga a pasta do executável; carrega o .env ao lado dele
+# (não sobrescreve variáveis já definidas, então em dev nada muda).
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 DB_PATH = os.path.join(BASE_DIR, "banco_resumo.db")
 PROMPT_PATH = _get_resource_path("prompt_rede_eletrica.txt")
 SEED_CSV_PATH = _get_resource_path(os.path.join("data", "tabela_seed.csv"))

@@ -85,6 +85,11 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 - [x] Interpretação da resposta como tabela `COMANDO/ID/AÇÃO/ATIVOS` aplicada às tabelas
 - [x] Ações de UI por JSON (`ordenar`, `filtrar`, `limpar_filtros`)
 - [x] Regras de aprendizado persistidas (`tabela regras`)
+- [x] Chave de IA padrão do sistema (TASK-009, 2026-09-30): sem chave digitada, o chat usa
+      `GEMINI_API_KEY`/`GOOGLE_API_KEY` (servidor: variável de ambiente; desktop: `.env` ao lado do
+      `.exe`). Precedência usuário > salva > padrão; rate-limit por usuário só com a chave padrão;
+      `/api/health` expõe `ai_key_source`. Corrigido o bug em que o sentinela `SAVED_IN_BACKEND`
+      impedia o uso da variável de ambiente.
 
 ### Interface
 - [x] Tabelas Cabos e Outros com undo/redo (80 níveis), autocomplete e filtros estilo Excel
@@ -137,6 +142,8 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [ ] Atualizar `.ai/CONTEXT.md` §7 (RN-01 a RN-05) e `.ai/ARCHITECTURE.md` para descrever o motor
       de regras do leitor (TASK-006) em vez da lógica fixa em código, agora obsoleta nesses
       documentos
+- [ ] Sistema de validação das planilhas Cabos/Outros em camadas (ADR-004, TASK-011 a TASK-015);
+      TASK-009 e TASK-010 concluídas. Catálogo em `.ai/VALIDACOES.md`
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -248,6 +255,13 @@ arquivo em `.ai/tasks/`.
 17. `database.py:224-225` — sem `ADMIN_EMAIL`/`ADMIN_PASSWORD` no ambiente, o admin inicial é criado
     como `admin@local.com` / `admin123`.
 
+### IA (achados na TASK-009, não corrigidos)
+26. A chave digitada pelo usuário é salva em `configuracoes` (global, sem `user_id`, texto puro): no
+    servidor, a chave de um usuário passa a valer para os demais.
+27. `POST /api/gemini/chat` só implementa `provider="gemini"`; `openai` responde "não suportado"
+    embora `GET /api/gemini/models` liste modelos da OpenAI.
+28. O rate-limit do chat é em memória e por processo.
+
 ### Qualidade de código
 18. **Lógica de negócio duplicada** entre `static/script.js` e `static/resumo.js`
     (`isGray`, `processAtivoFormula`, cascata de classificação). Alterar só um lado faz as duas abas
@@ -334,10 +348,8 @@ função pura, sem I/O, sem dependências internas, concentrando as regras RN-03
 
 ## Última atualização
 
-**Data:** 2026-09-29
-**Motivo:** TASK-007-29-09-2026 — regras do leitor (TASK-006) ganham edição pela UI, restrita a
-usuários `admin`: formulário estruturado por regra, drag-and-drop (reescreve o campo `ordem`, que
-é o que o motor realmente usa para ordenar), painel de teste no navegador contra o rascunho em
-edição, validação de schema no backend, histórico de versões com reversão.
-**Alterações de código:** `database.py`, `routers/regras_leitor.py`, `scripts/schema_supabase.sql`,
-`static/index.html`, `static/script.js`.
+**Data:** 2026-09-30
+**Motivo:** TASK-009 (chave de IA padrão + correção do sentinela `SAVED_IN_BACKEND`) e TASK-010
+(catálogo de validações, prompts iniciais e semente das regras de domínio, sem ativar nenhuma).
+**Alterações de código:** `config.py`, `routers/ai_chat.py`, `routers/health.py`, `static/resumo.html`,
+`static/resumo.js`, `.env.example`, `README.md`. Novos: `.ai/VALIDACOES.md`, `data/validacoes/*`.

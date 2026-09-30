@@ -14,6 +14,7 @@ Antes de modificar qualquer código, consulte nesta ordem:
 3. `.ai/STATE.md` — o que está pronto, o que está quebrado, o que é limitação conhecida
 4. `.ai/ARCHITECTURE.md` — módulos, fluxo, banco, API, dependências
 5. `.ai/GLOSSARY.md` — termos de domínio
+6. `.ai/VALIDACOES.md` — catálogo das validações das planilhas (só ao mexer em validação; ADR-004)
 
 Depois disso, leia os arquivos específicos da tarefa. **Não leia o projeto inteiro** — a
 documentação existe justamente para evitar isso.

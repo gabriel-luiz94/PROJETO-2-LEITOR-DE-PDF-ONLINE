@@ -8,6 +8,29 @@
 
 ---
 
+## 2026-09-30 — TASK-009: chave de IA padrão do sistema
+
+**Tipo:** nova funcionalidade + correção (backend/frontend/config) · `.ai/tasks/TASK-009-30-09-2026.md`
+
+O chat de IA passa a funcionar sem o usuário digitar chave. `resolver_credencial()` define a
+precedência **usuário > salva > padrão** (`GEMINI_API_KEY`/`GOOGLE_API_KEY`). Corrige um bug: a UI
+enviava o texto `SAVED_IN_BACKEND` quando o campo estava vazio, e por ser "verdadeiro" em Python ele
+impedia que a variável de ambiente fosse consultada — resultado 401 mesmo com chave no servidor.
+No desktop, `config.py` carrega o `.env` ao lado do `.exe`. Rate-limit por usuário só com a chave
+padrão. `/api/health` ganha `ai_key_source`. Contratos da Regra 5: nenhum alterado.
+
+## 2026-09-30 — TASK-010 / ADR-004: base do sistema de validação das planilhas
+
+**Tipo:** documentação e sementes (sem lógica) · `.ai/tasks/TASK-010-30-09-2026.md`
+
+Decisão de validar Cabos e Outros em três camadas (contrato em código, regras de domínio editáveis
+pelo admin, IA com prompts salvos editáveis) — `ADR-004` (PROPOSTA). Criados o catálogo
+`.ai/VALIDACOES.md`, os prompts iniciais em `data/validacoes/` e a semente das regras de domínio,
+todas inativas até confirmação. `prompt_rede_eletrica.txt` não foi alterado. Achado documentado: o
+parser de `orcamento_calc.py` assume valores e descarta tokens em silêncio.
+
+---
+
 ## 2026-09-29 — Correção: regra de CERCA ("FIOS") sempre saía com operação R quando a cor era cinza
 
 **Tipo:** correção de dado (seed) · fora do escopo de uma TASK, reportado pelo usuário via edição

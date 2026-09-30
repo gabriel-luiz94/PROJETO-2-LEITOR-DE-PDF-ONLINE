@@ -1276,12 +1276,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     inputApikey.addEventListener('blur', fetchModels);
 
+    // Informa de onde virá a chave quando o usuário não digita nenhuma (nunca mostra o valor).
+    async function atualizarStatusChave() {
+        const el = document.getElementById('apikey-status');
+        if (!el) return;
+        const textos = {
+            salva: 'Sem chave digitada: será usada a chave salva neste servidor.',
+            padrao: 'Sem chave digitada: será usada a chave padrão do sistema (com limite de mensagens por minuto).',
+            nenhuma: 'Nenhuma chave disponível: informe a sua para usar a IA.'
+        };
+        try {
+            const resp = await fetch('/api/health');
+            const info = resp.ok ? await resp.json() : {};
+            el.textContent = inputApikey.value.trim()
+                ? 'Sua chave será usada e salva.'
+                : (textos[info.ai_key_source] || '');
+        } catch (e) {
+            el.textContent = '';
+        }
+    }
+    inputApikey.addEventListener('input', atualizarStatusChave);
+
     const btnConfigApi = document.getElementById('btn-config-api');
     if (btnConfigApi) {
         btnConfigApi.addEventListener('click', () => {
             inputApikey.value = localStorage.getItem('gemini_api_key') || '';
             inputModel.value = localStorage.getItem('gemini_model') || '';
             fetchModels();
+            atualizarStatusChave();
             modalApikey.classList.remove('hidden');
         });
     }

@@ -127,7 +127,7 @@
 | `recs.py` | — | `/api/recs` e `/api/rec/*`: histórico de RECs com preservação de REC de terceiros |
 | `obras.py` | `/api/obras` | CRUD de obras por usuário (Supabase com fallback SQLite) |
 | `projetos.py` | `/api/projetos` | Lista mesclada local+nuvem; cadastro só admin |
-| `ai_chat.py` | `/api/gemini` | Listagem de modelos e chat com Gemini/OpenAI, injetando `prompt_rede_eletrica.txt` e as regras aprendidas |
+| `ai_chat.py` | `/api/gemini` | Listagem de modelos e chat com Gemini/OpenAI, injetando `prompt_rede_eletrica.txt` e as regras aprendidas. Chave resolvida por `resolver_credencial()`: usuário > salva > padrão do ambiente (`GEMINI_API_KEY`/`GOOGLE_API_KEY`); rate-limit por usuário só com a chave padrão (TASK-009) |
 | `admin.py` | `/api/admin` | Usuários (CRUD, role, senha), tabela master (add/upload CSV/sync completo), audit log |
 | `health.py` | — | `/api/health`, `/api/backup/export`, `/api/health/sync-master` |
 | `update.py` | `/api/update` | `check` (público, consulta `configuracoes`) e `apply` (só desktop) |
@@ -248,7 +248,7 @@ DEMAIS ENTIDADES (obras, recs, projetos):
 | GET | `/api/gemini/models` | JWT | Modelos disponíveis |
 | POST | `/api/gemini/chat` | JWT | Chat com contexto da tabela |
 | GET/POST/PUT/DELETE | `/api/admin/*` | JWT + admin | Usuários, master, audit log |
-| GET | `/api/health`, `/api/backup/export` | pública / JWT | Diagnóstico e backup |
+| GET | `/api/health`, `/api/backup/export` | pública / JWT | Diagnóstico e backup (`ai_key_source` = origem da chave de IA: `salva`/`padrao`/`nenhuma`, nunca o valor) |
 | GET | `/api/update/check` | pública | Versão mais recente |
 | POST | `/api/update/apply` | JWT | Auto-update (só desktop) |
 

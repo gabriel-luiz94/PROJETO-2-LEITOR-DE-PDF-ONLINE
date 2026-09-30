@@ -45,7 +45,8 @@ Alternativa 3. **Confirmado pelo usuário em 2026-09-30.**
    arquivo do repositório. Recebem os achados das camadas 1 e 2 como entrada e devolvem JSON de schema
    fixo. Correções são **propostas** (diff por linha), aceitas pelo usuário, passando pelo undo/redo.
 4. **Gatilho:** botão sob demanda + opção (radio) "validação automática ao montar orçamento",
-   preferência desligada por padrão.
+   preferência local (`localStorage`), desligada por padrão. Com achados, pergunta "continuar mesmo
+   assim?"; se o usuário recusar, entra o fluxo de correção.
 5. **Chave de IA padrão:** variável de ambiente no servidor; no desktop, lida de `.env` ao lado do `.exe`.
 
 ## Consequências
