@@ -582,6 +582,18 @@
                         <button class="btn-primary" id="btn-montar-orcamento" style="background-color: #238636;">
                             Montar Orçamento
                         </button>
+                        <button class="btn-secondary" id="btn-validar" title="Verificar as planilhas Cabos e Outros (contrato, regras de domínio e IA)">
+                            Validar
+                        </button>
+                        <div class="view-toggle" title="Quando ligado, valida as planilhas antes de montar o orçamento. Preferência salva só neste navegador." style="display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-default); font-size: 0.8rem; color: var(--text-secondary);">
+                            <span>Validar ao montar:</span>
+                            <label style="display:flex; align-items:center; gap:4px; padding: 4px; cursor: pointer;">
+                                <input type="radio" name="validacao_auto" value="nao" checked> Não
+                            </label>
+                            <label style="display:flex; align-items:center; gap:4px; padding: 4px; cursor: pointer;">
+                                <input type="radio" name="validacao_auto" value="sim"> Sim
+                            </label>
+                        </div>
                         <div class="view-toggle" style="display: flex; background: rgba(255,255,255,0.05); padding: 4px; border-radius: 6px; border: 1px solid var(--border-default);">
                             <label style="display:flex; align-items:center; gap:5px; padding: 4px 8px; cursor: pointer; font-size: 0.8rem; color: var(--text-primary);">
                                 <input type="radio" name="view_mode" value="padrao" checked onchange="toggleViewMode()"> Padrão
@@ -645,7 +657,8 @@
                 <!-- Seção Gemini -->
                 <div id="section-gemini">
                     <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">GEMINI API KEY <span style="color:#3fb950;font-size:0.7rem;">(gratuita em aistudio.google.com)</span></p>
-                    <input type="password" id="input-apikey" placeholder="AIzaSy..." class="modal-input" style="margin-bottom:10px;">
+                    <input type="password" id="input-apikey" placeholder="AIzaSy... (opcional)" class="modal-input" style="margin-bottom:4px;">
+                    <p id="apikey-status" style="font-size:0.7rem;color:#8b949e;margin-bottom:10px;"></p>
                     <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">MODELO (deixe Automático para usar gemini-3.1-flash-lite)</p>
                     <select id="input-model" class="modal-input">
                         <option value="">Automático</option>
@@ -656,6 +669,27 @@
                     <button class="btn-secondary" onclick="document.getElementById('modal-apikey').classList.add('hidden')">Cancelar</button>
                     <button class="btn-primary" id="btn-save-apikey">Salvar</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Painel de validação das planilhas (TASK-014) -->
+        <div id="modal-validacao" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 760px; width: 92%; max-height: 85vh; display: flex; flex-direction: column;">
+                <h3 id="validacao-titulo" style="margin-bottom: 6px;">Validação das planilhas</h3>
+                <p id="validacao-resumo" style="font-size: 0.8rem; color: #8b949e; margin-bottom: 8px;"></p>
+                <div id="validacao-aviso" style="display:none; font-size: 0.8rem; color: #d29922; margin-bottom: 8px;"></div>
+                <div id="validacao-lista" style="overflow: auto; flex: 1; font-size: 0.85rem;"></div>
+                <div class="modal-actions" id="validacao-acoes" style="margin-top: 14px;"></div>
+            </div>
+        </div>
+
+        <!-- Correção assistida por IA (TASK-015): propostas com antes/depois, aceite por linha -->
+        <div id="modal-correcao" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 760px; width: 92%; max-height: 85vh; display: flex; flex-direction: column;">
+                <h3 style="margin-bottom: 6px;">Correções propostas pela IA</h3>
+                <p id="correcao-resumo" style="font-size: 0.8rem; color: #8b949e; margin-bottom: 8px;">Nada é alterado sem o seu aceite. Aplicar todas de uma vez pode ser desfeito com Ctrl+Z.</p>
+                <div id="correcao-lista" style="overflow: auto; flex: 1; font-size: 0.85rem;"></div>
+                <div class="modal-actions" id="correcao-acoes" style="margin-top: 14px;"></div>
             </div>
         </div>
 

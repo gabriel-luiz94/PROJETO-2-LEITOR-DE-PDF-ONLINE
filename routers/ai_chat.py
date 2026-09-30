@@ -4,6 +4,9 @@ routers/ai_chat.py — Integração com Gemini e OpenAI.
 import os
 import re
 import json
+import time
+import threading
+from collections import defaultdict, deque
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from database import get_connection
@@ -13,25 +16,79 @@ from routers.regras import get_regras
 
 router = APIRouter(prefix="/api/gemini", tags=["ai"])
 
+# O frontend envia este texto no header quando o usuário não digitou chave. Ele é "verdadeiro"
+# em Python, então precisa ser descartado explicitamente — senão `header or env` nunca chega
+# na chave padrão do ambiente.
+SENTINELA_CHAVE = "SAVED_IN_BACKEND"
+
+# Limite por usuário só se aplica quando a chave usada é a padrão do sistema (cota compartilhada).
+# Em memória e por processo: suficiente para conter abuso, não é contabilidade exata.
+RATE_LIMIT_POR_MINUTO = int(os.getenv("AI_RATE_LIMIT_POR_MINUTO", "20") or "20")
+_rate_lock = threading.Lock()
+_rate_hits: dict = defaultdict(deque)
+
+
+def _ler_configuracao(chave: str, padrao=None):
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT valor FROM configuracoes WHERE chave = ?", (chave,)).fetchone()
+    finally:
+        conn.close()
+    return row[0] if row else padrao
+
+
+def _chave_padrao() -> str:
+    return (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
+
+
+def resolver_credencial(header_key: str | None, saved_key: str | None):
+    """Devolve (chave, origem). Precedência: usuário > salva > padrão do ambiente.
+
+    origem: "usuario" | "salva" | "padrao" | "nenhuma".
+    """
+    chave = (header_key or "").strip()
+    if chave and chave != SENTINELA_CHAVE:
+        return chave, "usuario"
+    if saved_key:
+        return saved_key, "salva"
+    padrao = _chave_padrao()
+    if padrao:
+        return padrao, "padrao"
+    return None, "nenhuma"
+
+
+def origem_chave_ativa() -> str:
+    """Origem da chave que seria usada sem header (diagnóstico; nunca expõe o valor)."""
+    return resolver_credencial(None, _ler_configuracao("gemini_api_key"))[1]
+
+
+def _checar_rate_limit(request: Request):
+    user = getattr(request.state, "user", None) or {}
+    ident = user.get("email") or user.get("sub") or (request.client.host if request.client else "anon")
+    agora = time.monotonic()
+    with _rate_lock:
+        janela = _rate_hits[ident]
+        while janela and agora - janela[0] > 60:
+            janela.popleft()
+        if len(janela) >= RATE_LIMIT_POR_MINUTO:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Limite de {RATE_LIMIT_POR_MINUTO} mensagens por minuto atingido com a chave padrão. "
+                       "Aguarde um instante ou informe sua própria chave.",
+            )
+        janela.append(agora)
+
 
 @router.get("/models")
 def get_gemini_models(request: Request):
-    api_key = request.headers.get("X-Gemini-Key") or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     provider = request.headers.get("X-Provider", "gemini")
     openai_base_url = request.headers.get("X-OpenAI-Base-URL", "")
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT valor FROM configuracoes WHERE chave = 'gemini_api_key'")
-    row = cursor.fetchone()
-    saved_key = row[0] if row else None
-    conn.close()
-
-    if not api_key or api_key == "SAVED_IN_BACKEND":
-        if saved_key:
-            api_key = saved_key
-        else:
-            raise HTTPException(status_code=401, detail="API Key não encontrada.")
+    api_key, _origem = resolver_credencial(
+        request.headers.get("X-Gemini-Key"), _ler_configuracao("gemini_api_key")
+    )
+    if not api_key:
+        raise HTTPException(status_code=401, detail="API Key não encontrada.")
 
     if provider == "openai":
         try:
@@ -74,38 +131,28 @@ def get_gemini_models(request: Request):
 
 @router.post("/chat")
 async def gemini_chat(req: ChatRequest, request: Request):
-    api_key = request.headers.get("X-Gemini-Key") or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    header_key = request.headers.get("X-Gemini-Key")
     custom_model = request.headers.get("X-Gemini-Model")
     provider = req.provider or "gemini"
     openai_base_url = req.openai_base_url or ""
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT valor FROM configuracoes WHERE chave = 'gemini_api_key'")
-    row = cursor.fetchone()
-    saved_key = row[0] if row else None
-    cursor.execute("SELECT valor FROM configuracoes WHERE chave = 'gemini_model'")
-    row_model = cursor.fetchone()
-    saved_model = row_model[0] if row_model else None
-    cursor.execute("SELECT valor FROM configuracoes WHERE chave = 'ai_provider'")
-    row_prov = cursor.fetchone()
-    saved_provider = row_prov[0] if row_prov else "gemini"
-    cursor.execute("SELECT valor FROM configuracoes WHERE chave = 'openai_base_url'")
-    row_base = cursor.fetchone()
-    saved_base_url = row_base[0] if row_base else ""
+    saved_key = _ler_configuracao("gemini_api_key")
+    saved_model = _ler_configuracao("gemini_model")
+    saved_provider = _ler_configuracao("ai_provider", "gemini")
+    saved_base_url = _ler_configuracao("openai_base_url", "")
 
-    # Só salva se não estiver em branco E não for "SAVED_IN_BACKEND"
-    # No futuro, se removermos api keys locais (migrando pro Supabase), adaptaremos aqui
-    if api_key and api_key != "SAVED_IN_BACKEND":
+    api_key, origem_chave = resolver_credencial(header_key, saved_key)
+    if not api_key:
+        conn.close()
+        raise HTTPException(status_code=401, detail="API Key não fornecida, não salva e sem chave padrão do sistema.")
+    # Só a chave digitada pelo usuário é persistida; a padrão vem sempre do ambiente.
+    if origem_chave == "usuario":
         cursor.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES ('gemini_api_key', ?)", (api_key,))
         conn.commit()
-    elif saved_key:
-        api_key = saved_key
-    else:
-        conn.close()
-        raise HTTPException(status_code=401, detail="API Key não fornecida ou não salva internamente.")
 
-    if custom_model == "SAVED_IN_BACKEND":
+    if custom_model == SENTINELA_CHAVE:
         custom_model = saved_model
     elif custom_model is not None:
         cursor.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES ('gemini_model', ?)", (custom_model,))
@@ -129,6 +176,9 @@ async def gemini_chat(req: ChatRequest, request: Request):
         op = "R" if acao.startswith("rem") or acao in ["tira", "excluir"] else "I"
         fake_json = {"outros": [{"ativo": f"{qtd}-{ativo}", "operacao": op}]}
         return PlainTextResponse(f"*(Fast-Path)*\n```json\n{json.dumps(fake_json, indent=2)}\n```")
+
+    if origem_chave == "padrao":
+        _checar_rate_limit(request)
 
     prompt_lower = req.prompt.lower()
     palavras_contexto = [

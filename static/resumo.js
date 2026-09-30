@@ -1276,12 +1276,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     inputApikey.addEventListener('blur', fetchModels);
 
+    // Informa de onde virá a chave quando o usuário não digita nenhuma (nunca mostra o valor).
+    async function atualizarStatusChave() {
+        const el = document.getElementById('apikey-status');
+        if (!el) return;
+        const textos = {
+            salva: 'Sem chave digitada: será usada a chave salva neste servidor.',
+            padrao: 'Sem chave digitada: será usada a chave padrão do sistema (com limite de mensagens por minuto).',
+            nenhuma: 'Nenhuma chave disponível: informe a sua para usar a IA.'
+        };
+        try {
+            const resp = await fetch('/api/health');
+            const info = resp.ok ? await resp.json() : {};
+            el.textContent = inputApikey.value.trim()
+                ? 'Sua chave será usada e salva.'
+                : (textos[info.ai_key_source] || '');
+        } catch (e) {
+            el.textContent = '';
+        }
+    }
+    inputApikey.addEventListener('input', atualizarStatusChave);
+
     const btnConfigApi = document.getElementById('btn-config-api');
     if (btnConfigApi) {
         btnConfigApi.addEventListener('click', () => {
             inputApikey.value = localStorage.getItem('gemini_api_key') || '';
             inputModel.value = localStorage.getItem('gemini_model') || '';
             fetchModels();
+            atualizarStatusChave();
             modalApikey.classList.remove('hidden');
         });
     }
@@ -1770,6 +1792,468 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    /**
+     * Payload de cálculo do orçamento (o mesmo que "Montar Orçamento" grava em orcamentoPayload):
+     * sincroniza a Totalizadora no modo padrão e a converte para os formatos que o backend lê.
+     * Extraída do handler do botão (TASK-014) para a validação usar exatamente o mesmo payload.
+     */
+    async function obterPayloadCalculo() {
+        let payloadCabos = [];
+        let payloadOutros = [];
+
+        // Se estivermos no modo padrão (Cabos e Postes), atualiza a totalizadora silenciosamente antes
+        const radioPadrao = document.querySelector('input[name="view_mode"][value="padrao"]');
+        if (radioPadrao && radioPadrao.checked) {
+            await syncTotalizadora(false);
+        }
+        
+        // Agora, INVARIAVELMENTE, constrói o payload a partir da Totalizadora
+        tableStates.totalizadora.data.forEach(item => {
+            if (!item) return;
+            
+            let qStr = item.qtd;
+            if (qStr === '' || qStr === null || qStr === undefined || parseFloat(qStr) === 0) {
+                return; // Ignora itens com quantidade vazia ou zerada no cálculo do orçamento
+            }
+
+            let operacao = item.operacao || 'I';
+            
+            // Reconstruir o campo "ativo"
+            let ativoFinal = item.ativo;
+            
+            if (typeof qStr === 'number' && qStr < 0) {
+                qStr = '*' + Math.abs(qStr);
+            } else if (typeof qStr === 'string' && qStr.startsWith('-')) {
+                qStr = '*' + qStr.substring(1);
+            }
+
+            if (item.origem === 'CABOS') {
+                // Backend espera: [Nome] [Fases] [Comprimento]. Enviamos o nome e a qtd (comprimento)
+                ativoFinal = `${item.ativo} 1 ${item.qtd}`; 
+            } else {
+                // Ex: 4-TERRA3 ou *1-TERRA3 para negativos
+                ativoFinal = `${qStr}-${item.ativo}`;
+            }
+
+            const obj = {
+                entidade: item.obs || '0',
+                operacao: operacao,
+                ativo: ativoFinal
+            };
+
+            if (item.origem === 'CABOS') {
+                payloadCabos.push(obj);
+            } else {
+                payloadOutros.push(obj);
+            }
+        });
+
+        return { cabos: payloadCabos, outros: payloadOutros };
+    }
+
+    /* ═══════════════════════════════════════
+       VALIDAÇÃO DAS PLANILHAS (TASK-014)
+       Camadas 1 e 2 (contrato e regras de domínio) vêm de /api/validacao/planilhas e nunca dependem da
+       IA; a camada 3 (/api/validacao/ia) é opcional e, se falhar, só vira um aviso no painel.
+    ═══════════════════════════════════════ */
+    const VALIDACAO_AUTO_CHAVE = 'validacao_auto';
+    const ROTULO_SEVERIDADE = { erro: 'Erro', aviso: 'Aviso', info: 'Info' };
+    const COR_SEVERIDADE = { erro: '#f85149', aviso: '#d29922', info: '#58a6ff' };
+    const ORDEM_SEVERIDADE = { erro: 0, aviso: 1, info: 2 };
+    let ultimoPayloadValidacao = { cabos: [], outros: [] };
+
+    function validacaoAutomaticaLigada() {
+        try { return localStorage.getItem(VALIDACAO_AUTO_CHAVE) === 'sim'; } catch (e) { return false; }
+    }
+
+    document.querySelectorAll('input[name="validacao_auto"]').forEach(radio => {
+        radio.checked = radio.value === (validacaoAutomaticaLigada() ? 'sim' : 'nao');
+        radio.addEventListener('change', () => {
+            try { localStorage.setItem(VALIDACAO_AUTO_CHAVE, radio.value); } catch (e) { /* sem storage: vale só nesta sessão */ }
+        });
+    });
+
+    function linhasParaValidacao(tabela, prefixo) {
+        const linhas = [];
+        tableStates[tabela].data.forEach((r, i) => {
+            if (r) linhas.push({ id: `${prefixo}-${i}`, operacao: r.operacao || '', ativo: r.ativo || '' });
+        });
+        return linhas;
+    }
+
+    function cabecalhoIA() {
+        return {
+            'Content-Type': 'application/json',
+            'X-Gemini-Key': localStorage.getItem('gemini_api_key') || 'SAVED_IN_BACKEND'
+        };
+    }
+
+    async function lerDetalhe(resp) {
+        try { const j = await resp.json(); return typeof j.detail === 'string' ? j.detail : `HTTP ${resp.status}`; }
+        catch (e) { return `HTTP ${resp.status}`; }
+    }
+
+    /** Roda camadas 1-2 e depois a IA. Devolve { achados, ia, falhou }; `falhou` = as camadas 1-2 não puderam rodar. */
+    async function executarValidacao() {
+        const cabos = linhasParaValidacao('cabos', 'CABOS');
+        const outros = linhasParaValidacao('outros', 'OUTROS');
+        const selectProj = document.getElementById('select-projeto');
+        const projeto = selectProj ? selectProj.value : '';
+        const projetoCodigo = selectProj && selectProj.selectedIndex >= 0 ? (selectProj.options[selectProj.selectedIndex].dataset.codigo || '') : '';
+
+        // Payload da Totalizadora (após as regras de conversão) só para checar o ativo na base técnica.
+        // Ids próprios para não colidirem com CABOS-<i>/OUTROS-<i> das tabelas.
+        let payloadCalculo = null;
+        try {
+            const p = await obterPayloadCalculo();
+            payloadCalculo = {
+                cabos: p.cabos.map((o, i) => ({ ...o, id: `TOTALIZADORA-CABOS-${i}` })),
+                outros: p.outros.map((o, i) => ({ ...o, id: `TOTALIZADORA-OUTROS-${i}` }))
+            };
+        } catch (e) { /* segue sem a checagem de base */ }
+        ultimoPayloadValidacao = payloadCalculo || { cabos: [], outros: [] };
+
+        let achados = [];
+        try {
+            const resp = await fetch('/api/validacao/planilhas', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cabos, outros, projeto, projeto_codigo: projetoCodigo || null, payload_calculo: payloadCalculo })
+            });
+            if (!resp.ok) throw new Error(await lerDetalhe(resp));
+            achados = (await resp.json()).achados;
+        } catch (e) {
+            return { achados: [], ia: null, falhou: `Não foi possível validar (${e.message}).` };
+        }
+
+        let ia = { status: 'erro', mensagem: 'sem resposta', achados: [] };
+        try {
+            const resp = await fetch('/api/validacao/ia', {
+                method: 'POST', headers: cabecalhoIA(),
+                body: JSON.stringify({
+                    cabos, outros, projeto_codigo: projetoCodigo || null,
+                    achados_previos: achados.map(a => ({ linha_id: a.linha_id, regra_id: a.regra_id, mensagem: a.mensagem }))
+                })
+            });
+            ia = resp.ok ? await resp.json() : { status: 'erro', mensagem: await lerDetalhe(resp), achados: [] };
+        } catch (e) {
+            ia = { status: 'erro', mensagem: e.message, achados: [] };
+        }
+        return { achados: achados.concat(ia.achados || []), ia, falhou: null };
+    }
+
+    function textoDaLinha(achado) {
+        if (achado.linha_id === 'GERAL') return 'Planilha inteira';
+        let m = /^(CABOS|OUTROS)-(\d+)$/.exec(achado.linha_id);
+        if (m) {
+            const linha = tableStates[m[1].toLowerCase()].data[Number(m[2])];
+            return linha ? `${achado.linha_id} — ${linha.ativo}` : achado.linha_id;
+        }
+        m = /^TOTALIZADORA-(CABOS|OUTROS)-(\d+)$/.exec(achado.linha_id);
+        if (m) {
+            const item = ultimoPayloadValidacao[m[1].toLowerCase()][Number(m[2])];
+            return item ? `Totalizadora (${m[1].toLowerCase()}) — ${item.ativo}` : achado.linha_id;
+        }
+        return achado.linha_id;
+    }
+
+    function camadaDoAchado(achado) {
+        if (achado.origem === 'ia' || String(achado.regra_id).startsWith('IA:')) return 'IA';
+        return String(achado.regra_id).startsWith('C2-') ? 'Domínio' : 'Contrato';
+    }
+
+    function botaoPainel(texto, classe) {
+        const b = document.createElement('button');
+        b.className = classe;
+        b.textContent = texto;
+        return b;
+    }
+
+    /**
+     * Mostra o painel. `confirmar`: pergunta "continuar mesmo assim?". Resolve 'continuar' | 'corrigir' | 'fechar'.
+     * 'corrigir' apenas fecha o painel para o usuário ajustar as tabelas (a correção assistida é a TASK-015).
+     */
+    function mostrarPainelValidacao(res, confirmar) {
+        return new Promise(resolve => {
+            const modal = document.getElementById('modal-validacao');
+            const lista = document.getElementById('validacao-lista');
+            const acoes = document.getElementById('validacao-acoes');
+            const aviso = document.getElementById('validacao-aviso');
+            const achados = res.achados.slice().sort((a, b) =>
+                (ORDEM_SEVERIDADE[a.severidade] - ORDEM_SEVERIDADE[b.severidade]) || String(a.linha_id).localeCompare(String(b.linha_id), 'pt', { numeric: true }));
+            const cont = { erro: 0, aviso: 0, info: 0 };
+            achados.forEach(a => { cont[a.severidade] = (cont[a.severidade] || 0) + 1; });
+
+            document.getElementById('validacao-titulo').textContent = achados.length
+                ? 'Problemas encontrados nas planilhas' : 'Nenhum problema encontrado';
+            document.getElementById('validacao-resumo').textContent = achados.length
+                ? `${cont.erro} erro(s), ${cont.aviso} aviso(s), ${cont.info} informação(ões).` : 'As planilhas passaram nas verificações.';
+
+            const avisos = [];
+            if (res.ia && res.ia.status !== 'ok') {
+                const rotulos = { sem_chave: 'Revisão por IA não executada: sem chave de IA.', desativado: 'Revisão por IA desativada.',
+                    indisponivel: 'Revisão por IA indisponível.', parcial: 'Revisão por IA incompleta: parte das linhas falhou.', erro: 'Revisão por IA falhou.' };
+                avisos.push((rotulos[res.ia.status] || 'Revisão por IA não concluída.') + (res.ia.mensagem && res.ia.status !== 'desativado' ? ` (${res.ia.mensagem})` : ''));
+            }
+            if (res.ia && res.ia.truncado) avisos.push('A IA revisou só as primeiras linhas (limite por validação).');
+            aviso.textContent = avisos.join(' ');
+            aviso.style.display = avisos.length ? 'block' : 'none';
+
+            lista.replaceChildren();
+            achados.forEach(a => {
+                const item = document.createElement('div');
+                item.style.cssText = `padding: 8px 10px; margin-bottom: 6px; border-left: 3px solid ${COR_SEVERIDADE[a.severidade] || '#8b949e'}; background: rgba(255,255,255,0.03); border-radius: 4px;`;
+                const topo = document.createElement('div');
+                topo.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap; align-items:baseline; font-size:0.75rem; color:#8b949e;';
+                const sev = document.createElement('strong');
+                sev.style.color = COR_SEVERIDADE[a.severidade] || '#8b949e';
+                sev.textContent = ROTULO_SEVERIDADE[a.severidade] || a.severidade;
+                const onde = document.createElement('span');
+                onde.textContent = textoDaLinha(a);
+                const regra = document.createElement('span');
+                regra.textContent = `${camadaDoAchado(a)} · ${a.regra_id}`;
+                topo.append(sev, onde, regra);
+                const msg = document.createElement('div');
+                msg.style.marginTop = '2px';
+                msg.textContent = a.mensagem;
+                item.append(topo, msg);
+                if (a.sugestao) {
+                    const sug = document.createElement('div');
+                    sug.style.cssText = 'margin-top:2px; font-size:0.8rem; color:#3fb950;';
+                    sug.textContent = `Sugestão: ${a.sugestao}`;
+                    item.appendChild(sug);
+                }
+                lista.appendChild(item);
+            });
+
+            const fechar = resultado => { modal.classList.add('hidden'); resolve(resultado); };
+            acoes.replaceChildren();
+            if (confirmar) {
+                const nao = botaoPainel('Não, vou corrigir', 'btn-secondary');
+                nao.onclick = () => fechar('corrigir');
+                const sim = botaoPainel('Continuar mesmo assim', 'btn-primary');
+                sim.onclick = () => fechar('continuar');
+                acoes.append(nao, sim);
+            } else {
+                if (achados.some(achadoCorrigivel)) {
+                    const corrigir = botaoPainel('Corrigir com IA', 'btn-secondary');
+                    corrigir.onclick = () => fechar('corrigir');
+                    acoes.appendChild(corrigir);
+                }
+                const ok = botaoPainel('Fechar', 'btn-primary');
+                ok.onclick = () => fechar('fechar');
+                acoes.appendChild(ok);
+            }
+            modal.classList.remove('hidden');
+        });
+    }
+
+    /** Devolve true se o orçamento deve seguir. Só erro/aviso interrompem; info sozinho não pergunta. */
+    async function validarAntesDeMontar() {
+        const res = await executarValidacao();
+        if (res.falhou) {
+            showToast('Validação indisponível; seguindo sem validar.');  // a validação é um auxílio: não trava o orçamento
+            return true;
+        }
+        if (!res.achados.some(a => a.severidade === 'erro' || a.severidade === 'aviso')) return true;
+        const escolha = await mostrarPainelValidacao(res, true);
+        if (escolha === 'corrigir') await fluxoCorrecao(res.achados);  // o orçamento fica parado; depois de corrigir, clique de novo
+        return escolha === 'continuar';
+    }
+
+    const btnValidar = document.getElementById('btn-validar');
+    if (btnValidar) {
+        btnValidar.addEventListener('click', async () => {
+            const textoOriginal = btnValidar.textContent.trim();
+            btnValidar.disabled = true;
+            btnValidar.textContent = 'Validando...';
+            try {
+                const res = await executarValidacao();
+                if (res.falhou) { showToast(res.falhou); return; }
+                if ((await mostrarPainelValidacao(res, false)) === 'corrigir') await fluxoCorrecao(res.achados);
+            } finally {
+                btnValidar.disabled = false;
+                btnValidar.textContent = textoOriginal;
+            }
+        });
+    }
+
+    /* ═══════════════════════════════════════
+       CORREÇÃO ASSISTIDA (TASK-015)
+       A IA só PROPÕE (POST /api/validacao/corrigir); o usuário aceita linha a linha. Aplicar entra no histórico
+       como um único passo (um Ctrl+Z desfaz o lote inteiro). A operação da linha nunca é alterada.
+    ═══════════════════════════════════════ */
+    function achadoCorrigivel(achado) {
+        return /^(CABOS|OUTROS)-\d+$/.test(String(achado.linha_id));
+    }
+
+    function localizarLinha(linhaId) {
+        const m = /^(CABOS|OUTROS)-(\d+)$/.exec(linhaId);
+        if (!m) return null;
+        const tabela = m[1].toLowerCase();
+        const row = tableStates[tabela].data[Number(m[2])];
+        return row ? { tabela, row } : null;
+    }
+
+    /** Aplica as correções aceitas. Pula a linha que mudou desde a proposta (o "antes" não confere mais). */
+    function aplicarCorrecoes(aceitas) {
+        const validas = aceitas.filter(c => {
+            const alvo = localizarLinha(c.linha_id);
+            return alvo && (alvo.row.ativo || '').trim() === c.antes.trim();
+        });
+        if (validas.length) {
+            // Histórico: garante o estado ANTERIOR no topo e empilha também o NOVO, para um Ctrl+Z voltar exatamente ao
+            // que era antes do lote (e o Ctrl+Y reaplicar). Não basta o "pushHistory() antes de mudar" usado nas edições
+            // manuais: com o undo atual isso desfaz duas mudanças de uma vez (desvio já existente, ver STATE.md).
+            const estadoAtual = JSON.stringify(snapshotState());
+            if (historyIdx < 0 || JSON.stringify(history[historyIdx]) !== estadoAtual) pushHistory();
+            const tabelas = new Set();
+            validas.forEach(c => {
+                const { tabela, row } = localizarLinha(c.linha_id);
+                row.ativo = c.depois;
+                if (row.entidade === '0') row.entidade = autoClassifyEntidade(c.depois);  // mesma reclassificação da edição manual
+                tabelas.add(tabela);
+            });
+            if (tabelas.has('cabos')) recalcAllQtdAtivos();
+            tabelas.forEach(t => { renderTable(t); refreshAllFilters(t); });
+            buildAtivoSets();
+            buildDataLists();
+            atualizarResumoRedeUI();
+            pushHistory();  // estado NOVO
+        }
+        return { aplicadas: validas.length, ignoradas: aceitas.length - validas.length };
+    }
+
+    function linhaAntesDepois(c) {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'font-family: monospace; font-size: 0.8rem; margin-top: 4px;';
+        const antes = document.createElement('div');
+        antes.style.cssText = 'color:#f85149; text-decoration: line-through;';
+        antes.textContent = c.antes;
+        const depois = document.createElement('div');
+        depois.style.color = '#3fb950';
+        depois.textContent = c.depois;
+        wrap.append(antes, depois);
+        return wrap;
+    }
+
+    /** Mostra as propostas e resolve com { aplicadas, ignoradas } ou null (cancelou / nada a aplicar). */
+    function mostrarPainelCorrecao(resultado) {
+        return new Promise(resolve => {
+            const modal = document.getElementById('modal-correcao');
+            const lista = document.getElementById('correcao-lista');
+            const acoes = document.getElementById('correcao-acoes');
+            const resumo = document.getElementById('correcao-resumo');
+            const caixas = [];
+            lista.replaceChildren();
+            acoes.replaceChildren();
+            const fechar = valor => { modal.classList.add('hidden'); resolve(valor); };
+
+            const problema = { sem_chave: 'Sem chave de IA: informe a sua na configuração de IA.', desativado: 'A correção por IA está desativada.',
+                indisponivel: 'A correção por IA está indisponível.', erro: 'A correção por IA falhou.' }[resultado.status];
+            if (problema || !resultado.correcoes.length) {
+                resumo.textContent = (problema || 'A IA não encontrou correção segura para estes problemas.')
+                    + (resultado.mensagem && problema ? ` (${resultado.mensagem})` : '');
+            } else {
+                resumo.textContent = `${resultado.correcoes.length} proposta(s). Nada é alterado sem o seu aceite; aplicar pode ser desfeito com Ctrl+Z.`
+                    + (resultado.status === 'parcial' ? ' Parte das linhas falhou na IA.' : '');
+            }
+
+            resultado.correcoes.forEach(c => {
+                const item = document.createElement('label');
+                item.style.cssText = 'display:block; padding: 8px 10px; margin-bottom: 6px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer;';
+                const topo = document.createElement('div');
+                topo.style.cssText = 'display:flex; gap:8px; align-items:center; font-size:0.75rem; color:#8b949e;';
+                const caixa = document.createElement('input');
+                caixa.type = 'checkbox';
+                caixa.addEventListener('change', atualizarBotoes);
+                caixas.push({ caixa, c });
+                const onde = document.createElement('strong');
+                onde.style.color = '#c9d1d9';
+                onde.textContent = c.linha_id;
+                topo.append(caixa, onde);
+                item.append(topo, linhaAntesDepois(c));
+                if (c.motivo) {
+                    const m = document.createElement('div');
+                    m.style.cssText = 'margin-top:4px; font-size:0.8rem; color:#8b949e;';
+                    m.textContent = c.motivo;
+                    item.appendChild(m);
+                }
+                (c.avisos || []).forEach(a => {
+                    const w = document.createElement('div');
+                    w.style.cssText = 'margin-top:2px; font-size:0.75rem; color:#d29922;';
+                    w.textContent = `Atenção: ${a}`;
+                    item.appendChild(w);
+                });
+                lista.appendChild(item);
+            });
+
+            if ((resultado.descartadas || []).length) {
+                const det = document.createElement('details');
+                det.style.cssText = 'margin-top: 8px; font-size: 0.75rem; color: #8b949e;';
+                const sum = document.createElement('summary');
+                sum.textContent = `${resultado.descartadas.length} proposta(s) da IA descartada(s) por não passar na validação`;
+                det.appendChild(sum);
+                resultado.descartadas.forEach(d => {
+                    const p = document.createElement('div');
+                    p.textContent = `${d.linha_id || '?'}: ${d.motivo}`;
+                    det.appendChild(p);
+                });
+                lista.appendChild(det);
+            }
+
+            const cancelar = botaoPainel(resultado.correcoes.length ? 'Cancelar' : 'Fechar', 'btn-secondary');
+            cancelar.onclick = () => fechar(null);
+            const todas = botaoPainel('Aceitar todas', 'btn-secondary');
+            todas.onclick = () => { caixas.forEach(x => { x.caixa.checked = true; }); atualizarBotoes(); };
+            const aplicar = botaoPainel('Aplicar selecionadas', 'btn-primary');
+            aplicar.onclick = () => {
+                const r = aplicarCorrecoes(caixas.filter(x => x.caixa.checked).map(x => x.c));
+                fechar(r);
+            };
+            function atualizarBotoes() {
+                aplicar.disabled = !caixas.some(x => x.caixa.checked);
+                aplicar.style.opacity = aplicar.disabled ? '0.45' : '1';
+                aplicar.style.cursor = aplicar.disabled ? 'not-allowed' : 'pointer';
+            }
+            if (resultado.correcoes.length) acoes.append(cancelar, todas, aplicar); else acoes.append(cancelar);
+            atualizarBotoes();
+            modal.classList.remove('hidden');
+        });
+    }
+
+    /** Pede as propostas à IA só para as linhas editáveis citadas nos achados e abre o painel de aceite. */
+    async function fluxoCorrecao(achados) {
+        const editaveis = achados.filter(achadoCorrigivel);
+        if (!editaveis.length) {
+            showToast('Nenhum problema aponta uma linha editável; ajuste as tabelas manualmente.');
+            return;
+        }
+        const selectProj = document.getElementById('select-projeto');
+        const projetoCodigo = selectProj && selectProj.selectedIndex >= 0 ? (selectProj.options[selectProj.selectedIndex].dataset.codigo || '') : '';
+        showToast('Pedindo correções à IA...');
+        let resultado;
+        try {
+            const resp = await fetch('/api/validacao/corrigir', {
+                method: 'POST', headers: cabecalhoIA(),
+                body: JSON.stringify({
+                    cabos: linhasParaValidacao('cabos', 'CABOS'), outros: linhasParaValidacao('outros', 'OUTROS'),
+                    projeto_codigo: projetoCodigo || null,
+                    achados: editaveis.map(a => ({ linha_id: a.linha_id, regra_id: a.regra_id, mensagem: a.mensagem, sugestao: a.sugestao || null }))
+                })
+            });
+            resultado = resp.ok ? await resp.json()
+                : { status: 'erro', mensagem: await lerDetalhe(resp), correcoes: [], descartadas: [] };
+        } catch (e) {
+            resultado = { status: 'erro', mensagem: e.message, correcoes: [], descartadas: [] };
+        }
+        const aplicado = await mostrarPainelCorrecao(resultado);
+        if (aplicado) {
+            showToast(aplicado.aplicadas
+                ? `${aplicado.aplicadas} correção(ões) aplicada(s)${aplicado.ignoradas ? `; ${aplicado.ignoradas} ignorada(s) porque a linha mudou` : ''}. Valide de novo antes de montar. Ctrl+Z desfaz.`
+                : 'Nenhuma correção aplicada: as linhas mudaram desde a proposta.');
+        }
+    }
+
     const btnMontarOrcamento = document.getElementById('btn-montar-orcamento');
     const modalOrcamento = document.getElementById('modal-orcamento');
     const tbodyOrcamento = document.getElementById('resultado-orcamento-tbody');
@@ -1782,59 +2266,15 @@ document.addEventListener('DOMContentLoaded', () => {
             btnMontarOrcamento.textContent = 'Calculando...';
 
             try {
+                // Validação automática (opção local, desligada por padrão): se houver erro/aviso, pergunta
+                // "continuar mesmo assim?" e só segue com o orçamento se o usuário confirmar.
+                if (validacaoAutomaticaLigada() && !(await validarAntesDeMontar())) return;
+
                 const selectProj = document.getElementById('select-projeto');
                 const projVal = selectProj ? selectProj.value : "";
                 const projCode = selectProj && selectProj.selectedIndex >= 0 ? selectProj.options[selectProj.selectedIndex].dataset.codigo : "";
                 
-                let payloadCabos = [];
-                let payloadOutros = [];
-
-                // Se estivermos no modo padrão (Cabos e Postes), atualiza a totalizadora silenciosamente antes
-                const radioPadrao = document.querySelector('input[name="view_mode"][value="padrao"]');
-                if (radioPadrao && radioPadrao.checked) {
-                    await syncTotalizadora(false);
-                }
-                
-                // Agora, INVARIAVELMENTE, constrói o payload a partir da Totalizadora
-                tableStates.totalizadora.data.forEach(item => {
-                    if (!item) return;
-                    
-                    let qStr = item.qtd;
-                    if (qStr === '' || qStr === null || qStr === undefined || parseFloat(qStr) === 0) {
-                        return; // Ignora itens com quantidade vazia ou zerada no cálculo do orçamento
-                    }
-
-                    let operacao = item.operacao || 'I';
-                    
-                    // Reconstruir o campo "ativo"
-                    let ativoFinal = item.ativo;
-                    
-                    if (typeof qStr === 'number' && qStr < 0) {
-                        qStr = '*' + Math.abs(qStr);
-                    } else if (typeof qStr === 'string' && qStr.startsWith('-')) {
-                        qStr = '*' + qStr.substring(1);
-                    }
-
-                    if (item.origem === 'CABOS') {
-                        // Backend espera: [Nome] [Fases] [Comprimento]. Enviamos o nome e a qtd (comprimento)
-                        ativoFinal = `${item.ativo} 1 ${item.qtd}`; 
-                    } else {
-                        // Ex: 4-TERRA3 ou *1-TERRA3 para negativos
-                        ativoFinal = `${qStr}-${item.ativo}`;
-                    }
-
-                    const obj = {
-                        entidade: item.obs || '0',
-                        operacao: operacao,
-                        ativo: ativoFinal
-                    };
-
-                    if (item.origem === 'CABOS') {
-                        payloadCabos.push(obj);
-                    } else {
-                        payloadOutros.push(obj);
-                    }
-                });
+                const { cabos: payloadCabos, outros: payloadOutros } = await obterPayloadCalculo();
 
                 const payload = {
                     cabos: payloadCabos,

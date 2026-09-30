@@ -14,6 +14,7 @@ Antes de modificar qualquer código, consulte nesta ordem:
 3. `.ai/STATE.md` — o que está pronto, o que está quebrado, o que é limitação conhecida
 4. `.ai/ARCHITECTURE.md` — módulos, fluxo, banco, API, dependências
 5. `.ai/GLOSSARY.md` — termos de domínio
+6. `.ai/VALIDACOES.md` — catálogo das validações das planilhas (só ao mexer em validação; ADR-004)
 
 Depois disso, leia os arquivos específicos da tarefa. **Não leia o projeto inteiro** — a
 documentação existe justamente para evitar isso.
@@ -36,8 +37,9 @@ Quando uma regra de negócio for ambígua:
 Isto vale especialmente para:
 
 - termos marcados como `[DEFINIÇÃO NECESSITA CONFIRMAÇÃO DO USUÁRIO]` no GLOSSARY.md;
-- as regras técnicas que existem apenas em `prompt_rede_eletrica.txt` (elas **não são validadas por
-  código** — não presuma que o sistema as aplica, nem as implemente sem pedido explícito);
+- as regras técnicas do `prompt_rede_eletrica.txt`: só as do catálogo `.ai/VALIDACOES.md` estão implementadas
+  (camada 2, desligadas até o admin ligar). Qualquer outra **não é validada por código** — não presuma que o
+  sistema a aplica, nem a implemente sem pedido explícito e sem definição do usuário;
 - códigos de ativo cujo significado não está no código nem no seed.
 
 ---
@@ -124,10 +126,11 @@ TESTES            como a mudança será verificada
 
 ## Regra 7 — Testes
 
-⚠️ **O projeto não possui testes automatizados hoje** (ver STATE.md). Não existe framework de teste
-configurado, nem CI que rode testes.
+⚠️ **A cobertura de testes é mínima** (ver STATE.md): existe uma suíte `pytest` em `tests/`
+(`pip install -r requirements-dev.txt`; `pytest`) cobrindo a validação das planilhas e o parser de
+`orcamento_calc.py`. Não há CI que a rode, nem testes de frontend.
 
-Enquanto isso não mudar:
+Fora do que a suíte cobre:
 
 - Toda alteração relevante deve vir acompanhada de uma **verificação explícita** — o que foi
   executado e qual foi o resultado.

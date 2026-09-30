@@ -167,3 +167,45 @@ CREATE TABLE IF NOT EXISTS public.regras_leitor_classificacao_historico (
 );
 ALTER TABLE public.regras_leitor_classificacao_historico DISABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_regras_leitor_cls_hist_projeto ON public.regras_leitor_classificacao_historico(projeto_codigo);
+
+-- TASK-012: prompts de validação das planilhas (ADR-004, camada 3). Um texto (cabeçalho + corpo) por
+-- (projeto, prompt); "DEFAULT" vale para todo projeto sem versão própria. Histórico de versões para
+-- reverter pela UI (admin).
+CREATE TABLE IF NOT EXISTS public.prompts_validacao (
+    projeto_codigo TEXT NOT NULL,
+    prompt_id TEXT NOT NULL,
+    conteudo TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (projeto_codigo, prompt_id)
+);
+ALTER TABLE public.prompts_validacao DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS public.prompts_validacao_historico (
+    id BIGSERIAL PRIMARY KEY,
+    projeto_codigo TEXT NOT NULL,
+    prompt_id TEXT NOT NULL,
+    conteudo TEXT NOT NULL,
+    criado_em TIMESTAMPTZ DEFAULT NOW(),
+    criado_por TEXT
+);
+ALTER TABLE public.prompts_validacao_historico DISABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_prompts_val_hist ON public.prompts_validacao_historico(projeto_codigo, prompt_id);
+
+-- TASK-013: regras de domínio da validação das planilhas (ADR-004, camada 2) — uma linha por projeto
+-- com um array JSON de regras ("DEFAULT" = padrão de quem não tem versão própria) + histórico.
+CREATE TABLE IF NOT EXISTS public.regras_dominio (
+    projeto_codigo TEXT PRIMARY KEY,
+    regras_json TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.regras_dominio DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS public.regras_dominio_historico (
+    id BIGSERIAL PRIMARY KEY,
+    projeto_codigo TEXT NOT NULL,
+    regras_json TEXT NOT NULL,
+    criado_em TIMESTAMPTZ DEFAULT NOW(),
+    criado_por TEXT
+);
+ALTER TABLE public.regras_dominio_historico DISABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_regras_dominio_hist_projeto ON public.regras_dominio_historico(projeto_codigo);

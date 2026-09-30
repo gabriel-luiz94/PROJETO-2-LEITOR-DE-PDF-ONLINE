@@ -8,6 +8,108 @@
 
 ---
 
+## 2026-09-30 — Regras de domínio pendentes (`C2-TR-EF`, `C2-BT-EXT`) e "adicionar regras novas da semente"
+
+**Tipo:** regras de negócio (decisão do usuário) + ação do admin · `.ai/tasks/TASK-013-30-09-2026.md` (acréscimo)
+
+`C2-TR-EF`: trafo com elo fusível só é aceito com chave `CFU` ou `CFUR` no poste (`CFA`, `CL` e as de reinstalação
+não liberam). `C2-BT-EXT`: estrutura `SI` exige `RA2`, salvo estrutura `S#`. Ambas na semente, desligadas, aviso,
+operações I/*I. O tipo `proibe` ganhou `exceto_se_regex`. Nova rota admin `POST /api/validacao/regras/adicionar-novas`
+(botão no painel): acrescenta à versão do projeto só as regras da semente que faltam, sempre desligadas, sem tocar nas
+existentes — necessária porque a semente só carrega quando não há versão DEFAULT. **Fecha o catálogo de validações.**
+
+---
+
+## 2026-09-30 — TASK-015: correção assistida por IA com aceite explícito
+
+**Tipo:** nova funcionalidade (backend + frontend) · `.ai/tasks/TASK-015-30-09-2026.md`
+
+`POST /api/validacao/corrigir`: a IA propõe correções só para as linhas citadas nos achados; o servidor reconfere
+cada proposta (linha existente, muda algo, **passa de novo na camada 1**) e devolve também as descartadas com o
+motivo. Na tela, "Não, vou corrigir" e o botão "Corrigir com IA" abrem as propostas (antes → depois) com aceite por
+linha ou "Aceitar todas"; aplicar é um único passo no histórico e ignora linhas que mudaram. A operação nunca é
+alterada. Refatorações mínimas: laço de lotes compartilhado (`executar_em_lotes`) e preâmbulo da IA (`_preparar_ia`).
+O prompt `corrigir-planilhas` perdeu a frase sobre alterar a operação (instalações existentes: "Restaurar semente").
+**Fecha o conjunto ADR-004 (TASK-009 a TASK-015).**
+
+---
+
+## 2026-09-30 — TASK-014: validação na tela (botão, opção automática) e revisão por IA (camada 3)
+
+**Tipo:** nova funcionalidade (backend + frontend) · `.ai/tasks/TASK-014-30-09-2026.md`
+
+Botão **Validar** e opção **Validar ao montar** (radio Não/Sim, `localStorage`, padrão Não) na aba Resumo, com painel
+de achados das 3 camadas e o diálogo "continuar mesmo assim?" (só erro/aviso interrompem). `POST /api/validacao/ia`
+usa o prompt salvo (TASK-012), lotes de 40 linhas, resposta JSON validada (descarta linha inventada) e nunca derruba
+as camadas 1-2: falha da IA vira aviso. Refatoração mínima: `obterPayloadCalculo()` extraída do handler de "Montar
+Orçamento" (comportamento igual). `localStorage['processar_dados']` e `orcamentoPayload` inalterados. O botão
+"Não, vou corrigir" ainda só fecha o painel (a correção é a TASK-015).
+
+---
+
+## 2026-09-30 — TASK-013: regras de domínio da validação (camada 2), editáveis pelo admin
+
+**Tipo:** nova funcionalidade (backend, banco, painel admin) · `.ai/tasks/TASK-013-30-09-2026.md`
+
+Motor `services/regras_dominio.py` com 5 tipos de regra declarativa, avaliadas por linha da tabela Outros
+(P50 pelo total da planilha). Regras por projeto com fallback `DEFAULT`, histórico e reversão, painel de teste
+do rascunho e editor no painel admin. Semente com 9 regras derivadas do `prompt_rede_eletrica.txt §5`
+(intocado), **todas desligadas**; valem só para operações I/*I. As 3 regras de P50 do catálogo viraram uma
+(a exigência é uma soma). `POST /api/validacao/planilhas` passa a incluir a camada 2.
+**Ação necessária:** rodar o trecho novo de `scripts/schema_supabase.sql` no Supabase real.
+
+---
+
+## 2026-09-30 — TASK-012: prompts de validação editáveis pelo admin
+
+**Tipo:** nova funcionalidade (backend, banco, painel admin) · `.ai/tasks/TASK-012-30-09-2026.md`
+
+Prompts de validação (camada 3 do ADR-004) viram dados: semente em `data/validacoes/*.md`, tabelas
+`prompts_validacao`/`prompts_validacao_historico` (SQLite + Supabase), rotas `/api/validacao/prompts`
+(leitura autenticada, escrita admin), validação de cabeçalho e placeholders antes de salvar, histórico
+com reversão e restauração da semente. Versão por projeto com fallback `DEFAULT`. UI no painel admin.
+**Ação necessária:** rodar o trecho novo de `scripts/schema_supabase.sql` no Supabase real. Contratos da
+Regra 5: nenhum alterado; `prompt_rede_eletrica.txt` intacto.
+
+---
+
+## 2026-09-30 — TASK-011: camada 1 da validação das planilhas (primeiros testes do projeto)
+
+**Tipo:** nova funcionalidade (backend) + refatoração mínima · `.ai/tasks/TASK-011-30-09-2026.md`
+
+`POST /api/validacao/planilhas` valida o contrato de Cabos e Outros (formato, operação, quantidade,
+duplicidade e, opcionalmente, existência do ativo na base sobre o payload de cálculo). Para reaproveitar
+o parser sem duplicá-lo, `orcamento_calc.py` teve o parsing por linha extraído em
+`extrair_ativo_cabo`/`extrair_ativos_outros`/`tokenizar_outros` — saída do cálculo comprovadamente
+idêntica. **Achado:** a tabela Cabos da tela (`CAA 2 ABC 35 m`) e o payload de cálculo (`CAA2 1 35`) têm
+formatos diferentes; a validação de Cabos espelha a normalização do frontend (nova duplicação
+conhecida). `ADR-004` passa a ACEITA. Suíte `pytest` criada (`tests/`, dependências em `requirements-dev.txt`).
+
+---
+
+## 2026-09-30 — TASK-009: chave de IA padrão do sistema
+
+**Tipo:** nova funcionalidade + correção (backend/frontend/config) · `.ai/tasks/TASK-009-30-09-2026.md`
+
+O chat de IA passa a funcionar sem o usuário digitar chave. `resolver_credencial()` define a
+precedência **usuário > salva > padrão** (`GEMINI_API_KEY`/`GOOGLE_API_KEY`). Corrige um bug: a UI
+enviava o texto `SAVED_IN_BACKEND` quando o campo estava vazio, e por ser "verdadeiro" em Python ele
+impedia que a variável de ambiente fosse consultada — resultado 401 mesmo com chave no servidor.
+No desktop, `config.py` carrega o `.env` ao lado do `.exe`. Rate-limit por usuário só com a chave
+padrão. `/api/health` ganha `ai_key_source`. Contratos da Regra 5: nenhum alterado.
+
+## 2026-09-30 — TASK-010 / ADR-004: base do sistema de validação das planilhas
+
+**Tipo:** documentação e sementes (sem lógica) · `.ai/tasks/TASK-010-30-09-2026.md`
+
+Decisão de validar Cabos e Outros em três camadas (contrato em código, regras de domínio editáveis
+pelo admin, IA com prompts salvos editáveis) — `ADR-004` (PROPOSTA). Criados o catálogo
+`.ai/VALIDACOES.md`, os prompts iniciais em `data/validacoes/` e a semente das regras de domínio,
+todas inativas até confirmação. `prompt_rede_eletrica.txt` não foi alterado. Achado documentado: o
+parser de `orcamento_calc.py` assume valores e descarta tokens em silêncio.
+
+---
+
 ## 2026-09-29 — Correção: regra de CERCA ("FIOS") sempre saía com operação R quando a cor era cinza
 
 **Tipo:** correção de dado (seed) · fora do escopo de uma TASK, reportado pelo usuário via edição

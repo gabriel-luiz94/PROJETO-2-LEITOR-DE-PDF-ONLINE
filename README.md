@@ -45,6 +45,15 @@ Funciona tanto como aplicativo desktop nativo (via `pywebview`, empacotável em 
 
 No Windows também é possível usar `Iniciar_Leitor_PDF.bat` ou criar um atalho na área de trabalho com `Criar_Atalho_Desktop.vbs`.
 
+## 🤖 Chave de IA padrão
+
+O chat de IA funciona sem o usuário digitar chave, usando `GEMINI_API_KEY` (ou `GOOGLE_API_KEY`):
+
+* **Servidor:** defina como variável de ambiente/secret do deploy.
+* **Desktop (.exe):** crie um arquivo `.env` na **mesma pasta do executável** com `GEMINI_API_KEY=...`.
+
+Precedência: chave digitada pelo usuário → chave salva no servidor → chave padrão. Com a chave padrão há um limite de mensagens por usuário por minuto (`AI_RATE_LIMIT_POR_MINUTO`, padrão 20). `GET /api/health` mostra a origem ativa em `ai_key_source`, nunca o valor.
+
 ## ⚙️ Modos de operação
 
 Controlado pela variável `APP_MODE`:

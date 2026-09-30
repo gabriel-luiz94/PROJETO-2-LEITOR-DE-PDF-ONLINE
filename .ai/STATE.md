@@ -85,6 +85,30 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 - [x] Interpretação da resposta como tabela `COMANDO/ID/AÇÃO/ATIVOS` aplicada às tabelas
 - [x] Ações de UI por JSON (`ordenar`, `filtrar`, `limpar_filtros`)
 - [x] Regras de aprendizado persistidas (`tabela regras`)
+- [x] Validação de contrato das planilhas Cabos e Outros (TASK-011, 2026-09-30): `POST
+      /api/validacao/planilhas` (formato, operação, quantidade, duplicidade e, sobre o payload de
+      cálculo, ativo ausente da base). Só backend — sem botão/painel ainda (TASK-014). Catálogo em
+      `.ai/VALIDACOES.md`.
+- [x] Correção assistida por IA (TASK-015, 2026-09-30): propostas antes → depois com aceite por linha, aplicar
+      como um passo de histórico; a IA nunca aplica nem altera a operação; proposta que ainda reprova na
+      camada 1 é descartada com o motivo.
+- [x] Validação na tela e revisão por IA (TASK-014, 2026-09-30): botão **Validar**, opção **Validar ao montar
+      orçamento** (radio local, padrão Não), painel de achados (contrato, domínio, base técnica e IA) e diálogo
+      "continuar mesmo assim?" quando há erro/aviso. IA opcional, com o prompt salvo do projeto; sua falha nunca
+      esconde os achados determinísticos. Falta a correção assistida (TASK-015).
+- [x] Regras de domínio da validação (TASK-013, 2026-09-30): 11 regras (CFU/SUPL, CFU-CFUR/EF, trafo/PR15,
+      trafo/PR220 com dobro por duas descidas, trafo sem chave não leva elo, P50 total, poste de 10 m em MT,
+      estrutura isolada, formato do poste, estrutura SI exige RA2), por projeto com fallback `DEFAULT`, **todas desligadas até o admin ligar**. Editor, histórico e
+      teste do rascunho no painel admin; a rota `/api/validacao/planilhas` já as aplica. Sem botão/painel na tela
+      de trabalho ainda (TASK-014). Regras novas da semente chegam a quem já tem regras salvas pelo botão "Adicionar regras novas da semente".
+- [x] Prompts de validação editáveis pelo admin (TASK-012, 2026-09-30): dois prompts semeados
+      (`validar-planilhas`, `corrigir-planilhas`), versão por projeto com fallback `DEFAULT`, histórico e
+      reversão, editor no painel admin. Ainda **não são usados** por nenhuma chamada de IA (TASK-014).
+- [x] Chave de IA padrão do sistema (TASK-009, 2026-09-30): sem chave digitada, o chat usa
+      `GEMINI_API_KEY`/`GOOGLE_API_KEY` (servidor: variável de ambiente; desktop: `.env` ao lado do
+      `.exe`). Precedência usuário > salva > padrão; rate-limit por usuário só com a chave padrão;
+      `/api/health` expõe `ai_key_source`. Corrigido o bug em que o sentinela `SAVED_IN_BACKEND`
+      impedia o uso da variável de ambiente.
 
 ### Interface
 - [x] Tabelas Cabos e Outros com undo/redo (80 níveis), autocomplete e filtros estilo Excel
@@ -137,6 +161,8 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [ ] Atualizar `.ai/CONTEXT.md` §7 (RN-01 a RN-05) e `.ai/ARCHITECTURE.md` para descrever o motor
       de regras do leitor (TASK-006) em vez da lógica fixa em código, agora obsoleta nesses
       documentos
+- [x] Sistema de validação das planilhas Cabos/Outros em camadas (ADR-004): TASK-009 a TASK-015 concluídas.
+      Todas as regras do catálogo estão implementadas (desligadas na semente). Catálogo em `.ai/VALIDACOES.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -248,6 +274,18 @@ arquivo em `.ai/tasks/`.
 17. `database.py:224-225` — sem `ADMIN_EMAIL`/`ADMIN_PASSWORD` no ambiente, o admin inicial é criado
     como `admin@local.com` / `admin123`.
 
+### IA (achados na TASK-009, não corrigidos)
+26. A chave digitada pelo usuário é salva em `configuracoes` (global, sem `user_id`, texto puro): no
+    servidor, a chave de um usuário passa a valer para os demais.
+27. `POST /api/gemini/chat` só implementa `provider="gemini"`; `openai` responde "não suportado"
+    embora `GET /api/gemini/models` liste modelos da OpenAI.
+28. O rate-limit do chat é em memória e por processo.
+
+29. **Desfazer/refazer com desvio de uma posição** (`static/resumo.js`, `pushHistory`/`undo`): as edições manuais
+    empilham o estado ANTES de mudar e `undo()` volta um índice, então — confirmado no navegador — duas edições
+    seguidas são desfeitas por um só Ctrl+Z, e depois de carregar uma obra o desfazer pode levar a tabelas vazias.
+    Não corrigido (fora do escopo da TASK-015, que não depende disso).
+
 ### Qualidade de código
 18. **Lógica de negócio duplicada** entre `static/script.js` e `static/resumo.js`
     (`isGray`, `processAtivoFormula`, cascata de classificação). Alterar só um lado faz as duas abas
@@ -289,11 +327,13 @@ arquivo em `.ai/tasks/`.
 
 ## Limitações atuais
 
-- **Sem testes automatizados.** Nenhum arquivo de teste, nenhum framework, nenhum CI de teste.
-- **Sem validação das regras técnicas do domínio.** As regras de engenharia em
-  `prompt_rede_eletrica.txt` (poste de 10 m proibido em MT, CFU exige SUPL, trafo exige PR15 +
-  PR220, mínimos de P50, estruturas tipo 3 não isoladas) são instruções ao modelo de linguagem —
-  **o sistema não as verifica**.
+- **Testes automatizados mínimos.** Só `tests/` (pytest): validação das planilhas e não-regressão do parser de `orcamento_calc.py`. Sem CI de teste e sem testes de frontend.
+- **Validação das regras técnicas do domínio só sob demanda e só com regra ligada.** As regras de engenharia do
+  `prompt_rede_eletrica.txt` (poste de 10 m em MT, CFU/SUPL, trafo/PR15/PR220, P50, estruturas isoladas, elo,
+  SI/RA2) agora são verificáveis (ADR-004, TASK-013), mas vêm **desligadas** na semente e só rodam pelo botão
+  Validar ou com "Validar ao montar" = Sim. Cada regra precisa ser ligada pelo admin depois de testada com dados
+  reais; enquanto estiver desligada, o sistema **não** a aplica. O `prompt_rede_eletrica.txt` continua sendo
+  apenas instrução ao modelo do chat.
 - **Estado entre telas depende de `localStorage`.** Limpar o armazenamento do navegador perde o
   trabalho não salvo; não há recuperação.
 - **Frontend sem build e sem modularização.** `resumo.js` tem 3.481 linhas e `resultado_orcamento.html`
@@ -321,23 +361,23 @@ Ver `.ai/decisions/`.
 
 ## Testes
 
-**Status: inexistentes.**
+**Status: focado na validação das planilhas (TASK-011 a TASK-013, 2026-09-30).**
 
-- Arquivos de teste no repositório: **0**
-- Framework configurado: nenhum (`requirements.txt` não inclui pytest ou equivalente)
-- CI de testes: nenhum (os dois workflows só fazem deploy)
+- Suíte `pytest` em `tests/` (234 testes): `test_validacao_planilhas.py` e `test_rota_validacao.py` (camada 1,
+  `C1-BASE`, paridade de tokenização, não-regressão de `processar_calculo`), `test_prompts_validacao.py`
+  (TASK-012) `test_regras_dominio.py` (TASK-013) e `test_validacao_ia.py` (TASK-014) e `test_correcao_ia.py` (TASK-015), IA sempre simulada. Testes de rota usam banco temporário, nunca o de desenvolvimento.
+- Dependências só de desenvolvimento: `requirements-dev.txt` (`pytest`, `httpx`); `pytest.ini` na raiz.
+- CI de testes: nenhum (os dois workflows só fazem deploy). Frontend: nenhum teste.
 
-Melhor ponto de partida, se o usuário quiser cobertura: `services/orcamento_calc.py` —
-função pura, sem I/O, sem dependências internas, concentrando as regras RN-03 a RN-10.
+Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a RN-10 de
+`services/orcamento_calc.py` além do que a TASK-011 já toca.
 
 ---
 
 ## Última atualização
 
-**Data:** 2026-09-29
-**Motivo:** TASK-007-29-09-2026 — regras do leitor (TASK-006) ganham edição pela UI, restrita a
-usuários `admin`: formulário estruturado por regra, drag-and-drop (reescreve o campo `ordem`, que
-é o que o motor realmente usa para ordenar), painel de teste no navegador contra o rascunho em
-edição, validação de schema no backend, histórico de versões com reversão.
-**Alterações de código:** `database.py`, `routers/regras_leitor.py`, `scripts/schema_supabase.sql`,
-`static/index.html`, `static/script.js`.
+**Data:** 2026-09-30
+**Motivo:** regras de domínio `C2-TR-EF` e `C2-BT-EXT` (pendentes de decisão) implementadas após as respostas do
+usuário; nova ação do admin para acrescentar regras novas da semente a quem já tem regras salvas.
+**Alterações de código:** `services/regras_dominio.py` (`proibe` com `exceto_se_regex`), `routers/validacao_regras.py`,
+`static/admin.html`, `static/admin.js`, `data/validacoes/regras_dominio_seed.json`. Testes: `tests/test_regras_dominio.py`.
