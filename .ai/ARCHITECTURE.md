@@ -129,6 +129,7 @@
 | `projetos.py` | `/api/projetos` | Lista mesclada local+nuvem; cadastro só admin |
 | `ai_chat.py` | `/api/gemini` | Listagem de modelos e chat com Gemini/OpenAI, injetando `prompt_rede_eletrica.txt` e as regras aprendidas. Chave resolvida por `resolver_credencial()`: usuário > salva > padrão do ambiente (`GEMINI_API_KEY`/`GOOGLE_API_KEY`); rate-limit por usuário só com a chave padrão (TASK-009) |
 | `validacao.py` | `/api/validacao` | Validação de contrato das planilhas Cabos/Outros (`POST /planilhas`), sobre `services/validacao_planilhas.py` (TASK-011) |
+| `validacao_prompts.py` | `/api/validacao/prompts` | Prompts de validação por projeto (com fallback `DEFAULT`), histórico e reversão; escrita só admin (TASK-012). `buscar_prompt()` é o ponto de leitura para a IA (TASK-014) |
 | `admin.py` | `/api/admin` | Usuários (CRUD, role, senha), tabela master (add/upload CSV/sync completo), audit log |
 | `health.py` | — | `/api/health`, `/api/backup/export`, `/api/health/sync-master` |
 | `update.py` | `/api/update` | `check` (público, consulta `configuracoes`) e `apply` (só desktop) |
@@ -186,6 +187,8 @@ comparam `role` manualmente), `get_current_user_from_state`.
 | `historico_rec` | `numero_obra` | `dados_json`, `data_criacao`, `user_id`, `updated_at` | REC da obra |
 | `projetos` | `nome` | `codigo`, `updated_at` | Seed: PARAIBA/027, RONDONIA/229 |
 | `sync_log` | `id` AUTOINC | `tabela`, `operacao`, `registro_id`, `dados_json`, `timestamp`, `sincronizado`, `tentativas`, `erro` | Fila offline — **nunca alimentada** (`enqueue_operation` não é chamado) |
+| `prompts_validacao` | (`projeto_codigo`, `prompt_id`) | `conteudo` (cabeçalho + corpo), `updated_at` | Prompts de validação (TASK-012); `DEFAULT` vale para projetos sem versão própria; semeada de `data/validacoes/*.md` |
+| `prompts_validacao_historico` | `id` AUTOINC | `projeto_codigo`, `prompt_id`, `conteudo`, `criado_em`, `criado_por` | Versões sobrescritas, para reverter pela UI (admin) |
 | `audit_log` | `id` AUTOINC | `user_id`, `email`, `action`, `table_name`, `record_id`, `details`, `created_at` | Alimentado apenas por `admin.py:_audit` |
 
 Migrações: `init_db()` roda `ALTER TABLE … ADD COLUMN` dentro de `try/except
@@ -193,7 +196,7 @@ sqlite3.OperationalError`, tornando a evolução do schema idempotente. Não há
 
 ### 4.2 Supabase (`scripts/schema_supabase.sql`)
 
-`historico_rec`, `obras`, `projetos`, `tabela_orcamento_master`, `usuarios_nuvem` + índices.
+`historico_rec`, `obras`, `projetos`, `tabela_orcamento_master`, `usuarios_nuvem` + índices; `prompts_validacao` e `prompts_validacao_historico` (TASK-012).
 
 ⚠️ Divergências entre o schema versionado e o que o código escreve:
 - `tabela_orcamento_master` no schema **não tem a coluna `origem`**, mas `admin.py:upload-master` e
@@ -250,6 +253,7 @@ DEMAIS ENTIDADES (obras, recs, projetos):
 | POST | `/api/gemini/chat` | JWT | Chat com contexto da tabela |
 | GET/POST/PUT/DELETE | `/api/admin/*` | JWT + admin | Usuários, master, audit log |
 | POST | `/api/validacao/planilhas` | JWT | Achados da camada 1 (`erro`/`aviso`/`info`); `payload_calculo` opcional liga `C1-BASE` |
+| GET/POST | `/api/validacao/prompts[/{id}[/historico\|/reverter\|/restaurar-semente]]` | JWT (POST/histórico: admin) | Prompts de validação editáveis |
 | GET | `/api/health`, `/api/backup/export` | pública / JWT | Diagnóstico e backup (`ai_key_source` = origem da chave de IA: `salva`/`padrao`/`nenhuma`, nunca o valor) |
 | GET | `/api/update/check` | pública | Versão mais recente |
 | POST | `/api/update/apply` | JWT | Auto-update (só desktop) |

@@ -8,6 +8,19 @@
 
 ---
 
+## 2026-09-30 — TASK-012: prompts de validação editáveis pelo admin
+
+**Tipo:** nova funcionalidade (backend, banco, painel admin) · `.ai/tasks/TASK-012-30-09-2026.md`
+
+Prompts de validação (camada 3 do ADR-004) viram dados: semente em `data/validacoes/*.md`, tabelas
+`prompts_validacao`/`prompts_validacao_historico` (SQLite + Supabase), rotas `/api/validacao/prompts`
+(leitura autenticada, escrita admin), validação de cabeçalho e placeholders antes de salvar, histórico
+com reversão e restauração da semente. Versão por projeto com fallback `DEFAULT`. UI no painel admin.
+**Ação necessária:** rodar o trecho novo de `scripts/schema_supabase.sql` no Supabase real. Contratos da
+Regra 5: nenhum alterado; `prompt_rede_eletrica.txt` intacto.
+
+---
+
 ## 2026-09-30 — TASK-011: camada 1 da validação das planilhas (primeiros testes do projeto)
 
 **Tipo:** nova funcionalidade (backend) + refatoração mínima · `.ai/tasks/TASK-011-30-09-2026.md`

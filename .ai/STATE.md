@@ -89,6 +89,9 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
       /api/validacao/planilhas` (formato, operação, quantidade, duplicidade e, sobre o payload de
       cálculo, ativo ausente da base). Só backend — sem botão/painel ainda (TASK-014). Catálogo em
       `.ai/VALIDACOES.md`.
+- [x] Prompts de validação editáveis pelo admin (TASK-012, 2026-09-30): dois prompts semeados
+      (`validar-planilhas`, `corrigir-planilhas`), versão por projeto com fallback `DEFAULT`, histórico e
+      reversão, editor no painel admin. Ainda **não são usados** por nenhuma chamada de IA (TASK-014).
 - [x] Chave de IA padrão do sistema (TASK-009, 2026-09-30): sem chave digitada, o chat usa
       `GEMINI_API_KEY`/`GOOGLE_API_KEY` (servidor: variável de ambiente; desktop: `.env` ao lado do
       `.exe`). Precedência usuário > salva > padrão; rate-limit por usuário só com a chave padrão;
@@ -146,8 +149,8 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [ ] Atualizar `.ai/CONTEXT.md` §7 (RN-01 a RN-05) e `.ai/ARCHITECTURE.md` para descrever o motor
       de regras do leitor (TASK-006) em vez da lógica fixa em código, agora obsoleta nesses
       documentos
-- [ ] Sistema de validação das planilhas Cabos/Outros em camadas (ADR-004, TASK-012 a TASK-015);
-      TASK-009, TASK-010 e TASK-011 (camada 1) concluídas. Catálogo em `.ai/VALIDACOES.md`
+- [ ] Sistema de validação das planilhas Cabos/Outros em camadas (ADR-004, TASK-013 a TASK-015);
+      TASK-009 a TASK-012 concluídas. Catálogo em `.ai/VALIDACOES.md`
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -354,8 +357,8 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-09-30
-**Motivo:** TASK-011 — camada 1 da validação das planilhas (contrato) + primeiros testes; ADR-004 aceita;
-decisões do usuário sobre as regras de domínio registradas em `.ai/VALIDACOES.md` (entram na TASK-013).
-**Alterações de código:** `services/orcamento_calc.py` (parsing extraído, comportamento idêntico),
-`services/validacao_planilhas.py`, `routers/validacao.py`, `models.py`, `app.py`. Novos: `tests/`,
-`pytest.ini`, `requirements-dev.txt`.
+**Motivo:** TASK-012 — prompts de validação como dados editáveis pelo admin (semente, tabelas, rotas,
+histórico/reversão, editor no painel admin). Requer rodar o trecho novo de `scripts/schema_supabase.sql`.
+**Alterações de código:** `services/prompts_validacao.py`, `routers/validacao_prompts.py`, `database.py`,
+`config.py`, `app.py`, `scripts/schema_supabase.sql`, `static/admin.html`, `static/admin.js`. Novo:
+`tests/test_prompts_validacao.py`.

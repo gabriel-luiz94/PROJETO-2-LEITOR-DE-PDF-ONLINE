@@ -82,6 +82,35 @@
         </div>
     </div>
 
+    <!-- Prompts de validação (TASK-012) -->
+    <div class="max-w-4xl mx-auto glass rounded-xl p-8 shadow-2xl mt-8">
+        <h2 class="text-xl font-semibold mb-1">Prompts de validação</h2>
+        <p class="text-sm text-[#8b949e] mb-4">
+            Instruções enviadas à IA para checar e corrigir as planilhas Cabos e Outros. Cada projeto usa a versão
+            própria, se existir; senão herda o padrão (DEFAULT). Cada salvamento guarda a versão anterior no histórico.
+        </p>
+        <div class="flex flex-wrap gap-4 mb-3">
+            <div>
+                <label class="block text-xs text-[#8b949e] mb-1">Projeto</label>
+                <select id="pvProjeto" class="px-3 py-2 border border-[#30363d] bg-[#0d1117] text-white rounded-md"></select>
+            </div>
+            <div>
+                <label class="block text-xs text-[#8b949e] mb-1">Prompt</label>
+                <select id="pvPrompt" class="px-3 py-2 border border-[#30363d] bg-[#0d1117] text-white rounded-md"></select>
+            </div>
+            <div class="self-end text-sm text-[#8b949e]" id="pvStatus"></div>
+        </div>
+        <div id="pvErros" class="hidden bg-red-900 text-red-100 p-3 rounded-md mb-3 text-sm"></div>
+        <textarea id="pvTexto" rows="20" spellcheck="false"
+            class="w-full px-3 py-2 border border-[#30363d] bg-[#0d1117] text-[#e6edf3] rounded-md font-mono text-xs"></textarea>
+        <div class="flex flex-wrap gap-3 mt-3">
+            <button id="pvSalvar" class="btn-primary font-medium py-2 px-4 rounded-md">Salvar</button>
+            <button id="pvSemente" class="px-4 py-2 rounded-md border border-[#30363d] text-[#c9d1d9] hover:bg-[#21262d]">Restaurar semente</button>
+            <button id="pvHistorico" class="px-4 py-2 rounded-md border border-[#30363d] text-[#c9d1d9] hover:bg-[#21262d]">Histórico</button>
+        </div>
+        <div id="pvHistLista" class="hidden mt-4 text-sm divide-y divide-[#30363d] border border-[#30363d] rounded-md"></div>
+    </div>
+
     <script src="/static/admin.js"></script>
 </body>
 </html>

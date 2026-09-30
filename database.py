@@ -13,7 +13,9 @@ import bcrypt
 from config import (
     DB_PATH, SEED_CSV_PATH, logger,
     REGRAS_LEITOR_PROCESSAMENTO_SEED_PATH, REGRAS_LEITOR_CLASSIFICACAO_SEED_PATH,
+    VALIDACOES_SEED_DIR,
 )
+from services.prompts_validacao import ler_sementes
 
 
 def get_connection() -> sqlite3.Connection:
@@ -94,6 +96,22 @@ def _seed_regras_leitor(cursor: sqlite3.Cursor):
         )
     logger.info(f"Seed de regras do leitor concluído: {len(regras_proc)} regras de processamento, "
                 f"{len(regras_cls)} de classificação, para PARAIBA e RONDONIA.")
+
+
+def _seed_prompts_validacao(cursor: sqlite3.Cursor):
+    """
+    Seed dos prompts de validação (TASK-012) a partir de data/validacoes/*.md, sob o projeto
+    "DEFAULT". Idempotente por prompt (INSERT OR IGNORE): um prompt novo adicionado ao repositório
+    aparece na próxima inicialização, e um já editado pelo admin nunca é sobrescrito.
+    """
+    sementes, ignorados = ler_sementes(VALIDACOES_SEED_DIR)
+    for nome, motivo in ignorados:
+        logger.warning(f"Seed de prompt de validação ignorado ({nome}): {motivo}")
+    for prompt_id, texto in sementes.items():
+        cursor.execute(
+            "INSERT OR IGNORE INTO prompts_validacao (projeto_codigo, prompt_id, conteudo) VALUES ('DEFAULT', ?, ?)",
+            (prompt_id, texto)
+        )
 
 
 def init_db():
@@ -193,6 +211,30 @@ def init_db():
         )
     ''')
     _seed_regras_leitor(cursor)
+
+    # Prompts de validação (TASK-012) — um texto (cabeçalho + corpo) por (projeto, prompt), com
+    # histórico de versões para reverter pela UI (admin). "DEFAULT" vale para todo projeto sem
+    # versão própria.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS prompts_validacao (
+            projeto_codigo TEXT NOT NULL,
+            prompt_id TEXT NOT NULL,
+            conteudo TEXT NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now')),
+            PRIMARY KEY (projeto_codigo, prompt_id)
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS prompts_validacao_historico (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            projeto_codigo TEXT NOT NULL,
+            prompt_id TEXT NOT NULL,
+            conteudo TEXT NOT NULL,
+            criado_em TEXT DEFAULT (datetime('now')),
+            criado_por TEXT
+        )
+    ''')
+    _seed_prompts_validacao(cursor)
 
     # Tabela Orçamento (Customizado do Usuário)
     cursor.execute('''
