@@ -129,7 +129,7 @@
 | `projetos.py` | `/api/projetos` | Lista mesclada local+nuvem; cadastro só admin |
 | `ai_chat.py` | `/api/gemini` | Listagem de modelos e chat com Gemini/OpenAI, injetando `prompt_rede_eletrica.txt` e as regras aprendidas. Chave resolvida por `resolver_credencial()`: usuário > salva > padrão do ambiente (`GEMINI_API_KEY`/`GOOGLE_API_KEY`); rate-limit por usuário só com a chave padrão (TASK-009) |
 | `validacao.py` | `/api/validacao` | Validação das planilhas Cabos/Outros: `POST /planilhas` (camadas 1 e 2, `services/validacao_planilhas.py` e `regras_dominio.py`) `POST /ia` (camada 3, `services/validacao_ia.py`) e `POST /corrigir` (`services/correcao_ia.py`) |
-| `validacao_regras.py` | `/api/validacao/regras` | Regras de domínio editáveis (camada 2), histórico, reversão, semente e teste do rascunho; motor em `services/regras_dominio.py` (TASK-013) |
+| `validacao_regras.py` | `/api/validacao/regras` | Regras de domínio editáveis (camada 2, linguagem v2 — ADR-005), histórico, reversão, semente, `descrever` e teste do rascunho com explicação; motor em `services/regras_dominio.py` (TASK-013/016) |
 | `validacao_prompts.py` | `/api/validacao/prompts` | Prompts de validação por projeto (com fallback `DEFAULT`), histórico e reversão; escrita só admin (TASK-012). `buscar_prompt()` é o ponto de leitura para a IA (TASK-014) |
 | `admin.py` | `/api/admin` | Usuários (CRUD, role, senha), tabela master (add/upload CSV/sync completo), audit log |
 | `health.py` | — | `/api/health`, `/api/backup/export`, `/api/health/sync-master` |
@@ -189,7 +189,7 @@ comparam `role` manualmente), `get_current_user_from_state`.
 | `projetos` | `nome` | `codigo`, `updated_at` | Seed: PARAIBA/027, RONDONIA/229 |
 | `sync_log` | `id` AUTOINC | `tabela`, `operacao`, `registro_id`, `dados_json`, `timestamp`, `sincronizado`, `tentativas`, `erro` | Fila offline — **nunca alimentada** (`enqueue_operation` não é chamado) |
 | `prompts_validacao` | (`projeto_codigo`, `prompt_id`) | `conteudo` (cabeçalho + corpo), `updated_at` | Prompts de validação (TASK-012); `DEFAULT` vale para projetos sem versão própria; semeada de `data/validacoes/*.md` |
-| `regras_dominio` | `projeto_codigo` | `regras_json` (array), `updated_at` | Regras de domínio da validação (TASK-013); `DEFAULT` = padrão; semeada de `data/validacoes/regras_dominio_seed.json` (tudo desligado) |
+| `regras_dominio` | `projeto_codigo` | `regras_json`, `updated_at` | Regras de domínio (TASK-013/018); `DEFAULT` = container completo `{versao,grupos,regras}`, projeto = overlay `{overlay,grupos,adicionadas,sobrescritas,ocultas}` (`services/regras_camadas.py`); semeada de `data/validacoes/regras_dominio_seed.json` (tudo desligado) |
 | `regras_dominio_historico` | `id` AUTOINC | `projeto_codigo`, `regras_json`, `criado_em`, `criado_por` | Versões sobrescritas, para reverter |
 | `prompts_validacao_historico` | `id` AUTOINC | `projeto_codigo`, `prompt_id`, `conteudo`, `criado_em`, `criado_por` | Versões sobrescritas, para reverter pela UI (admin) |
 | `audit_log` | `id` AUTOINC | `user_id`, `email`, `action`, `table_name`, `record_id`, `details`, `created_at` | Alimentado apenas por `admin.py:_audit` |
@@ -258,7 +258,7 @@ DEMAIS ENTIDADES (obras, recs, projetos):
 | POST | `/api/validacao/corrigir` | JWT | Correção assistida: a IA PROPÕE (nada é aplicado); cada proposta é reconferida (linha existente, muda algo, passa na camada 1) |
 | POST | `/api/validacao/ia` | JWT | Camada 3 (IA) com o prompt salvo; falha da IA volta como `status` com HTTP 200; limite por minuto só com a chave padrão |
 | POST | `/api/validacao/planilhas` | JWT | Achados das camadas 1 e 2 (`erro`/`aviso`/`info`); `payload_calculo` opcional liga `C1-BASE`; `projeto_codigo` escolhe as regras de domínio |
-| GET/POST | `/api/validacao/regras[/historico\|/reverter\|/restaurar-semente\|/adicionar-novas\|/testar]` | JWT (POST/histórico: admin) | Regras de domínio da validação |
+| GET/POST | `/api/validacao/regras[/ativos\|/historico\|/reverter\|/restaurar-semente\|/adicionar-novas\|/descrever\|/testar]` | JWT (POST/histórico: admin) | Regras de domínio da validação |
 | GET/POST | `/api/validacao/prompts[/{id}[/historico\|/reverter\|/restaurar-semente]]` | JWT (POST/histórico: admin) | Prompts de validação editáveis |
 | GET | `/api/health`, `/api/backup/export` | pública / JWT | Diagnóstico e backup (`ai_key_source` = origem da chave de IA: `salva`/`padrao`/`nenhuma`, nunca o valor) |
 | GET | `/api/update/check` | pública | Versão mais recente |
@@ -293,7 +293,7 @@ ativado definindo explicitamente `APP_MODE=server` no ambiente.
 | `resumo.html` + `resumo.js` | Tabelas Cabos e Outros, undo/redo, autocomplete, chat de IA, modais geradores (Cabos, Postes e Estruturas, Ramais, Conexões), Tabela de Regras, Tabela Totalizadora |
 | `resultado_orcamento.html` | Chama `/api/orcamento/calcular`, consolida por `operação|mdo|código`, permite edição manual, salva REC, exporta |
 | `orcamento.html` | Visualiza e edita a base técnica com filtros por coluna |
-| `admin.html` + `admin.js` | Painel administrativo |
+| `admin.html` + `admin.js` + `regras_editor.js` | Painel administrativo; `regras_editor.js` = editor visual das regras de domínio (TASK-017/018) |
 | `login.html` + `login.js` | Login; grava `auth_token` no `localStorage` |
 | `auth_fetch.js` | Wrapper de `fetch` que injeta o `Authorization: Bearer` |
 

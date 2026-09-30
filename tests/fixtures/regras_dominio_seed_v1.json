@@ -1,0 +1,233 @@
+[
+  {
+    "id": "C2-CFU-SUPL",
+    "escopo": "outros",
+    "tipo": "requer",
+    "severidade": "aviso",
+    "mensagem": "Chave CFU sem 1-SUPL na linha.",
+    "ativa": false,
+    "operacoes": [
+      "I",
+      "*I"
+    ],
+    "parametros": {
+      "se_regex": "^CFU$",
+      "exige_regex": "^SUPL$",
+      "qtd_min": 1
+    },
+    "descricao": "Basta a presença de 1-SUPL na linha (decisão 2026-09-30)."
+  },
+  {
+    "id": "C2-CFU-EF",
+    "escopo": "outros",
+    "tipo": "requer",
+    "severidade": "aviso",
+    "mensagem": "Chave CFU/CFUR sem elo fusível (EF) na mesma linha.",
+    "ativa": false,
+    "operacoes": [
+      "I",
+      "*I"
+    ],
+    "parametros": {
+      "se_regex": "^(CFU|CFUR)$",
+      "exige_regex": "^EF",
+      "qtd_min": 1
+    },
+    "descricao": ""
+  },
+  {
+    "id": "C2-TR-PR15",
+    "escopo": "outros",
+    "tipo": "requer",
+    "severidade": "aviso",
+    "mensagem": "Trafo sem 1-PR15 (nem RPR).",
+    "ativa": false,
+    "operacoes": [
+      "I",
+      "*I"
+    ],
+    "parametros": {
+      "se_regex": "^TR\\d",
+      "exige_regex": "^PR15$",
+      "qtd_min": 1,
+      "exceto_se_regex": "^RPR$"
+    },
+    "descricao": ""
+  },
+  {
+    "id": "C2-TR-PR220-MONO",
+    "escopo": "outros",
+    "tipo": "requer",
+    "severidade": "aviso",
+    "mensagem": "Trafo monofásico/bifásico com PR220 abaixo do mínimo.",
+    "ativa": false,
+    "operacoes": [
+      "I",
+      "*I"
+    ],
+    "parametros": {
+      "se_regex": "^TR[12]",
+      "exige_regex": "^PR220$",
+      "qtd_min": 2,
+      "dobra_se": [
+        {
+          "regex": "^SI4$",
+          "qtd_min": 1
+        },
+        {
+          "regex": "^SI3$",
+          "qtd_min": 2
+        }
+      ],
+      "multiplicador": 2
+    },
+    "descricao": "Mínimo 2; dobra com duas descidas: 1-SI4 ou SI3 com qtd >= 2 (uma descida: 1-SI3 ou outra estrutura de BT)."
+  },
+  {
+    "id": "C2-TR-PR220-TRI",
+    "escopo": "outros",
+    "tipo": "requer",
+    "severidade": "aviso",
+    "mensagem": "Trafo trifásico com PR220 abaixo do mínimo.",
+    "ativa": false,
+    "operacoes": [
+      "I",
+      "*I"
+    ],
+    "parametros": {
+      "se_regex": "^TR3",
+      "exige_regex": "^PR220$",
+      "qtd_min": 3,
+      "dobra_se": [
+        {
+          "regex": "^SI4$",
+          "qtd_min": 1
+        },
+        {
+          "regex": "^SI3$",
+          "qtd_min": 2
+        }
+      ],
+      "multiplicador": 2
+    },
+    "descricao": "Mínimo 3; dobra com duas descidas (idem monofásico)."
+  },
+  {
+    "id": "C2-P50",
+    "escopo": "cabos+outros",
+    "tipo": "minimo_total",
+    "severidade": "aviso",
+    "mensagem": "P50 total da planilha abaixo do necessário para trafos e PR15.",
+    "ativa": false,
+    "operacoes": [
+      "I",
+      "*I"
+    ],
+    "parametros": {
+      "ativo_regex": "^P50$",
+      "contribuicoes": [
+        {
+          "se_regex": "^TR[12]",
+          "metros_por_unidade": 2
+        },
+        {
+          "se_regex": "^TR3",
+          "metros_por_unidade": 6
+        },
+        {
+          "se_regex": "^PR15$",
+          "metros_por_unidade": 1
+        }
+      ]
+    },
+    "descricao": "Total de P50 (comprimento bruto, tabela Cabos) >= 2 m por trafo mono/bi + 6 m por trafo tri + 1 m por PR15, só operações I/*I. Uma única regra porque a exigência é uma soma."
+  },
+  {
+    "id": "C2-POSTE10-MT",
+    "escopo": "outros",
+    "tipo": "proibe",
+    "severidade": "erro",
+    "mensagem": "Poste de 10 m não pode ser usado em média tensão.",
+    "ativa": false,
+    "operacoes": [
+      "I",
+      "*I"
+    ],
+    "parametros": {
+      "se_regex": "^\\d*(DT|CV)10/",
+      "com_regex": "^(U[1-4]C?|U23|U32|N[1-4](IV)?|T[1-3]|TE|R[1-4]|TR\\d.*|CFU|CFA|CFUR)$"
+    },
+    "descricao": "Poste é MT se a linha tem estrutura MT ou chave/trafo de MT (decisão 2026-09-30)."
+  },
+  {
+    "id": "C2-ESTR-ISOL",
+    "escopo": "outros",
+    "tipo": "nao_isolado",
+    "severidade": "aviso",
+    "mensagem": "Estrutura de fim de rede sozinha no poste.",
+    "ativa": false,
+    "operacoes": [
+      "I",
+      "*I"
+    ],
+    "parametros": {
+      "se_regex": "^(U3C?|N3(IV)?|R3|T3)$",
+      "acompanhado_por_regex": "^(U[1-4]C?|U23|U32|N[1-4](IV)?|T[1-3]|TE|R[1-4]|TR\\d.*|CFU|CFA|CFUR)$",
+      "min_outros": 1
+    },
+    "descricao": "U3/N3/R3/T3 e variantes exigem outra estrutura MT (mesmo outra isolada) ou trafo."
+  },
+  {
+    "id": "C2-POSTE-FMT",
+    "escopo": "outros",
+    "tipo": "texto",
+    "severidade": "info",
+    "mensagem": "Poste fora do padrão DT…/CV… sem quantidade (o cálculo aceita).",
+    "ativa": false,
+    "operacoes": [
+      "I",
+      "*I"
+    ],
+    "parametros": {
+      "texto_regex": "(?:^|\\s)(?:POSTE\\d+|\\d+(?:[.,]\\d+)?-(?:DT|CV)\\d+/\\d+|(?:DT|CV)\\d+(?=\\s|$))"
+    },
+    "descricao": "Sinaliza POSTE11, 1-DT11/300 e DT11."
+  },
+  {
+    "id": "C2-TR-EF",
+    "escopo": "outros",
+    "tipo": "proibe",
+    "severidade": "aviso",
+    "mensagem": "Poste com trafo e elo fusível (EF) sem chave.",
+    "ativa": false,
+    "operacoes": [
+      "I",
+      "*I"
+    ],
+    "parametros": {
+      "se_regex": "^TR\\d",
+      "com_regex": "^EF",
+      "exceto_se_regex": "^(CFU|CFUR)$"
+    },
+    "descricao": "Não inclua elo em postes com transformador, a menos que haja também uma chave. Chave = CFU ou CFUR (decisão 2026-09-30; CFA não libera)."
+  },
+  {
+    "id": "C2-BT-EXT",
+    "escopo": "outros",
+    "tipo": "requer",
+    "severidade": "aviso",
+    "mensagem": "Estrutura SI sem RA2 (e sem estrutura S#) na linha.",
+    "ativa": false,
+    "operacoes": [
+      "I",
+      "*I"
+    ],
+    "parametros": {
+      "se_regex": "^SI\\d+$",
+      "exige_regex": "^RA2$",
+      "qtd_min": 1,
+      "exceto_se_regex": "^S\\d+$"
+    },
+    "descricao": "Se houver estrutura SI (SI1, SI3, SI4…), adicionar RA2, a menos que exista estrutura tipo S# (S2, S4, S44…) (decisão 2026-09-30)."
+  }
+]
