@@ -28,7 +28,7 @@ from middleware.nocache_middleware import NoCacheHtmlMiddleware
 from websocket_manager import manager
 
 # Routers
-from routers import obras, regras, regras_leitor, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras
+from routers import obras, regras, regras_leitor, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes
 
 
 app = FastAPI(
@@ -206,6 +206,7 @@ app.include_router(orcamento.router)
 app.include_router(ai_chat.router)
 app.include_router(validacao_prompts.router)
 app.include_router(validacao_regras.router)
+app.include_router(validacao_ajustes.router)
 app.include_router(validacao.router)
 app.include_router(upload.router)
 app.include_router(health.router)

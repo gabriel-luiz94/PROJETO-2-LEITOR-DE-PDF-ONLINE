@@ -8,6 +8,18 @@
 
 ---
 
+## 2026-10-01 — TASK-022: motor de ajustes determinísticos (ADR-006)
+
+**Tipo:** novo motor de regra de negócio (backend) · `.ai/tasks/TASK-022-01-10-2026.md`
+
+Novo `services/ajustes_planilhas.py`: 7 ações declarativas sobre Cabos/Outros (substituir texto/item, normalizar, ordenar,
+excluir linhas, adicionar linha, adicionar/remover ativo na linha, mesclar duplicadas), reaproveitando condições, seletores e
+grupos da linguagem de regras v2. Devolve um **diff** (editar/inserir/excluir/mover) sem alterar a entrada; a camada 1 descarta
+ajuste que gere erro de contrato novo; a operação da linha só muda com `operacao_nova`; idempotente. Rotas
+`POST /api/validacao/ajustes/preview` e `/descrever`. Sem mudança de banco. Telas e cadastro: TASK-023/024.
+
+---
+
 ## 2026-10-01 — TASK-019: painel de regras de validação vai do Admin para o Resumo
 
 **Tipo:** frontend (reorganização) · `.ai/tasks/TASK-019-01-10-2026.md`
