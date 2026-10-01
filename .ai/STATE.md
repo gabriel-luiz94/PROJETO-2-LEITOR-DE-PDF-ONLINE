@@ -178,6 +178,7 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       sob demanda, ação `acao_ui: obra` com popup de confirmação, sem regressão e sem lentidão). Em PLANEJAMENTO, com 4 decisões a confirmar.
 - [x] **TASK-029** (pedido de 2026-10-02): o botão `Ajustar` roda todos os ajustes habilitados e lista cada correção com **Executar correção**,
       com **Executar todas as correções** acima. CONCLUÍDA (preview-lote + modal de cartões).
+- [ ] **TASK-030** (pedido de 2026-10-02): manual de uso para cadastrar regras de validação e ajustes. Em PLANEJAMENTO, com 4 decisões a confirmar.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
