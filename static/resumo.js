@@ -2775,39 +2775,173 @@ document.addEventListener('DOMContentLoaded', () => {
         return mostrarPainelAjuste(r.diff, `${r.acoes.length} ação(ões)`, { acoes: r.acoes, destrutivo: r.destrutivo, descartadas: r.descartadas });
     }
 
-    /* Botão "Ajustar ▾": ajustes cadastrados e ligados do projeto, rodados avulsos (sem achado). */
-    const btnAjustar = document.getElementById('btn-ajustar');
-    if (btnAjustar) {
-        btnAjustar.addEventListener('click', async e => {
-            e.stopPropagation();
-            const antigo = document.getElementById('ajustar-menu');
-            if (antigo) { antigo.remove(); return; }
-            const { ajustes } = await carregarAjustesCadastrados();
-            const menu = document.createElement('div');
-            menu.id = 'ajustar-menu';
-            const r = btnAjustar.getBoundingClientRect();
-            menu.style.cssText = `position:fixed; z-index:950; left:${r.left}px; top:${r.bottom + 4}px; min-width:260px; max-width:360px; background:#161b22; border:1px solid #30363d; border-radius:6px; padding:4px; box-shadow:0 8px 24px rgba(0,0,0,0.5);`;
-            if (!ajustes.length) {
-                const v = document.createElement('div');
-                v.style.cssText = 'padding:8px 10px; font-size:0.8rem; color:#8b949e;';
-                v.textContent = 'Nenhum ajuste ligado para este projeto. O administrador liga em Regras de validação › Ajustes.';
-                menu.appendChild(v);
-            }
-            ajustes.forEach(a => {
-                const b = document.createElement('button');
-                b.style.cssText = 'display:block; width:100%; text-align:left; background:transparent; border:none; color:#c9d1d9; padding:6px 10px; font-size:0.82rem; cursor:pointer; border-radius:4px;';
-                b.textContent = a.nome;
-                b.title = (a.frases || []).join(' ');
-                b.onmouseenter = () => { b.style.background = '#21262d'; };
-                b.onmouseleave = () => { b.style.background = 'transparent'; };
-                b.onclick = async () => { menu.remove(); if (await fluxoAjuste([a.id])) showToast('Ajuste aplicado. Valide de novo para conferir.'); };
-                menu.appendChild(b);
+    /* ═══════════════════════════════════════
+       BOTÃO "AJUSTAR" (TASK-029): roda TODOS os ajustes habilitados do projeto (POST /api/validacao/ajustes/preview-lote,
+       uma única chamada) e mostra um cartão por ajuste que muda algo, com "Executar correção"; acima, "Executar todas as
+       correções" (em cadeia, na ordem do cadastro, num só passo de histórico). Sempre com pré-visualização; depois de
+       executar, tudo é recalculado. Exclusões pedem confirmação extra.
+    ═══════════════════════════════════════ */
+    async function carregarLoteDeAjustes() {
+        try {
+            const resp = await fetch('/api/validacao/ajustes/preview-lote', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cabos: linhasParaValidacao('cabos', 'CABOS'), outros: linhasParaValidacao('outros', 'OUTROS'),
+                                       projeto_codigo: codigoDoProjetoSelecionado() || null })
             });
-            document.body.appendChild(menu);
-            const fecharMenu = ev => { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('click', fecharMenu); } };
-            setTimeout(() => document.addEventListener('click', fecharMenu), 0);
-        });
+            if (!resp.ok) throw new Error(await lerDetalhe(resp));
+            return await resp.json();
+        } catch (e) {
+            showToast(`Não foi possível calcular os ajustes (${e.message}).`);
+            return null;
+        }
     }
+
+    function resumoDoDiff(n) {
+        const partes = [];
+        if (n.editar) partes.push(`${n.editar} editada(s)`);
+        if (n.inserir) partes.push(`${n.inserir} inserida(s)`);
+        if (n.excluir) partes.push(`${n.excluir} excluída(s)`);
+        if (n.mover) partes.push('ordem alterada');
+        return partes.join(', ');
+    }
+
+    function mensagemDeAplicacao(res, o) {
+        return `${o}: ${res.aplicadas} mudança(s) aplicada(s)${res.ignoradas ? `; ${res.ignoradas} ignorada(s) porque a linha mudou` : ''}. Ctrl+Z desfaz.`;
+    }
+
+    async function abrirPainelAjustar(mensagem) {
+        const r = await carregarLoteDeAjustes();
+        if (!r) return;
+        const modal = document.getElementById('modal-ajustar');
+        const lista = document.getElementById('ajustar-lista');
+        const topo = document.getElementById('ajustar-topo');
+        const resumo = document.getElementById('ajustar-resumo');
+        const aviso = document.getElementById('ajustar-aviso');
+        lista.replaceChildren();
+        topo.replaceChildren();
+        aviso.textContent = mensagem || '';
+        aviso.style.display = mensagem ? 'block' : 'none';
+        const fechar = () => modal.classList.add('hidden');
+        const totalMudancas = r.itens.reduce((t, i) => t + Object.values(i.diff.resumo).reduce((a, b) => a + b, 0), 0);
+
+        if (!r.total_habilitados) {
+            resumo.textContent = 'Nenhum ajuste habilitado neste projeto. O administrador liga os ajustes em Regras de validação › Ajustes.';
+        } else if (!r.itens.length) {
+            resumo.textContent = `Nada a ajustar nas tabelas atuais (${r.total_habilitados} ajuste(s) habilitado(s), nenhum mudaria algo).`;
+        } else {
+            resumo.textContent = `${r.itens.length} ajuste(s) com correções (${totalMudancas} mudança(s))`
+                + (r.sem_mudanca.length ? `; ${r.sem_mudanca.length} habilitado(s) não mudaria(m) nada` : '') + '. Nada é alterado sem você executar.';
+            const todas = botaoPainel('Executar todas as correções', 'btn-primary');
+            todas.style.cssText = 'width:100%; margin-bottom:10px;';
+            if (!r.cadeia) {
+                todas.disabled = true; todas.style.opacity = '0.5';
+                todas.title = r.cadeia_erro || 'Indisponível: execute as correções uma a uma.';
+            } else {
+                todas.title = 'Executa todos os ajustes em sequência, na ordem do cadastro, num único passo de histórico';
+                todas.onclick = async () => {
+                    const n = r.cadeia.resumo;
+                    if (r.cadeia.destrutivo && !confirm(`Executar todas as correções inclui EXCLUSÕES (${n.excluir} linha(s)/itens removidos). Você conferiu a pré-visualização? (Ctrl+Z desfaz.)`)) return;
+                    const res = aplicarOperacoesAjuste(r.cadeia, new Set(r.cadeia.operacoes.map((o, i) => i)));
+                    showToast(mensagemDeAplicacao(res, 'Todas as correções'));
+                    await abrirPainelAjustar(mensagemDeAplicacao(res, 'Todas as correções'));
+                };
+            }
+            topo.appendChild(todas);
+        }
+        (r.avisos || []).forEach(a => { const d = document.createElement('div'); d.style.cssText = 'font-size:0.78rem; color:#d29922;'; d.textContent = a; lista.appendChild(d); });
+        r.problemas.forEach(p => {
+            const d = document.createElement('div');
+            d.style.cssText = 'font-size:0.78rem; color:#d29922; margin-bottom:6px;';
+            d.textContent = `Ajuste "${p.nome}" ignorado (configuração inválida): ${p.erros.join('; ')}`;
+            lista.appendChild(d);
+        });
+
+        r.itens.forEach(item => {
+            const card = document.createElement('div');
+            card.style.cssText = 'padding:10px 12px; margin-bottom:8px; background:rgba(255,255,255,0.03); border-radius:6px;'
+                + (item.destrutivo ? ' border-left:3px solid #f85149;' : ' border-left:3px solid #3fb950;');
+            const cab = document.createElement('div');
+            cab.style.cssText = 'display:flex; gap:8px; align-items:center; flex-wrap:wrap;';
+            const nome = document.createElement('strong');
+            nome.textContent = item.nome;
+            const sub = document.createElement('span');
+            sub.style.cssText = 'font-size:0.78rem; color:#8b949e;';
+            sub.textContent = resumoDoDiff(item.diff.resumo);
+            cab.append(nome, sub);
+            if (item.destrutivo) {
+                const b = document.createElement('span');
+                b.style.cssText = 'font-size:0.7rem; color:#f85149; border:1px solid #f85149; border-radius:10px; padding:0 6px;';
+                b.textContent = 'EXCLUI';
+                cab.appendChild(b);
+            }
+            const exec = botaoPainel('Executar correção', 'btn-secondary');
+            exec.style.cssText = 'margin-left:auto; padding:4px 12px; font-size:0.8rem; color:#3fb950; border-color:rgba(63,185,80,0.5);';
+            cab.appendChild(exec);
+            card.appendChild(cab);
+            item.frases.forEach(f => { const d = document.createElement('div'); d.style.cssText = 'font-size:0.78rem; color:#8b949e; margin-top:2px;'; d.textContent = f; card.appendChild(d); });
+
+            const det = document.createElement('details');
+            det.style.marginTop = '6px';
+            const sum = document.createElement('summary');
+            sum.style.cssText = 'font-size:0.78rem; color:#58a6ff; cursor:pointer;';
+            sum.textContent = 'Ver e escolher as mudanças';
+            det.appendChild(sum);
+            const caixas = [];
+            item.diff.operacoes.slice(0, 60).forEach((o, i) => {
+                const t = textoOperacao(o);
+                const linha = document.createElement('label');
+                linha.style.cssText = 'display:block; padding:4px 6px; margin-top:4px; cursor:pointer; font-size:0.78rem;' + (o.op === 'excluir' ? ' border-left:2px solid #f85149;' : '');
+                const cx = document.createElement('input');
+                cx.type = 'checkbox'; cx.checked = true; cx.style.marginRight = '6px';
+                caixas.push({ cx, i });
+                const onde = document.createElement('span');
+                onde.style.color = '#c9d1d9';
+                onde.textContent = `${{ editar: 'Editar', inserir: 'Inserir', excluir: 'EXCLUIR', mover: 'Reordenar' }[o.op]} · ${t.onde}`;
+                linha.append(cx, onde);
+                const w = document.createElement('div');
+                w.style.cssText = 'font-family:monospace; margin-left:22px;';
+                if (t.antes) { const d = document.createElement('div'); d.style.cssText = 'color:#f85149; text-decoration:line-through;'; d.textContent = t.antes; w.appendChild(d); }
+                if (t.depois) { const d = document.createElement('div'); d.style.color = o.op === 'mover' ? '#8b949e' : '#3fb950'; d.textContent = t.depois; w.appendChild(d); }
+                linha.appendChild(w);
+                det.appendChild(linha);
+            });
+            if (item.diff.operacoes.length > 60) {
+                const mais = document.createElement('div');
+                mais.style.cssText = 'font-size:0.75rem; color:#8b949e; margin-top:4px;';
+                mais.textContent = `…e mais ${item.diff.operacoes.length - 60} mudança(s) (todas entram ao executar a correção).`;
+                det.appendChild(mais);
+            }
+            card.appendChild(det);
+            [...item.diff.descartadas.map(d => `Descartado (${d.linha_id}): ${d.motivo}`), ...item.diff.avisos.map(a => `Atenção: ${a}`)].forEach(x => {
+                const d = document.createElement('div'); d.style.cssText = 'font-size:0.75rem; color:#d29922; margin-top:3px;'; d.textContent = x; card.appendChild(d);
+            });
+
+            exec.onclick = async () => {
+                const todas = item.diff.operacoes.length <= 60;
+                const marcadas = new Set(caixas.filter(x => x.cx.checked).map(x => x.i));
+                if (!todas) item.diff.operacoes.forEach((o, i) => marcadas.add(i));   // acima do teto exibido: executa o ajuste inteiro
+                if (!marcadas.size) { showToast('Nenhuma mudança marcada.'); return; }
+                if (item.destrutivo && !confirm(`O ajuste "${item.nome}" EXCLUI linhas ou itens. Você conferiu a pré-visualização e quer executar? (Ctrl+Z desfaz.)`)) return;
+                const res = aplicarOperacoesAjuste(item.diff, marcadas);
+                const msg = res.aplicadas ? mensagemDeAplicacao(res, `Correção "${item.nome}"`) : 'Nada aplicado: as linhas mudaram desde a pré-visualização.';
+                showToast(msg);
+                await abrirPainelAjustar(msg);
+            };
+            lista.appendChild(card);
+        });
+
+        if (r.itens.length && r.sem_mudanca.length) {
+            const d = document.createElement('div');
+            d.style.cssText = 'font-size:0.75rem; color:#8b949e; margin-top:4px;';
+            d.textContent = `Habilitados que não mudariam nada: ${r.sem_mudanca.map(x => x.nome).join(', ')}.`;
+            lista.appendChild(d);
+        }
+        document.getElementById('ajustar-fechar').onclick = fechar;
+        modal.classList.remove('hidden');
+    }
+
+    const btnAjustar = document.getElementById('btn-ajustar');
+    if (btnAjustar) btnAjustar.addEventListener('click', () => abrirPainelAjustar());
 
     const btnMontarOrcamento = document.getElementById('btn-montar-orcamento');
     const modalOrcamento = document.getElementById('modal-orcamento');

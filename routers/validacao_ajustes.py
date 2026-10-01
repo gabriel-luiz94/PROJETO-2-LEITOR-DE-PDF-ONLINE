@@ -33,6 +33,12 @@ class AjustesPreviewRequest(BaseModel):
     projeto_codigo: Optional[str] = None
 
 
+class AjustesLoteRequest(BaseModel):
+    cabos: List[Dict[str, Any]] = []
+    outros: List[Dict[str, Any]] = []
+    projeto_codigo: Optional[str] = None
+
+
 class DescreverAcoesRequest(BaseModel):
     acoes: List[Dict[str, Any]]
     projeto_codigo: Optional[str] = None
@@ -209,6 +215,52 @@ def preview(req: AjustesPreviewRequest):
         return ajustar(acoes, req.cabos, req.outros, grupos)
     except ValueError as e:
         raise HTTPException(status_code=400, detail={"erros": e.args[0]})
+
+
+LIMITE_LOTE = 30                       # ajustes habilitados calculados por pedido
+ACOES_DESTRUTIVAS = {"excluir_linhas", "remover_ativo"}
+
+
+def _destrutivo(acoes: list, diff: dict) -> bool:
+    return any(a.get("acao") in ACOES_DESTRUTIVAS for a in acoes) or diff["resumo"]["excluir"] > 0
+
+
+@router.post("/preview-lote")
+def preview_lote(req: AjustesLoteRequest):
+    """TASK-029: roda TODOS os ajustes habilitados do projeto (ligados e não ocultos) nas tabelas dadas e devolve, numa só
+    chamada, (a) o diff de cada ajuste calculado sozinho sobre o estado atual, (b) os que não mudariam nada e (c) a CADEIA —
+    todos em sequência, na ordem do cadastro, cada um enxergando o resultado do anterior — usada por "Executar todas".
+    Só simula (nada é aplicado aqui); a camada 1 continua sendo a guarda de cada linha."""
+    grupos = _grupos(req.projeto_codigo)
+    habilitados = [a for a in ajustes_efetivos(req.projeto_codigo or DEFAULT) if a.get("ativa") and not a.get("oculta")]
+    avisos = []
+    if len(habilitados) > LIMITE_LOTE:
+        habilitados = habilitados[:LIMITE_LOTE]
+        avisos.append(f"Só os {LIMITE_LOTE} primeiros ajustes habilitados foram calculados.")
+    itens, sem_mudanca, problemas, validos = [], [], [], []
+    for r in habilitados:
+        acoes = r.get("acoes") or []
+        try:
+            diff = ajustar(acoes, req.cabos, req.outros, grupos)
+        except ValueError as e:
+            problemas.append({"id": r["id"], "nome": r.get("nome", r["id"]), "erros": e.args[0]})
+            continue
+        validos.append(r)
+        base = {"id": r["id"], "nome": r.get("nome", r["id"]), "descricao": r.get("descricao", ""),
+                "frases": [descrever_acao(a) for a in acoes]}
+        if sum(diff["resumo"].values()):
+            itens.append({**base, "destrutivo": _destrutivo(acoes, diff), "diff": diff})
+        else:
+            sem_mudanca.append({**base, "descartadas": diff["descartadas"]})
+    cadeia, cadeia_erro = None, None
+    todas = [a for r in validos for a in (r.get("acoes") or [])]
+    if len(todas) > 50:
+        cadeia_erro = "Muitas ações habilitadas para executar em sequência de uma vez; execute as correções uma a uma."
+    elif itens:
+        cadeia = ajustar(todas, req.cabos, req.outros, grupos)
+        cadeia["destrutivo"] = _destrutivo(todas, cadeia)
+    return {"total_habilitados": len(habilitados), "itens": itens, "sem_mudanca": sem_mudanca, "problemas": problemas,
+            "cadeia": cadeia, "cadeia_erro": cadeia_erro, "avisos": avisos}
 
 
 @router.post("/descrever")
