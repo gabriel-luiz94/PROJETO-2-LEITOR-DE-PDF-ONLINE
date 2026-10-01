@@ -207,8 +207,10 @@
         const topo = no('div', 'rp-topo');
         const sel = no('select', 'px-3 py-1'); sel.id = 'rdProjeto';
         topo.append(no('h2', '', 'Regras de validação'), campo('Editando', sel));
-        const fechar = botao('', 'Fechar', 'rp-btn'); fechar.style.marginLeft = 'auto'; fechar.onclick = fecharPainel;
-        topo.appendChild(fechar);
+        const manual = no('a', 'rp-btn', 'Manual'); manual.href = '/manual'; manual.target = '_blank'; manual.rel = 'noopener';
+        manual.title = 'Como cadastrar regras de validação e ajustes'; manual.style.marginLeft = 'auto'; manual.style.textDecoration = 'none';
+        const fechar = botao('', 'Fechar', 'rp-btn'); fechar.onclick = fecharPainel;
+        topo.append(manual, fechar);
         const abas = no('div', 'rp-abas');
         [['execucao', 'Execução', false], ['regras', 'Regras', false], ['grupos', 'Grupos', false], ['ajustes', 'Ajustes', false], ['prompts', 'Prompts da IA', true], ['testar', 'Testar', true]].forEach(([k, r, adm]) => {
             const b = no('button', 'rp-aba' + (k === 'execucao' ? ' ativa' : '') + (adm ? ' ' + ADM : ''), r);

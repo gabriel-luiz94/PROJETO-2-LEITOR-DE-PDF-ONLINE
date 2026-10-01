@@ -97,3 +97,4 @@ JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret-change-in-production")
 
 # ── URLs do servidor central (para auto-update e sync) ──────────────────────
 SERVER_URL = os.environ.get("SERVER_URL", "")
+MANUAL_PATH = _get_resource_path(os.path.join("data", "manual_regras_e_ajustes.md"))

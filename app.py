@@ -28,7 +28,7 @@ from middleware.nocache_middleware import NoCacheHtmlMiddleware
 from websocket_manager import manager
 
 # Routers
-from routers import obras, regras, regras_leitor, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes
+from routers import manual, obras, regras, regras_leitor, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes
 
 
 app = FastAPI(
@@ -163,6 +163,14 @@ async def serve_orcamento():
     with open(orc_path, "r", encoding="utf-8") as f:
         return HTMLResponse(f.read(), headers=NO_CACHE_HEADERS)
 
+@app.get("/manual")
+async def serve_manual():
+    caminho = os.path.join(STATIC_DIR, "manual.html")
+    if not os.path.exists(caminho):
+        return HTMLResponse("manual.html não encontrado na pasta static")
+    with open(caminho, "r", encoding="utf-8") as f:
+        return HTMLResponse(f.read(), headers=NO_CACHE_HEADERS)
+
 @app.get("/admin")
 async def serve_admin():
     admin_path = os.path.join(STATIC_DIR, "admin.html")
@@ -204,6 +212,7 @@ async def websocket_endpoint(websocket):
         manager.disconnect(websocket)
 
 # ── Montagem dos Routers ────────────────────────────────────────────────────
+app.include_router(manual.router)
 app.include_router(auth.router)
 app.include_router(obras.router)
 app.include_router(regras.router)

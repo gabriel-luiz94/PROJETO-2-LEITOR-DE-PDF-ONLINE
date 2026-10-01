@@ -263,6 +263,7 @@ DEMAIS ENTIDADES (obras, recs, projetos):
 | POST | `/api/validacao/ajustes-ia` | JWT | Ajustes por IA (TASK-025): a IA propõe ações estruturadas (inclui excluir); o motor calcula o diff; nada é aplicado; prompt `ajustar-planilhas` |
 | POST | `/api/validacao/ia` | JWT | Camada 3 (IA) com o prompt salvo; falha da IA volta como `status` com HTTP 200; limite por minuto só com a chave padrão |
 | POST | `/api/validacao/planilhas` | JWT | Achados das camadas 1 e 2 (`erro`/`aviso`/`info`); `payload_calculo` opcional liga `C1-BASE`; `projeto_codigo` escolhe as regras de domínio |
+| GET | `/api/manual` | JWT (qualquer perfil) | Manual de uso (Markdown) de `data/manual_regras_e_ajustes.md`; a página `/manual` o renderiza |
 | GET/POST | `/api/validacao/ajustes[/historico\|/reverter\|/restaurar-semente\|/preview\|/preview-lote\|/descrever]` | JWT (POST/histórico: admin; `preview`/`preview-lote`/`descrever`: qualquer autenticado) | Cadastro de ajustes e diff (`preview` não altera nada; o frontend aplica após aceite) |
 | GET/POST | `/api/validacao/regras[/ativos\|/historico\|/reverter\|/restaurar-semente\|/adicionar-novas\|/descrever\|/testar]` | JWT (POST/histórico: admin) | Regras de domínio da validação |
 | GET/POST | `/api/validacao/prompts[/{id}[/historico\|/reverter\|/restaurar-semente]]` | JWT (POST/histórico: admin) | Prompts de validação editáveis |

@@ -175,9 +175,10 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       de enviar; leitura da resposta em voz alta opcional e desligada). Em PLANEJAMENTO, com 3 confirmações pendentes; risco
       principal: suporte à Web Speech API na janela desktop (pywebview).
 - [x] **TASK-028** (pedido de 2026-10-01; concluída): IA do chat consulta as obras salvas e executa "adicione a obra 2 ao projeto" etc. (contexto
-      sob demanda, ação `acao_ui: obra` com popup de confirmação, sem regressão e sem lentidão). Em PLANEJAMENTO, com 4 decisões a confirmar.
+      sob demanda, ação `acao_ui: obra` com popup de confirmação, sem regressão e sem lentidão). CONCLUÍDA (`data/manual_regras_e_ajustes.md`, `/manual`, `GET /api/manual`).
 - [x] **TASK-029** (pedido de 2026-10-02): o botão `Ajustar` roda todos os ajustes habilitados e lista cada correção com **Executar correção**,
       com **Executar todas as correções** acima. CONCLUÍDA (preview-lote + modal de cartões).
+- [x] **TASK-030** (pedido de 2026-10-02): manual de uso para cadastrar regras de validação e ajustes. CONCLUÍDA (`data/manual_regras_e_ajustes.md`, `/manual`, `GET /api/manual`).
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 

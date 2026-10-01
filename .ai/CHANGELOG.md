@@ -8,6 +8,16 @@
 
 ---
 
+## 2026-10-02 — TASK-030: manual de uso de regras e ajustes
+
+**Tipo:** Documentação do usuário (backend leve + frontend) · `.ai/tasks/TASK-030-02-10-2026.md`
+
+Manual em Markdown (`data/manual_regras_e_ajustes.md`) servido por `GET /api/manual` (login, qualquer perfil) e renderizado em `/manual`;
+botão **Manual** na gaveta Regras de validação. Os exemplos JSON do manual são validados em `tests/test_manual_exemplos.py`
+(ao mudar a linguagem de regras/ajustes, o teste acusa exemplo desatualizado — atualize o manual junto).
+
+---
+
 ## 2026-10-02 — TASK-029: botão Ajustar executa todos os ajustes habilitados
 
 **Tipo:** Ajustes (backend + frontend) · `.ai/tasks/TASK-029-02-10-2026.md`
