@@ -299,3 +299,16 @@ def test_falha_de_sincronizacao_avisa_mas_o_local_ficou_salvo(client, monkeypatc
     r = editar(client, "229", lambda m, l: m["AJ-SUP-L"].update(ativa=True))
     assert r.status_code == 500 and "Supabase" in r.json()["detail"] and "nuvem fora" in r.json()["detail"]
     assert linhas_db("229")["sobrescritas"] == {"AJ-SUP-L": {"ativa": True}}
+
+
+def test_barra_do_resumo_so_tem_os_botoes_de_validacao_e_as_opcoes_vivem_na_gaveta():
+    """TASK-026: caixas de modo e 'Validar ao montar' saem da barra; ficam na aba Execução da gaveta."""
+    resumo = open("static/resumo.html", encoding="utf-8").read()
+    for botao in ("btn-regras-validacao", "btn-ajustar", "btn-validar", "btn-validacao-opcoes", "validar-estado"):
+        assert f'id="{botao}"' in resumo, botao
+    for velho in ('id="vmodo-', 'name="validacao_auto"', 'id="validacao-modos"'):
+        assert velho not in resumo, velho
+    gaveta = open("static/painel_regras.js", encoding="utf-8").read()
+    for marca in ("montarPainelExecucao", "vmodo-det", "vmodo-pular-ia", "validacao_auto", "rpAbrirNaAba"):
+        assert marca in gaveta, marca
+    assert "window.validacaoPrefs" in open("static/resumo.js", encoding="utf-8").read()
