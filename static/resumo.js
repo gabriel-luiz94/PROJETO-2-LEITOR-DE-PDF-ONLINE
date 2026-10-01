@@ -1934,6 +1934,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return linhas;
     }
 
+    /** Linhas atuais das duas tabelas, para a pré-visualização dos ajustes (painel de regras). */
+    window.resumoLinhasParaAjuste = () => ({ cabos: linhasParaValidacao('cabos', 'CABOS'), outros: linhasParaValidacao('outros', 'OUTROS') });
+
     function cabecalhoIA() {
         return {
             'Content-Type': 'application/json',

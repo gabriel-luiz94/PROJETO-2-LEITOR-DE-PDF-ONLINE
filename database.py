@@ -13,7 +13,7 @@ import bcrypt
 from config import (
     DB_PATH, SEED_CSV_PATH, logger,
     REGRAS_LEITOR_PROCESSAMENTO_SEED_PATH, REGRAS_LEITOR_CLASSIFICACAO_SEED_PATH,
-    VALIDACOES_SEED_DIR, REGRAS_DOMINIO_SEED_PATH,
+    VALIDACOES_SEED_DIR, REGRAS_DOMINIO_SEED_PATH, AJUSTES_SEED_PATH,
 )
 from services.prompts_validacao import ler_sementes
 
@@ -130,6 +130,23 @@ def _seed_regras_dominio(cursor: sqlite3.Cursor):
         return
     cursor.execute(
         "INSERT OR IGNORE INTO regras_dominio (projeto_codigo, regras_json) VALUES ('DEFAULT', ?)",
+        (json.dumps(semente, ensure_ascii=False),)
+    )
+
+
+def _seed_ajustes_planilhas(cursor: sqlite3.Cursor):
+    """Seed dos ajustes (receitas) das planilhas (TASK-023) sob "DEFAULT", só se ainda não houver. Todas vêm desligadas."""
+    cursor.execute("SELECT COUNT(*) FROM ajustes_planilhas WHERE projeto_codigo = 'DEFAULT'")
+    if cursor.fetchone()[0] > 0:
+        return
+    try:
+        with open(AJUSTES_SEED_PATH, "r", encoding="utf-8") as f:
+            semente = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logger.warning(f"Seed de ajustes não encontrado/inválido: {e}")
+        return
+    cursor.execute(
+        "INSERT OR IGNORE INTO ajustes_planilhas (projeto_codigo, ajustes_json) VALUES ('DEFAULT', ?)",
         (json.dumps(semente, ensure_ascii=False),)
     )
 
@@ -275,6 +292,26 @@ def init_db():
         )
     ''')
     _seed_regras_dominio(cursor)
+
+    # Ajustes (receitas) das planilhas (TASK-023, ADR-006) — container por projeto ("DEFAULT" = padrão; projeto = overlay)
+    # + histórico para reverter. Mesmo desenho de regras_dominio.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ajustes_planilhas (
+            projeto_codigo TEXT PRIMARY KEY,
+            ajustes_json TEXT NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ajustes_planilhas_historico (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            projeto_codigo TEXT NOT NULL,
+            ajustes_json TEXT NOT NULL,
+            criado_em TEXT DEFAULT (datetime('now')),
+            criado_por TEXT
+        )
+    ''')
+    _seed_ajustes_planilhas(cursor)
 
     # Tabela Orçamento (Customizado do Usuário)
     cursor.execute('''

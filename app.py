@@ -99,6 +99,10 @@ async def serve_admin_js():
 async def serve_painel_regras_js():
     return _serve_js("painel_regras.js")
 
+@app.get("/static/painel_ajustes.js")
+async def serve_painel_ajustes_js():
+    return _serve_js("painel_ajustes.js")
+
 @app.get("/static/painel_prompts.js")
 async def serve_painel_prompts_js():
     return _serve_js("painel_prompts.js")

@@ -7,7 +7,7 @@
 ═══════════════════════════════════════════════════════════════════════════ */
 (function () {
     const ehAdmin = () => localStorage.getItem('is_admin') === 'true';
-    const SCRIPTS = ['/static/regras_editor.js', '/static/painel_prompts.js'];
+    const SCRIPTS = ['/static/regras_editor.js', '/static/painel_ajustes.js', '/static/painel_prompts.js'];
     let montado = false, carregando = null;
 
     // Mensagem curta usada pelos editores (toast do Resumo).
@@ -62,6 +62,22 @@
         return p;
     }
 
+    function montarPainelAjustes() {
+        const p = no('div', 'rp-painel'); p.id = 'rp-ajustes';
+        p.appendChild(no('p', 'rp-ajuda', 'Ajustes são ações recorrentes sobre as tabelas Cabos e Outros (substituir texto, ordenar, excluir ou adicionar linhas…). Cada um pode ser pré-visualizado nas tabelas atuais; nada é aplicado sem você ver o que muda. A edição fica em rascunho até clicar em Salvar (grava local e no Supabase).'));
+        const status = no('div', 'text-sm text-[#8b949e] mb-2'); status.id = 'ajStatus';
+        const erros = no('div', 'rp-caixa-erro hidden'); erros.id = 'ajErros';
+        const avisos = no('div', 'rp-caixa-aviso hidden'); avisos.id = 'ajAvisos';
+        const lista = no('div', 'space-y-2'); lista.id = 'ajLista';
+        const dl = document.createElement('datalist'); dl.id = 'ajRegrasSugestoes';
+        const barra = no('div', 'flex flex-wrap gap-2 mt-3 ' + ADM);
+        barra.append(botao('ajAdicionar', 'Novo ajuste'), botao('ajSalvar', 'Salvar', 'btn-primary'),
+            botao('ajSemente', 'Restaurar semente'), botao('ajHistorico', 'Histórico'));
+        const hist = no('div', 'rp-hist hidden'); hist.id = 'ajHistLista';
+        p.append(status, erros, avisos, lista, dl, barra, hist);
+        return p;
+    }
+
     function montarPainelPrompts() {
         const p = no('div', 'rp-painel ' + ADM); p.id = 'rp-prompts';
         p.appendChild(no('p', 'rp-ajuda', 'Instruções enviadas à IA para checar e corrigir as planilhas. Cada projeto usa a versão própria, se existir; senão herda o padrão. Cada salvamento guarda a versão anterior no histórico.'));
@@ -113,8 +129,9 @@
         if (anterior === 'DEFAULT') sel.value = 'DEFAULT';
     }
 
-    function recarregarAbas() {
-        if (typeof rdCarregar === 'function') rdCarregar();
+    async function recarregarAbas() {
+        if (typeof rdCarregar === 'function') await rdCarregar();
+        if (typeof ajCarregar === 'function') await ajCarregar();   // depois das regras: o vínculo sugere ids de regras
         if (ehAdmin() && typeof pvCarregarLista === 'function') pvCarregarLista();
     }
 
@@ -138,14 +155,14 @@
         const fechar = botao('', 'Fechar', 'rp-btn'); fechar.style.marginLeft = 'auto'; fechar.onclick = fecharPainel;
         topo.appendChild(fechar);
         const abas = no('div', 'rp-abas');
-        [['regras', 'Regras', false], ['grupos', 'Grupos', false], ['prompts', 'Prompts da IA', true], ['testar', 'Testar', true]].forEach(([k, r, adm]) => {
+        [['regras', 'Regras', false], ['grupos', 'Grupos', false], ['ajustes', 'Ajustes', false], ['prompts', 'Prompts da IA', true], ['testar', 'Testar', true]].forEach(([k, r, adm]) => {
             const b = no('button', 'rp-aba' + (k === 'regras' ? ' ativa' : '') + (adm ? ' ' + ADM : ''), r);
             b.type = 'button'; b.dataset.aba = k; b.onclick = () => ativarAba(k);
             abas.appendChild(b);
         });
         const corpo = no('div', 'rp-corpo');
         if (!ehAdmin()) corpo.appendChild(no('div', 'rp-leitura-aviso', 'Somente leitura: só o administrador edita as regras.'));
-        corpo.append(montarPainelRegras(), montarPainelGrupos(), montarPainelPrompts(), montarPainelTestar());
+        corpo.append(montarPainelRegras(), montarPainelGrupos(), montarPainelAjustes(), montarPainelPrompts(), montarPainelTestar());
         d.append(topo, abas, corpo);
         document.body.appendChild(d);
         if (!ehAdmin()) d.querySelectorAll('.' + ADM).forEach(e => e.classList.add('hidden'));
@@ -169,6 +186,7 @@
                 await carregarScript(src);
             }
             await iniciarRegrasDominio();
+            await iniciarAjustes();
             if (ehAdmin()) await iniciarPromptsValidacao();
         })();
         return carregando;

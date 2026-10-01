@@ -208,6 +208,47 @@ def validar_acoes(acoes, grupos=None) -> list:
     return erros
 
 
+_RE_ID_RECEITA = re.compile(r"^[A-Za-z0-9_.\-]{1,60}$")
+CAMPOS_RECEITA = {"id", "nome", "descricao", "ativa", "acoes", "regras", "origem", "oculta", "frases"}
+
+
+def validar_receitas(receitas, grupos=None) -> list:
+    """Erros (vazia = válido) do cadastro de ajustes: lista de receitas {id, nome, ativa, acoes, regras?} (TASK-023)."""
+    if not isinstance(receitas, list):
+        return ["O payload de ajustes precisa ser uma lista."]
+    erros, ids = [], set()
+    for i, r in enumerate(receitas):
+        pre = f"Ajuste #{i + 1}"
+        if not isinstance(r, dict):
+            erros.append(f"{pre}: precisa ser um objeto.")
+            continue
+        rid = r.get("id")
+        if not isinstance(rid, str) or not _RE_ID_RECEITA.match(rid):
+            erros.append(f"{pre}: 'id' obrigatório (letras, números, _ . -; até 60).")
+        elif rid in ids:
+            erros.append(f"{pre}: 'id' duplicado ({rid}).")
+        else:
+            ids.add(rid)
+            pre = f"Ajuste {rid}"
+        for k in r:
+            if k not in CAMPOS_RECEITA:
+                erros.append(f"{pre}: campo desconhecido '{k}'.")
+        if not isinstance(r.get("nome"), str) or not r["nome"].strip() or len(r["nome"]) > 120:
+            erros.append(f"{pre}: 'nome' obrigatório (até 120 caracteres).")
+        if not isinstance(r.get("ativa"), bool):
+            erros.append(f"{pre}: 'ativa' precisa ser true ou false.")
+        if "descricao" in r and not isinstance(r["descricao"], str):
+            erros.append(f"{pre}: 'descricao' precisa ser um texto.")
+        if "regras" in r and (not isinstance(r["regras"], list) or any(not isinstance(x, str) or not x.strip() for x in r["regras"])):
+            erros.append(f"{pre}: 'regras' precisa ser uma lista de ids de regras.")
+        acoes = r.get("acoes")
+        if not isinstance(acoes, list) or not acoes:
+            erros.append(f"{pre}: 'acoes' precisa ser uma lista com ao menos uma ação.")
+        else:
+            erros += [f"{pre}: {e}" for e in validar_acoes(acoes, grupos)]
+    return erros
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # AUXILIARES DE TEXTO
 # ═══════════════════════════════════════════════════════════════════════════

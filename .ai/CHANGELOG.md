@@ -8,6 +8,22 @@
 
 ---
 
+## 2026-10-01 — TASK-023: cadastro de ajustes recorrentes por projeto (receitas)
+
+**Tipo:** persistência + frontend admin · `.ai/tasks/TASK-023-01-10-2026.md` · **exige SQL no Supabase** (`scripts/schema_supabase.sql`)
+
+Receitas de ajuste (ações da TASK-022 com nome, ligada/desligada e vínculo a regras de validação) agora são **cadastradas**:
+`DEFAULT` guarda o container completo e cada projeto só o overlay (adicionadas/sobrescritas/ocultas), como as regras
+(`services/ajustes_camadas.py`). Tabelas novas `ajustes_planilhas` e `ajustes_planilhas_historico` no SQLite e no Supabase
+(nuvem primeiro, fallback local; falha de sincronização avisada) — gravação **só no botão Salvar**, com histórico e
+reversão. Semente (todas desligadas): normalizar postes, `SUP-L→SUPL`, adicionar `1-SUPL` à linha com CFU (vinculada a
+`C2-CFU-SUPL`), excluir linhas vazias, ordenar Outros. Rotas `GET/POST /api/validacao/ajustes` (+histórico, reverter,
+restaurar-semente); `preview` aceita `receitas: [ids]`. Nova aba **Ajustes** na gaveta (`painel_ajustes.js`): selos, −/+,
+voltar ao padrão, editor visual das ações, modo JSON e **pré-visualização do diff nas tabelas atuais** (nada é aplicado:
+isso é a TASK-024). Operador vê a lista e pré-visualiza; só admin edita.
+
+---
+
 ## 2026-10-01 — TASK-022: motor de ajustes determinísticos (ADR-006)
 
 **Tipo:** novo motor de regra de negócio (backend) · `.ai/tasks/TASK-022-01-10-2026.md`
