@@ -11,8 +11,10 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from database import get_connection
 from models import ChatRequest
-from config import PROMPT_PATH, logger
+from config import PROMPT_OBRAS_PATH, PROMPT_PATH, logger
 from routers.regras import get_regras
+from routers.obras import buscar_obra, listar_leves
+from services.obras_contexto import menciona_obra, montar_indice, obras_citadas, resumir_obra
 
 router = APIRouter(prefix="/api/gemini", tags=["ai"])
 
@@ -129,6 +131,30 @@ def get_gemini_models(request: Request):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+def _contexto_obras(req, request):
+    """(texto extra do usuário, bloco de instruções) sobre as obras salvas — TASK-028. Vazio quando o pedido não menciona
+    obras: nenhuma consulta ao banco e o prompt final fica idêntico ao de antes."""
+    if not menciona_obra(req.prompt):
+        return "", ""
+    try:
+        user = getattr(request.state, "user", None)
+        user_id = user["user_id"] if user else None
+        obras = listar_leves(user_id, req.projeto_codigo)
+        extra = montar_indice(obras)
+        for o in obras_citadas(req.prompt, obras):
+            completa = buscar_obra(user_id, o["id"])
+            if completa:
+                extra += "\n\n" + resumir_obra(completa)
+        instrucoes = ""
+        if os.path.exists(PROMPT_OBRAS_PATH):
+            with open(PROMPT_OBRAS_PATH, "r", encoding="utf-8") as f:
+                instrucoes = f.read()
+        return extra, instrucoes
+    except Exception as e:  # o contexto de obras é um extra: nunca derruba o chat
+        logger.warning(f"Erro ao montar contexto de obras: {e}")
+        return "", ""
+
+
 @router.post("/chat")
 async def gemini_chat(req: ChatRequest, request: Request):
     header_key = request.headers.get("X-Gemini-Key")
@@ -169,7 +195,7 @@ async def gemini_chat(req: ChatRequest, request: Request):
         r'^(adicionar|add|adc|coloca|inserir|remover|rem|tira|excluir)\s+([\d.,]+)\s+(.+)$',
         req.prompt.strip(), re.IGNORECASE
     )
-    if fast_match:
+    if fast_match and not menciona_obra(req.prompt):   # "adicionar 2 obra X" vai para a IA (TASK-028)
         acao = fast_match.group(1).lower()
         qtd  = fast_match.group(2).replace(",", ".")
         ativo = fast_match.group(3).upper().strip()
@@ -192,6 +218,10 @@ async def gemini_chat(req: ChatRequest, request: Request):
     else:
         prompt_final = req.prompt.strip()
 
+    obras_extra, obras_instrucoes = _contexto_obras(req, request)
+    if obras_extra:
+        prompt_final += "\n\n" + obras_extra
+
     system_instruction = "Você é um especialista em redes elétricas."
     if os.path.exists(PROMPT_PATH):
         with open(PROMPT_PATH, "r", encoding="utf-8") as f:
@@ -204,6 +234,9 @@ async def gemini_chat(req: ChatRequest, request: Request):
             system_instruction += f"\n\n🔹 REGRAS APRENDIDAS:\n{regras_txt}"
     except Exception as e:
         logger.warning(f"Erro ao carregar regras: {e}")
+
+    if obras_instrucoes:
+        system_instruction += "\n\n" + obras_instrucoes
 
     if provider == "gemini":
         from google import genai

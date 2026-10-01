@@ -125,7 +125,7 @@
 | `orcamento.py` | `/api/orcamento` | `upload` e `salvar` da base (admin), `dados` (merge), `search`, `detalhes`, **`calcular`** |
 | `regras.py` | `/api/regras` | Regras de aprendizado da IA (`GET`/`POST`) e **regras de conversão por projeto** (`/conversao`) |
 | `recs.py` | — | `/api/recs` e `/api/rec/*`: histórico de RECs com preservação de REC de terceiros |
-| `obras.py` | `/api/obras` | CRUD de obras por usuário (Supabase com fallback SQLite) |
+| `obras.py` | `/api/obras` | CRUD de obras por usuário (Supabase com fallback SQLite); `GET /indice` (leve, sem `dados_json`) e `GET /{id}` (uma obra) servem à IA do chat (TASK-028) |
 | `projetos.py` | `/api/projetos` | Lista mesclada local+nuvem; cadastro só admin |
 | `ai_chat.py` | `/api/gemini` | Listagem de modelos e chat com Gemini/OpenAI, injetando `prompt_rede_eletrica.txt` e as regras aprendidas. Chave resolvida por `resolver_credencial()`: usuário > salva > padrão do ambiente (`GEMINI_API_KEY`/`GOOGLE_API_KEY`); rate-limit por usuário só com a chave padrão (TASK-009) |
 | `validacao.py` | `/api/validacao` | Validação das planilhas Cabos/Outros: `POST /planilhas` (camadas 1 e 2, `services/validacao_planilhas.py` e `regras_dominio.py`) `POST /ia` (camada 3, `services/validacao_ia.py`) e `POST /corrigir` (`services/correcao_ia.py`) |
@@ -253,6 +253,7 @@ DEMAIS ENTIDADES (obras, recs, projetos):
 | GET/POST/DELETE | `/api/recs`, `/api/recs/{n}` | JWT | Histórico de RECs |
 | POST/GET | `/api/rec/salvar`, `/api/rec/{n}` | JWT | Rotas alternativas de REC |
 | GET/POST/DELETE | `/api/obras` | JWT | Obras do usuário |
+| GET | `/api/obras/indice?projeto=` · `/api/obras/{id}` | JWT | Índice leve das obras do projeto · uma obra completa (o frontend valida o id citado pela IA) |
 | GET | `/api/projetos` | opcional | Lista mesclada |
 | POST | `/api/projetos` | JWT + admin | Cadastra projeto |
 | GET | `/api/gemini/models` | JWT | Modelos disponíveis |
