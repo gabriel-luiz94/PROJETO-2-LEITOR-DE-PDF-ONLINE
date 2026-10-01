@@ -35,8 +35,59 @@
     }
     const ADM = 'rp-admin';   // elementos só do admin (escondidos para o operador)
 
+    // Aba Execução (TASK-026): o que o botão Validar roda e o "Validar ao montar". Preferências LOCAIS de qualquer usuário
+    // (localStorage, via window.validacaoPrefs de resumo.js) — não dependem de a gaveta estar aberta para valerem.
+    function montarPainelExecucao() {
+        const p = no('div', 'rp-painel ativo'); p.id = 'rp-execucao';
+        p.appendChild(no('p', 'rp-ajuda', 'Escolha o que o botão Validar roda e se a validação acontece ao montar o orçamento. Vale só neste navegador.'));
+        const prefs = () => window.validacaoPrefs;
+        const caixa = (id, rotulo, dica) => {
+            const l = no('label', 'flex items-center gap-2 text-sm'); l.title = dica;
+            const c = document.createElement('input'); c.type = 'checkbox'; c.id = id;
+            l.append(c, rotulo);
+            return l;
+        };
+        const grupo = no('div', 'space-y-2');
+        grupo.append(
+            caixa('vmodo-det', 'Determinística — contrato das planilhas e regras', 'Formato, operação e base técnica; barato e sem IA'),
+            caixa('vmodo-dominio', 'Regras de domínio do projeto (as que o admin ligou)', 'Só vale com a determinística ligada'),
+            caixa('vmodo-ia', 'IA — revisão por IA', 'Usa a chave de IA'),
+            caixa('vmodo-pular-ia', 'Pular a IA se o contrato tiver erro', 'Economiza a chave: a IA só roda depois de o contrato estar sem erro'));
+        const auto = no('div', 'mt-3 flex items-center gap-3 text-sm');
+        auto.appendChild(no('span', '', 'Validar ao montar o orçamento:'));
+        [['nao', 'Não'], ['sim', 'Sim']].forEach(([v, r]) => {
+            const l = no('label', 'inline-flex items-center gap-1');
+            const i = document.createElement('input'); i.type = 'radio'; i.name = 'validacao_auto'; i.value = v;
+            l.append(i, r);
+            auto.appendChild(l);
+        });
+        const efeito = no('div', 'rp-leitura-aviso'); efeito.id = 'vmodo-efeito'; efeito.style.marginTop = '14px'; efeito.style.color = '#8b949e';
+        p.append(grupo, auto, efeito);
+
+        const mapa = { det: 'vmodo-det', dominio: 'vmodo-dominio', ia: 'vmodo-ia', pularIa: 'vmodo-pular-ia' };
+        function sincronizar() {
+            if (!prefs()) return;
+            const m = prefs().lerModos();
+            Object.entries(mapa).forEach(([k, id]) => { p.querySelector('#' + id).checked = !!m[k]; });
+            p.querySelector('#vmodo-dominio').disabled = !m.det;
+            p.querySelector('#vmodo-pular-ia').disabled = !(m.det && m.ia);
+            const ligada = prefs().validacaoAutomaticaLigada();
+            p.querySelectorAll('input[name="validacao_auto"]').forEach(r => { r.checked = r.value === (ligada ? 'sim' : 'nao'); });
+            efeito.textContent = 'O botão Validar roda: ' + prefs().resumoDoQueRoda().longo;
+        }
+        Object.entries(mapa).forEach(([k, id]) => p.querySelector('#' + id).addEventListener('change', e => {
+            const m = prefs().lerModos(); m[k] = e.target.checked; prefs().gravarModos(m); sincronizar();
+        }));
+        p.querySelectorAll('input[name="validacao_auto"]').forEach(r => r.addEventListener('change', () => {
+            prefs().definirValidacaoAutomatica(r.value === 'sim'); sincronizar();
+        }));
+        p.addEventListener('rp-mostrar', sincronizar);
+        sincronizar();
+        return p;
+    }
+
     function montarPainelRegras() {
-        const p = no('div', 'rp-painel ativo'); p.id = 'rp-regras';
+        const p = no('div', 'rp-painel'); p.id = 'rp-regras';
         p.appendChild(no('p', 'rp-ajuda', 'O padrão vale para todos os projetos. O projeto pode ajustar uma regra, ocultá-la (−, reexibe com +) ou criar regras só dele. Quando o padrão muda, o projeto acompanha, exceto onde ajustou.'));
         const status = no('div', 'text-sm text-[#8b949e] mb-2'); status.id = 'rdStatus';
         const erros = no('div', 'rp-caixa-erro hidden'); erros.id = 'rdErros';
@@ -138,6 +189,10 @@
     function ativarAba(nome) {
         document.querySelectorAll('#painel-regras .rp-aba').forEach(b => b.classList.toggle('ativa', b.dataset.aba === nome));
         document.querySelectorAll('#painel-regras .rp-painel').forEach(p => p.classList.toggle('ativo', p.id === 'rp-' + nome));
+        const aviso = document.getElementById('rp-aviso-leitura');   // a aba Execução é editável por todos
+        if (aviso) aviso.style.display = nome === 'execucao' ? 'none' : '';
+        const alvo = document.getElementById('rp-' + nome);
+        if (alvo) alvo.dispatchEvent(new Event('rp-mostrar'));   // a aba Execução relê as preferências ao ser mostrada
     }
 
     function montar() {
@@ -155,14 +210,14 @@
         const fechar = botao('', 'Fechar', 'rp-btn'); fechar.style.marginLeft = 'auto'; fechar.onclick = fecharPainel;
         topo.appendChild(fechar);
         const abas = no('div', 'rp-abas');
-        [['regras', 'Regras', false], ['grupos', 'Grupos', false], ['ajustes', 'Ajustes', false], ['prompts', 'Prompts da IA', true], ['testar', 'Testar', true]].forEach(([k, r, adm]) => {
-            const b = no('button', 'rp-aba' + (k === 'regras' ? ' ativa' : '') + (adm ? ' ' + ADM : ''), r);
+        [['execucao', 'Execução', false], ['regras', 'Regras', false], ['grupos', 'Grupos', false], ['ajustes', 'Ajustes', false], ['prompts', 'Prompts da IA', true], ['testar', 'Testar', true]].forEach(([k, r, adm]) => {
+            const b = no('button', 'rp-aba' + (k === 'execucao' ? ' ativa' : '') + (adm ? ' ' + ADM : ''), r);
             b.type = 'button'; b.dataset.aba = k; b.onclick = () => ativarAba(k);
             abas.appendChild(b);
         });
         const corpo = no('div', 'rp-corpo');
-        if (!ehAdmin()) corpo.appendChild(no('div', 'rp-leitura-aviso', 'Somente leitura: só o administrador edita as regras.'));
-        corpo.append(montarPainelRegras(), montarPainelGrupos(), montarPainelAjustes(), montarPainelPrompts(), montarPainelTestar());
+        if (!ehAdmin()) { const av = no('div', 'rp-leitura-aviso', 'Somente leitura: só o administrador edita regras, grupos e ajustes.'); av.id = 'rp-aviso-leitura'; av.style.display = 'none'; corpo.appendChild(av); }
+        corpo.append(montarPainelExecucao(), montarPainelRegras(), montarPainelGrupos(), montarPainelAjustes(), montarPainelPrompts(), montarPainelTestar());
         d.append(topo, abas, corpo);
         document.body.appendChild(d);
         if (!ehAdmin()) d.querySelectorAll('.' + ADM).forEach(e => e.classList.add('hidden'));
@@ -192,8 +247,9 @@
         return carregando;
     }
 
-    async function abrirPainel() {
+    async function abrirPainel(aba) {
         montar();
+        if (aba) ativarAba(aba);
         preencherProjetos();
         document.getElementById('painel-regras').classList.add('aberto');
         try {
@@ -204,6 +260,13 @@
         }
     }
     // "Cadastrar como ajuste" (proposta da IA aceita no Resumo): abre a aba Ajustes com um ajuste novo em rascunho.
+    // Atalho ⚙ ao lado do Validar: abre a gaveta direto numa aba (ex.: 'execucao').
+    window.rpAbrirNaAba = function (aba) {
+        const d = document.getElementById('painel-regras');
+        if (d && d.classList.contains('aberto')) { ativarAba(aba); return Promise.resolve(); }   // já aberta: só troca de aba (não perde rascunho)
+        return abrirPainel(aba);
+    };
+
     window.rpCadastrarComoAjuste = async function (acoes, nome) {
         await abrirPainel();
         ativarAba('ajustes');

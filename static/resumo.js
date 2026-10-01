@@ -1893,38 +1893,57 @@ document.addEventListener('DOMContentLoaded', () => {
         try { return localStorage.getItem(VALIDACAO_AUTO_CHAVE) === 'sim'; } catch (e) { return false; }
     }
 
-    document.querySelectorAll('input[name="validacao_auto"]').forEach(radio => {
-        radio.checked = radio.value === (validacaoAutomaticaLigada() ? 'sim' : 'nao');
-        radio.addEventListener('change', () => {
-            try { localStorage.setItem(VALIDACAO_AUTO_CHAVE, radio.value); } catch (e) { /* sem storage: vale só nesta sessão */ }
-        });
-    });
+    function definirValidacaoAutomatica(ligada) {
+        try { localStorage.setItem(VALIDACAO_AUTO_CHAVE, ligada ? 'sim' : 'nao'); } catch (e) { /* sem storage: vale só nesta sessão */ }
+        atualizarRotuloValidar();
+    }
 
     /* Modos de validação (TASK-020): determinística (contrato + regras de domínio) e IA, ligáveis em separado.
-       Preferência local (localStorage), como "Validar ao montar". */
+       Preferência local (localStorage), como "Validar ao montar". Os controles ficam na gaveta (aba Execução,
+       painel_regras.js, TASK-026); aqui só se lê/grava e se mostra o resumo ao lado do botão Validar. */
     const MODOS_CHAVE = 'validacao_modos';
     const MODOS_PADRAO = { det: true, dominio: true, ia: true, pularIa: true };
     function lerModos() {
         try { return { ...MODOS_PADRAO, ...(JSON.parse(localStorage.getItem(MODOS_CHAVE)) || {}) }; } catch (e) { return { ...MODOS_PADRAO }; }
     }
-    function gravarModos(m) { try { localStorage.setItem(MODOS_CHAVE, JSON.stringify(m)); } catch (e) { /* vale só nesta sessão */ } }
-    const MODOS_CAIXAS = { det: 'vmodo-det', dominio: 'vmodo-dominio', ia: 'vmodo-ia', pularIa: 'vmodo-pular-ia' };
-    function sincronizarModosNaTela() {
-        const m = lerModos();
-        Object.entries(MODOS_CAIXAS).forEach(([k, id]) => {
-            const c = document.getElementById(id);
-            if (c) { c.checked = !!m[k]; }
-        });
-        const dom = document.getElementById(MODOS_CAIXAS.dominio);
-        if (dom) dom.disabled = !m.det;
-        const pular = document.getElementById(MODOS_CAIXAS.pularIa);
-        if (pular) pular.disabled = !(m.det && m.ia);
+    function gravarModos(m) {
+        try { localStorage.setItem(MODOS_CHAVE, JSON.stringify(m)); } catch (e) { /* vale só nesta sessão */ }
+        atualizarRotuloValidar();
     }
-    Object.entries(MODOS_CAIXAS).forEach(([k, id]) => {
-        const c = document.getElementById(id);
-        if (c) c.addEventListener('change', () => { const m = lerModos(); m[k] = c.checked; gravarModos(m); sincronizarModosNaTela(); });
-    });
-    sincronizarModosNaTela();
+
+    /** Resumo curto (rótulo) e longo (dica) do que o botão Validar roda com as preferências atuais. */
+    function resumoDoQueRoda() {
+        const m = lerModos();
+        const curto = [];
+        const longo = [];
+        if (m.det) {
+            curto.push(m.dominio ? 'Det + Regras' : 'Det');
+            longo.push(m.dominio ? 'Determinística (contrato + regras de domínio)' : 'Determinística (só contrato)');
+        } else longo.push('Determinística desligada');
+        if (m.ia) {
+            curto.push('IA');
+            longo.push(m.det && m.pularIa ? 'IA (pulada se o contrato tiver erro)' : 'IA');
+        } else longo.push('IA desligada');
+        const auto = validacaoAutomaticaLigada();
+        return {
+            curto: (curto.length ? curto.join(' + ') : 'nada ligado') + (auto ? ' · ao montar' : ''),
+            longo: `${longo.join(' · ')}. ${auto ? 'Também roda ao montar o orçamento.' : 'Não roda ao montar o orçamento.'}`
+        };
+    }
+
+    function atualizarRotuloValidar() {
+        const r = resumoDoQueRoda();
+        const el = document.getElementById('validar-estado');
+        if (el) { el.textContent = r.curto; el.title = `Validar roda: ${r.longo} (mude em Regras de validação › Execução)`; }
+        const btn = document.getElementById('btn-validar');
+        if (btn) btn.title = `Verificar as planilhas Cabos e Outros. Roda: ${r.longo}`;
+    }
+
+    // API usada pela aba Execução da gaveta (painel_regras.js): mesma lógica, sem segunda cópia.
+    window.validacaoPrefs = { lerModos, gravarModos, validacaoAutomaticaLigada, definirValidacaoAutomatica, resumoDoQueRoda };
+    atualizarRotuloValidar();
+    const btnOpcoes = document.getElementById('btn-validacao-opcoes');
+    if (btnOpcoes) btnOpcoes.addEventListener('click', () => { if (typeof window.rpAbrirNaAba === 'function') window.rpAbrirNaAba('execucao'); });
 
     function linhasParaValidacao(tabela, prefixo) {
         const linhas = [];

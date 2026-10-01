@@ -8,6 +8,18 @@
 
 ---
 
+## 2026-10-01 — TASK-026: controles de validação embutidos na gaveta lateral
+
+**Tipo:** frontend (Resumo) · `.ai/tasks/TASK-026-01-10-2026.md`
+
+A barra do Resumo ficou só com `Regras de validação`, `Ajustar ▾` e `Validar` (além de Montar Orçamento). As caixas de modo
+(Determinística, Regras, IA, Pular IA se houver erro de contrato) e o **Validar ao montar** foram para a nova aba **Execução**,
+a primeira da gaveta e visível também para o operador (são preferências locais, mesmas chaves de `localStorage`, valem sem a
+gaveta aberta). Ao lado do `Validar` há um resumo do que vai rodar (ex.: "Det + Regras + IA · ao montar", com dica) e um
+atalho ⚙ que abre a gaveta na aba Execução. `resumo.js` expõe `window.validacaoPrefs`; sem mudança de backend.
+
+---
+
 ## 2026-10-01 — TASK-025: ajustes por IA com ações estruturadas
 
 **Tipo:** camada 3 (IA) + frontend · `.ai/tasks/TASK-025-01-10-2026.md`

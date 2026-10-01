@@ -591,29 +591,8 @@
                         <button class="btn-secondary" id="btn-validar" title="Verificar as planilhas Cabos e Outros (contrato, regras de domínio e IA)">
                             Validar
                         </button>
-                        <div id="validacao-modos" class="view-toggle" title="Quais verificações rodam no Validar e na validação ao montar. Preferência salva só neste navegador." style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-default); font-size: 0.8rem; color: var(--text-secondary);">
-                            <label style="display:flex; align-items:center; gap:4px; cursor: pointer;" title="Contrato das planilhas (formato, operação, base técnica) — barato e sem IA">
-                                <input type="checkbox" id="vmodo-det" checked> Determinística
-                            </label>
-                            <label style="display:flex; align-items:center; gap:4px; cursor: pointer;" title="Regras de domínio do projeto (as que o admin ligou). Só vale com a determinística ligada">
-                                <input type="checkbox" id="vmodo-dominio" checked> Regras
-                            </label>
-                            <label style="display:flex; align-items:center; gap:4px; cursor: pointer;" title="Revisão por IA (usa a chave de IA)">
-                                <input type="checkbox" id="vmodo-ia" checked> IA
-                            </label>
-                            <label style="display:flex; align-items:center; gap:4px; cursor: pointer;" title="Economiza a chave: se o contrato tiver erro, a IA não roda">
-                                <input type="checkbox" id="vmodo-pular-ia" checked> Pular IA se houver erro de contrato
-                            </label>
-                        </div>
-                        <div class="view-toggle" title="Quando ligado, valida as planilhas antes de montar o orçamento. Preferência salva só neste navegador." style="display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-default); font-size: 0.8rem; color: var(--text-secondary);">
-                            <span>Validar ao montar:</span>
-                            <label style="display:flex; align-items:center; gap:4px; padding: 4px; cursor: pointer;">
-                                <input type="radio" name="validacao_auto" value="nao" checked> Não
-                            </label>
-                            <label style="display:flex; align-items:center; gap:4px; padding: 4px; cursor: pointer;">
-                                <input type="radio" name="validacao_auto" value="sim"> Sim
-                            </label>
-                        </div>
+                        <span id="validar-estado" style="font-size: 0.7rem; color: var(--text-secondary); margin-left: -8px;" title="O que o botão Validar vai rodar (mude na gaveta Regras de validação › Execução)"></span>
+                        <button class="btn-secondary" id="btn-validacao-opcoes" style="padding: 4px 8px; margin-left: -8px;" title="Opções da validação: modos (determinística, regras, IA) e Validar ao montar" aria-label="Opções da validação">⚙</button>
                         <div class="view-toggle" style="display: flex; background: rgba(255,255,255,0.05); padding: 4px; border-radius: 6px; border: 1px solid var(--border-default);">
                             <label style="display:flex; align-items:center; gap:5px; padding: 4px 8px; cursor: pointer; font-size: 0.8rem; color: var(--text-primary);">
                                 <input type="radio" name="view_mode" value="padrao" checked onchange="toggleViewMode()"> Padrão
