@@ -8,6 +8,20 @@
 
 ---
 
+## 2026-10-01 — TASK-025: ajustes por IA com ações estruturadas
+
+**Tipo:** camada 3 (IA) + frontend · `.ai/tasks/TASK-025-01-10-2026.md`
+
+Novo prompt semente **`ajustar-planilhas`** (editável; entra sozinho na próxima inicialização, sem sobrescrever prompts já
+editados) e rota `POST /api/validacao/ajustes-ia`: a IA propõe **ações** da linguagem de ajustes (inclusive **excluir**),
+o backend valida cada ação (schema + grupos do projeto), **recusa `operacao_nova`**, deduplica, limita a 10 e roda o motor da
+TASK-022 nas tabelas completas, devolvendo `acoes` (com frase em português) + `diff` + `destrutivo`. O botão **Pedir ajuste à IA**
+do painel de validação agora abre a pré-visualização com aviso em vermelho quando há exclusão, confirmação extra ao aplicar e
+**Cadastrar como ajuste** (admin): abre a aba Ajustes com as ações em rascunho. A rota antiga `/corrigir` (substituição de linha
+inteira) continua existindo, mas a tela não a usa mais. Sem mudança de banco.
+
+---
+
 ## 2026-10-01 — TASK-024: fluxo unificado Validar + Ajustar
 
 **Tipo:** frontend (Resumo) · `.ai/tasks/TASK-024-01-10-2026.md`

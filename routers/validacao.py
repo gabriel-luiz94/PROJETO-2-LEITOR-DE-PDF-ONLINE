@@ -2,13 +2,13 @@
 routers/validacao.py — Validação das planilhas Cabos e Outros (camada 1, contrato).
 """
 from fastapi import APIRouter, Request
-from models import CorrecaoIARequest, ValidacaoPlanilhasRequest, ValidacaoIARequest
+from models import AjustesIARequest, CorrecaoIARequest, ValidacaoPlanilhasRequest, ValidacaoIARequest
 from services.sync_service import get_merged_orcamento
 from routers.ai_chat import _checar_rate_limit, _ler_configuracao, resolver_credencial
 from routers.validacao_prompts import buscar_prompt
 from routers.validacao_regras import regras_efetivas
 from services.regras_dominio import avaliar
-from services.correcao_ia import corrigir_com_ia
+from services.correcao_ia import ajustar_com_ia, corrigir_com_ia
 from services.prompts_validacao import parse_prompt, resumo_meta
 from services.validacao_ia import MODELOS_RESERVA, chamar_gemini, validar_com_ia
 from services.validacao_planilhas import validar_planilhas, validar_base, resumir
@@ -95,3 +95,19 @@ async def corrigir_ia(req: CorrecaoIARequest, request: Request):
                 "lotes": 0, "truncado": False}
     chamar, texto_prompt = contexto
     return await corrigir_com_ia(chamar, texto_prompt, req.cabos, req.outros, req.achados)
+
+
+@router.post("/ajustes-ia")
+async def ajustes_ia(req: AjustesIARequest, request: Request):
+    """Ajustes por IA (TASK-025): a IA PROPÕE ações estruturadas só para os achados enviados; o motor determinístico
+    calcula o diff (nada é aplicado aqui). Falha da IA volta como `status` com HTTP 200.
+
+    Não registrar o conteúdo das planilhas em log.
+    """
+    contexto, indisponivel = _preparar_ia(request, req.prompt_id, req.projeto_codigo)
+    if indisponivel:
+        return {"status": indisponivel[0], "acoes": [], "diff": None, "destrutivo": False, "descartadas": [],
+                "mensagem": indisponivel[1], "lotes": 0, "truncado": False}
+    chamar, texto_prompt = contexto
+    grupos = regras_efetivas(req.projeto_codigo or "DEFAULT")[1]
+    return await ajustar_com_ia(chamar, texto_prompt, req.cabos, req.outros, req.achados, grupos)

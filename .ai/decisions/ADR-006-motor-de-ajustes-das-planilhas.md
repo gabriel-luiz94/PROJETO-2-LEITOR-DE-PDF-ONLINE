@@ -38,7 +38,8 @@ que as mesmas ações sirvam ao ajuste manual, às receitas cadastradas (TASK-02
 - **Idempotência:** reaplicar o resultado não gera operações (testado).
 - `ordenar` em Cabos devolve **aviso** (linha de cabo sem fase herda a da seguinte, RN-04).
 - Rota `POST /api/validacao/ajustes/preview` (qualquer autenticado; só simula) e `/descrever`. Cadastro/persistência: TASK-023.
-- Sem mudança de banco/Supabase nesta etapa.
+- Sem mudança de banco/Supabase no motor (o cadastro de receitas é a TASK-023).
+- **IA (TASK-025):** a IA propõe as MESMAS ações (prompt `ajustar-planilhas`); o backend valida o schema, recusa `operacao_nova`, limita a 10 ações e calcula o diff com o motor; ações destrutivas (`excluir_linhas`, `remover_ativo`) marcam `destrutivo` e a tela exige pré-visualização com aviso e confirmação extra.
 
 ## Consequências
 

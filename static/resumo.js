@@ -2222,10 +2222,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof escolha === 'string') return escolha;
             let aplicou = false;
             if (escolha.tipo === 'ajustar') {
-                aplicou = !!(await fluxoAjuste(escolha.ids));
+                aplicou = !!((await fluxoAjuste(escolha.ids)) || {}).aplicadas;
             } else if (escolha.tipo === 'ia') {
                 const semAjuste = atual.achados.filter(a => achadoCorrigivel(a) && !ajustesDoAchado(atual, a).length);
-                aplicou = !!(await fluxoCorrecao(semAjuste));
+                const r = await fluxoAjusteIA(semAjuste);
+                if (r && r.cadastrar) return 'fechar';   // foi para o editor de ajustes: encerra o ciclo
+                aplicou = !!(r && r.aplicadas);
             }
             if (!aplicou) continue;   // cancelou: volta ao painel, nada mudou
             anterior = contagemPorSeveridade(atual.achados);
@@ -2513,7 +2515,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /** Mostra o diff e deixa escolher; resolve { aplicadas, ignoradas } ou null (cancelou / nada a aplicar). */
-    function mostrarPainelAjuste(r, nomes) {
+    function mostrarPainelAjuste(r, nomes, extra) {
         return new Promise(resolve => {
             const modal = document.getElementById('modal-ajuste');
             const lista = document.getElementById('ajuste-lista');
@@ -2523,13 +2525,35 @@ document.addEventListener('DOMContentLoaded', () => {
             const caixas = [];
             lista.replaceChildren();
             acoes.replaceChildren();
-            document.getElementById('ajuste-titulo').textContent = `Pré-visualização do ajuste: ${nomes}`;
+            document.getElementById('ajuste-titulo').textContent = extra ? `Ajuste proposto pela IA: ${nomes}` : `Pré-visualização do ajuste: ${nomes}`;
             const n = r.resumo;
             const total = r.operacoes.length;
             resumo.textContent = total
                 ? `${n.editar} editada(s), ${n.inserir} inserida(s), ${n.excluir} excluída(s)${n.mover ? ', ordem alterada' : ''}. Nada é alterado sem o seu aceite; aplicar pode ser desfeito com Ctrl+Z.`
                 : 'Este ajuste não mudaria nada nas tabelas atuais.';
 
+            if (extra) {   // proposta da IA: o que ela quer fazer (em português), aviso de exclusão e motivo
+                if (extra.destrutivo) {
+                    const av = document.createElement('div');
+                    av.style.cssText = 'padding:8px 10px; margin-bottom:8px; border:1px solid #f85149; border-radius:4px; color:#ffa198; font-size:0.82rem;';
+                    av.textContent = '⚠ Esta proposta da IA EXCLUI linhas ou itens das tabelas. Confira cada mudança abaixo (as exclusões estão em vermelho) e desmarque o que não quiser. Ctrl+Z desfaz.';
+                    lista.appendChild(av);
+                }
+                const bloco = document.createElement('div');
+                bloco.style.cssText = 'margin-bottom:8px; font-size:0.8rem; color:#8b949e;';
+                extra.acoes.forEach(a => {
+                    const l = document.createElement('div');
+                    l.textContent = `• ${a.frase}${a.motivo ? ` — ${a.motivo}` : ''}`;
+                    bloco.appendChild(l);
+                });
+                (extra.descartadas || []).forEach(d => {
+                    const l = document.createElement('div');
+                    l.style.color = '#d29922';
+                    l.textContent = `• Proposta descartada${d.acao ? ` (${d.acao})` : ''}: ${d.motivo}`;
+                    bloco.appendChild(l);
+                });
+                lista.appendChild(bloco);
+            }
             r.operacoes.forEach((o, i) => {
                 const t = textoOperacao(o);
                 const item = document.createElement('label');
@@ -2565,7 +2589,11 @@ document.addEventListener('DOMContentLoaded', () => {
             cancelar.onclick = () => fechar(null);
             const aplicar = botaoPainel('Aplicar selecionadas', 'btn-primary');
             aplicar.onclick = () => {
-                const res = aplicarOperacoesAjuste(r, new Set(caixas.filter(x => x.caixa.checked).map(x => x.i)));
+                const marcadas = new Set(caixas.filter(x => x.caixa.checked).map(x => x.i));
+                const apagaAlgo = extra && [...marcadas].some(i => r.operacoes[i].op === 'excluir' || (r.operacoes[i].op === 'editar'
+                    && extra.acoes.some(a => a.destrutiva && r.operacoes[i].acoes.includes(a.indice))));
+                if (apagaAlgo && !confirm('Esta proposta da IA EXCLUI linhas ou itens. Você conferiu a pré-visualização e quer aplicar mesmo assim?\n(Ctrl+Z desfaz.)')) return;
+                const res = aplicarOperacoesAjuste(r, marcadas);
                 showToast(res.aplicadas
                     ? `${res.aplicadas} mudança(s) aplicada(s)${res.ignoradas ? `; ${res.ignoradas} ignorada(s) porque a linha mudou` : ''}. Ctrl+Z desfaz.`
                     : 'Nada aplicado: as linhas mudaram desde a pré-visualização.');
@@ -2576,6 +2604,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 aplicar.disabled = !marcadas;
                 aplicar.style.opacity = marcadas ? '1' : '0.45';
                 aplicar.textContent = `Aplicar selecionadas (${marcadas})`;
+            }
+            if (extra && extra.acoes.length && localStorage.getItem('is_admin') === 'true' && typeof window.rpCadastrarComoAjuste === 'function') {
+                const cad = botaoPainel('Cadastrar como ajuste', 'btn-secondary');
+                cad.title = 'Abre o editor de ajustes (Regras de validação › Ajustes) com estas ações, para salvar como receita reutilizável';
+                cad.onclick = () => { fechar({ cadastrar: true }); window.rpCadastrarComoAjuste(extra.acoes.map(a => a.acao), `Proposto pela IA: ${extra.acoes[0].frase.replace(/^Em [^:]+: /, '').slice(0, 70)}`); };
+                acoes.appendChild(cad);
             }
             if (total) acoes.append(cancelar, aplicar); else acoes.append(cancelar);
             atualizar();
@@ -2600,6 +2634,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const nomes = ids.length === 1 ? (nomesDeAjuste[ids[0]] || ids[0]) : `${ids.length} ajustes`;
         return mostrarPainelAjuste(r, nomes);
+    }
+
+    /** "Pedir ajuste à IA": a IA propõe AÇÕES (inclusive excluir, com aviso); o motor calcula o diff; o usuário confere no
+     *  popup e aplica. Devolve o resultado do aplicar ou null. Só vai à IA o que os achados citam. */
+    async function fluxoAjusteIA(achados) {
+        const editaveis = achados.filter(achadoCorrigivel);
+        if (!editaveis.length) { showToast('Nenhum problema aponta uma linha editável; ajuste as tabelas manualmente.'); return null; }
+        showToast('Pedindo ajustes à IA...');
+        let r;
+        try {
+            const resp = await fetch('/api/validacao/ajustes-ia', {
+                method: 'POST', headers: cabecalhoIA(),
+                body: JSON.stringify({
+                    cabos: linhasParaValidacao('cabos', 'CABOS'), outros: linhasParaValidacao('outros', 'OUTROS'),
+                    projeto_codigo: codigoDoProjetoSelecionado() || null,
+                    achados: editaveis.map(a => ({ linha_id: a.linha_id, regra_id: a.regra_id, mensagem: a.mensagem, sugestao: a.sugestao || null }))
+                })
+            });
+            r = resp.ok ? await resp.json() : { status: 'erro', mensagem: await lerDetalhe(resp), acoes: [], diff: null };
+        } catch (e) {
+            r = { status: 'erro', mensagem: e.message, acoes: [], diff: null };
+        }
+        const problema = { sem_chave: 'Sem chave de IA: informe a sua na configuração de IA.', desativado: 'O ajuste por IA está desativado.',
+            indisponivel: 'O ajuste por IA está indisponível.', erro: 'O ajuste por IA falhou.' }[r.status];
+        if (problema) { showToast(problema + (r.mensagem && r.status !== 'desativado' ? ` (${r.mensagem})` : '')); return null; }
+        if (!r.diff) {
+            showToast(r.descartadas && r.descartadas.length
+                ? `A IA não propôs nenhum ajuste válido (${r.descartadas.length} descartado(s)).` : 'A IA não encontrou ajuste seguro para estes problemas.');
+            return null;
+        }
+        return mostrarPainelAjuste(r.diff, `${r.acoes.length} ação(ões)`, { acoes: r.acoes, destrutivo: r.destrutivo, descartadas: r.descartadas });
     }
 
     /* Botão "Ajustar ▾": ajustes cadastrados e ligados do projeto, rodados avulsos (sem achado). */

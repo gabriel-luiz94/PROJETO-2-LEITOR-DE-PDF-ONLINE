@@ -198,11 +198,19 @@
         document.getElementById('painel-regras').classList.add('aberto');
         try {
             await carregarEditores();
-            recarregarAbas();
+            await recarregarAbas();
         } catch (e) {
             window.rpMensagem('error', e.message);
         }
     }
+    // "Cadastrar como ajuste" (proposta da IA aceita no Resumo): abre a aba Ajustes com um ajuste novo em rascunho.
+    window.rpCadastrarComoAjuste = async function (acoes, nome) {
+        await abrirPainel();
+        ativarAba('ajustes');
+        if (typeof ajNovoComAcoes === 'function') ajNovoComAcoes(acoes, nome);
+        window.rpMensagem('success', 'Ajuste criado em rascunho: revise, ligue e clique em Salvar.');
+    };
+
     function fecharPainel() {
         const d = document.getElementById('painel-regras');
         if (d) d.classList.remove('aberto');

@@ -398,6 +398,20 @@ function ajNovo() {
     ajAtualizarFrases(AJ.itens[AJ.itens.length - 1]);
 }
 
+/** Cria um ajuste novo já com as ações dadas (ex.: proposta da IA aceita) — fica em rascunho até o admin salvar. */
+function ajNovoComAcoes(acoes, nome) {
+    let n = AJ.itens.length + 1;
+    while (AJ.itens.some(r => r.id === `AJ-NOVO-${n}`)) n++;
+    const item = { id: `${ajEhProjeto() ? 'PROJ' : 'AJ'}-NOVO-${n}`, nome: nome || 'Novo ajuste', ativa: false, regras: [],
+        acoes: rdClone(acoes), origem: ajEhProjeto() ? 'projeto' : undefined, _aberta: true, frases: [] };
+    AJ.itens.push(item);
+    ajMarcarSujo();
+    ajRenderizar();
+    ajAtualizarFrases(item);
+    const card = ajEl('ajLista').lastElementChild;
+    if (card) card.scrollIntoView({ block: 'center' });
+}
+
 function ajParaEnvio() {
     if (AJ.itens.some(r => r._jsonInvalido)) { ajErros(['Há ajustes com JSON inválido (campo em vermelho no modo avançado).']); return null; }
     return AJ.itens.map(r => { const c = ajLimpa(r); if (r.oculta) c.oculta = true; if (r.origem) c.origem = r.origem; return c; });
