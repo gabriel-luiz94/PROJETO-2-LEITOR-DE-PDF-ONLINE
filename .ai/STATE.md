@@ -176,6 +176,8 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       principal: suporte à Web Speech API na janela desktop (pywebview).
 - [x] **TASK-028** (pedido de 2026-10-01; concluída): IA do chat consulta as obras salvas e executa "adicione a obra 2 ao projeto" etc. (contexto
       sob demanda, ação `acao_ui: obra` com popup de confirmação, sem regressão e sem lentidão). Em PLANEJAMENTO, com 4 decisões a confirmar.
+- [x] **TASK-029** (pedido de 2026-10-02): o botão `Ajustar` roda todos os ajustes habilitados e lista cada correção com **Executar correção**,
+      com **Executar todas as correções** acima. CONCLUÍDA (preview-lote + modal de cartões).
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 

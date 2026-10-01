@@ -8,6 +8,17 @@
 
 ---
 
+## 2026-10-02 — TASK-029: botão Ajustar executa todos os ajustes habilitados
+
+**Tipo:** Ajustes (backend + frontend) · `.ai/tasks/TASK-029-02-10-2026.md`
+
+`Ajustar` deixou de ser menu: abre um modal com um **cartão por ajuste habilitado que muda algo** (caixa por mudança, **Executar correção**)
+e, acima, **Executar todas as correções** (em cadeia, ordem do cadastro, um passo de histórico). Nova rota `POST /api/validacao/ajustes/preview-lote`
+(só simula; uma chamada devolve cartões, ajustes sem mudança, configs inválidas e a cadeia; limites 30 ajustes / 50 ações na cadeia).
+Exclusões pedem confirmação extra; guarda da camada 1 e proteção de linha alterada mantidas. Após executar, os cartões são recalculados.
+
+---
+
 ## 2026-10-01 — TASK-028: IA do chat consulta e comanda as obras salvas
 
 **Tipo:** IA do chat (backend + frontend) · `.ai/tasks/TASK-028-01-10-2026.md`

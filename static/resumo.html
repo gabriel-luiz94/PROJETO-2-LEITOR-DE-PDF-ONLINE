@@ -589,8 +589,8 @@
                         <button class="btn-secondary" id="btn-regras-validacao" title="Regras e prompts da validação deste projeto (só o administrador edita)">
                             Regras de validação
                         </button>
-                        <button class="btn-secondary" id="btn-ajustar" title="Aplica um ajuste cadastrado (substituir texto, ordenar, excluir/adicionar linhas…) com pré-visualização">
-                            Ajustar ▾
+                        <button class="btn-secondary" id="btn-ajustar" title="Roda todos os ajustes habilitados do projeto e mostra cada correção (com pré-visualização) para você executar">
+                            Ajustar
                         </button>
                         <button class="btn-secondary" id="btn-validar" title="Verificar as planilhas Cabos e Outros (contrato, regras de domínio e IA)">
                             Validar
@@ -683,6 +683,18 @@
                 <div id="validacao-aviso" style="display:none; font-size: 0.8rem; color: #d29922; margin-bottom: 8px;"></div>
                 <div id="validacao-lista" style="overflow: auto; flex: 1; font-size: 0.85rem;"></div>
                 <div class="modal-actions" id="validacao-acoes" style="margin-top: 14px;"></div>
+            </div>
+        </div>
+
+        <!-- Ajustar: todos os ajustes habilitados, um cartão por correção (TASK-029) -->
+        <div id="modal-ajustar" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 760px; width: 92%; max-height: 85vh; display: flex; flex-direction: column;">
+                <h3 style="margin-bottom: 6px;">Ajustar: correções disponíveis</h3>
+                <p id="ajustar-resumo" style="font-size: 0.8rem; color: #8b949e; margin-bottom: 8px;"></p>
+                <div id="ajustar-aviso" style="display:none; font-size: 0.82rem; color: #3fb950; margin-bottom: 8px;"></div>
+                <div id="ajustar-topo"></div>
+                <div id="ajustar-lista" style="overflow: auto; flex: 1; font-size: 0.85rem;"></div>
+                <div class="modal-actions" style="margin-top: 14px;"><button id="ajustar-fechar" class="btn-primary" type="button">Fechar</button></div>
             </div>
         </div>
 
