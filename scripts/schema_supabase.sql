@@ -209,3 +209,22 @@ CREATE TABLE IF NOT EXISTS public.regras_dominio_historico (
 );
 ALTER TABLE public.regras_dominio_historico DISABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_regras_dominio_hist_projeto ON public.regras_dominio_historico(projeto_codigo);
+
+-- TASK-023: ajustes (receitas) das planilhas Cabos/Outros (ADR-006) — uma linha por projeto: "DEFAULT" guarda o
+-- container completo {versao, ajustes}; cada projeto guarda só o overlay (adicionadas/sobrescritas/ocultas) + histórico.
+CREATE TABLE IF NOT EXISTS public.ajustes_planilhas (
+    projeto_codigo TEXT PRIMARY KEY,
+    ajustes_json TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.ajustes_planilhas DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS public.ajustes_planilhas_historico (
+    id BIGSERIAL PRIMARY KEY,
+    projeto_codigo TEXT NOT NULL,
+    ajustes_json TEXT NOT NULL,
+    criado_em TIMESTAMPTZ DEFAULT NOW(),
+    criado_por TEXT
+);
+ALTER TABLE public.ajustes_planilhas_historico DISABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_ajustes_planilhas_hist_projeto ON public.ajustes_planilhas_historico(projeto_codigo);

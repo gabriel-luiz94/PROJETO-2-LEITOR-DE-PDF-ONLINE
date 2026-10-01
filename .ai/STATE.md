@@ -166,6 +166,9 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [x] Melhorias das regras de domínio pedidas pelo usuário (2026-09-30): **TASK-016** (motor v2: condição por
       quantidade, grupos, E/OU/NÃO, explicação), **TASK-018** (regras em camadas por projeto: padrão + ajustes, selos,
       −/+) e **TASK-017** (editor visual legível, grupos, assistente, teste explicativo) — concluídas.
+- [x] **Validação + Ajuste** (pedido de 2026-10-01; TASK-019 a 025 concluídas), propostas em PLANEJAMENTO aguardando decisões do usuário, ordem sugerida:
+      ~~TASK-021 (undo/redo)~~ ✔ → ~~TASK-020 (modos)~~ ✔ (modos determinística/IA) → TASK-019 (painel de regras no Resumo) →
+      ~~TASK-022 (motor de ajustes)~~ ✔ → ~~TASK-023 (cadastro de ajustes)~~ ✔ → ~~TASK-024 (fluxo Validar+Ajustar)~~ ✔ → ~~TASK-025 (IA estruturada)~~ ✔.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -284,10 +287,9 @@ arquivo em `.ai/tasks/`.
     embora `GET /api/gemini/models` liste modelos da OpenAI.
 28. O rate-limit do chat é em memória e por processo.
 
-29. **Desfazer/refazer com desvio de uma posição** (`static/resumo.js`, `pushHistory`/`undo`): as edições manuais
-    empilham o estado ANTES de mudar e `undo()` volta um índice, então — confirmado no navegador — duas edições
-    seguidas são desfeitas por um só Ctrl+Z, e depois de carregar uma obra o desfazer pode levar a tabelas vazias.
-    Não corrigido (fora do escopo da TASK-015, que não depende disso).
+29. ~~**Desfazer/refazer com desvio de uma posição**~~ **Resolvido na TASK-021 (2026-10-01):** `undo()` grava o estado
+    ao vivo se ele estiver à frente do ponteiro antes de voltar, e `pushHistory()` ignora estado repetido; cada
+    edição/lote é exatamente um passo (verificado no navegador, incluindo Limpar Tudo).
 
 ### Qualidade de código
 18. **Lógica de negócio duplicada** entre `static/script.js` e `static/resumo.js`

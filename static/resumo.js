@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_HISTORY = 80;
     let history = [];      // array de snapshots
     let historyIdx = -1;   // ponteiro atual
+    let historyDirty = false;  // pode haver mudança ainda não gravada no histórico (ver pushHistory)
 
     /* ─── Autocomplete state ─── */
     let acList = null;          // elemento DOM do dropdown ativo
@@ -125,6 +126,8 @@ document.addEventListener('DOMContentLoaded', () => {
     buildAtivoSets();
     recalcAllQtdAtivos();  // calcula qtdAtivos antes do primeiro render
     pushHistory();   // estado inicial
+    historyDirty = false;  // nada a desfazer ainda
+    updateHistoryUI();
 
     renderTable('cabos');
     renderTable('outros');
@@ -775,17 +778,39 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    /* Histórico (TASK-021). Os chamadores empilham ANTES de mudar (a maioria) ou DEPOIS (poucos); como o estado ao vivo
+       pode estar à frente do ponteiro, `historyDirty` marca "pode haver mudança não gravada" e o undo a grava antes
+       de voltar — assim cada ação é exatamente um passo, qualquer que seja o estilo do chamador. */
+    const mesmoEstado = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
     function pushHistory() {
-        // Descarta redo futuro
-        if (historyIdx < history.length - 1) history = history.slice(0, historyIdx + 1);
-        history.push(snapshotState());
-        if (history.length > MAX_HISTORY) history.shift();
-        historyIdx = history.length - 1;
+        const snap = snapshotState();
+        if (!(historyIdx >= 0 && mesmoEstado(history[historyIdx], snap))) {
+            // Descarta redo futuro
+            if (historyIdx < history.length - 1) history = history.slice(0, historyIdx + 1);
+            history.push(snap);
+            if (history.length > MAX_HISTORY) history.shift();
+            historyIdx = history.length - 1;
+        }
+        historyDirty = true;
         updateHistoryUI();
     }
 
+    /** Grava o estado ao vivo se ele estiver à frente do ponteiro (mudança feita depois do último push). */
+    function gravarEstadoAoVivo() {
+        const vivo = snapshotState();
+        if (historyIdx >= 0 && !mesmoEstado(history[historyIdx], vivo)) {
+            history = history.slice(0, historyIdx + 1);
+            history.push(vivo);
+            if (history.length > MAX_HISTORY) history.shift();
+            historyIdx = history.length - 1;
+        }
+        historyDirty = false;
+    }
+
     function undo() {
-        if (historyIdx <= 0) return;
+        gravarEstadoAoVivo();
+        if (historyIdx <= 0) { updateHistoryUI(); return; }
         historyIdx--;
         applyUndoRedoSnapshot(history[historyIdx]);
         showToast('Desfeito');
@@ -793,6 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function redo() {
         if (historyIdx >= history.length - 1) return;
+        historyDirty = false;
         historyIdx++;
         applyUndoRedoSnapshot(history[historyIdx]);
         showToast('Refeito');
@@ -814,7 +840,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnU = document.getElementById('btn-undo');
         const btnR = document.getElementById('btn-redo');
         const info = document.getElementById('history-info');
-        btnU.disabled = historyIdx <= 0;
+        btnU.disabled = historyIdx <= 0 && !historyDirty;
         btnR.disabled = historyIdx >= history.length - 1;
         const pos = historyIdx + 1, tot = history.length;
         info.textContent = tot > 1 ? `${pos}/${tot}` : '';
@@ -971,6 +997,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
     }
+    window.showToast = showToast;  // usado pelo painel de regras (painel_regras.js)
 
     /* ═══════════════════════════════════════
        UTILS
@@ -1873,6 +1900,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    /* Modos de validação (TASK-020): determinística (contrato + regras de domínio) e IA, ligáveis em separado.
+       Preferência local (localStorage), como "Validar ao montar". */
+    const MODOS_CHAVE = 'validacao_modos';
+    const MODOS_PADRAO = { det: true, dominio: true, ia: true, pularIa: true };
+    function lerModos() {
+        try { return { ...MODOS_PADRAO, ...(JSON.parse(localStorage.getItem(MODOS_CHAVE)) || {}) }; } catch (e) { return { ...MODOS_PADRAO }; }
+    }
+    function gravarModos(m) { try { localStorage.setItem(MODOS_CHAVE, JSON.stringify(m)); } catch (e) { /* vale só nesta sessão */ } }
+    const MODOS_CAIXAS = { det: 'vmodo-det', dominio: 'vmodo-dominio', ia: 'vmodo-ia', pularIa: 'vmodo-pular-ia' };
+    function sincronizarModosNaTela() {
+        const m = lerModos();
+        Object.entries(MODOS_CAIXAS).forEach(([k, id]) => {
+            const c = document.getElementById(id);
+            if (c) { c.checked = !!m[k]; }
+        });
+        const dom = document.getElementById(MODOS_CAIXAS.dominio);
+        if (dom) dom.disabled = !m.det;
+        const pular = document.getElementById(MODOS_CAIXAS.pularIa);
+        if (pular) pular.disabled = !(m.det && m.ia);
+    }
+    Object.entries(MODOS_CAIXAS).forEach(([k, id]) => {
+        const c = document.getElementById(id);
+        if (c) c.addEventListener('change', () => { const m = lerModos(); m[k] = c.checked; gravarModos(m); sincronizarModosNaTela(); });
+    });
+    sincronizarModosNaTela();
+
     function linhasParaValidacao(tabela, prefixo) {
         const linhas = [];
         tableStates[tabela].data.forEach((r, i) => {
@@ -1880,6 +1933,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         return linhas;
     }
+
+    /** Linhas atuais das duas tabelas, para a pré-visualização dos ajustes (painel de regras). */
+    window.resumoLinhasParaAjuste = () => ({ cabos: linhasParaValidacao('cabos', 'CABOS'), outros: linhasParaValidacao('outros', 'OUTROS') });
 
     function cabecalhoIA() {
         return {
@@ -1889,56 +1945,109 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function lerDetalhe(resp) {
-        try { const j = await resp.json(); return typeof j.detail === 'string' ? j.detail : `HTTP ${resp.status}`; }
+        try {
+            const j = await resp.json();
+            if (j.detail && Array.isArray(j.detail.erros)) return j.detail.erros.join('; ');
+            return typeof j.detail === 'string' ? j.detail : `HTTP ${resp.status}`;
+        }
         catch (e) { return `HTTP ${resp.status}`; }
     }
 
-    /** Roda camadas 1-2 e depois a IA. Devolve { achados, ia, falhou }; `falhou` = as camadas 1-2 não puderam rodar. */
+    /** Código do projeto selecionado no Resumo ('' se nenhum). */
+    function codigoDoProjetoSelecionado() {
+        const sel = document.getElementById('select-projeto');
+        return sel && sel.selectedIndex >= 0 ? (sel.options[sel.selectedIndex].dataset.codigo || '') : '';
+    }
+
+    const nomesDeAjuste = {};   // id → nome, para os títulos das pré-visualizações
+
+    /** Ajustes (receitas) cadastrados e LIGADOS para o projeto, mais o mapa regra → ajustes que a corrigem. Falha = sem ajustes. */
+    async function carregarAjustesCadastrados() {
+        try {
+            const r = await fetch(`/api/validacao/ajustes?projeto_codigo=${encodeURIComponent(codigoDoProjetoSelecionado() || 'DEFAULT')}`);
+            if (r.ok) {
+                const d = await r.json();
+                d.ajustes.forEach(a => { nomesDeAjuste[a.id] = a.nome; });
+                return { ajustes: d.ajustes.filter(a => a.ativa && !a.oculta), por_regra: d.por_regra || {} };
+            }
+        } catch (e) { /* sem ajustes: a validação segue normalmente */ }
+        return { ajustes: [], por_regra: {} };
+    }
+
+    /** Roda os modos ligados: determinística (camadas 1-2) e, depois, a IA. Devolve { achados, ia, modos, falhou }.
+     *  `falhou` = a determinística foi pedida e não pôde rodar. `modos` diz o que rodou (a tela mostra ao usuário). */
     async function executarValidacao() {
+        const prefs = lerModos();
+        const modos = { det: prefs.det, dominio: prefs.det && prefs.dominio, ia: 'desligada' };
+        if (!prefs.det && !prefs.ia) return { achados: [], ia: null, modos, falhou: null, nada: true };
+        let ajustes = { ajustes: [], por_regra: {} };
+
         const cabos = linhasParaValidacao('cabos', 'CABOS');
         const outros = linhasParaValidacao('outros', 'OUTROS');
         const selectProj = document.getElementById('select-projeto');
         const projeto = selectProj ? selectProj.value : '';
         const projetoCodigo = selectProj && selectProj.selectedIndex >= 0 ? (selectProj.options[selectProj.selectedIndex].dataset.codigo || '') : '';
 
-        // Payload da Totalizadora (após as regras de conversão) só para checar o ativo na base técnica.
-        // Ids próprios para não colidirem com CABOS-<i>/OUTROS-<i> das tabelas.
-        let payloadCalculo = null;
-        try {
-            const p = await obterPayloadCalculo();
-            payloadCalculo = {
-                cabos: p.cabos.map((o, i) => ({ ...o, id: `TOTALIZADORA-CABOS-${i}` })),
-                outros: p.outros.map((o, i) => ({ ...o, id: `TOTALIZADORA-OUTROS-${i}` }))
-            };
-        } catch (e) { /* segue sem a checagem de base */ }
-        ultimoPayloadValidacao = payloadCalculo || { cabos: [], outros: [] };
-
         let achados = [];
-        try {
-            const resp = await fetch('/api/validacao/planilhas', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cabos, outros, projeto, projeto_codigo: projetoCodigo || null, payload_calculo: payloadCalculo })
-            });
-            if (!resp.ok) throw new Error(await lerDetalhe(resp));
-            achados = (await resp.json()).achados;
-        } catch (e) {
-            return { achados: [], ia: null, falhou: `Não foi possível validar (${e.message}).` };
+        if (prefs.det) {
+            // Payload da Totalizadora (após as regras de conversão) só para checar o ativo na base técnica.
+            // Ids próprios para não colidirem com CABOS-<i>/OUTROS-<i> das tabelas.
+            let payloadCalculo = null;
+            try {
+                const p = await obterPayloadCalculo();
+                payloadCalculo = {
+                    cabos: p.cabos.map((o, i) => ({ ...o, id: `TOTALIZADORA-CABOS-${i}` })),
+                    outros: p.outros.map((o, i) => ({ ...o, id: `TOTALIZADORA-OUTROS-${i}` }))
+                };
+            } catch (e) { /* segue sem a checagem de base */ }
+            ultimoPayloadValidacao = payloadCalculo || { cabos: [], outros: [] };
+
+            try {
+                const resp = await fetch('/api/validacao/planilhas', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cabos, outros, projeto, projeto_codigo: projetoCodigo || null,
+                                           incluir_dominio: prefs.dominio, payload_calculo: payloadCalculo })
+                });
+                if (!resp.ok) throw new Error(await lerDetalhe(resp));
+                achados = (await resp.json()).achados;
+            } catch (e) {
+                return { achados: [], ia: null, modos, falhou: `Não foi possível validar (${e.message}).` };
+            }
+            ajustes = await carregarAjustesCadastrados();
         }
 
-        let ia = { status: 'erro', mensagem: 'sem resposta', achados: [] };
-        try {
-            const resp = await fetch('/api/validacao/ia', {
-                method: 'POST', headers: cabecalhoIA(),
-                body: JSON.stringify({
-                    cabos, outros, projeto_codigo: projetoCodigo || null,
-                    achados_previos: achados.map(a => ({ linha_id: a.linha_id, regra_id: a.regra_id, mensagem: a.mensagem }))
-                })
-            });
-            ia = resp.ok ? await resp.json() : { status: 'erro', mensagem: await lerDetalhe(resp), achados: [] };
-        } catch (e) {
-            ia = { status: 'erro', mensagem: e.message, achados: [] };
+        let ia = null;
+        if (prefs.ia) {
+            const erroDeContrato = achados.some(a => a.severidade === 'erro' && camadaDoAchado(a) === 'Contrato');
+            if (prefs.det && prefs.pularIa && erroDeContrato) {
+                modos.ia = 'pulada';  // contrato com erro: não gasta a chave de IA
+            } else {
+                modos.ia = 'rodou';
+                ia = { status: 'erro', mensagem: 'sem resposta', achados: [] };
+                try {
+                    const resp = await fetch('/api/validacao/ia', {
+                        method: 'POST', headers: cabecalhoIA(),
+                        body: JSON.stringify({
+                            cabos, outros, projeto_codigo: projetoCodigo || null,
+                            achados_previos: achados.map(a => ({ linha_id: a.linha_id, regra_id: a.regra_id, mensagem: a.mensagem }))
+                        })
+                    });
+                    ia = resp.ok ? await resp.json() : { status: 'erro', mensagem: await lerDetalhe(resp), achados: [] };
+                } catch (e) {
+                    ia = { status: 'erro', mensagem: e.message, achados: [] };
+                }
+            }
         }
-        return { achados: achados.concat(ia.achados || []), ia, falhou: null };
+        return { achados: achados.concat((ia && ia.achados) || []), ia, modos, ajustes, falhou: null };
+    }
+
+    /** Frase que diz ao usuário o que realmente rodou. */
+    function descreverModos(modos) {
+        const partes = [];
+        if (modos.det) partes.push(modos.dominio ? 'Determinística (contrato + regras de domínio)' : 'Determinística (só contrato)');
+        else partes.push('Determinística desligada');
+        partes.push({ rodou: 'IA executada', pulada: 'IA não executada (erro de contrato)', desligada: 'IA desligada' }[modos.ia]);
+        return partes.join(' · ');
     }
 
     function textoDaLinha(achado) {
@@ -1968,11 +2077,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return b;
     }
 
+    /** Ajustes cadastrados e ligados que corrigem a regra do achado (ids), na ordem do cadastro. */
+    function ajustesDoAchado(res, achado) {
+        const ids = (res.ajustes && res.ajustes.por_regra[achado.regra_id]) || [];
+        return ids.map(id => res.ajustes.ajustes.find(a => a.id === id)).filter(Boolean);
+    }
+
+    function contagemPorSeveridade(achados) {
+        const c = { erro: 0, aviso: 0, info: 0 };
+        achados.forEach(a => { c[a.severidade] = (c[a.severidade] || 0) + 1; });
+        return c;
+    }
+
+    function textoContagem(c) { return `${c.erro} erro(s), ${c.aviso} aviso(s), ${c.info} informação(ões)`; }
+
     /**
-     * Mostra o painel. `confirmar`: pergunta "continuar mesmo assim?". Resolve 'continuar' | 'corrigir' | 'fechar'.
-     * 'corrigir' apenas fecha o painel para o usuário ajustar as tabelas (a correção assistida é a TASK-015).
+     * Mostra o painel. `confirmar`: pergunta "continuar mesmo assim?". `anterior`: contagem antes de um ajuste (mostra o
+     * efeito). Resolve 'continuar' | 'corrigir' | 'fechar' | { tipo: 'ajustar', ids } | { tipo: 'ia' } — a decisão fica com o
+     * chamador (cicloValidacao), que aplica o ajuste, revalida e reabre o painel.
      */
-    function mostrarPainelValidacao(res, confirmar) {
+    function mostrarPainelValidacao(res, confirmar, anterior) {
         return new Promise(resolve => {
             const modal = document.getElementById('modal-validacao');
             const lista = document.getElementById('validacao-lista');
@@ -1980,15 +2104,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const aviso = document.getElementById('validacao-aviso');
             const achados = res.achados.slice().sort((a, b) =>
                 (ORDEM_SEVERIDADE[a.severidade] - ORDEM_SEVERIDADE[b.severidade]) || String(a.linha_id).localeCompare(String(b.linha_id), 'pt', { numeric: true }));
-            const cont = { erro: 0, aviso: 0, info: 0 };
-            achados.forEach(a => { cont[a.severidade] = (cont[a.severidade] || 0) + 1; });
+            const cont = contagemPorSeveridade(achados);
 
             document.getElementById('validacao-titulo').textContent = achados.length
                 ? 'Problemas encontrados nas planilhas' : 'Nenhum problema encontrado';
-            document.getElementById('validacao-resumo').textContent = achados.length
-                ? `${cont.erro} erro(s), ${cont.aviso} aviso(s), ${cont.info} informação(ões).` : 'As planilhas passaram nas verificações.';
+            document.getElementById('validacao-resumo').textContent = (achados.length
+                ? `${textoContagem(cont)}.` : 'As planilhas passaram nas verificações que rodaram.')
+                + (anterior ? ` Antes do ajuste: ${textoContagem(anterior)}.` : '')
+                + (res.modos ? ` Rodou: ${descreverModos(res.modos)}.` : '');
 
             const avisos = [];
+            if (res.modos && res.modos.ia === 'pulada') avisos.push('A IA não foi executada porque o contrato das planilhas tem erro: corrija e valide de novo.');
             if (res.ia && res.ia.status !== 'ok') {
                 const rotulos = { sem_chave: 'Revisão por IA não executada: sem chave de IA.', desativado: 'Revisão por IA desativada.',
                     indisponivel: 'Revisão por IA indisponível.', parcial: 'Revisão por IA incompleta: parte das linhas falhou.', erro: 'Revisão por IA falhou.' };
@@ -1998,71 +2124,133 @@ document.addEventListener('DOMContentLoaded', () => {
             aviso.textContent = avisos.join(' ');
             aviso.style.display = avisos.length ? 'block' : 'none';
 
-            lista.replaceChildren();
-            achados.forEach(a => {
-                const item = document.createElement('div');
-                item.style.cssText = `padding: 8px 10px; margin-bottom: 6px; border-left: 3px solid ${COR_SEVERIDADE[a.severidade] || '#8b949e'}; background: rgba(255,255,255,0.03); border-radius: 4px;`;
-                const topo = document.createElement('div');
-                topo.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap; align-items:baseline; font-size:0.75rem; color:#8b949e;';
-                const sev = document.createElement('strong');
-                sev.style.color = COR_SEVERIDADE[a.severidade] || '#8b949e';
-                sev.textContent = ROTULO_SEVERIDADE[a.severidade] || a.severidade;
-                const onde = document.createElement('span');
-                onde.textContent = textoDaLinha(a);
-                const regra = document.createElement('span');
-                regra.textContent = `${camadaDoAchado(a)} · ${a.regra_id}`;
-                topo.append(sev, onde, regra);
-                const msg = document.createElement('div');
-                msg.style.marginTop = '2px';
-                msg.textContent = a.mensagem;
-                item.append(topo, msg);
-                if (a.explicacao) {
-                    const exp = document.createElement('div');
-                    exp.style.cssText = 'margin-top:2px; font-size:0.78rem; color:#8b949e;';
-                    exp.textContent = `Por quê: ${a.explicacao}`;
-                    item.appendChild(exp);
-                }
-                if (a.sugestao) {
-                    const sug = document.createElement('div');
-                    sug.style.cssText = 'margin-top:2px; font-size:0.8rem; color:#3fb950;';
-                    sug.textContent = `Sugestão: ${a.sugestao}`;
-                    item.appendChild(sug);
-                }
-                lista.appendChild(item);
-            });
-
             const fechar = resultado => { modal.classList.add('hidden'); resolve(resultado); };
+            const temIA = achados.some(a => camadaDoAchado(a) === 'IA');
+            const temDet = achados.some(a => camadaDoAchado(a) !== 'IA');
+            let filtro = 'todos';
+
+            function desenhar() {
+                lista.replaceChildren();
+                if (temIA && temDet) {   // filtro Todos · Determinístico · IA
+                    const barra = document.createElement('div');
+                    barra.style.cssText = 'display:flex; gap:6px; margin-bottom:8px;';
+                    [['todos', 'Todos'], ['det', 'Determinístico'], ['ia', 'IA']].forEach(([k, r]) => {
+                        const b = botaoPainel(r, k === filtro ? 'btn-primary' : 'btn-secondary');
+                        b.style.padding = '3px 10px'; b.style.fontSize = '0.75rem';
+                        b.onclick = () => { filtro = k; desenhar(); };
+                        barra.appendChild(b);
+                    });
+                    lista.appendChild(barra);
+                }
+                achados.filter(a => filtro === 'todos' || (filtro === 'ia') === (camadaDoAchado(a) === 'IA')).forEach(a => {
+                    const item = document.createElement('div');
+                    item.style.cssText = `padding: 8px 10px; margin-bottom: 6px; border-left: 3px solid ${COR_SEVERIDADE[a.severidade] || '#8b949e'}; background: rgba(255,255,255,0.03); border-radius: 4px;`;
+                    const topo = document.createElement('div');
+                    topo.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap; align-items:baseline; font-size:0.75rem; color:#8b949e;';
+                    const sev = document.createElement('strong');
+                    sev.style.color = COR_SEVERIDADE[a.severidade] || '#8b949e';
+                    sev.textContent = ROTULO_SEVERIDADE[a.severidade] || a.severidade;
+                    const onde = document.createElement('span');
+                    onde.textContent = textoDaLinha(a);
+                    const regra = document.createElement('span');
+                    regra.textContent = `${camadaDoAchado(a)} · ${a.regra_id}`;
+                    topo.append(sev, onde, regra);
+                    const msg = document.createElement('div');
+                    msg.style.marginTop = '2px';
+                    msg.textContent = a.mensagem;
+                    item.append(topo, msg);
+                    if (a.explicacao) {
+                        const exp = document.createElement('div');
+                        exp.style.cssText = 'margin-top:2px; font-size:0.78rem; color:#8b949e;';
+                        exp.textContent = `Por quê: ${a.explicacao}`;
+                        item.appendChild(exp);
+                    }
+                    if (a.sugestao) {
+                        const sug = document.createElement('div');
+                        sug.style.cssText = 'margin-top:2px; font-size:0.8rem; color:#3fb950;';
+                        sug.textContent = `Sugestão: ${a.sugestao}`;
+                        item.appendChild(sug);
+                    }
+                    ajustesDoAchado(res, a).forEach(aj => {
+                        const b = botaoPainel(`Ajustar: ${aj.nome}`, 'btn-secondary');
+                        b.style.cssText = 'margin-top:6px; margin-right:6px; padding:3px 10px; font-size:0.75rem; color:#3fb950; border-color:rgba(63,185,80,0.4);';
+                        b.title = 'Mostra o que mudaria nas tabelas; nada é alterado sem o seu aceite';
+                        b.onclick = () => fechar({ tipo: 'ajustar', ids: [aj.id] });
+                        item.appendChild(b);
+                    });
+                    lista.appendChild(item);
+                });
+            }
+            desenhar();
+
             acoes.replaceChildren();
+            const idsComAjuste = [...new Set(achados.flatMap(a => ajustesDoAchado(res, a).map(x => x.id)))];
+            const semAjuste = achados.filter(a => achadoCorrigivel(a) && !ajustesDoAchado(res, a).length);
+            const extras = [];
+            if (idsComAjuste.length) {
+                const todos = botaoPainel('Ajustar tudo (determinístico)', 'btn-secondary');
+                todos.title = 'Pré-visualiza todos os ajustes cadastrados que corrigem estes achados';
+                todos.onclick = () => fechar({ tipo: 'ajustar', ids: idsComAjuste });
+                extras.push(todos);
+            }
+            if (semAjuste.length && lerModos().ia) {
+                const ia = botaoPainel('Pedir ajuste à IA', 'btn-secondary');
+                ia.title = 'A IA propõe correções só para os achados sem ajuste cadastrado; você aceita linha a linha';
+                ia.onclick = () => fechar({ tipo: 'ia' });
+                extras.push(ia);
+            }
             if (confirmar) {
                 const nao = botaoPainel('Não, vou corrigir', 'btn-secondary');
                 nao.onclick = () => fechar('corrigir');
                 const sim = botaoPainel('Continuar mesmo assim', 'btn-primary');
                 sim.onclick = () => fechar('continuar');
-                acoes.append(nao, sim);
+                acoes.append(nao, ...extras, sim);
             } else {
-                if (achados.some(achadoCorrigivel)) {
-                    const corrigir = botaoPainel('Corrigir com IA', 'btn-secondary');
-                    corrigir.onclick = () => fechar('corrigir');
-                    acoes.appendChild(corrigir);
-                }
                 const ok = botaoPainel('Fechar', 'btn-primary');
                 ok.onclick = () => fechar('fechar');
-                acoes.appendChild(ok);
+                acoes.append(...extras, ok);
             }
             modal.classList.remove('hidden');
         });
     }
 
+    /** Painel → ajuste/IA → revalida → painel de novo, até o usuário decidir. Devolve 'continuar' | 'corrigir' | 'fechar'. */
+    async function cicloValidacao(res, confirmar) {
+        let atual = res, anterior = null;
+        for (;;) {
+            const escolha = await mostrarPainelValidacao(atual, confirmar, anterior);
+            if (typeof escolha === 'string') return escolha;
+            let aplicou = false;
+            if (escolha.tipo === 'ajustar') {
+                aplicou = !!((await fluxoAjuste(escolha.ids)) || {}).aplicadas;
+            } else if (escolha.tipo === 'ia') {
+                const semAjuste = atual.achados.filter(a => achadoCorrigivel(a) && !ajustesDoAchado(atual, a).length);
+                const r = await fluxoAjusteIA(semAjuste);
+                if (r && r.cadastrar) return 'fechar';   // foi para o editor de ajustes: encerra o ciclo
+                aplicou = !!(r && r.aplicadas);
+            }
+            if (!aplicou) continue;   // cancelou: volta ao painel, nada mudou
+            anterior = contagemPorSeveridade(atual.achados);
+            const nova = await executarValidacao();   // revalidação automática depois de aplicar
+            if (nova.nada || nova.falhou) { showToast(nova.falhou || 'Ajuste aplicado. Valide de novo.'); return 'fechar'; }
+            atual = nova;
+            if (confirmar && !atual.achados.some(a => a.severidade === 'erro' || a.severidade === 'aviso')) {
+                showToast('Ajuste aplicado e validação limpa; seguindo com o orçamento.');
+                return 'continuar';
+            }
+        }
+    }
+
     /** Devolve true se o orçamento deve seguir. Só erro/aviso interrompem; info sozinho não pergunta. */
     async function validarAntesDeMontar() {
         const res = await executarValidacao();
+        if (res.nada) return true;  // nenhum modo ligado: segue sem validar
         if (res.falhou) {
             showToast('Validação indisponível; seguindo sem validar.');  // a validação é um auxílio: não trava o orçamento
             return true;
         }
         if (!res.achados.some(a => a.severidade === 'erro' || a.severidade === 'aviso')) return true;
-        const escolha = await mostrarPainelValidacao(res, true);
-        if (escolha === 'corrigir') await fluxoCorrecao(res.achados);  // o orçamento fica parado; depois de corrigir, clique de novo
+        const escolha = await cicloValidacao(res, true);   // 'corrigir' = o orçamento fica parado; ajuste e clique de novo
         return escolha === 'continuar';
     }
 
@@ -2074,8 +2262,9 @@ document.addEventListener('DOMContentLoaded', () => {
             btnValidar.textContent = 'Validando...';
             try {
                 const res = await executarValidacao();
+                if (res.nada) { showToast('Nada a validar: ligue Determinística ou IA.'); return; }
                 if (res.falhou) { showToast(res.falhou); return; }
-                if ((await mostrarPainelValidacao(res, false)) === 'corrigir') await fluxoCorrecao(res.achados);
+                await cicloValidacao(res, false);
             } finally {
                 btnValidar.disabled = false;
                 btnValidar.textContent = textoOriginal;
@@ -2107,11 +2296,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return alvo && (alvo.row.ativo || '').trim() === c.antes.trim();
         });
         if (validas.length) {
-            // Histórico: garante o estado ANTERIOR no topo e empilha também o NOVO, para um Ctrl+Z voltar exatamente ao
-            // que era antes do lote (e o Ctrl+Y reaplicar). Não basta o "pushHistory() antes de mudar" usado nas edições
-            // manuais: com o undo atual isso desfaz duas mudanças de uma vez (desvio já existente, ver STATE.md).
-            const estadoAtual = JSON.stringify(snapshotState());
-            if (historyIdx < 0 || JSON.stringify(history[historyIdx]) !== estadoAtual) pushHistory();
+            pushHistory();  // um único passo para o lote inteiro (Ctrl+Z desfaz tudo)
             const tabelas = new Set();
             validas.forEach(c => {
                 const { tabela, row } = localizarLinha(c.linha_id);
@@ -2124,7 +2309,6 @@ document.addEventListener('DOMContentLoaded', () => {
             buildAtivoSets();
             buildDataLists();
             atualizarResumoRedeUI();
-            pushHistory();  // estado NOVO
         }
         return { aplicadas: validas.length, ignoradas: aceitas.length - validas.length };
     }
@@ -2232,7 +2416,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const editaveis = achados.filter(achadoCorrigivel);
         if (!editaveis.length) {
             showToast('Nenhum problema aponta uma linha editável; ajuste as tabelas manualmente.');
-            return;
+            return false;
         }
         const selectProj = document.getElementById('select-projeto');
         const projetoCodigo = selectProj && selectProj.selectedIndex >= 0 ? (selectProj.options[selectProj.selectedIndex].dataset.codigo || '') : '';
@@ -2255,9 +2439,266 @@ document.addEventListener('DOMContentLoaded', () => {
         const aplicado = await mostrarPainelCorrecao(resultado);
         if (aplicado) {
             showToast(aplicado.aplicadas
-                ? `${aplicado.aplicadas} correção(ões) aplicada(s)${aplicado.ignoradas ? `; ${aplicado.ignoradas} ignorada(s) porque a linha mudou` : ''}. Valide de novo antes de montar. Ctrl+Z desfaz.`
+                ? `${aplicado.aplicadas} correção(ões) aplicada(s)${aplicado.ignoradas ? `; ${aplicado.ignoradas} ignorada(s) porque a linha mudou` : ''}. Ctrl+Z desfaz.`
                 : 'Nenhuma correção aplicada: as linhas mudaram desde a proposta.');
         }
+        return !!(aplicado && aplicado.aplicadas > 0);   // true = mudou as tabelas (o chamador revalida)
+    }
+
+    /* ═══════════════════════════════════════
+       AJUSTES (TASK-024, ADR-006)
+       Receitas cadastradas (TASK-023) rodam no backend (POST /api/validacao/ajustes/preview), que só devolve o DIFF.
+       Aqui o usuário vê as mudanças (editar / inserir / excluir / reordenar), escolhe e aplica — sempre com
+       pré-visualização, nada automático. Aplicar é UM passo de histórico (Ctrl+Z desfaz o lote). Mudança cuja linha
+       foi alterada desde a pré-visualização é ignorada.
+    ═══════════════════════════════════════ */
+    const PREFIXO_TABELA = { cabos: 'CABOS', outros: 'OUTROS' };
+
+    function textoOperacao(o) {
+        const linha = x => `${x.operacao || '·'}  ${x.ativo || '(vazio)'}`;
+        if (o.op === 'editar') return { antes: linha(o.antes), depois: linha(o.depois), onde: o.linha_id };
+        if (o.op === 'inserir') return { antes: null, depois: linha(o.depois), onde: `Nova linha em ${o.tabela === 'cabos' ? 'Cabos' : 'Outros'}` };
+        if (o.op === 'excluir') return { antes: linha(o.antes), depois: null, onde: o.linha_id };
+        return { antes: null, depois: `${o.ordem_depois.length} linha(s) seriam reordenadas`, onde: o.tabela === 'cabos' ? 'Cabos' : 'Outros' };
+    }
+
+    /** Aplica as mudanças escolhidas (índices de r.operacoes) nas tabelas, num único passo de histórico. */
+    function aplicarOperacoesAjuste(r, escolhidas) {
+        const ops = r.operacoes.filter((o, i) => escolhidas.has(i));
+        if (!ops.length) return { aplicadas: 0, ignoradas: 0 };
+        pushHistory();   // um passo para o lote inteiro
+        let aplicadas = 0, ignoradas = 0;
+        const tocadas = new Set();
+        ['cabos', 'outros'].forEach(tabela => {
+            const doTabela = ops.filter(o => o.tabela === tabela);
+            if (!doTabela.length) return;
+            let lista = tableStates[tabela].data.map((row, i) => ({ id: `${PREFIXO_TABELA[tabela]}-${i}`, row })).filter(x => x.row);
+            const achar = id => lista.find(x => x.id === id);
+            const confere = (row, antes) => (row.ativo || '').trim() === (antes.ativo || '').trim() && (row.operacao || '') === antes.operacao;
+            doTabela.filter(o => o.op === 'editar').forEach(o => {
+                const x = achar(o.linha_id);
+                if (!x || !confere(x.row, o.antes)) { ignoradas++; return; }
+                x.row.ativo = o.depois.ativo;
+                x.row.operacao = o.depois.operacao;
+                if (x.row.entidade === '0') x.row.entidade = autoClassifyEntidade(o.depois.ativo);
+                aplicadas++; tocadas.add(tabela);
+            });
+            doTabela.filter(o => o.op === 'excluir').forEach(o => {
+                const x = achar(o.linha_id);
+                if (!x || !confere(x.row, o.antes)) { ignoradas++; return; }
+                lista = lista.filter(y => y !== x);
+                aplicadas++; tocadas.add(tabela);
+            });
+            doTabela.filter(o => o.op === 'inserir').forEach(o => {
+                const ent = autoClassifyEntidade(o.depois.ativo);
+                const nova = { entidade: ent !== '0' ? ent : (tabela === 'cabos' ? 'CABO' : (o.depois.entidade || '0')), operacao: o.depois.operacao || 'I', ativo: o.depois.ativo };
+                const ref = o.depois_de ? lista.findIndex(y => y.id === o.depois_de) : -1;
+                lista.splice(o.depois_de && ref >= 0 ? ref + 1 : (o.depois_de ? lista.length : 0), 0, { id: o.linha_id, row: nova });
+                aplicadas++; tocadas.add(tabela);
+            });
+            const mover = doTabela.find(o => o.op === 'mover');
+            if (mover) {
+                const pos = new Map(mover.ordem_depois.map((id, i) => [id, i]));
+                let ultima = -1;
+                const chaves = lista.map(x => { if (pos.has(x.id)) ultima = pos.get(x.id); return ultima + (pos.has(x.id) ? 0 : 0.5); });
+                lista = lista.map((x, i) => ({ x, k: chaves[i], i })).sort((a, b) => (a.k - b.k) || (a.i - b.i)).map(y => y.x);
+                aplicadas++; tocadas.add(tabela);
+            }
+            tableStates[tabela].data = lista.map(x => x.row);
+        });
+        if (tocadas.has('cabos')) recalcAllQtdAtivos();
+        tocadas.forEach(t => { renderTable(t); refreshAllFilters(t); });
+        buildAtivoSets();
+        buildDataLists();
+        atualizarResumoRedeUI();
+        return { aplicadas, ignoradas };
+    }
+
+    /** Mostra o diff e deixa escolher; resolve { aplicadas, ignoradas } ou null (cancelou / nada a aplicar). */
+    function mostrarPainelAjuste(r, nomes, extra) {
+        return new Promise(resolve => {
+            const modal = document.getElementById('modal-ajuste');
+            const lista = document.getElementById('ajuste-lista');
+            const acoes = document.getElementById('ajuste-acoes');
+            const resumo = document.getElementById('ajuste-resumo');
+            const fechar = v => { modal.classList.add('hidden'); resolve(v); };
+            const caixas = [];
+            lista.replaceChildren();
+            acoes.replaceChildren();
+            document.getElementById('ajuste-titulo').textContent = extra ? `Ajuste proposto pela IA: ${nomes}` : `Pré-visualização do ajuste: ${nomes}`;
+            const n = r.resumo;
+            const total = r.operacoes.length;
+            resumo.textContent = total
+                ? `${n.editar} editada(s), ${n.inserir} inserida(s), ${n.excluir} excluída(s)${n.mover ? ', ordem alterada' : ''}. Nada é alterado sem o seu aceite; aplicar pode ser desfeito com Ctrl+Z.`
+                : 'Este ajuste não mudaria nada nas tabelas atuais.';
+
+            if (extra) {   // proposta da IA: o que ela quer fazer (em português), aviso de exclusão e motivo
+                if (extra.destrutivo) {
+                    const av = document.createElement('div');
+                    av.style.cssText = 'padding:8px 10px; margin-bottom:8px; border:1px solid #f85149; border-radius:4px; color:#ffa198; font-size:0.82rem;';
+                    av.textContent = '⚠ Esta proposta da IA EXCLUI linhas ou itens das tabelas. Confira cada mudança abaixo (as exclusões estão em vermelho) e desmarque o que não quiser. Ctrl+Z desfaz.';
+                    lista.appendChild(av);
+                }
+                const bloco = document.createElement('div');
+                bloco.style.cssText = 'margin-bottom:8px; font-size:0.8rem; color:#8b949e;';
+                extra.acoes.forEach(a => {
+                    const l = document.createElement('div');
+                    l.textContent = `• ${a.frase}${a.motivo ? ` — ${a.motivo}` : ''}`;
+                    bloco.appendChild(l);
+                });
+                (extra.descartadas || []).forEach(d => {
+                    const l = document.createElement('div');
+                    l.style.color = '#d29922';
+                    l.textContent = `• Proposta descartada${d.acao ? ` (${d.acao})` : ''}: ${d.motivo}`;
+                    bloco.appendChild(l);
+                });
+                lista.appendChild(bloco);
+            }
+            r.operacoes.forEach((o, i) => {
+                const t = textoOperacao(o);
+                const item = document.createElement('label');
+                item.style.cssText = 'display:block; padding: 8px 10px; margin-bottom: 6px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer;'
+                    + (o.op === 'excluir' ? ' border-left: 3px solid #f85149;' : '');
+                const topo = document.createElement('div');
+                topo.style.cssText = 'display:flex; gap:8px; align-items:center; font-size:0.75rem; color:#8b949e;';
+                const caixa = document.createElement('input');
+                caixa.type = 'checkbox'; caixa.checked = true;
+                caixa.addEventListener('change', atualizar);
+                caixas.push({ caixa, i });
+                const onde = document.createElement('strong');
+                onde.style.color = '#c9d1d9';
+                onde.textContent = `${{ editar: 'Editar', inserir: 'Inserir', excluir: 'EXCLUIR', mover: 'Reordenar' }[o.op]} · ${t.onde}`;
+                topo.append(caixa, onde);
+                item.appendChild(topo);
+                const wrap = document.createElement('div');
+                wrap.style.cssText = 'font-family: monospace; font-size: 0.8rem; margin-top: 4px;';
+                if (t.antes) { const d = document.createElement('div'); d.style.cssText = 'color:#f85149; text-decoration: line-through;'; d.textContent = t.antes; wrap.appendChild(d); }
+                if (t.depois) { const d = document.createElement('div'); d.style.color = o.op === 'mover' ? '#8b949e' : '#3fb950'; d.textContent = t.depois; wrap.appendChild(d); }
+                item.appendChild(wrap);
+                lista.appendChild(item);
+            });
+            const notas = [...r.descartadas.map(d => `Descartado (${d.linha_id}): ${d.motivo}`), ...r.avisos.map(a => `Atenção: ${a}`)];
+            if (notas.length) {
+                const det = document.createElement('div');
+                det.style.cssText = 'margin-top: 8px; font-size: 0.78rem; color: #d29922;';
+                notas.forEach(x => { const p = document.createElement('div'); p.textContent = x; det.appendChild(p); });
+                lista.appendChild(det);
+            }
+
+            const cancelar = botaoPainel(total ? 'Cancelar' : 'Fechar', 'btn-secondary');
+            cancelar.onclick = () => fechar(null);
+            const aplicar = botaoPainel('Aplicar selecionadas', 'btn-primary');
+            aplicar.onclick = () => {
+                const marcadas = new Set(caixas.filter(x => x.caixa.checked).map(x => x.i));
+                const apagaAlgo = extra && [...marcadas].some(i => r.operacoes[i].op === 'excluir' || (r.operacoes[i].op === 'editar'
+                    && extra.acoes.some(a => a.destrutiva && r.operacoes[i].acoes.includes(a.indice))));
+                if (apagaAlgo && !confirm('Esta proposta da IA EXCLUI linhas ou itens. Você conferiu a pré-visualização e quer aplicar mesmo assim?\n(Ctrl+Z desfaz.)')) return;
+                const res = aplicarOperacoesAjuste(r, marcadas);
+                showToast(res.aplicadas
+                    ? `${res.aplicadas} mudança(s) aplicada(s)${res.ignoradas ? `; ${res.ignoradas} ignorada(s) porque a linha mudou` : ''}. Ctrl+Z desfaz.`
+                    : 'Nada aplicado: as linhas mudaram desde a pré-visualização.');
+                fechar(res.aplicadas ? res : null);
+            };
+            function atualizar() {
+                const marcadas = caixas.filter(x => x.caixa.checked).length;
+                aplicar.disabled = !marcadas;
+                aplicar.style.opacity = marcadas ? '1' : '0.45';
+                aplicar.textContent = `Aplicar selecionadas (${marcadas})`;
+            }
+            if (extra && extra.acoes.length && localStorage.getItem('is_admin') === 'true' && typeof window.rpCadastrarComoAjuste === 'function') {
+                const cad = botaoPainel('Cadastrar como ajuste', 'btn-secondary');
+                cad.title = 'Abre o editor de ajustes (Regras de validação › Ajustes) com estas ações, para salvar como receita reutilizável';
+                cad.onclick = () => { fechar({ cadastrar: true }); window.rpCadastrarComoAjuste(extra.acoes.map(a => a.acao), `Proposto pela IA: ${extra.acoes[0].frase.replace(/^Em [^:]+: /, '').slice(0, 70)}`); };
+                acoes.appendChild(cad);
+            }
+            if (total) acoes.append(cancelar, aplicar); else acoes.append(cancelar);
+            atualizar();
+            modal.classList.remove('hidden');
+        });
+    }
+
+    /** Pré-visualiza as receitas `ids` nas tabelas atuais e, se o usuário aceitar, aplica. Devolve o resultado ou null. */
+    async function fluxoAjuste(ids) {
+        let r;
+        try {
+            const resp = await fetch('/api/validacao/ajustes/preview', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ receitas: ids, cabos: linhasParaValidacao('cabos', 'CABOS'), outros: linhasParaValidacao('outros', 'OUTROS'),
+                                       projeto_codigo: codigoDoProjetoSelecionado() || null })
+            });
+            if (!resp.ok) throw new Error(await lerDetalhe(resp));
+            r = await resp.json();
+        } catch (e) {
+            showToast(`Não foi possível pré-visualizar o ajuste (${e.message}).`);
+            return null;
+        }
+        const nomes = ids.length === 1 ? (nomesDeAjuste[ids[0]] || ids[0]) : `${ids.length} ajustes`;
+        return mostrarPainelAjuste(r, nomes);
+    }
+
+    /** "Pedir ajuste à IA": a IA propõe AÇÕES (inclusive excluir, com aviso); o motor calcula o diff; o usuário confere no
+     *  popup e aplica. Devolve o resultado do aplicar ou null. Só vai à IA o que os achados citam. */
+    async function fluxoAjusteIA(achados) {
+        const editaveis = achados.filter(achadoCorrigivel);
+        if (!editaveis.length) { showToast('Nenhum problema aponta uma linha editável; ajuste as tabelas manualmente.'); return null; }
+        showToast('Pedindo ajustes à IA...');
+        let r;
+        try {
+            const resp = await fetch('/api/validacao/ajustes-ia', {
+                method: 'POST', headers: cabecalhoIA(),
+                body: JSON.stringify({
+                    cabos: linhasParaValidacao('cabos', 'CABOS'), outros: linhasParaValidacao('outros', 'OUTROS'),
+                    projeto_codigo: codigoDoProjetoSelecionado() || null,
+                    achados: editaveis.map(a => ({ linha_id: a.linha_id, regra_id: a.regra_id, mensagem: a.mensagem, sugestao: a.sugestao || null }))
+                })
+            });
+            r = resp.ok ? await resp.json() : { status: 'erro', mensagem: await lerDetalhe(resp), acoes: [], diff: null };
+        } catch (e) {
+            r = { status: 'erro', mensagem: e.message, acoes: [], diff: null };
+        }
+        const problema = { sem_chave: 'Sem chave de IA: informe a sua na configuração de IA.', desativado: 'O ajuste por IA está desativado.',
+            indisponivel: 'O ajuste por IA está indisponível.', erro: 'O ajuste por IA falhou.' }[r.status];
+        if (problema) { showToast(problema + (r.mensagem && r.status !== 'desativado' ? ` (${r.mensagem})` : '')); return null; }
+        if (!r.diff) {
+            showToast(r.descartadas && r.descartadas.length
+                ? `A IA não propôs nenhum ajuste válido (${r.descartadas.length} descartado(s)).` : 'A IA não encontrou ajuste seguro para estes problemas.');
+            return null;
+        }
+        return mostrarPainelAjuste(r.diff, `${r.acoes.length} ação(ões)`, { acoes: r.acoes, destrutivo: r.destrutivo, descartadas: r.descartadas });
+    }
+
+    /* Botão "Ajustar ▾": ajustes cadastrados e ligados do projeto, rodados avulsos (sem achado). */
+    const btnAjustar = document.getElementById('btn-ajustar');
+    if (btnAjustar) {
+        btnAjustar.addEventListener('click', async e => {
+            e.stopPropagation();
+            const antigo = document.getElementById('ajustar-menu');
+            if (antigo) { antigo.remove(); return; }
+            const { ajustes } = await carregarAjustesCadastrados();
+            const menu = document.createElement('div');
+            menu.id = 'ajustar-menu';
+            const r = btnAjustar.getBoundingClientRect();
+            menu.style.cssText = `position:fixed; z-index:950; left:${r.left}px; top:${r.bottom + 4}px; min-width:260px; max-width:360px; background:#161b22; border:1px solid #30363d; border-radius:6px; padding:4px; box-shadow:0 8px 24px rgba(0,0,0,0.5);`;
+            if (!ajustes.length) {
+                const v = document.createElement('div');
+                v.style.cssText = 'padding:8px 10px; font-size:0.8rem; color:#8b949e;';
+                v.textContent = 'Nenhum ajuste ligado para este projeto. O administrador liga em Regras de validação › Ajustes.';
+                menu.appendChild(v);
+            }
+            ajustes.forEach(a => {
+                const b = document.createElement('button');
+                b.style.cssText = 'display:block; width:100%; text-align:left; background:transparent; border:none; color:#c9d1d9; padding:6px 10px; font-size:0.82rem; cursor:pointer; border-radius:4px;';
+                b.textContent = a.nome;
+                b.title = (a.frases || []).join(' ');
+                b.onmouseenter = () => { b.style.background = '#21262d'; };
+                b.onmouseleave = () => { b.style.background = 'transparent'; };
+                b.onclick = async () => { menu.remove(); if (await fluxoAjuste([a.id])) showToast('Ajuste aplicado. Valide de novo para conferir.'); };
+                menu.appendChild(b);
+            });
+            document.body.appendChild(menu);
+            const fecharMenu = ev => { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('click', fecharMenu); } };
+            setTimeout(() => document.addEventListener('click', fecharMenu), 0);
+        });
     }
 
     const btnMontarOrcamento = document.getElementById('btn-montar-orcamento');

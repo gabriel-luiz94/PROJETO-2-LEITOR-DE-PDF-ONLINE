@@ -1,0 +1,117 @@
+{
+  "versao": 1,
+  "ajustes": [
+    {
+      "id": "AJ-NORMALIZAR-POSTES",
+      "nome": "Normalizar postes e espaços",
+      "descricao": "Tira espaços repetidos e o '1-' antes de DT/CV no início da linha.",
+      "ativa": false,
+      "regras": [
+        "C2-POSTE-FMT"
+      ],
+      "acoes": [
+        {
+          "acao": "normalizar",
+          "tabela": "outros",
+          "regras": [
+            "espacos",
+            "poste"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AJ-SUP-L",
+      "nome": "SUP-L → SUPL",
+      "descricao": "Padroniza a grafia do suplemento.",
+      "ativa": false,
+      "regras": [],
+      "acoes": [
+        {
+          "acao": "substituir",
+          "tabela": "outros",
+          "de": "SUP-L",
+          "para": "SUPL"
+        }
+      ]
+    },
+    {
+      "id": "AJ-CFU-SUPL",
+      "nome": "Adicionar 1-SUPL na linha com CFU",
+      "descricao": "Corrige a regra C2-CFU-SUPL: linha com CFU e sem SUPL ganha 1-SUPL.",
+      "ativa": false,
+      "regras": [
+        "C2-CFU-SUPL"
+      ],
+      "acoes": [
+        {
+          "acao": "adicionar_ativo",
+          "tabela": "outros",
+          "ativo": "SUPL",
+          "qtd": 1,
+          "operacoes": [
+            "I",
+            "*I"
+          ],
+          "quando": {
+            "todos": [
+              {
+                "tem": "CFU"
+              },
+              {
+                "nao": {
+                  "tem": "SUPL"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "AJ-EXCLUIR-VAZIAS",
+      "nome": "Excluir linhas vazias",
+      "descricao": "Remove linhas sem ativo nas duas tabelas.",
+      "ativa": false,
+      "regras": [],
+      "acoes": [
+        {
+          "acao": "excluir_linhas",
+          "tabela": "ambos",
+          "onde": {
+            "vazias": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "AJ-ORDENAR-OUTROS",
+      "nome": "Ordenar Outros por operação e ativo",
+      "descricao": "Instalação (I, *I), depois remoção (R, *R), depois manter (M, *M); dentro, por ativo.",
+      "ativa": false,
+      "regras": [],
+      "acoes": [
+        {
+          "acao": "ordenar",
+          "tabela": "outros",
+          "por": [
+            {
+              "coluna": "operacao",
+              "valores": [
+                "I",
+                "*I",
+                "R",
+                "*R",
+                "M",
+                "*M"
+              ]
+            },
+            {
+              "coluna": "ativo"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

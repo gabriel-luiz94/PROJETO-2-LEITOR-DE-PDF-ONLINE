@@ -73,6 +73,15 @@ class CorrecaoIARequest(BaseModel):
     prompt_id: str = "corrigir-planilhas"
 
 
+class AjustesIARequest(BaseModel):
+    """Pedido de ajustes (ações estruturadas) à IA — TASK-025. `cabos`/`outros` = tabelas COMPLETAS (o diff é calculado nelas)."""
+    cabos: List[Dict[str, Any]] = []
+    outros: List[Dict[str, Any]] = []
+    projeto_codigo: Optional[str] = None
+    achados: List[Dict[str, Any]] = []
+    prompt_id: str = "ajustar-planilhas"
+
+
 class SalvarOrcamentoRequest(BaseModel):
     dados: List[Dict[str, Any]]
 

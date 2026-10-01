@@ -31,7 +31,7 @@ def com(texto, antigo, novo):
 
 # ── serviço ──────────────────────────────────────────────────────────────────
 def test_sementes_do_repositorio_sao_validas():
-    assert set(SEMENTES) == {"validar-planilhas", "corrigir-planilhas"}
+    assert set(SEMENTES) == {"validar-planilhas", "corrigir-planilhas", "ajustar-planilhas"}
     for pid, texto in SEMENTES.items():
         assert validar_prompt(texto, pid) == []
 
@@ -78,7 +78,7 @@ def cab(role):
 def test_lista_as_sementes_para_qualquer_usuario(client):
     r = client.get("/api/validacao/prompts", headers=cab("operador"))
     assert r.status_code == 200
-    assert [p["prompt_id"] for p in r.json()["prompts"]] == ["validar-planilhas", "corrigir-planilhas"]
+    assert [p["prompt_id"] for p in r.json()["prompts"]] == ["validar-planilhas", "corrigir-planilhas", "ajustar-planilhas"]
     assert all(not p["personalizado"] for p in r.json()["prompts"])
 
 
@@ -153,4 +153,4 @@ def test_seed_e_idempotente_e_nao_sobrescreve_edicao_do_default(client):
     database.init_db()  # segunda inicialização
     atual = client.get("/api/validacao/prompts/validar-planilhas", headers=cab("admin")).json()
     assert "EDITADO-DEFAULT" in atual["conteudo"]
-    assert len(client.get("/api/validacao/prompts", headers=cab("admin")).json()["prompts"]) == 2
+    assert len(client.get("/api/validacao/prompts", headers=cab("admin")).json()["prompts"]) == 3

@@ -82,97 +82,15 @@
         </div>
     </div>
 
-    <!-- Prompts de validação (TASK-012) -->
-    <div class="max-w-4xl mx-auto glass rounded-xl p-8 shadow-2xl mt-8">
-        <h2 class="text-xl font-semibold mb-1">Prompts de validação</h2>
-        <p class="text-sm text-[#8b949e] mb-4">
-            Instruções enviadas à IA para checar e corrigir as planilhas Cabos e Outros. Cada projeto usa a versão
-            própria, se existir; senão herda o padrão (DEFAULT). Cada salvamento guarda a versão anterior no histórico.
+    <!-- Regras e prompts de validação (TASK-019): agora ficam no Resumo do projeto -->
+    <div class="max-w-4xl mx-auto glass rounded-xl p-6 shadow-2xl mt-8">
+        <h2 class="text-lg font-semibold mb-1">Regras e prompts de validação</h2>
+        <p class="text-sm text-[#8b949e]">
+            Mudaram de lugar: agora são editados na página <strong>Resumo do Orçamento</strong>, no botão
+            <strong>Regras de validação</strong> (gaveta lateral), sempre para o projeto selecionado. Nada foi perdido.
         </p>
-        <div class="flex flex-wrap gap-4 mb-3">
-            <div>
-                <label class="block text-xs text-[#8b949e] mb-1">Projeto</label>
-                <select id="pvProjeto" class="px-3 py-2 border border-[#30363d] bg-[#0d1117] text-white rounded-md"></select>
-            </div>
-            <div>
-                <label class="block text-xs text-[#8b949e] mb-1">Prompt</label>
-                <select id="pvPrompt" class="px-3 py-2 border border-[#30363d] bg-[#0d1117] text-white rounded-md"></select>
-            </div>
-            <div class="self-end text-sm text-[#8b949e]" id="pvStatus"></div>
-        </div>
-        <div id="pvErros" class="hidden bg-red-900 text-red-100 p-3 rounded-md mb-3 text-sm"></div>
-        <textarea id="pvTexto" rows="20" spellcheck="false"
-            class="w-full px-3 py-2 border border-[#30363d] bg-[#0d1117] text-[#e6edf3] rounded-md font-mono text-xs"></textarea>
-        <div class="flex flex-wrap gap-3 mt-3">
-            <button id="pvSalvar" class="btn-primary font-medium py-2 px-4 rounded-md">Salvar</button>
-            <button id="pvSemente" class="px-4 py-2 rounded-md border border-[#30363d] text-[#c9d1d9] hover:bg-[#21262d]">Restaurar semente</button>
-            <button id="pvHistorico" class="px-4 py-2 rounded-md border border-[#30363d] text-[#c9d1d9] hover:bg-[#21262d]">Histórico</button>
-        </div>
-        <div id="pvHistLista" class="hidden mt-4 text-sm divide-y divide-[#30363d] border border-[#30363d] rounded-md"></div>
     </div>
 
-    <!-- Regras de domínio da validação (TASK-013/017/018) -->
-    <div class="max-w-4xl mx-auto glass rounded-xl p-8 shadow-2xl mt-8">
-        <h2 class="text-xl font-semibold mb-1">Regras de domínio da validação</h2>
-        <p class="text-sm text-[#8b949e] mb-4">
-            Regras técnicas verificadas nas linhas da tabela Outros (e, nas regras de total, também na tabela Cabos).
-            O <strong>padrão</strong> vale para todos os projetos; cada projeto pode <strong>ajustar</strong> uma regra do padrão,
-            <strong>ocultar</strong> uma regra (botão −, reexibe com +) ou criar regras <strong>só dele</strong>. Quando o padrão muda,
-            os projetos acompanham, exceto nas regras que ajustaram. As regras da semente vêm <strong>desligadas</strong>: ligue cada uma depois de revisar.
-        </p>
-        <div class="flex flex-wrap gap-4 mb-3 items-end">
-            <div>
-                <label class="block text-xs text-[#8b949e] mb-1">Projeto</label>
-                <select id="rdProjeto" class="px-3 py-2 border border-[#30363d] bg-[#0d1117] text-white rounded-md"></select>
-            </div>
-            <div class="text-sm text-[#8b949e]" id="rdStatus"></div>
-        </div>
-        <datalist id="rdSugestoes"></datalist>
-        <div id="rdErros" class="hidden bg-red-900 text-red-100 p-3 rounded-md mb-3 text-sm"></div>
-        <div id="rdAvisos" class="hidden bg-amber-900 text-amber-100 p-3 rounded-md mb-3 text-sm"></div>
-        <div id="rdLista" class="space-y-2"></div>
-        <div id="rdAssistente" class="hidden mt-3 border border-[#30363d] rounded-md p-3"></div>
-        <div class="flex flex-wrap gap-3 mt-3">
-            <button id="rdAdicionar" class="px-4 py-2 rounded-md border border-[#30363d] text-[#c9d1d9] hover:bg-[#21262d]">Adicionar regra</button>
-            <button id="rdSalvar" class="btn-primary font-medium py-2 px-4 rounded-md">Salvar</button>
-            <button id="rdNovas" class="px-4 py-2 rounded-md border border-[#30363d] text-[#c9d1d9] hover:bg-[#21262d]" title="Só no padrão: acrescenta as regras da semente que ainda não estão na lista, desligadas; não mexe nas existentes">Adicionar regras novas da semente</button>
-            <button id="rdSemente" class="px-4 py-2 rounded-md border border-[#30363d] text-[#c9d1d9] hover:bg-[#21262d]">Restaurar semente</button>
-            <button id="rdHistorico" class="px-4 py-2 rounded-md border border-[#30363d] text-[#c9d1d9] hover:bg-[#21262d]">Histórico</button>
-        </div>
-        <div id="rdHistLista" class="hidden mt-4 text-sm divide-y divide-[#30363d] border border-[#30363d] rounded-md"></div>
-
-        <h3 class="text-lg font-semibold mt-8 mb-1">Grupos de ativos</h3>
-        <p class="text-sm text-[#8b949e] mb-3">
-            Um grupo é uma lista nomeada de ativos (ex.: <code>@ESTRUTURA_MT</code>) usada nas regras. Mudar o grupo muda todas as regras que o usam.
-            Num projeto, redefinir um grupo vale só para aquele projeto.
-        </p>
-        <div id="rdGrupos" class="space-y-2"></div>
-        <button id="rdNovoGrupo" class="mt-3 px-4 py-2 rounded-md border border-[#30363d] text-[#c9d1d9] hover:bg-[#21262d]">Novo grupo</button>
-
-        <h3 class="text-lg font-semibold mt-8 mb-1">Testar o rascunho</h3>
-        <p class="text-sm text-[#8b949e] mb-3">
-            Roda as regras em edição (sem salvar) contra linhas de exemplo. Uma linha por item no formato
-            <code>OPERAÇÃO ativo</code>, ex.: <code>I DT11/300 1-CFU</code> em Outros, <code>I P50 ABC 6 m</code> em Cabos.
-            Regras desligadas ou ocultas não são avaliadas.
-        </p>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label class="block text-xs text-[#8b949e] mb-1">Cabos</label>
-                <textarea id="rdTesteCabos" rows="5" spellcheck="false" class="w-full px-3 py-2 border border-[#30363d] bg-[#0d1117] text-[#e6edf3] rounded-md font-mono text-xs"></textarea>
-            </div>
-            <div>
-                <label class="block text-xs text-[#8b949e] mb-1">Outros</label>
-                <textarea id="rdTesteOutros" rows="5" spellcheck="false" class="w-full px-3 py-2 border border-[#30363d] bg-[#0d1117] text-[#e6edf3] rounded-md font-mono text-xs"></textarea>
-            </div>
-        </div>
-        <div class="mt-3 flex flex-wrap items-center gap-4">
-            <button id="rdTestar" class="px-4 py-2 rounded-md border border-[#30363d] text-[#c9d1d9] hover:bg-[#21262d]">Testar rascunho</button>
-            <label class="text-sm text-[#8b949e]"><input type="checkbox" id="rdTesteTodas" class="mr-1">Mostrar também por que as outras linhas <strong>não</strong> dispararam</label>
-        </div>
-        <div id="rdTesteResultado" class="mt-3 text-sm"></div>
-    </div>
-
-    <script src="/static/regras_editor.js"></script>
     <script src="/static/admin.js"></script>
 </body>
 </html>

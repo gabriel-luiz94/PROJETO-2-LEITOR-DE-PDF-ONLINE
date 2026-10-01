@@ -582,9 +582,29 @@
                         <button class="btn-primary" id="btn-montar-orcamento" style="background-color: #238636;">
                             Montar Orçamento
                         </button>
+                        <button class="btn-secondary" id="btn-regras-validacao" title="Regras e prompts da validação deste projeto (só o administrador edita)">
+                            Regras de validação
+                        </button>
+                        <button class="btn-secondary" id="btn-ajustar" title="Aplica um ajuste cadastrado (substituir texto, ordenar, excluir/adicionar linhas…) com pré-visualização">
+                            Ajustar ▾
+                        </button>
                         <button class="btn-secondary" id="btn-validar" title="Verificar as planilhas Cabos e Outros (contrato, regras de domínio e IA)">
                             Validar
                         </button>
+                        <div id="validacao-modos" class="view-toggle" title="Quais verificações rodam no Validar e na validação ao montar. Preferência salva só neste navegador." style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-default); font-size: 0.8rem; color: var(--text-secondary);">
+                            <label style="display:flex; align-items:center; gap:4px; cursor: pointer;" title="Contrato das planilhas (formato, operação, base técnica) — barato e sem IA">
+                                <input type="checkbox" id="vmodo-det" checked> Determinística
+                            </label>
+                            <label style="display:flex; align-items:center; gap:4px; cursor: pointer;" title="Regras de domínio do projeto (as que o admin ligou). Só vale com a determinística ligada">
+                                <input type="checkbox" id="vmodo-dominio" checked> Regras
+                            </label>
+                            <label style="display:flex; align-items:center; gap:4px; cursor: pointer;" title="Revisão por IA (usa a chave de IA)">
+                                <input type="checkbox" id="vmodo-ia" checked> IA
+                            </label>
+                            <label style="display:flex; align-items:center; gap:4px; cursor: pointer;" title="Economiza a chave: se o contrato tiver erro, a IA não roda">
+                                <input type="checkbox" id="vmodo-pular-ia" checked> Pular IA se houver erro de contrato
+                            </label>
+                        </div>
                         <div class="view-toggle" title="Quando ligado, valida as planilhas antes de montar o orçamento. Preferência salva só neste navegador." style="display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-default); font-size: 0.8rem; color: var(--text-secondary);">
                             <span>Validar ao montar:</span>
                             <label style="display:flex; align-items:center; gap:4px; padding: 4px; cursor: pointer;">
@@ -680,6 +700,16 @@
                 <div id="validacao-aviso" style="display:none; font-size: 0.8rem; color: #d29922; margin-bottom: 8px;"></div>
                 <div id="validacao-lista" style="overflow: auto; flex: 1; font-size: 0.85rem;"></div>
                 <div class="modal-actions" id="validacao-acoes" style="margin-top: 14px;"></div>
+            </div>
+        </div>
+
+        <!-- Pré-visualização de ajuste determinístico (TASK-024): diff com aceite por mudança -->
+        <div id="modal-ajuste" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 760px; width: 92%; max-height: 85vh; display: flex; flex-direction: column;">
+                <h3 id="ajuste-titulo" style="margin-bottom: 6px;">Pré-visualização do ajuste</h3>
+                <p id="ajuste-resumo" style="font-size: 0.8rem; color: #8b949e; margin-bottom: 8px;"></p>
+                <div id="ajuste-lista" style="overflow: auto; flex: 1; font-size: 0.85rem;"></div>
+                <div class="modal-actions" id="ajuste-acoes" style="margin-top: 14px;"></div>
             </div>
         </div>
 
@@ -1437,7 +1467,8 @@
         </div>
 
     <script src="/static/regras_leitor_engine.js"></script>
-    <script src="/static/resumo.js?v=5.2"></script>
+    <script src="/static/resumo.js?v=5.3"></script>
+    <script src="/static/painel_regras.js"></script>
     <script>
         // Sincronização do número de obra com o localStorage
         (function() {

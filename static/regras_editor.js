@@ -3,7 +3,7 @@
    - Cada regra é mostrada como frase em português (vinda do backend: `frase`, /descrever); nada de regra de negócio
      é reavaliado aqui. Conteúdo sempre via textContent/value (nunca innerHTML).
    - Camadas por projeto: padrão + ajustes do projeto; selos de origem, botões −/+ (ocultar/reexibir) e "voltar ao padrão".
-   Depende de showMessage() (admin.js). Escrita/teste só admin (o backend valida schema e permissão).
+   Depende de rpMensagem() (admin.js). Escrita/teste só admin (o backend valida schema e permissão).
 ═══════════════════════════════════════════════════════════════════════════ */
 const RD = { regras: [], grupos: {}, grupos_origem: {}, grupos_usados: {}, padrao: null, ativos: [], timer: null };
 const RD_META = ['origem', 'oculta', 'frase'];
@@ -16,6 +16,7 @@ const RD_SELOS = {
     projeto: ['só deste projeto', 'bg-blue-900 text-blue-200']
 };
 
+function rdLeitura() { return localStorage.getItem('is_admin') !== 'true'; }
 function rdEl(id) { return document.getElementById(id); }
 function rdProjeto() { return rdEl('rdProjeto').value || 'DEFAULT'; }
 function rdEhProjeto() { return rdProjeto() !== 'DEFAULT'; }
@@ -110,30 +111,24 @@ async function rdAtualizarFrase(regra) {
 
 /* ── carga ───────────────────────────────────────────────────────────────── */
 async function iniciarRegrasDominio() {
-    const sel = rdEl('rdProjeto');
-    sel.appendChild(new Option('DEFAULT (padrão para todos)', 'DEFAULT'));
-    try {
-        const res = await fetch('/api/projetos');
-        if (res.ok) { const d = await res.json(); (d.projetos || d).forEach(p => sel.appendChild(new Option(`${p.nome} (${p.codigo})`, p.codigo))); }
-    } catch (e) { /* segue só com DEFAULT */ }
+    // O painel (painel_regras.js) monta o DOM, preenche #rdProjeto e chama rdCarregar().
     try {
         const res = await fetch('/api/validacao/regras/ativos');
         if (res.ok) RD.ativos = (await res.json()).ativos;
     } catch (e) { /* sem autocomplete de códigos */ }
-    sel.addEventListener('change', rdCarregar);
-    rdEl('rdAdicionar').addEventListener('click', rdAbrirAssistente);
-    rdEl('rdSalvar').addEventListener('click', rdSalvar);
-    rdEl('rdSemente').addEventListener('click', rdRestaurarSemente);
-    rdEl('rdNovas').addEventListener('click', rdAdicionarNovas);
-    rdEl('rdHistorico').addEventListener('click', rdAlternarHistorico);
-    rdEl('rdTestar').addEventListener('click', rdTestar);
-    rdEl('rdNovoGrupo').addEventListener('click', rdNovoGrupo);
-    rdCarregar();
+    const lig = (id, fn) => { const e = rdEl(id); if (e) e.addEventListener('click', fn); };
+    lig('rdAdicionar', rdAbrirAssistente);
+    lig('rdSalvar', rdSalvar);
+    lig('rdSemente', rdRestaurarSemente);
+    lig('rdNovas', rdAdicionarNovas);
+    lig('rdHistorico', rdAlternarHistorico);
+    lig('rdTestar', rdTestar);
+    lig('rdNovoGrupo', rdNovoGrupo);
 }
 
 async function rdCarregar() {
     const res = await fetch(`/api/validacao/regras?projeto_codigo=${encodeURIComponent(rdProjeto())}`);
-    if (!res.ok) { showMessage('error', 'Não foi possível carregar as regras de domínio.'); return; }
+    if (!res.ok) { rpMensagem('error', 'Não foi possível carregar as regras de domínio.'); return; }
     const dados = await res.json();
     RD.regras = dados.regras;
     RD.grupos = dados.grupos;
@@ -289,6 +284,7 @@ function rdBloco(rotulo, dica, regra, campo, refazer) {
 
 /* ── cartão da regra ─────────────────────────────────────────────────────── */
 function rdCartao(regra, i) {
+    const leitura = rdLeitura();
     const herdada = rdEhProjeto() && regra.origem !== 'projeto';
     const card = rdNo('div', 'border border-[#30363d] rounded-md p-3');
     card.dataset.regra = regra.id;
@@ -326,7 +322,8 @@ function rdCartao(regra, i) {
             if (confirm(`Excluir a regra ${regra.id}?`)) { RD.regras.splice(i, 1); rdRenderizar(); }
         }, RD_CLS_BTN + ' text-red-400'));
     }
-    topo.appendChild(acoes);
+    if (!leitura) topo.appendChild(acoes);
+    ativa.disabled = leitura; sev.disabled = leitura; rid.readOnly = rid.readOnly || leitura;
     card.appendChild(topo);
 
     const frase = rdNo('div', 'text-sm mt-2', regra.frase || '');
@@ -340,7 +337,7 @@ function rdCartao(regra, i) {
         if (o) { selo.className = 'text-xs px-2 py-0.5 rounded-full ' + RD_SELOS[o][1]; selo.textContent = RD_SELOS[o][0]; }
     }
     atualizarSelo();
-    if (regra._aberta) card.appendChild(rdCorpoEditor(regra, atualizarSelo));
+    if (regra._aberta && !leitura) card.appendChild(rdCorpoEditor(regra, atualizarSelo));
     return card;
 }
 
@@ -512,7 +509,8 @@ function rdRenderizarGrupos() {
                 if (confirm(`Excluir o grupo ${nome}?` + (usados.length ? ` Ele é usado por: ${usados.join(', ')}.` : ''))) { delete RD.grupos[nome]; rdRenderizar(); }
             }, RD_CLS_BTN + ' text-red-400'));
         }
-        topo.appendChild(acoes);
+        if (!rdLeitura()) topo.appendChild(acoes);
+        ta.readOnly = rdLeitura();
         atualizarSelo();
         linha.append(topo, ta);
         box.appendChild(linha);
@@ -522,8 +520,8 @@ function rdRenderizarGrupos() {
 function rdNovoGrupo() {
     const nome = (prompt('Nome do novo grupo (letras, números e _):') || '').trim().toUpperCase();
     if (!nome) return;
-    if (!/^[A-Z0-9_]+$/.test(nome)) { showMessage('error', 'Nome inválido: use letras, números e _.'); return; }
-    if (RD.grupos[nome]) { showMessage('error', 'Já existe um grupo com esse nome.'); return; }
+    if (!/^[A-Z0-9_]+$/.test(nome)) { rpMensagem('error', 'Nome inválido: use letras, números e _.'); return; }
+    if (RD.grupos[nome]) { rpMensagem('error', 'Já existe um grupo com esse nome.'); return; }
     RD.grupos[nome] = [];
     RD.grupos_origem[nome] = 'projeto';
     rdRenderizar();
@@ -539,8 +537,8 @@ async function rdSalvar() {
     const regras = rdRegrasParaEnvio();
     if (!regras) return;
     const res = await rdPost('/api/validacao/regras', { projeto_codigo: rdProjeto(), regras, grupos: RD.grupos });
-    if (!res.ok) { showMessage('error', await rdLerErro(res)); return; }
-    showMessage('success', 'Regras salvas.');
+    if (!res.ok) { rpMensagem('error', await rdLerErro(res)); return; }
+    rpMensagem('success', 'Regras salvas.');
     await rdCarregar();
 }
 async function rdRestaurarSemente() {
@@ -550,16 +548,16 @@ async function rdRestaurarSemente() {
     if (!confirm(msg)) return;
     rdErros(null);
     const res = await rdPost('/api/validacao/regras/restaurar-semente', { projeto_codigo: rdProjeto() });
-    if (!res.ok) { showMessage('error', await rdLerErro(res)); return; }
-    showMessage('success', rdEhProjeto() ? 'Ajustes do projeto descartados.' : 'Semente restaurada.');
+    if (!res.ok) { rpMensagem('error', await rdLerErro(res)); return; }
+    rpMensagem('success', rdEhProjeto() ? 'Ajustes do projeto descartados.' : 'Semente restaurada.');
     await rdCarregar();
 }
 async function rdAdicionarNovas() {
     rdErros(null);
     const res = await rdPost('/api/validacao/regras/adicionar-novas', { projeto_codigo: rdProjeto() });
-    if (!res.ok) { showMessage('error', await rdLerErro(res)); return; }
+    if (!res.ok) { rpMensagem('error', await rdLerErro(res)); return; }
     const { adicionadas } = await res.json();
-    showMessage('success', adicionadas.length
+    rpMensagem('success', adicionadas.length
         ? `Adicionadas (desligadas): ${adicionadas.join(', ')}. Os projetos passam a herdá-las.`
         : 'Não há regras novas na semente: a lista já tem todas.');
     await rdCarregar();
@@ -568,7 +566,7 @@ async function rdAlternarHistorico() {
     const box = rdEl('rdHistLista');
     if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
     const res = await fetch(`/api/validacao/regras/historico?projeto_codigo=${encodeURIComponent(rdProjeto())}`);
-    if (!res.ok) { showMessage('error', await rdLerErro(res)); return; }
+    if (!res.ok) { rpMensagem('error', await rdLerErro(res)); return; }
     const historico = (await res.json()).historico;
     box.replaceChildren();
     if (!historico.length) box.appendChild(rdNo('div', 'p-3 text-[#8b949e]', 'Sem versões anteriores para este projeto.'));
@@ -589,8 +587,8 @@ async function rdAlternarHistorico() {
 async function rdReverter(historicoId) {
     if (!confirm('Reverter para esta versão? A versão atual fica no histórico.')) return;
     const res = await rdPost('/api/validacao/regras/reverter', { projeto_codigo: rdProjeto(), historico_id: historicoId });
-    if (!res.ok) { showMessage('error', await rdLerErro(res)); return; }
-    showMessage('success', 'Versão revertida.');
+    if (!res.ok) { rpMensagem('error', await rdLerErro(res)); return; }
+    rpMensagem('success', 'Versão revertida.');
     await rdCarregar();
 }
 
@@ -609,7 +607,7 @@ async function rdTestar() {
     });
     const alvo = rdEl('rdTesteResultado');
     alvo.replaceChildren();
-    if (!res.ok) { showMessage('error', await rdLerErro(res)); return; }
+    if (!res.ok) { rpMensagem('error', await rdLerErro(res)); return; }
     const { achados, resumo, explicacoes } = await res.json();
     alvo.appendChild(rdNo('div', 'mb-1 font-medium', achados.length
         ? `${achados.length} achado(s): ${resumo.erro} erro, ${resumo.aviso} aviso, ${resumo.info} info`

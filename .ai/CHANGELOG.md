@@ -8,6 +8,98 @@
 
 ---
 
+## 2026-10-01 — TASK-025: ajustes por IA com ações estruturadas
+
+**Tipo:** camada 3 (IA) + frontend · `.ai/tasks/TASK-025-01-10-2026.md`
+
+Novo prompt semente **`ajustar-planilhas`** (editável; entra sozinho na próxima inicialização, sem sobrescrever prompts já
+editados) e rota `POST /api/validacao/ajustes-ia`: a IA propõe **ações** da linguagem de ajustes (inclusive **excluir**),
+o backend valida cada ação (schema + grupos do projeto), **recusa `operacao_nova`**, deduplica, limita a 10 e roda o motor da
+TASK-022 nas tabelas completas, devolvendo `acoes` (com frase em português) + `diff` + `destrutivo`. O botão **Pedir ajuste à IA**
+do painel de validação agora abre a pré-visualização com aviso em vermelho quando há exclusão, confirmação extra ao aplicar e
+**Cadastrar como ajuste** (admin): abre a aba Ajustes com as ações em rascunho. A rota antiga `/corrigir` (substituição de linha
+inteira) continua existindo, mas a tela não a usa mais. Sem mudança de banco.
+
+---
+
+## 2026-10-01 — TASK-024: fluxo unificado Validar + Ajustar
+
+**Tipo:** frontend (Resumo) · `.ai/tasks/TASK-024-01-10-2026.md`
+
+O painel de validação agora oferece **Ajustar** por achado (ajustes cadastrados e ligados que corrigem a regra do achado),
+**Ajustar tudo (determinístico)** e **Pedir ajuste à IA** (só para achados sem ajuste cadastrado), com filtro
+Todos · Determinístico · IA. Todo ajuste passa por uma **pré-visualização** (editar / inserir / EXCLUIR / reordenar, com caixa
+por mudança; nada é aplicado sem aceite). Aplicar é **um passo de histórico** (um Ctrl+Z desfaz o lote), ignora mudança cuja
+linha foi alterada desde a pré-visualização e **revalida automaticamente**, mostrando "antes do ajuste". No Validar ao
+montar, o ciclo painel → ajuste → revalidação continua até o usuário decidir; se sobrar só info, segue para o orçamento.
+Novo botão **Ajustar ▾** na barra roda um ajuste cadastrado avulso. "Não, vou corrigir" deixou de chamar a IA sozinho.
+
+---
+
+## 2026-10-01 — TASK-023: cadastro de ajustes recorrentes por projeto (receitas)
+
+**Tipo:** persistência + frontend admin · `.ai/tasks/TASK-023-01-10-2026.md` · **exige SQL no Supabase** (`scripts/schema_supabase.sql`)
+
+Receitas de ajuste (ações da TASK-022 com nome, ligada/desligada e vínculo a regras de validação) agora são **cadastradas**:
+`DEFAULT` guarda o container completo e cada projeto só o overlay (adicionadas/sobrescritas/ocultas), como as regras
+(`services/ajustes_camadas.py`). Tabelas novas `ajustes_planilhas` e `ajustes_planilhas_historico` no SQLite e no Supabase
+(nuvem primeiro, fallback local; falha de sincronização avisada) — gravação **só no botão Salvar**, com histórico e
+reversão. Semente (todas desligadas): normalizar postes, `SUP-L→SUPL`, adicionar `1-SUPL` à linha com CFU (vinculada a
+`C2-CFU-SUPL`), excluir linhas vazias, ordenar Outros. Rotas `GET/POST /api/validacao/ajustes` (+histórico, reverter,
+restaurar-semente); `preview` aceita `receitas: [ids]`. Nova aba **Ajustes** na gaveta (`painel_ajustes.js`): selos, −/+,
+voltar ao padrão, editor visual das ações, modo JSON e **pré-visualização do diff nas tabelas atuais** (nada é aplicado:
+isso é a TASK-024). Operador vê a lista e pré-visualiza; só admin edita.
+
+---
+
+## 2026-10-01 — TASK-022: motor de ajustes determinísticos (ADR-006)
+
+**Tipo:** novo motor de regra de negócio (backend) · `.ai/tasks/TASK-022-01-10-2026.md`
+
+Novo `services/ajustes_planilhas.py`: 7 ações declarativas sobre Cabos/Outros (substituir texto/item, normalizar, ordenar,
+excluir linhas, adicionar linha, adicionar/remover ativo na linha, mesclar duplicadas), reaproveitando condições, seletores e
+grupos da linguagem de regras v2. Devolve um **diff** (editar/inserir/excluir/mover) sem alterar a entrada; a camada 1 descarta
+ajuste que gere erro de contrato novo; a operação da linha só muda com `operacao_nova`; idempotente. Rotas
+`POST /api/validacao/ajustes/preview` e `/descrever`. Sem mudança de banco. Telas e cadastro: TASK-023/024.
+
+---
+
+## 2026-10-01 — TASK-019: painel de regras de validação vai do Admin para o Resumo
+
+**Tipo:** frontend (reorganização) · `.ai/tasks/TASK-019-01-10-2026.md`
+
+O editor das regras de domínio (TASK-017/018) e os prompts de validação saíram de `/admin` e passaram a uma **gaveta
+lateral** no Resumo (botão **Regras de validação**), com abas Regras · Grupos · Prompts da IA · Testar, que segue o projeto
+de `#select-projeto` (o padrão de todos é uma opção da gaveta). **Só admin edita**; operador vê Regras e Grupos em leitura
+(frases, selos). Reestilizado sem Tailwind (`painel_regras.css`); JS carregado sob demanda. Mesmos dados e rotas, nada perdido;
+o Admin mostra só um aviso de mudança. Prompts e Testar são abas só de admin.
+
+---
+
+## 2026-10-01 — TASK-020: validação em modos independentes (determinística e IA)
+
+**Tipo:** comportamento do frontend · `.ai/tasks/TASK-020-01-10-2026.md`
+
+Barra do Resumo ganhou quatro caixas (preferência **local**, `localStorage` `validacao_modos`): **Determinística**
+(contrato + regras), **Regras** (liga/desliga a camada 2; o contrato fica sempre com a determinística), **IA** e **Pular IA se
+houver erro de contrato** (padrão ligado). Valem para o botão Validar e para "Validar ao montar". A IA roda **depois** da
+determinística; com IA desligada nenhuma chamada a `/api/validacao/ia` é feita; com tudo desligado o Validar avisa "nada a
+validar" e o orçamento segue. O painel diz o que rodou. "Corrigir com IA" só aparece com a IA ligada. Sem mudança de backend
+(usa `incluir_dominio`).
+
+---
+
+## 2026-10-01 — TASK-021: desfazer/refazer sem desvio
+
+**Tipo:** correção de comportamento (frontend) · `.ai/tasks/TASK-021-01-10-2026.md`
+
+`static/resumo.js`: `undo()` passa a gravar o estado ao vivo quando ele está à frente do ponteiro do histórico e
+`pushHistory()` ignora estado repetido (`historyDirty` controla o botão Desfazer). Funciona para os chamadores que
+empilham antes de mudar e para os que empilham depois. Duas edições seguidas agora exigem dois Ctrl+Z; a correção
+assistida deixou de precisar do "push duplo". Alterações em lote (ajustes das próximas tasks) serão um passo cada.
+
+---
+
 ## 2026-09-30 — TASK-018 + TASK-017: regras em camadas por projeto e editor visual
 
 **Tipo:** armazenamento/regra de negócio + frontend admin · `.ai/tasks/TASK-018-30-09-2026.md`, `TASK-017-30-09-2026.md`
