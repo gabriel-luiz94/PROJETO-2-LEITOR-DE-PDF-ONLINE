@@ -293,7 +293,8 @@ ativado definindo explicitamente `APP_MODE=server` no ambiente.
 | `resumo.html` + `resumo.js` | Tabelas Cabos e Outros, undo/redo, autocomplete, chat de IA, modais geradores (Cabos, Postes e Estruturas, Ramais, Conexões), Tabela de Regras, Tabela Totalizadora |
 | `resultado_orcamento.html` | Chama `/api/orcamento/calcular`, consolida por `operação|mdo|código`, permite edição manual, salva REC, exporta |
 | `orcamento.html` | Visualiza e edita a base técnica com filtros por coluna |
-| `admin.html` + `admin.js` + `regras_editor.js` | Painel administrativo; `regras_editor.js` = editor visual das regras de domínio (TASK-017/018) |
+| `admin.html` + `admin.js` | Painel administrativo (usuários, tabela master, audit log) |
+| `painel_regras.js` + `.css`, `regras_editor.js`, `painel_prompts.js` | Gaveta "Regras de validação" do Resumo (TASK-019): editor visual das regras de domínio, grupos, prompts da IA (só admin) e teste do rascunho; carregados sob demanda |
 | `login.html` + `login.js` | Login; grava `auth_token` no `localStorage` |
 | `auth_fetch.js` | Wrapper de `fetch` que injeta o `Authorization: Bearer` |
 

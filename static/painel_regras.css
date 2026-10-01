@@ -1,0 +1,109 @@
+/* painel_regras.css — gaveta de regras de validação do Resumo (TASK-019). Sem Tailwind: as classes utilitárias usadas pelo
+   editor (regras_editor.js, painel_prompts.js) são definidas aqui, só dentro de #painel-regras. */
+#painel-regras .block { display:block; }
+#painel-regras .flex { display:flex; }
+#painel-regras .grid { display:grid; }
+#painel-regras .inline-flex { display:inline-flex; }
+#painel-regras .hidden { display:none !important; }
+#painel-regras .flex-wrap { flex-wrap:wrap; }
+#painel-regras .items-center { align-items:center; }
+#painel-regras .justify-between { justify-content:space-between; }
+#painel-regras .gap-1 { gap:4px; }
+#painel-regras .gap-2 { gap:8px; }
+#painel-regras .gap-3 { gap:12px; }
+#painel-regras .grid-cols-1 { grid-template-columns:1fr; }
+#painel-regras .ml-auto { margin-left:auto; }
+#painel-regras .mt-1 { margin-top:4px; }
+#painel-regras .mt-2 { margin-top:8px; }
+#painel-regras .mt-3 { margin-top:12px; }
+#painel-regras .mb-1 { margin-bottom:4px; }
+#painel-regras .mb-2 { margin-bottom:8px; }
+#painel-regras .p-2 { padding:8px; }
+#painel-regras .p-3 { padding:12px; }
+#painel-regras .pt-3 { padding-top:12px; }
+#painel-regras .pl-3 { padding-left:12px; }
+#painel-regras .py-1 { padding-top:4px;padding-bottom:4px; }
+#painel-regras .py-0\.5 { padding-top:2px;padding-bottom:2px; }
+#painel-regras .px-2 { padding-left:8px;padding-right:8px; }
+#painel-regras .px-3 { padding-left:12px;padding-right:12px; }
+#painel-regras .text-xs { font-size:0.75rem; }
+#painel-regras .text-sm { font-size:0.85rem; }
+#painel-regras .font-mono { font-family:ui-monospace,Menlo,Consolas,monospace; }
+#painel-regras .font-medium { font-weight:500; }
+#painel-regras .font-semibold { font-weight:600; }
+#painel-regras .uppercase { text-transform:uppercase; }
+#painel-regras .text-\[\#8b949e\] { color:#8b949e; }
+#painel-regras .text-\[\#d97706\] { color:#d97706; }
+#painel-regras .text-\[\#c9d1d9\] { color:#c9d1d9; }
+#painel-regras .text-white { color:#fff; }
+#painel-regras .text-blue-400 { color:#58a6ff; }
+#painel-regras .text-red-400 { color:#f85149; }
+#painel-regras .text-blue-200 { color:#a5d6ff; }
+#painel-regras .text-amber-200 { color:#fde68a; }
+#painel-regras .text-red-100 { color:#fee2e2; }
+#painel-regras .text-amber-100 { color:#fef3c7; }
+#painel-regras .bg-\[\#0d1117\] { background:#0d1117; }
+#painel-regras .bg-\[\#21262d\] { background:#21262d; }
+#painel-regras .bg-blue-900 { background:#1e3a8a; }
+#painel-regras .bg-amber-900 { background:#78350f; }
+#painel-regras .bg-red-900 { background:#7f1d1d; }
+#painel-regras .border { border:1px solid #30363d; }
+#painel-regras .border-l-2 { border-left:2px solid #30363d; }
+#painel-regras .border-t { border-top:1px solid #30363d; }
+#painel-regras .border-red-500 { border-color:#ef4444 !important; }
+#painel-regras .rounded-md { border-radius:6px; }
+#painel-regras .rounded-full { border-radius:9999px; }
+#painel-regras .w-9 { width:36px; }
+#painel-regras .w-24 { width:96px; }
+#painel-regras .w-44 { width:176px; }
+#painel-regras .w-56 { width:224px; }
+#painel-regras .w-full { width:100%; }
+#painel-regras .opacity-50 { opacity:0.5; }
+#painel-regras .opacity-80 { opacity:0.8; }
+#painel-regras .w-48 { width:192px; }
+#painel-regras .hover\:text-blue-300:hover { color:#79c0ff; }
+#painel-regras .hover\:text-\[\#b45309\]:hover { color:#b45309; }
+#painel-regras .hover\:bg-\[\#21262d\]:hover { background:#21262d; }
+#painel-regras .space-x-3 > * + * { margin-left:12px; }
+#painel-regras .space-y-1 > * + * { margin-top:4px; }
+#painel-regras .space-y-2 > * + * { margin-top:8px; }
+@media (min-width: 768px) {
+  #painel-regras .md\:grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+  #painel-regras .md\:col-span-2 { grid-column: span 2; }
+}
+
+/* Base dos botões (o navegador pinta botão de branco): as utilitárias abaixo e as classes da gaveta sobrescrevem */
+#painel-regras button { background: transparent; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; font-size: 0.85rem; }
+#painel-regras button:hover { background: #21262d; }
+#painel-regras button:disabled { opacity: .5; cursor: default; }
+
+/* Gaveta */
+#painel-regras { position: fixed; top: 0; right: 0; height: 100vh; width: min(760px, 96vw); z-index: 900;
+  background: #0d1117; border-left: 1px solid #30363d; box-shadow: -8px 0 24px rgba(0,0,0,0.5);
+  display: flex; flex-direction: column; transform: translateX(105%); transition: transform .2s ease; color: #e6edf3; }
+#painel-regras.aberto { transform: translateX(0); }
+#painel-regras .rp-topo { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid #30363d; flex-wrap:wrap; }
+#painel-regras .rp-topo h2 { font-size:1rem; margin:0; }
+#painel-regras .rp-abas { display:flex; gap:4px; padding:8px 16px 0; border-bottom:1px solid #30363d; }
+#painel-regras .rp-aba, #painel-regras .rp-aba:hover { background:transparent; border:none; border-bottom:2px solid transparent; color:#8b949e; padding:8px 12px; cursor:pointer; font-size:0.85rem; }
+#painel-regras .rp-aba.ativa { color:#e6edf3; border-bottom-color:#d97706; }
+#painel-regras .rp-corpo { flex:1; overflow:auto; padding:16px; }
+#painel-regras .rp-painel { display:none; }
+#painel-regras .rp-painel.ativo { display:block; }
+#painel-regras .rp-leitura-aviso { font-size:0.8rem; color:#d29922; margin-bottom:8px; }
+#painel-regras input, #painel-regras select, #painel-regras textarea { font-family: inherit; }
+#painel-regras input, #painel-regras select, #painel-regras textarea { background:#0d1117; color:#fff; border:1px solid #30363d; border-radius:6px; }
+#painel-regras input[type=checkbox] { width:auto; }
+#painel-regras button { cursor:pointer; }
+#painel-regras button.btn-primary { background:#d97706; color:#fff; border:none; padding:6px 16px; border-radius:6px; font-size:0.85rem; }
+#painel-regras .rp-btn { padding:6px 14px; border-radius:6px; border:1px solid #30363d; background:transparent; color:#c9d1d9; font-size:0.85rem; }
+#painel-regras .rp-btn:hover { background:#21262d; }
+#painel-regras .rp-linha { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; margin-bottom:12px; }
+#painel-regras .rp-caixa-erro { background:#7f1d1d; color:#fee2e2; padding:12px; border-radius:6px; margin-bottom:12px; font-size:0.85rem; }
+#painel-regras .rp-caixa-aviso { background:#78350f; color:#fef3c7; padding:12px; border-radius:6px; margin-bottom:12px; font-size:0.85rem; }
+#painel-regras .rp-hist { margin-top:16px; font-size:0.85rem; border:1px solid #30363d; border-radius:6px; }
+#painel-regras .rp-hist > * + * { border-top:1px solid #30363d; }
+#painel-regras h3 { font-size:0.95rem; margin:20px 0 4px; }
+#painel-regras p.rp-ajuda { font-size:0.8rem; color:#8b949e; margin-bottom:10px; }
+#painel-regras code { background:#161b22; padding:0 4px; border-radius:3px; }
+

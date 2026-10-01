@@ -582,6 +582,9 @@
                         <button class="btn-primary" id="btn-montar-orcamento" style="background-color: #238636;">
                             Montar Orçamento
                         </button>
+                        <button class="btn-secondary" id="btn-regras-validacao" title="Regras e prompts da validação deste projeto (só o administrador edita)">
+                            Regras de validação
+                        </button>
                         <button class="btn-secondary" id="btn-validar" title="Verificar as planilhas Cabos e Outros (contrato, regras de domínio e IA)">
                             Validar
                         </button>
@@ -1451,7 +1454,8 @@
         </div>
 
     <script src="/static/regras_leitor_engine.js"></script>
-    <script src="/static/resumo.js?v=5.2"></script>
+    <script src="/static/resumo.js?v=5.3"></script>
+    <script src="/static/painel_regras.js"></script>
     <script>
         // Sincronização do número de obra com o localStorage
         (function() {

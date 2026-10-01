@@ -95,6 +95,14 @@ async def serve_login_js():
 async def serve_admin_js():
     return _serve_js("admin.js")
 
+@app.get("/static/painel_regras.js")
+async def serve_painel_regras_js():
+    return _serve_js("painel_regras.js")
+
+@app.get("/static/painel_prompts.js")
+async def serve_painel_prompts_js():
+    return _serve_js("painel_prompts.js")
+
 @app.get("/static/regras_editor.js")
 async def serve_regras_editor_js():
     return _serve_js("regras_editor.js")

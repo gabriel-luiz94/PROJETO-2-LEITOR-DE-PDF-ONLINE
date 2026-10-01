@@ -8,6 +8,18 @@
 
 ---
 
+## 2026-10-01 — TASK-019: painel de regras de validação vai do Admin para o Resumo
+
+**Tipo:** frontend (reorganização) · `.ai/tasks/TASK-019-01-10-2026.md`
+
+O editor das regras de domínio (TASK-017/018) e os prompts de validação saíram de `/admin` e passaram a uma **gaveta
+lateral** no Resumo (botão **Regras de validação**), com abas Regras · Grupos · Prompts da IA · Testar, que segue o projeto
+de `#select-projeto` (o padrão de todos é uma opção da gaveta). **Só admin edita**; operador vê Regras e Grupos em leitura
+(frases, selos). Reestilizado sem Tailwind (`painel_regras.css`); JS carregado sob demanda. Mesmos dados e rotas, nada perdido;
+o Admin mostra só um aviso de mudança. Prompts e Testar são abas só de admin.
+
+---
+
 ## 2026-10-01 — TASK-020: validação em modos independentes (determinística e IA)
 
 **Tipo:** comportamento do frontend · `.ai/tasks/TASK-020-01-10-2026.md`

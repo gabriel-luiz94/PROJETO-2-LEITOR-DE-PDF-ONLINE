@@ -284,7 +284,12 @@ def test_get_devolve_grupos_usados_e_ativos_da_base(client):
     assert client.get("/api/validacao/regras/ativos", headers=cab("operador")).json() == {"ativos": ["CFU", "SUPL"]}
 
 
-def test_editor_visual_e_servido_e_referenciado_na_pagina_admin(client):
-    js = client.get("/static/regras_editor.js")
-    assert js.status_code == 200 and "javascript" in js.headers["content-type"] and "rdCartao" in js.text
-    assert 'src="/static/regras_editor.js"' in open("static/admin.html", encoding="utf-8").read()
+def test_painel_de_regras_e_servido_no_resumo_e_saiu_do_admin(client):
+    for arq, marca in [("regras_editor.js", "rdCartao"), ("painel_regras.js", "btn-regras-validacao"), ("painel_prompts.js", "pvSalvar")]:
+        r = client.get(f"/static/{arq}")
+        assert r.status_code == 200 and "javascript" in r.headers["content-type"] and marca in r.text, arq
+    assert client.get("/static/painel_regras.css?v=2").status_code == 200
+    resumo = open("static/resumo.html", encoding="utf-8").read()
+    assert 'id="btn-regras-validacao"' in resumo and "/static/painel_regras.js" in resumo
+    admin = open("static/admin.html", encoding="utf-8").read()
+    assert "rdLista" not in admin and "pvTexto" not in admin and "Resumo do Orçamento" in admin

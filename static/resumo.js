@@ -997,6 +997,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
     }
+    window.showToast = showToast;  // usado pelo painel de regras (painel_regras.js)
 
     /* ═══════════════════════════════════════
        UTILS
