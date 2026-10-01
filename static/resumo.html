@@ -686,6 +686,17 @@
             </div>
         </div>
 
+        <!-- Confirmação de comando de obra pedido à IA (TASK-028) -->
+        <div id="modal-obra-ia" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 520px; width: 92%;">
+                <h3 id="obra-ia-titulo" style="margin-bottom: 8px;">Obra</h3>
+                <div id="obra-ia-nome" style="font-weight: 600; margin-bottom: 2px;"></div>
+                <div id="obra-ia-detalhe" style="font-size: 0.8rem; color: #8b949e; margin-bottom: 10px;"></div>
+                <p id="obra-ia-efeito" style="font-size: 0.85rem;"></p>
+                <div class="modal-actions" id="obra-ia-acoes" style="margin-top: 14px;"></div>
+            </div>
+        </div>
+
         <!-- Pré-visualização de ajuste determinístico (TASK-024): diff com aceite por mudança -->
         <div id="modal-ajuste" class="modal-overlay hidden">
             <div class="modal-content" style="max-width: 760px; width: 92%; max-height: 85vh; display: flex; flex-direction: column;">

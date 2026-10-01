@@ -174,6 +174,8 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [x] **TASK-027** (pedido de 2026-10-01; concluída no navegador, falta a verificação humana no app de desktop): botão de microfone no chat de IA do Resumo (ditado por voz do navegador, conferir antes
       de enviar; leitura da resposta em voz alta opcional e desligada). Em PLANEJAMENTO, com 3 confirmações pendentes; risco
       principal: suporte à Web Speech API na janela desktop (pywebview).
+- [x] **TASK-028** (pedido de 2026-10-01; concluída): IA do chat consulta as obras salvas e executa "adicione a obra 2 ao projeto" etc. (contexto
+      sob demanda, ação `acao_ui: obra` com popup de confirmação, sem regressão e sem lentidão). Em PLANEJAMENTO, com 4 decisões a confirmar.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 

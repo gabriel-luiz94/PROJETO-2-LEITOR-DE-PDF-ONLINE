@@ -8,6 +8,21 @@
 
 ---
 
+## 2026-10-01 — TASK-028: IA do chat consulta e comanda as obras salvas
+
+**Tipo:** IA do chat (backend + frontend) · `.ai/tasks/TASK-028-01-10-2026.md`
+
+Quando o pedido menciona **obra/obras**, o backend acrescenta ao prompt um **índice enxuto** (id | nome | data, até 50, só do usuário e
+do projeto selecionado, sem `dados_json`) e o bloco `data/prompt_obras.txt` ao system prompt; o **conteúdo** de uma obra só vai
+se o usuário pedir ("o que tem na obra X?") e só dela (até 2, teto de linhas). **Pedidos sem a palavra "obra" seguem idênticos
+a antes** (nenhuma consulta ao banco, mesmo prompt). Comandos: a IA responde `{"acao_ui":"obra","acao":"adicionar|subtrair|carregar",
+"obra_id":…}`; o frontend valida o id contra as obras reais (`GET /api/obras/{id}`), exige que a obra seja do projeto selecionado e
+**sempre abre um popup de confirmação** (carregar avisa que substitui tudo); aplicar é um passo de histórico. A IA não salva nem
+exclui obras. O Fast-Path não intercepta frases com "obra". Refatoração: `adicionarObraAoProjeto`/`subtrairObraDoProjeto`
+compartilhadas pelo modal e pela IA; o modal Carregar Obra deixou de usar `innerHTML` com o nome da obra (XSS armazenado).
+
+---
+
 ## 2026-10-01 — TASK-027: microfone no chat de IA do Resumo
 
 **Tipo:** frontend (Resumo) · `.ai/tasks/TASK-027-01-10-2026.md`

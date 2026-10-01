@@ -1234,6 +1234,54 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ═══════════════════════════════════════
        INTEGRAÇÃO IA (GEMINI) E MEMÓRIA
     ═══════════════════════════════════════ */
+    /* ═══════════════════════════════════════
+       OBRAS: operações reutilizadas pelo modal "Carregar Obra" e pelos comandos da IA (TASK-028)
+    ═══════════════════════════════════════ */
+    /** Linhas de uma tabela de um snapshot salvo (aceita {cabos:{data:[..]}} e {cabos:[..]}). */
+    function linhasDoSnap(snap, tipo) {
+        const t = snap && snap[tipo];
+        const lista = Array.isArray(t) ? t : (t && Array.isArray(t.data) ? t.data : []);
+        return lista.filter(Boolean);
+    }
+
+    /** Acrescenta as linhas da obra às tabelas atuais (um passo de histórico). */
+    function adicionarObraAoProjeto(snap) {
+        if (!snap) { showToast('Dados da obra inválidos.'); return false; }
+        pushHistory();  // snapshot ANTES de adicionar
+        ['cabos', 'outros'].forEach(type => {
+            const linhas = linhasDoSnap(snap, type);
+            if (!linhas.length) return;
+            linhas.forEach(row => tableStates[type].data.push(JSON.parse(JSON.stringify(row))));
+            if (type === 'cabos') recalcAllQtdAtivos();
+            renderTable(type);
+            refreshAllFilters(type);
+        });
+        buildAtivoSets();
+        buildDataLists();
+        return true;
+    }
+
+    /** Acrescenta as linhas da obra com sinal invertido (retirada) — um passo de histórico. */
+    function subtrairObraDoProjeto(snap) {
+        if (!snap) { showToast('Dados da obra inválidos.'); return false; }
+        pushHistory();  // snapshot ANTES de subtrair
+        ['cabos', 'outros'].forEach(type => {
+            const linhas = linhasDoSnap(snap, type);
+            if (!linhas.length) return;
+            linhas.forEach(row => {
+                const clonada = JSON.parse(JSON.stringify(row));
+                if (type === 'cabos') clonada.qtdAtivos = "-" + Math.abs(clonada.qtdAtivos || 0);
+                else clonada.ativo = "*" + clonada.ativo;
+                tableStates[type].data.push(clonada);
+            });
+            renderTable(type);
+            refreshAllFilters(type);
+        });
+        buildAtivoSets();
+        buildDataLists();
+        return true;
+    }
+
     function restoreObraSnapshot(snap) {
         if (!snap) { showToast("Dados da obra inválidos."); return; }
 
@@ -1383,6 +1431,62 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         return result;
+    }
+
+    /** Pergunta ao usuário antes de aplicar um comando de obra da IA. Resolve true/false. */
+    function confirmarAcaoObra(acao, obra, nCabos, nOutros) {
+        return new Promise(resolve => {
+            const modal = document.getElementById('modal-obra-ia');
+            const titulo = { adicionar: 'Adicionar obra às tabelas atuais', subtrair: 'Subtrair obra das tabelas atuais', carregar: 'Carregar obra (substitui as tabelas atuais)' }[acao];
+            document.getElementById('obra-ia-titulo').textContent = titulo;
+            document.getElementById('obra-ia-nome').textContent = obra.nome;
+            document.getElementById('obra-ia-detalhe').textContent = `${obra.data || ''} · ${nCabos} linha(s) em Cabos, ${nOutros} em Outros`;
+            const efeito = {
+                adicionar: 'As linhas da obra serão acrescentadas ao fim das tabelas atuais.',
+                subtrair: 'As linhas da obra serão acrescentadas como retirada (sinal invertido).',
+                carregar: 'ATENÇÃO: as tabelas atuais serão SUBSTITUÍDAS pelo conteúdo da obra.'
+            }[acao];
+            const el = document.getElementById('obra-ia-efeito');
+            el.textContent = `${efeito} Nada muda até você confirmar; Ctrl+Z desfaz.`;
+            el.style.color = acao === 'carregar' ? '#f85149' : '#8b949e';
+            const acoes = document.getElementById('obra-ia-acoes');
+            acoes.replaceChildren();
+            const fechar = v => { modal.classList.add('hidden'); resolve(v); };
+            const cancelar = botaoPainel('Cancelar', 'btn-secondary');
+            cancelar.onclick = () => fechar(false);
+            const ok = botaoPainel({ adicionar: 'Adicionar', subtrair: 'Subtrair', carregar: 'Carregar e substituir' }[acao], 'btn-primary');
+            ok.onclick = () => fechar(true);
+            acoes.append(cancelar, ok);
+            modal.classList.remove('hidden');
+        });
+    }
+
+    /** Comando de obra pedido pela IA ({acao_ui:"obra", acao, obra_id}). O id é validado contra as obras reais do usuário
+     *  (a IA não inventa obra), a obra precisa ser do projeto selecionado e o usuário sempre confirma. Devolve {msg}. */
+    async function executarAcaoObra(action) {
+        const rotulo = { adicionar: 'adicionada', subtrair: 'subtraída', carregar: 'carregada' };
+        if (!rotulo[action.acao] || typeof action.obra_id !== 'string' || !action.obra_id) return { msg: 'Comando de obra inválido; nada foi alterado.' };
+        let obra;
+        try {
+            const r = await fetch(`/api/obras/${encodeURIComponent(action.obra_id)}`);
+            if (r.status === 404) return { msg: 'Não encontrei essa obra entre as suas obras salvas; nada foi alterado.' };
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            obra = await r.json();
+        } catch (e) {
+            return { msg: `Não foi possível consultar a obra (${e.message}); nada foi alterado.` };
+        }
+        if (obra.projeto !== (localStorage.getItem('projeto_selecionado_codigo') || '229')) {
+            return { msg: 'Essa obra é de outro projeto. Troque o projeto selecionado para usá-la; nada foi alterado.' };
+        }
+        let snap;
+        try { snap = typeof obra.dados_json === 'string' ? JSON.parse(obra.dados_json) : obra.dados_json; } catch (e) { snap = null; }
+        if (!snap || typeof snap !== 'object') return { msg: 'Os dados dessa obra estão ilegíveis; nada foi alterado.' };
+        const nCabos = linhasDoSnap(snap, 'cabos').length, nOutros = linhasDoSnap(snap, 'outros').length;
+        if (!(await confirmarAcaoObra(action.acao, obra, nCabos, nOutros))) return { msg: 'Ação cancelada. Nada foi alterado.' };
+        if (action.acao === 'adicionar') adicionarObraAoProjeto(snap);
+        else if (action.acao === 'subtrair') subtrairObraDoProjeto(snap);
+        else restoreObraSnapshot(snap);
+        return { msg: `Obra "${obra.nome}" ${rotulo[action.acao]}. Ctrl+Z desfaz.` };
     }
 
     function executeUiAction(action) {
@@ -1558,6 +1662,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (uiActionMatch) {
                 try {
                     const action = JSON.parse(uiActionMatch[0]);
+                    if (action.acao_ui === 'obra') {   // comando de obra (TASK-028): confirmação obrigatória, id validado
+                        div.textContent = 'Comando de obra recebido. Confirme na janela para aplicar.';
+                        chatHistory.push({ role: 'user', parts: [{ text: text }] });
+                        chatHistory.push({ role: 'model', parts: [{ text: '*(Comando de obra)*' }] });
+                        aiChatInput.disabled = false;
+                        btnSendChat.disabled = false;
+                        const resultado = await executarAcaoObra(action);
+                        div.textContent = resultado.msg;
+                        showToast(resultado.msg);
+                        aiChatInput.focus();
+                        return;
+                    }
                     div.innerHTML = `<span style="color:#3fb950;">Ação de interface concluída: ${action.acao_ui}</span>`;
                     chatHistory.push({ role: 'user', parts: [{ text: text }] });
                     chatHistory.push({ role: 'model', parts: [{ text: "*(Ação de UI executada)*" }] });
@@ -1724,16 +1840,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     item.className = 'obra-item';
                     item.innerHTML = `
                         <div class="obra-info">
-                            <span class="obra-nome">${o.nome}</span>
-                            <span class="obra-data">${o.data}</span>
+                            <span class="obra-nome"></span>
+                            <span class="obra-data"></span>
                         </div>
                         <div class="obra-actions">
                             <button class="btn-primary btn-load-item"  style="background:#238636; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Carregar</button>
                             <button class="btn-secondary btn-add-item"  style="background:#1f6feb; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Adicionar</button>
                             <button class="btn-secondary btn-sub-item"  style="background:#d29922; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Subtrair</button>
-                            <button class="btn-secondary btn-del-item" data-id="${o.id}" style="background:#da3633; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Excluir</button>
+                            <button class="btn-secondary btn-del-item"  style="background:#da3633; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Excluir</button>
                         </div>
                     `;
+
+                    item.querySelector('.obra-nome').textContent = o.nome;   // textContent: nome de obra nunca vira HTML
+                    item.querySelector('.obra-data').textContent = o.data;
+                    item.querySelector('.btn-del-item').dataset.id = o.id;
 
                     // Guarda o snap diretamente no elemento via propriedade JS (sem HTML encoding)
                     const btnLoad = item.querySelector('.btn-load-item');
@@ -1754,49 +1874,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     btnAdd.addEventListener('click', () => {
                         if (!btnAdd._snap) { showToast('Dados da obra inválidos.'); return; }
-                        const s = btnAdd._snap;
-                        pushHistory();  // snapshot ANTES de adicionar
-                        ['cabos', 'outros'].forEach(type => {
-                            if (s[type] && s[type].data) {
-                                s[type].data.forEach(row => {
-                                    if (row) tableStates[type].data.push(JSON.parse(JSON.stringify(row)));
-                                });
-                                if (type === 'cabos') recalcAllQtdAtivos();
-                                renderTable(type);
-                                refreshAllFilters(type);
-                            }
-                        });
-                        buildAtivoSets();
-                        buildDataLists();
-                        modalLoadObra.classList.add('hidden');
-                        showToast('Obra adicionada!');
+                        if (adicionarObraAoProjeto(btnAdd._snap)) {
+                            modalLoadObra.classList.add('hidden');
+                            showToast('Obra adicionada!');
+                        }
                     });
 
                     btnSub.addEventListener('click', () => {
                         if (!btnSub._snap) { showToast('Dados da obra inválidos.'); return; }
-                        const s = btnSub._snap;
-                        pushHistory();  // snapshot ANTES de subtrair
-                        ['cabos', 'outros'].forEach(type => {
-                            if (s[type] && s[type].data) {
-                                s[type].data.forEach(row => {
-                                    if (row) {
-                                        let clonedRow = JSON.parse(JSON.stringify(row));
-                                        if (type === 'cabos') {
-                                            clonedRow.qtdAtivos = "-" + Math.abs(clonedRow.qtdAtivos || 0);
-                                        } else {
-                                            clonedRow.ativo = "*" + clonedRow.ativo;
-                                        }
-                                        tableStates[type].data.push(clonedRow);
-                                    }
-                                });
-                                renderTable(type);
-                                refreshAllFilters(type);
-                            }
-                        });
-                        buildAtivoSets();
-                        buildDataLists();
-                        modalLoadObra.classList.add('hidden');
-                        showToast('Obra subtraída!');
+                        if (subtrairObraDoProjeto(btnSub._snap)) {
+                            modalLoadObra.classList.add('hidden');
+                            showToast('Obra subtraída!');
+                        }
                     });
 
                     btnDel.addEventListener('click', async () => {
