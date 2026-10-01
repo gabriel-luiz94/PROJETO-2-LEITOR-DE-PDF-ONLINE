@@ -8,6 +8,20 @@
 
 ---
 
+## 2026-10-01 — TASK-024: fluxo unificado Validar + Ajustar
+
+**Tipo:** frontend (Resumo) · `.ai/tasks/TASK-024-01-10-2026.md`
+
+O painel de validação agora oferece **Ajustar** por achado (ajustes cadastrados e ligados que corrigem a regra do achado),
+**Ajustar tudo (determinístico)** e **Pedir ajuste à IA** (só para achados sem ajuste cadastrado), com filtro
+Todos · Determinístico · IA. Todo ajuste passa por uma **pré-visualização** (editar / inserir / EXCLUIR / reordenar, com caixa
+por mudança; nada é aplicado sem aceite). Aplicar é **um passo de histórico** (um Ctrl+Z desfaz o lote), ignora mudança cuja
+linha foi alterada desde a pré-visualização e **revalida automaticamente**, mostrando "antes do ajuste". No Validar ao
+montar, o ciclo painel → ajuste → revalidação continua até o usuário decidir; se sobrar só info, segue para o orçamento.
+Novo botão **Ajustar ▾** na barra roda um ajuste cadastrado avulso. "Não, vou corrigir" deixou de chamar a IA sozinho.
+
+---
+
 ## 2026-10-01 — TASK-023: cadastro de ajustes recorrentes por projeto (receitas)
 
 **Tipo:** persistência + frontend admin · `.ai/tasks/TASK-023-01-10-2026.md` · **exige SQL no Supabase** (`scripts/schema_supabase.sql`)
