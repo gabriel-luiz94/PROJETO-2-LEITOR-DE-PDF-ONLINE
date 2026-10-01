@@ -1899,6 +1899,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    /* Modos de validação (TASK-020): determinística (contrato + regras de domínio) e IA, ligáveis em separado.
+       Preferência local (localStorage), como "Validar ao montar". */
+    const MODOS_CHAVE = 'validacao_modos';
+    const MODOS_PADRAO = { det: true, dominio: true, ia: true, pularIa: true };
+    function lerModos() {
+        try { return { ...MODOS_PADRAO, ...(JSON.parse(localStorage.getItem(MODOS_CHAVE)) || {}) }; } catch (e) { return { ...MODOS_PADRAO }; }
+    }
+    function gravarModos(m) { try { localStorage.setItem(MODOS_CHAVE, JSON.stringify(m)); } catch (e) { /* vale só nesta sessão */ } }
+    const MODOS_CAIXAS = { det: 'vmodo-det', dominio: 'vmodo-dominio', ia: 'vmodo-ia', pularIa: 'vmodo-pular-ia' };
+    function sincronizarModosNaTela() {
+        const m = lerModos();
+        Object.entries(MODOS_CAIXAS).forEach(([k, id]) => {
+            const c = document.getElementById(id);
+            if (c) { c.checked = !!m[k]; }
+        });
+        const dom = document.getElementById(MODOS_CAIXAS.dominio);
+        if (dom) dom.disabled = !m.det;
+        const pular = document.getElementById(MODOS_CAIXAS.pularIa);
+        if (pular) pular.disabled = !(m.det && m.ia);
+    }
+    Object.entries(MODOS_CAIXAS).forEach(([k, id]) => {
+        const c = document.getElementById(id);
+        if (c) c.addEventListener('change', () => { const m = lerModos(); m[k] = c.checked; gravarModos(m); sincronizarModosNaTela(); });
+    });
+    sincronizarModosNaTela();
+
     function linhasParaValidacao(tabela, prefixo) {
         const linhas = [];
         tableStates[tabela].data.forEach((r, i) => {
@@ -1919,52 +1945,78 @@ document.addEventListener('DOMContentLoaded', () => {
         catch (e) { return `HTTP ${resp.status}`; }
     }
 
-    /** Roda camadas 1-2 e depois a IA. Devolve { achados, ia, falhou }; `falhou` = as camadas 1-2 não puderam rodar. */
+    /** Roda os modos ligados: determinística (camadas 1-2) e, depois, a IA. Devolve { achados, ia, modos, falhou }.
+     *  `falhou` = a determinística foi pedida e não pôde rodar. `modos` diz o que rodou (a tela mostra ao usuário). */
     async function executarValidacao() {
+        const prefs = lerModos();
+        const modos = { det: prefs.det, dominio: prefs.det && prefs.dominio, ia: 'desligada' };
+        if (!prefs.det && !prefs.ia) return { achados: [], ia: null, modos, falhou: null, nada: true };
+
         const cabos = linhasParaValidacao('cabos', 'CABOS');
         const outros = linhasParaValidacao('outros', 'OUTROS');
         const selectProj = document.getElementById('select-projeto');
         const projeto = selectProj ? selectProj.value : '';
         const projetoCodigo = selectProj && selectProj.selectedIndex >= 0 ? (selectProj.options[selectProj.selectedIndex].dataset.codigo || '') : '';
 
-        // Payload da Totalizadora (após as regras de conversão) só para checar o ativo na base técnica.
-        // Ids próprios para não colidirem com CABOS-<i>/OUTROS-<i> das tabelas.
-        let payloadCalculo = null;
-        try {
-            const p = await obterPayloadCalculo();
-            payloadCalculo = {
-                cabos: p.cabos.map((o, i) => ({ ...o, id: `TOTALIZADORA-CABOS-${i}` })),
-                outros: p.outros.map((o, i) => ({ ...o, id: `TOTALIZADORA-OUTROS-${i}` }))
-            };
-        } catch (e) { /* segue sem a checagem de base */ }
-        ultimoPayloadValidacao = payloadCalculo || { cabos: [], outros: [] };
-
         let achados = [];
-        try {
-            const resp = await fetch('/api/validacao/planilhas', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cabos, outros, projeto, projeto_codigo: projetoCodigo || null, payload_calculo: payloadCalculo })
-            });
-            if (!resp.ok) throw new Error(await lerDetalhe(resp));
-            achados = (await resp.json()).achados;
-        } catch (e) {
-            return { achados: [], ia: null, falhou: `Não foi possível validar (${e.message}).` };
+        if (prefs.det) {
+            // Payload da Totalizadora (após as regras de conversão) só para checar o ativo na base técnica.
+            // Ids próprios para não colidirem com CABOS-<i>/OUTROS-<i> das tabelas.
+            let payloadCalculo = null;
+            try {
+                const p = await obterPayloadCalculo();
+                payloadCalculo = {
+                    cabos: p.cabos.map((o, i) => ({ ...o, id: `TOTALIZADORA-CABOS-${i}` })),
+                    outros: p.outros.map((o, i) => ({ ...o, id: `TOTALIZADORA-OUTROS-${i}` }))
+                };
+            } catch (e) { /* segue sem a checagem de base */ }
+            ultimoPayloadValidacao = payloadCalculo || { cabos: [], outros: [] };
+
+            try {
+                const resp = await fetch('/api/validacao/planilhas', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cabos, outros, projeto, projeto_codigo: projetoCodigo || null,
+                                           incluir_dominio: prefs.dominio, payload_calculo: payloadCalculo })
+                });
+                if (!resp.ok) throw new Error(await lerDetalhe(resp));
+                achados = (await resp.json()).achados;
+            } catch (e) {
+                return { achados: [], ia: null, modos, falhou: `Não foi possível validar (${e.message}).` };
+            }
         }
 
-        let ia = { status: 'erro', mensagem: 'sem resposta', achados: [] };
-        try {
-            const resp = await fetch('/api/validacao/ia', {
-                method: 'POST', headers: cabecalhoIA(),
-                body: JSON.stringify({
-                    cabos, outros, projeto_codigo: projetoCodigo || null,
-                    achados_previos: achados.map(a => ({ linha_id: a.linha_id, regra_id: a.regra_id, mensagem: a.mensagem }))
-                })
-            });
-            ia = resp.ok ? await resp.json() : { status: 'erro', mensagem: await lerDetalhe(resp), achados: [] };
-        } catch (e) {
-            ia = { status: 'erro', mensagem: e.message, achados: [] };
+        let ia = null;
+        if (prefs.ia) {
+            const erroDeContrato = achados.some(a => a.severidade === 'erro' && camadaDoAchado(a) === 'Contrato');
+            if (prefs.det && prefs.pularIa && erroDeContrato) {
+                modos.ia = 'pulada';  // contrato com erro: não gasta a chave de IA
+            } else {
+                modos.ia = 'rodou';
+                ia = { status: 'erro', mensagem: 'sem resposta', achados: [] };
+                try {
+                    const resp = await fetch('/api/validacao/ia', {
+                        method: 'POST', headers: cabecalhoIA(),
+                        body: JSON.stringify({
+                            cabos, outros, projeto_codigo: projetoCodigo || null,
+                            achados_previos: achados.map(a => ({ linha_id: a.linha_id, regra_id: a.regra_id, mensagem: a.mensagem }))
+                        })
+                    });
+                    ia = resp.ok ? await resp.json() : { status: 'erro', mensagem: await lerDetalhe(resp), achados: [] };
+                } catch (e) {
+                    ia = { status: 'erro', mensagem: e.message, achados: [] };
+                }
+            }
         }
-        return { achados: achados.concat(ia.achados || []), ia, falhou: null };
+        return { achados: achados.concat((ia && ia.achados) || []), ia, modos, falhou: null };
+    }
+
+    /** Frase que diz ao usuário o que realmente rodou. */
+    function descreverModos(modos) {
+        const partes = [];
+        if (modos.det) partes.push(modos.dominio ? 'Determinística (contrato + regras de domínio)' : 'Determinística (só contrato)');
+        else partes.push('Determinística desligada');
+        partes.push({ rodou: 'IA executada', pulada: 'IA não executada (erro de contrato)', desligada: 'IA desligada' }[modos.ia]);
+        return partes.join(' · ');
     }
 
     function textoDaLinha(achado) {
@@ -2011,10 +2063,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             document.getElementById('validacao-titulo').textContent = achados.length
                 ? 'Problemas encontrados nas planilhas' : 'Nenhum problema encontrado';
-            document.getElementById('validacao-resumo').textContent = achados.length
-                ? `${cont.erro} erro(s), ${cont.aviso} aviso(s), ${cont.info} informação(ões).` : 'As planilhas passaram nas verificações.';
+            document.getElementById('validacao-resumo').textContent = (achados.length
+                ? `${cont.erro} erro(s), ${cont.aviso} aviso(s), ${cont.info} informação(ões).` : 'As planilhas passaram nas verificações que rodaram.')
+                + (res.modos ? ` Rodou: ${descreverModos(res.modos)}.` : '');
 
             const avisos = [];
+            if (res.modos && res.modos.ia === 'pulada') avisos.push('A IA não foi executada porque o contrato das planilhas tem erro: corrija e valide de novo.');
             if (res.ia && res.ia.status !== 'ok') {
                 const rotulos = { sem_chave: 'Revisão por IA não executada: sem chave de IA.', desativado: 'Revisão por IA desativada.',
                     indisponivel: 'Revisão por IA indisponível.', parcial: 'Revisão por IA incompleta: parte das linhas falhou.', erro: 'Revisão por IA falhou.' };
@@ -2066,7 +2120,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 sim.onclick = () => fechar('continuar');
                 acoes.append(nao, sim);
             } else {
-                if (achados.some(achadoCorrigivel)) {
+                if (achados.some(achadoCorrigivel) && lerModos().ia) {
                     const corrigir = botaoPainel('Corrigir com IA', 'btn-secondary');
                     corrigir.onclick = () => fechar('corrigir');
                     acoes.appendChild(corrigir);
@@ -2082,13 +2136,14 @@ document.addEventListener('DOMContentLoaded', () => {
     /** Devolve true se o orçamento deve seguir. Só erro/aviso interrompem; info sozinho não pergunta. */
     async function validarAntesDeMontar() {
         const res = await executarValidacao();
+        if (res.nada) return true;  // nenhum modo ligado: segue sem validar
         if (res.falhou) {
             showToast('Validação indisponível; seguindo sem validar.');  // a validação é um auxílio: não trava o orçamento
             return true;
         }
         if (!res.achados.some(a => a.severidade === 'erro' || a.severidade === 'aviso')) return true;
         const escolha = await mostrarPainelValidacao(res, true);
-        if (escolha === 'corrigir') await fluxoCorrecao(res.achados);  // o orçamento fica parado; depois de corrigir, clique de novo
+        if (escolha === 'corrigir' && lerModos().ia) await fluxoCorrecao(res.achados);  // o orçamento fica parado; depois de corrigir, clique de novo
         return escolha === 'continuar';
     }
 
@@ -2100,6 +2155,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnValidar.textContent = 'Validando...';
             try {
                 const res = await executarValidacao();
+                if (res.nada) { showToast('Nada a validar: ligue Determinística ou IA.'); return; }
                 if (res.falhou) { showToast(res.falhou); return; }
                 if ((await mostrarPainelValidacao(res, false)) === 'corrigir') await fluxoCorrecao(res.achados);
             } finally {

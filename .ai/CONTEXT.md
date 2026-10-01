@@ -276,7 +276,7 @@ Três camadas, da mais barata à mais cara; catálogo completo em `.ai/VALIDACOE
    exige RA2). Valem para linhas `I`/`*I` e vêm **desligadas**: o admin liga uma a uma.
 3. **IA (prompts salvos, editáveis pelo admin):** revisão semântica e correção assistida. A IA só aponta e propõe;
    **nada é aplicado sem aceite do usuário** e toda proposta é reconferida pela camada 1.
-Na tela: botão **Validar**, opção **Validar ao montar** (local, padrão Não) e diálogo "continuar mesmo assim?" quando há
+Na tela: botão **Validar**, caixas de modo **Determinística / Regras / IA / Pular IA se houver erro de contrato** (locais, padrão ligadas), opção **Validar ao montar** (local, padrão Não) e diálogo "continuar mesmo assim?" quando há
 erro/aviso. A validação é um auxílio: falha da IA ou da própria validação não trava o orçamento.
 📍 `services/validacao_planilhas.py`, `regras_dominio.py`, `validacao_ia.py`, `correcao_ia.py`, `routers/validacao*.py`
 

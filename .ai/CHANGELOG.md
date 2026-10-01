@@ -8,6 +8,19 @@
 
 ---
 
+## 2026-10-01 — TASK-020: validação em modos independentes (determinística e IA)
+
+**Tipo:** comportamento do frontend · `.ai/tasks/TASK-020-01-10-2026.md`
+
+Barra do Resumo ganhou quatro caixas (preferência **local**, `localStorage` `validacao_modos`): **Determinística**
+(contrato + regras), **Regras** (liga/desliga a camada 2; o contrato fica sempre com a determinística), **IA** e **Pular IA se
+houver erro de contrato** (padrão ligado). Valem para o botão Validar e para "Validar ao montar". A IA roda **depois** da
+determinística; com IA desligada nenhuma chamada a `/api/validacao/ia` é feita; com tudo desligado o Validar avisa "nada a
+validar" e o orçamento segue. O painel diz o que rodou. "Corrigir com IA" só aparece com a IA ligada. Sem mudança de backend
+(usa `incluir_dominio`).
+
+---
+
 ## 2026-10-01 — TASK-021: desfazer/refazer sem desvio
 
 **Tipo:** correção de comportamento (frontend) · `.ai/tasks/TASK-021-01-10-2026.md`
