@@ -570,11 +570,15 @@
                 </div>
                 <div class="ai-chat-input-area">
                     <textarea id="chat-input" placeholder="Ex: Gere uma rede com 3 postes DT11/300 e um trafo de 75kVA..." rows="1"></textarea>
+                    <button id="btn-mic-chat" class="btn-secondary voz-btn" type="button" aria-pressed="false" title="Ditar por voz (o texto vai para o campo; você confere antes de enviar)">🎤</button>
+                    <button id="btn-voz-resposta" class="btn-secondary voz-btn" type="button" aria-pressed="false" title="Leitura das respostas em voz alta: desligada (clique para ligar)">🔇</button>
+                    <button id="btn-voz-parar" class="btn-secondary voz-btn hidden" type="button" title="Parar a leitura">⏹</button>
                     <button id="btn-send-chat" class="btn-primary" title="Enviar Mensagem (Enter)">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                     </button>
                 </div>
             </div>
+            <div id="voz-estado" class="voz-estado" aria-live="polite"></div>
             <!-- Action Bar -->
             <div style="padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px; background: var(--bg-card); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1448,6 +1452,7 @@
     <script src="/static/regras_leitor_engine.js"></script>
     <script src="/static/resumo.js?v=5.3"></script>
     <script src="/static/painel_regras.js"></script>
+    <script src="/static/voz.js"></script>
     <script>
         // Sincronização do número de obra com o localStorage
         (function() {

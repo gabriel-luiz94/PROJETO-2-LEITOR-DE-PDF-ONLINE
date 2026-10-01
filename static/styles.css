@@ -835,6 +835,18 @@ tr.row-deleted {
     border-color: #58a6ff;
 }
 
+/* Voz no chat (TASK-027) */
+.voz-btn { height: 38px; min-width: 38px; padding: 4px 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+.voz-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+#btn-mic-chat.gravando { color: #fff; background: #da3633; border-color: #da3633; animation: voz-pulso 1.2s infinite; }
+@keyframes voz-pulso { 50% { box-shadow: 0 0 0 4px rgba(218, 54, 51, 0.35); } }
+.voz-estado { min-height: 0; padding: 0 20px; font-size: 0.78rem; color: #8b949e; }
+.voz-estado:not(:empty) { padding-top: 6px; padding-bottom: 2px; }
+.voz-estado.ouvindo { color: #f85149; }
+.voz-estado.erro { color: #d29922; }
+.voz-ler { display: block; margin-top: 6px; background: transparent; border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-muted); font-size: 0.72rem; padding: 2px 8px; cursor: pointer; }
+.voz-ler:hover { color: var(--text-primary); }
+
 #btn-send-chat {
     padding: 8px 12px;
     height: 38px;

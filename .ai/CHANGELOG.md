@@ -8,6 +8,19 @@
 
 ---
 
+## 2026-10-01 — TASK-027: microfone no chat de IA do Resumo
+
+**Tipo:** frontend (Resumo) · `.ai/tasks/TASK-027-01-10-2026.md`
+
+Novo `static/voz.js`: botão 🎤 ao lado de enviar dita em pt-BR pelo reconhecimento de voz do **navegador** (Web Speech API); o
+texto aparece ao vivo no campo (anexado ao que já estava) e **nunca é enviado sozinho**; para por clique, Esc ou 4 s de silêncio;
+erros (permissão, sem microfone, sem rede, sem fala) com mensagem clara. **Leitura da resposta em voz alta** (`speechSynthesis`),
+**desligada por padrão** (🔇/🔊, `localStorage` `chat_voz_resposta`), com "🔊 Ouvir" por resposta e ⏹ para parar (não lê blocos de
+código nem tabelas). Sem suporte (ex.: janela de desktop): botão desabilitado com explicação; o chat digitado segue igual. Sem
+backend, sem custo, sem guardar áudio.
+
+---
+
 ## 2026-10-01 — TASK-026: controles de validação embutidos na gaveta lateral
 
 **Tipo:** frontend (Resumo) · `.ai/tasks/TASK-026-01-10-2026.md`
