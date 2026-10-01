@@ -8,6 +8,17 @@
 
 ---
 
+## 2026-10-01 — TASK-021: desfazer/refazer sem desvio
+
+**Tipo:** correção de comportamento (frontend) · `.ai/tasks/TASK-021-01-10-2026.md`
+
+`static/resumo.js`: `undo()` passa a gravar o estado ao vivo quando ele está à frente do ponteiro do histórico e
+`pushHistory()` ignora estado repetido (`historyDirty` controla o botão Desfazer). Funciona para os chamadores que
+empilham antes de mudar e para os que empilham depois. Duas edições seguidas agora exigem dois Ctrl+Z; a correção
+assistida deixou de precisar do "push duplo". Alterações em lote (ajustes das próximas tasks) serão um passo cada.
+
+---
+
 ## 2026-09-30 — TASK-018 + TASK-017: regras em camadas por projeto e editor visual
 
 **Tipo:** armazenamento/regra de negócio + frontend admin · `.ai/tasks/TASK-018-30-09-2026.md`, `TASK-017-30-09-2026.md`

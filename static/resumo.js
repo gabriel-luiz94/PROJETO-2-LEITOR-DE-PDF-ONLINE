@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_HISTORY = 80;
     let history = [];      // array de snapshots
     let historyIdx = -1;   // ponteiro atual
+    let historyDirty = false;  // pode haver mudança ainda não gravada no histórico (ver pushHistory)
 
     /* ─── Autocomplete state ─── */
     let acList = null;          // elemento DOM do dropdown ativo
@@ -125,6 +126,8 @@ document.addEventListener('DOMContentLoaded', () => {
     buildAtivoSets();
     recalcAllQtdAtivos();  // calcula qtdAtivos antes do primeiro render
     pushHistory();   // estado inicial
+    historyDirty = false;  // nada a desfazer ainda
+    updateHistoryUI();
 
     renderTable('cabos');
     renderTable('outros');
@@ -775,17 +778,39 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    /* Histórico (TASK-021). Os chamadores empilham ANTES de mudar (a maioria) ou DEPOIS (poucos); como o estado ao vivo
+       pode estar à frente do ponteiro, `historyDirty` marca "pode haver mudança não gravada" e o undo a grava antes
+       de voltar — assim cada ação é exatamente um passo, qualquer que seja o estilo do chamador. */
+    const mesmoEstado = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
     function pushHistory() {
-        // Descarta redo futuro
-        if (historyIdx < history.length - 1) history = history.slice(0, historyIdx + 1);
-        history.push(snapshotState());
-        if (history.length > MAX_HISTORY) history.shift();
-        historyIdx = history.length - 1;
+        const snap = snapshotState();
+        if (!(historyIdx >= 0 && mesmoEstado(history[historyIdx], snap))) {
+            // Descarta redo futuro
+            if (historyIdx < history.length - 1) history = history.slice(0, historyIdx + 1);
+            history.push(snap);
+            if (history.length > MAX_HISTORY) history.shift();
+            historyIdx = history.length - 1;
+        }
+        historyDirty = true;
         updateHistoryUI();
     }
 
+    /** Grava o estado ao vivo se ele estiver à frente do ponteiro (mudança feita depois do último push). */
+    function gravarEstadoAoVivo() {
+        const vivo = snapshotState();
+        if (historyIdx >= 0 && !mesmoEstado(history[historyIdx], vivo)) {
+            history = history.slice(0, historyIdx + 1);
+            history.push(vivo);
+            if (history.length > MAX_HISTORY) history.shift();
+            historyIdx = history.length - 1;
+        }
+        historyDirty = false;
+    }
+
     function undo() {
-        if (historyIdx <= 0) return;
+        gravarEstadoAoVivo();
+        if (historyIdx <= 0) { updateHistoryUI(); return; }
         historyIdx--;
         applyUndoRedoSnapshot(history[historyIdx]);
         showToast('Desfeito');
@@ -793,6 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function redo() {
         if (historyIdx >= history.length - 1) return;
+        historyDirty = false;
         historyIdx++;
         applyUndoRedoSnapshot(history[historyIdx]);
         showToast('Refeito');
@@ -814,7 +840,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnU = document.getElementById('btn-undo');
         const btnR = document.getElementById('btn-redo');
         const info = document.getElementById('history-info');
-        btnU.disabled = historyIdx <= 0;
+        btnU.disabled = historyIdx <= 0 && !historyDirty;
         btnR.disabled = historyIdx >= history.length - 1;
         const pos = historyIdx + 1, tot = history.length;
         info.textContent = tot > 1 ? `${pos}/${tot}` : '';
@@ -2107,11 +2133,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return alvo && (alvo.row.ativo || '').trim() === c.antes.trim();
         });
         if (validas.length) {
-            // Histórico: garante o estado ANTERIOR no topo e empilha também o NOVO, para um Ctrl+Z voltar exatamente ao
-            // que era antes do lote (e o Ctrl+Y reaplicar). Não basta o "pushHistory() antes de mudar" usado nas edições
-            // manuais: com o undo atual isso desfaz duas mudanças de uma vez (desvio já existente, ver STATE.md).
-            const estadoAtual = JSON.stringify(snapshotState());
-            if (historyIdx < 0 || JSON.stringify(history[historyIdx]) !== estadoAtual) pushHistory();
+            pushHistory();  // um único passo para o lote inteiro (Ctrl+Z desfaz tudo)
             const tabelas = new Set();
             validas.forEach(c => {
                 const { tabela, row } = localizarLinha(c.linha_id);
@@ -2124,7 +2146,6 @@ document.addEventListener('DOMContentLoaded', () => {
             buildAtivoSets();
             buildDataLists();
             atualizarResumoRedeUI();
-            pushHistory();  // estado NOVO
         }
         return { aplicadas: validas.length, ignoradas: aceitas.length - validas.length };
     }
