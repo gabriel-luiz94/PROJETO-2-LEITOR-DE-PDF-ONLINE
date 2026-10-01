@@ -171,6 +171,9 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       ~~TASK-022 (motor de ajustes)~~ ✔ → ~~TASK-023 (cadastro de ajustes)~~ ✔ → ~~TASK-024 (fluxo Validar+Ajustar)~~ ✔ → ~~TASK-025 (IA estruturada)~~ ✔.
 - [x] **TASK-026** (pedido de 2026-10-01; concluída): embutir na gaveta lateral os controles de modo e "Validar ao montar", deixando na
       barra só `Regras de validação`, `Validar` e `Ajustar ▾`. Em PLANEJAMENTO, com decisões a confirmar.
+- [ ] **TASK-027** (pedido de 2026-10-01): botão de microfone no chat de IA do Resumo (ditado por voz do navegador, conferir antes
+      de enviar; leitura da resposta em voz alta opcional e desligada). Em PLANEJAMENTO, com 3 confirmações pendentes; risco
+      principal: suporte à Web Speech API na janela desktop (pywebview).
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
