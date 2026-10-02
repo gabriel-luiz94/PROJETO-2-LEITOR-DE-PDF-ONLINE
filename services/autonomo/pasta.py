@@ -32,13 +32,25 @@ def _ignorado(nome: str) -> bool:
 
 
 def _mover(origem: str, pasta_destino: str) -> str:
+    """Move sem sobrescrever (sufixo de data se o nome já existe). PermissionError = arquivo EM USO (no Windows, outro programa com o arquivo
+    aberto): quem chama deixa o arquivo onde está e tenta de novo na próxima varredura."""
     os.makedirs(pasta_destino, exist_ok=True)
     nome = os.path.basename(origem)
     destino = os.path.join(pasta_destino, nome)
     if os.path.exists(destino):
         stem, ext = os.path.splitext(nome)
         destino = os.path.join(pasta_destino, f"{stem}-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}{ext}")
-    shutil.move(origem, destino)
+    try:
+        os.rename(origem, destino)                      # mesmo volume: atômico; falha com PermissionError se o arquivo está em uso
+    except PermissionError:
+        raise
+    except OSError:                                     # volumes diferentes: copia e depois apaga a origem
+        shutil.copy2(origem, destino)
+        try:
+            os.remove(origem)
+        except PermissionError:
+            os.remove(destino)                          # não deixa cópia órfã: o arquivo continua na entrada e será tentado de novo
+            raise
     return destino
 
 
@@ -63,6 +75,7 @@ class Vigia:
     def __init__(self, relogio=time.time):
         self._relogio = relogio
         self._vistos = {}                 # caminho -> (tamanho, mtime_ns, instante da 1ª observação)
+        self._adiados = {}                # caminho -> movimento pendente (arquivo em uso): {pasta, exec_id, erro, atualizar}
         self._parar = threading.Event()
         self._thread = None
         self._estado = {"ultima_varredura": None, "processando": None, "na_fila": 0, "processados": 0, "erros": 0, "ultimo_erro": None}
@@ -151,7 +164,8 @@ class Vigia:
         cfg = cfg or config_autonomo.carregar()
         p = config_autonomo.garantir_pastas(cfg)
         agora = self._relogio()
-        candidatos = self._candidatos(p["entrada"])
+        self._retomar_movimentos()
+        candidatos = [(c, proj) for c, proj in self._candidatos(p["entrada"]) if c not in self._adiados]
         existentes = {c for c, _ in candidatos}
         for k in [k for k in self._vistos if k not in existentes]:
             del self._vistos[k]
@@ -166,26 +180,56 @@ class Vigia:
         self._set(processando=None)
         return feitos
 
-    def _para_erros(self, caminho: str, projeto, motivo: str, p: dict, exec_id: str = None, cfg_user: str = None) -> dict:
-        destino = _mover(caminho, os.path.join(p["erros"], saida.nome_seguro(projeto, "sem_projeto")))
+    # ── movimentos (um arquivo em uso não pode ser movido: espera, sem erro e sem reprocessar) ──
+    def _concluir_movimento(self, m: dict, destino: str) -> None:
+        if m.get("erro"):
+            try:
+                with open(destino + ".erro.txt", "w", encoding="utf-8") as f:
+                    f.write(f"{datetime.now().isoformat(timespec='seconds')}\n{m['erro']}\n")
+            except OSError:
+                pass
+        if m.get("exec_id") and m.get("atualizar", True):
+            execucoes.atualizar(m["exec_id"], arquivo_caminho=destino)
+
+    def _mover_ou_adiar(self, caminho: str, pasta: str, exec_id: str = None, erro: str = None, atualizar: bool = True):
+        """Devolve o destino, ou None se o arquivo está em uso (fica na pasta e o movimento é repetido a cada varredura)."""
+        m = {"pasta": pasta, "exec_id": exec_id, "erro": erro, "atualizar": atualizar}
         try:
-            with open(destino + ".erro.txt", "w", encoding="utf-8") as f:
-                f.write(f"{datetime.now().isoformat(timespec='seconds')}\n{motivo}\n")
-        except OSError:
-            pass
+            destino = _mover(caminho, pasta)
+        except PermissionError:
+            self._adiados[caminho] = m
+            return None
+        self._concluir_movimento(m, destino)
+        return destino
+
+    def _retomar_movimentos(self) -> None:
+        for caminho, m in list(self._adiados.items()):
+            if not os.path.exists(caminho):
+                del self._adiados[caminho]
+                continue
+            try:
+                destino = _mover(caminho, m["pasta"])
+            except PermissionError:
+                continue                                  # ainda em uso
+            except OSError:
+                log.exception("Falha ao mover %s", caminho)
+                continue
+            del self._adiados[caminho]
+            self._concluir_movimento(m, destino)
+
+    def _para_erros(self, caminho: str, projeto, motivo: str, p: dict, exec_id: str = None, cfg_user: str = None) -> dict:
         if not exec_id:      # falha ANTES do pipeline (projeto inexistente, tipo inválido…): também aparece no histórico
             try:
                 try:
-                    h = pipeline.hash_arquivo(destino)
+                    h = pipeline.hash_arquivo(caminho)
                 except OSError:
                     h = ""
                 exec_id = execucoes.criar(os.path.basename(caminho), h, projeto or "", cfg_user or "", status="erro")
                 execucoes.atualizar(exec_id, mensagem=motivo, relatorio={"etapas": [], "erro": motivo})
-            except Exception:  # noqa: BLE001 — o histórico é complemento; o arquivo já está em erros/
+            except Exception:  # noqa: BLE001 — o histórico é complemento; o arquivo vai para erros/ do mesmo jeito
                 log.exception("Falha ao registrar o erro no histórico")
                 exec_id = None
-        if exec_id:
-            execucoes.atualizar(exec_id, arquivo_caminho=destino)
+        self._mover_ou_adiar(caminho, os.path.join(p["erros"], saida.nome_seguro(projeto, "sem_projeto")), exec_id=exec_id, erro=motivo)
         with self._estado_trava:
             self._estado["erros"] += 1
             self._estado["ultimo_erro"] = f"{os.path.basename(caminho)}: {motivo}"
@@ -207,12 +251,11 @@ class Vigia:
             with TRAVA:
                 ex = pipeline.processar_arquivo(caminho, projeto, cfg["user_id"], p["saida"])
             if ex.get("duplicado"):
-                _mover(caminho, os.path.join(p["processados"], saida.nome_seguro(projeto), "duplicados"))
+                self._mover_ou_adiar(caminho, os.path.join(p["processados"], saida.nome_seguro(projeto), "duplicados"), exec_id=ex["id"], atualizar=False)
                 return {"arquivo": nome, "projeto": projeto, "status": "duplicado", "execucao": ex["id"]}
             if ex["status"] == "erro":
                 return self._para_erros(caminho, projeto, ex["mensagem"] or "Erro ao processar.", p, ex["id"])
-            destino = _mover(caminho, os.path.join(p["processados"], saida.nome_seguro(projeto)))
-            execucoes.atualizar(ex["id"], arquivo_caminho=destino)
+            self._mover_ou_adiar(caminho, os.path.join(p["processados"], saida.nome_seguro(projeto)), exec_id=ex["id"])
             with self._estado_trava:
                 self._estado["processados"] += 1
             return {"arquivo": nome, "projeto": projeto, "status": ex["status"], "execucao": ex["id"]}

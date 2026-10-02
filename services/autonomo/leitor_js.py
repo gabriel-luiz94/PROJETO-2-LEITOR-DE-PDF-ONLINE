@@ -7,19 +7,22 @@ backtracking catastrófico (testado), então quem controla o tempo é o processo
 regra cadastrada travar. Assim uma regra ruim derruba só aquele arquivo, nunca o programa.
 
 `quickjs` só é importado dentro do trabalhador — quem nunca usa o modo autônomo não carrega a dependência.
-O trabalhador é um subprocesso (`python -m services.autonomo.trabalhador_js`, protocolo de linhas JSON) e não `multiprocessing`: o
-`spawn` reimportaria o módulo principal (`app.py`) dentro do filho. NOTA (executável PyInstaller): `sys.executable` é o próprio .exe,
-então ao ligar o modo autônomo no executável `app.py` precisa tratar o argumento `--trabalhador-leitor-js` chamando
-`services.autonomo.trabalhador_js.main()` e saindo, antes de abrir a janela (fases C/D; não feito aqui para não tocar no `app.py`).
+O trabalhador é um subprocesso (`python -m services.autonomo.trabalhador_js <porta> <token>`, linhas JSON num socket local) e não `multiprocessing`: o
+`spawn` reimportaria o módulo principal (`app.py`) dentro do filho. NOTA (executável PyInstaller): `sys.executable` é o próprio .exe;
+`app.py` trata o argumento `--trabalhador-leitor-js <porta> <token>` chamando `services.autonomo.trabalhador_js.main()` antes de abrir a janela.
+O canal é um SOCKET (e não stdin/stdout) porque no `.exe` `--windowed` o stdin/stdout do Python não existem.
 
 Itens de entrada = os da extração: {pagina, texto, cor, layer}. A "vizinhança" das regras enxerga a lista inteira, como na tela.
 """
 import json
 import os
 import queue
+import secrets
+import socket
 import subprocess
 import sys
 import threading
+import time
 
 import config
 
@@ -34,10 +37,10 @@ class ErroLeitorJS(RuntimeError):
 _RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-def _comando_trabalhador() -> list:
+def _comando_trabalhador(porta: int, token: str) -> list:
     if getattr(sys, "frozen", False):
-        return [sys.executable, "--trabalhador-leitor-js"]
-    return [sys.executable, "-m", "services.autonomo.trabalhador_js"]
+        return [sys.executable, "--trabalhador-leitor-js", str(porta), token]
+    return [sys.executable, "-m", "services.autonomo.trabalhador_js", str(porta), token]
 
 
 class LeitorJS:
@@ -47,21 +50,55 @@ class LeitorJS:
         self._trava = threading.Lock()
         self._proc = None
         self._fila = None
+        self._sock = None
+        self._escrita = None
         self._iniciar()
 
     def _iniciar(self):
-        self._proc = subprocess.Popen(_comando_trabalhador(), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                                      text=True, encoding="utf-8", cwd=_RAIZ, bufsize=1)
+        """Sobe o trabalhador e o conecta por um socket local (127.0.0.1, porta efêmera, com token): funciona também no .exe sem console."""
+        token = secrets.token_hex(16)
+        servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            servidor.bind(("127.0.0.1", 0))
+            servidor.listen(1)
+            servidor.settimeout(0.5)
+            porta = servidor.getsockname()[1]
+            flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)       # Windows: sem piscar uma janela de console
+            self._proc = subprocess.Popen(_comando_trabalhador(porta, token), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                          stderr=subprocess.DEVNULL, cwd=_RAIZ, creationflags=flags)
+            conexao, limite = None, time.time() + 30
+            while conexao is None:
+                try:
+                    conexao, _ = servidor.accept()
+                except socket.timeout:
+                    if self._proc.poll() is not None or time.time() > limite:     # o processo auxiliar morreu ou não conecta
+                        self.fechar()
+                        raise ErroLeitorJS("O motor do leitor não conectou (o processo auxiliar não iniciou; veja se a dependência 'quickjs' está instalada).")
+                except OSError:
+                    self.fechar()
+                    raise ErroLeitorJS("Falha ao aceitar a conexão do motor do leitor.")
+        finally:
+            servidor.close()
+        self._sock = conexao
+        self._sock.settimeout(None)
+        leitura = conexao.makefile("r", encoding="utf-8", newline="\n")
+        self._escrita = conexao.makefile("w", encoding="utf-8", newline="\n")
         fila = queue.Queue()
         self._fila = fila
 
-        def ler(saida):          # thread leitora: permite esperar a resposta com limite de tempo
+        def ler():               # thread leitora: permite esperar a resposta com limite de tempo
             try:
-                for linha in saida:
+                for linha in leitura:
                     fila.put(linha)
+            except (OSError, ValueError):
+                pass
             finally:
                 fila.put(None)   # EOF: o trabalhador morreu
-        threading.Thread(target=ler, args=(self._proc.stdout,), daemon=True).start()
+        threading.Thread(target=ler, daemon=True).start()
+        primeira = self._receber(LIMITE_SEGUNDOS)
+        if primeira.get("token") != token:
+            self.fechar()
+            raise ErroLeitorJS("Conexão do motor do leitor recusada (token inválido).")
         self._enviar({"fonte": self._fonte})
         resp = self._receber(LIMITE_SEGUNDOS)
         if not resp.get("ok"):
@@ -70,9 +107,9 @@ class LeitorJS:
 
     def _enviar(self, obj):
         try:
-            self._proc.stdin.write(json.dumps(obj, ensure_ascii=True) + "\n")
-            self._proc.stdin.flush()
-        except (BrokenPipeError, OSError, ValueError):
+            self._escrita.write(json.dumps(obj, ensure_ascii=True) + "\n")
+            self._escrita.flush()
+        except (BrokenPipeError, OSError, ValueError, AttributeError):
             self.fechar()
             raise ErroLeitorJS("O processo do motor do leitor terminou inesperadamente.")
 
@@ -89,17 +126,19 @@ class LeitorJS:
 
     def fechar(self):
         proc, self._proc = self._proc, None
+        sock, self._sock = self._sock, None
+        self._escrita = None
         if proc is not None:
             try:
                 proc.kill()
                 proc.wait(5)
             except Exception:  # noqa: BLE001
                 pass
-            for f in (proc.stdin, proc.stdout):
-                try:
-                    f.close()
-                except Exception:  # noqa: BLE001
-                    pass
+        if sock is not None:
+            try:
+                sock.close()
+            except OSError:
+                pass
 
     def _chamar(self, nome, carga):
         with self._trava:
