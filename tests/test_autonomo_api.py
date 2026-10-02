@@ -162,3 +162,18 @@ def test_app_inicia_a_vigia_se_estava_ligada(tmp_path, monkeypatch):
     ca.salvar({"pasta_base": str(tmp_path / "auto"), "user_id": "u1", "ligado": False})
     appmod._iniciar_modo_autonomo()
     assert not vig.ativo()
+
+
+def test_pagina_e_script_da_tela_de_controle(api):
+    r = api.get("/autonomo")
+    assert r.status_code == 200 and "Modo autônomo" in r.text and "/static/autonomo.js" in r.text
+    assert "no-cache" in r.headers.get("cache-control", "").lower() or "no-store" in r.headers.get("cache-control", "").lower()
+    js = api.get("/static/autonomo.js")
+    assert js.status_code == 200 and "application/javascript" in js.headers["content-type"] and "/api/autonomo/status" in js.text
+    assert "admin" in api.get("/admin").text and 'href="/autonomo"' in api.get("/admin").text
+
+
+def test_a_tela_nao_injeta_dados_do_servidor_como_html():
+    """Nomes de arquivo, mensagens e caminhos vêm de fora: a tela só usa textContent (nunca innerHTML/insertAdjacentHTML)."""
+    js = open("static/autonomo.js", encoding="utf-8").read()
+    assert "innerHTML" not in js and "insertAdjacentHTML" not in js and "outerHTML" not in js and "document.write" not in js

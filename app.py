@@ -102,6 +102,10 @@ async def serve_login_js():
 async def serve_admin_js():
     return _serve_js("admin.js")
 
+@app.get("/static/autonomo.js")
+async def serve_autonomo_js():
+    return _serve_js("autonomo.js")
+
 @app.get("/static/voz.js")
 async def serve_voz_js():
     return _serve_js("voz.js")
@@ -175,6 +179,14 @@ async def serve_manual():
     caminho = os.path.join(STATIC_DIR, "manual.html")
     if not os.path.exists(caminho):
         return HTMLResponse("manual.html não encontrado na pasta static")
+    with open(caminho, "r", encoding="utf-8") as f:
+        return HTMLResponse(f.read(), headers=NO_CACHE_HEADERS)
+
+@app.get("/autonomo")
+async def serve_autonomo():
+    caminho = os.path.join(STATIC_DIR, "autonomo.html")
+    if not os.path.exists(caminho):
+        return HTMLResponse("autonomo.html não encontrado na pasta static")
     with open(caminho, "r", encoding="utf-8") as f:
         return HTMLResponse(f.read(), headers=NO_CACHE_HEADERS)
 

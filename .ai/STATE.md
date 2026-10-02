@@ -179,7 +179,7 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [x] **TASK-029** (pedido de 2026-10-02): o botão `Ajustar` roda todos os ajustes habilitados e lista cada correção com **Executar correção**,
       com **Executar todas as correções** acima. CONCLUÍDA (preview-lote + modal de cartões).
 - [x] **TASK-030** (pedido de 2026-10-02): manual de uso para cadastrar regras de validação e ajustes. CONCLUÍDA (`data/manual_regras_e_ajustes.md`, `/manual`, `GET /api/manual`).
-- [~] **TASK-031** (pedido de 2026-10-02): modo autônomo (ler → processar → ajustar → orçamento → salvar em pasta e banco, sem IA). Em PLANEJAMENTO, decisões confirmadas; **Fases A, B e C concluídas** (leitor via QuickJS, montagem, aplicador de diff, Totalizadora, pipeline com confirmação de exclusões, pasta monitorada + API de controle admin); D (tela de controle) pendente; 4 fases (A leitor via QuickJS + montagem em Python, B pipeline, C pasta monitorada, D tela).
+- [x] **TASK-031** (pedido de 2026-10-02): modo autônomo (ler → processar → ajustar → orçamento → salvar em pasta e banco, sem IA). Em PLANEJAMENTO, decisões confirmadas; **Fases A, B, C e D concluídas** (leitor via QuickJS, montagem, aplicador de diff, Totalizadora, pipeline com confirmação de exclusões, pasta monitorada + API de controle admin); tela `/autonomo` entregue; falta verificar no .exe/Windows e com arquivos reais; 4 fases (A leitor via QuickJS + montagem em Python, B pipeline, C pasta monitorada, D tela).
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 

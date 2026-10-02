@@ -120,6 +120,9 @@ def test_projeto_inexistente_e_extensao_nao_suportada_vao_para_erros(amb):
     msgs = {x["arquivo"]: x["mensagem"] for x in r}
     assert "não está cadastrado" in msgs["a.dxf"] and "não suportado" in msgs["nota.txt"]
     assert os.path.exists(os.path.join(amb.p["erros"], "NAOEXISTE", "a.dxf"))
+    hist = {x["arquivo"]: x for x in execucoes.listar("erro")}          # as falhas antes do pipeline também aparecem no histórico
+    assert set(hist) == {"a.dxf", "nota.txt"} and "não está cadastrado" in hist["a.dxf"]["mensagem"]
+    assert hist["a.dxf"]["arquivo_caminho"] == os.path.join(amb.p["erros"], "NAOEXISTE", "a.dxf") and hist["a.dxf"]["projeto_codigo"] == "NAOEXISTE"
     assert os.path.exists(os.path.join(amb.p["erros"], "P1", "nota.txt"))
 
 
@@ -309,3 +312,19 @@ def test_a_vigia_respeita_o_intervalo(amb, monkeypatch):
     time.sleep(2.6)
     amb.vigia.parar()
     assert 2 <= len(chamadas) <= 4          # intervalo_s = 1 (e não uma varredura sem pausa)
+
+
+def test_varreduras_simultaneas_nao_processam_o_mesmo_arquivo_duas_vezes(amb):
+    """A thread da vigia e `POST /varrer` podem coincidir: uma varredura por vez, cada arquivo tratado uma única vez."""
+    for i in range(3):
+        dxf(os.path.join(amb.p["entrada"], "P1", f"s{i}.dxf"), [f"{i + 1}-U4"])
+    amb.vigia.varrer(amb.cfg)                      # observa
+    resultados = []
+    ts = [threading.Thread(target=lambda: resultados.append(amb.vigia.varrer(amb.cfg))) for _ in range(4)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    todos = [x for r in resultados for x in r]
+    assert sorted(x["arquivo"] for x in todos) == ["s0.dxf", "s1.dxf", "s2.dxf"] and all(x["status"] != "erro" for x in todos)
+    assert len(execucoes.listar()) == 3

@@ -8,6 +8,16 @@
 
 ---
 
+## 2026-10-02 — TASK-031 fase D: tela de controle do modo autônomo (`/autonomo`)
+
+**Tipo:** Frontend + correções no backend do modo autônomo · `.ai/tasks/TASK-031-02-10-2026.md`
+
+Página `/autonomo` (só admin; link no Painel Admin): estado, ligar/desligar, varrer agora, **confirmação de exclusões (Sim / Não / Sim para todos / Não para todas)**, histórico com
+detalhes, reverter e reprocessar, e configuração (dono das obras, pastas, intervalo, espera). Sem biblioteca externa; só `textContent`. Correções achadas no teste real: varreduras
+simultâneas (agora serializadas) e falhas pré-pipeline passam a aparecer no histórico. O modo continua **desligado por padrão**.
+
+---
+
 ## 2026-10-02 — TASK-031 fase C: pasta monitorada, fila e API de controle do modo autônomo
 
 **Tipo:** Backend + `app.py` · `.ai/tasks/TASK-031-02-10-2026.md`

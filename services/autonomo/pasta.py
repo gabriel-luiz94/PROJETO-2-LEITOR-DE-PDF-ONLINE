@@ -67,6 +67,7 @@ class Vigia:
         self._thread = None
         self._estado = {"ultima_varredura": None, "processando": None, "na_fila": 0, "processados": 0, "erros": 0, "ultimo_erro": None}
         self._estado_trava = threading.Lock()
+        self._varredura = threading.RLock()   # uma varredura por vez (a thread da vigia e `POST /varrer` não se atropelam)
 
     # ── estado ──────────────────────────────────────────────────────────────
     def _set(self, **kw):
@@ -143,6 +144,10 @@ class Vigia:
 
     def varrer(self, cfg: dict = None) -> list:
         """Uma passada: processa os arquivos prontos (um por vez). Devolve [{arquivo, projeto, status, execucao}]."""
+        with self._varredura:
+            return self._varrer(cfg)
+
+    def _varrer(self, cfg: dict = None) -> list:
         cfg = cfg or config_autonomo.carregar()
         p = config_autonomo.garantir_pastas(cfg)
         agora = self._relogio()
@@ -161,13 +166,24 @@ class Vigia:
         self._set(processando=None)
         return feitos
 
-    def _para_erros(self, caminho: str, projeto, motivo: str, p: dict, exec_id: str = None) -> dict:
+    def _para_erros(self, caminho: str, projeto, motivo: str, p: dict, exec_id: str = None, cfg_user: str = None) -> dict:
         destino = _mover(caminho, os.path.join(p["erros"], saida.nome_seguro(projeto, "sem_projeto")))
         try:
             with open(destino + ".erro.txt", "w", encoding="utf-8") as f:
                 f.write(f"{datetime.now().isoformat(timespec='seconds')}\n{motivo}\n")
         except OSError:
             pass
+        if not exec_id:      # falha ANTES do pipeline (projeto inexistente, tipo inválido…): também aparece no histórico
+            try:
+                try:
+                    h = pipeline.hash_arquivo(destino)
+                except OSError:
+                    h = ""
+                exec_id = execucoes.criar(os.path.basename(caminho), h, projeto or "", cfg_user or "", status="erro")
+                execucoes.atualizar(exec_id, mensagem=motivo, relatorio={"etapas": [], "erro": motivo})
+            except Exception:  # noqa: BLE001 — o histórico é complemento; o arquivo já está em erros/
+                log.exception("Falha ao registrar o erro no histórico")
+                exec_id = None
         if exec_id:
             execucoes.atualizar(exec_id, arquivo_caminho=destino)
         with self._estado_trava:
@@ -179,11 +195,11 @@ class Vigia:
         nome = os.path.basename(caminho)
         try:
             if projeto is None:
-                return self._para_erros(caminho, None, "Arquivo solto na pasta de entrada: coloque-o em uma subpasta com o código do projeto.", p)
+                return self._para_erros(caminho, None, "Arquivo solto na pasta de entrada: coloque-o em uma subpasta com o código do projeto.", p, cfg_user=cfg.get("user_id"))
             if not nome.lower().endswith(pipeline.EXTENSOES):
-                return self._para_erros(caminho, projeto, f"Tipo de arquivo não suportado (use {', '.join(pipeline.EXTENSOES)}).", p)
+                return self._para_erros(caminho, projeto, f"Tipo de arquivo não suportado (use {', '.join(pipeline.EXTENSOES)}).", p, cfg_user=cfg.get("user_id"))
             if not _projeto_existe(projeto):
-                return self._para_erros(caminho, projeto, f"Projeto '{projeto}' não está cadastrado (a subpasta deve ter o código do projeto).", p)
+                return self._para_erros(caminho, projeto, f"Projeto '{projeto}' não está cadastrado (a subpasta deve ter o código do projeto).", p, cfg_user=cfg.get("user_id"))
             if not cfg.get("user_id"):
                 return {"arquivo": nome, "projeto": projeto, "status": "parado", "execucao": None,
                         "mensagem": "Escolha o usuário dono das obras na configuração do modo autônomo."}   # fica na pasta; não é erro do arquivo
@@ -203,7 +219,7 @@ class Vigia:
         except Exception as e:  # noqa: BLE001 — nada derruba a fila
             log.exception("Falha ao tratar %s", nome)
             try:
-                return self._para_erros(caminho, projeto, f"Erro inesperado: {type(e).__name__}", p)
+                return self._para_erros(caminho, projeto, f"Erro inesperado: {type(e).__name__}", p, cfg_user=cfg.get("user_id"))
             except Exception:  # noqa: BLE001
                 return {"arquivo": nome, "projeto": projeto, "status": "erro", "execucao": None, "mensagem": "Falha ao mover o arquivo."}
 
