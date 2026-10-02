@@ -1,17 +1,23 @@
 """tests/test_rota_validacao.py — POST /api/validacao/planilhas."""
+import pytest
 from fastapi.testclient import TestClient
 
 import app as appmod
+import database
 from middleware.auth_middleware import create_jwt_token
 
-client = TestClient(appmod.app)
+
+@pytest.fixture
+def client():
+    database.init_db()          # o banco de cada teste é temporário (tests/conftest.py): cria as tabelas aqui
+    return TestClient(appmod.app)
 
 
-def test_exige_autenticacao():
+def test_exige_autenticacao(client):
     assert client.post("/api/validacao/planilhas", json={}).status_code == 401
 
 
-def test_devolve_achados_e_resumo():
+def test_devolve_achados_e_resumo(client):
     token = create_jwt_token("u1", "a@b.com", "operador")
     resp = client.post(
         "/api/validacao/planilhas",

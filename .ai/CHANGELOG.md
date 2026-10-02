@@ -8,6 +8,16 @@
 
 ---
 
+## 2026-10-02 — INCIDENTE: testes rodaram contra o Supabase real (corrigido) — `docs/INCIDENTE_TESTES_NA_NUVEM_2026-10-02.md`
+
+**Tipo:** Testes / segurança de dados
+
+Ao rodar `pytest` no PC do usuário (com `.env` do Supabase), os testes usaram a nuvem REAL e gravaram regras/ajustes/prompts/obras de teste (DEFAULT, 229, 027; usuários `@x.com`, `u1`, `u2`).
+Causa: os testes assumiam "sem credenciais" (Linux de desenvolvimento) e nada garantia isso. Correção: `tests/conftest.py` zera `SUPABASE_*`/chaves de IA, usa banco temporário por teste e recusa rodar
+(`pytest.exit`) se houver cliente Supabase; `tests/test_isolamento.py` confere. Roteiro de verificação/recuperação (via histórico) no documento do incidente. **Regra nova: teste nunca toca a nuvem; precisa de nuvem → cliente falso.**
+
+---
+
 ## 2026-10-02 — TASK-031: preparação para o Windows (trabalhador por socket, arquivo em uso, roteiro de testes)
 
 **Tipo:** Backend + scripts + docs · `.ai/tasks/TASK-031-02-10-2026.md`
