@@ -1,7 +1,7 @@
 """
 services/autonomo/pipeline.py — Pipeline autônomo SEM TELA e SEM IA (TASK-031, fase B).
 
-ler → processar (leitor) → montar tabelas → validar → ajustar → [confirmação de exclusões] → Totalizadora → orçamento → obra + pasta.
+ler → processar (leitor) → montar tabelas → ramais → validar → ajustar → [confirmação de exclusões] → Totalizadora → orçamento → obra + pasta.
 
 Decisões do usuário (TASK-031): ajustes que NÃO excluem são aplicados sozinhos; os que EXCLUEM linhas ou itens (`excluir_linhas`,
 `remover_ativo`) deixam o arquivo "aguardando_confirmacao" — nada é excluído nem orçado até alguém responder (`confirmar`, "Sim" ou
@@ -21,6 +21,7 @@ from services.autonomo import execucoes, saida
 from services.autonomo.aplicar import aplicar_operacoes
 from services.autonomo.leitor_js import obter_leitor
 from services.autonomo.montagem import montar_tabelas
+from services.autonomo.ramais import linhas_ramais
 from services.autonomo.totalizadora import REGRA_PADRAO, montar_totalizadora, normalizar_para_json, payload_calculo
 from services.orcamento_calc import processar_calculo
 from services.regras_dominio import avaliar
@@ -197,6 +198,10 @@ def processar_arquivo(caminho: str, projeto_codigo: str, user_id: str, pasta_sai
         with etapas("montar") as e:
             tabelas = montar_tabelas(itens, ctx.regras_proc, ctx.regras_cls, leitor)
             e["detalhe"] = {k: len(v) for k, v in tabelas.items()}
+        with etapas("ramais") as e:      # decisão do usuário: os ramais ENTRAM no orçamento autônomo (como o botão "Adicionar" do modal RAMAIS)
+            novas = linhas_ramais([r["texto"] for r in tabelas.get("ramais", [])])
+            tabelas["outros"] = tabelas["outros"] + novas
+            e["detalhe"] = {"itens_ramais": len(tabelas.get("ramais", [])), "linhas_geradas": len(novas)}
         with etapas("validar_antes") as e:
             antes = _validar(ctx, tabelas["cabos"], tabelas["outros"])
             e["detalhe"] = resumir(antes)

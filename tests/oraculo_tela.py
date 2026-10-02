@@ -33,6 +33,8 @@ def _trechos():
         "aplicar": _fatia(t, "    const PREFIXO_TABELA = {", "    /** Mostra o diff e deixa escolher"),
         "sync_totalizadora": _fatia(t, "window.syncTotalizadora = async function(forceUpdate = true) {", "    showToast(\"Tabela Totalizadora atualizada!\");\n};") + "\n    showToast(\"x\");\n};",
         "payload": _fatia(t, "    async function obterPayloadCalculo() {", "    /* ═══════════════════════════════════════\n       VALIDAÇÃO DAS PLANILHAS"),
+        "ramais_calculo": _fatia(t, "window.recalcularAtivosRamais = function() {", "window.adicionarAtivosRamais = function() {"),
+        "ramais_adicionar": _fatia(t, "window.adicionarAtivosRamais = function() {", "window.copyRamaisTable"),
         "separacao": _fatia(t, "    const allProcessed = extractedDataCache.map(", "    buildAtivoSets();"),
     }
 
@@ -135,3 +137,20 @@ tableStates.cabos.data = entrada.cabos; tableStates.outros.data = entrada.outros
 })();
 """
     return _rodar(corpo, {"cabos": cabos, "outros": outros, "regras": regras, "base": base, "projeto": projeto_nome})
+
+
+def ramais_para_outros(textos, outros):
+    """recalcularAtivosRamais + adicionarAtivosRamais do JS real (DOM trocado por objetos mínimos). Devolve a tabela Outros resultante."""
+    tr = _trechos()
+    corpo = tr["funcoes"] + "\n" + """
+const celulas = entrada.textos.map(t => ({ querySelectorAll: () => [{}, { textContent: t }, {}] }));
+const document = { querySelector: () => null, querySelectorAll: () => celulas, getElementById: () => null };
+const confirm = () => true, alert = () => {};
+const pushHistory = () => {}, renderTable = () => {}, updateCounters = () => {}, updateHistoryUI = () => {}, buildAtivoSets = () => {}, buildDataLists = () => {};
+tableStates.outros.data = entrada.outros;
+""" + tr["ramais_calculo"] + "\n" + tr["ramais_adicionar"] + """
+window.recalcularAtivosRamais();
+window.adicionarAtivosRamais();
+console.log(JSON.stringify(tableStates.outros.data));
+"""
+    return _rodar(corpo, {"textos": textos, "outros": outros})

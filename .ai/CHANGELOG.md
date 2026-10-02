@@ -16,7 +16,7 @@
 `pipeline.py` (ler → montar → validar → ajustar → confirmação de exclusões → Totalizadora → orçamento → obra + pasta), `execucoes.py` (tabela local
 `execucoes_autonomas`, criada sob demanda; sem Supabase) e `saida.py` (JSON + CSV). Exclusões (`excluir_linhas`, `remover_ativo`) deixam o arquivo
 "aguardando_confirmacao"; `confirmar` (Sim / Sim para todos), `rejeitar`, `reverter`. O leitor roda em subprocesso (`trabalhador_js.py`).
-**Alterar `aplicarOperacoesAjuste`, `syncTotalizadora`, `obterPayloadCalculo` ou a montagem em `resumo.js` exige rodar `tests/test_autonomo_*.py`** (o oráculo fatia o código real).
+`ramais.py` gera os ativos dos RAMAIS (decisão: entram no orçamento autônomo; etapa `ramais` do pipeline). **Alterar `aplicarOperacoesAjuste`, o modal RAMAIS, `syncTotalizadora`, `obterPayloadCalculo` ou a montagem em `resumo.js` exige rodar `tests/test_autonomo_*.py`** (o oráculo fatia o código real).
 
 ---
 

@@ -87,7 +87,7 @@ def test_pipeline_completo_sem_exclusao_gera_obra_orcamento_e_pasta(ambiente, le
     pasta = ex["pasta_saida"]
     assert {"cabos.csv", "outros.csv", "tabelas.json", "orcamento.json", "orcamento.csv", "relatorio.json", "pendencias.json"} <= set(os.listdir(pasta))
     rel = json.load(open(os.path.join(pasta, "relatorio.json"), encoding="utf-8"))
-    assert [e["etapa"] for e in rel["etapas"]] == ["ler", "montar", "validar_antes", "ajustar", "aplicar", "validar_depois", "totalizadora", "orcamento", "salvar"]
+    assert [e["etapa"] for e in rel["etapas"]] == ["ler", "montar", "ramais", "validar_antes", "ajustar", "aplicar", "validar_depois", "totalizadora", "orcamento", "salvar"]
     assert rel["status"] == "ok" and rel["ajustes"]["aplicados"]
     orc = json.load(open(os.path.join(pasta, "orcamento.json"), encoding="utf-8"))
     assert {l["codigo"] for l in orc["resultado"]} >= {"C-U4", "C-CFU"}
@@ -283,3 +283,19 @@ def test_ajuste_descartado_pela_camada_1_marca_com_pendencias(ambiente, leitor):
     assert ex["status"] == "com_pendencias" and ex["relatorio"]["ajustes"]["descartados"]
     snap = json.loads(_obra(ex["obra_id"])["dados_json"])
     assert ativos(snap["outros"]["data"]) == ["1-U4"]     # a linha ficou como estava
+
+
+def test_ramais_entram_no_orcamento_autonomo(ambiente, leitor):
+    base = BASE + [_linha_base("MAC", "C-MAC"), _linha_base("MAA", "C-MAA")]
+    arq = dxf(ambiente / "ramais.dxf", ["1-U4", "TROCAR 3 RS M AC"])
+    ctx = contexto(leitor)
+    ctx.base_orcamento = base
+    ex = pl.processar_arquivo(arq, "P1", "u1", str(ambiente / "saida"), ctx=ctx)
+    assert ex["status"] == "ok", ex["mensagem"]
+    etapa = next(e for e in ex["relatorio"]["etapas"] if e["etapa"] == "ramais")
+    assert etapa["detalhe"] == {"itens_ramais": 1, "linhas_geradas": 2}
+    snap = json.loads(_obra(ex["obra_id"])["dados_json"])
+    geradas = [r for r in snap["outros"]["data"] if r.get("texto") == "RAMAIS (GERADO)"]
+    assert [(r["operacao"], r["ativo"]) for r in geradas] == [("I", "60-MAC"), ("R", "45-MAC")]
+    codigos = {(l["codigo"], l["operacao"]) for l in json.load(open(os.path.join(ex["pasta_saida"], "orcamento.json"), encoding="utf-8"))["resultado"]}
+    assert ("C-MAC", "I") in codigos and ("C-MAC", "R") in codigos
