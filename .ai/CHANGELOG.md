@@ -8,6 +8,18 @@
 
 ---
 
+## 2026-10-02 — TASK-031 fase A: leitor via QuickJS e montagem em Python (modo autônomo)
+
+**Tipo:** Backend (código novo, não carregado pelo app por padrão) · `.ai/tasks/TASK-031-02-10-2026.md`
+
+`services/autonomo/leitor_js.py` executa o **mesmo** `static/regras_leitor_engine.js` num QuickJS em **processo separado** (a regex catastrófica
+não é interrompida pelo limite de tempo do QuickJS; o processo principal mata e recria o trabalhador). `services/autonomo/montagem.py` porta a
+montagem de Cabos/Outros/Ramais e o cálculo de quantidades de `resumo.js`. Paridade provada contra o JS real (Node) em `tests/test_autonomo_*.py`.
+**Mudar `regras_leitor_engine.js` ou as funções de montagem em `resumo.js` exige rodar esses testes** (marcadores fatiados em `tests/oraculo_tela.py`).
+Dependência nova: `quickjs`. Nenhuma mudança no modo manual.
+
+---
+
 ## 2026-10-02 — TASK-030: manual de uso de regras e ajustes
 
 **Tipo:** Documentação do usuário (backend leve + frontend) · `.ai/tasks/TASK-030-02-10-2026.md`
