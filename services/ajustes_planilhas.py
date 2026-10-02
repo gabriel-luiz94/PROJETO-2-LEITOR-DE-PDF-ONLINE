@@ -196,13 +196,13 @@ def _validar_acao(a, pre, erros, grupos):
         _validar_sel(a.get("ativo"), f"{pre}.ativo", erros, grupos)
 
 
-def validar_acoes(acoes, grupos=None) -> list:
-    """Lista de erros (vazia = válido). `grupos` = grupos efetivos (para @GRUPO)."""
+def validar_acoes(acoes, grupos=None, limite=LIMITE_ACOES) -> list:
+    """Lista de erros (vazia = válido). `grupos` = grupos efetivos (para @GRUPO). `limite` = máximo de ações (50 nas rotas; o modo autônomo usa mais)."""
     if not isinstance(acoes, list):
         return ["O payload de ações precisa ser uma lista."]
     erros = validar_grupos(grupos) if grupos else []
-    if len(acoes) > LIMITE_ACOES:
-        erros.append(f"Ações demais (máx. {LIMITE_ACOES}).")
+    if len(acoes) > limite:
+        erros.append(f"Ações demais (máx. {limite}).")
     for i, a in enumerate(acoes):
         _validar_acao(a, f"Ação #{i + 1}", erros, grupos or {})
     return erros
@@ -573,9 +573,9 @@ def _diff(tabela, originais, finais, tocadas):
     return ops
 
 
-def ajustar(acoes: list, cabos: list, outros: list, grupos: dict = None) -> dict:
+def ajustar(acoes: list, cabos: list, outros: list, grupos: dict = None, limite_acoes: int = LIMITE_ACOES) -> dict:
     """Aplica as ações em ordem (cada uma vê o resultado da anterior) e devolve o diff. Não altera os argumentos."""
-    erros = validar_acoes(acoes, grupos)
+    erros = validar_acoes(acoes, grupos, limite_acoes)
     if erros:
         raise ValueError(erros)
     if len(cabos or []) > LIMITE_LINHAS or len(outros or []) > LIMITE_LINHAS:

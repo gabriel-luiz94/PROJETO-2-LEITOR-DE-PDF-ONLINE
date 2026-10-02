@@ -269,11 +269,22 @@ def test_sem_ajustes_habilitados_o_pipeline_so_monta_e_orca(ambiente, leitor):
     assert ex["status"] == "ok" and ex["decisoes"]["pendentes"] == [] and ex["relatorio"]["ajustes"]["aplicados"] == []
 
 
+def _receitas_com(n_acoes_por_receita, n_receitas):
+    return [{"id": f"AJ{i}", "nome": "x", "ativa": True, "regras": [], "acoes": [{"acao": "normalizar", "tabela": "outros", "regras": ["espacos"]}] * n_acoes_por_receita}
+            for i in range(n_receitas)]
+
+
+def test_projeto_real_com_mais_de_50_acoes_habilitadas_funciona(ambiente, leitor):
+    """Caso real (projeto 027): os ajustes habilitados somavam 53 ações e o limite de 50 das rotas barrava o arquivo inteiro."""
+    ex, _ = rodar(ambiente, leitor, ["1-U4 1-SUP-L"], _receitas_com(10, 6) + [RECEITA_SUBST])
+    assert ex["status"] in ("ok", "com_pendencias"), ex["mensagem"]
+    etapa = next(e for e in ex["relatorio"]["etapas"] if e["etapa"] == "ajustar")
+    assert etapa["status"] == "ok" and not any("SUP-L" in r["ativo"] for r in json.loads(_obra(ex["obra_id"])["dados_json"])["outros"]["data"])
+
+
 def test_ajustes_demais_na_cadeia_viram_erro_claro(ambiente, leitor):
-    muitos = [{"id": f"AJ{i}", "nome": "x", "ativa": True, "regras": [], "acoes": [{"acao": "normalizar", "tabela": "outros", "regras": ["espacos"]}] * 10}
-              for i in range(6)]
-    ex, _ = rodar(ambiente, leitor, ["1-U4"], muitos)
-    assert ex["status"] == "erro" and "máx. 50" in ex["mensagem"]
+    ex, _ = rodar(ambiente, leitor, ["1-U4"], _receitas_com(10, 31))      # 310 ações > 300
+    assert ex["status"] == "erro" and "máx. 300" in ex["mensagem"]
 
 
 def test_ajuste_descartado_pela_camada_1_marca_com_pendencias(ambiente, leitor):

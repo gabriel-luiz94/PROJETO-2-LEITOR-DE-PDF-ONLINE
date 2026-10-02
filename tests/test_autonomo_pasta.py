@@ -118,7 +118,7 @@ def test_projeto_inexistente_e_extensao_nao_suportada_vao_para_erros(amb):
         f.write("x")
     r = varrer2(amb)
     msgs = {x["arquivo"]: x["mensagem"] for x in r}
-    assert "não está cadastrado" in msgs["a.dxf"] and "não suportado" in msgs["nota.txt"]
+    assert "não está cadastrado" in msgs["a.dxf"] and "não suportado: '.txt'" in msgs["nota.txt"]
     assert os.path.exists(os.path.join(amb.p["erros"], "NAOEXISTE", "a.dxf"))
     hist = {x["arquivo"]: x for x in execucoes.listar("erro")}          # as falhas antes do pipeline também aparecem no histórico
     assert set(hist) == {"a.dxf", "nota.txt"} and "não está cadastrado" in hist["a.dxf"]["mensagem"]
