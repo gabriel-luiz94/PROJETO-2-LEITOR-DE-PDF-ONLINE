@@ -207,6 +207,8 @@ Alterações relevantes também entram em `.ai/CHANGELOG.md`.
 - Ao mexer em autenticação, lembre que o middleware protege `/api/*` por padrão: adicionar uma rota
   a `PUBLIC_ROUTES` ou `PUBLIC_PREFIXES` é uma **decisão de segurança**, não um detalhe — justifique.
 - Não registre `senha_hash`, tokens ou conteúdo de `dados_json` em log.
+- **Testes nunca tocam a nuvem nem as chaves reais.** `tests/conftest.py` zera `SUPABASE_*` e as chaves de IA, usa banco temporário e recusa rodar se houver cliente Supabase
+  (incidente de 2026-10-02: `docs/INCIDENTE_TESTES_NA_NUVEM_2026-10-02.md`). Teste que precise de nuvem usa um cliente FALSO (monkeypatch); não remova nem contorne o `conftest.py`.
 
 ---
 
