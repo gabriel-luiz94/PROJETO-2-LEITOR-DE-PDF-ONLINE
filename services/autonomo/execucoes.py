@@ -1,0 +1,107 @@
+"""
+services/autonomo/execucoes.py — Histórico das execuções do modo autônomo (TASK-031, fase B).
+
+Tabela LOCAL `execucoes_autonomas` (SQLite), criada sob demanda aqui — `database.init_db` não foi alterado. É um registro operacional
+da máquina que roda o autônomo; não é sincronizada com o Supabase (as OBRAS geradas continuam indo para o Supabase como as manuais).
+Cada linha guarda o necessário para CONFIRMAR exclusões, REVERTER e REPROCESSAR: as tabelas originais (antes dos ajustes) e o diff.
+"""
+import json
+import uuid
+from datetime import datetime
+
+import database
+
+STATUS = ("processando", "aguardando_confirmacao", "ok", "com_pendencias", "erro", "revertida")
+_JSON = ("relatorio", "originais", "diff", "decisoes")
+
+
+def _agora():
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def garantir_tabela(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS execucoes_autonomas (
+            id TEXT PRIMARY KEY, arquivo TEXT, arquivo_hash TEXT, projeto_codigo TEXT, user_id TEXT, status TEXT,
+            obra_id TEXT, pasta_saida TEXT, mensagem TEXT, relatorio_json TEXT, originais_json TEXT, diff_json TEXT,
+            decisoes_json TEXT, criado_em TEXT, atualizado_em TEXT)""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_exec_aut_hash ON execucoes_autonomas (arquivo_hash, projeto_codigo)")
+
+
+def _conectar():
+    conn = database.get_row_connection()
+    garantir_tabela(conn)
+    return conn
+
+
+def _linha(r) -> dict:
+    d = dict(r)
+    for k in _JSON:
+        bruto = d.pop(f"{k}_json", None)
+        d[k] = json.loads(bruto) if bruto else None
+    return d
+
+
+def criar(arquivo: str, arquivo_hash: str, projeto_codigo: str, user_id: str, status: str = "processando") -> str:
+    exec_id = uuid.uuid4().hex[:12]
+    conn = _conectar()
+    try:
+        conn.execute("INSERT INTO execucoes_autonomas (id, arquivo, arquivo_hash, projeto_codigo, user_id, status, criado_em, atualizado_em) "
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (exec_id, arquivo, arquivo_hash, projeto_codigo, user_id, status, _agora(), _agora()))
+        conn.commit()
+    finally:
+        conn.close()
+    return exec_id
+
+
+def atualizar(exec_id: str, **campos) -> None:
+    sets, valores = [], []
+    for k, v in campos.items():
+        if k in _JSON:
+            k, v = f"{k}_json", json.dumps(v, ensure_ascii=False)
+        sets.append(f"{k} = ?")
+        valores.append(v)
+    sets.append("atualizado_em = ?")
+    valores.append(_agora())
+    conn = _conectar()
+    try:
+        conn.execute(f"UPDATE execucoes_autonomas SET {', '.join(sets)} WHERE id = ?", (*valores, exec_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def buscar(exec_id: str):
+    conn = _conectar()
+    try:
+        r = conn.execute("SELECT * FROM execucoes_autonomas WHERE id = ?", (exec_id,)).fetchone()
+    finally:
+        conn.close()
+    return _linha(r) if r else None
+
+
+def buscar_por_hash(arquivo_hash: str, projeto_codigo: str):
+    """A execução mais recente (não-erro) do mesmo conteúdo no mesmo projeto — para não processar duas vezes."""
+    conn = _conectar()
+    try:
+        r = conn.execute("SELECT * FROM execucoes_autonomas WHERE arquivo_hash = ? AND projeto_codigo = ? AND status NOT IN ('erro', 'revertida') "
+                         "ORDER BY criado_em DESC LIMIT 1", (arquivo_hash, projeto_codigo)).fetchone()
+    finally:
+        conn.close()
+    return _linha(r) if r else None
+
+
+def listar(status: str = None, limite: int = 100) -> list:
+    """Resumo das execuções (sem os JSONs grandes), mais recentes primeiro."""
+    conn = _conectar()
+    try:
+        sql = ("SELECT id, arquivo, projeto_codigo, user_id, status, obra_id, pasta_saida, mensagem, criado_em, atualizado_em "
+               "FROM execucoes_autonomas")
+        args = ()
+        if status:
+            sql += " WHERE status = ?"
+            args = (status,)
+        rows = conn.execute(sql + " ORDER BY criado_em DESC, rowid DESC LIMIT ?", (*args, limite)).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]

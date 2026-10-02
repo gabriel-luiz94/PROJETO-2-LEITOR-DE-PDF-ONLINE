@@ -29,6 +29,10 @@ def _trechos():
         "funcoes": _fatia(t, "    function deepClone(obj) {\n        const c = {", "    /**\n     * Recalcula qtdAtivos apenas"),
         "computeRowLogic": _fatia(t, "    function computeRowLogic(item) {", "    /* ═══════════════════════════════════════\n       RENDER TABLE"),
         # allProcessed + separação Cabos/Outros/RAMAIS + valores padrão
+        # aplicarOperacoesAjuste (usa PREFIXO_TABELA e textoOperacao ao lado)
+        "aplicar": _fatia(t, "    const PREFIXO_TABELA = {", "    /** Mostra o diff e deixa escolher"),
+        "sync_totalizadora": _fatia(t, "window.syncTotalizadora = async function(forceUpdate = true) {", "    showToast(\"Tabela Totalizadora atualizada!\");\n};") + "\n    showToast(\"x\");\n};",
+        "payload": _fatia(t, "    async function obterPayloadCalculo() {", "    /* ═══════════════════════════════════════\n       VALIDAÇÃO DAS PLANILHAS"),
         "separacao": _fatia(t, "    const allProcessed = extractedDataCache.map(", "    buildAtivoSets();"),
     }
 
@@ -98,3 +102,36 @@ recalcAllQtdAtivos();
 console.log(JSON.stringify(tableStates.cabos.data));
 """
     return _rodar(corpo, {"linhas": linhas})
+
+
+def aplicar_diff(cabos, outros, operacoes, escolhidas, cls):
+    """aplicarOperacoesAjuste do JS real (com a parte de tela trocada por funções vazias)."""
+    tr = _trechos()
+    corpo = tr["funcoes"] + "\n" + """
+const pushHistory = () => {}, renderTable = () => {}, refreshAllFilters = () => {}, buildAtivoSets = () => {}, buildDataLists = () => {}, atualizarResumoRedeUI = () => {};
+tableStates.cabos.data = entrada.cabos; tableStates.outros.data = entrada.outros;
+""" + tr["aplicar"] + """
+const r = aplicarOperacoesAjuste({ operacoes: entrada.operacoes }, entrada.escolhidas === null ? new Set(entrada.operacoes.map((_, i) => i)) : new Set(entrada.escolhidas));
+console.log(JSON.stringify({ cabos: tableStates.cabos.data, outros: tableStates.outros.data, aplicadas: r.aplicadas, ignoradas: r.ignoradas }));
+"""
+    return _rodar(corpo, {"cabos": cabos, "outros": outros, "operacoes": operacoes, "escolhidas": escolhidas, "cls": cls})
+
+
+def totalizadora_e_payload(cabos, outros, regras, base, projeto_nome):
+    """syncTotalizadora + obterPayloadCalculo do JS real. Devolve {totalizadora, payload} (NaN do JS vira null no JSON)."""
+    tr = _trechos()
+    corpo = tr["funcoes"] + "\n" + """
+let orcamentoBaseData = entrada.base;
+const localStorage = { getItem: k => (k === 'projeto_selecionado' ? entrada.projeto : null) };
+const document = { getElementById: () => null, querySelector: () => ({ checked: true }) };
+const confirm = () => true, showToast = () => {}, renderTotalizadora = () => {}, carregarRegras = () => {};
+const syncTotalizadora = (...a) => window.syncTotalizadora(...a);
+tableStates.regras = { data: entrada.regras }; tableStates.totalizadora = { data: [] };
+tableStates.cabos.data = entrada.cabos; tableStates.outros.data = entrada.outros;
+""" + tr["sync_totalizadora"] + "\n" + tr["payload"] + """
+(async () => {
+  const p = await obterPayloadCalculo();
+  console.log(JSON.stringify({ totalizadora: tableStates.totalizadora.data, payload: p }));
+})();
+"""
+    return _rodar(corpo, {"cabos": cabos, "outros": outros, "regras": regras, "base": base, "projeto": projeto_nome})

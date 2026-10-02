@@ -8,6 +8,18 @@
 
 ---
 
+## 2026-10-02 — TASK-031 fase B: pipeline autônomo (aplicador de diff, Totalizadora, orçamento, obra e pasta)
+
+**Tipo:** Backend (código novo, ainda sem rota/tela) · `.ai/tasks/TASK-031-02-10-2026.md`
+
+`services/autonomo/` ganhou `aplicar.py` (porte de `aplicarOperacoesAjuste`), `totalizadora.py` (porte de `syncTotalizadora` + payload do orçamento),
+`pipeline.py` (ler → montar → validar → ajustar → confirmação de exclusões → Totalizadora → orçamento → obra + pasta), `execucoes.py` (tabela local
+`execucoes_autonomas`, criada sob demanda; sem Supabase) e `saida.py` (JSON + CSV). Exclusões (`excluir_linhas`, `remover_ativo`) deixam o arquivo
+"aguardando_confirmacao"; `confirmar` (Sim / Sim para todos), `rejeitar`, `reverter`. O leitor roda em subprocesso (`trabalhador_js.py`).
+**Alterar `aplicarOperacoesAjuste`, `syncTotalizadora`, `obterPayloadCalculo` ou a montagem em `resumo.js` exige rodar `tests/test_autonomo_*.py`** (o oráculo fatia o código real).
+
+---
+
 ## 2026-10-02 — TASK-031 fase A: leitor via QuickJS e montagem em Python (modo autônomo)
 
 **Tipo:** Backend (código novo, não carregado pelo app por padrão) · `.ai/tasks/TASK-031-02-10-2026.md`
