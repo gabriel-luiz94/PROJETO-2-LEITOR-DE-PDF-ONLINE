@@ -241,7 +241,7 @@ class Vigia:
             if projeto is None:
                 return self._para_erros(caminho, None, "Arquivo solto na pasta de entrada: coloque-o em uma subpasta com o código do projeto.", p, cfg_user=cfg.get("user_id"))
             if not nome.lower().endswith(pipeline.EXTENSOES):
-                return self._para_erros(caminho, projeto, f"Tipo de arquivo não suportado (use {', '.join(pipeline.EXTENSOES)}).", p, cfg_user=cfg.get("user_id"))
+                return self._para_erros(caminho, projeto, f"Tipo de arquivo não suportado: '{os.path.splitext(nome)[1] or '(sem extensão)'}' (use {', '.join(pipeline.EXTENSOES)}). Arquivo: {nome}", p, cfg_user=cfg.get("user_id"))
             if not _projeto_existe(projeto):
                 return self._para_erros(caminho, projeto, f"Projeto '{projeto}' não está cadastrado (a subpasta deve ter o código do projeto).", p, cfg_user=cfg.get("user_id"))
             if not cfg.get("user_id"):

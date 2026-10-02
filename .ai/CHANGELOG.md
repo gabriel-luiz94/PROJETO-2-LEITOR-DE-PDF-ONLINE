@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-10-02 — TASK-031: achados do primeiro teste real (projeto 027/229)
+
+**Tipo:** Backend (modo autônomo)
+
+(1) Ajustes habilitados do projeto 027 somavam **53 ações** e o limite de 50 (válido nas rotas/tela) barrava o arquivo inteiro no autônomo → `ajustar(..., limite_acoes)` e `validar_acoes(..., limite)` ganharam parâmetro;
+o pipeline usa `LIMITE_ACOES_AUTONOMO = 300`; rotas e tela continuam com 50. (2) A mensagem de "tipo de arquivo não suportado" agora mostra a extensão encontrada e o nome do arquivo.
+
+---
+
 ## 2026-10-02 — INCIDENTE: testes rodaram contra o Supabase real (corrigido) — `docs/INCIDENTE_TESTES_NA_NUVEM_2026-10-02.md`
 
 **Tipo:** Testes / segurança de dados

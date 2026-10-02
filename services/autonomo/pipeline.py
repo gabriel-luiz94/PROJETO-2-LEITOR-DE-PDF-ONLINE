@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from services.ajustes_planilhas import LIMITE_ACOES, ajustar, validar_receitas
+from services.ajustes_planilhas import ajustar, validar_receitas
 from services.autonomo import execucoes, saida
 from services.autonomo.aplicar import aplicar_operacoes
 from services.autonomo.leitor_js import obter_leitor
@@ -28,6 +28,7 @@ from services.regras_dominio import avaliar
 from services.validacao_planilhas import resumir, validar_planilhas
 
 ACOES_DESTRUTIVAS = {"excluir_linhas", "remover_ativo"}
+LIMITE_ACOES_AUTONOMO = 300   # a cadeia de todos os ajustes habilitados (nas rotas/tela o limite é 50); projetos reais passam de 50
 LIMITE_BYTES = 200 * 1024 * 1024
 EXTENSOES = (".dxf", ".pdf")
 
@@ -214,10 +215,10 @@ def processar_arquivo(caminho: str, projeto_codigo: str, user_id: str, pasta_sai
                     ignorados.append({"ajuste": r.get("id"), "erros": erros})
                 else:
                     acoes += r.get("acoes") or []
-            if len(acoes) > LIMITE_ACOES:
-                raise ErroPipeline(f"Ajustes habilitados somam {len(acoes)} ações (máx. {LIMITE_ACOES} em cadeia).")
+            if len(acoes) > LIMITE_ACOES_AUTONOMO:
+                raise ErroPipeline(f"Ajustes habilitados somam {len(acoes)} ações (máx. {LIMITE_ACOES_AUTONOMO} em cadeia no modo autônomo).")
             try:
-                diff = ajustar(acoes, tabelas["cabos"], tabelas["outros"], ctx.grupos) if acoes else \
+                diff = ajustar(acoes, tabelas["cabos"], tabelas["outros"], ctx.grupos, LIMITE_ACOES_AUTONOMO) if acoes else \
                     {"operacoes": [], "descartadas": [], "avisos": [], "resumo": {}}
             except ValueError as ve:
                 raise ErroPipeline(f"Os ajustes não puderam ser calculados: {ve.args[0] if ve.args else ve}") from ve
