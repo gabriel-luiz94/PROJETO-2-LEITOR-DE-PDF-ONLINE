@@ -182,6 +182,7 @@ def processar_arquivo(caminho: str, projeto_codigo: str, user_id: str, pasta_sai
         if anterior:
             return {**anterior, "duplicado": True}
     exec_id = execucoes.criar(os.path.basename(caminho), h, projeto_codigo, user_id)
+    execucoes.atualizar(exec_id, arquivo_caminho=os.path.abspath(caminho))
     pasta = saida.pasta_da_execucao(pasta_saida, projeto_codigo, caminho, exec_id)
     etapas = _Etapas()
     try:

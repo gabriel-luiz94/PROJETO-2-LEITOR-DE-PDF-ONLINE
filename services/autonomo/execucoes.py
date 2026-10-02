@@ -25,6 +25,10 @@ def garantir_tabela(conn):
             id TEXT PRIMARY KEY, arquivo TEXT, arquivo_hash TEXT, projeto_codigo TEXT, user_id TEXT, status TEXT,
             obra_id TEXT, pasta_saida TEXT, mensagem TEXT, relatorio_json TEXT, originais_json TEXT, diff_json TEXT,
             decisoes_json TEXT, criado_em TEXT, atualizado_em TEXT)""")
+    try:
+        conn.execute("ALTER TABLE execucoes_autonomas ADD COLUMN arquivo_caminho TEXT")   # onde o original está agora (para reprocessar)
+    except Exception:  # noqa: BLE001 — coluna já existe
+        pass
     conn.execute("CREATE INDEX IF NOT EXISTS idx_exec_aut_hash ON execucoes_autonomas (arquivo_hash, projeto_codigo)")
 
 
@@ -95,7 +99,7 @@ def listar(status: str = None, limite: int = 100) -> list:
     """Resumo das execuções (sem os JSONs grandes), mais recentes primeiro."""
     conn = _conectar()
     try:
-        sql = ("SELECT id, arquivo, projeto_codigo, user_id, status, obra_id, pasta_saida, mensagem, criado_em, atualizado_em "
+        sql = ("SELECT id, arquivo, arquivo_caminho, projeto_codigo, user_id, status, obra_id, pasta_saida, mensagem, criado_em, atualizado_em "
                "FROM execucoes_autonomas")
         args = ()
         if status:

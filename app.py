@@ -5,6 +5,13 @@ Suporta dois modos de operação:
   - "desktop": app local (.exe ou dev), CORS aberto, permite /extract-local
   - "server":  deploy na nuvem, CORS restrito, HTTPS, sem acesso local
 """
+
+import sys as _sys
+if "--trabalhador-leitor-js" in _sys.argv:   # processo filho do modo autônomo (no .exe, sys.executable é o próprio programa)
+    from services.autonomo.trabalhador_js import main as _trabalhador_main
+    _trabalhador_main()
+    _sys.exit(0)
+
 import os
 import sys
 import threading
@@ -28,7 +35,7 @@ from middleware.nocache_middleware import NoCacheHtmlMiddleware
 from websocket_manager import manager
 
 # Routers
-from routers import manual, obras, regras, regras_leitor, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes
+from routers import manual, obras, regras, regras_leitor, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes, autonomo
 
 
 app = FastAPI(
@@ -213,6 +220,7 @@ async def websocket_endpoint(websocket):
 
 # ── Montagem dos Routers ────────────────────────────────────────────────────
 app.include_router(manual.router)
+app.include_router(autonomo.router)
 app.include_router(auth.router)
 app.include_router(obras.router)
 app.include_router(regras.router)
@@ -229,6 +237,29 @@ app.include_router(upload.router)
 app.include_router(health.router)
 app.include_router(admin.router)
 app.include_router(update.router)
+
+
+# ── Modo autônomo (TASK-031): religa a vigia da pasta no início se ela estava LIGADA na configuração ──
+@app.on_event("startup")
+def _iniciar_modo_autonomo():
+    try:
+        from services.autonomo import config_autonomo, pasta
+        cfg = config_autonomo.carregar()
+        if cfg.get("ligado") and cfg.get("user_id"):
+            config_autonomo.garantir_pastas(cfg)
+            pasta.obter_vigia().iniciar()
+            logger.info("Modo autônomo ligado (vigiando %s).", config_autonomo.pastas(cfg)["entrada"])
+    except Exception as e:  # noqa: BLE001 — o modo autônomo nunca impede o programa de abrir
+        logger.warning(f"Modo autônomo não iniciou: {e}")
+
+
+@app.on_event("shutdown")
+def _parar_modo_autonomo():
+    try:
+        from services.autonomo import pasta
+        pasta.obter_vigia().parar(3)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 # ── Inicialização Desktop / Servidor ─────────────────────────────────────────

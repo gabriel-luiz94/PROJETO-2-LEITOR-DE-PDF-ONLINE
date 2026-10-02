@@ -8,6 +8,17 @@
 
 ---
 
+## 2026-10-02 — TASK-031 fase C: pasta monitorada, fila e API de controle do modo autônomo
+
+**Tipo:** Backend + `app.py` · `.ai/tasks/TASK-031-02-10-2026.md`
+
+`services/autonomo/pasta.py` (vigia em thread: `entrada/<projeto>/` → pipeline, um por vez, só arquivos estáveis; originais para `processados/` ou `erros/` + `.erro.txt`),
+`config_autonomo.py` (chave `autonomo_config` em `configuracoes`) e `routers/autonomo.py` (`/api/autonomo/*`, só admin: config, ligar/desligar, status, varrer, histórico,
+confirmar/rejeitar/reverter/reprocessar). `app.py` ganhou: argumento `--trabalhador-leitor-js` (subprocesso do QuickJS no `.exe`), include do router e hooks `startup`/`shutdown`
+que religam/param a vigia conforme a configuração. Desligado por padrão: nada muda até um admin ligar.
+
+---
+
 ## 2026-10-02 — TASK-031 fase B: pipeline autônomo (aplicador de diff, Totalizadora, orçamento, obra e pasta)
 
 **Tipo:** Backend (código novo, ainda sem rota/tela) · `.ai/tasks/TASK-031-02-10-2026.md`
