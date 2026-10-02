@@ -8,6 +8,51 @@
 
 ---
 
+## 2026-10-02 — TASK-031 fase D: tela de controle do modo autônomo (`/autonomo`)
+
+**Tipo:** Frontend + correções no backend do modo autônomo · `.ai/tasks/TASK-031-02-10-2026.md`
+
+Página `/autonomo` (só admin; link no Painel Admin): estado, ligar/desligar, varrer agora, **confirmação de exclusões (Sim / Não / Sim para todos / Não para todas)**, histórico com
+detalhes, reverter e reprocessar, e configuração (dono das obras, pastas, intervalo, espera). Sem biblioteca externa; só `textContent`. Correções achadas no teste real: varreduras
+simultâneas (agora serializadas) e falhas pré-pipeline passam a aparecer no histórico. O modo continua **desligado por padrão**.
+
+---
+
+## 2026-10-02 — TASK-031 fase C: pasta monitorada, fila e API de controle do modo autônomo
+
+**Tipo:** Backend + `app.py` · `.ai/tasks/TASK-031-02-10-2026.md`
+
+`services/autonomo/pasta.py` (vigia em thread: `entrada/<projeto>/` → pipeline, um por vez, só arquivos estáveis; originais para `processados/` ou `erros/` + `.erro.txt`),
+`config_autonomo.py` (chave `autonomo_config` em `configuracoes`) e `routers/autonomo.py` (`/api/autonomo/*`, só admin: config, ligar/desligar, status, varrer, histórico,
+confirmar/rejeitar/reverter/reprocessar). `app.py` ganhou: argumento `--trabalhador-leitor-js` (subprocesso do QuickJS no `.exe`), include do router e hooks `startup`/`shutdown`
+que religam/param a vigia conforme a configuração. Desligado por padrão: nada muda até um admin ligar.
+
+---
+
+## 2026-10-02 — TASK-031 fase B: pipeline autônomo (aplicador de diff, Totalizadora, orçamento, obra e pasta)
+
+**Tipo:** Backend (código novo, ainda sem rota/tela) · `.ai/tasks/TASK-031-02-10-2026.md`
+
+`services/autonomo/` ganhou `aplicar.py` (porte de `aplicarOperacoesAjuste`), `totalizadora.py` (porte de `syncTotalizadora` + payload do orçamento),
+`pipeline.py` (ler → montar → validar → ajustar → confirmação de exclusões → Totalizadora → orçamento → obra + pasta), `execucoes.py` (tabela local
+`execucoes_autonomas`, criada sob demanda; sem Supabase) e `saida.py` (JSON + CSV). Exclusões (`excluir_linhas`, `remover_ativo`) deixam o arquivo
+"aguardando_confirmacao"; `confirmar` (Sim / Sim para todos), `rejeitar`, `reverter`. O leitor roda em subprocesso (`trabalhador_js.py`).
+`ramais.py` gera os ativos dos RAMAIS (decisão: entram no orçamento autônomo; etapa `ramais` do pipeline). **Alterar `aplicarOperacoesAjuste`, o modal RAMAIS, `syncTotalizadora`, `obterPayloadCalculo` ou a montagem em `resumo.js` exige rodar `tests/test_autonomo_*.py`** (o oráculo fatia o código real).
+
+---
+
+## 2026-10-02 — TASK-031 fase A: leitor via QuickJS e montagem em Python (modo autônomo)
+
+**Tipo:** Backend (código novo, não carregado pelo app por padrão) · `.ai/tasks/TASK-031-02-10-2026.md`
+
+`services/autonomo/leitor_js.py` executa o **mesmo** `static/regras_leitor_engine.js` num QuickJS em **processo separado** (a regex catastrófica
+não é interrompida pelo limite de tempo do QuickJS; o processo principal mata e recria o trabalhador). `services/autonomo/montagem.py` porta a
+montagem de Cabos/Outros/Ramais e o cálculo de quantidades de `resumo.js`. Paridade provada contra o JS real (Node) em `tests/test_autonomo_*.py`.
+**Mudar `regras_leitor_engine.js` ou as funções de montagem em `resumo.js` exige rodar esses testes** (marcadores fatiados em `tests/oraculo_tela.py`).
+Dependência nova: `quickjs`. Nenhuma mudança no modo manual.
+
+---
+
 ## 2026-10-02 — TASK-030: manual de uso de regras e ajustes
 
 **Tipo:** Documentação do usuário (backend leve + frontend) · `.ai/tasks/TASK-030-02-10-2026.md`

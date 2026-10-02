@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modo autônomo</title>
+<style>
+:root { --bg:#0d1117; --card:#161b22; --line:#30363d; --fg:#e6edf3; --mut:#8b949e; --ac:#d97706; --ok:#3fb950; --err:#f85149; --warn:#d29922; --info:#58a6ff; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif; }
+header { position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--line); padding:10px 16px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+header h1 { font-size:1.15rem; margin:0; margin-right:auto; }
+main { max-width:980px; margin:0 auto; padding:16px; display:grid; gap:16px; }
+main > * { min-width:0; }
+.stat b, .stat span, .pend h3 { overflow-wrap:anywhere; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+.card h2 { font-size:1.02rem; margin:0 0 4px; } .card .sub { color:var(--mut); font-size:.85rem; margin:0 0 12px; }
+button, .btn { font:inherit; font-size:.85rem; background:#21262d; color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:5px 12px; cursor:pointer; text-decoration:none; display:inline-block; }
+button:hover { border-color:var(--mut); } button:disabled { opacity:.5; cursor:not-allowed; }
+.primario { background:var(--ac); color:#161b22; border-color:var(--ac); font-weight:600; } .perigo { color:var(--err); } .bom { color:var(--ok); }
+.selo { display:inline-block; padding:2px 10px; border-radius:99px; font-size:.78rem; font-weight:600; border:1px solid var(--line); }
+.selo.on { color:var(--ok); border-color:var(--ok); } .selo.off { color:var(--mut); }
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+.stat { border:1px solid var(--line); border-radius:8px; padding:8px 10px; } .stat b { display:block; font-size:1.25rem; } .stat span { color:var(--mut); font-size:.78rem; }
+label { display:block; font-size:.8rem; color:var(--mut); margin:10px 0 3px; }
+input, select { width:100%; font:inherit; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:6px 8px; }
+.cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:0 14px; }
+.msg { padding:8px 12px; border-radius:6px; font-size:.85rem; } .msg.erro { background:#3d1418; color:#ffa198; border:1px solid var(--err); } .msg.ok { background:#12261a; color:#7ee787; border:1px solid var(--ok); }
+.vazio { color:var(--mut); font-size:.88rem; }
+.pend { border:1px solid var(--warn); border-radius:8px; padding:10px 12px; margin-bottom:10px; }
+.pend h3 { margin:0 0 6px; font-size:.92rem; } .pend .linha { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:6px 0; border-top:1px solid var(--line); }
+.pend .txt { flex:1 1 300px; font-family:ui-monospace,Consolas,monospace; font-size:.8rem; border-left:3px solid var(--err); padding-left:8px; word-break:break-word; }
+.acoes { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.tabela { width:100%; border-collapse:collapse; font-size:.82rem; display:block; overflow-x:auto; } .tabela th, .tabela td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+.tabela th { color:var(--mut); font-weight:600; }
+.b-ok { color:var(--ok); } .b-com_pendencias, .b-aguardando_confirmacao { color:var(--warn); } .b-erro { color:var(--err); } .b-revertida, .b-processando { color:var(--info); }
+.modal { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:flex-start; justify-content:center; padding:24px 12px; overflow:auto; z-index:10; } .modal.oculto { display:none; }
+.modal .caixa { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; width:min(760px,100%); }
+.modal pre { background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:8px; overflow:auto; font-size:.75rem; margin:4px 0; white-space:pre-wrap; word-break:break-word; }
+.modal h4 { margin:12px 0 4px; font-size:.88rem; } .modal ul { margin:4px 0; padding-left:18px; font-size:.82rem; }
+.caminho { font-family:ui-monospace,Consolas,monospace; font-size:.78rem; color:var(--mut); word-break:break-all; }
+@media (max-width:600px) { header { padding:8px 12px; } main { padding:12px; } }
+</style>
+</head>
+<body>
+<header>
+    <h1>Modo autônomo</h1>
+    <span id="selo" class="selo off">Desligado</span>
+    <button id="btn-ligar" class="primario" type="button">Ligar</button>
+    <button id="btn-varrer" type="button" title="Verifica a pasta de entrada agora (uma vez)">Varrer agora</button>
+    <a class="btn" href="/admin">← Painel admin</a>
+</header>
+<main>
+    <div id="aviso" class="msg erro" hidden></div>
+
+    <section class="card">
+        <h2>Estado</h2>
+        <p class="sub">Processa sozinho os arquivos colocados em <span class="caminho" id="caminho-entrada">…</span>, dentro de uma subpasta com o <strong>código do projeto</strong>. Só funciona com o programa aberto.</p>
+        <div class="stats" id="stats"></div>
+        <p class="sub" id="ultimo-erro" style="margin-top:10px"></p>
+    </section>
+
+    <section class="card" id="card-pend" hidden>
+        <h2>Aguardando a sua confirmação</h2>
+        <p class="sub">Estes ajustes <strong>excluem</strong> linhas ou itens. Nada foi excluído e o orçamento ainda não foi gerado. <strong>Sim</strong> confirma aquela exclusão; <strong>Sim para todos</strong> confirma todas as exclusões <em>deste arquivo</em>.</p>
+        <div id="pend"></div>
+    </section>
+
+    <section class="card">
+        <h2>Histórico</h2>
+        <div class="acoes" style="margin:0 0 8px">
+            <select id="filtro" style="width:auto">
+                <option value="">Todos os status</option><option value="aguardando_confirmacao">Aguardando confirmação</option><option value="ok">Concluídas</option>
+                <option value="com_pendencias">Com pendências</option><option value="erro">Com erro</option><option value="revertida">Revertidas</option>
+            </select>
+            <button id="btn-atualizar" type="button">Atualizar</button>
+        </div>
+        <div id="hist"></div>
+    </section>
+
+    <section class="card">
+        <h2>Configuração</h2>
+        <p class="sub">As quatro pastas (entrada, processados, erros e saída) ficam dentro da pasta base, a menos que você informe outro caminho completo.</p>
+        <div id="cfg-msg" class="msg" hidden></div>
+        <div class="cols">
+            <div><label for="cfg-user">Obras geradas em nome de</label><select id="cfg-user"></select></div>
+            <div><label for="cfg-base">Pasta base (caminho completo)</label><input id="cfg-base" type="text" autocomplete="off"></div>
+            <div><label for="cfg-intervalo">Verificar a pasta a cada (segundos)</label><input id="cfg-intervalo" type="number" min="1" max="3600"></div>
+            <div><label for="cfg-estab">Esperar o arquivo parar de crescer (segundos)</label><input id="cfg-estab" type="number" min="0" max="600"></div>
+        </div>
+        <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--mut);font-size:.85rem">Pastas avançadas (opcional)</summary>
+            <div class="cols">
+                <div><label for="cfg-p-entrada">Entrada</label><input id="cfg-p-entrada" type="text" placeholder="padrão: base/entrada"></div>
+                <div><label for="cfg-p-processados">Processados</label><input id="cfg-p-processados" type="text" placeholder="padrão: base/processados"></div>
+                <div><label for="cfg-p-erros">Erros</label><input id="cfg-p-erros" type="text" placeholder="padrão: base/erros"></div>
+                <div><label for="cfg-p-saida">Saída (resultados)</label><input id="cfg-p-saida" type="text" placeholder="padrão: base/saida"></div>
+            </div>
+        </details>
+        <div class="acoes"><button id="btn-salvar" class="primario" type="button">Salvar configuração</button></div>
+    </section>
+</main>
+
+<div id="modal" class="modal oculto"><div class="caixa">
+    <div style="display:flex;align-items:center;gap:8px"><strong id="modal-titulo" style="flex:1">Detalhes</strong><button id="modal-fechar" type="button">Fechar</button></div>
+    <div id="modal-corpo"></div>
+</div></div>
+
+<script src="/static/auth_fetch.js"></script>
+<script src="/static/autonomo.js"></script>
+</body>
+</html>
