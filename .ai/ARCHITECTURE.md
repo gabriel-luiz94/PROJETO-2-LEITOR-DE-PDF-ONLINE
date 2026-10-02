@@ -235,7 +235,7 @@ DEMAIS ENTIDADES (obras, recs, projetos):
 
 | Método | Rota | Auth | Descrição |
 |---|---|---|---|
-| GET | `/`, `/login`, `/resumo`, `/admin` | pública | Páginas HTML (no-cache) |
+| GET | `/`, `/login`, `/resumo`, `/admin`, `/manual`, `/autonomo` | pública (as páginas de dados exigem login nas chamadas `/api/*`; `/autonomo` só abre para admin no navegador e a API é só admin) | Páginas HTML (no-cache) |
 | GET | `/api/version` | JWT | Versão e modo |
 | WS | `/ws` | pública | Eventos `load_file`, `connectivity` |
 | POST | `/api/auth/login` | pública | Login → access + refresh token |
