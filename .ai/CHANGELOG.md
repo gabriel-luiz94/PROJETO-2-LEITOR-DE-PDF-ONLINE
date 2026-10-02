@@ -8,6 +8,16 @@
 
 ---
 
+## 2026-10-02 — TASK-031: preparação para o Windows (trabalhador por socket, arquivo em uso, roteiro de testes)
+
+**Tipo:** Backend + scripts + docs · `.ai/tasks/TASK-031-02-10-2026.md`
+
+O processo auxiliar do leitor passou a falar por **socket local com token** (no `.exe` sem console não há stdin/stdout) e abre sem janela no Windows; `app.py` repassa `<porta> <token>`.
+A vigia **adia** o movimento de arquivo em uso (PermissionError) em vez de reprocessar/errar. `build.bat` inclui `quickjs`. Novos: `docs/ROTEIRO_TESTE_WINDOWS_MODO_AUTONOMO.md`,
+`scripts/autonomo_verificar_ambiente.py`, `scripts/autonomo_arquivos_teste.py`.
+
+---
+
 ## 2026-10-02 — TASK-031 fase D: tela de controle do modo autônomo (`/autonomo`)
 
 **Tipo:** Frontend + correções no backend do modo autônomo · `.ai/tasks/TASK-031-02-10-2026.md`

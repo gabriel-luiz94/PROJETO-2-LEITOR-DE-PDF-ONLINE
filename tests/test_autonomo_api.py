@@ -137,7 +137,7 @@ def test_pendencias_sim_sim_para_todos_rejeitar_reverter_e_reprocessar(api):
 def test_modo_trabalhador_do_executavel_funciona_pelo_app_py(monkeypatch):
     """No .exe o trabalhador é `programa --trabalhador-leitor-js`; aqui o equivalente em dev: `python app.py --trabalhador-leitor-js`."""
     import services.autonomo.leitor_js as lj
-    monkeypatch.setattr(lj, "_comando_trabalhador", lambda: [sys.executable, "app.py", "--trabalhador-leitor-js"])
+    monkeypatch.setattr(lj, "_comando_trabalhador", lambda porta, token: [sys.executable, "app.py", "--trabalhador-leitor-js", str(porta), token])
     lt = LeitorJS()
     try:
         r = lt.processar_lote([{"pagina": 1, "texto": "AFASTADOR", "cor": "#ff0000", "layer": ""}],

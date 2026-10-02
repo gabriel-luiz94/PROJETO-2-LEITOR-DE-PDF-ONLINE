@@ -328,3 +328,67 @@ def test_varreduras_simultaneas_nao_processam_o_mesmo_arquivo_duas_vezes(amb):
     todos = [x for r in resultados for x in r]
     assert sorted(x["arquivo"] for x in todos) == ["s0.dxf", "s1.dxf", "s2.dxf"] and all(x["status"] != "erro" for x in todos)
     assert len(execucoes.listar()) == 3
+
+
+# ── arquivo EM USO (Windows: dá para ler, mas não para mover) ──────────────────────────────────────────────────
+def _em_uso(monkeypatch, bloqueados):
+    """Simula o Windows: enquanto o nome estiver em `bloqueados`, mover (os.rename) dá PermissionError."""
+    original = os.rename
+
+    def rename(origem, destino, *a, **k):
+        if os.path.basename(origem) in bloqueados:
+            raise PermissionError(13, "O arquivo está sendo usado por outro processo", origem)
+        return original(origem, destino, *a, **k)
+    monkeypatch.setattr(pasta.os, "rename", rename)
+
+
+def test_arquivo_em_uso_e_processado_uma_vez_e_movido_quando_liberar(amb, monkeypatch):
+    bloqueados = {"preso.dxf"}
+    _em_uso(monkeypatch, bloqueados)
+    alvo = dxf(os.path.join(amb.p["entrada"], "P1", "preso.dxf"), ["1-U4"])
+    r = varrer2(amb)
+    assert [x["status"] for x in r] == ["ok"]
+    assert os.path.exists(alvo)                                         # não conseguiu mover: continua na entrada
+    for _ in range(3):
+        assert amb.vigia.varrer(amb.cfg) == []                          # NÃO é reprocessado nem vira "duplicado" nem "erro"
+    assert len(execucoes.listar()) == 1 and execucoes.buscar(r[0]["execucao"])["obra_id"]
+    assert execucoes.buscar(r[0]["execucao"])["arquivo_caminho"] == os.path.abspath(alvo)       # ainda aponta para a entrada
+    bloqueados.clear()                                                  # o programa que segurava o arquivo soltou
+    assert amb.vigia.varrer(amb.cfg) == []
+    destino = os.path.join(amb.p["processados"], "P1", "preso.dxf")
+    assert os.path.exists(destino) and not os.path.exists(alvo)
+    assert execucoes.buscar(r[0]["execucao"])["arquivo_caminho"] == destino                      # histórico atualizado
+    assert len(execucoes.listar()) == 1 and amb.vigia._adiados == {}
+
+
+def test_arquivo_com_erro_em_uso_vai_para_erros_quando_liberar(amb, monkeypatch):
+    bloqueados = {"nota.txt"}
+    _em_uso(monkeypatch, bloqueados)
+    os.makedirs(os.path.join(amb.p["entrada"], "P1"))
+    alvo = os.path.join(amb.p["entrada"], "P1", "nota.txt")
+    open(alvo, "w").write("x")
+    r = varrer2(amb)
+    assert r[0]["status"] == "erro" and os.path.exists(alvo)
+    amb.vigia.varrer(amb.cfg)
+    assert len(execucoes.listar("erro")) == 1                           # um registro só, apesar de várias varreduras
+    bloqueados.clear()
+    amb.vigia.varrer(amb.cfg)
+    destino = os.path.join(amb.p["erros"], "P1", "nota.txt")
+    assert os.path.exists(destino) and os.path.exists(destino + ".erro.txt") and not os.path.exists(alvo)
+    assert execucoes.listar("erro")[0]["arquivo_caminho"] == destino
+
+
+def test_mover_entre_volumes_nao_deixa_copia_orfa(tmp_path, monkeypatch):
+    """Cross-device: copia e apaga a origem; se não der para apagar (em uso), a CÓPIA é removida e o erro sobe."""
+    origem = tmp_path / "a" / "x.dxf"
+    origem.parent.mkdir()
+    origem.write_text("dados")
+    monkeypatch.setattr(pasta.os, "rename", lambda *a, **k: (_ for _ in ()).throw(OSError(18, "Invalid cross-device link")))
+    destino = pasta._mover(str(origem), str(tmp_path / "b"))
+    assert open(destino).read() == "dados" and not origem.exists()
+    origem.write_text("dados2")
+    real_remove = os.remove
+    monkeypatch.setattr(pasta.os, "remove", lambda p: (_ for _ in ()).throw(PermissionError(13, "em uso")) if p == str(origem) else real_remove(p))
+    with pytest.raises(PermissionError):
+        pasta._mover(str(origem), str(tmp_path / "b"))
+    assert origem.exists() and sorted(os.listdir(tmp_path / "b")) == ["x.dxf"]      # nenhuma cópia órfã

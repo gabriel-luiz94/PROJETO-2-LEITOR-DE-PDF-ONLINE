@@ -114,3 +114,32 @@ def test_importar_o_modulo_nao_carrega_quickjs():
     r = subprocess.run([sys.executable, "-c", "import sys, services.autonomo.leitor_js, services.autonomo.montagem; print('quickjs' in sys.modules)"],
                        capture_output=True, text=True)
     assert r.stdout.strip() == "False"
+
+
+def test_trabalhador_que_nao_inicia_da_erro_rapido(monkeypatch):
+    import sys
+    import time
+    import services.autonomo.leitor_js as m
+    monkeypatch.setattr(m, "_comando_trabalhador", lambda porta, token: [sys.executable, "-c", "import sys; sys.exit(3)"])
+    t = time.time()
+    with pytest.raises(ErroLeitorJS, match="não conectou"):
+        m.LeitorJS()
+    assert time.time() - t < 15
+
+
+def test_conexao_com_token_errado_e_recusada(monkeypatch):
+    import sys
+    import services.autonomo.leitor_js as m
+    codigo = ("import socket, sys, json; s = socket.create_connection(('127.0.0.1', int(sys.argv[1]))); "
+              "s.sendall(b'{\"token\": \"errado\"}\\n'); s.recv(10)")
+    monkeypatch.setattr(m, "_comando_trabalhador", lambda porta, token: [sys.executable, "-c", codigo, str(porta)])
+    with pytest.raises(ErroLeitorJS, match="token inválido"):
+        m.LeitorJS()
+
+
+def test_o_canal_nao_depende_de_stdin_nem_stdout(leitor):
+    """No .exe `--windowed` o stdin/stdout do Python não existem: o trabalhador é iniciado SEM stdin/stdout e mesmo assim responde."""
+    r = leitor.processar_lote([{"pagina": 1, "texto": "AFASTADOR", "cor": "#ff0000", "layer": ""}], PROC, CLS, "extracao")
+    assert r[0]["ativo"] == "1-AF"
+    proc = leitor._proc
+    assert proc.stdin is None and proc.stdout is None and proc.poll() is None

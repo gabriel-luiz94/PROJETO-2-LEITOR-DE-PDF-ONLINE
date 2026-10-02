@@ -9,7 +9,7 @@ Suporta dois modos de operação:
 import sys as _sys
 if "--trabalhador-leitor-js" in _sys.argv:   # processo filho do modo autônomo (no .exe, sys.executable é o próprio programa)
     from services.autonomo.trabalhador_js import main as _trabalhador_main
-    _trabalhador_main()
+    _trabalhador_main(_sys.argv[1:])
     _sys.exit(0)
 
 import os
