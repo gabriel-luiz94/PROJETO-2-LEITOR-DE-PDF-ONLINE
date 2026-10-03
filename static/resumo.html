@@ -507,7 +507,7 @@
                 <h1 class="report-title">Resumo do <span class="highlight">Orçamento</span></h1>
                 <div style="display:flex; align-items:center; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
                     <label style="font-size: 0.75rem; color: #8b949e; margin-right: 6px;">Projeto:</label>
-                    <select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;" onchange="const o=this.options[this.selectedIndex]; const cod=o?.dataset.codigo||''; localStorage.setItem('projeto_selecionado', this.value); localStorage.setItem('projeto_selecionado_codigo', cod); carregarRegras(); carregarRegrasLeitorResumo(cod);"></select>
+                    <select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;" onchange="const o=this.options[this.selectedIndex]; const cod=o?.dataset.codigo||''; localStorage.setItem('projeto_selecionado', this.value); localStorage.setItem('projeto_selecionado_codigo', cod); carregarRegras(); carregarRegrasLeitorResumo(cod); carregarRegrasVinculacaoResumo(cod);"></select>
                     <button id="btn-novo-projeto" class="btn-primary" onclick="abrirModalNovoProjeto()" style="display: none; padding: 2px 8px; font-size: 0.75rem; margin-left: 8px; border-radius: 4px;" title="Cadastrar Novo Projeto">+ Novo</button>
                 </div>
             <div class="header-actions">
@@ -620,6 +620,7 @@
                         RAMAIS
                         <span id="badge-ramais" style="display:none; position:absolute; top:-6px; right:-6px; min-width:16px; height:16px; background-color:#f85149; border-radius:8px; box-shadow:0 0 0 2px #0d1117; color:white; font-size:10px; font-weight:bold; align-items:center; justify-content:center; padding:0 4px; box-sizing:border-box;"></span>
                     </button>
+                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Vincular cabos a estruturas/postes" onclick="abrirModalVinculacao()">VINCULAR CABOS</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">RETENSIONAMENTO</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">ADICIONAIS</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(227,179,65,0.4); color: #e3b341;" title="Função futura">LINHA VIVA</button>
@@ -645,6 +646,28 @@
                 </div>
             </div>
         </section>
+
+        <!-- Modal Vinculação Cabo<->Estrutura/Poste (TASK-032) -->
+        <div id="modal-vinculacao" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 820px; width: 94%; max-height: 85vh; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <h3 style="margin:0; display:flex; align-items:center; gap:8px;">🔗 Vincular Cabos a Estruturas/Postes</h3>
+                    <button onclick="document.getElementById('modal-vinculacao').classList.add('hidden')" style="background: transparent; border: none; color: #8b949e; font-size: 1.2rem; cursor: pointer;">✕</button>
+                </div>
+                <p style="font-size: 0.8rem; color: #8b949e; margin: 4px 0 10px;">
+                    Cada cabo precisa de 1 estrutura (operação M/\*M) ou 2 (operação I). O vínculo automático por
+                    coordenada é opcional e nunca sobrescreve um vínculo já feito à mão.
+                </p>
+                <div style="margin-bottom: 10px;">
+                    <button class="btn-secondary" style="font-size: 0.8rem; padding: 6px 12px;" onclick="tentarVincularAutomaticamente()">Tentar vincular automaticamente por coordenada</button>
+                    <span id="vinculacao-auto-resultado" style="font-size: 0.78rem; color: #8b949e; margin-left: 10px;"></span>
+                </div>
+                <div id="vinculacao-lista" style="overflow-y: auto; flex: 1; font-size: 0.85rem;"></div>
+                <div style="text-align: right; margin-top: 14px;">
+                    <button onclick="document.getElementById('modal-vinculacao').classList.add('hidden')" class="btn-secondary" style="padding: 6px 14px; font-size: 0.85rem;">Fechar</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Modals -->
         <!-- API Key Modal -->
@@ -1147,6 +1170,7 @@
                     if (codigoAtual) {
                         localStorage.setItem('projeto_selecionado_codigo', codigoAtual);
                         if (window.carregarRegrasLeitorResumo) carregarRegrasLeitorResumo(codigoAtual);
+                        if (window.carregarRegrasVinculacaoResumo) carregarRegrasVinculacaoResumo(codigoAtual);
                     }
                 }
                 if (localStorage.getItem('is_admin') === 'true') {

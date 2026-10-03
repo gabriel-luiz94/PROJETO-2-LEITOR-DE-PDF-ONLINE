@@ -119,6 +119,30 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 - [x] Painel "Resumo da rede" (TASK-008) — 4 contagens em tempo real (postes, rede de média, rede
       de baixa e equipamentos instalando) calculadas a partir das tabelas Cabos/Outros já
       carregadas na tela, sem persistência em banco (`static/resumo.js:calcularResumoRede`)
+- [x] Vínculo cabo↔estrutura/poste (TASK-032, 2026-10-03): modal "VINCULAR CABOS" organizado por
+      cabo (1 estrutura se operação M/`*M`, 2 se instalando), regras de vinculação por projeto
+      (`regras_vinculacao`: tipo de estrutura pelo primeiro dígito do ativo, qtd. de cabos exigida,
+      compatibilidade LIVRE/MESMO_TIPO_FASE_OPERACAO — mesmo padrão aberto de `regras_conversao`,
+      sem histórico/admin-gate), algoritmo opcional de vinculação automática por proximidade de
+      coordenadas (`_x`/`_y`, já existentes no DXF e agora também extraídas do PDF em
+      `pdf_service.py`), que nunca sobrescreve vínculo manual. Persiste junto da obra/REC (vínculos
+      viajam dentro de `tableStates.cabos.data`/`outros.data`, preservados por `deepClone()` —
+      correção necessária, pois havia duas funções `deepClone` com o mesmo nome no arquivo e a
+      última sobrescrevia a primeira silenciosamente para todo o escopo). Ver
+      `.ai/tasks/TASK-032-02-10-2026.md`.
+- [x] Validação de vínculo ausente/incompatível (TASK-033, 2026-10-03): reaproveita o motor de
+      validação já existente (`executarValidacao()`/modal `#modal-validacao`) em vez de um painel
+      próprio — aviso não bloqueante quando uma estrutura não tem os cabos exigidos por
+      `regras_vinculacao`, com uma exceção: vínculo zero é perdoado se existir, em qualquer lugar do
+      projeto (não necessariamente vinculado àquela estrutura), algum cabo `M`/`*M` ou ativo
+      `RETCA`. Ver `.ai/tasks/TASK-033-02-10-2026.md`.
+- [x] Ativo composto de vínculo + Regras de Conversão (TASK-034, 2026-10-03): cada vínculo
+      cabo↔estrutura gera um ativo composto `<prefixo_cabo>_<ativo_estrutura>` (ex.: `CAA2_N4`),
+      existente só dentro do cálculo da Totalizadora — nunca grava nas tabelas Cabos/Outros.
+      Consumível pelas Regras de Conversão (TASK-003) através de uma nova origem `VINCULO` (além de
+      `CABOS`/`OUTROS`), com uma diferença de comportamento: composto sem regra correspondente nunca
+      aparece na Totalizadora (diferente de `CABOS`/`OUTROS`, que sempre mantêm o item original).
+      Ver `.ai/tasks/TASK-034-02-10-2026.md`.
 
 ### Empacotamento e deploy
 - [x] Modo desktop com janela nativa (pywebview) e fallback para navegador
@@ -396,8 +420,16 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-09-30
-**Motivo:** regras de domínio `C2-TR-EF` e `C2-BT-EXT` (pendentes de decisão) implementadas após as respostas do
-usuário; nova ação do admin para acrescentar regras novas da semente a quem já tem regras salvas.
-**Alterações de código:** `services/regras_dominio.py` (`proibe` com `exceto_se_regex`), `routers/validacao_regras.py`,
-`static/admin.html`, `static/admin.js`, `data/validacoes/regras_dominio_seed.json`. Testes: `tests/test_regras_dominio.py`.
+**Data:** 2026-10-03
+**Motivo:** TASK-032/033/034 — vínculo cabo↔estrutura/poste, validação do vínculo e ativo composto
+consumido pelas Regras de Conversão, a pedido do usuário ("Implemente. E refine."). Renumeradas de
+TASK-009/010/011 para TASK-032/033/034 por colisão com tarefas já mescladas em `main` por outra
+sessão (mesmo tratamento já usado uma vez antes neste projeto, para TASK-001-004).
+**Alterações de código:** `services/pdf_service.py` (coordenadas `_x`/`_y`), `config.py`,
+`data/regras_vinculacao_seed.json` (novo), `database.py` (tabela `regras_vinculacao` + seed),
+`routers/regras_vinculacao.py` (novo), `app.py`, `scripts/schema_supabase.sql`, `static/resumo.html`,
+`static/resumo.js` (modal de vinculação, auto-link por coordenada, correção do `deepClone`
+duplicado, integração em `executarValidacao()`, nova origem `VINCULO` em `syncTotalizadora()`).
+Testes: manuais via servidor real + Playwright (sem suíte pytest nova). Ver
+`.ai/tasks/TASK-032-02-10-2026.md`, `TASK-033-02-10-2026.md`, `TASK-034-02-10-2026.md` e
+`.ai/CHANGELOG.md`.

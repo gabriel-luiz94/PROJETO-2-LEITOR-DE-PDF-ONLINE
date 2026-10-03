@@ -382,9 +382,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function deleteRow(type, idx) {
         pushHistory();  // snapshot ANTES da exclusão
         tableStates[type].data.splice(idx, 1);
+        // TASK-032: ao remover uma linha de Outros, os vínculos cabo<->estrutura são baseados em
+        // índice — reajusta as referências pra não apontarem para a linha errada depois do shift.
+        if (type === 'outros') _reajustarVinculosAposRemoverOutros(idx);
         renderTable(type);
         buildAtivoSets(); buildDataLists();
         refreshAllFilters(type);
+    }
+
+    function _reajustarVinculosAposRemoverOutros(idxRemovido) {
+        tableStates.cabos.data.forEach(cabo => {
+            if (!Array.isArray(cabo.vinculoEstruturas)) return;
+            cabo.vinculoEstruturas = cabo.vinculoEstruturas
+                .filter(i => i !== idxRemovido)
+                .map(i => i > idxRemovido ? i - 1 : i);
+        });
     }
 
     function addRow(type, afterIdx = -1) {
@@ -987,6 +999,270 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /* ═══════════════════════════════════════
+       VINCULAÇÃO CABO<->ESTRUTURA/POSTE (TASK-032)
+    ═══════════════════════════════════════ */
+    function _escapeHtmlVinculacao(u) {
+        return String(u || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+    }
+
+    window.__regrasVinculacao = [];
+    window.carregarRegrasVinculacaoResumo = async function (projetoCodigo) {
+        if (!projetoCodigo) return;
+        try {
+            const res = await fetch(`/api/regras-vinculacao?projeto_codigo=${encodeURIComponent(projetoCodigo)}`);
+            const data = res.ok ? await res.json() : { regras: [] };
+            window.__regrasVinculacao = data.regras || [];
+        } catch (e) {
+            console.error('Erro ao carregar regras de vinculação:', e);
+        }
+    };
+
+    function _estruturasDisponiveisVinculo() {
+        return tableStates.outros.data
+            .map((r, i) => ({ r, i }))
+            .filter(x => x.r.entidade === 'ESTRUTURA' || x.r.entidade === 'POSTE');
+    }
+
+    function _qtdEstruturasParaOperacaoVinculo(operacao) {
+        const op = (operacao || '').toUpperCase();
+        return (op === 'M' || op === '*M') ? 1 : 2;
+    }
+
+    function _tipoEstruturaVinculo(ativoEstrutura) {
+        const m = (ativoEstrutura || '').match(/\d/);
+        return m ? m[0] : null;
+    }
+
+    function _regraVinculacaoParaTipo(tipo) {
+        const regras = window.__regrasVinculacao || [];
+        return regras.find(r => r.tipo_estrutura === tipo) || null;
+    }
+
+    function _prefixoCaboVinculo(ativo) {
+        const info = extrairPrefixoEComprimentoCabo(ativo);
+        return info ? info.prefixo : null;
+    }
+
+    window.abrirModalVinculacao = function () {
+        const modal = document.getElementById('modal-vinculacao');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        const resultadoEl = document.getElementById('vinculacao-auto-resultado');
+        if (resultadoEl) resultadoEl.textContent = '';
+        _renderVinculacaoLista();
+    };
+
+    function _renderVinculacaoLista() {
+        const container = document.getElementById('vinculacao-lista');
+        if (!container) return;
+        const estruturas = _estruturasDisponiveisVinculo();
+
+        if (!tableStates.cabos.data.length) {
+            container.innerHTML = '<div style="color:#8b949e; padding:10px;">Nenhum cabo na tabela.</div>';
+            return;
+        }
+        if (!estruturas.length) {
+            container.innerHTML = '<div style="color:#8b949e; padding:10px;">Nenhuma estrutura/poste na tabela Outros ainda.</div>';
+            return;
+        }
+
+        let html = '';
+        tableStates.cabos.data.forEach((cabo, idxCabo) => {
+            const qtd = _qtdEstruturasParaOperacaoVinculo(cabo.operacao);
+            const vinculo = Array.isArray(cabo.vinculoEstruturas) ? cabo.vinculoEstruturas : [];
+            html += `<div style="display:flex; align-items:center; gap:10px; padding:8px 6px; border-bottom:1px solid #21262d;">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:600;">${_escapeHtmlVinculacao(cabo.ativo || '(sem ativo)')}</div>
+                    <div style="font-size:0.72rem; color:#8b949e;">operação ${_escapeHtmlVinculacao(cabo.operacao || '')} — exige ${qtd} estrutura(s)</div>
+                </div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">`;
+            for (let slot = 0; slot < qtd; slot++) {
+                const valorAtual = vinculo[slot];
+                const valido = valorAtual !== undefined && estruturas.some(e => e.i === valorAtual);
+                html += `<select class="vinculacao-select" data-cabo="${idxCabo}" data-slot="${slot}" onchange="_atualizarVinculoSelect(this)" style="background:#0d1117; border:1px solid ${valorAtual !== undefined && !valido ? '#f85149' : '#30363d'}; border-radius:6px; color:white; padding:5px 7px; font-size:0.78rem; min-width:150px;">
+                    <option value="">— selecione —</option>`;
+                estruturas.forEach(e => {
+                    const sel = valido && valorAtual === e.i ? 'selected' : '';
+                    html += `<option value="${e.i}" ${sel}>${_escapeHtmlVinculacao(e.r.ativo || '(sem ativo)')}</option>`;
+                });
+                html += `</select>`;
+            }
+            html += `</div></div>`;
+        });
+        container.innerHTML = html;
+    }
+
+    window._atualizarVinculoSelect = function (selectEl) {
+        const idxCabo = parseInt(selectEl.dataset.cabo, 10);
+        const slot = parseInt(selectEl.dataset.slot, 10);
+        const valor = selectEl.value === '' ? undefined : parseInt(selectEl.value, 10);
+
+        const cabo = tableStates.cabos.data[idxCabo];
+        if (!cabo) return;
+        pushHistory();  // snapshot ANTES da mudança
+        const vinculo = Array.isArray(cabo.vinculoEstruturas) ? cabo.vinculoEstruturas.slice() : [];
+        while (vinculo.length <= slot) vinculo.push(undefined);
+        vinculo[slot] = valor;
+        cabo.vinculoEstruturas = vinculo.filter(v => v !== undefined);
+        _renderVinculacaoLista();
+    };
+
+    /**
+     * Vínculo automático por coordenada (opcional, TASK-032) — usa _x/_y (DXF sempre; PDF a
+     * partir desta tarefa) para casar cada cabo com as estruturas mais próximas, respeitando a
+     * quantidade/compatibilidade da regra do tipo de cada estrutura. Nunca sobrescreve um cabo
+     * que já tenha vínculo (manual ou de uma passada anterior), e nunca "adivinha" quando não há
+     * combinação válida — o cabo fica sem vínculo, destacado para correção manual.
+     */
+    window.tentarVincularAutomaticamente = function () {
+        const resultadoEl = document.getElementById('vinculacao-auto-resultado');
+        const estruturas = _estruturasDisponiveisVinculo();
+        if (!estruturas.length) {
+            if (resultadoEl) resultadoEl.textContent = 'Nenhuma estrutura/poste disponível para vincular.';
+            return;
+        }
+
+        // Ocupação atual (vínculos manuais/já existentes contam para a capacidade de cada estrutura).
+        const ocupacao = {};
+        estruturas.forEach(e => { ocupacao[e.i] = []; });
+        tableStates.cabos.data.forEach((cabo, idxCabo) => {
+            (cabo.vinculoEstruturas || []).forEach(idxEst => {
+                if (ocupacao[idxEst]) ocupacao[idxEst].push(idxCabo);
+            });
+        });
+
+        let vinculados = 0, jaTinham = 0, semCandidato = 0, semCoordenada = 0;
+
+        tableStates.cabos.data.forEach((cabo, idxCabo) => {
+            if (Array.isArray(cabo.vinculoEstruturas) && cabo.vinculoEstruturas.length > 0) {
+                jaTinham++;
+                return;
+            }
+            if (cabo._x === undefined || cabo._y === undefined) {
+                semCoordenada++;
+                return;
+            }
+
+            const qtdNecessaria = _qtdEstruturasParaOperacaoVinculo(cabo.operacao);
+            const prefixoCabo = _prefixoCaboVinculo(cabo.ativo);
+
+            const candidatas = estruturas
+                .filter(e => e.r._x !== undefined && e.r._y !== undefined)
+                .map(e => ({ r: e.r, i: e.i, dist: Math.hypot(e.r._x - cabo._x, e.r._y - cabo._y) }))
+                .sort((a, b) => a.dist - b.dist);
+
+            const escolhidas = [];
+            for (const cand of candidatas) {
+                const tipo = _tipoEstruturaVinculo(cand.r.ativo);
+                const regra = _regraVinculacaoParaTipo(tipo);
+                const capacidade = regra ? regra.qtd_cabos : qtdNecessaria;
+                const ocupados = ocupacao[cand.i] || [];
+                if (ocupados.length + 1 > capacidade) continue;
+
+                if (regra && regra.compatibilidade === 'MESMO_TIPO_FASE_OPERACAO' && ocupados.length > 0) {
+                    const outroCabo = tableStates.cabos.data[ocupados[0]];
+                    const prefixoOutro = _prefixoCaboVinculo(outroCabo.ativo);
+                    if (prefixoOutro !== prefixoCabo || (outroCabo.operacao || '').toUpperCase() !== (cabo.operacao || '').toUpperCase()) {
+                        continue;
+                    }
+                }
+                escolhidas.push(cand);
+                if (escolhidas.length === qtdNecessaria) break;
+            }
+
+            if (escolhidas.length === qtdNecessaria) {
+                cabo.vinculoEstruturas = escolhidas.map(e => e.i);
+                escolhidas.forEach(e => { ocupacao[e.i].push(idxCabo); });
+                vinculados++;
+            } else {
+                semCandidato++;
+            }
+        });
+
+        if (vinculados > 0) pushHistory();
+        _renderVinculacaoLista();
+        if (resultadoEl) {
+            resultadoEl.textContent = `${vinculados} cabo(s) vinculado(s) automaticamente · ${jaTinham} já tinham vínculo (preservado) · ` +
+                `${semCandidato + semCoordenada} ficaram sem vínculo (sem combinação confiável ou sem coordenada).`;
+        }
+    };
+
+    /**
+     * TASK-033: acha estruturas/postes sem o vínculo certo pro seu tipo (regras de vinculação,
+     * TASK-032). Achados no mesmo formato de /api/validacao/planilhas, para aparecerem juntos no
+     * modal de Validação — sem round-trip ao backend, já que o vínculo só existe no frontend.
+     */
+    function avaliarVinculacaoLocal() {
+        const achados = [];
+        const estruturas = _estruturasDisponiveisVinculo();
+        if (!estruturas.length) return achados;
+
+        const ocupacao = {};
+        estruturas.forEach(e => { ocupacao[e.i] = []; });
+        tableStates.cabos.data.forEach((cabo, idxCabo) => {
+            (cabo.vinculoEstruturas || []).forEach(idxEst => {
+                if (ocupacao[idxEst]) ocupacao[idxEst].push(idxCabo);
+            });
+        });
+
+        // Exceção (só para zero vínculos): existe cabo M/*M ou ativo RETCA em qualquer lugar do projeto?
+        const existeCaboMantendo = tableStates.cabos.data.some(c => {
+            const op = (c.operacao || '').toUpperCase();
+            return op === 'M' || op === '*M';
+        });
+        const existeRetca = tableStates.outros.data.some(r => /\bRETCA\b/i.test(r.ativo || ''));
+        const temExcecaoZero = existeCaboMantendo || existeRetca;
+
+        estruturas.forEach(e => {
+            const ocupados = ocupacao[e.i] || [];
+            const tipo = _tipoEstruturaVinculo(e.r.ativo);
+            const regra = _regraVinculacaoParaTipo(tipo);
+            if (!regra) return;  // sem regra cadastrada pro tipo: não dá pra avaliar
+
+            if (ocupados.length === 0) {
+                if (temExcecaoZero) return;
+                achados.push({
+                    linha_id: `OUTROS-${e.i}`, tabela: 'outros', regra_id: 'VINCULO-ESTRUTURA',
+                    severidade: 'aviso',
+                    mensagem: `Estrutura "${e.r.ativo}" sem nenhum cabo vinculado.`,
+                    explicacao: `Tipo ${tipo} exige ${regra.qtd_cabos} cabo(s) vinculado(s); nenhum encontrado, e não há cabo M/*M nem RETCA no projeto para justificar.`
+                });
+                return;
+            }
+
+            if (ocupados.length !== regra.qtd_cabos) {
+                achados.push({
+                    linha_id: `OUTROS-${e.i}`, tabela: 'outros', regra_id: 'VINCULO-ESTRUTURA',
+                    severidade: 'aviso',
+                    mensagem: `Estrutura "${e.r.ativo}" com ${ocupados.length} cabo(s) vinculado(s), esperado ${regra.qtd_cabos}.`,
+                    explicacao: `Tipo ${tipo} exige exatamente ${regra.qtd_cabos} cabo(s) vinculado(s).`
+                });
+                return;
+            }
+
+            if (regra.compatibilidade === 'MESMO_TIPO_FASE_OPERACAO' && ocupados.length > 1) {
+                const primeiro = tableStates.cabos.data[ocupados[0]];
+                const prefixoRef = _prefixoCaboVinculo(primeiro.ativo);
+                const opRef = (primeiro.operacao || '').toUpperCase();
+                const incompat = ocupados.slice(1).some(idx => {
+                    const c = tableStates.cabos.data[idx];
+                    return _prefixoCaboVinculo(c.ativo) !== prefixoRef || (c.operacao || '').toUpperCase() !== opRef;
+                });
+                if (incompat) {
+                    achados.push({
+                        linha_id: `OUTROS-${e.i}`, tabela: 'outros', regra_id: 'VINCULO-ESTRUTURA',
+                        severidade: 'aviso',
+                        mensagem: `Estrutura "${e.r.ativo}" com cabos vinculados incompatíveis entre si.`,
+                        explicacao: `Tipo ${tipo} exige que os cabos vinculados sejam do mesmo tipo, fase e operação.`
+                    });
+                }
+            }
+        });
+
+        return achados;
+    }
+
+    /* ═══════════════════════════════════════
        TOAST
     ═══════════════════════════════════════ */
     let toastTimer = null;
@@ -1005,6 +1281,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function deepClone(obj) {
         const c = { entidade: obj.entidade || '0', operacao: obj.operacao || 'M', ativo: obj.ativo || '' };
         if (obj.qtdAtivos !== undefined) c.qtdAtivos = obj.qtdAtivos;
+        // TASK-032: coordenada de origem (presente em obj._raw na primeira montagem da linha, e
+        // em obj diretamente depois) e vínculo cabo<->estrutura — preservados através de
+        // undo/redo e salvar/carregar obra, já que tudo passa por esta função.
+        const x = obj._x !== undefined ? obj._x : (obj._raw && obj._raw._x);
+        const y = obj._y !== undefined ? obj._y : (obj._raw && obj._raw._y);
+        if (x !== undefined) c._x = x;
+        if (y !== undefined) c._y = y;
+        if (Array.isArray(obj.vinculoEstruturas)) c.vinculoEstruturas = obj.vinculoEstruturas.slice();
         return c;
     }
 
@@ -2118,6 +2402,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 if (!resp.ok) throw new Error(await lerDetalhe(resp));
                 achados = (await resp.json()).achados;
+                // TASK-033: achados de vinculação cabo<->estrutura (TASK-032) — só existem no
+                // frontend (o vínculo nunca vai ao backend), por isso são calculados aqui e
+                // concatenados, em vez de vir de /api/validacao/planilhas.
+                achados = achados.concat(avaliarVinculacaoLocal());
             } catch (e) {
                 return { achados: [], ia: null, modos, falhou: `Não foi possível validar (${e.message}).` };
             }
@@ -3798,10 +4086,11 @@ window.renderRegrasTable = function() {
                     <option value="" ${r.origem === '' ? 'selected' : ''}>Qqlr</option>
                     <option value="CABOS" ${r.origem === 'CABOS' ? 'selected' : ''}>CABOS</option>
                     <option value="OUTROS" ${r.origem === 'OUTROS' ? 'selected' : ''}>OUTROS</option>
+                    <option value="VINCULO" ${r.origem === 'VINCULO' ? 'selected' : ''}>VINCULO</option>
                 </select>
             </td>
             <td><input type="text" class="tot-input" placeholder="Qqlr" value="${r.op_de || ''}" onchange="updateRegraRow(${index}, 'op_de', this.value)"></td>
-            <td><input type="text" class="tot-input" placeholder="Qqlr" value="${r.ativo_de || ''}" onchange="updateRegraRow(${index}, 'ativo_de', this.value)"></td>
+            <td><input type="text" class="tot-input" placeholder="${r.origem === 'VINCULO' ? 'Ex: CAA2_N4' : 'Qqlr'}" value="${r.ativo_de || ''}" onchange="updateRegraRow(${index}, 'ativo_de', this.value)"></td>
             <td>
                 <select class="tot-input" onchange="updateRegraRow(${index}, 'acao', this.value)">
                     <option value="ADICAO" ${(!r.acao || r.acao === 'ADICAO' || r.acao === 'ADI\u00C7\u00C3O' || r.acao === 'ADIC\u00C3O') ? 'selected' : ''}>ADI\u00C7\u00C3O</option>
@@ -4015,6 +4304,30 @@ window.syncTotalizadora = async function(forceUpdate = true) {
         });
     });
 
+    // Ativos compostos do vínculo cabo<->estrutura (TASK-034): um pseudo-item por aresta do
+    // vínculo (TASK-032), origem "VINCULO", para as Regras de Conversão poderem casar contra ele
+    // (ex.: ativo_de=CAA2_N4). Só existe aqui dentro — nunca aparece na Totalizadora sem match.
+    tableStates.cabos.data.forEach((cabo, idxCabo) => {
+        if (!Array.isArray(cabo.vinculoEstruturas) || !cabo.vinculoEstruturas.length) return;
+        const info = extrairPrefixoEComprimentoCabo(cabo.ativo);
+        const prefixoCabo = info ? info.prefixo : null;
+        if (!prefixoCabo) return;
+        cabo.vinculoEstruturas.forEach(idxEstrutura => {
+            const estrutura = tableStates.outros.data[idxEstrutura];
+            if (!estrutura || !estrutura.ativo) return;
+            rawItems.push({
+                baseId: `TOT-VINC-${idxCabo}-${idxEstrutura}`,
+                obs: 'VINCULO',
+                operacao: cabo.operacao || 'I',
+                ativo: `${prefixoCabo}_${estrutura.ativo.trim().toUpperCase()}`,
+                qtd: 1,
+                desc: '',
+                naoEncontrado: false,
+                origem: 'VINCULO'
+            });
+        });
+    });
+
     // MOTOR DE REGRAS
     const newData = [];
     const regras = tableStates.regras.data;
@@ -4097,6 +4410,13 @@ window.syncTotalizadora = async function(forceUpdate = true) {
             }
         });
         
+        // TASK-034: um ativo composto de VINCULO sem nenhuma regra de conversão correspondente
+        // não gera nada na Totalizadora (não é um código de orçamento real, só uma chave interna
+        // do vínculo) — diferente de CABOS/OUTROS, que mantêm o item original sem match.
+        if (!matchEncontrado && item.origem === 'VINCULO') {
+            return;
+        }
+
         if (!matchEncontrado || !requiresSubstitution) {
             // Se nenhuma regra se aplicar OU se as regras aplicadas foram apenas de ADIÇÃO, mantemos o item original
             const itemClone = { ...item };

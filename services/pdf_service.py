@@ -52,12 +52,20 @@ def extract_pdf_content(doc) -> list[dict]:
                 for s in l["spans"]:
                     text = s["text"].strip()
                     if text:
-                        extracted.append({
+                        bbox = s.get("bbox")
+                        item = {
                             "pagina": i + 1,
                             "texto": text,
                             "fonte": s["font"],
                             "tamanho": round(s["size"], 2),
                             "cor": color_to_hex(s.get("color", 0)),
                             "flags": flags_decomposer(s["flags"])
-                        })
+                        }
+                        # Coordenada do canto superior-esquerdo do texto (mesmo papel do ponto de
+                        # inserção já usado em services/dxf_service.py: _x/_y), usada pelo
+                        # algoritmo de vinculação cabo<->estrutura (TASK-032).
+                        if bbox:
+                            item["_x"] = round(float(bbox[0]), 2)
+                            item["_y"] = round(float(bbox[1]), 2)
+                        extracted.append(item)
     return extracted

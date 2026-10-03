@@ -168,6 +168,15 @@ CREATE TABLE IF NOT EXISTS public.regras_leitor_classificacao_historico (
 ALTER TABLE public.regras_leitor_classificacao_historico DISABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_regras_leitor_cls_hist_projeto ON public.regras_leitor_classificacao_historico(projeto_codigo);
 
+-- TASK-032: regras de vinculação estrutura<->cabo, mesmo padrão de regras_leitor_* — uma linha
+-- por projeto com um array JSON de regras (tipo_estrutura, qtd_cabos, compatibilidade).
+CREATE TABLE IF NOT EXISTS public.regras_vinculacao (
+    projeto_codigo TEXT PRIMARY KEY,
+    regras_json TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.regras_vinculacao DISABLE ROW LEVEL SECURITY;
+
 -- TASK-012: prompts de validação das planilhas (ADR-004, camada 3). Um texto (cabeçalho + corpo) por
 -- (projeto, prompt); "DEFAULT" vale para todo projeto sem versão própria. Histórico de versões para
 -- reverter pela UI (admin).
