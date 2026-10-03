@@ -99,6 +99,8 @@ def test_varrer_agora_e_historico(api):
     assert ex["status"] == "ok" and ex["pendencias"] == [] and "originais" not in ex and "diff" not in ex
     assert api.get("/api/autonomo/execucoes/naoexiste", headers=cab()).status_code == 404
     assert api.get("/api/autonomo/execucoes?status=erro", headers=cab()).json()["execucoes"] == []
+    assert len(api.get("/api/autonomo/execucoes?projeto=P1", headers=cab()).json()["execucoes"]) == 1
+    assert api.get("/api/autonomo/execucoes?projeto=OUTRO", headers=cab()).json()["execucoes"] == []
 
 
 def test_pendencias_sim_sim_para_todos_rejeitar_reverter_e_reprocessar(api):

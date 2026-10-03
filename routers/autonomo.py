@@ -98,8 +98,8 @@ def varrer_agora():
 
 
 @router.get("/execucoes")
-def listar_execucoes(status: Optional[str] = None, limite: int = 100):
-    return {"execucoes": execucoes.listar(status, max(1, min(limite, 500)))}
+def listar_execucoes(status: Optional[str] = None, projeto: Optional[str] = None, limite: int = 100):
+    return {"execucoes": execucoes.listar(status, projeto, max(1, min(limite, 500)))}
 
 
 @router.get("/execucoes/{exec_id}")

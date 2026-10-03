@@ -206,22 +206,45 @@
     }
 
     /* ── ciclo ── */
+    function queryExecucoes(extra) {
+        const p = new URLSearchParams();
+        if ($('filtro').value) p.set('status', $('filtro').value);
+        if ($('filtro-projeto').value) p.set('projeto', $('filtro-projeto').value);
+        if (extra) Object.entries(extra).forEach(([k, v]) => p.set(k, v));
+        const s = p.toString();
+        return '/api/autonomo/execucoes' + (s ? `?${s}` : '');
+    }
     async function atualizar(forcar) {
         if (ocupado) return;
         ocupado = true;
         try {
-            const [st, hist] = await Promise.all([api('GET', '/api/autonomo/status'), api('GET', '/api/autonomo/execucoes' + ($('filtro').value ? `?status=${$('filtro').value}` : ''))]);
+            const [st, hist] = await Promise.all([api('GET', '/api/autonomo/status'), api('GET', queryExecucoes())]);
             renderEstado(st);
             renderHistorico(hist.execucoes);
-            const todas = $('filtro').value ? (await api('GET', '/api/autonomo/execucoes?status=aguardando_confirmacao')).execucoes : hist.execucoes;
+            const precisaBuscarPendencias = $('filtro').value || $('filtro-projeto').value;
+            const todas = precisaBuscarPendencias
+                ? (await api('GET', queryExecucoes({ status: 'aguardando_confirmacao' }))).execucoes
+                : hist.execucoes;
             await renderPendencias(todas);
         } catch (e) { aviso(e.message); } finally { ocupado = false; }
+    }
+    async function carregarProjetosFiltro() {
+        try {
+            const r = await api('GET', '/api/projetos');
+            const projetos = Array.isArray(r) ? r : (r.projetos || []);
+            const sel = $('filtro-projeto');
+            const atual = sel.value;
+            sel.replaceChildren(new Option('Todos os projetos', ''));
+            projetos.forEach(p => sel.append(new Option(`${p.codigo} — ${p.nome}`, p.codigo)));
+            sel.value = atual;
+        } catch (e) { /* o filtro é só uma conveniência: sem a lista, segue funcionando sem opções */ }
     }
     async function iniciar() {
         await tentar(async () => {
             const c = await api('GET', '/api/autonomo/config');
             cfgAtual = c.config; usuarioAtual = c.usuario_atual;
             await montarFormulario(cfgAtual, await carregarUsuarios());
+            await carregarProjetosFiltro();
             await atualizar(true);
         });
     }
@@ -233,6 +256,7 @@
     $('btn-varrer').onclick = () => tentar(async () => { await api('POST', '/api/autonomo/varrer'); await atualizar(true); });
     $('btn-atualizar').onclick = () => atualizar(true);
     $('filtro').onchange = () => atualizar(true);
+    $('filtro-projeto').onchange = () => atualizar(true);
     $('btn-salvar').onclick = salvarConfig;
     $('modal-fechar').onclick = () => $('modal').classList.add('oculto');
     $('modal').onclick = e => { if (e.target === $('modal')) $('modal').classList.add('oculto'); };
