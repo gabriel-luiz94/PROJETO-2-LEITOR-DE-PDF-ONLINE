@@ -23,6 +23,7 @@ from services.autonomo.leitor_js import obter_leitor
 from services.autonomo.montagem import montar_tabelas
 from services.autonomo.ramais import linhas_ramais
 from services.autonomo.totalizadora import REGRA_PADRAO, montar_totalizadora, normalizar_para_json, payload_calculo
+from services.autonomo.vinculacao import avaliar_vinculacao, itens_vinculo_para_totalizadora, tentar_vincular_automaticamente
 from services.orcamento_calc import processar_calculo
 from services.regras_dominio import avaliar
 from services.validacao_planilhas import resumir, validar_planilhas
@@ -50,6 +51,7 @@ class Contexto:
     regras_dominio: list = field(default_factory=list)
     grupos: dict = field(default_factory=dict)
     receitas: list = field(default_factory=list)      # ajustes efetivos habilitados do projeto (ativa e não ocultos)
+    regras_vinculacao: list = field(default_factory=list)  # TASK-036
     leitor: object = None
 
 
@@ -58,6 +60,7 @@ def carregar_contexto(projeto_codigo: str, user_id: str) -> Contexto:
     import database
     from routers.regras import get_regras_conversao
     from routers.regras_leitor import _get_regras
+    from routers.regras_vinculacao import _get_regras as _get_regras_vinculacao
     from routers.validacao_ajustes import ajustes_efetivos
     from routers.validacao_regras import regras_efetivas
     from services.sync_service import get_merged_orcamento
@@ -75,7 +78,8 @@ def carregar_contexto(projeto_codigo: str, user_id: str) -> Contexto:
     return Contexto(projeto_codigo=projeto_codigo, projeto_nome=r["nome"], user_id=user_id,
                     regras_proc=_get_regras("processamento", projeto_codigo), regras_cls=_get_regras("classificacao", projeto_codigo),
                     regras_conversao=conversao, base_orcamento=get_merged_orcamento(user_id),
-                    regras_dominio=regras_dominio, grupos=grupos, receitas=receitas)
+                    regras_dominio=regras_dominio, grupos=grupos, receitas=receitas,
+                    regras_vinculacao=_get_regras_vinculacao(projeto_codigo))
 
 
 # ── utilidades ──────────────────────────────────────────────────────────────
@@ -268,11 +272,17 @@ def _finalizar(exec_id: str, ctx: Contexto, pasta: str, reverter: bool = False) 
         r = aplicar_operacoes(ex["originais"]["cabos"], ex["originais"]["outros"], ops, escolhidas, ctx.regras_cls, ctx.leitor or obter_leitor())
         cabos, outros = r["cabos"], r["outros"]
         e["detalhe"] = {"aplicadas": r["aplicadas"], "ignoradas": r["ignoradas"], "rejeitadas": len(dec["rejeitadas"]) if not reverter else 0}
+    with etapas("vincular") as e:
+        # TASK-036: auto-link por coordenada sobre as tabelas FINAIS (depois do diff aplicado) — nunca antes, para não
+        # correr o risco de `vinculoEstruturas` (índices em `outros`) ficar desalinhado por uma exclusão do ajuste.
+        e["detalhe"] = tentar_vincular_automaticamente(cabos, outros, ctx.regras_vinculacao)
     with etapas("validar_depois") as e:
-        depois = _validar(ctx, cabos, outros)
+        achados_vinculo = avaliar_vinculacao(cabos, outros, ctx.regras_vinculacao)
+        depois = _validar(ctx, cabos, outros) + achados_vinculo
         e["detalhe"] = resumir(depois)
     with etapas("totalizadora") as e:
-        tot_bruta = montar_totalizadora(cabos, outros, ctx.regras_conversao, ctx.base_orcamento, ctx.projeto_nome)
+        itens_vinculo = itens_vinculo_para_totalizadora(cabos, outros)
+        tot_bruta = montar_totalizadora(cabos, outros, ctx.regras_conversao, ctx.base_orcamento, ctx.projeto_nome, itens_vinculo=itens_vinculo)
         payload = payload_calculo(tot_bruta)
         totalizadora = normalizar_para_json(tot_bruta)
         e["detalhe"] = {"linhas": len(totalizadora)}

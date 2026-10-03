@@ -264,10 +264,9 @@ def extract_dxf_content(doc) -> list[dict]:
         except Exception as e:
             logger.warning(f"Erro ao processar bloco {bname}: {e}")
 
-    # Ordenação: maior Y primeiro (topo), desempate por X (esquerda)
+    # Ordenação: maior Y primeiro (topo), desempate por X (esquerda). _x/_y ficam no retorno (TASK-036):
+    # usados pelo algoritmo de vinculação cabo<->estrutura por coordenada (mesmo papel que já tinham
+    # em pdf_service.py) — antes eram descartados aqui depois de servir só para a ordenação.
     all_rows.sort(key=lambda r: (-r["_y"], r["_x"]))
-    for r in all_rows:
-        r.pop("_y", None)
-        r.pop("_x", None)
 
     return all_rows

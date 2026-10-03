@@ -128,3 +128,24 @@ def test_apoio_so_vai_para_ramais_com_recalcada_ou_base():
     t = mt.montar_tabelas(itens, [], [], lt)
     assert [x["texto"] for x in t["ramais"]] == ["REC. CALCADA 2X", "CONC BASE", "REC. CALÇADA"]
     assert len(t["outros"]) == 4   # APOIO também é 'outros'
+
+
+def test_coordenada_da_extracao_passa_para_cabos_e_outros(monkeypatch):
+    """TASK-036: _x/_y (quando a extração os tem) chegam até as linhas de Cabos/Outros — o autônomo
+    controla os dois lados do pipeline sem passar pela limitação de static/script.js (que não repassa
+    a coordenada do Leitor para o Resumo)."""
+    itens = [{"pagina": 1, "texto": "a", "cor": "#f00", "layer": "", "_x": 1.5, "_y": 2.5},
+              {"pagina": 1, "texto": "b", "cor": "#f00", "layer": ""}]  # sem coordenada
+    passo1 = [r("CABO", "I", "CAA2 ABC 10 m"), r("ESTRUTURA", "I", "U4")]
+    lt = LeitorFalso(passo1, {})
+    t = mt.montar_tabelas(itens, [], [], lt)
+    assert t["cabos"][0]["_x"] == 1.5 and t["cabos"][0]["_y"] == 2.5
+    assert "_x" not in t["outros"][0] and "_y" not in t["outros"][0]
+
+
+def test_prefixo_cabo():
+    p = mt.prefixo_cabo
+    assert p("CAA 2 ABC 35 m") == "CAA2"
+    assert p("CA 4 AB 10 m") == "CA4"
+    assert p("CAA2") is None          # sem comprimento identificável (1 token só)
+    assert p("") is None and p(None) is None

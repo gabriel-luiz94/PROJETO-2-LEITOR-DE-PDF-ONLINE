@@ -1028,8 +1028,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return (op === 'M' || op === '*M') ? 1 : 2;
     }
 
+    function _codigoEstruturaVinculo(ativoEstrutura) {
+        // TASK-036: o ativo de uma linha Outros é "<qtd>-<código>" (ex.: "1-U4"), nunca o código puro.
+        const texto = (ativoEstrutura || '').trim();
+        const semQtd = texto.match(/^[*-]?[0-9]+(?:[.,][0-9]+)?[Xx-](.+)$/);
+        return semQtd ? semQtd[1] : texto;
+    }
+
     function _tipoEstruturaVinculo(ativoEstrutura) {
-        const m = (ativoEstrutura || '').match(/\d/);
+        // Pegar o primeiro dígito da string toda pegava o dígito da QUANTIDADE, não o do tipo —
+        // isola o código (depois do prefixo de quantidade) antes de procurar o dígito do tipo.
+        const m = _codigoEstruturaVinculo(ativoEstrutura).match(/\d/);
         return m ? m[0] : null;
     }
 
@@ -4319,7 +4328,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
                 baseId: `TOT-VINC-${idxCabo}-${idxEstrutura}`,
                 obs: 'VINCULO',
                 operacao: cabo.operacao || 'I',
-                ativo: `${prefixoCabo}_${estrutura.ativo.trim().toUpperCase()}`,
+                ativo: `${prefixoCabo}_${_codigoEstruturaVinculo(estrutura.ativo).toUpperCase()}`,
                 qtd: 1,
                 desc: '',
                 naoEncontrado: false,
