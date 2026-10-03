@@ -220,6 +220,21 @@ def test_historico_e_listagem(ambiente, leitor):
     assert "originais" not in todos[0]
 
 
+def test_listagem_filtra_por_projeto(ambiente):
+    conn = database.get_connection()
+    conn.execute("INSERT OR IGNORE INTO projetos (nome, codigo) VALUES ('P2', 'P2')")
+    conn.commit()
+    conn.close()
+    a = execucoes.criar("a.dxf", "hashA", "P1", "u1", status="ok")
+    execucoes.criar("b.dxf", "hashB", "P2", "u1", status="ok")
+    execucoes.criar("c.dxf", "hashC", "P2", "u1", status="erro")
+    assert {x["id"] for x in execucoes.listar(projeto="P1")} == {a}
+    assert {x["projeto_codigo"] for x in execucoes.listar(projeto="P2")} == {"P2"}
+    assert len(execucoes.listar(status="erro", projeto="P2")) == 1
+    assert execucoes.listar(status="erro", projeto="P1") == []
+    assert len(execucoes.listar()) == 3
+
+
 def test_nome_seguro_e_pasta_nao_escapa_da_base(tmp_path):
     p = saida.pasta_da_execucao(str(tmp_path), "../../etc", "../../x/passwd.dxf", "abc")
     assert os.path.commonpath([p, str(tmp_path)]) == str(tmp_path) and ".." not in os.path.relpath(p, str(tmp_path))

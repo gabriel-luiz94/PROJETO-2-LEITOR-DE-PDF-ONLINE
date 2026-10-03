@@ -8,6 +8,34 @@
 
 ---
 
+## 2026-10-03 — TASK-035: filtro por projeto no histórico do modo autônomo (+ registro da TASK-036)
+
+**Tipo:** melhoria (backend + frontend) · `.ai/tasks/TASK-035-03-10-2026.md`
+
+Pedido do usuário depois de discutirmos uma estratégia para rodar vários projetos pelo modo
+autônomo (TASK-031) de uma vez e só depois ir conferindo. A arquitetura já suporta múltiplos
+projetos numa única instância (`entrada/<código-do-projeto>/`), mas o histórico de execuções
+(`GET /api/autonomo/execucoes`) só filtrava por status — inviável de triar visualmente num lote
+grande com vários projetos misturados.
+
+- `services/autonomo/execucoes.py:listar()` ganhou o parâmetro `projeto` (filtro `AND` com
+  `status`); `routers/autonomo.py` repassa.
+- `static/autonomo.html`/`autonomo.js`: novo `<select id="filtro-projeto">`, populado a partir de
+  `GET /api/projetos` (que devolve `{"projetos": [...]}` — achado durante o teste: a primeira
+  versão do JS lia como lista direta).
+- Testado: `pytest` (33 testes, 2 novos) + servidor real/Playwright confirmando o seletor populado
+  e os dois filtros combinando sem erro de console.
+
+**Também registrada (sem implementar ainda):** `.ai/tasks/TASK-036-03-10-2026.md` — o modo
+autônomo foi construído (TASK-031, 2026-10-02) **antes** do vínculo cabo↔estrutura/poste
+(TASK-032/033/034, 2026-10-03) e não tem nenhuma referência a ele (confirmado por busca no
+código): não gera vínculo automático por coordenada, não roda a validação de vínculo, e não
+aplica a origem `VINCULO` das Regras de Conversão ao montar o orçamento. Um arquivo processado
+pelo autônomo num projeto que depende de vínculo sai sem essa parte do orçamento. Fica registrada
+para decisão/implementação futura.
+
+---
+
 ## 2026-10-03 — TASK-032/033/034: vínculo cabo↔estrutura, validação e ativo composto
 
 **Tipo:** nova funcionalidade (backend + frontend) · `.ai/tasks/TASK-032-02-10-2026.md`,

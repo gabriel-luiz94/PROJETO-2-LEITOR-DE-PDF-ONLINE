@@ -95,16 +95,21 @@ def buscar_por_hash(arquivo_hash: str, projeto_codigo: str):
     return _linha(r) if r else None
 
 
-def listar(status: str = None, limite: int = 100) -> list:
-    """Resumo das execuções (sem os JSONs grandes), mais recentes primeiro."""
+def listar(status: str = None, projeto: str = None, limite: int = 100) -> list:
+    """Resumo das execuções (sem os JSONs grandes), mais recentes primeiro. Filtros por status e/ou projeto (TASK-035)."""
     conn = _conectar()
     try:
         sql = ("SELECT id, arquivo, arquivo_caminho, projeto_codigo, user_id, status, obra_id, pasta_saida, mensagem, criado_em, atualizado_em "
                "FROM execucoes_autonomas")
-        args = ()
+        condicoes, args = [], []
         if status:
-            sql += " WHERE status = ?"
-            args = (status,)
+            condicoes.append("status = ?")
+            args.append(status)
+        if projeto:
+            condicoes.append("projeto_codigo = ?")
+            args.append(projeto)
+        if condicoes:
+            sql += " WHERE " + " AND ".join(condicoes)
         rows = conn.execute(sql + " ORDER BY criado_em DESC, rowid DESC LIMIT ?", (*args, limite)).fetchall()
     finally:
         conn.close()

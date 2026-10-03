@@ -204,6 +204,14 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       com **Executar todas as correções** acima. CONCLUÍDA (preview-lote + modal de cartões).
 - [x] **TASK-030** (pedido de 2026-10-02): manual de uso para cadastrar regras de validação e ajustes. CONCLUÍDA (`data/manual_regras_e_ajustes.md`, `/manual`, `GET /api/manual`).
 - [x] **TASK-031** (pedido de 2026-10-02): modo autônomo (ler → processar → ajustar → orçamento → salvar em pasta e banco, sem IA). Em PLANEJAMENTO, decisões confirmadas; **Fases A, B, C e D concluídas** (leitor via QuickJS, montagem, aplicador de diff, Totalizadora, pipeline com confirmação de exclusões, pasta monitorada + API de controle admin); tela `/autonomo` entregue; falta verificar no .exe/Windows e com arquivos reais; 4 fases (A leitor via QuickJS + montagem em Python, B pipeline, C pasta monitorada, D tela).
+- [x] **TASK-035** (pedido de 2026-10-03): filtro por projeto no histórico da tela `/autonomo`, combinável com o
+      filtro de status já existente (`GET /api/autonomo/execucoes?status=&projeto=`) — viabiliza conferir em lote
+      vários projetos rodados pelo modo autônomo de uma vez. CONCLUÍDA.
+- [ ] **TASK-036** (registrada em 2026-10-03, não implementada): incorporar o vínculo cabo↔estrutura/poste
+      (TASK-032/033/034) ao modo autônomo — hoje o pipeline autônomo não gera vínculo automático por coordenada,
+      não roda a validação de vínculo e não aplica a origem `VINCULO` das Regras de Conversão; um arquivo
+      processado pelo autônomo num projeto que depende de vínculo sai sem essa parte do orçamento. Aguardando
+      decisão do usuário sobre o caso "auto-link sem combinação válida" antes de iniciar.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -421,15 +429,21 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-03
-**Motivo:** TASK-032/033/034 — vínculo cabo↔estrutura/poste, validação do vínculo e ativo composto
-consumido pelas Regras de Conversão, a pedido do usuário ("Implemente. E refine."). Renumeradas de
-TASK-009/010/011 para TASK-032/033/034 por colisão com tarefas já mescladas em `main` por outra
-sessão (mesmo tratamento já usado uma vez antes neste projeto, para TASK-001-004).
-**Alterações de código:** `services/pdf_service.py` (coordenadas `_x`/`_y`), `config.py`,
-`data/regras_vinculacao_seed.json` (novo), `database.py` (tabela `regras_vinculacao` + seed),
-`routers/regras_vinculacao.py` (novo), `app.py`, `scripts/schema_supabase.sql`, `static/resumo.html`,
-`static/resumo.js` (modal de vinculação, auto-link por coordenada, correção do `deepClone`
-duplicado, integração em `executarValidacao()`, nova origem `VINCULO` em `syncTotalizadora()`).
-Testes: manuais via servidor real + Playwright (sem suíte pytest nova). Ver
-`.ai/tasks/TASK-032-02-10-2026.md`, `TASK-033-02-10-2026.md`, `TASK-034-02-10-2026.md` e
-`.ai/CHANGELOG.md`.
+**Motivo:** TASK-035 — filtro por projeto no histórico do modo autônomo, a pedido do usuário depois
+de discutirmos uma estratégia para rodar vários projetos pelo autônomo e conferir em lote. Também
+registrada (sem implementar) a TASK-036: o modo autônomo não conhece o vínculo cabo↔estrutura/poste
+(TASK-032/033/034), lacuna identificada durante essa mesma conversa.
+**Alterações de código:** `services/autonomo/execucoes.py` (`listar()` ganhou o parâmetro `projeto`),
+`routers/autonomo.py`, `static/autonomo.html`, `static/autonomo.js` (seletor de projeto, populado de
+`GET /api/projetos`), `tests/test_autonomo_pipeline.py`, `tests/test_autonomo_api.py`.
+Testes: `pytest` (33 testes, 2 novos) + servidor real/Playwright. Ver `.ai/tasks/TASK-035-03-10-2026.md`,
+`TASK-036-03-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-032/033/034 — vínculo cabo↔estrutura/poste, validação
+do vínculo e ativo composto consumido pelas Regras de Conversão, a pedido do usuário ("Implemente. E
+refine."). Renumeradas de TASK-009/010/011 por colisão com tarefas já mescladas em `main` por outra
+sessão. Alterações: `services/pdf_service.py` (coordenadas `_x`/`_y`), `config.py`,
+`data/regras_vinculacao_seed.json`, `database.py` (tabela `regras_vinculacao` + seed),
+`routers/regras_vinculacao.py`, `app.py`, `scripts/schema_supabase.sql`, `static/resumo.html`,
+`static/resumo.js`. Ver `.ai/tasks/TASK-032-02-10-2026.md`, `TASK-033-02-10-2026.md`,
+`TASK-034-02-10-2026.md`.
