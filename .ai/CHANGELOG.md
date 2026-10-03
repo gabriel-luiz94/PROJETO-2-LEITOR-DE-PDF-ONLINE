@@ -8,6 +8,52 @@
 
 ---
 
+## 2026-10-03 — TASK-036: vínculo cabo↔estrutura no modo autônomo (+ 3 bugs achados e corrigidos)
+
+**Tipo:** nova funcionalidade (backend) + correção de bugs pré-existentes · `.ai/tasks/TASK-036-03-10-2026.md`
+
+Implementa o que a TASK-036 tinha registrado: o pipeline do modo autônomo (TASK-031) agora gera
+vínculo cabo↔estrutura/poste por coordenada, roda a validação de vínculo (TASK-033) e aplica a
+origem `VINCULO` das Regras de Conversão (TASK-034) ao montar o orçamento — as três coisas que,
+até aqui, só existiam dentro de `static/resumo.js`.
+
+- `services/autonomo/montagem.py`: `_x`/`_y` passam a chegar até as linhas de Cabos/Outros; nova
+  `prefixo_cabo()`.
+- Novo módulo `services/autonomo/vinculacao.py`: porte fiel de `tentarVincularAutomaticamente`,
+  `avaliarVinculacaoLocal` e do bloco de ativo composto de `syncTotalizadora`.
+- `services/autonomo/pipeline.py`: nova etapa `vincular`; `Contexto.regras_vinculacao`.
+- `services/autonomo/totalizadora.py`: `montar_totalizadora()` ganhou `itens_vinculo`; composto
+  sem regra correspondente nunca é mantido (decisão já tomada na TASK-034, replicada aqui).
+- **Decisão do usuário:** auto-link sem combinação válida nunca bloqueia nem vira pendência de
+  confirmação — só um achado de aviso no relatório.
+
+**Três bugs pré-existentes achados durante a implementação (confirmados com o leitor real antes de
+corrigir, não por suposição) — corrigidos por decisão explícita do usuário:**
+
+1. `_tipoEstruturaVinculo` (TASK-032/033) pegava o dígito da **quantidade**, não do tipo da
+   estrutura — o ativo real de uma linha Outros é sempre `"<qtd>-<código>"` (ex.: `"1-U4"`, nunca
+   `"U4"` sozinho; confirmado rodando o motor de regras real). Isso quebrava silenciosamente todo
+   o casamento de regra por tipo desde que a TASK-032/033 foi mesclada. Corrigido nos dois lados
+   (`static/resumo.js` e `services/autonomo/vinculacao.py`).
+2. O mesmo problema na geração do ativo composto em `syncTotalizadora` (`CAA2_1-U4` em vez de
+   `CAA2_U4`). Mesma causa raiz, mesma correção.
+3. `services/dxf_service.py:extract_dxf_content()` calculava `_x`/`_y` só para ordenar a lista de
+   saída e depois os **descartava** antes de devolver — nenhum arquivo DXF jamais teve coordenada
+   disponível para o vínculo automático (só PDF, desde a captura adicionada no início desta
+   sessão). Corrigido: os campos agora ficam no retorno.
+
+**Pendência registrada, não corrigida aqui** (`.ai/tasks/TASK-037-03-10-2026.md`): `static/script.js`
+(botão "Processar" da tela Leitor) ainda não repassa `_x`/`_y` para `localStorage['processar_dados']`
+— o vínculo automático por coordenada continua não funcional na **tela manual** até isso ser
+corrigido (o modo autônomo não depende de `script.js`, por isso já funciona com as correções acima).
+
+Testado: `pytest tests/` completo (679 testes, todos passando — 23 novos em
+`test_autonomo_vinculacao.py`, +2 em `test_autonomo_montagem.py`, +2 de pipeline completo em
+`test_autonomo_pipeline.py`) + verificação manual em servidor real/Playwright na tela `/resumo`
+confirmando o auto-link escolhendo a estrutura mais próxima com os bugs corrigidos.
+
+---
+
 ## 2026-10-03 — TASK-035: filtro por projeto no histórico do modo autônomo (+ registro da TASK-036)
 
 **Tipo:** melhoria (backend + frontend) · `.ai/tasks/TASK-035-03-10-2026.md`

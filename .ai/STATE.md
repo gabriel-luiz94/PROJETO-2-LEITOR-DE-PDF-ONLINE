@@ -207,11 +207,18 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [x] **TASK-035** (pedido de 2026-10-03): filtro por projeto no histórico da tela `/autonomo`, combinável com o
       filtro de status já existente (`GET /api/autonomo/execucoes?status=&projeto=`) — viabiliza conferir em lote
       vários projetos rodados pelo modo autônomo de uma vez. CONCLUÍDA.
-- [ ] **TASK-036** (registrada em 2026-10-03, não implementada): incorporar o vínculo cabo↔estrutura/poste
-      (TASK-032/033/034) ao modo autônomo — hoje o pipeline autônomo não gera vínculo automático por coordenada,
-      não roda a validação de vínculo e não aplica a origem `VINCULO` das Regras de Conversão; um arquivo
-      processado pelo autônomo num projeto que depende de vínculo sai sem essa parte do orçamento. Aguardando
-      decisão do usuário sobre o caso "auto-link sem combinação válida" antes de iniciar.
+- [x] **TASK-036** (pedido de 2026-10-03): incorpora o vínculo cabo↔estrutura/poste (TASK-032/033/034) ao modo
+      autônomo — nova etapa `vincular` no pipeline, módulo `services/autonomo/vinculacao.py` (porte fiel do bloco
+      de `static/resumo.js`), `montar_totalizadora()` reconhecendo a origem `VINCULO`. Decisão do usuário:
+      auto-link sem combinação válida só gera achado de aviso, nunca bloqueia. **Achou e corrigiu 3 bugs
+      pré-existentes** (confirmados com o leitor real): `_tipoEstruturaVinculo` e o ativo composto pegavam o
+      dígito/prefixo de quantidade do ativo de Outros em vez do código da estrutura; `services/dxf_service.py`
+      descartava `_x`/`_y` antes de devolver (nenhum DXF tinha coordenada disponível para o vínculo, só PDF).
+      CONCLUÍDA. Ver `.ai/tasks/TASK-036-03-10-2026.md`.
+- [ ] **TASK-037** (registrada em 2026-10-03, não implementada): `static/script.js` (botão "Processar" da tela
+      Leitor) não repassa `_x`/`_y` para `localStorage['processar_dados']` — o vínculo automático por coordenada
+      continua **não funcional na tela manual** até isso ser corrigido (achado durante a TASK-036; o modo
+      autônomo não depende de `script.js`, por isso já ficou funcional com as correções daquela tarefa).
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -374,6 +381,10 @@ arquivo em `.ai/tasks/`.
     usuário. Mesclado em `main` (PR #5, commit `cac4b85`) e **confirmado funcionando pelo usuário
     em produção** (desktop e online compartilhando as mesmas regras). Ver
     `.ai/tasks/TASK-003-18-09-2026.md` (status: CONCLUÍDA).
+30. `static/script.js` (botão "Processar" da tela Leitor) não repassa `_x`/`_y` do item extraído para
+    `localStorage['processar_dados']` (achado na TASK-036, 2026-10-03) — o vínculo automático por coordenada
+    (TASK-032) continua **não funcional na tela manual** até isso ser corrigido, mesmo com os dois bugs de
+    `_tipoEstruturaVinculo`/ativo composto já corrigidos naquela tarefa. Ver `.ai/tasks/TASK-037-03-10-2026.md`.
 
 ---
 
@@ -429,15 +440,25 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-03
-**Motivo:** TASK-035 — filtro por projeto no histórico do modo autônomo, a pedido do usuário depois
-de discutirmos uma estratégia para rodar vários projetos pelo autônomo e conferir em lote. Também
-registrada (sem implementar) a TASK-036: o modo autônomo não conhece o vínculo cabo↔estrutura/poste
-(TASK-032/033/034), lacuna identificada durante essa mesma conversa.
-**Alterações de código:** `services/autonomo/execucoes.py` (`listar()` ganhou o parâmetro `projeto`),
-`routers/autonomo.py`, `static/autonomo.html`, `static/autonomo.js` (seletor de projeto, populado de
-`GET /api/projetos`), `tests/test_autonomo_pipeline.py`, `tests/test_autonomo_api.py`.
-Testes: `pytest` (33 testes, 2 novos) + servidor real/Playwright. Ver `.ai/tasks/TASK-035-03-10-2026.md`,
-`TASK-036-03-10-2026.md` e `.ai/CHANGELOG.md`.
+**Motivo:** TASK-036 — incorpora o vínculo cabo↔estrutura/poste ao modo autônomo, a pedido do
+usuário ("Pode implementar as tasks"). Durante a implementação, achou e corrigiu (com decisão
+explícita do usuário em cada caso) 3 bugs pré-existentes que impediam o auto-link por coordenada de
+funcionar de fato: `_tipoEstruturaVinculo`/ativo composto pegavam o dígito/prefixo de quantidade do
+ativo de Outros em vez do código da estrutura (`static/resumo.js` + novo `services/autonomo/vinculacao.py`),
+e `services/dxf_service.py` descartava `_x`/`_y` antes de devolver (nenhum DXF tinha coordenada
+disponível, só PDF). Registrada (não implementada) a TASK-037: `static/script.js` ainda não repassa
+`_x`/`_y` para o Resumo, então a tela manual continua sem auto-link funcional nos arquivos reais.
+**Alterações de código:** `services/autonomo/montagem.py` (`_x`/`_y` até Cabos/Outros, `prefixo_cabo()`),
+novo `services/autonomo/vinculacao.py`, `services/autonomo/pipeline.py` (etapa `vincular`,
+`Contexto.regras_vinculacao`), `services/autonomo/totalizadora.py` (`itens_vinculo`),
+`services/dxf_service.py` (não descarta mais `_x`/`_y`), `static/resumo.js` (`_codigoEstruturaVinculo`).
+Testes: `pytest tests/` completo (679 testes, 27 novos) + servidor real/Playwright.
+Ver `.ai/tasks/TASK-036-03-10-2026.md`, `TASK-037-03-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-035 — filtro por projeto no histórico do modo
+autônomo. Alterações: `services/autonomo/execucoes.py` (`listar()` ganhou o parâmetro `projeto`),
+`routers/autonomo.py`, `static/autonomo.html`, `static/autonomo.js`. Ver
+`.ai/tasks/TASK-035-03-10-2026.md`.
 
 Entrada anterior (mantida para histórico): TASK-032/033/034 — vínculo cabo↔estrutura/poste, validação
 do vínculo e ativo composto consumido pelas Regras de Conversão, a pedido do usuário ("Implemente. E

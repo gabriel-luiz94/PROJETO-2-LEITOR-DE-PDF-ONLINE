@@ -53,15 +53,15 @@ def dxf(caminho, textos):
     return str(caminho)
 
 
-def contexto(leitor, receitas=(), conversao=None, regras_dominio=()):
+def contexto(leitor, receitas=(), conversao=None, regras_dominio=(), regras_vinculacao=()):
     return pl.Contexto(projeto_codigo="P1", projeto_nome="P1", user_id="u1", regras_proc=PROC, regras_cls=CLS,
                        regras_conversao=conversao if conversao is not None else [], base_orcamento=BASE, regras_dominio=list(regras_dominio),
-                       receitas=list(receitas), leitor=leitor)
+                       receitas=list(receitas), regras_vinculacao=list(regras_vinculacao), leitor=leitor)
 
 
 def rodar(ambiente, leitor, textos, receitas=(), nome="proj.dxf", **kw):
     arq = dxf(ambiente / nome, textos)
-    ctx = contexto(leitor, receitas, kw.pop("conversao", None))
+    ctx = contexto(leitor, receitas, kw.pop("conversao", None), regras_vinculacao=kw.pop("regras_vinculacao", ()))
     ex = pl.processar_arquivo(arq, "P1", "u1", str(ambiente / "saida"), ctx=ctx, **kw)
     return ex, ctx
 
@@ -87,7 +87,7 @@ def test_pipeline_completo_sem_exclusao_gera_obra_orcamento_e_pasta(ambiente, le
     pasta = ex["pasta_saida"]
     assert {"cabos.csv", "outros.csv", "tabelas.json", "orcamento.json", "orcamento.csv", "relatorio.json", "pendencias.json"} <= set(os.listdir(pasta))
     rel = json.load(open(os.path.join(pasta, "relatorio.json"), encoding="utf-8"))
-    assert [e["etapa"] for e in rel["etapas"]] == ["ler", "montar", "ramais", "validar_antes", "ajustar", "aplicar", "validar_depois", "totalizadora", "orcamento", "salvar"]
+    assert [e["etapa"] for e in rel["etapas"]] == ["ler", "montar", "ramais", "validar_antes", "ajustar", "aplicar", "vincular", "validar_depois", "totalizadora", "orcamento", "salvar"]
     assert rel["status"] == "ok" and rel["ajustes"]["aplicados"]
     orc = json.load(open(os.path.join(pasta, "orcamento.json"), encoding="utf-8"))
     assert {l["codigo"] for l in orc["resultado"]} >= {"C-U4", "C-CFU"}
@@ -200,6 +200,79 @@ def test_ajuste_invalido_e_ignorado_e_relatado(ambiente, leitor):
     ex, _ = rodar(ambiente, leitor, ["1-U4"], [ruim, RECEITA_SUBST])
     assert ex["status"] in ("ok", "com_pendencias")
     assert ex["relatorio"]["ajustes_ignorados"][0]["ajuste"] == "AJ-RUIM"
+
+
+class _LeitorFalso:
+    """Mesma técnica de tests/test_autonomo_montagem.py: controla a classificação direto (bypassa o
+    motor real), para poder produzir CABO/ESTRUTURA sem depender das cores/camadas do leitor real."""
+    def __init__(self, saida):
+        self.saida = saida
+
+    def processar_lote(self, itens, proc, cls, modo="extracao", indices=None):
+        return self.saida
+
+    def classificar_entidade(self, ativo, regras_cls):
+        return "0"
+
+
+def test_vinculo_cabo_estrutura_autolink_achado_e_orcamento_vinculo(ambiente, leitor):
+    """TASK-036: o pipeline autônomo gera o vínculo automático por coordenada, acusa estrutura sem
+    vínculo quando for o caso, e o composto chega à Totalizadora/orçamento via origem VINCULO."""
+    arq = dxf(ambiente / "vinc.dxf", ["cabo", "estrutura_perto", "estrutura_longe"])  # x = 0, 10, 20
+    ctx = contexto(leitor, regras_vinculacao=[{"tipo_estrutura": "4", "qtd_cabos": 1, "compatibilidade": "LIVRE"}],
+                   conversao=[{"origem": "VINCULO", "op_de": "", "ativo_de": "CAA2_U4", "acao": "SUBST", "op_para": "",
+                               "ativo_para": "ALCA2", "fator": 3, "arredondamento": "INTEIRO", "val_min": "", "val_max": ""}])
+    ctx.base_orcamento = BASE + [_linha_base("ALCA2", "C-ALCA2", 1.0, 1.0), _linha_base("CAA2", "C-CAA2", 1.0, 1.0)]
+    ctx.leitor = _LeitorFalso([
+        {"entidade": "CABO", "operacao": "M", "ativo": "CAA2 ABC 35 m"},
+        {"entidade": "ESTRUTURA", "operacao": "I", "ativo": "1-U4"},   # ativo real de Outros: "<qtd>-<código>"
+        {"entidade": "ESTRUTURA", "operacao": "I", "ativo": "1-U4"},
+    ])
+    ex = pl.processar_arquivo(arq, "P1", "u1", str(ambiente / "saida"), ctx=ctx)
+    assert ex["status"] == "ok", ex["mensagem"]
+
+    # vinculou com a estrutura mais PRÓXIMA (índice 0 em outros: "estrutura_perto"), não a mais longe
+    conn = database.get_row_connection()
+    obra = conn.execute("SELECT * FROM obras WHERE id = ?", (ex["obra_id"],)).fetchone()
+    conn.close()
+    snap = json.loads(obra["dados_json"])
+    assert snap["cabos"]["data"][0]["vinculoEstruturas"] == [0]
+
+    # a 2ª estrutura (mais longe) ficou sem vínculo, mas o cabo M em algum lugar do projeto perdoa o
+    # zero-vínculo (exceção global da TASK-033) -> nenhum achado de vínculo, mesmo com uma estrutura solta
+    rel = json.load(open(os.path.join(ex["pasta_saida"], "relatorio.json"), encoding="utf-8"))
+    assert rel["achados_restantes"] == []
+    assert "vincular" in [e["etapa"] for e in rel["etapas"]]
+    assert rel["etapas"][[e["etapa"] for e in rel["etapas"]].index("vincular")]["detalhe"]["vinculados"] == 1
+
+    # o composto CAA2_U4 passou pela regra de conversão (SUBST) e gerou 3-ALCA2 no orçamento
+    orc = json.load(open(os.path.join(ex["pasta_saida"], "orcamento.json"), encoding="utf-8"))
+    assert any(l["codigo"] == "C-ALCA2" and l["total"] == 3.0 for l in orc["resultado"])
+
+
+def test_vinculo_sem_coordenada_so_gera_achado_nao_bloqueia(ambiente, leitor):
+    """Decisão do usuário (TASK-036): auto-link sem combinação válida nunca vira pendência de
+    confirmação — só um aviso no relatório, e o pipeline termina normalmente. Operação "I" (não "M")
+    para não cair na exceção global da TASK-033 e o achado aparecer de fato."""
+    arq = dxf(ambiente / "vinc2.dxf", ["cabo", "estrutura"])
+    ctx = contexto(leitor, regras_vinculacao=[{"tipo_estrutura": "4", "qtd_cabos": 1, "compatibilidade": "LIVRE"}])
+    ctx.leitor = _LeitorFalso([
+        {"entidade": "CABO", "operacao": "I", "ativo": "CAA2 ABC 35 m"},
+        {"entidade": "ESTRUTURA", "operacao": "I", "ativo": "1-U4"},
+    ])
+    import services.autonomo.pipeline as plmod
+    original = plmod.montar_tabelas
+    def sem_coordenada(*a, **kw):
+        t = original(*a, **kw)
+        for c in t["cabos"]:
+            c.pop("_x", None); c.pop("_y", None)
+        return t
+    import unittest.mock as mock
+    with mock.patch.object(plmod, "montar_tabelas", side_effect=sem_coordenada):
+        ex = pl.processar_arquivo(arq, "P1", "u1", str(ambiente / "saida"), ctx=ctx)
+    assert ex["status"] in ("ok", "com_pendencias")   # nunca "aguardando_confirmacao" por falta de vínculo
+    rel = json.load(open(os.path.join(ex["pasta_saida"], "relatorio.json"), encoding="utf-8"))
+    assert any(a["linha_id"] == "OUTROS-0" and a["regra_id"] == "VINCULO-ESTRUTURA" for a in rel["achados_restantes"])
 
 
 def test_regras_de_conversao_valem_no_orcamento(ambiente, leitor):

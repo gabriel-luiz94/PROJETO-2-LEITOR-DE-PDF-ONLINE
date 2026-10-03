@@ -122,8 +122,10 @@ def _confere(padrao, alvo) -> bool:
         return False
 
 
-def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento: list, projeto_nome: str) -> list:
-    """Linhas {id, obs, operacao, ativo, qtd, desc, naoEncontrado, origem}. `qtd` pode ser float('nan') (como o NaN do JS)."""
+def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento: list, projeto_nome: str, itens_vinculo: list = None) -> list:
+    """Linhas {id, obs, operacao, ativo, qtd, desc, naoEncontrado, origem}. `qtd` pode ser float('nan') (como o NaN do JS).
+    `itens_vinculo` (TASK-036): pseudo-itens origem "VINCULO" (ver `services/autonomo/vinculacao.py`), que nunca aparecem
+    aqui sem regra de conversão correspondente — diferente de CABOS/OUTROS, que sempre mantêm o item original sem match."""
     base = base_orcamento or []
     brutos = []
     contador = 1
@@ -183,6 +185,7 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
             desc, nao = _buscar_descricao(base, nome, projeto_nome)
             brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": item.get("operacao") or "I", "ativo": nome,
                            "qtd": q, "desc": desc, "naoEncontrado": nao, "origem": "OUTROS"})
+    brutos.extend(itens_vinculo or [])
 
     novos = []
     for item in brutos:
@@ -224,6 +227,8 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
             d, nao = _buscar_descricao(base, novo_ativo, projeto_nome)
             novos.append({"id": item["baseId"], "obs": item["obs"], "operacao": nova_op, "ativo": novo_ativo, "qtd": q, "desc": d,
                           "naoEncontrado": nao, "origem": item["origem"]})
+        if not achou and item["origem"] == "VINCULO":
+            continue   # TASK-036: composto de vínculo sem regra correspondente não é um ativo real — nunca aparece sem match
         if not achou or not substitui:
             c = dict(item)
             c["id"] = item["baseId"]   # o JS mantém também `baseId` na cópia

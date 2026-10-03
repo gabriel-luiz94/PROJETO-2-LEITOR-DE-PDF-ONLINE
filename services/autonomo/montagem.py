@@ -105,10 +105,27 @@ def recalcular_qtd_ativos(cabos: list) -> None:
         row["qtdAtivos"] = "-" + str(novo) if (negativo and novo > 0) else novo
 
 
+def prefixo_cabo(ativo_texto):
+    """Prefixo normalizado do ativo de uma linha Cabos (ex.: "CAA2" de "CAA 2 ABC 30 m") — usado pelo
+    vínculo cabo<->estrutura/poste (TASK-036). Mesma normalização de calcular_qtd_ativos/_tokens."""
+    if not ativo_texto or not _trim(ativo_texto):
+        return None
+    tokens = _tokens(ativo_texto)
+    if len(tokens) < 2:
+        return None
+    return tokens[0]
+
+
 def _item_exportado(item: dict, r: dict) -> dict:
-    """O que o botão 'Processar' do Leitor grava (script.js): texto/cor/layer + entidade, operação e ativo."""
-    return {"pagina": item.get("pagina"), "texto": item.get("texto"), "cor": item.get("cor"), "layer": item.get("layer") or "",
-            "entidade": r["entidade"], "operacao": r["operacao"], "ativo": r["ativo"]}
+    """O que o botão 'Processar' do Leitor grava (script.js): texto/cor/layer + entidade, operação e ativo.
+    `_x`/`_y` (TASK-036): o autônomo controla os dois lados do pipeline (extração e montagem) sem passar
+    pelo `static/script.js` do navegador, então pode levar a coordenada adiante sem a limitação que a
+    tela tem hoje (o botão "Processar" do Leitor não repassa `_x`/`_y` para o Resumo)."""
+    d = {"pagina": item.get("pagina"), "texto": item.get("texto"), "cor": item.get("cor"), "layer": item.get("layer") or "",
+         "entidade": r["entidade"], "operacao": r["operacao"], "ativo": r["ativo"]}
+    if item.get("_x") is not None and item.get("_y") is not None:
+        d["_x"], d["_y"] = item["_x"], item["_y"]
+    return d
 
 
 def montar_tabelas(itens: list, regras_proc: list, regras_cls: list, leitor=None) -> dict:
@@ -130,7 +147,11 @@ def montar_tabelas(itens: list, regras_proc: list, regras_cls: list, leitor=None
             processados.append({"entidade": r["entidade"], "operacao": r["operacao"], "ativo": r["ativo"], "_raw": e})
 
     def linha(r):
-        return {"entidade": r["entidade"] or "0", "operacao": r["operacao"] or "M", "ativo": r["ativo"] or ""}
+        d = {"entidade": r["entidade"] or "0", "operacao": r["operacao"] or "M", "ativo": r["ativo"] or ""}
+        raw = r.get("_raw") or {}
+        if raw.get("_x") is not None and raw.get("_y") is not None:
+            d["_x"], d["_y"] = raw["_x"], raw["_y"]
+        return d
 
     cabos = [linha(r) for r in processados if r["entidade"] == "CABO"]
     outros = [linha(r) for r in processados if r["entidade"] not in ("CABO", "0", "RAMAIS")]
