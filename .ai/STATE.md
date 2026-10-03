@@ -215,10 +215,10 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       dígito/prefixo de quantidade do ativo de Outros em vez do código da estrutura; `services/dxf_service.py`
       descartava `_x`/`_y` antes de devolver (nenhum DXF tinha coordenada disponível para o vínculo, só PDF).
       CONCLUÍDA. Ver `.ai/tasks/TASK-036-03-10-2026.md`.
-- [ ] **TASK-037** (registrada em 2026-10-03, não implementada): `static/script.js` (botão "Processar" da tela
-      Leitor) não repassa `_x`/`_y` para `localStorage['processar_dados']` — o vínculo automático por coordenada
-      continua **não funcional na tela manual** até isso ser corrigido (achado durante a TASK-036; o modo
-      autônomo não depende de `script.js`, por isso já ficou funcional com as correções daquela tarefa).
+- [x] **TASK-037** (pedido de 2026-10-03): `static/script.js` (botão "Processar" da tela Leitor) agora repassa
+      `_x`/`_y` para `localStorage['processar_dados']` — fecha o último dos 4 bugs que impediam o vínculo
+      automático por coordenada (TASK-032) de funcionar na tela manual. Confirmado fim a fim com DXF real, sem
+      atalho sintético. CONCLUÍDA. Ver `.ai/tasks/TASK-037-03-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -381,10 +381,12 @@ arquivo em `.ai/tasks/`.
     usuário. Mesclado em `main` (PR #5, commit `cac4b85`) e **confirmado funcionando pelo usuário
     em produção** (desktop e online compartilhando as mesmas regras). Ver
     `.ai/tasks/TASK-003-18-09-2026.md` (status: CONCLUÍDA).
-30. `static/script.js` (botão "Processar" da tela Leitor) não repassa `_x`/`_y` do item extraído para
+30. `static/script.js` (botão "Processar" da tela Leitor) não repassava `_x`/`_y` do item extraído para
     `localStorage['processar_dados']` (achado na TASK-036, 2026-10-03) — o vínculo automático por coordenada
-    (TASK-032) continua **não funcional na tela manual** até isso ser corrigido, mesmo com os dois bugs de
-    `_tipoEstruturaVinculo`/ativo composto já corrigidos naquela tarefa. Ver `.ai/tasks/TASK-037-03-10-2026.md`.
+    (TASK-032) ficava não funcional na tela manual, mesmo com os outros bugs já corrigidos naquela tarefa.
+    ✅ **Corrigido — TASK-037 (2026-10-03):** `_x`/`_y` incluídos condicionalmente no objeto exportado.
+    Confirmado fim a fim com DXF real (servidor + Playwright, sem leitor falso nem dado sintético): extração →
+    Processar → Resumo → vínculo automático funcionando. Ver `.ai/tasks/TASK-037-03-10-2026.md`.
 
 ---
 
@@ -440,20 +442,24 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-03
-**Motivo:** TASK-036 — incorpora o vínculo cabo↔estrutura/poste ao modo autônomo, a pedido do
-usuário ("Pode implementar as tasks"). Durante a implementação, achou e corrigiu (com decisão
-explícita do usuário em cada caso) 3 bugs pré-existentes que impediam o auto-link por coordenada de
-funcionar de fato: `_tipoEstruturaVinculo`/ativo composto pegavam o dígito/prefixo de quantidade do
-ativo de Outros em vez do código da estrutura (`static/resumo.js` + novo `services/autonomo/vinculacao.py`),
-e `services/dxf_service.py` descartava `_x`/`_y` antes de devolver (nenhum DXF tinha coordenada
-disponível, só PDF). Registrada (não implementada) a TASK-037: `static/script.js` ainda não repassa
-`_x`/`_y` para o Resumo, então a tela manual continua sem auto-link funcional nos arquivos reais.
-**Alterações de código:** `services/autonomo/montagem.py` (`_x`/`_y` até Cabos/Outros, `prefixo_cabo()`),
-novo `services/autonomo/vinculacao.py`, `services/autonomo/pipeline.py` (etapa `vincular`,
-`Contexto.regras_vinculacao`), `services/autonomo/totalizadora.py` (`itens_vinculo`),
-`services/dxf_service.py` (não descarta mais `_x`/`_y`), `static/resumo.js` (`_codigoEstruturaVinculo`).
-Testes: `pytest tests/` completo (679 testes, 27 novos) + servidor real/Playwright.
-Ver `.ai/tasks/TASK-036-03-10-2026.md`, `TASK-037-03-10-2026.md` e `.ai/CHANGELOG.md`.
+**Motivo:** TASK-037 — última correção da cadeia de 4 bugs que impediam o vínculo automático por
+coordenada (TASK-032) de funcionar de verdade. O botão "Processar" da tela Leitor
+(`static/script.js`) não repassava `_x`/`_y` para `localStorage['processar_dados']`; os outros 3
+bugs (dígito do tipo, ativo composto, DXF descartando coordenada) já tinham sido corrigidos na
+TASK-036. Com os 4 corrigidos, confirmado **fim a fim com um DXF real**, sem leitor falso nem dado
+sintético: extração real → "Processar" → Resumo → vínculo automático escolhendo as estruturas
+certas por proximidade. A funcionalidade de vínculo (TASK-032/033/034/036/037) está completa e
+funcional nos dois modos (manual e autônomo).
+**Alterações de código:** `static/script.js` (inclui `_x`/`_y` condicionalmente no objeto exportado
+pelo botão "Processar").
+Testes: `pytest tests/` completo (679 testes, inalterado — mudança restrita a JS) + servidor
+real/Playwright com DXF real. Ver `.ai/tasks/TASK-037-03-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-036 — incorpora o vínculo cabo↔estrutura/poste ao
+modo autônomo; achou e corrigiu 3 dos 4 bugs acima. Alterações: `services/autonomo/montagem.py`,
+novo `services/autonomo/vinculacao.py`, `services/autonomo/pipeline.py`,
+`services/autonomo/totalizadora.py`, `services/dxf_service.py`, `static/resumo.js`. Ver
+`.ai/tasks/TASK-036-03-10-2026.md`.
 
 Entrada anterior (mantida para histórico): TASK-035 — filtro por projeto no histórico do modo
 autônomo. Alterações: `services/autonomo/execucoes.py` (`listar()` ganhou o parâmetro `projeto`),

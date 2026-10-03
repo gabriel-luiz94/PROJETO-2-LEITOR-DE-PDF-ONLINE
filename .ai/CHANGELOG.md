@@ -8,6 +8,32 @@
 
 ---
 
+## 2026-10-03 — TASK-037: coordenada do Leitor chega ao Resumo (fecha o 4º bug do vínculo)
+
+**Tipo:** correção de bug · `.ai/tasks/TASK-037-03-10-2026.md`
+
+Último elo que faltava para o vínculo automático por coordenada (TASK-032) funcionar de ponta a
+ponta na **tela manual**. Os três bugs da TASK-036 (dígito do tipo, ativo composto, descarte de
+`_x`/`_y` no DXF) já tinham corrigido o lado do dado; faltava a ponte entre as duas telas: o botão
+"Processar" da tela Leitor (`static/script.js`) montava o objeto exportado para
+`localStorage['processar_dados']` só com `{pagina, texto, cor, layer, entidade, operacao, ativo}` —
+sem `_x`/`_y`, mesmo quando `extractedDataCache[idx]` já os tinha.
+
+- `static/script.js`: inclui `_x`/`_y` condicionalmente no objeto exportado, mesmo padrão já usado
+  em `services/autonomo/montagem.py:_item_exportado`.
+
+**Testado end-to-end com um DXF real, sem nenhum atalho sintético** (primeira vez que isso acontece
+nesta funcionalidade): servidor real + Playwright — upload de um DXF com 1 cabo e 2 estruturas →
+extração real → "Processar" → aba do Resumo já recebe `_x`/`_y` → vínculo automático cadastrado via
+API → `tentarVincularAutomaticamente()` vincula corretamente, respeitando a ordem de proximidade.
+`pytest tests/` completo continua em 679/679 (mudança restrita a `static/script.js`, sem teste
+Python tocando esse arquivo).
+
+Com isso, a cadeia completa TASK-032/033/034/036/037 está funcional nos dois modos (manual e
+autônomo). Única pendência remanescente conhecida: nenhuma, para esta funcionalidade.
+
+---
+
 ## 2026-10-03 — TASK-036: vínculo cabo↔estrutura no modo autônomo (+ 3 bugs achados e corrigidos)
 
 **Tipo:** nova funcionalidade (backend) + correção de bugs pré-existentes · `.ai/tasks/TASK-036-03-10-2026.md`
