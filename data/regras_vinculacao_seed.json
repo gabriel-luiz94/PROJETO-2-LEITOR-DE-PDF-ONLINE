@@ -1,0 +1,26 @@
+[
+  {
+    "tipo_estrutura": "1",
+    "qtd_cabos": 2,
+    "compatibilidade": "MESMO_TIPO_FASE_OPERACAO",
+    "descricao": "Estrutura tipo 1 (ex.: U1, N1, B1, R1) conecta exatamente 2 cabos, todos do mesmo tipo, fase e operação."
+  },
+  {
+    "tipo_estrutura": "2",
+    "qtd_cabos": 2,
+    "compatibilidade": "MESMO_TIPO_FASE_OPERACAO",
+    "descricao": "Estrutura tipo 2 (ex.: U2, N2, B2, R2) conecta exatamente 2 cabos, todos do mesmo tipo, fase e operação."
+  },
+  {
+    "tipo_estrutura": "3",
+    "qtd_cabos": 1,
+    "compatibilidade": "LIVRE",
+    "descricao": "Estrutura tipo 3 (ex.: U3, N3, B3, R3) conecta exatamente 1 cabo, de qualquer tipo/fase/operação (mantendo ou instalando)."
+  },
+  {
+    "tipo_estrutura": "4",
+    "qtd_cabos": 2,
+    "compatibilidade": "LIVRE",
+    "descricao": "Estrutura tipo 4 (ex.: U4, N4, B4, R4) conecta exatamente 2 cabos, podendo ser iguais ou diferentes entre si (tipo, fase, operação)."
+  }
+]

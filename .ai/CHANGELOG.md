@@ -8,6 +8,48 @@
 
 ---
 
+## 2026-10-03 — TASK-032/033/034: vínculo cabo↔estrutura, validação e ativo composto
+
+**Tipo:** nova funcionalidade (backend + frontend) · `.ai/tasks/TASK-032-02-10-2026.md`,
+`TASK-033-02-10-2026.md`, `TASK-034-02-10-2026.md`
+
+**TASK-032** — modal "VINCULAR CABOS" na aba Resumo: vincula cada cabo a 1 estrutura/poste
+(operação M/\*M) ou 2 (operação I), manualmente ou por um algoritmo opcional de vínculo
+automático por coordenada (`_x`/`_y` — já existia no DXF; `services/pdf_service.py` passou a
+capturar o `bbox` do PyMuPDF para o PDF também). Nova tabela por projeto `regras_vinculacao`
+(quantidade de cabos e compatibilidade — mesmo/qualquer tipo-fase-operação — exigida por tipo de
+estrutura, identificado pelo primeiro dígito do ativo). O vínculo vive como um campo
+(`vinculoEstruturas`) direto na linha do cabo, o que faz persistência (undo/redo, salvar/carregar
+obra) funcionar sem nenhum caminho novo de serialização — só foi preciso estender a `deepClone()`
+compartilhada de `static/resumo.js`, que até então descartava qualquer campo fora de
+`entidade`/`operacao`/`ativo`/`qtdAtivos` (incluindo a própria coordenada).
+
+**TASK-033** (depende da TASK-032) — ao validar (botão já existente `#btn-validar`), cada
+estrutura/poste tem seus vínculos conferidos contra a regra do seu tipo; qualquer violação
+(zero vínculos, quantidade errada, incompatibilidade) gera um achado de aviso. Zero vínculos é
+perdoado se existir, em qualquer lugar do projeto, um cabo M/\*M ou um ativo `RETCA`.
+**Decisão de integração**: em vez de um painel visual novo (como o desenho original previa, nos
+moldes do "Resumo da rede" da TASK-008), os achados foram integrados ao sistema de Validação já
+existente (`routers/validacao.py`/`services/regras_dominio.py`, construído em sessões anteriores)
+— como o vínculo só existe no frontend, a verificação roda localmente
+(`avaliarVinculacaoLocal()`) e seus achados são concatenados aos de `/api/validacao/planilhas`
+antes de exibir, sem nenhuma mudança no motor/backend de domínio.
+
+**TASK-034** (depende da TASK-032) — cada vínculo gera um ativo composto
+`<prefixo_do_cabo>_<ativo_da_estrutura>` (ex.: `CAA2_N4`), que existe só dentro dos dados do
+vínculo mas fica disponível como entrada para as Regras de Conversão (TASK-003) via uma nova
+origem `VINCULO` — ex.: `origem=VINCULO, ativo_de=CAA2_N4, ação=ADIÇÃO, ativo_para=ALCA2,
+fator=3` gera `3-ALCA2` na Totalizadora ao montar o orçamento, pelo mesmo motor ADIÇÃO/SUBST que
+já existe. Diferente de `CABOS`/`OUTROS`, um composto sem regra correspondente não fica na
+Totalizadora (não é um código de orçamento real).
+
+**Renumeração**: as três tarefas foram inicialmente registradas como TASK-009/010/011, mas esses
+números já tinham sido usados por outra sessão (fundidos em `main` enquanto esta sessão
+trabalhava) — renumeradas para TASK-032/033/034 antes de implementar, mesma situação já ocorrida
+no início desta sessão com TASK-001-004.
+
+---
+
 ## 2026-10-02 — TASK-031: achados do primeiro teste real (projeto 027/229)
 
 **Tipo:** Backend (modo autônomo)

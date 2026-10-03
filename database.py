@@ -13,6 +13,7 @@ import bcrypt
 from config import (
     DB_PATH, SEED_CSV_PATH, logger,
     REGRAS_LEITOR_PROCESSAMENTO_SEED_PATH, REGRAS_LEITOR_CLASSIFICACAO_SEED_PATH,
+    REGRAS_VINCULACAO_SEED_PATH,
     VALIDACOES_SEED_DIR, REGRAS_DOMINIO_SEED_PATH, AJUSTES_SEED_PATH,
 )
 from services.prompts_validacao import ler_sementes
@@ -96,6 +97,31 @@ def _seed_regras_leitor(cursor: sqlite3.Cursor):
         )
     logger.info(f"Seed de regras do leitor concluído: {len(regras_proc)} regras de processamento, "
                 f"{len(regras_cls)} de classificação, para PARAIBA e RONDONIA.")
+
+
+def _seed_regras_vinculacao(cursor: sqlite3.Cursor):
+    """
+    Seed inicial das regras de vinculação estrutura<->cabo (TASK-032), para os projetos PARAIBA
+    ("027") e RONDONIA ("229"), só se as tabelas ainda estiverem vazias. Mesmo padrão de
+    _seed_regras_leitor.
+    """
+    cursor.execute("SELECT COUNT(*) FROM regras_vinculacao")
+    if cursor.fetchone()[0] > 0:
+        return  # já semeado
+
+    try:
+        with open(REGRAS_VINCULACAO_SEED_PATH, "r", encoding="utf-8") as f:
+            regras = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logger.warning(f"Seed de regras de vinculação não encontrado/inválido: {e}")
+        return
+
+    for projeto_codigo in ("027", "229"):
+        cursor.execute(
+            "INSERT OR IGNORE INTO regras_vinculacao (projeto_codigo, regras_json) VALUES (?, ?)",
+            (projeto_codigo, json.dumps(regras, ensure_ascii=False))
+        )
+    logger.info(f"Seed de regras de vinculação concluído: {len(regras)} regras, para PARAIBA e RONDONIA.")
 
 
 def _seed_prompts_validacao(cursor: sqlite3.Cursor):
@@ -248,6 +274,17 @@ def init_db():
         )
     ''')
     _seed_regras_leitor(cursor)
+
+    # Regras de Vinculação Estrutura<->Cabo (TASK-032) — uma linha por projeto com um array JSON
+    # de regras, mesmo padrão de regras_leitor_*/regras_conversao.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS regras_vinculacao (
+            projeto_codigo TEXT PRIMARY KEY,
+            regras_json TEXT NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    _seed_regras_vinculacao(cursor)
 
     # Prompts de validação (TASK-012) — um texto (cabeçalho + corpo) por (projeto, prompt), com
     # histórico de versões para reverter pela UI (admin). "DEFAULT" vale para todo projeto sem
