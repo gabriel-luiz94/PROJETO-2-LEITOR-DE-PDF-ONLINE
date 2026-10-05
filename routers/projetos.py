@@ -11,7 +11,7 @@ from middleware.auth_middleware import get_current_user_from_state
 router = APIRouter(prefix="/api/projetos", tags=["projetos"])
 
 
-from services.supabase_client import get_supabase
+from services.supabase_client import get_supabase, registrar_falha
 
 @router.get("")
 def get_projetos(request: Request):
@@ -46,7 +46,7 @@ def get_projetos(request: Request):
                 conn2.commit()
                 conn2.close()
         except Exception as e:
-            pass
+            registrar_falha("projetos.get_projetos", e)
 
     # Retorna lista mesclada ordenada por nome
     merged = sorted(local_rows.values(), key=lambda x: x["nome"])

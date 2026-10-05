@@ -8,6 +8,58 @@
 
 ---
 
+## 2026-10-05 — TASK-039/040/041: disponibilidade de dados e reconexão com o Supabase
+
+**Tipo:** correção de robustez + feature · `services/supabase_client.py`,
+`services/connectivity_monitor.py`, `app.py`, `routers/obras.py`, `recs.py`, `projetos.py`,
+`admin.py`, `static/resumo.html`, `static/resumo.js`, `tests/test_supabase_client.py` ·
+`.ai/tasks/TASK-039-05-10-2026.md`, `TASK-040-05-10-2026.md`, `TASK-041-05-10-2026.md`
+
+Usuário relatou "a conexão com o Supabase está se perdendo após um tempo" e pediu garantia de que
+os dados fiquem sempre disponíveis, mantendo a última versão carregada em caso de queda. Investigação
+confirmou a causa raiz:
+
+- `services/supabase_client.py` criava o cliente Supabase como singleton **uma única vez por
+  processo** — existia `reset_supabase_client()`, mas nada no projeto a chamava.
+- Toda falha de chamada à nuvem era engolida (`except Exception: pass`, sem log nenhum) em
+  `routers/obras.py`, `recs.py`, `projetos.py`, `admin.py` (padrão já catalogado em `.ai/STATE.md`
+  item 21).
+- Resultado: quando o Supabase fecha uma conexão ociosa (comportamento normal do
+  PostgREST/pgbouncer), a primeira falha era silenciosa e **nunca mais havia tentativa de
+  reconexão** até o processo reiniciar.
+- `services/connectivity_monitor.py` já existia pronto (ping periódico + evento WebSocket), mas
+  nunca era chamado, e era restrito a `APP_MODE != "server"`.
+- A gravação local (SQLite) **já era garantida** independente da nuvem (`save_obra` sempre grava
+  local) — o problema real na escrita era a falta de aviso, não perda de dado.
+
+Implementadas as três tarefas registradas:
+
+- **TASK-039** (reconexão reativa): `get_supabase()` ganhou um TTL proativo de 180s (recria o
+  cliente sozinho mesmo sem falha observada) combinado com reset reativo via nova função
+  `registrar_falha(contexto, exc)`, que reseta o singleton só quando a exceção é classificada como
+  erro de rede (`httpx.TransportError`/`httpx.TimeoutException`/`ConnectionError`/`OSError`/
+  `TimeoutError`), nunca em erro de autenticação/dados.
+- **TASK-040** (monitor de conectividade): `services/connectivity_monitor.py` corrigido (loop
+  `asyncio` capturado uma vez no startup, broadcast via `run_coroutine_threadsafe` em vez de
+  criar/fechar loops a cada ciclo) e ligado em `app.py` no startup, **sem** a restrição de
+  `APP_MODE` — roda em desktop e servidor. A transição offline→online agora força
+  `reset_supabase_client()`. Novo indicador visual no frontend (`static/resumo.html`/`resumo.js`,
+  `#indicador-conectividade`) escuta o evento WebSocket `{"type": "connectivity", ...}` e exibe um
+  selo "Sem conexão com a nuvem — trabalhando localmente" quando offline.
+- **TASK-041** (visibilidade de falha): os 16 pontos de `except Exception: pass` silenciosos em
+  `obras.py`/`recs.py`/`projetos.py`/`admin.py` agora chamam `registrar_falha(contexto, e)` —
+  sempre loga em `warning`, nunca mais 100% silencioso. Decisão tomada: manter o comportamento
+  atual de escrita (sempre grava local, sempre responde sucesso), só com log — mudança de maior
+  impacto (erro visível ao usuário) descartada por não ter sido pedida explicitamente e por exigir
+  tratamento em todas as telas de salvamento. Confirmado por leitura de código que nenhuma leitura
+  troca dado local bom por resultado de nuvem vazio por falha disfarçada (o `except` sempre
+  intercepta antes do `if res.data is not None`).
+
+Novo `tests/test_supabase_client.py` (14 testes) cobre TTL, reset reativo por tipo de exceção e log
+sempre emitido. Suíte completa (699 testes) sem regressões.
+
+---
+
 ## 2026-10-05 — TASK-038: `adicionar_ativo` aceita quantidade negativa (`*`, linha viva)
 
 **Tipo:** melhoria (backend) · `.ai/tasks/TASK-038-05-10-2026.md`

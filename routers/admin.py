@@ -9,7 +9,7 @@ import csv
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel
 from database import get_connection, get_row_connection, hash_password
-from services.supabase_client import get_supabase
+from services.supabase_client import get_supabase, registrar_falha
 from middleware.auth_middleware import get_current_user_from_state
 from config import logger
 from models import SalvarOrcamentoRequest
@@ -105,8 +105,8 @@ def list_users(request: Request):
                     VALUES (?, ?, ?, ?)
                 ''', (cu["email"], cu["senha_hash"], int(cu.get("is_admin", False)), role))
             conn.commit()
-        except Exception:
-            pass  # Ignora falhas de sync
+        except Exception as e:
+            registrar_falha("admin.list_users", e)
 
     cur.execute("SELECT id, email, is_admin, role, ativo, created_at, updated_at FROM usuarios_locais")
     users = [dict(row) for row in cur.fetchall()]
@@ -183,8 +183,8 @@ def delete_user(user_id: int, request: Request):
     if supabase:
         try:
             supabase.table("usuarios_nuvem").delete().eq("email", email).execute()
-        except Exception:
-            pass
+        except Exception as e:
+            registrar_falha("admin.delete_user", e)
 
     cur.execute("DELETE FROM usuarios_locais WHERE id = ?", (user_id,))
     conn.commit()
@@ -222,8 +222,8 @@ def update_role(user_id: int, req: UserUpdate, request: Request):
                 "is_admin": bool(is_admin),
                 "role": req.role,
             }).eq("email", email).execute()
-        except Exception:
-            pass
+        except Exception as e:
+            registrar_falha("admin.update_role", e)
 
     cur.execute(
         "UPDATE usuarios_locais SET is_admin = ?, role = ?, updated_at = datetime('now') WHERE id = ?",
@@ -284,8 +284,8 @@ def update_password(user_id: int, req: PasswordUpdate, request: Request):
     if supabase:
         try:
             supabase.table("usuarios_nuvem").update({"senha_hash": senha_hash}).eq("email", email).execute()
-        except Exception:
-            pass
+        except Exception as e:
+            registrar_falha("admin.reset_senha", e)
 
     cur.execute(
         "UPDATE usuarios_locais SET senha_hash = ?, updated_at = datetime('now') WHERE id = ?",
