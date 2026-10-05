@@ -669,7 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const atInput = tr.querySelector('input[data-field="ativo"]');
                 const item = extractedDataCache[idx];
 
-                exportData.push({
+                const linha = {
                     pagina: item.pagina,
                     texto: tr.querySelector('.editable-text-field')?.innerText || item.texto,
                     cor: item.cor,
@@ -677,7 +677,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     entidade: entInput ? entInput.value : "0",
                     operacao: opInput ? opInput.value : "",
                     ativo: atInput ? atInput.value : ""
-                });
+                };
+                // TASK-037: coordenada de origem (DXF/PDF), usada pelo vínculo cabo<->estrutura (TASK-032)
+                // no Resumo — antes se perdia aqui, no único repasse do Leitor pro Resumo.
+                if (item._x !== undefined && item._y !== undefined) {
+                    linha._x = item._x;
+                    linha._y = item._y;
+                }
+                exportData.push(linha);
             });
 
             localStorage.setItem('processar_dados', JSON.stringify(exportData));
