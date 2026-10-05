@@ -173,6 +173,35 @@ def test_adicionar_ativo_se_ja_existe():
     assert textos(rodar([acao("adicionar_ativo", ativo="SUPL", qtd=5, se_ja_existe="substituir")], linhas))[2] == "DT11/300 1-CFU 5-SUPL"
 
 
+def test_adicionar_ativo_qtd_negativa_passa_na_validacao_mas_zero_continua_rejeitado():
+    assert erros_de(acao("adicionar_ativo", ativo="PR", qtd=-1), GRUPOS) == []
+    assert any("'qtd'" in e for e in erros_de(acao("adicionar_ativo", ativo="PR", qtd=0), GRUPOS))
+
+
+def test_adicionar_ativo_com_quantidade_negativa_gera_prefixo_asterisco():
+    """qtd negativo ("retirar"/linha viva) tem que sair como "*<n>-ATIVO", nunca "-<n>-ATIVO" —
+    o tokenizador de Outros (orcamento_calc.tokenizar_outros) só lê sinal negativo via "*"."""
+    r = rodar([acao("adicionar_ativo", ativo="PR", qtd=-1)], [o("1-TR110")])
+    assert textos(r) == ["1-TR110 *1-PR"]
+
+
+def test_adicionar_ativo_negativo_somando_com_token_existente_tambem_negativo():
+    linhas = [o("1-TR110 *1-PR")]
+    r = rodar([acao("adicionar_ativo", ativo="PR", qtd=-2, se_ja_existe="somar")], linhas)
+    assert textos(r) == ["1-TR110 *3-PR"]
+
+
+def test_adicionar_ativo_negativo_somando_com_token_existente_positivo_pode_virar_positivo():
+    linhas = [o("1-TR110 5-PR")]
+    r = rodar([acao("adicionar_ativo", ativo="PR", qtd=-2, se_ja_existe="somar")], linhas)
+    assert textos(r) == ["1-TR110 3-PR"]   # 5 + (-2) = 3: continua positivo, sem "*"
+
+
+def test_adicionar_ativo_negativo_substituindo_token_existente():
+    r = rodar([acao("adicionar_ativo", ativo="PR", qtd=-4, se_ja_existe="substituir")], [o("1-TR110 1-PR")])
+    assert textos(r) == ["1-TR110 *4-PR"]
+
+
 def test_adicionar_ativo_em_linha_com_condicao_de_quantidade_exata():
     # o pedido original do usuário: só quando for 1-CFU
     linhas = [o("DT11/300 1-CFU"), o("DT11/300 2-CFU")]

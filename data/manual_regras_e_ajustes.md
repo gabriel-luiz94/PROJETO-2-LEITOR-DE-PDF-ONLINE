@@ -250,6 +250,13 @@ Exemplo: "em toda linha com CFU **e** sem SUPL, adicionar 1-SUPL".
   "quando": {"todos": [{"tem": "CFU"}, {"nao": {"tem": "SUPL"}}]}}]
 ```
 
+Use `"qtd"` **negativo** para adicionar como "linha viva"/retirada — o ativo entra com o prefixo `*` (ex.: `qtd: -1` gera `*1-PR`, nunca `-1-PR`, que o cálculo não leria como negativo).
+
+```json acoes
+[{"acao": "adicionar_ativo", "tabela": "outros", "ativo": "PR", "qtd": -1,
+  "quando": {"tem": "TR110"}}]
+```
+
 **remover_ativo** (só Outros): tira um ativo (aceita os mesmos seletores das regras) das linhas que casam.
 
 ```json acoes

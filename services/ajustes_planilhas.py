@@ -16,6 +16,7 @@ AÇÕES (cada uma exige `acao` e `tabela`: "cabos" | "outros" | "ambos"; `id` e 
   adicionar_linha   {"valores": {"operacao": "I", "ativo": "1-RA2", "entidade": "0"},
                      "posicao": "fim"|"inicio"|{"depois_de": COND}|{"antes_de": COND}, "apenas_se_nao_existir": true}
   adicionar_ativo   (Outros) {"ativo": "SUPL", "qtd": 1, "se_ja_existe": "ignorar"|"somar"|"substituir"}
+                      qtd negativo gera o prefixo "*" (linha viva/retirada, mesma leitura de Outros em geral: "*1-PR").
   remover_ativo     (Outros) {"ativo": SELETOR}
   mesclar_duplicadas(Outros) soma as quantidades do mesmo ativo repetido na linha
 
@@ -188,8 +189,8 @@ def _validar_acao(a, pre, erros, grupos):
         ativo = a.get("ativo")
         if not isinstance(ativo, str) or not ativo.strip() or re.search(r"[\s]", ativo.strip()):
             erros.append(f"{pre}: 'ativo' precisa ser um código sem espaços.")
-        if "qtd" in a and not (_numero_ok(a["qtd"]) and a["qtd"] > 0):
-            erros.append(f"{pre}: 'qtd' precisa ser um número maior que zero.")
+        if "qtd" in a and not (_numero_ok(a["qtd"]) and a["qtd"] != 0):
+            erros.append(f"{pre}: 'qtd' precisa ser um número diferente de zero (negativo gera o prefixo '*', linha viva).")
         if a.get("se_ja_existe", "ignorar") not in ("ignorar", "somar", "substituir"):
             erros.append(f"{pre}: 'se_ja_existe' precisa ser ignorar, somar ou substituir.")
     elif nome == "remover_ativo":
@@ -263,7 +264,19 @@ def _juntar(qtd, ativo):
 
 
 def _num(qtd):
-    return float(qtd.replace(",", ".")) if qtd is not None and _RE_NUM.match(qtd) else None
+    """'1' → 1.0; '*1' → -1.0 (negativo/linha viva, mesma leitura de orcamento_calc.tokenizar_outros)."""
+    if qtd is None:
+        return None
+    neg, s = (True, qtd[1:]) if qtd.startswith("*") else (False, qtd)
+    if not _RE_NUM.match(s):
+        return None
+    v = float(s.replace(",", "."))
+    return -v if neg else v
+
+
+def _fmt_qtd(x):
+    """Inverso de _num: quantidade negativa volta como '*<abs>' (nunca '-<abs>', que o tokenizador não lê como sinal)."""
+    return f"*{_n(-x)}" if x < 0 else _n(x)
 
 
 def _chave_linha(operacao, ativo):
@@ -325,14 +338,14 @@ def _t_adicionar_ativo(a, tabela, texto, grupos):
         achou = True
         atual = _num(q)
         if modo == "somar" and atual is not None:
-            return _juntar(_n(atual + qtd), nome)
+            return _juntar(_fmt_qtd(atual + qtd), nome)
         if modo == "substituir":
-            return _juntar(_n(qtd), nome)
+            return _juntar(_fmt_qtd(qtd), nome)
         return m.group(0)
     novo = _RE_TOKEN.sub(f, texto)
     if achou:
         return novo
-    return f"{texto.rstrip()} {_n(qtd)}-{ativo}".strip()
+    return f"{texto.rstrip()} {_fmt_qtd(qtd)}-{ativo}".strip()
 
 
 def _t_remover_ativo(a, tabela, texto, grupos):
@@ -651,7 +664,7 @@ def descrever_acao(a: dict) -> str:
         return f"Em {t}: adicionar a linha {str(v['operacao']).upper()} '{v['ativo']}' {onde}{unico}."
     if nome == "adicionar_ativo":
         modo = {"ignorar": "", "somar": "; se já existir, soma a quantidade", "substituir": "; se já existir, troca a quantidade"}[a.get("se_ja_existe", "ignorar")]
-        return f"Em {t}: adicionar {_n(a.get('qtd', 1))}-{a['ativo']} à linha{_frase_filtros(a)}{modo}{op}."
+        return f"Em {t}: adicionar {_fmt_qtd(a.get('qtd', 1))}-{a['ativo']} à linha{_frase_filtros(a)}{modo}{op}."
     if nome == "remover_ativo":
         return f"Em {t}: remover {_frase_sel(a['ativo'])} da linha{_frase_filtros(a)}{op}."
     return f"Em {t}: somar as quantidades do mesmo ativo repetido na linha{_frase_filtros(a)}{op}."
