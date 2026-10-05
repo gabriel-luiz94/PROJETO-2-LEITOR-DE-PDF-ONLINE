@@ -510,6 +510,11 @@
                     <select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;" onchange="const o=this.options[this.selectedIndex]; const cod=o?.dataset.codigo||''; localStorage.setItem('projeto_selecionado', this.value); localStorage.setItem('projeto_selecionado_codigo', cod); carregarRegras(); carregarRegrasLeitorResumo(cod); carregarRegrasVinculacaoResumo(cod);"></select>
                     <button id="btn-novo-projeto" class="btn-primary" onclick="abrirModalNovoProjeto()" style="display: none; padding: 2px 8px; font-size: 0.75rem; margin-left: 8px; border-radius: 4px;" title="Cadastrar Novo Projeto">+ Novo</button>
                 </div>
+                <!-- TASK-040: indicador de conectividade com a nuvem (Supabase) -->
+                <span id="indicador-conectividade" style="display:none; align-items:center; gap:5px; font-size:0.75rem; padding:3px 9px; border-radius:10px; white-space:nowrap;" title="Status da conexão com a nuvem (Supabase)">
+                    <span id="indicador-conectividade-bola" style="width:7px; height:7px; border-radius:50%; display:inline-block;"></span>
+                    <span id="indicador-conectividade-texto"></span>
+                </span>
             <div class="header-actions">
                 <button class="btn-primary" style="background: #30363d; color: #c9d1d9;" onclick="window.location.href='/'">
                     ← Voltar

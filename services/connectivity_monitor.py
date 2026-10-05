@@ -1,15 +1,22 @@
 """
-services/connectivity_monitor.py — Monitor de conectividade com a nuvem.
+services/connectivity_monitor.py — Monitor de conectividade com a nuvem (TASK-040).
 
 Verifica periodicamente se o Supabase está acessível e emite eventos de
-status via WebSocket para atualizar o indicador no frontend.
+status via WebSocket para atualizar o indicador no frontend. Ao detectar a
+volta da conexão, força a recriação do cliente Supabase (`reset_supabase_client`)
+em vez de só reportar o status — complementa o TTL proativo e o reset reativo
+de `services/supabase_client.py` (TASK-039).
 """
+import asyncio
+import json
 import threading
 import time
-import json
-from services.supabase_client import get_supabase
+
+from config import logger
+from services.supabase_client import get_supabase, reset_supabase_client
 from websocket_manager import manager
-from config import logger, APP_MODE
+
+INTERVALO_S = 15
 
 
 class ConnectivityStatus:
@@ -17,55 +24,48 @@ class ConnectivityStatus:
     last_checked = 0
 
 
-def _monitor_worker():
-    """Worker que testa a conexão a cada 15 segundos."""
+def _testar_conexao() -> bool:
+    supabase = get_supabase()
+    if not supabase:
+        return False
+    try:
+        supabase.table("configuracoes").select("chave").limit(1).execute()
+        return True
+    except Exception:
+        return False
+
+
+def _monitor_worker(loop: asyncio.AbstractEventLoop):
+    """Worker que testa a conexão a cada INTERVALO_S segundos, numa thread separada."""
     while True:
-        supabase = get_supabase()
-        is_online = False
-        
-        if supabase:
-            try:
-                # Testa conectividade com uma query levíssima
-                supabase.table("configuracoes").select("chave").limit(1).execute()
-                is_online = True
-            except Exception:
-                pass
-                
-        # Se houve mudança de status, notifica
+        is_online = _testar_conexao()
+
         if ConnectivityStatus.is_online != is_online:
+            if is_online:
+                # volta de uma queda: força um cliente novo em vez de só reportar "online" com um
+                # cliente que pode ter ficado numa conexão ruim durante a janela offline.
+                reset_supabase_client()
             ConnectivityStatus.is_online = is_online
-            logger.info(f"Status de conectividade alterado: {'ONLINE' if is_online else 'OFFLINE'}")
-            
-            import asyncio
+            logger.info(f"Status de conectividade com o Supabase alterado: {'ONLINE' if is_online else 'OFFLINE'}")
+            mensagem = json.dumps({"type": "connectivity", "status": "online" if is_online else "offline"})
             try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-            if loop.is_running():
-                asyncio.create_task(manager.broadcast(json.dumps({
-                    "type": "connectivity",
-                    "status": "online" if is_online else "offline"
-                })))
-            else:
-                loop.run_until_complete(manager.broadcast(json.dumps({
-                    "type": "connectivity",
-                    "status": "online" if is_online else "offline"
-                })))
-                loop.close()
-                
-        time.sleep(15)
+                asyncio.run_coroutine_threadsafe(manager.broadcast(mensagem), loop)
+            except Exception as e:  # noqa: BLE001 — a vigia nunca morre por falha ao notificar
+                logger.warning(f"Falha ao transmitir status de conectividade: {e}")
+
+        ConnectivityStatus.last_checked = time.time()
+        time.sleep(INTERVALO_S)
 
 
 def start_connectivity_monitor():
-    """Inicia a thread de monitoramento (Apenas desktop)."""
-    if APP_MODE == "server":
-        return
-        
+    """Inicia a thread de monitoramento. Precisa ser chamada de dentro de um handler async (ou de
+    qualquer lugar com um loop asyncio já rodando na thread principal), para capturar o loop certo
+    e poder agendar o broadcast do WebSocket a partir da thread do monitor com segurança."""
+    loop = asyncio.get_event_loop()
+
     # Presumir online inicialmente para não travar a UI enquanto testa
     ConnectivityStatus.is_online = True
-    
-    thread = threading.Thread(target=_monitor_worker, daemon=True, name="ConnectivityMonitor")
+
+    thread = threading.Thread(target=_monitor_worker, args=(loop,), daemon=True, name="ConnectivityMonitor")
     thread.start()
     logger.info("Monitor de conectividade iniciado.")

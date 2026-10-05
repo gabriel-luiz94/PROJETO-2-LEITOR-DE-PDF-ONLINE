@@ -252,6 +252,16 @@ app.include_router(admin.router)
 app.include_router(update.router)
 
 
+# ── Conectividade com a nuvem (TASK-040): ping periódico + reconexão proativa + indicador online/offline ──
+@app.on_event("startup")
+def _iniciar_monitor_conectividade():
+    try:
+        from services.connectivity_monitor import start_connectivity_monitor
+        start_connectivity_monitor()
+    except Exception as e:  # noqa: BLE001 — o monitor nunca impede o programa de abrir
+        logger.warning(f"Monitor de conectividade não iniciou: {e}")
+
+
 # ── Modo autônomo (TASK-031): religa a vigia da pasta no início se ela estava LIGADA na configuração ──
 @app.on_event("startup")
 def _iniciar_modo_autonomo():

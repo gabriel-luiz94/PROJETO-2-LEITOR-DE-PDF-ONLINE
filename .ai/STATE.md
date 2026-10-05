@@ -162,9 +162,6 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 - [ ] **Sincronização em tempo real** — `services/realtime_sync.py` está escrito
       (listener do Supabase Realtime → SQLite → WebSocket), mas `start_realtime_sync()`
       **nunca é chamado**.
-- [ ] **Monitor de conectividade** — `services/connectivity_monitor.py` está escrito, mas
-      `start_connectivity_monitor()` **nunca é chamado**. O indicador de status online/offline no
-      frontend não recebe eventos.
 - [ ] **Embeddings das regras de aprendizado** — a coluna `regras.embedding` existe e é criada por
       migração, mas é sempre gravada como `NULL` (`regras.py:28`). Não há busca semântica.
 - [ ] **Botão "LINHA VIVA"** — presente em `resumo.html:592` com `title="Função futura"`,
@@ -178,7 +175,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 Apenas o que está explicitamente marcado como pendente no próprio projeto:
 
-- [ ] Conectar os três workers de background acima (ou decidir removê-los)
+- [ ] Conectar os dois workers de background restantes acima (fila offline, sync em tempo real) ou decidir removê-los
 - [ ] Implementar o botão "LINHA VIVA" (marcado como "Função futura" na UI)
 - [ ] Completar `scripts/release.py:push_to_cloud` (código de referência já está comentado no arquivo)
 - [ ] Adicionar `Dockerfile` e `fly.toml`, exigidos pelo workflow de deploy do backend
@@ -223,6 +220,20 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       gerando o prefixo `*` (ex.: `*1-PR`) em vez de rejeitar ou produzir um `-` literal que o cálculo de Outros
       não lê como sinal. `_num`/`_juntar`/`_fmt_qtd` são privados de `services/ajustes_planilhas.py`, sem efeito
       em outro módulo. CONCLUÍDA. Ver `.ai/tasks/TASK-038-05-10-2026.md`.
+- [x] **TASK-039/040/041** (pedido de 2026-10-05): usuário relatou "a conexão com o Supabase está se perdendo
+      após um tempo" e pediu garantia de disponibilidade de dados. Causa raiz confirmada: `services/supabase_client.py`
+      era um singleton nunca recriado (`reset_supabase_client()` existia mas não era chamado em lugar nenhum), e
+      toda falha de rede era engolida (`except Exception: pass`, sem log) em
+      `obras.py`/`recs.py`/`projetos.py`/`admin.py` — uma vez que o socket caía (comportamento normal do
+      Supabase/PostgREST após ociosidade), o processo nunca mais reconectava sozinho até reiniciar.
+      **TASK-039** (reconexão reativa): `get_supabase()` ganhou TTL proativo de 180s + reset reativo via
+      `registrar_falha()` quando a exceção é classificada como erro de rede. **TASK-040** (monitor de
+      conectividade): `services/connectivity_monitor.py` corrigido (asyncio via `run_coroutine_threadsafe`) e
+      ligado no startup de `app.py`, em desktop **e** servidor; transição offline→online força reset do
+      cliente; novo indicador visual em `static/resumo.html`/`resumo.js`. **TASK-041** (visibilidade de falha):
+      os 16 pontos silenciosos agora chamam `registrar_falha()` — decisão tomada de manter "sempre grava local,
+      sempre responde sucesso", só adicionando o log (opção que não muda a experiência do usuário). CONCLUÍDAS.
+      Ver `.ai/tasks/TASK-039-05-10-2026.md`, `TASK-040-05-10-2026.md`, `TASK-041-05-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -357,13 +368,17 @@ arquivo em `.ai/tasks/`.
 20. `orcamento_calc.py:187` — no passo 4 (busca parcial em `DESC_ATIVO`), quando há vários matches o
     código usa `matches[0]`, cuja ordem depende da iteração do dicionário. Resultado potencialmente
     não determinístico entre execuções com bases diferentes.
-21. Capturas de exceção silenciosas (`except Exception: pass`) em todos os fallbacks de Supabase
-    (`obras.py`, `recs.py`, `projetos.py`, `admin.py`). Falhas de nuvem são invisíveis em log.
+21. ~~Capturas de exceção silenciosas (`except Exception: pass`) em todos os fallbacks de Supabase
+    (`obras.py`, `recs.py`, `projetos.py`, `admin.py`). Falhas de nuvem são invisíveis em log.~~
+    **Corrigido — TASK-041 (2026-10-05):** os 16 pontos silenciosos agora chamam
+    `services/supabase_client.registrar_falha(contexto, exc)`, que loga em `warning` sempre.
 22. `orcamento.py:18` reimporta `APIRouter, UploadFile, File, Request` já importados na linha 7;
     `projetos.py:57,61` importa `HTTPException` duas vezes.
-23. `connectivity_monitor.py:39-56` manipula event loop do asyncio a partir de uma thread
+23. ~~`connectivity_monitor.py:39-56` manipula event loop do asyncio a partir de uma thread
     (`get_event_loop` / `new_event_loop` / `run_until_complete` / `loop.close()`) — padrão frágil.
-    Sem efeito prático hoje, já que o worker nunca é iniciado.
+    Sem efeito prático hoje, já que o worker nunca é iniciado.~~ **Corrigido — TASK-040
+    (2026-10-05):** o loop principal é capturado uma vez no startup e usado com
+    `asyncio.run_coroutine_threadsafe`; o monitor agora roda de fato (desktop e servidor).
 
 ### Dados
 24. O repositório continha PDFs, DXFs e o `banco_resumo.db` com dados reais de obra, versionados
@@ -446,16 +461,30 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-05
-**Motivo:** TASK-038 — pedido do usuário por um ajuste que, achando TR110 (trafo mono) na linha,
-adiciona vários ativos, um deles negativo (`*1-PR`, "linha viva"). A ação `adicionar_ativo` exigia
-`qtd > 0` e, mesmo aceitando, geraria um `-` literal que o cálculo de Outros não lê como sinal.
-**Alterações de código:** `services/ajustes_planilhas.py` (`validar_acoes` aceita `qtd` negativo;
-`_num` lê um token existente com `*`; nova `_fmt_qtd()` gera o prefixo `*` corretamente nas 3
-montagens de token de `_t_adicionar_ativo` e na frase legível do ajuste — todas privadas deste
-módulo, sem efeito em validação de domínio/Totalizadora/modo autônomo), `data/manual_regras_e_ajustes.md`.
-Testes: `pytest tests/test_ajustes_planilhas.py` (76 testes, 5 novos) + `pytest tests/` completo
-(684 testes) + verificação manual do exemplo completo do usuário produzindo exatamente
-`1-TR110 1-PR15 2-P50 1-PR127 *1-PR 3-EST35`. Ver `.ai/tasks/TASK-038-05-10-2026.md` e `.ai/CHANGELOG.md`.
+**Motivo:** TASK-039/040/041 — pedido do usuário "garantir que os dados estejam sempre disponíveis.
+E em caso de perda de conexão os dados se mantenham com a última versão carregada para trabalho",
+motivado pelo relato "a conexão com o Supabase está se perdendo após um tempo". Causa raiz
+confirmada: cliente Supabase era um singleton nunca recriado, e toda falha de rede era engolida
+sem log em 4 routers.
+**Alterações de código:** `services/supabase_client.py` (TTL proativo de 180s em `get_supabase()`,
+nova `registrar_falha(contexto, exc)` com reset reativo classificado por tipo de exceção),
+`services/connectivity_monitor.py` (asyncio corrigido via `run_coroutine_threadsafe`, reset do
+cliente na transição offline→online, sem restrição de `APP_MODE`), `app.py` (novo startup hook
+`_iniciar_monitor_conectividade`), `routers/obras.py`/`recs.py`/`projetos.py`/`admin.py` (16 pontos
+`except Exception: pass` → `registrar_falha`), `static/resumo.html`/`resumo.js` (novo indicador
+visual de conectividade), `tests/test_supabase_client.py` (novo, 14 testes).
+Testes: `pytest tests/test_supabase_client.py` (14/14) + `pytest tests/` completo (699 testes, sem
+regressão) + smoke test real-server (startup sem crash, `/api/health` normal) + verificação
+Playwright do indicador (estado inicial oculto, sem erros de JS). Ver
+`.ai/tasks/TASK-039-05-10-2026.md`, `TASK-040-05-10-2026.md`, `TASK-041-05-10-2026.md` e
+`.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-038 — pedido do usuário por um ajuste que, achando
+TR110 (trafo mono) na linha, adiciona vários ativos, um deles negativo (`*1-PR`, "linha viva"). A
+ação `adicionar_ativo` exigia `qtd > 0` e, mesmo aceitando, geraria um `-` literal que o cálculo de
+Outros não lê como sinal. Alterações: `services/ajustes_planilhas.py` (`validar_acoes` aceita `qtd`
+negativo; `_num` lê um token existente com `*`; nova `_fmt_qtd()` gera o prefixo `*` corretamente),
+`data/manual_regras_e_ajustes.md`. Ver `.ai/tasks/TASK-038-05-10-2026.md`.
 
 Entrada anterior (mantida para histórico): TASK-037 — última correção da cadeia de 4 bugs que
 impediam o vínculo automático por coordenada (TASK-032) de funcionar de verdade (dígito do tipo,

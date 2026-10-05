@@ -13,7 +13,7 @@ from middleware.auth_middleware import get_current_user_from_state
 router = APIRouter(tags=["recs"])
 
 
-from services.supabase_client import get_supabase
+from services.supabase_client import get_supabase, registrar_falha
 
 @router.get("/api/recs")
 def get_recs(request: Request, projeto: str = None):
@@ -26,8 +26,8 @@ def get_recs(request: Request, projeto: str = None):
             res = query.order("data_criacao", desc=True).execute()
             if res.data is not None:
                 return res.data
-        except Exception:
-            pass
+        except Exception as e:
+            registrar_falha("recs.get_recs", e)
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -48,8 +48,8 @@ def get_rec(numero_obra: str, request: Request):
             res = supabase.table("historico_rec").select("dados_json").eq("numero_obra", numero_obra).execute()
             if res.data and len(res.data) > 0:
                 return {"dados_json": res.data[0]["dados_json"]}
-        except Exception:
-            pass
+        except Exception as e:
+            registrar_falha("recs.get_rec", e)
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -88,8 +88,8 @@ def save_rec(rec: RecModel, request: Request):
             res_check = supabase.table("historico_rec").select("user_id").eq("numero_obra", num_obra_alvo).execute()
             if res_check.data and len(res_check.data) > 0:
                 existing_owner_id = str(res_check.data[0]["user_id"]) if res_check.data[0].get("user_id") else None
-        except Exception:
-            pass
+        except Exception as e:
+            registrar_falha("recs.save_rec.verificar_owner", e)
 
     # 2. Se o REC já existe, pertence a outro usuário e o atual NÃO é admin:
     # Cria uma cópia pessoal para preservar o REC original
@@ -109,8 +109,8 @@ def save_rec(rec: RecModel, request: Request):
                 "user_id": user_id,
                 "projeto": rec.projeto
             }).execute()
-        except Exception:
-            pass
+        except Exception as e:
+            registrar_falha("recs.save_rec", e)
 
     # 4. Salva no SQLite local
     conn = get_connection()
@@ -149,8 +149,8 @@ def delete_rec(numero_obra: str, request: Request):
     if supabase:
         try:
             supabase.table("historico_rec").delete().eq("numero_obra", numero_obra).execute()
-        except Exception:
-            pass
+        except Exception as e:
+            registrar_falha("recs.delete_rec", e)
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -188,8 +188,8 @@ def recuperar_rec_alt(numero_obra: str, request: Request):
             res = supabase.table("historico_rec").select("dados_json").eq("numero_obra", numero_obra.strip()).execute()
             if res.data and len(res.data) > 0:
                 return {"status": "ok", "dados": json.loads(res.data[0]["dados_json"])}
-        except Exception:
-            pass
+        except Exception as e:
+            registrar_falha("recs.recuperar_rec_alt", e)
 
     try:
         conn = get_row_connection()

@@ -9,7 +9,7 @@ from middleware.auth_middleware import get_current_user_from_state
 router = APIRouter(prefix="/api/obras", tags=["obras"])
 
 
-from services.supabase_client import get_supabase
+from services.supabase_client import get_supabase, registrar_falha
 
 @router.get("")
 def get_obras(request: Request, projeto: str = None):
@@ -25,8 +25,8 @@ def get_obras(request: Request, projeto: str = None):
             res = query.order("data", desc=True).execute()
             if res.data is not None:
                 return res.data
-        except Exception:
-            pass
+        except Exception as e:
+            registrar_falha("obras.get_obras", e)
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -54,8 +54,8 @@ def listar_leves(user_id, projeto):
                    .order("data", desc=True).execute())
             if res.data is not None:
                 return res.data
-        except Exception:
-            pass
+        except Exception as e:
+            registrar_falha("obras.listar_leves", e)
     conn = get_connection()
     rows = conn.execute(
         "SELECT id, nome, data, projeto FROM obras WHERE (user_id = ? OR user_id IS NULL) AND projeto = ? ORDER BY data DESC",
@@ -72,8 +72,8 @@ def buscar_obra(user_id, obra_id):
             res = supabase.table("obras").select("*").eq("id", obra_id).eq("user_id", user_id).execute()
             if res.data:
                 return res.data[0]
-        except Exception:
-            pass
+        except Exception as e:
+            registrar_falha("obras.buscar_obra", e)
     conn = get_connection()
     r = conn.execute("SELECT id, nome, data, dados_json, projeto FROM obras WHERE id = ? AND (user_id = ? OR user_id IS NULL)",
                      (obra_id, user_id)).fetchone()
@@ -112,8 +112,8 @@ def save_obra(obra: ObraModel, request: Request):
                 "user_id": user_id,
                 "projeto": obra.projeto
             }).execute()
-        except Exception:
-            pass
+        except Exception as e:
+            registrar_falha("obras.save_obra", e)
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -133,8 +133,8 @@ def delete_obra(obra_id: str, request: Request):
     if supabase:
         try:
             supabase.table("obras").delete().eq("id", obra_id).eq("user_id", user_id).execute()
-        except Exception:
-            pass
+        except Exception as e:
+            registrar_falha("obras.delete_obra", e)
 
     conn = get_connection()
     cursor = conn.cursor()

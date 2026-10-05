@@ -10,6 +10,43 @@ document.addEventListener('DOMContentLoaded', () => {
     function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
     /* ═══════════════════════════════════════
+       CONECTIVIDADE COM A NUVEM (TASK-040)
+       Escuta o evento {"type":"connectivity"} do WebSocket /ws (emitido por
+       services/connectivity_monitor.py) e mostra um aviso só quando offline —
+       sem ruído quando tudo está normal.
+    ═══════════════════════════════════════ */
+    (function conectividade() {
+        const selo = document.getElementById('indicador-conectividade');
+        const bola = document.getElementById('indicador-conectividade-bola');
+        const texto = document.getElementById('indicador-conectividade-texto');
+        if (!selo || !bola || !texto) return;
+
+        function atualizar(online) {
+            if (online) {
+                selo.style.display = 'none';
+                return;
+            }
+            selo.style.display = 'inline-flex';
+            selo.style.background = 'rgba(248,81,73,0.15)';
+            selo.style.color = '#f85149';
+            bola.style.background = '#f85149';
+            texto.textContent = 'Sem conexão com a nuvem — trabalhando localmente';
+        }
+
+        try {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'connectivity') atualizar(data.status === 'online');
+                } catch (e) { /* mensagem não era JSON de conectividade: ignora */ }
+            };
+            socket.onerror = () => { /* sem WebSocket: o indicador só não aparece, nada quebra */ };
+        } catch (e) { /* idem */ }
+    })();
+
+    /* ═══════════════════════════════════════
        DADOS GLOBAIS
     ═══════════════════════════════════════ */
     const ENTIDADES = ['0', 'CABO', 'CHAVE', 'TRAFO', 'ESTRUTURA', 'APOIO', 'IP', 'POSTE', 'RAMAIS', 'CERCA'];
