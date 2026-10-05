@@ -219,6 +219,10 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       `_x`/`_y` para `localStorage['processar_dados']` — fecha o último dos 4 bugs que impediam o vínculo
       automático por coordenada (TASK-032) de funcionar na tela manual. Confirmado fim a fim com DXF real, sem
       atalho sintético. CONCLUÍDA. Ver `.ai/tasks/TASK-037-03-10-2026.md`.
+- [x] **TASK-038** (pedido de 2026-10-05): `adicionar_ativo` (motor de ajustes, TASK-022) aceita `qtd` negativo,
+      gerando o prefixo `*` (ex.: `*1-PR`) em vez de rejeitar ou produzir um `-` literal que o cálculo de Outros
+      não lê como sinal. `_num`/`_juntar`/`_fmt_qtd` são privados de `services/ajustes_planilhas.py`, sem efeito
+      em outro módulo. CONCLUÍDA. Ver `.ai/tasks/TASK-038-05-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -441,19 +445,24 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-10-03
-**Motivo:** TASK-037 — última correção da cadeia de 4 bugs que impediam o vínculo automático por
-coordenada (TASK-032) de funcionar de verdade. O botão "Processar" da tela Leitor
-(`static/script.js`) não repassava `_x`/`_y` para `localStorage['processar_dados']`; os outros 3
-bugs (dígito do tipo, ativo composto, DXF descartando coordenada) já tinham sido corrigidos na
-TASK-036. Com os 4 corrigidos, confirmado **fim a fim com um DXF real**, sem leitor falso nem dado
-sintético: extração real → "Processar" → Resumo → vínculo automático escolhendo as estruturas
-certas por proximidade. A funcionalidade de vínculo (TASK-032/033/034/036/037) está completa e
-funcional nos dois modos (manual e autônomo).
-**Alterações de código:** `static/script.js` (inclui `_x`/`_y` condicionalmente no objeto exportado
-pelo botão "Processar").
-Testes: `pytest tests/` completo (679 testes, inalterado — mudança restrita a JS) + servidor
-real/Playwright com DXF real. Ver `.ai/tasks/TASK-037-03-10-2026.md` e `.ai/CHANGELOG.md`.
+**Data:** 2026-10-05
+**Motivo:** TASK-038 — pedido do usuário por um ajuste que, achando TR110 (trafo mono) na linha,
+adiciona vários ativos, um deles negativo (`*1-PR`, "linha viva"). A ação `adicionar_ativo` exigia
+`qtd > 0` e, mesmo aceitando, geraria um `-` literal que o cálculo de Outros não lê como sinal.
+**Alterações de código:** `services/ajustes_planilhas.py` (`validar_acoes` aceita `qtd` negativo;
+`_num` lê um token existente com `*`; nova `_fmt_qtd()` gera o prefixo `*` corretamente nas 3
+montagens de token de `_t_adicionar_ativo` e na frase legível do ajuste — todas privadas deste
+módulo, sem efeito em validação de domínio/Totalizadora/modo autônomo), `data/manual_regras_e_ajustes.md`.
+Testes: `pytest tests/test_ajustes_planilhas.py` (76 testes, 5 novos) + `pytest tests/` completo
+(684 testes) + verificação manual do exemplo completo do usuário produzindo exatamente
+`1-TR110 1-PR15 2-P50 1-PR127 *1-PR 3-EST35`. Ver `.ai/tasks/TASK-038-05-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-037 — última correção da cadeia de 4 bugs que
+impediam o vínculo automático por coordenada (TASK-032) de funcionar de verdade (dígito do tipo,
+ativo composto, DXF descartando coordenada, e o `static/script.js` não repassando `_x`/`_y` para
+o Resumo). Com os 4 corrigidos, confirmado fim a fim com um DXF real. A funcionalidade de vínculo
+(TASK-032/033/034/036/037) está completa e funcional nos dois modos (manual e autônomo). Ver
+`.ai/tasks/TASK-037-03-10-2026.md`.
 
 Entrada anterior (mantida para histórico): TASK-036 — incorpora o vínculo cabo↔estrutura/poste ao
 modo autônomo; achou e corrigiu 3 dos 4 bugs acima. Alterações: `services/autonomo/montagem.py`,

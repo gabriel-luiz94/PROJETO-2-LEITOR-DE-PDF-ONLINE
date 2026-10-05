@@ -8,6 +8,30 @@
 
 ---
 
+## 2026-10-05 — TASK-038: `adicionar_ativo` aceita quantidade negativa (`*`, linha viva)
+
+**Tipo:** melhoria (backend) · `.ai/tasks/TASK-038-05-10-2026.md`
+
+Pedido do usuário: um ajuste que, ao achar TR110 (trafo mono) na linha, adiciona um conjunto de
+ativos — quatro positivos e um negativo (`*1-PR`). A ação `adicionar_ativo` (TASK-022) exigia
+`qtd > 0` e, mesmo que aceitasse, formatava o token com `-` literal, que o tokenizador de Outros
+não lê como sinal (só `*` é lido como negativo, por `services/orcamento_calc.py:tokenizar_outros`).
+
+- `services/ajustes_planilhas.py`: `validar_acoes` passa a aceitar `qtd` negativo (só `0` é
+  rejeitado); `_num` agora reconhece um token existente com `*` e devolve negativo; nova
+  `_fmt_qtd()` (inverso de `_num`) gera o prefixo `*` corretamente; usada nas 3 montagens de token
+  de `_t_adicionar_ativo` (novo, somar, substituir) e na frase legível do ajuste.
+- `data/manual_regras_e_ajustes.md`: documentado o novo comportamento com exemplo.
+- Confirmado isolado: `_num`/`_juntar`/`_RE_NUM`/`_fmt_qtd` são privados deste módulo (não
+  importados de `regras_dominio.py`), sem efeito em validação de domínio, Totalizadora ou modo
+  autônomo.
+
+Testado: `pytest tests/test_ajustes_planilhas.py` (76 testes, 5 novos) + `pytest tests/` completo
+(684 testes) + verificação manual do exemplo completo do usuário (5 ações, mesma condição `{"tem":
+"TR110"}`) produzindo exatamente `1-TR110 1-PR15 2-P50 1-PR127 *1-PR 3-EST35`.
+
+---
+
 ## 2026-10-03 — TASK-037: coordenada do Leitor chega ao Resumo (fecha o 4º bug do vínculo)
 
 **Tipo:** correção de bug · `.ai/tasks/TASK-037-03-10-2026.md`
