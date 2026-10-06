@@ -8,6 +8,32 @@
 
 ---
 
+## 2026-10-06 — TASK-047: `adicionar_ativo` com lista de ativos fixos (mesma quantidade pra todos)
+
+**Tipo:** feature (motor de Ajustes) · `services/ajustes_planilhas.py`, `static/painel_ajustes.js` ·
+`.ai/tasks/TASK-047-06-10-2026.md`
+
+Usuário perguntou se dava pra passar uma lista (ex.: `90525, 90542, 92540`) numa única regra. Já era
+possível adicionar vários ativos no mesmo ajuste usando várias ações `adicionar_ativo` (o array
+`acoes` já suportava isso desde a TASK-023), mas o usuário queria algo mais compacto. Confirmado:
+"quantidade igual pra todos" antes de implementar.
+
+Implementado: `ativo` passa a aceitar também uma LISTA de códigos fixos — um token novo por código,
+todos com a MESMA `qtd` (fixa ou dinâmica via `{"soma": ...}` da TASK-045, resolvida uma única vez
+antes de qualquer token ser adicionado). Extraída `_validar_qtd_adicionar()` para eliminar a
+duplicação de validação entre o caso de ativo único e o de lista. Diferente do ativo dinâmico da
+TASK-046 (que não combina com `qtd` dinâmico), lista SIM combina — os dois recursos são
+independentes.
+
+Exemplo exato do pedido: `{"acao": "adicionar_ativo", "tabela": "outros", "ativo": ["90525",
+"90542", "92540"], "qtd": -1}`.
+
+7 testes novos (`tests/test_ajustes_planilhas.py`). Suíte completa (755 testes) sem regressão.
+Smoke test real-server + Playwright confirma o fluxo completo pela UI (alternar "ativo" para "lista
+de códigos", preencher códigos separados por vírgula, modelo em memória e frase ao vivo corretos).
+
+---
+
 ## 2026-10-06 — TASK-046: `adicionar_ativo` com ativo dinâmico (nome = código encontrado na própria linha)
 
 **Tipo:** feature (motor de Ajustes) · `services/ajustes_planilhas.py`, `static/painel_ajustes.js` ·

@@ -231,17 +231,22 @@ function ajCamposDaAcao(a, refazer) {
         f.appendChild(ajRotulo('só se ainda não existir', c));
         if (typeof a.posicao === 'object') f.appendChild(ajCondicao(a, Object.keys(a.posicao)[0], 'Linha de referência', refazer, a.posicao));
     } else if (nome === 'adicionar_ativo') {
-        const ativoDinamico = a.ativo && typeof a.ativo === 'object';
-        // TASK-046: ativo fixo (código literal) ou dinâmico (nome = prefixo + código encontrado por um
-        // seletor na própria linha + sufixo — ex.: "se tem TR1*, adicionar o próprio código + 'VP'").
-        f.appendChild(ajRotulo('ativo', ajSelect([['fixo', 'fixo'], ['dinamico', 'igual ao ativo encontrado']], ativoDinamico ? 'dinamico' : 'fixo', v => {
-            a.ativo = v === 'dinamico' ? { igual_a: '' } : '';
+        const ativoLista = Array.isArray(a.ativo);
+        const ativoDinamico = !!a.ativo && typeof a.ativo === 'object' && !ativoLista;
+        const modoAtivo = ativoDinamico ? 'dinamico' : ativoLista ? 'lista' : 'fixo';
+        // TASK-046/047: ativo fixo (código literal), lista de códigos fixos (todos com a mesma
+        // quantidade) ou dinâmico (nome = prefixo + código encontrado por um seletor na própria
+        // linha + sufixo — ex.: "se tem TR1*, adicionar o próprio código + 'VP'").
+        f.appendChild(ajRotulo('ativo', ajSelect([['fixo', 'fixo'], ['lista', 'lista de códigos'], ['dinamico', 'igual ao ativo encontrado']], modoAtivo, v => {
+            a.ativo = v === 'dinamico' ? { igual_a: '' } : v === 'lista' ? [] : '';
             refazer();
         })));
         if (ativoDinamico) {
             f.appendChild(ajRotulo('igual a', ajInput(rdSelParaTexto(a.ativo.igual_a), v => { a.ativo.igual_a = rdTextoParaSel(v); }, 'w-44 font-mono', 'código, curinga, @GRUPO, lista', 'rdSugestoes')));
             f.appendChild(ajRotulo('prefixo', ajInput(a.ativo.prefixo || '', v => { if (v) a.ativo.prefixo = v; else delete a.ativo.prefixo; }, 'w-20 font-mono')));
             f.appendChild(ajRotulo('sufixo', ajInput(a.ativo.sufixo || '', v => { if (v) a.ativo.sufixo = v; else delete a.ativo.sufixo; }, 'w-20 font-mono')));
+        } else if (ativoLista) {
+            f.appendChild(ajRotulo('códigos', ajInput(a.ativo.join(', '), v => { a.ativo = ajCsv(v); }, 'w-56 font-mono', 'códigos separados por vírgula, ex.: 90525, 90542, 92540', 'rdSugestoes')));
         } else {
             f.appendChild(ajRotulo('ativo', ajInput(a.ativo, v => { a.ativo = v.trim(); }, 'w-44 font-mono', 'código, ex.: SUPL', 'rdSugestoes')));
         }

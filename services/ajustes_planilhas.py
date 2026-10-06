@@ -28,6 +28,9 @@ AÇÕES (cada uma exige `acao` e `tabela`: "cabos" | "outros" | "ambos"; `id` e 
                       (aqui `qtd` é o FATOR por item, não soma; não aceita {"soma": ...} combinado com ativo
                       dinâmico). Ex.: "se tem TR1*, adicionar o próprio texto + 'VP' na mesma quantidade negativa" =
                       {"ativo": {"igual_a": "TR1*", "sufixo": "VP"}, "qtd": -1, "quando": {"tem": "TR1*"}}.
+                      `ativo` TAMBÉM aceita uma LISTA de códigos fixos (TASK-047) — um token por código da lista,
+                      todos com a MESMA quantidade `qtd` (fixa ou dinâmica via {"soma": ...}, resolvida uma única vez).
+                      Ex.: {"ativo": ["90525", "90542", "92540"], "qtd": -1}.
   remover_ativo     (Outros) {"ativo": SELETOR}
   mesclar_duplicadas(Outros) soma as quantidades do mesmo ativo repetido na linha
 
@@ -90,6 +93,20 @@ def _validar_condicao(c, campo, tabela, erros, grupos):
     _validar_cond(c, campo, erros, grupos, [0])
     if tabela in ("cabos", "ambos") and _usa_itens(c):
         erros.append(f"{campo}: em Cabos só vale a condição 'texto' (tem/soma olham itens de Outros).")
+
+
+def _validar_qtd_adicionar(qtd, pre, erros, grupos):
+    """`qtd` de adicionar_ativo (ativo fixo ou lista): número fixo (≠0) ou {"soma": SELETOR, "fator"?: número}."""
+    if isinstance(qtd, dict):
+        if "soma" not in qtd or set(qtd) - {"soma", "fator"}:
+            erros.append(f"{pre}.qtd: quantidade dinâmica precisa ser {{\"soma\": SELETOR, \"fator\"?: número}}.")
+        else:
+            _validar_sel(qtd.get("soma"), f"{pre}.qtd.soma", erros, grupos)
+            if "fator" in qtd and not _numero_ok(qtd["fator"]):
+                erros.append(f"{pre}.qtd.fator: precisa ser um número.")
+    elif not (_numero_ok(qtd) and qtd != 0):
+        erros.append(f"{pre}: 'qtd' precisa ser um número diferente de zero (negativo gera o prefixo '*', linha "
+                     "viva), ou {\"soma\": SELETOR, \"fator\"?: número} para quantidade dinâmica.")
 
 
 def _validar_acao(a, pre, erros, grupos):
@@ -209,20 +226,19 @@ def _validar_acao(a, pre, erros, grupos):
             if "qtd" in a and not (_numero_ok(a["qtd"]) and a["qtd"] != 0):
                 erros.append(f"{pre}: com ativo dinâmico, 'qtd' é o FATOR (número diferente de zero) aplicado à "
                              "quantidade de cada item encontrado — não aceita {\"soma\": ...} aqui.")
+        elif isinstance(ativo, list):
+            if not ativo:
+                erros.append(f"{pre}: 'ativo' em lista precisa ter ao menos um código.")
+            for i, cod in enumerate(ativo):
+                if not isinstance(cod, str) or not cod.strip() or re.search(r"\s", cod.strip()):
+                    erros.append(f"{pre}.ativo[{i}]: precisa ser um código sem espaços.")
+            if "qtd" in a:
+                _validar_qtd_adicionar(a["qtd"], pre, erros, grupos)
         elif not isinstance(ativo, str) or not ativo.strip() or re.search(r"[\s]", ativo.strip()):
-            erros.append(f"{pre}: 'ativo' precisa ser um código sem espaços, ou {{\"igual_a\": SELETOR, ...}} para nome dinâmico.")
+            erros.append(f"{pre}: 'ativo' precisa ser um código sem espaços, uma lista de códigos, ou "
+                         "{\"igual_a\": SELETOR, ...} para nome dinâmico.")
         elif "qtd" in a:
-            qtd = a["qtd"]
-            if isinstance(qtd, dict):
-                if "soma" not in qtd or set(qtd) - {"soma", "fator"}:
-                    erros.append(f"{pre}.qtd: quantidade dinâmica precisa ser {{\"soma\": SELETOR, \"fator\"?: número}}.")
-                else:
-                    _validar_sel(qtd.get("soma"), f"{pre}.qtd.soma", erros, grupos)
-                    if "fator" in qtd and not _numero_ok(qtd["fator"]):
-                        erros.append(f"{pre}.qtd.fator: precisa ser um número.")
-            elif not (_numero_ok(qtd) and qtd != 0):
-                erros.append(f"{pre}: 'qtd' precisa ser um número diferente de zero (negativo gera o prefixo '*', linha "
-                             "viva), ou {\"soma\": SELETOR, \"fator\"?: número} para quantidade dinâmica.")
+            _validar_qtd_adicionar(a["qtd"], pre, erros, grupos)
         if a.get("se_ja_existe", "ignorar") not in ("ignorar", "somar", "substituir"):
             erros.append(f"{pre}: 'se_ja_existe' precisa ser ignorar, somar ou substituir.")
     elif nome == "remover_ativo":
@@ -414,6 +430,18 @@ def _t_adicionar_ativo(a, tabela, texto, grupos):
             if nova_qtd == 0:
                 continue
             texto = _aplicar_um_ativo(texto, novo_ativo, nova_qtd, modo)
+        return texto
+
+    if isinstance(ativo_spec, list):
+        # TASK-047: lista de códigos fixos — um token por código, todos com a MESMA quantidade,
+        # resolvida uma única vez (antes de qualquer token ser adicionado), igual ao caso de um
+        # único ativo abaixo.
+        qtd_spec = a.get("qtd", 1)
+        qtd = _qtd_dinamica(qtd_spec, tabela, texto, grupos) if isinstance(qtd_spec, dict) else qtd_spec
+        if qtd == 0:
+            return texto
+        for cod in ativo_spec:
+            texto = _aplicar_um_ativo(texto, cod.strip(), qtd, modo)
         return texto
 
     ativo, qtd_spec = ativo_spec.strip(), a.get("qtd", 1)
@@ -745,6 +773,14 @@ def descrever_acao(a: dict) -> str:
                 f"código encontrado + '{ativo.get('sufixo', '')}'" if ativo.get("sufixo") else "o próprio código encontrado"
             fator_txt = "a mesma quantidade" if qtd == 1 else "a mesma quantidade negativa" if qtd == -1 else f"a quantidade × {_n(qtd)}"
             return f"Em {t}: para cada {_frase_sel(ativo['igual_a'])} encontrado na linha, adicionar {nome_txt}, com {fator_txt} à linha{_frase_filtros(a)}{modo}{op}."
+        if isinstance(ativo, list):
+            if isinstance(qtd, dict):
+                lista_txt = ", ".join(f"'{c}'" for c in ativo)
+                qtd_txt = f"a mesma quantidade de {_frase_sel(qtd['soma'])}" + \
+                    (" (negativa)" if qtd.get("fator", 1) == -1 else f" × {_n(qtd['fator'])}" if qtd.get("fator", 1) != 1 else "")
+                return f"Em {t}: adicionar {lista_txt}, cada um com {qtd_txt}, à linha{_frase_filtros(a)}{modo}{op}."
+            lista_txt = ", ".join(f"{_fmt_qtd(qtd)}-{c}" for c in ativo)
+            return f"Em {t}: adicionar {lista_txt} à linha{_frase_filtros(a)}{modo}{op}."
         qtd_txt = f"{_fmt_qtd(qtd)}-{ativo}" if not isinstance(qtd, dict) else \
             f"'{ativo}' na mesma quantidade de {_frase_sel(qtd['soma'])}" + \
             (" (negativa)" if qtd.get("fator", 1) == -1 else f" × {_n(qtd['fator'])}" if qtd.get("fator", 1) != 1 else "")
