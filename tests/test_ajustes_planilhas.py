@@ -414,6 +414,47 @@ def test_adicionar_ativo_descreve_lista_com_qtd_propria_em_portugues():
         "Em Outros: adicionar *1-90525, *3-92540 à linha."
 
 
+# ── adicionar_ativo com fator próprio por item da lista (TASK-049) ───────────
+def test_adicionar_ativo_lista_com_fator_proprio_pedido_real_do_usuario():
+    """Pedido real: duas vezes a quantidade de U4, 90277 negativo e 90279 positivo."""
+    acoes = [acao("adicionar_ativo", ativo=[{"ativo": "90277", "fator": -2}, {"ativo": "90279", "fator": 2}],
+                  qtd={"soma": "U4"}, quando={"tem": "U4"})]
+    r = idempotente(acoes, [o("2-U4")])
+    assert textos(r) == ["2-U4 *4-90277 4-90279"]
+
+
+def test_adicionar_ativo_lista_com_fator_proprio_sobre_qtd_literal():
+    """Sem `qtd` dinâmico, o fator do item multiplica o próprio número literal de `qtd`."""
+    r = rodar([acao("adicionar_ativo", ativo=[{"ativo": "90277", "fator": 3}], qtd=2)], [o("1-TR110")])
+    assert textos(r) == ["1-TR110 6-90277"]
+
+
+def test_adicionar_ativo_lista_mistura_fator_proprio_com_qtd_propria_e_item_simples():
+    r = rodar([acao("adicionar_ativo",
+                     ativo=[{"ativo": "90277", "fator": -2}, {"ativo": "90279", "qtd": 9}, "90281"],
+                     qtd={"soma": "U4"})], [o("3-U4")])
+    assert textos(r) == ["3-U4 *6-90277 9-90279 3-90281"]
+
+
+def test_adicionar_ativo_lista_com_fator_proprio_zero_base_nao_adiciona():
+    r = rodar([acao("adicionar_ativo", ativo=[{"ativo": "90277", "fator": -2}], qtd={"soma": "U4"})], [o("DT11/300")])
+    assert textos(r) == ["DT11/300"]
+    assert r["operacoes"] == []
+
+
+def test_adicionar_ativo_lista_com_fator_proprio_valida_schema():
+    assert erros_de(acao("adicionar_ativo", ativo=[{"ativo": "90277", "fator": -2}], qtd={"soma": "U4"}), GRUPOS) == []
+    assert any("ativo" in e for e in erros_de(acao("adicionar_ativo", ativo=[{"ativo": "90277", "qtd": 1, "fator": 2}]), GRUPOS))
+    assert any("fator" in e for e in erros_de(acao("adicionar_ativo", ativo=[{"ativo": "90277", "fator": "x"}]), GRUPOS))
+    assert erros_de(acao("adicionar_ativo", ativo=[{"ativo": "90277", "fator": 0}]), GRUPOS) == []
+
+
+def test_adicionar_ativo_descreve_lista_com_fator_proprio_em_portugues():
+    assert descrever_acao(acao("adicionar_ativo", ativo=[{"ativo": "90277", "fator": -2}, {"ativo": "90279", "fator": 2}],
+                                qtd={"soma": "U4"})) == \
+        "Em Outros: adicionar '90277' (a mesma quantidade de U4 × -2), '90279' (a mesma quantidade de U4 × 2) à linha."
+
+
 def test_remover_ativo_por_seletor_e_nao_deixa_espacos_sobrando():
     r = idempotente([acao("remover_ativo", ativo="@SUPLS")], [o("DT11/300 1-SUPL 1-CFU"), o("1-SUPL")], grupos=GRUPOS)
     assert textos(r) == ["DT11/300 1-CFU", ""]

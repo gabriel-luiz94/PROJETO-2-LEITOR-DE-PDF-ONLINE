@@ -302,6 +302,15 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       string continuam usando a compartilhada, os dois formatos podem ser misturados na mesma lista.
       UI: campo "códigos" ganhou a sintaxe `código:qtd` por item, sem seletor de modo novo.
       CONCLUÍDA. Ver `.ai/tasks/TASK-048-06-10-2026.md`.
+- [x] **TASK-049** (pedido de 2026-10-06): usuário tentou combinar `código:qtd` (TASK-048) com
+      "mesma quantidade de outro ativo" esperando "duas vezes a quantidade de U4, um código negativo
+      e outro positivo" — não funcionou, pois `qtd` própria substitui a compartilhada por um valor
+      fixo. Confirmado "não podemos adicionar a lógica do fator?". Um item da lista passou a aceitar
+      também `{"ativo": código, "fator"?: número}` — MULTIPLICA a mesma base da `qtd` compartilhada
+      (a soma, se dinâmica) em vez de substituí-la; `"qtd"` e `"fator"` no mesmo item são mutuamente
+      exclusivos. Nova `_qtd_base()` extrai a magnitude não escalada, reaproveitada por
+      `_qtd_dinamica()` (TASK-045, refatorada, comportamento idêntico). UI: sintaxe `código:xN` no
+      mesmo campo "códigos". CONCLUÍDA. Ver `.ai/tasks/TASK-049-06-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -537,9 +546,26 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-06
-**Motivo:** TASK-048 — logo após a TASK-047, usuário perguntou se a lista de códigos aceita mais de
-um fator; confirmado o pedido real: "quantidades diferentes por código pra diminuir o número de
-regras".
+**Motivo:** TASK-049 — usuário tentou combinar `código:qtd` (TASK-048) com "mesma quantidade de
+outro ativo" esperando "duas vezes a quantidade de U4, um código negativo e outro positivo"; não
+funcionou, pois `qtd` própria substitui a compartilhada por um valor fixo. Confirmado "não podemos
+adicionar a lógica do fator?".
+**Alterações de código:** `services/ajustes_planilhas.py` (item da lista aceita também `{"ativo":
+código, "fator"?: número}` — MULTIPLICA a mesma base da `qtd` compartilhada em vez de substituí-la;
+`"qtd"` e `"fator"` no mesmo item são mutuamente exclusivos; nova `_qtd_base()` extrai a magnitude
+não escalada, reaproveitada por `_qtd_dinamica()` [TASK-045, refatorada, comportamento idêntico];
+`descrever_acao()` com frase para item com fator próprio); `static/painel_ajustes.js` (sintaxe
+`código:xN` no mesmo campo "códigos", prefixo `x` distingue fator de quantidade fixa).
+Testes: 6 novos em `tests/test_ajustes_planilhas.py` (fator próprio com base dinâmica — pedido real
+do usuário —, fator com base literal, lista mista, base zero, validação de schema, frase em
+português). Suíte completa sem regressão. Smoke test real-server (uvicorn em processo, DB SQLite
+temporário via `database.DB_PATH` patcheado, nunca `banco_resumo.db`) + Playwright confirma o fluxo
+completo pela UI (sintaxe `código:xN`, modelo em memória e frase ao vivo corretos). Ver
+`.ai/tasks/TASK-049-06-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-048 — logo após a TASK-047, usuário perguntou se a
+lista de códigos aceita mais de um fator; confirmado o pedido real: "quantidades diferentes por
+código pra diminuir o número de regras".
 **Alterações de código:** `services/ajustes_planilhas.py` (um item da lista de `ativo` aceita
 `{"ativo": código, "qtd"?: número}` — quantidade PRÓPRIA, substituindo a `qtd` compartilhada só
 para aquele código; itens string continuam usando a compartilhada, os dois formatos podem ser
