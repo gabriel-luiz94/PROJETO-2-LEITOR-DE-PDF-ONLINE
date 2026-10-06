@@ -320,7 +320,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const file = files[0];
             const isPDF = file.type === "application/pdf" || file.name.toLowerCase().endsWith('.pdf');
             const isDXF = file.name.toLowerCase().endsWith('.dxf');
-            if (isPDF || isDXF) {
+            const isDWG = file.name.toLowerCase().endsWith('.dwg');
+            if (isPDF || isDXF || isDWG) {
                 currentFile = file;
                 fileName.textContent = file.name;
                 uploadZone.classList.add('hidden');
@@ -328,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 extractBtn.classList.remove('hidden');
                 resultsSection.classList.add('hidden');
             } else {
-                alert("Selecione um arquivo PDF ou DXF.");
+                alert("Selecione um arquivo PDF, DXF ou DWG.");
             }
         }
     }
@@ -354,7 +355,12 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("Iniciando upload de:", currentFile.name);
             const formData = new FormData();
             formData.append('file', currentFile);
-            const response = await fetch('/upload', { method: 'POST', body: formData });
+            // TASK-043: só usada quando o arquivo é .dwg (conversão via CloudConvert); .pdf/.dxf a ignoram.
+            const chaveCloudConvert = localStorage.getItem('cloudconvert_api_key') || '';
+            const response = await fetch('/upload', {
+                method: 'POST', body: formData,
+                headers: chaveCloudConvert ? { 'X-CloudConvert-Key': chaveCloudConvert } : {}
+            });
             
             if (!response.ok) {
                 const errorText = await response.text();
@@ -976,7 +982,10 @@ document.addEventListener('DOMContentLoaded', () => {
     async function autoExtractLocal(path) {
         spinner.classList.remove('hidden'); resultsSection.classList.add('hidden');
         try {
-            const res = await fetch(`/extract-local?path=${encodeURIComponent(path)}`);
+            const chaveCloudConvert = localStorage.getItem('cloudconvert_api_key') || '';
+            const res = await fetch(`/extract-local?path=${encodeURIComponent(path)}`, {
+                headers: chaveCloudConvert ? { 'X-CloudConvert-Key': chaveCloudConvert } : {}
+            });
             const json = await res.json();
             if (json.error) return alert(json.error);
             extractedDataCache = json.data; renderTable(extractedDataCache);
@@ -987,6 +996,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('localFile')) autoExtractLocal(urlParams.get('localFile'));
 });
+
+/* ═══════════════════════════════════════
+   CHAVE DO CLOUDCONVERT, PARA ARQUIVOS DWG (TASK-043)
+═══════════════════════════════════════ */
+async function abrirModalCloudConvert() {
+    const modal = document.getElementById('modal-cloudconvert');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    const input = document.getElementById('input-cloudconvert-key');
+    input.value = localStorage.getItem('cloudconvert_api_key') || '';
+    const status = document.getElementById('cloudconvert-status');
+    const textos = {
+        salva: 'Sem chave digitada aqui: será usada a chave salva neste servidor.',
+        padrao: 'Sem chave digitada aqui: será usada a chave padrão do sistema.',
+        nenhuma: 'Nenhuma chave disponível: só é necessária se você for enviar arquivos .dwg.'
+    };
+    try {
+        const resp = await fetch('/api/health');
+        const info = resp.ok ? await resp.json() : {};
+        status.textContent = input.value.trim()
+            ? 'Sua chave será usada e salva.'
+            : (textos[info.cloudconvert_key_source] || '');
+    } catch (e) {
+        status.textContent = '';
+    }
+}
+
+(function () {
+    const btn = document.getElementById('btn-save-cloudconvert');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        const input = document.getElementById('input-cloudconvert-key');
+        localStorage.setItem('cloudconvert_api_key', input.value.trim());
+        document.getElementById('modal-cloudconvert').style.display = 'none';
+    });
+})();
 
 /* ═══════════════════════════════════════
    REGRAS DO LEITOR (TASK-006)

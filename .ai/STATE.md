@@ -243,6 +243,17 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       tipo de estrutura → ativo) sobre a MESMA tabela de Regras de Conversão da Totalizadora
       (`origem: VINCULO`, já existente desde TASK-011/032/034), traduzindo `ativo_de` automático.
       Nenhum endpoint/tabela novo. CONCLUÍDA. Ver `.ai/tasks/TASK-042-06-10-2026.md`.
+- [x] **TASK-043** (pedido de 2026-10-06): usuário perguntou se o programa lia `.dwg` — não
+      diretamente (`ezdxf` só lê `.dxf`) — e pediu para o próprio programa converter internamente
+      usando uma ferramenta online. Decisões do usuário: serviço **CloudConvert** (API v2, chave
+      simples) e credencial no mesmo padrão da chave do Gemini (env padrão + chave do usuário,
+      salva no servidor só após uso com sucesso). Novo `services/cloudconvert_service.py`
+      (`converter_dwg_para_dxf`, sempre com I/O real — mockado em todos os testes); `.dwg` agora
+      aceito em `POST /upload`, `GET /extract-local` e na pasta monitorada do modo autônomo,
+      convertido para `.dxf` antes de seguir pelo mesmo caminho de extração. `.dxf`/`.pdf`
+      continuam 100% offline. Primeira funcionalidade de LEITURA de arquivo do projeto a depender
+      de internet (só para `.dwg`) — aceito como exceção pontual, mesmo padrão já aplicado à IA e
+      ao Supabase. CONCLUÍDA. Ver `.ai/tasks/TASK-043-06-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -470,7 +481,25 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-06
-**Motivo:** TASK-042 — pedido do usuário para tornar as `regras_vinculacao` editáveis numa UI dentro
+**Motivo:** TASK-043 — usuário perguntou se o programa conseguia ler `.dwg`; confirmado que não
+diretamente (`ezdxf` só lê `.dxf`, formato é binário proprietário) e pediu para o próprio programa
+converter internamente usando uma ferramenta online. Decisões do usuário: serviço CloudConvert
+(API v2) e credencial no mesmo padrão da chave do Gemini (env padrão do sistema + chave do usuário,
+persistida no servidor só depois de confirmada por um uso com sucesso).
+**Alterações de código:** novo `services/cloudconvert_service.py` (`converter_dwg_para_dxf`, I/O
+real via `httpx`, sempre mockado em teste); `routers/upload.py` (resolução de credencial —
+header `X-CloudConvert-Key` > `configuracoes` > env — e dispatch de `.dwg` em `/upload` e
+`/extract-local`); `routers/health.py` (`cloudconvert_key_source`); `services/autonomo/pipeline.py`
+(`.dwg` em `EXTENSOES`, convertido antes de `ler_arquivo`); `static/index.html`/`script.js` (`.dwg`
+aceito no input, botão "Chave DWG" + modal); `requirements.txt` (`httpx` como dependência direta).
+Testes: `tests/test_cloudconvert_service.py` (9, novo), `tests/test_upload_dwg.py` (10, novo),
+`tests/test_autonomo_pipeline.py` (+3) — `httpx` sempre mockado, nenhuma chamada de rede real;
+`tests/conftest.py` passou a zerar `CLOUDCONVERT_API_KEY` também. Suíte completa (721 testes) sem
+regressão. Smoke test real-server + Playwright confirma a UI nova (botão, modal, salvar, `accept`)
+sem erros de JS. Ver `.ai/tasks/TASK-043-06-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-042 — pedido do usuário para tornar as
+`regras_vinculacao` editáveis numa UI dentro
 do modal de vinculação, e para acessar o ativo composto (cabo+estrutura vinculados, ex. `CAA2_U4`)
 a partir de regras com formato amigável, também dentro do modal. Decisão: não estender o motor de
 Ajustes (roda antes do vínculo/Totalizadora existirem) — em vez disso, dar UI aos dois mecanismos

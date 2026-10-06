@@ -42,6 +42,8 @@ def health_check():
     info["env_gemini_key"] = bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
     from routers.ai_chat import origem_chave_ativa
     info["ai_key_source"] = origem_chave_ativa()  # salva | padrao | nenhuma (nunca o valor)
+    from routers.upload import origem_chave_cloudconvert_ativa
+    info["cloudconvert_key_source"] = origem_chave_cloudconvert_ativa()  # salva | padrao | nenhuma
     info["frozen"] = getattr(sys, "frozen", False)
     info["static_dir"] = STATIC_DIR
 
