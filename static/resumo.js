@@ -1054,6 +1054,92 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    /* ── TASK-042: editor de regras_vinculacao (tipo/qtd/compatibilidade) dentro do modal ── */
+    window.toggleVincRegras = function () {
+        const content = document.getElementById('vinc-regras-content');
+        const icon = document.getElementById('vinc-regras-toggle-icon');
+        if (!content || !icon) return;
+        if (content.classList.contains('hidden')) {
+            content.classList.remove('hidden');
+            icon.textContent = '▲ Ocultar';
+            renderRegrasVinculacaoTable();
+        } else {
+            content.classList.add('hidden');
+            icon.textContent = '▼ Mostrar';
+        }
+    };
+
+    window.renderRegrasVinculacaoTable = function () {
+        const tbody = document.getElementById('body-vinc-regras');
+        if (!tbody) return;
+        const regras = window.__regrasVinculacao || [];
+        tbody.innerHTML = '';
+        regras.forEach((r, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" class="tot-input" maxlength="1" style="width:50px; text-align:center;" value="${_escapeHtmlVinculacao(r.tipo_estrutura || '')}" onchange="updateRegraVinculacaoRow(${index}, 'tipo_estrutura', this.value)"></td>
+                <td><input type="number" min="1" step="1" class="tot-input" style="width:80px;" value="${r.qtd_cabos != null ? r.qtd_cabos : ''}" onchange="updateRegraVinculacaoRow(${index}, 'qtd_cabos', this.value)"></td>
+                <td>
+                    <select class="tot-input" onchange="updateRegraVinculacaoRow(${index}, 'compatibilidade', this.value)">
+                        <option value="LIVRE" ${r.compatibilidade === 'LIVRE' ? 'selected' : ''}>LIVRE</option>
+                        <option value="MESMO_TIPO_FASE_OPERACAO" ${r.compatibilidade === 'MESMO_TIPO_FASE_OPERACAO' ? 'selected' : ''}>MESMO TIPO/FASE/OPERAÇÃO</option>
+                    </select>
+                </td>
+                <td><input type="text" class="tot-input" value="${_escapeHtmlVinculacao(r.descricao || '')}" onchange="updateRegraVinculacaoRow(${index}, 'descricao', this.value)"></td>
+                <td style="text-align:center;">
+                    <button class="btn-primary" style="background-color: transparent; border: none; color: #f85149; padding: 4px;" onclick="excluirRegraVinculacao(${index})" title="Excluir">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    };
+
+    window.updateRegraVinculacaoRow = function (index, field, value) {
+        const regras = window.__regrasVinculacao || [];
+        if (!regras[index]) return;
+        if (field === 'tipo_estrutura') {
+            value = (value || '').trim().replace(/[^0-9]/g, '').slice(0, 1);
+        } else if (field === 'qtd_cabos') {
+            value = parseInt(value, 10);
+            if (isNaN(value) || value < 1) value = 1;
+        }
+        regras[index][field] = value;
+    };
+
+    window.adicionarRegraVinculacao = function () {
+        if (!window.__regrasVinculacao) window.__regrasVinculacao = [];
+        window.__regrasVinculacao.push({ tipo_estrutura: '', qtd_cabos: 1, compatibilidade: 'LIVRE', descricao: '' });
+        renderRegrasVinculacaoTable();
+    };
+
+    window.excluirRegraVinculacao = function (index) {
+        if (!window.__regrasVinculacao) return;
+        window.__regrasVinculacao.splice(index, 1);
+        renderRegrasVinculacaoTable();
+    };
+
+    window.salvarRegrasVinculacaoNuvem = async function () {
+        const projCode = localStorage.getItem('projeto_selecionado_codigo') || 'DEFAULT';
+        try {
+            const res = await fetch('/api/regras-vinculacao', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projeto_codigo: projCode, regras: window.__regrasVinculacao || [] })
+            });
+            if (res.ok) {
+                showToast('✓ Regras de vinculação salvas!');
+            } else {
+                const data = await res.json().catch(() => ({}));
+                const erros = data && data.detail && data.detail.erros;
+                showToast(Array.isArray(erros) ? erros.join(' ') : ((data && data.detail) || 'Erro ao salvar regras de vinculação.'));
+            }
+        } catch (e) {
+            showToast('Erro de conexão ao salvar regras de vinculação.');
+        }
+    };
+
     function _estruturasDisponiveisVinculo() {
         return tableStates.outros.data
             .map((r, i) => ({ r, i }))
@@ -4202,6 +4288,91 @@ window.updateRegraRow = function(index, field, value) {
         tableStates.regras.data[index][field] = value;
         salvarRegras();
     }
+};
+
+/* ── TASK-042: editor amigável das Regras de Conversão com origem=VINCULO (ativo composto → conector),
+   acessível dentro do modal de vinculação. Mesmo array/endpoint da Tabela de Regras de Conversão
+   (tableStates.regras.data, salvarRegrasNuvem) — só uma visão filtrada e com campos separados
+   (cabo/estrutura) em vez do "ativo_de" bruto (ex.: "CAA2_U4"). ── */
+function _splitAtivoVinculo(ativoDe) {
+    const texto = (ativoDe || '').trim();
+    const idx = texto.indexOf('_');
+    if (idx === -1) return { cabo: texto, estrutura: '' };
+    return { cabo: texto.slice(0, idx), estrutura: texto.slice(idx + 1) };
+}
+
+window.toggleVincConectores = function () {
+    const content = document.getElementById('vinc-conectores-content');
+    const icon = document.getElementById('vinc-conectores-toggle-icon');
+    if (!content || !icon) return;
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        icon.textContent = '▲ Ocultar';
+        if (!tableStates.regras.data || tableStates.regras.data.length === 0) {
+            carregarRegras().then(renderRegrasConectoresTable);
+        } else {
+            renderRegrasConectoresTable();
+        }
+    } else {
+        content.classList.add('hidden');
+        icon.textContent = '▼ Mostrar';
+    }
+};
+
+window.renderRegrasConectoresTable = function () {
+    const tbody = document.getElementById('body-vinc-conectores');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    (tableStates.regras.data || []).forEach((r, index) => {
+        if ((r.origem || '').toUpperCase() !== 'VINCULO') return;
+        const partes = _splitAtivoVinculo(r.ativo_de);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input type="text" class="tot-input" placeholder="Ex: CAA2" value="${_escapeHtmlVinculacao(partes.cabo)}" onchange="updateRegraConectorRow(${index}, 'cabo', this.value)"></td>
+            <td><input type="text" class="tot-input" placeholder="Ex: U4" value="${_escapeHtmlVinculacao(partes.estrutura)}" onchange="updateRegraConectorRow(${index}, 'estrutura', this.value)"></td>
+            <td><input type="text" class="tot-input" placeholder="Ex: CONECTOR-X" value="${_escapeHtmlVinculacao(r.ativo_para || '')}" onchange="updateRegraConectorRow(${index}, 'ativo_para', this.value)"></td>
+            <td><input type="number" min="0" step="0.01" class="tot-input" style="width:80px;" value="${r.fator != null ? r.fator : 1}" onchange="updateRegraConectorRow(${index}, 'fator', this.value)"></td>
+            <td style="text-align:center;">
+                <button class="btn-primary" style="background-color: transparent; border: none; color: #f85149; padding: 4px;" onclick="excluirRegraConector(${index})" title="Excluir">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+};
+
+window.updateRegraConectorRow = function (index, field, value) {
+    const r = tableStates.regras.data[index];
+    if (!r) return;
+    if (field === 'cabo' || field === 'estrutura') {
+        const partes = _splitAtivoVinculo(r.ativo_de);
+        if (field === 'cabo') partes.cabo = (value || '').toUpperCase().trim();
+        else partes.estrutura = (value || '').toUpperCase().trim();
+        r.ativo_de = `${partes.cabo}_${partes.estrutura}`;
+    } else if (field === 'ativo_para') {
+        r.ativo_para = (value || '').toUpperCase().trim();
+    } else if (field === 'fator') {
+        const v = parseFloat(value);
+        r.fator = isNaN(v) ? 1 : v;
+    }
+    salvarRegras();
+};
+
+window.adicionarRegraConector = function () {
+    tableStates.regras.data.push({
+        origem: 'VINCULO', op_de: '', ativo_de: '_', acao: 'ADICAO',
+        op_para: '', ativo_para: '', fator: 1,
+        arredondamento: 'NORMAL', val_min: '', val_max: ''
+    });
+    salvarRegras();
+    renderRegrasConectoresTable();
+};
+
+window.excluirRegraConector = function (index) {
+    tableStates.regras.data.splice(index, 1);
+    salvarRegras();
+    renderRegrasConectoresTable();
 };
 
 let orcamentoBaseData = [];

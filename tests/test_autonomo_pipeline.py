@@ -308,6 +308,51 @@ def test_listagem_filtra_por_projeto(ambiente):
     assert len(execucoes.listar()) == 3
 
 
+def test_ler_arquivo_dwg_converte_antes_de_extrair(tmp_path, monkeypatch):
+    """TASK-043: .dwg é convertido para .dxf (CloudConvert mockado) antes de extrair — mesmo
+    resultado de ler um .dxf nativo com o mesmo conteúdo."""
+    import services.cloudconvert_service as cc
+
+    database.init_db()  # ler_arquivo(.dwg) resolve a chave do CloudConvert via a tabela configuracoes
+    doc = ezdxf.new()
+    doc.modelspace().add_text("1-U4", dxfattribs={"color": 1, "insert": (0, 0), "height": 2})
+    dxf_path = tmp_path / "convertido.dxf"
+    doc.saveas(str(dxf_path))
+    dxf_bytes = dxf_path.read_bytes()
+
+    chamadas = []
+
+    def conversao_falsa(conteudo_dwg, nome_arquivo, api_key):
+        chamadas.append((conteudo_dwg, nome_arquivo, api_key))
+        return dxf_bytes
+
+    monkeypatch.setattr(cc, "converter_dwg_para_dxf", conversao_falsa)
+    dwg_path = tmp_path / "projeto.dwg"
+    dwg_path.write_bytes(b"conteudo binario fake de dwg")
+
+    itens = pl.ler_arquivo(str(dwg_path))
+    assert any(i.get("texto") == "1-U4" for i in itens)
+    assert chamadas and chamadas[0][0] == b"conteudo binario fake de dwg" and chamadas[0][1] == "projeto.dwg"
+
+
+def test_ler_arquivo_dwg_propaga_erro_de_conversao_como_erro_pipeline(tmp_path, monkeypatch):
+    import services.cloudconvert_service as cc
+
+    database.init_db()
+
+    def quebra(*a, **k):
+        raise cc.ErroConversaoDwg("sem chave configurada")
+    monkeypatch.setattr(cc, "converter_dwg_para_dxf", quebra)
+    dwg_path = tmp_path / "ruim.dwg"
+    dwg_path.write_bytes(b"x")
+    with pytest.raises(pl.ErroPipeline, match="sem chave configurada"):
+        pl.ler_arquivo(str(dwg_path))
+
+
+def test_extensoes_aceita_dwg():
+    assert ".dwg" in pl.EXTENSOES
+
+
 def test_nome_seguro_e_pasta_nao_escapa_da_base(tmp_path):
     p = saida.pasta_da_execucao(str(tmp_path), "../../etc", "../../x/passwd.dxf", "abc")
     assert os.path.commonpath([p, str(tmp_path)]) == str(tmp_path) and ".." not in os.path.relpath(p, str(tmp_path))

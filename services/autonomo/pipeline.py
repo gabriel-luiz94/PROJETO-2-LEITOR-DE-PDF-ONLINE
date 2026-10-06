@@ -31,7 +31,7 @@ from services.validacao_planilhas import resumir, validar_planilhas
 ACOES_DESTRUTIVAS = {"excluir_linhas", "remover_ativo"}
 LIMITE_ACOES_AUTONOMO = 300   # a cadeia de todos os ajustes habilitados (nas rotas/tela o limite é 50); projetos reais passam de 50
 LIMITE_BYTES = 200 * 1024 * 1024
-EXTENSOES = (".dxf", ".pdf")
+EXTENSOES = (".dxf", ".pdf", ".dwg")
 
 
 class ErroPipeline(Exception):
@@ -91,14 +91,43 @@ def hash_arquivo(caminho: str) -> str:
     return h.hexdigest()
 
 
+def _ler_dxf_de_bytes(conteudo: bytes) -> list:
+    import tempfile
+    import ezdxf
+    from services.dxf_service import extract_dxf_content
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".dxf") as tmp:
+        tmp.write(conteudo)
+        tmp_path = tmp.name
+    try:
+        return extract_dxf_content(ezdxf.readfile(tmp_path))
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
 def ler_arquivo(caminho: str) -> list:
-    """Extrai os itens {pagina, texto, cor, layer} do DXF/PDF (as mesmas funções de POST /upload)."""
+    """Extrai os itens {pagina, texto, cor, layer} do DXF/PDF/DWG (as mesmas funções de POST /upload).
+
+    DWG (TASK-043): convertido para DXF via CloudConvert antes de extrair — único caso aqui que
+    depende de internet/chave (routers/upload.py:resolver_chave_cloudconvert, sem header possível
+    neste pipeline em segundo plano: só chave salva ou padrão do ambiente)."""
     ext = os.path.splitext(caminho)[1].lower()
     if ext not in EXTENSOES:
-        raise ErroPipeline(f"Tipo de arquivo não suportado: '{ext}' (use .dxf ou .pdf).")
+        raise ErroPipeline(f"Tipo de arquivo não suportado: '{ext}' (use .dxf, .pdf ou .dwg).")
     if os.path.getsize(caminho) > LIMITE_BYTES:
         raise ErroPipeline("Arquivo grande demais (limite de 200 MB).")
     try:
+        if ext == ".dwg":
+            from services.cloudconvert_service import ErroConversaoDwg, converter_dwg_para_dxf
+            from routers.upload import resolver_chave_cloudconvert
+            chave, _origem = resolver_chave_cloudconvert(None)
+            with open(caminho, "rb") as f:
+                conteudo_dwg = f.read()
+            try:
+                dxf_bytes = converter_dwg_para_dxf(conteudo_dwg, os.path.basename(caminho), chave)
+            except ErroConversaoDwg as e:
+                raise ErroPipeline(str(e)) from e
+            return _ler_dxf_de_bytes(dxf_bytes)
         if ext == ".dxf":
             import ezdxf
             from services.dxf_service import extract_dxf_content

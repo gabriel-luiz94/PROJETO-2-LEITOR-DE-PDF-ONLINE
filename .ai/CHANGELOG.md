@@ -8,6 +8,82 @@
 
 ---
 
+## 2026-10-06 — TASK-043: suporte a .dwg via conversão online (CloudConvert)
+
+**Tipo:** feature · `services/cloudconvert_service.py`, `routers/upload.py`, `routers/health.py`,
+`services/autonomo/pipeline.py`, `static/index.html`, `static/script.js`, `requirements.txt` ·
+`.ai/tasks/TASK-043-06-10-2026.md`
+
+Usuário perguntou se o programa conseguia ler `.dwg`. Resposta: não diretamente — é formato binário
+proprietário da Autodesk, e `ezdxf` (usado em `services/dxf_service.py`) só lê `.dxf`. Usuário pediu
+para o próprio programa converter internamente usando uma ferramenta online. Duas decisões
+confirmadas antes de implementar: (1) serviço CloudConvert (API v2, chave simples, free tier) em
+vez de Autodesk Platform Services (OAuth2 mais complexo); (2) credencial no mesmo padrão já usado
+para a chave do Gemini (variável de ambiente como padrão + o usuário pode digitar a própria, salva
+no servidor só depois de confirmada por um uso com sucesso).
+
+Implementado:
+- **`services/cloudconvert_service.py`** (novo): `converter_dwg_para_dxf()` — cria job no
+  CloudConvert (import/upload → convert → export/url), envia o arquivo, espera (polling), baixa o
+  `.dxf` resultante. `ErroConversaoDwg` com mensagem clara em qualquer falha.
+- **`routers/upload.py`**: resolve a credencial (header `X-CloudConvert-Key` > `configuracoes` >
+  `CLOUDCONVERT_API_KEY` do ambiente) e converte `.dwg` → `.dxf` antes de extrair, em `POST /upload`
+  e `GET /extract-local`. `.dxf`/`.pdf` continuam sem tocar no CloudConvert.
+- **`services/autonomo/pipeline.py`**: `.dwg` aceito na pasta monitorada (`EXTENSOES`), convertido
+  antes de ler (só credencial salva/padrão — sem header possível em segundo plano).
+- **Frontend** (`static/index.html`/`script.js`): `.dwg` aceito no seletor de arquivo da tela
+  Leitor; novo botão "Chave DWG" + modal para configurar a própria chave do CloudConvert
+  (localStorage, enviada como header).
+- **`routers/health.py`**: novo campo `cloudconvert_key_source`, mesmo padrão de `ai_key_source`.
+
+Pela primeira vez no projeto, uma funcionalidade de **leitura de arquivo** passa a depender de
+internet (só para `.dwg`) — aceito como exceção pontual, mesmo padrão já aplicado à IA e à
+sincronização com Supabase.
+
+Testado com `httpx` sempre mockado (nenhuma chamada de rede real em teste): 9 testes novos de
+`cloudconvert_service`, 10 de dispatch em `upload.py`, 3 do pipeline autônomo. `tests/conftest.py`
+passou a zerar `CLOUDCONVERT_API_KEY` do ambiente também. Suíte completa (721 testes) sem
+regressão. Smoke test real-server + Playwright confirma a UI nova sem erros de JS.
+
+---
+
+## 2026-10-06 — TASK-042: editor de Regras de Vinculação e Regras de Conectores dentro do modal
+
+**Tipo:** feature (UI) · `static/resumo.html`, `static/resumo.js` · `.ai/tasks/TASK-042-06-10-2026.md`
+
+Usuário pediu para tornar as `regras_vinculacao` (quantidade de cabos e compatibilidade por tipo
+de estrutura) editáveis numa UI dentro do modal de vinculação, e para poder acessar o ativo
+composto (cabo+estrutura vinculados, ex. `CAA2_U4`) a partir de uma regra com formato amigável,
+também dentro do modal.
+
+Investigação confirmou dois mecanismos já existentes, mas sem UI própria no lugar certo:
+
+- `regras_vinculacao` já tinha endpoint (`GET/POST /api/regras-vinculacao`), mas nenhuma tela
+  editava — só o algoritmo de vínculo automático lia.
+- O ativo composto só existe em memória durante o cálculo da Totalizadora
+  (`itens_vinculo_para_totalizadora`) e já podia ser convertido em algo real (ex. um conector) via
+  **Regra de Conversão com `origem: VINCULO`** (TASK-011/032/034) — só que misturado com as regras
+  de CABOS/OUTROS na view Totalizadora, exigindo digitar `ativo_de` cru (`"CAA2_U4"`).
+
+**Decisão: não estender o motor de Ajustes** (`services/ajustes_planilhas.py`) para ler ativos
+compostos — ele roda antes do vínculo/Totalizadora existir, e replicar a lógica de vínculo ali
+duplicaria o que a Regra de Conversão com `origem: VINCULO` já resolve. Em vez disso, duas seções
+accordion novas foram adicionadas dentro de `#modal-vinculacao`:
+
+1. **Regras de Vinculação**: tabela editável (tipo/qtd/compatibilidade/descrição) sobre o endpoint
+   já existente `/api/regras-vinculacao`.
+2. **Regras de Conectores**: formulário amigável (tipo de cabo + tipo de estrutura + ativo
+   resultante + quantidade) sobre a MESMA tabela de Regras de Conversão da Totalizadora
+   (`tableStates.regras.data`, `/api/regras/conversao`), filtrada para `origem === 'VINCULO'` e
+   traduzindo `ativo_de ↔ "<CABO>_<ESTRUTURA>"` automaticamente. Editar aqui ou na Totalizadora é a
+   mesma regra.
+
+Nenhum endpoint ou tabela nova. Verificado via smoke test real-server + Playwright (DB temporário,
+nunca o `banco_resumo.db`): adicionar/editar/salvar nas duas seções persiste corretamente
+(confirmado por `GET` de volta), e uma linha inválida é rejeitada pelo backend com erro visível.
+
+---
+
 ## 2026-10-05 — TASK-039/040/041: disponibilidade de dados e reconexão com o Supabase
 
 **Tipo:** correção de robustez + feature · `services/supabase_client.py`,

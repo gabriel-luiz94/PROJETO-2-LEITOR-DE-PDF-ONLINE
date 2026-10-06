@@ -15,7 +15,7 @@ import tempfile
 
 import pytest
 
-for _chave in ("SUPABASE_URL", "SUPABASE_KEY", "SUPABASE_SERVICE_KEY", "SUPABASE_ANON_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "OPENAI_API_KEY"):
+for _chave in ("SUPABASE_URL", "SUPABASE_KEY", "SUPABASE_SERVICE_KEY", "SUPABASE_ANON_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "OPENAI_API_KEY", "CLOUDCONVERT_API_KEY"):
     os.environ[_chave] = ""
 
 _PASTA_TESTES = tempfile.mkdtemp(prefix="leitor_testes_")

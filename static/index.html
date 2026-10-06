@@ -38,6 +38,7 @@
                 <button id="btn-admin" class="btn-secondary" style="display: none; background-color: #fef08a; color: #854d0e; border-color: #fde047;" title="Painel Admin" onclick="window.location.href='/admin'">Painel Admin</button>
                 <button id="btn-regras-leitor" class="btn-secondary" title="Ver as regras do leitor do projeto selecionado" onclick="abrirModalRegrasLeitor()">Regras do Leitor</button>
                 <button id="btn-recs" class="btn-secondary" title="Histórico REC" onclick="abrirModalRecs()">Histórico REC</button>
+                <button id="btn-cloudconvert" class="btn-secondary" title="Chave para converter arquivos DWG" onclick="abrirModalCloudConvert()">Chave DWG</button>
                 <button id="btn-logout" class="btn-secondary" style="background-color: #fee2e2; color: #b91c1c; border-color: #f87171;" title="Sair">Sair</button>
                 <button id="btn-encerrar" class="btn-secondary" style="background-color: #1c1c1c; color: #6b7280; border-color: #374151;" title="Encerrar o servidor local e fechar o programa"
                     onclick="if(confirm('Encerrar o servidor local e fechar o programa?')) { fetch('/api/shutdown').then(()=>{ document.body.innerHTML='<div style=\'display:flex;align-items:center;justify-content:center;height:100vh;background:#0d1117;color:#8b949e;font-family:Inter,sans-serif;font-size:1rem;\'>Servidor encerrado. Pode fechar esta aba.</div>'; }).catch(()=>{}); }">
@@ -51,10 +52,10 @@
                 <div class="icon-container">
                     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-upload-cloud"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path><polyline points="16 16 12 12 8 16"></polyline></svg>
                 </div>
-                <h3>Arraste e solte seu PDF ou DXF aqui</h3>
+                <h3>Arraste e solte seu PDF, DXF ou DWG aqui</h3>
                 <p>ou</p>
                 <label for="pdf-file" class="btn-primary">Procurar Arquivo</label>
-                <input type="file" id="pdf-file" accept=".pdf, .dxf" hidden>
+                <input type="file" id="pdf-file" accept=".pdf, .dxf, .dwg" hidden>
                 <p style="margin-top: 15px; margin-bottom: 5px;">ou comece um projeto do zero</p>
                 <button class="btn-secondary" onclick="window.location.href='/resumo'">Montar Projeto</button>
                 <p style="margin-top: 12px; margin-bottom: 5px;">ou acesse os orçamentos</p>
@@ -197,6 +198,27 @@
                 <button onclick="document.getElementById('modal-regra-leitor-historico').style.display='none'" style="background: transparent; border: none; color: #8b949e; font-size: 1.2rem; cursor: pointer;">✕</button>
             </div>
             <div id="regra-leitor-historico-lista" style="font-size:0.85rem;"></div>
+        </div>
+    </div>
+    <!-- Chave do CloudConvert, para converter .dwg em .dxf (TASK-043) -->
+    <div id="modal-cloudconvert" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.82); z-index:1100; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
+        <div style="background: #161b22; padding: 22px; border-radius: 12px; width: 420px; max-width: 94%; border: 1px solid #30363d; color: white; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <h3 style="margin:0; font-size:1.05rem;">Chave do CloudConvert (DWG)</h3>
+                <button onclick="document.getElementById('modal-cloudconvert').style.display='none'" style="background: transparent; border: none; color: #8b949e; font-size: 1.2rem; cursor: pointer;">✕</button>
+            </div>
+            <p style="font-size:0.78rem; color:#8b949e; margin: 8px 0 10px;">
+                Necessária só para enviar arquivos <strong>.dwg</strong> (convertidos para .dxf automaticamente).
+                Arquivos .dxf e .pdf continuam funcionando sem internet e sem chave.
+                Crie uma gratuita em <strong>cloudconvert.com</strong>.
+            </p>
+            <input type="password" id="input-cloudconvert-key" placeholder="Sua API key do CloudConvert (opcional)"
+                   style="width:100%; background: rgba(13,17,23,0.8); border: 1px solid #30363d; border-radius: 6px; padding: 10px 12px; color: white; font-size: 0.9rem; margin-bottom: 4px;">
+            <p id="cloudconvert-status" style="font-size: 0.7rem; color: #8b949e; margin-bottom: 14px;"></p>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn-secondary" onclick="document.getElementById('modal-cloudconvert').style.display='none'">Cancelar</button>
+                <button class="btn-primary" id="btn-save-cloudconvert">Salvar</button>
+            </div>
         </div>
     </div>
     <script src="/static/regras_leitor_engine.js"></script>

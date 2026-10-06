@@ -1,14 +1,19 @@
 """
-routers/upload.py — Rotas para upload e extração (PDF/DXF), trigger de arquivo.
+routers/upload.py — Rotas para upload e extração (PDF/DXF/DWG), trigger de arquivo.
+
+DWG (TASK-043): convertido para DXF via CloudConvert (services/cloudconvert_service.py) antes de
+seguir pelo mesmo caminho do .dxf nativo — único formato aqui que depende de internet/chave.
 """
 import os
 import tempfile
 import pymupdf
 import ezdxf
 import re
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, Request, UploadFile, File
+from database import get_connection
 from services.pdf_service import extract_pdf_content
 from services.dxf_service import extract_dxf_content
+from services.cloudconvert_service import ErroConversaoDwg, converter_dwg_para_dxf
 from websocket_manager import manager
 import json
 from config import IS_FROZEN, logger
@@ -16,20 +21,81 @@ from config import IS_FROZEN, logger
 router = APIRouter(tags=["upload"])
 
 
+def _chave_cloudconvert_padrao() -> str:
+    return (os.getenv("CLOUDCONVERT_API_KEY") or "").strip()
+
+
+def _chave_cloudconvert_salva() -> str | None:
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT valor FROM configuracoes WHERE chave = 'cloudconvert_api_key'").fetchone()
+    finally:
+        conn.close()
+    return row[0] if row else None
+
+
+def resolver_chave_cloudconvert(header_key: str | None):
+    """(chave, origem). Precedência: usuário (header) > salva > padrão do ambiente. Mesmo padrão
+    de routers/ai_chat.py:resolver_credencial."""
+    chave = (header_key or "").strip()
+    if chave:
+        return chave, "usuario"
+    salva = _chave_cloudconvert_salva()
+    if salva:
+        return salva, "salva"
+    padrao = _chave_cloudconvert_padrao()
+    if padrao:
+        return padrao, "padrao"
+    return None, "nenhuma"
+
+
+def origem_chave_cloudconvert_ativa() -> str:
+    """Origem da chave que seria usada sem header (diagnóstico; nunca expõe o valor)."""
+    return resolver_chave_cloudconvert(None)[1]
+
+
+def _salvar_chave_cloudconvert_se_do_usuario(chave: str, origem: str):
+    if origem != "usuario":
+        return
+    conn = get_connection()
+    try:
+        conn.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES ('cloudconvert_api_key', ?)", (chave,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _dxf_de_dwg(conteudo_dwg: bytes, nome_arquivo: str, header_key: str | None) -> bytes:
+    chave, origem = resolver_chave_cloudconvert(header_key)
+    dxf_bytes = converter_dwg_para_dxf(conteudo_dwg, nome_arquivo, chave)
+    _salvar_chave_cloudconvert_se_do_usuario(chave, origem)  # só persiste depois de confirmar que a chave funciona
+    return dxf_bytes
+
+
+def _extrair_de_bytes_dxf(conteudo: bytes) -> list:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".dxf") as tmp:
+        tmp.write(conteudo)
+        tmp_path = tmp.name
+    try:
+        return extract_dxf_content(ezdxf.readfile(tmp_path))
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
 @router.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(request: Request, file: UploadFile = File(...)):
     try:
         contents = await file.read()
-        if file.filename.lower().endswith(".dxf"):
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".dxf") as tmp:
-                tmp.write(contents)
-                tmp_path = tmp.name
+        nome = file.filename.lower()
+        if nome.endswith(".dwg"):
             try:
-                doc = ezdxf.readfile(tmp_path)
-                return {"data": extract_dxf_content(doc)}
-            finally:
-                if os.path.exists(tmp_path): 
-                    os.remove(tmp_path)
+                contents = _dxf_de_dwg(contents, file.filename, request.headers.get("X-CloudConvert-Key"))
+            except ErroConversaoDwg as e:
+                return {"error": str(e), "data": []}
+            return {"data": _extrair_de_bytes_dxf(contents)}
+        if nome.endswith(".dxf"):
+            return {"data": _extrair_de_bytes_dxf(contents)}
 
         # PDF
         doc = pymupdf.open(stream=contents, filetype="pdf")
@@ -40,16 +106,25 @@ async def upload_file(file: UploadFile = File(...)):
 
 
 @router.get("/extract-local")
-async def extract_local(path: str):
+async def extract_local(request: Request, path: str):
     # Proteção de segurança:
     # A extração de arquivo local por caminho só é permitida em ambiente frozen (.exe) local.
     if not IS_FROZEN:
         return {"error": "Acesso negado. Execução remota não permite ler arquivos locais via path."}
-        
-    if not os.path.exists(path): 
+
+    if not os.path.exists(path):
         return {"error": "Arquivo não encontrado"}
     try:
-        if path.lower().endswith(".dxf"):
+        caminho_min = path.lower()
+        if caminho_min.endswith(".dwg"):
+            with open(path, "rb") as f:
+                conteudo = f.read()
+            try:
+                dxf_bytes = _dxf_de_dwg(conteudo, os.path.basename(path), request.headers.get("X-CloudConvert-Key"))
+            except ErroConversaoDwg as e:
+                return {"error": str(e), "data": []}
+            return {"data": _extrair_de_bytes_dxf(dxf_bytes), "filename": os.path.basename(path)}
+        if caminho_min.endswith(".dxf"):
             doc = ezdxf.readfile(path)
             return {"data": extract_dxf_content(doc), "filename": os.path.basename(path)}
         # PDF
