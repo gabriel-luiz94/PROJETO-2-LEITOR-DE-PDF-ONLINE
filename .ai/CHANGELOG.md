@@ -8,6 +8,39 @@
 
 ---
 
+## 2026-10-06 — TASK-046: `adicionar_ativo` com ativo dinâmico (nome = código encontrado na própria linha)
+
+**Tipo:** feature (motor de Ajustes) · `services/ajustes_planilhas.py`, `static/painel_ajustes.js` ·
+`.ai/tasks/TASK-046-06-10-2026.md`
+
+Usuário pediu, logo após a TASK-045: "caso tenha um trafo mono TR1* adicione com a mesma quantidade
+negativa o texto TR1* acrescido com VP no fim desse texto" — o nome do ativo adicionado precisa ser
+o CÓDIGO especificamente encontrado na linha (ex.: `TR110`, `TR115`...), não um literal fixo
+`"TR1*VP"` (curinga de busca não é um código válido).
+
+Implementado: `ativo` passa a aceitar também `{"igual_a": SELETOR, "prefixo"?: texto, "sufixo"?:
+texto}` — para CADA item da própria linha que casa com `SELETOR`, gera um token novo
+`"<prefixo><código do item><sufixo>"`, com quantidade = quantidade DAQUELE item × `qtd` (aqui `qtd`
+é o FATOR por item, não soma — não combina com `{"soma": ...}` da TASK-045). Reaproveitados os
+mesmos `_contexto()`/`_casa()` da TASK-045, nenhuma mudança em `regras_dominio.py`.
+`_aplicar_um_ativo()` extraída de `_t_adicionar_ativo` (merge/append de um token) para ser chamada
+em loop, uma vez por item casado. **Guard de idempotência:** como `igual_a` tipicamente é um
+curinga amplo (`"TR1*"`) que também casaria com o próprio token recém-criado (`"TR110VP"` começa
+com `"TR1"`), um item cujo nome já carrega o `prefixo`/`sufixo` configurado é excluído dos
+candidatos — sem isso, reaplicar a ação geraria `"TR110VPVPVP..."` indefinidamente.
+
+Exemplo exato do pedido: `{"acao": "adicionar_ativo", "tabela": "outros", "ativo": {"igual_a":
+"TR1*", "sufixo": "VP"}, "qtd": -1, "quando": {"tem": "TR1*"}}`.
+
+8 testes novos (`tests/test_ajustes_planilhas.py`). Suíte completa (748 testes) sem regressão.
+Smoke test real-server (uvicorn em processo, `database.DB_PATH` apontado para um SQLite temporário
+antes do `init_db()`, nunca `banco_resumo.db`) + Playwright confirma o fluxo completo pela UI
+(alternar "ativo" para dinâmico, preencher seletor/prefixo/sufixo/fator, modelo em memória e frase
+ao vivo corretos). Mesmo achado colateral da TASK-045 reencontrado (guard `C1-OUT-NUM` com código
+hifenado + token negativo) — teste ajustado para evitar, fora do escopo.
+
+---
+
 ## 2026-10-06 — TASK-045: `adicionar_ativo` com quantidade dinâmica (mesma quantidade de outro ativo)
 
 **Tipo:** feature (motor de Ajustes) · `services/ajustes_planilhas.py`, `static/painel_ajustes.js` ·

@@ -231,19 +231,38 @@ function ajCamposDaAcao(a, refazer) {
         f.appendChild(ajRotulo('só se ainda não existir', c));
         if (typeof a.posicao === 'object') f.appendChild(ajCondicao(a, Object.keys(a.posicao)[0], 'Linha de referência', refazer, a.posicao));
     } else if (nome === 'adicionar_ativo') {
-        f.appendChild(ajRotulo('ativo', ajInput(a.ativo, v => { a.ativo = v.trim(); }, 'w-44 font-mono', 'código, ex.: SUPL', 'rdSugestoes')));
-        const qtdDinamica = a.qtd && typeof a.qtd === 'object';
-        // TASK-045: qtd fixa (número) ou dinâmica (mesma quantidade de outro ativo da própria linha,
-        // opcionalmente multiplicada por um fator — ex.: fator -1 = negativo/retirada).
-        f.appendChild(ajRotulo('quantidade', ajSelect([['fixa', 'fixa'], ['dinamica', 'mesma quantidade de outro ativo']], qtdDinamica ? 'dinamica' : 'fixa', v => {
-            a.qtd = v === 'dinamica' ? { soma: '', fator: 1 } : 1;
+        const ativoDinamico = a.ativo && typeof a.ativo === 'object';
+        // TASK-046: ativo fixo (código literal) ou dinâmico (nome = prefixo + código encontrado por um
+        // seletor na própria linha + sufixo — ex.: "se tem TR1*, adicionar o próprio código + 'VP'").
+        f.appendChild(ajRotulo('ativo', ajSelect([['fixo', 'fixo'], ['dinamico', 'igual ao ativo encontrado']], ativoDinamico ? 'dinamico' : 'fixo', v => {
+            a.ativo = v === 'dinamico' ? { igual_a: '' } : '';
             refazer();
         })));
-        if (qtdDinamica) {
-            f.appendChild(ajRotulo('soma de', ajInput(rdSelParaTexto(a.qtd.soma), v => { a.qtd.soma = rdTextoParaSel(v); }, 'w-44 font-mono', 'código, curinga, @GRUPO, lista', 'rdSugestoes')));
-            f.appendChild(ajRotulo('fator', ajInput(a.qtd.fator != null ? a.qtd.fator : 1, v => { const n = Number(v.replace(',', '.')); a.qtd.fator = isNaN(n) ? v : n; }, 'w-16', '-1 = negativo (retirada)')));
+        if (ativoDinamico) {
+            f.appendChild(ajRotulo('igual a', ajInput(rdSelParaTexto(a.ativo.igual_a), v => { a.ativo.igual_a = rdTextoParaSel(v); }, 'w-44 font-mono', 'código, curinga, @GRUPO, lista', 'rdSugestoes')));
+            f.appendChild(ajRotulo('prefixo', ajInput(a.ativo.prefixo || '', v => { if (v) a.ativo.prefixo = v; else delete a.ativo.prefixo; }, 'w-20 font-mono')));
+            f.appendChild(ajRotulo('sufixo', ajInput(a.ativo.sufixo || '', v => { if (v) a.ativo.sufixo = v; else delete a.ativo.sufixo; }, 'w-20 font-mono')));
         } else {
-            f.appendChild(ajRotulo('qtd', ajInput(a.qtd, v => { const n = Number(v.replace(',', '.')); a.qtd = isNaN(n) ? v : n; }, 'w-20')));
+            f.appendChild(ajRotulo('ativo', ajInput(a.ativo, v => { a.ativo = v.trim(); }, 'w-44 font-mono', 'código, ex.: SUPL', 'rdSugestoes')));
+        }
+        if (ativoDinamico) {
+            // Com ativo dinâmico, `qtd` é só o FATOR (número) aplicado à quantidade de cada item
+            // encontrado — não aceita o modo "mesma quantidade de outro ativo" (soma) aqui.
+            f.appendChild(ajRotulo('fator', ajInput(a.qtd != null && typeof a.qtd !== 'object' ? a.qtd : 1, v => { const n = Number(v.replace(',', '.')); a.qtd = isNaN(n) ? v : n; }, 'w-16', '-1 = negativo (retirada)')));
+        } else {
+            const qtdDinamica = a.qtd && typeof a.qtd === 'object';
+            // TASK-045: qtd fixa (número) ou dinâmica (mesma quantidade de outro ativo da própria linha,
+            // opcionalmente multiplicada por um fator — ex.: fator -1 = negativo/retirada).
+            f.appendChild(ajRotulo('quantidade', ajSelect([['fixa', 'fixa'], ['dinamica', 'mesma quantidade de outro ativo']], qtdDinamica ? 'dinamica' : 'fixa', v => {
+                a.qtd = v === 'dinamica' ? { soma: '', fator: 1 } : 1;
+                refazer();
+            })));
+            if (qtdDinamica) {
+                f.appendChild(ajRotulo('soma de', ajInput(rdSelParaTexto(a.qtd.soma), v => { a.qtd.soma = rdTextoParaSel(v); }, 'w-44 font-mono', 'código, curinga, @GRUPO, lista', 'rdSugestoes')));
+                f.appendChild(ajRotulo('fator', ajInput(a.qtd.fator != null ? a.qtd.fator : 1, v => { const n = Number(v.replace(',', '.')); a.qtd.fator = isNaN(n) ? v : n; }, 'w-16', '-1 = negativo (retirada)')));
+            } else {
+                f.appendChild(ajRotulo('qtd', ajInput(a.qtd, v => { const n = Number(v.replace(',', '.')); a.qtd = isNaN(n) ? v : n; }, 'w-20')));
+            }
         }
         f.appendChild(ajRotulo('se já existir', ajSelect([['ignorar', 'ignorar'], ['somar', 'somar a quantidade'], ['substituir', 'trocar a quantidade']], a.se_ja_existe || 'ignorar', v => { if (v === 'ignorar') delete a.se_ja_existe; else a.se_ja_existe = v; })));
     } else if (nome === 'remover_ativo') {
