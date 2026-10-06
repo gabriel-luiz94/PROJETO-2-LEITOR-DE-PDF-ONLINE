@@ -8,6 +8,30 @@
 
 ---
 
+## 2026-10-06 — TASK-048: `adicionar_ativo` — item da lista com quantidade própria
+
+**Tipo:** feature (motor de Ajustes) · `services/ajustes_planilhas.py`, `static/painel_ajustes.js` ·
+`.ai/tasks/TASK-048-06-10-2026.md`
+
+Logo após a TASK-047, usuário perguntou se a lista aceitava mais de um fator — respondido que, como
+implementada, a quantidade era compartilhada por toda a lista. Usuário confirmou o pedido real:
+"quantidades diferentes por código pra diminuir o número de regras".
+
+Implementado: um item da lista de `ativo` agora pode ser `{"ativo": código, "qtd"?: número}` em vez
+de uma string simples — tem a PRÓPRIA quantidade, substituindo a `qtd` compartilhada da ação só para
+aquele código. Itens string continuam usando a `qtd` compartilhada (comportamento da TASK-047,
+inalterado) — os dois formatos podem ser MISTURADOS na mesma lista. UI: o campo "códigos" ganhou a
+sintaxe `código:qtd` (ex.: `90525:-1, 90542:-2, 92540`), sem precisar de um seletor de modo novo.
+
+Exemplo exato do pedido: `{"acao": "adicionar_ativo", "tabela": "outros", "ativo": [{"ativo":
+"90525", "qtd": -1}, {"ativo": "90542", "qtd": -2}]}`.
+
+7 testes novos (`tests/test_ajustes_planilhas.py`). Suíte completa sem regressão. Smoke test
+real-server + Playwright confirma o fluxo completo pela UI (sintaxe `código:qtd`, modelo em memória
+e frase ao vivo corretos).
+
+---
+
 ## 2026-10-06 — TASK-047: `adicionar_ativo` com lista de ativos fixos (mesma quantidade pra todos)
 
 **Tipo:** feature (motor de Ajustes) · `services/ajustes_planilhas.py`, `static/painel_ajustes.js` ·
