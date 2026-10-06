@@ -254,6 +254,18 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       continuam 100% offline. Primeira funcionalidade de LEITURA de arquivo do projeto a depender
       de internet (só para `.dwg`) — aceito como exceção pontual, mesmo padrão já aplicado à IA e
       ao Supabase. CONCLUÍDA. Ver `.ai/tasks/TASK-043-06-10-2026.md`.
+- [x] **TASK-044** (pedido de 2026-10-06): usuário pediu para cadastrar "contextos" dentro de um
+      mesmo projeto (ex.: "obras de 34,5kV"), cada um com seu próprio conjunto de ajustes ligados/
+      desligados/sobrescritos, selecionáveis por um seletor na linha de totais (postes/cabos/
+      equipamentos). Desenho: terceira camada de overlay (`padrão → projeto → contexto`),
+      reaproveitando `services/ajustes_camadas.py::efetivo()` em CADEIA (chamada 2x), sem alterar a
+      função. Tabelas novas `contextos` (metadados, pensada para um dia servir Regras de Domínio
+      também) e `ajustes_contextos`/histórico (overlay por contexto). Toda rota de Ajustes ganhou
+      `contexto` opcional — sem ele, comportamento idêntico a antes (testado). Escopo desta rodada:
+      só Ajustes; modo autônomo e Regras de Domínio não usam contexto ainda. Histórico/reverter por
+      contexto ficaram fora desta rodada (botões desabilitados na gaveta enquanto editando um
+      contexto, para não arriscar reverter a camada errada). CONCLUÍDA. Ver
+      `.ai/tasks/TASK-044-06-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -481,7 +493,30 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-06
-**Motivo:** TASK-043 — usuário perguntou se o programa conseguia ler `.dwg`; confirmado que não
+**Motivo:** TASK-044 — usuário pediu para cadastrar "contextos" dentro de um mesmo projeto (ex.:
+"obras de 34,5kV"), cada um com seu próprio conjunto de ajustes ligados/desligados/sobrescritos,
+selecionáveis por um seletor na linha de totais. Decisões do usuário: terceira camada de overlay
+(poder completo, não só liga/desliga), desenho genérico (pensado para um dia servir Regras de
+Domínio também), e trocar de contexto não recalcula nada na hora — só define o que roda na próxima
+vez que clicar em "Ajustar".
+**Alterações de código:** tabelas novas `contextos`/`ajustes_contextos`/
+`ajustes_contextos_historico` (`database.py`, `scripts/schema_supabase.sql`); novo
+`services/contextos.py` (CRUD de metadados); `services/repo_json.py` (nova `RepoJsonContexto`,
+chave composta, sem alterar `RepoJson`); `routers/validacao_ajustes.py` (`resolver()` em cadeia —
+chama `services/ajustes_camadas.py::efetivo()` duas vezes sem alterá-la —, rotas de CRUD de
+contexto, campo `contexto` opcional em `obter`/`salvar`/`preview`/`preview-lote`); `static/resumo.html`
+(seletor "Contexto" na linha de totais); `static/resumo.js` (`contextoSelecionado()`,
+`carregarContextosAjustes`, criar/excluir contexto, persistência por projeto); `static/painel_ajustes.js`
+(`ajContexto()`, editor da gaveta context-aware, Histórico/Restaurar desabilitados em modo contexto).
+Escopo: só Ajustes; modo autônomo e histórico/reverter por contexto ficaram fora desta rodada.
+Testes: `tests/test_ajustes_contextos.py` (11, novo) — CRUD, cadeia, independência entre contextos,
+regressão byte a byte sem `contexto`, `preview-lote` respeitando o contexto; 2 mocks ajustados em
+`tests/test_ajustes_lote.py` para a nova assinatura opcional. Suíte completa (732 testes) sem
+regressão. Smoke test real-server + Playwright confirma o fluxo completo pela UI (criar contexto,
+editar na gaveta, salvar, projeto permanece intacto). Ver `.ai/tasks/TASK-044-06-10-2026.md` e
+`.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-043 — usuário perguntou se o programa conseguia ler `.dwg`; confirmado que não
 diretamente (`ezdxf` só lê `.dxf`, formato é binário proprietário) e pediu para o próprio programa
 converter internamente usando uma ferramenta online. Decisões do usuário: serviço CloudConvert
 (API v2) e credencial no mesmo padrão da chave do Gemini (env padrão do sistema + chave do usuário,

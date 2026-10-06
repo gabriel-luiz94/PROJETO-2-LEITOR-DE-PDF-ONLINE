@@ -105,7 +105,7 @@ def test_guarda_da_camada_1_aparece_como_descartada_e_nao_vira_cartao(client):
 def test_ajuste_invalido_vira_problema_sem_derrubar_os_outros(client, monkeypatch):
     bom = receita("A", [CFUU])
     quebrado = receita("Q", [{"acao": "fazer_magica", "tabela": "outros"}])
-    monkeypatch.setattr(rota, "ajustes_efetivos", lambda projeto: [quebrado, bom])
+    monkeypatch.setattr(rota, "ajustes_efetivos", lambda projeto, contexto=None: [quebrado, bom])
     r = lote(client, ["DT11/300 1-CFUU"])
     assert [p["id"] for p in r["problemas"]] == ["Q"] and any("'acao' precisa ser" in e for e in r["problemas"][0]["erros"])
     assert [i["id"] for i in r["itens"]] == ["A"] and r["cadeia"]["resumo"]["editar"] == 1
@@ -119,6 +119,6 @@ def test_muitas_acoes_desabilitam_a_cadeia_mas_mantem_os_cartoes(client):
 
 
 def test_limite_de_ajustes_por_pedido(client, monkeypatch):
-    monkeypatch.setattr(rota, "ajustes_efetivos", lambda projeto: [receita(f"R{i}", [CFUU]) for i in range(35)])
+    monkeypatch.setattr(rota, "ajustes_efetivos", lambda projeto, contexto=None: [receita(f"R{i}", [CFUU]) for i in range(35)])
     r = lote(client, ["DT11/300 1-CFUU"])
     assert r["total_habilitados"] == 30 and "30 primeiros" in r["avisos"][0]

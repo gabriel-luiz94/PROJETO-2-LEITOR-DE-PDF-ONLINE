@@ -507,7 +507,7 @@
                 <h1 class="report-title">Resumo do <span class="highlight">Orçamento</span></h1>
                 <div style="display:flex; align-items:center; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
                     <label style="font-size: 0.75rem; color: #8b949e; margin-right: 6px;">Projeto:</label>
-                    <select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;" onchange="const o=this.options[this.selectedIndex]; const cod=o?.dataset.codigo||''; localStorage.setItem('projeto_selecionado', this.value); localStorage.setItem('projeto_selecionado_codigo', cod); carregarRegras(); carregarRegrasLeitorResumo(cod); carregarRegrasVinculacaoResumo(cod);"></select>
+                    <select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;" onchange="const o=this.options[this.selectedIndex]; const cod=o?.dataset.codigo||''; localStorage.setItem('projeto_selecionado', this.value); localStorage.setItem('projeto_selecionado_codigo', cod); carregarRegras(); carregarRegrasLeitorResumo(cod); carregarRegrasVinculacaoResumo(cod); if (window.carregarContextosAjustes) carregarContextosAjustes(cod);"></select>
                     <button id="btn-novo-projeto" class="btn-primary" onclick="abrirModalNovoProjeto()" style="display: none; padding: 2px 8px; font-size: 0.75rem; margin-left: 8px; border-radius: 4px;" title="Cadastrar Novo Projeto">+ Novo</button>
                 </div>
                 <!-- TASK-040: indicador de conectividade com a nuvem (Supabase) -->
@@ -647,6 +647,15 @@
                     <div class="resumo-rede-item">
                         <span class="resumo-rede-label">Equipamentos instalando</span>
                         <span class="resumo-rede-valor" id="resumo-rede-equipamentos">0</span>
+                    </div>
+                    <!-- TASK-044: seletor de Contexto (subconjunto de Ajustes dentro do projeto) -->
+                    <div class="resumo-rede-item">
+                        <span class="resumo-rede-label">Contexto</span>
+                        <div style="display:flex; align-items:center; gap:5px;">
+                            <select id="select-contexto" style="background: transparent; color: var(--text-primary); border: none; outline: none; font-size: 0.85rem; cursor: pointer; max-width: 140px;" title="Subconjunto de ajustes ativo neste projeto (afeta o botão Ajustar)"></select>
+                            <button id="btn-novo-contexto" class="btn-secondary" onclick="abrirNovoContexto()" style="display:none; padding: 1px 6px; font-size: 0.75rem; border-radius: 4px;" title="Cadastrar novo contexto">+</button>
+                            <button id="btn-excluir-contexto" class="btn-secondary" onclick="excluirContextoAtual()" style="display:none; padding: 1px 6px; font-size: 0.75rem; border-radius: 4px; color: #f85149; border-color: rgba(248,81,73,0.4);" title="Excluir este contexto">✕</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1257,6 +1266,7 @@
                         localStorage.setItem('projeto_selecionado_codigo', codigoAtual);
                         if (window.carregarRegrasLeitorResumo) carregarRegrasLeitorResumo(codigoAtual);
                         if (window.carregarRegrasVinculacaoResumo) carregarRegrasVinculacaoResumo(codigoAtual);
+                        if (window.carregarContextosAjustes) carregarContextosAjustes(codigoAtual);
                     }
                 }
                 if (localStorage.getItem('is_admin') === 'true') {
