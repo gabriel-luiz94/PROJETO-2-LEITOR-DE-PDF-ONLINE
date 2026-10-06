@@ -266,6 +266,15 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       contexto ficaram fora desta rodada (botões desabilitados na gaveta enquanto editando um
       contexto, para não arriscar reverter a camada errada). CONCLUÍDA. Ver
       `.ai/tasks/TASK-044-06-10-2026.md`.
+- [x] **TASK-045** (pedido de 2026-10-06): dentro de um contexto (TASK-044), usuário pediu uma regra
+      de ajuste "se tem U3 adicione em mesma quantidade 90277 negativo" — confirmado que U3 varia
+      de quantidade (não é sempre 1), então um `qtd` fixo não resolvia. `adicionar_ativo.qtd` passou
+      a aceitar `{"soma": SELETOR, "fator"?: número}` — soma dinâmica das quantidades de outro(s)
+      ativo(s) da MESMA linha, reaproveitando `_contexto()`/`_casa()` já existentes (nenhuma mudança
+      em `regras_dominio.py`). `fator: -1` gera o prefixo `"*"` automaticamente. UI da gaveta
+      ganhou o seletor "quantidade: fixa/dinâmica". Achado colateral não corrigido: guard de
+      contrato pré-existente trata mal código hifenado + token negativo (item 31 acima). CONCLUÍDA.
+      Ver `.ai/tasks/TASK-045-06-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -438,6 +447,14 @@ arquivo em `.ai/tasks/`.
     ✅ **Corrigido — TASK-037 (2026-10-03):** `_x`/`_y` incluídos condicionalmente no objeto exportado.
     Confirmado fim a fim com DXF real (servidor + Playwright, sem leitor falso nem dado sintético): extração →
     Processar → Resumo → vínculo automático funcionando. Ver `.ai/tasks/TASK-037-03-10-2026.md`.
+31. **Não corrigido.** Achado na TASK-045 (2026-10-06): o guard de contrato `C1-OUT-NUM`
+    (`services/validacao_planilhas.py`, usado pela camada 1 de `services/ajustes_planilhas.py`
+    como guarda) trata mal uma linha de Outros que tem um código de ativo **hifenado** (ex.:
+    `SUP-L`) junto de um token com prefixo negativo `"*"` (ex.: resultado de `adicionar_ativo` com
+    `qtd` negativo) — descarta a mudança com um erro de "quantidade não numérica" que não reflete
+    o problema real. Reproduz com `qtd` fixo negativo, não é algo introduzido pela TASK-045 (só
+    descoberto ao testar quantidade dinâmica com `@GRUPO` contendo `SUP-L`). Sem correção ainda —
+    fora do escopo do pedido que o achou.
 
 ---
 
@@ -493,7 +510,24 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-06
-**Motivo:** TASK-044 — usuário pediu para cadastrar "contextos" dentro de um mesmo projeto (ex.:
+**Motivo:** TASK-045 — dentro de um contexto (TASK-044), usuário pediu uma regra de ajuste "se tem
+U3 adicione em mesma quantidade 90277 negativo". Confirmado com o usuário que U3 varia de
+quantidade (`1-U3`, `2-U3`, `3-U3`...) antes de implementar, já que `adicionar_ativo.qtd` só
+aceitava número fixo.
+**Alterações de código:** `services/ajustes_planilhas.py` (`qtd` aceita
+`{"soma": SELETOR, "fator"?: número}`; nova `_qtd_dinamica()`, reaproveitando `_contexto()`/`_casa()`
+já existentes; `_t_adicionar_ativo` resolve a soma antes de aplicar, no-op se soma=0;
+`descrever_acao()` com frase em português para o caso dinâmico); `static/painel_ajustes.js`
+(seletor "quantidade: fixa/dinâmica" com campos "soma de"/"fator").
+Testes: 8 novos em `tests/test_ajustes_planilhas.py` (quantidade dinâmica negativa — pedido real do
+usuário —, sem fator, fator≠1, soma zero, soma de `@GRUPO`, interação com `se_ja_existe`, validação
+de schema, frase em português). Suíte completa (740 testes) sem regressão. Smoke test real-server +
+Playwright confirma o fluxo completo pela UI (trocar pra quantidade dinâmica, preencher seletor e
+fator, modelo em memória correto). Achado colateral não corrigido (fora do escopo): guard de
+contrato pré-existente trata mal código hifenado + token negativo — ver item 31 em "Problemas
+conhecidos". Ver `.ai/tasks/TASK-045-06-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-044 — usuário pediu para cadastrar "contextos" dentro de um mesmo projeto (ex.:
 "obras de 34,5kV"), cada um com seu próprio conjunto de ajustes ligados/desligados/sobrescritos,
 selecionáveis por um seletor na linha de totais. Decisões do usuário: terceira camada de overlay
 (poder completo, não só liga/desliga), desenho genérico (pensado para um dia servir Regras de

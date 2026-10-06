@@ -17,6 +17,11 @@ AÇÕES (cada uma exige `acao` e `tabela`: "cabos" | "outros" | "ambos"; `id` e 
                      "posicao": "fim"|"inicio"|{"depois_de": COND}|{"antes_de": COND}, "apenas_se_nao_existir": true}
   adicionar_ativo   (Outros) {"ativo": "SUPL", "qtd": 1, "se_ja_existe": "ignorar"|"somar"|"substituir"}
                       qtd negativo gera o prefixo "*" (linha viva/retirada, mesma leitura de Outros em geral: "*1-PR").
+                      qtd TAMBÉM aceita {"soma": SELETOR, "fator"?: N} (TASK-045) — quantidade DINÂMICA: soma das
+                      quantidades dos itens da MESMA linha que casam com SELETOR, vezes `fator` (padrão 1; negativo
+                      gera o prefixo "*" automaticamente). Ex.: "se tem U3, adicionar 90277 na mesma quantidade de
+                      U3, negativo" = {"ativo": "90277", "qtd": {"soma": "U3", "fator": -1}, "quando": {"tem": "U3"}}.
+                      Soma zero (seletor não casou nesta linha) não adiciona nada.
   remover_ativo     (Outros) {"ativo": SELETOR}
   mesclar_duplicadas(Outros) soma as quantidades do mesmo ativo repetido na linha
 
@@ -189,8 +194,18 @@ def _validar_acao(a, pre, erros, grupos):
         ativo = a.get("ativo")
         if not isinstance(ativo, str) or not ativo.strip() or re.search(r"[\s]", ativo.strip()):
             erros.append(f"{pre}: 'ativo' precisa ser um código sem espaços.")
-        if "qtd" in a and not (_numero_ok(a["qtd"]) and a["qtd"] != 0):
-            erros.append(f"{pre}: 'qtd' precisa ser um número diferente de zero (negativo gera o prefixo '*', linha viva).")
+        if "qtd" in a:
+            qtd = a["qtd"]
+            if isinstance(qtd, dict):
+                if "soma" not in qtd or set(qtd) - {"soma", "fator"}:
+                    erros.append(f"{pre}.qtd: quantidade dinâmica precisa ser {{\"soma\": SELETOR, \"fator\"?: número}}.")
+                else:
+                    _validar_sel(qtd.get("soma"), f"{pre}.qtd.soma", erros, grupos)
+                    if "fator" in qtd and not _numero_ok(qtd["fator"]):
+                        erros.append(f"{pre}.qtd.fator: precisa ser um número.")
+            elif not (_numero_ok(qtd) and qtd != 0):
+                erros.append(f"{pre}: 'qtd' precisa ser um número diferente de zero (negativo gera o prefixo '*', linha "
+                             "viva), ou {\"soma\": SELETOR, \"fator\"?: número} para quantidade dinâmica.")
         if a.get("se_ja_existe", "ignorar") not in ("ignorar", "somar", "substituir"):
             erros.append(f"{pre}: 'se_ja_existe' precisa ser ignorar, somar ou substituir.")
     elif nome == "remover_ativo":
@@ -325,8 +340,19 @@ def _t_normalizar(a, tabela, texto, grupos):
     return texto
 
 
+def _qtd_dinamica(spec, tabela, texto, grupos):
+    """{"soma": SELETOR, "fator"?: N} → soma das quantidades dos itens da MESMA linha que casam com
+    SELETOR, vezes `fator` (padrão 1). TASK-045."""
+    itens = _contexto(tabela, texto, grupos).itens
+    soma = sum(i["qtd"] for i in itens if _casa(i["ativo"], spec["soma"], grupos))
+    return soma * spec.get("fator", 1)
+
+
 def _t_adicionar_ativo(a, tabela, texto, grupos):
-    ativo, qtd = a["ativo"].strip(), a.get("qtd", 1)
+    ativo, qtd_spec = a["ativo"].strip(), a.get("qtd", 1)
+    qtd = _qtd_dinamica(qtd_spec, tabela, texto, grupos) if isinstance(qtd_spec, dict) else qtd_spec
+    if qtd == 0:
+        return texto   # quantidade dinâmica deu zero (seletor não casou nesta linha): nada a adicionar
     modo = a.get("se_ja_existe", "ignorar")
     achou = False
 
@@ -664,7 +690,11 @@ def descrever_acao(a: dict) -> str:
         return f"Em {t}: adicionar a linha {str(v['operacao']).upper()} '{v['ativo']}' {onde}{unico}."
     if nome == "adicionar_ativo":
         modo = {"ignorar": "", "somar": "; se já existir, soma a quantidade", "substituir": "; se já existir, troca a quantidade"}[a.get("se_ja_existe", "ignorar")]
-        return f"Em {t}: adicionar {_fmt_qtd(a.get('qtd', 1))}-{a['ativo']} à linha{_frase_filtros(a)}{modo}{op}."
+        qtd = a.get("qtd", 1)
+        qtd_txt = f"{_fmt_qtd(qtd)}-{a['ativo']}" if not isinstance(qtd, dict) else \
+            f"'{a['ativo']}' na mesma quantidade de {_frase_sel(qtd['soma'])}" + \
+            (" (negativa)" if qtd.get("fator", 1) == -1 else f" × {_n(qtd['fator'])}" if qtd.get("fator", 1) != 1 else "")
+        return f"Em {t}: adicionar {qtd_txt} à linha{_frase_filtros(a)}{modo}{op}."
     if nome == "remover_ativo":
         return f"Em {t}: remover {_frase_sel(a['ativo'])} da linha{_frase_filtros(a)}{op}."
     return f"Em {t}: somar as quantidades do mesmo ativo repetido na linha{_frase_filtros(a)}{op}."
