@@ -22,6 +22,12 @@ AÇÕES (cada uma exige `acao` e `tabela`: "cabos" | "outros" | "ambos"; `id` e 
                       gera o prefixo "*" automaticamente). Ex.: "se tem U3, adicionar 90277 na mesma quantidade de
                       U3, negativo" = {"ativo": "90277", "qtd": {"soma": "U3", "fator": -1}, "quando": {"tem": "U3"}}.
                       Soma zero (seletor não casou nesta linha) não adiciona nada.
+                      `ativo` TAMBÉM aceita {"igual_a": SELETOR, "prefixo"?: texto, "sufixo"?: texto} (TASK-046) —
+                      nome DINÂMICO: um novo token por item da linha que casa com SELETOR, nomeado
+                      "<prefixo><código encontrado><sufixo>", com quantidade = quantidade DAQUELE item vezes `qtd`
+                      (aqui `qtd` é o FATOR por item, não soma; não aceita {"soma": ...} combinado com ativo
+                      dinâmico). Ex.: "se tem TR1*, adicionar o próprio texto + 'VP' na mesma quantidade negativa" =
+                      {"ativo": {"igual_a": "TR1*", "sufixo": "VP"}, "qtd": -1, "quando": {"tem": "TR1*"}}.
   remover_ativo     (Outros) {"ativo": SELETOR}
   mesclar_duplicadas(Outros) soma as quantidades do mesmo ativo repetido na linha
 
@@ -192,9 +198,20 @@ def _validar_acao(a, pre, erros, grupos):
             erros.append(f"{pre}: 'apenas_se_nao_existir' precisa ser true ou false.")
     elif nome == "adicionar_ativo":
         ativo = a.get("ativo")
-        if not isinstance(ativo, str) or not ativo.strip() or re.search(r"[\s]", ativo.strip()):
-            erros.append(f"{pre}: 'ativo' precisa ser um código sem espaços.")
-        if "qtd" in a:
+        if isinstance(ativo, dict):
+            if "igual_a" not in ativo or set(ativo) - {"igual_a", "prefixo", "sufixo"}:
+                erros.append(f"{pre}.ativo: ativo dinâmico precisa ser {{\"igual_a\": SELETOR, \"prefixo\"?: texto, \"sufixo\"?: texto}}.")
+            else:
+                _validar_sel(ativo.get("igual_a"), f"{pre}.ativo.igual_a", erros, grupos)
+                for campo in ("prefixo", "sufixo"):
+                    if campo in ativo and (not isinstance(ativo[campo], str) or not ativo[campo] or re.search(r"\s", ativo[campo])):
+                        erros.append(f"{pre}.ativo.{campo}: precisa ser texto sem espaços.")
+            if "qtd" in a and not (_numero_ok(a["qtd"]) and a["qtd"] != 0):
+                erros.append(f"{pre}: com ativo dinâmico, 'qtd' é o FATOR (número diferente de zero) aplicado à "
+                             "quantidade de cada item encontrado — não aceita {\"soma\": ...} aqui.")
+        elif not isinstance(ativo, str) or not ativo.strip() or re.search(r"[\s]", ativo.strip()):
+            erros.append(f"{pre}: 'ativo' precisa ser um código sem espaços, ou {{\"igual_a\": SELETOR, ...}} para nome dinâmico.")
+        elif "qtd" in a:
             qtd = a["qtd"]
             if isinstance(qtd, dict):
                 if "soma" not in qtd or set(qtd) - {"soma", "fator"}:
@@ -348,12 +365,8 @@ def _qtd_dinamica(spec, tabela, texto, grupos):
     return soma * spec.get("fator", 1)
 
 
-def _t_adicionar_ativo(a, tabela, texto, grupos):
-    ativo, qtd_spec = a["ativo"].strip(), a.get("qtd", 1)
-    qtd = _qtd_dinamica(qtd_spec, tabela, texto, grupos) if isinstance(qtd_spec, dict) else qtd_spec
-    if qtd == 0:
-        return texto   # quantidade dinâmica deu zero (seletor não casou nesta linha): nada a adicionar
-    modo = a.get("se_ja_existe", "ignorar")
+def _aplicar_um_ativo(texto, ativo, qtd, modo):
+    """Soma/substitui/ignora conforme `modo` se `ativo` já existe na linha; senão acrescenta no fim."""
     achou = False
 
     def f(m):
@@ -372,6 +385,42 @@ def _t_adicionar_ativo(a, tabela, texto, grupos):
     if achou:
         return novo
     return f"{texto.rstrip()} {_fmt_qtd(qtd)}-{ativo}".strip()
+
+
+def _t_adicionar_ativo(a, tabela, texto, grupos):
+    ativo_spec = a["ativo"]
+    modo = a.get("se_ja_existe", "ignorar")
+
+    if isinstance(ativo_spec, dict):
+        # TASK-046: ativo DINÂMICO — um novo token por item da própria linha que casa com
+        # `igual_a`, nomeado "<prefixo><código encontrado><sufixo>", com quantidade = quantidade
+        # DAQUELE item vezes `qtd` (aqui usado como FATOR, não soma — um item encontrado = um
+        # novo token, cada um com a própria quantidade).
+        fator = a.get("qtd", 1)
+        if not isinstance(fator, (int, float)) or isinstance(fator, bool):
+            fator = 1
+        prefixo, sufixo = ativo_spec.get("prefixo", ""), ativo_spec.get("sufixo", "")
+        itens = _contexto(tabela, texto, grupos).itens
+        # Idempotência: um item que JÁ carrega o prefixo/sufixo (ex.: "TR110VP" gerado numa rodada
+        # anterior) não entra de novo — senão, como "igual_a" tipicamente é um curinga amplo
+        # (ex.: "TR1*"), o próprio token recém-criado casaria com o seletor e geraria
+        # "TR110VPVP" reaplicação após reaplicação.
+        casados = [i for i in itens if _casa(i["ativo"], ativo_spec["igual_a"], grupos)
+                   and not (sufixo and i["ativo"].upper().endswith(sufixo.upper()))
+                   and not (prefixo and i["ativo"].upper().startswith(prefixo.upper()))]
+        for item in casados:
+            novo_ativo = f"{ativo_spec.get('prefixo', '')}{item['ativo']}{ativo_spec.get('sufixo', '')}"
+            nova_qtd = item["qtd"] * fator
+            if nova_qtd == 0:
+                continue
+            texto = _aplicar_um_ativo(texto, novo_ativo, nova_qtd, modo)
+        return texto
+
+    ativo, qtd_spec = ativo_spec.strip(), a.get("qtd", 1)
+    qtd = _qtd_dinamica(qtd_spec, tabela, texto, grupos) if isinstance(qtd_spec, dict) else qtd_spec
+    if qtd == 0:
+        return texto   # quantidade dinâmica deu zero (seletor não casou nesta linha): nada a adicionar
+    return _aplicar_um_ativo(texto, ativo, qtd, modo)
 
 
 def _t_remover_ativo(a, tabela, texto, grupos):
@@ -690,9 +739,14 @@ def descrever_acao(a: dict) -> str:
         return f"Em {t}: adicionar a linha {str(v['operacao']).upper()} '{v['ativo']}' {onde}{unico}."
     if nome == "adicionar_ativo":
         modo = {"ignorar": "", "somar": "; se já existir, soma a quantidade", "substituir": "; se já existir, troca a quantidade"}[a.get("se_ja_existe", "ignorar")]
-        qtd = a.get("qtd", 1)
-        qtd_txt = f"{_fmt_qtd(qtd)}-{a['ativo']}" if not isinstance(qtd, dict) else \
-            f"'{a['ativo']}' na mesma quantidade de {_frase_sel(qtd['soma'])}" + \
+        ativo, qtd = a.get("ativo"), a.get("qtd", 1)
+        if isinstance(ativo, dict):
+            nome_txt = f"'{ativo.get('prefixo', '')}' + código encontrado + '{ativo.get('sufixo', '')}'" if ativo.get("prefixo") else \
+                f"código encontrado + '{ativo.get('sufixo', '')}'" if ativo.get("sufixo") else "o próprio código encontrado"
+            fator_txt = "a mesma quantidade" if qtd == 1 else "a mesma quantidade negativa" if qtd == -1 else f"a quantidade × {_n(qtd)}"
+            return f"Em {t}: para cada {_frase_sel(ativo['igual_a'])} encontrado na linha, adicionar {nome_txt}, com {fator_txt} à linha{_frase_filtros(a)}{modo}{op}."
+        qtd_txt = f"{_fmt_qtd(qtd)}-{ativo}" if not isinstance(qtd, dict) else \
+            f"'{ativo}' na mesma quantidade de {_frase_sel(qtd['soma'])}" + \
             (" (negativa)" if qtd.get("fator", 1) == -1 else f" × {_n(qtd['fator'])}" if qtd.get("fator", 1) != 1 else "")
         return f"Em {t}: adicionar {qtd_txt} à linha{_frase_filtros(a)}{modo}{op}."
     if nome == "remover_ativo":

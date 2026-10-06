@@ -265,6 +265,60 @@ def test_adicionar_ativo_descreve_qtd_dinamica_em_portugues():
         "Em Outros: adicionar 'X' na mesma quantidade de U3 à linha."
 
 
+# ── adicionar_ativo com ativo dinâmico (TASK-046) ────────────────────────────
+def test_adicionar_ativo_dinamico_mesma_quantidade_negativa_pedido_real_do_usuario():
+    """Pedido real: "se tem TR1*, adicione o próprio texto + VP no fim, na mesma quantidade negativa"."""
+    linhas = [o("1-TR110"), o("2-TR127 1-CFU"), o("DT11/300 1-CFU")]
+    acoes = [acao("adicionar_ativo", ativo={"igual_a": "TR1*", "sufixo": "VP"}, qtd=-1, quando={"tem": "TR1*"})]
+    r = idempotente(acoes, linhas)
+    assert textos(r) == ["1-TR110 *1-TR110VP", "2-TR127 1-CFU *2-TR127VP", "DT11/300 1-CFU"]
+
+
+def test_adicionar_ativo_dinamico_sem_fator_e_positivo():
+    r = rodar([acao("adicionar_ativo", ativo={"igual_a": "TR1*", "sufixo": "VP"})], [o("3-TR115")])
+    assert textos(r) == ["3-TR115 3-TR115VP"]
+
+
+def test_adicionar_ativo_dinamico_com_prefixo_e_sufixo():
+    r = rodar([acao("adicionar_ativo", ativo={"igual_a": "TR1*", "prefixo": "X", "sufixo": "Y"}, qtd=1)], [o("1-TR110")])
+    assert textos(r) == ["1-TR110 1-XTR110Y"]
+
+
+def test_adicionar_ativo_dinamico_sem_match_nao_adiciona_nada():
+    r = rodar([acao("adicionar_ativo", ativo={"igual_a": "TR1*", "sufixo": "VP"}, qtd=-1)], [o("DT11/300 1-CFU")])
+    assert textos(r) == ["DT11/300 1-CFU"]
+    assert r["operacoes"] == []
+
+
+def test_adicionar_ativo_dinamico_varios_matches_na_mesma_linha_geram_varios_tokens():
+    r = rodar([acao("adicionar_ativo", ativo={"igual_a": "TR1*", "sufixo": "VP"}, qtd=-1)], [o("1-TR110 2-TR115")])
+    assert textos(r) == ["1-TR110 2-TR115 *1-TR110VP *2-TR115VP"]
+
+
+def test_adicionar_ativo_dinamico_respeita_se_ja_existe():
+    r = rodar([acao("adicionar_ativo", ativo={"igual_a": "TR1*", "sufixo": "VP"}, qtd=-1, se_ja_existe="somar")],
+              [o("1-TR110 *2-TR110VP")])
+    assert textos(r) == ["1-TR110 *3-TR110VP"]
+
+
+def test_adicionar_ativo_dinamico_valida_schema():
+    assert erros_de(acao("adicionar_ativo", ativo={"igual_a": "TR1*", "sufixo": "VP"}, qtd=-1), GRUPOS) == []
+    assert erros_de(acao("adicionar_ativo", ativo={"igual_a": "TR1*"}), GRUPOS) == []
+    assert any("ativo" in e for e in erros_de(acao("adicionar_ativo", ativo={}), GRUPOS))
+    assert any("ativo" in e for e in erros_de(acao("adicionar_ativo", ativo={"igual_a": "TR1*", "extra": 1}), GRUPOS))
+    assert any("ativo" in e for e in erros_de(acao("adicionar_ativo", ativo={"igual_a": "TR1*", "sufixo": "a b"}), GRUPOS))
+    assert any("qtd" in e for e in erros_de(acao("adicionar_ativo", ativo={"igual_a": "TR1*"}, qtd={"soma": "TR1*"}), GRUPOS))
+    assert any("qtd" in e for e in erros_de(acao("adicionar_ativo", ativo={"igual_a": "TR1*"}, qtd=0), GRUPOS))
+    assert any("@NAOEXISTE" in e for e in erros_de(acao("adicionar_ativo", ativo={"igual_a": "@NAOEXISTE"}), GRUPOS))
+
+
+def test_adicionar_ativo_descreve_ativo_dinamico_em_portugues():
+    assert descrever_acao(acao("adicionar_ativo", ativo={"igual_a": "TR1*", "sufixo": "VP"}, qtd=-1)) == \
+        "Em Outros: para cada TR1* encontrado na linha, adicionar código encontrado + 'VP', com a mesma quantidade negativa à linha."
+    assert descrever_acao(acao("adicionar_ativo", ativo={"igual_a": "TR1*"})) == \
+        "Em Outros: para cada TR1* encontrado na linha, adicionar o próprio código encontrado, com a mesma quantidade à linha."
+
+
 def test_remover_ativo_por_seletor_e_nao_deixa_espacos_sobrando():
     r = idempotente([acao("remover_ativo", ativo="@SUPLS")], [o("DT11/300 1-SUPL 1-CFU"), o("1-SUPL")], grupos=GRUPOS)
     assert textos(r) == ["DT11/300 1-CFU", ""]

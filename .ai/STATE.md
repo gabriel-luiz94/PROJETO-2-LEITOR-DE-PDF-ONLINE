@@ -275,6 +275,17 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       ganhou o seletor "quantidade: fixa/dinâmica". Achado colateral não corrigido: guard de
       contrato pré-existente trata mal código hifenado + token negativo (item 31 acima). CONCLUÍDA.
       Ver `.ai/tasks/TASK-045-06-10-2026.md`.
+- [x] **TASK-046** (pedido de 2026-10-06): logo após a TASK-045, usuário pediu "caso tenha um trafo
+      mono TR1* adicione com a mesma quantidade negativa o texto TR1* acrescido com VP no fim desse
+      texto" — o nome do ativo adicionado precisa ser o código especificamente encontrado na linha
+      (ex.: `TR110`), não um literal fixo. `adicionar_ativo.ativo` passou a aceitar também
+      `{"igual_a": SELETOR, "prefixo"?: texto, "sufixo"?: texto}` — um token novo por item da
+      própria linha que casa com o seletor, nomeado `<prefixo><código><sufixo>`, com quantidade =
+      quantidade daquele item × `qtd` (fator). Reaproveita `_contexto()`/`_casa()` da TASK-045,
+      nenhuma mudança em `regras_dominio.py`. Guard de idempotência adicionado: item cujo nome já
+      carrega o prefixo/sufixo configurado é excluído dos candidatos (evita `"TR110VPVPVP..."` ao
+      reaplicar sobre um curinga amplo como `"TR1*"`). UI da gaveta ganhou o seletor "ativo:
+      fixo/dinâmico". CONCLUÍDA. Ver `.ai/tasks/TASK-046-06-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -510,10 +521,30 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-06
-**Motivo:** TASK-045 — dentro de um contexto (TASK-044), usuário pediu uma regra de ajuste "se tem
-U3 adicione em mesma quantidade 90277 negativo". Confirmado com o usuário que U3 varia de
-quantidade (`1-U3`, `2-U3`, `3-U3`...) antes de implementar, já que `adicionar_ativo.qtd` só
-aceitava número fixo.
+**Motivo:** TASK-046 — logo após a TASK-045, usuário pediu "caso tenha um trafo mono TR1* adicione
+com a mesma quantidade negativa o texto TR1* acrescido com VP no fim desse texto". O nome do ativo
+adicionado precisa ser o código especificamente encontrado na linha (ex.: `TR110`), não um texto
+fixo `"TR1*VP"` (curinga de busca não é um código válido).
+**Alterações de código:** `services/ajustes_planilhas.py` (`ativo` aceita também `{"igual_a":
+SELETOR, "prefixo"?: texto, "sufixo"?: texto}`; `_aplicar_um_ativo()` extraída de
+`_t_adicionar_ativo` para reaproveitar em loop, um token por item casado; guard de idempotência
+excluindo da busca itens que já carregam o prefixo/sufixo configurado; `descrever_acao()` com frase
+em português para o caso dinâmico); `static/painel_ajustes.js` (seletor "ativo: fixo/dinâmico" com
+campos "igual a"/"prefixo"/"sufixo"; com ativo dinâmico, `qtd` vira só o campo "fator").
+Testes: 8 novos em `tests/test_ajustes_planilhas.py` (ativo dinâmico com quantidade negativa —
+pedido real do usuário —, sem fator, com prefixo+sufixo, sem match, vários matches na mesma linha,
+interação com `se_ja_existe` incluindo idempotência, validação de schema, frase em português).
+Suíte completa (748 testes) sem regressão. Smoke test real-server (uvicorn em processo, DB SQLite
+temporário via `database.DB_PATH` patcheado, nunca `banco_resumo.db`) + Playwright confirma o fluxo
+completo pela UI (alternar "ativo" para dinâmico, preencher seletor/sufixo/fator, modelo em memória
+e frase ao vivo corretos). Mesmo achado colateral da TASK-045 reencontrado (guard de contrato
+pré-existente trata mal código hifenado + token negativo — item 31 em "Problemas conhecidos"), não
+corrigido, fora do escopo. Ver `.ai/tasks/TASK-046-06-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-045 — dentro de um contexto (TASK-044), usuário
+pediu uma regra de ajuste "se tem U3 adicione em mesma quantidade 90277 negativo". Confirmado com o
+usuário que U3 varia de quantidade (`1-U3`, `2-U3`, `3-U3`...) antes de implementar, já que
+`adicionar_ativo.qtd` só aceitava número fixo.
 **Alterações de código:** `services/ajustes_planilhas.py` (`qtd` aceita
 `{"soma": SELETOR, "fator"?: número}`; nova `_qtd_dinamica()`, reaproveitando `_contexto()`/`_casa()`
 já existentes; `_t_adicionar_ativo` resolve a soma antes de aplicar, no-op se soma=0;
