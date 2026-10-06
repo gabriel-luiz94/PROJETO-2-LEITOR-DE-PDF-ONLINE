@@ -365,6 +365,55 @@ def test_adicionar_ativo_descreve_lista_em_portugues():
         "Em Outros: adicionar '90525', '90542', cada um com a mesma quantidade de U3 (negativa), à linha."
 
 
+# ── adicionar_ativo com quantidade própria por item da lista (TASK-048) ──────
+def test_adicionar_ativo_lista_com_qtd_propria_pedido_real_do_usuario():
+    """Pedido real: quantidades diferentes por código pra diminuir o número de regras."""
+    acoes = [acao("adicionar_ativo", ativo=[{"ativo": "90525", "qtd": -1}, {"ativo": "90542", "qtd": -2}])]
+    r = idempotente(acoes, [o("1-TR110")])
+    assert textos(r) == ["1-TR110 *1-90525 *2-90542"]
+
+
+def test_adicionar_ativo_lista_mistura_item_com_qtd_propria_e_item_simples():
+    """Item simples (string) continua usando a `qtd` compartilhada da ação."""
+    r = rodar([acao("adicionar_ativo", ativo=[{"ativo": "90525", "qtd": -1}, "92540"], qtd=-3)], [o("1-TR110")])
+    assert textos(r) == ["1-TR110 *1-90525 *3-92540"]
+
+
+def test_adicionar_ativo_lista_item_sem_qtd_propria_usa_qtd_compartilhada():
+    r = rodar([acao("adicionar_ativo", ativo=[{"ativo": "90525"}], qtd=5)], [o("1-TR110")])
+    assert textos(r) == ["1-TR110 5-90525"]
+
+
+def test_adicionar_ativo_lista_com_qtd_propria_ignora_se_ja_existe_por_padrao():
+    r = rodar([acao("adicionar_ativo", ativo=[{"ativo": "90525", "qtd": -1}, {"ativo": "90542", "qtd": -2}])],
+              [o("1-90525 1-90542")])
+    assert textos(r) == ["1-90525 1-90542"]
+    assert r["operacoes"] == []
+
+
+def test_adicionar_ativo_lista_com_qtd_propria_respeita_se_ja_existe():
+    r = rodar([acao("adicionar_ativo", ativo=[{"ativo": "90525", "qtd": -1}, {"ativo": "90542", "qtd": -2}],
+                     se_ja_existe="somar")], [o("*1-90525 *1-90542")])
+    assert textos(r) == ["*2-90525 *3-90542"]
+
+
+def test_adicionar_ativo_lista_com_qtd_propria_valida_schema():
+    assert erros_de(acao("adicionar_ativo", ativo=[{"ativo": "90525", "qtd": -1}, "90542"]), GRUPOS) == []
+    assert erros_de(acao("adicionar_ativo", ativo=[{"ativo": "90525"}]), GRUPOS) == []
+    assert any("ativo" in e for e in erros_de(acao("adicionar_ativo", ativo=[{"qtd": -1}]), GRUPOS))
+    assert any("ativo" in e for e in erros_de(acao("adicionar_ativo", ativo=[{"ativo": "90525", "extra": 1}]), GRUPOS))
+    assert any("ativo" in e for e in erros_de(acao("adicionar_ativo", ativo=[{"ativo": "a b"}]), GRUPOS))
+    assert any("qtd" in e for e in erros_de(acao("adicionar_ativo", ativo=[{"ativo": "90525", "qtd": 0}]), GRUPOS))
+    assert any("qtd" in e for e in erros_de(acao("adicionar_ativo", ativo=[{"ativo": "90525", "qtd": "x"}]), GRUPOS))
+
+
+def test_adicionar_ativo_descreve_lista_com_qtd_propria_em_portugues():
+    assert descrever_acao(acao("adicionar_ativo", ativo=[{"ativo": "90525", "qtd": -1}, {"ativo": "90542", "qtd": -2}])) == \
+        "Em Outros: adicionar *1-90525, *2-90542 à linha."
+    assert descrever_acao(acao("adicionar_ativo", ativo=[{"ativo": "90525", "qtd": -1}, "92540"], qtd=-3)) == \
+        "Em Outros: adicionar *1-90525, *3-92540 à linha."
+
+
 def test_remover_ativo_por_seletor_e_nao_deixa_espacos_sobrando():
     r = idempotente([acao("remover_ativo", ativo="@SUPLS")], [o("DT11/300 1-SUPL 1-CFU"), o("1-SUPL")], grupos=GRUPOS)
     assert textos(r) == ["DT11/300 1-CFU", ""]

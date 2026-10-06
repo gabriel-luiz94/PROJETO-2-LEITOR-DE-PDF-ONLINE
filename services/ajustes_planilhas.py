@@ -31,6 +31,10 @@ AÇÕES (cada uma exige `acao` e `tabela`: "cabos" | "outros" | "ambos"; `id` e 
                       `ativo` TAMBÉM aceita uma LISTA de códigos fixos (TASK-047) — um token por código da lista,
                       todos com a MESMA quantidade `qtd` (fixa ou dinâmica via {"soma": ...}, resolvida uma única vez).
                       Ex.: {"ativo": ["90525", "90542", "92540"], "qtd": -1}.
+                      Um item da lista TAMBÉM pode ser {"ativo": código, "qtd"?: número} (TASK-048) para ter a
+                      PRÓPRIA quantidade, substituindo a `qtd` compartilhada só para aquele código (os demais itens,
+                      simples, continuam usando a `qtd` da ação). Ex.: {"ativo": [{"ativo": "90525", "qtd": -1},
+                      {"ativo": "90542", "qtd": -2}, "92540"], "qtd": -3} → 92540 recebe -3.
   remover_ativo     (Outros) {"ativo": SELETOR}
   mesclar_duplicadas(Outros) soma as quantidades do mesmo ativo repetido na linha
 
@@ -229,9 +233,20 @@ def _validar_acao(a, pre, erros, grupos):
         elif isinstance(ativo, list):
             if not ativo:
                 erros.append(f"{pre}: 'ativo' em lista precisa ter ao menos um código.")
-            for i, cod in enumerate(ativo):
-                if not isinstance(cod, str) or not cod.strip() or re.search(r"\s", cod.strip()):
-                    erros.append(f"{pre}.ativo[{i}]: precisa ser um código sem espaços.")
+            for i, item in enumerate(ativo):
+                if isinstance(item, dict):
+                    if "ativo" not in item or set(item) - {"ativo", "qtd"}:
+                        erros.append(f"{pre}.ativo[{i}]: item com quantidade própria precisa ser "
+                                     "{\"ativo\": código, \"qtd\"?: número}.")
+                        continue
+                    cod = item["ativo"]
+                    if not isinstance(cod, str) or not cod.strip() or re.search(r"\s", cod.strip()):
+                        erros.append(f"{pre}.ativo[{i}].ativo: precisa ser um código sem espaços.")
+                    if "qtd" in item and not (_numero_ok(item["qtd"]) and item["qtd"] != 0):
+                        erros.append(f"{pre}.ativo[{i}].qtd: precisa ser um número diferente de zero.")
+                elif not isinstance(item, str) or not item.strip() or re.search(r"\s", item.strip()):
+                    erros.append(f"{pre}.ativo[{i}]: precisa ser um código sem espaços, ou "
+                                 "{\"ativo\": código, \"qtd\"?: número} para quantidade própria.")
             if "qtd" in a:
                 _validar_qtd_adicionar(a["qtd"], pre, erros, grupos)
         elif not isinstance(ativo, str) or not ativo.strip() or re.search(r"[\s]", ativo.strip()):
@@ -433,15 +448,20 @@ def _t_adicionar_ativo(a, tabela, texto, grupos):
         return texto
 
     if isinstance(ativo_spec, list):
-        # TASK-047: lista de códigos fixos — um token por código, todos com a MESMA quantidade,
-        # resolvida uma única vez (antes de qualquer token ser adicionado), igual ao caso de um
-        # único ativo abaixo.
+        # TASK-047: lista de códigos fixos — um token por código, todos com a MESMA quantidade
+        # (`qtd` da ação), resolvida uma única vez (antes de qualquer token ser adicionado), igual
+        # ao caso de um único ativo abaixo. TASK-048: item pode ser {"ativo": código, "qtd"?: N}
+        # para ter a PRÓPRIA quantidade (substitui a compartilhada só para aquele código).
         qtd_spec = a.get("qtd", 1)
-        qtd = _qtd_dinamica(qtd_spec, tabela, texto, grupos) if isinstance(qtd_spec, dict) else qtd_spec
-        if qtd == 0:
-            return texto
-        for cod in ativo_spec:
-            texto = _aplicar_um_ativo(texto, cod.strip(), qtd, modo)
+        qtd_padrao = _qtd_dinamica(qtd_spec, tabela, texto, grupos) if isinstance(qtd_spec, dict) else qtd_spec
+        for item in ativo_spec:
+            if isinstance(item, dict):
+                cod, qtd_item = item["ativo"].strip(), item.get("qtd", qtd_padrao)
+            else:
+                cod, qtd_item = item.strip(), qtd_padrao
+            if qtd_item == 0:
+                continue
+            texto = _aplicar_um_ativo(texto, cod, qtd_item, modo)
         return texto
 
     ativo, qtd_spec = ativo_spec.strip(), a.get("qtd", 1)
@@ -774,11 +794,20 @@ def descrever_acao(a: dict) -> str:
             fator_txt = "a mesma quantidade" if qtd == 1 else "a mesma quantidade negativa" if qtd == -1 else f"a quantidade × {_n(qtd)}"
             return f"Em {t}: para cada {_frase_sel(ativo['igual_a'])} encontrado na linha, adicionar {nome_txt}, com {fator_txt} à linha{_frase_filtros(a)}{modo}{op}."
         if isinstance(ativo, list):
+            def _qtd_txt(q):
+                if isinstance(q, dict):
+                    return f"a mesma quantidade de {_frase_sel(q['soma'])}" + \
+                        (" (negativa)" if q.get("fator", 1) == -1 else f" × {_n(q['fator'])}" if q.get("fator", 1) != 1 else "")
+                return _fmt_qtd(q)
+            if any(isinstance(i, dict) for i in ativo):   # TASK-048: pelo menos um item com quantidade própria
+                partes = []
+                for i in ativo:
+                    cod, q_i = (i["ativo"], i.get("qtd", qtd)) if isinstance(i, dict) else (i, qtd)
+                    partes.append(f"'{cod}' ({_qtd_txt(q_i)})" if isinstance(q_i, dict) else f"{_qtd_txt(q_i)}-{cod}")
+                return f"Em {t}: adicionar {', '.join(partes)} à linha{_frase_filtros(a)}{modo}{op}."
             if isinstance(qtd, dict):
                 lista_txt = ", ".join(f"'{c}'" for c in ativo)
-                qtd_txt = f"a mesma quantidade de {_frase_sel(qtd['soma'])}" + \
-                    (" (negativa)" if qtd.get("fator", 1) == -1 else f" × {_n(qtd['fator'])}" if qtd.get("fator", 1) != 1 else "")
-                return f"Em {t}: adicionar {lista_txt}, cada um com {qtd_txt}, à linha{_frase_filtros(a)}{modo}{op}."
+                return f"Em {t}: adicionar {lista_txt}, cada um com {_qtd_txt(qtd)}, à linha{_frase_filtros(a)}{modo}{op}."
             lista_txt = ", ".join(f"{_fmt_qtd(qtd)}-{c}" for c in ativo)
             return f"Em {t}: adicionar {lista_txt} à linha{_frase_filtros(a)}{modo}{op}."
         qtd_txt = f"{_fmt_qtd(qtd)}-{ativo}" if not isinstance(qtd, dict) else \

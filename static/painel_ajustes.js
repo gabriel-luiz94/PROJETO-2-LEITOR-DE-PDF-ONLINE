@@ -35,6 +35,19 @@ function ajEhProjeto() { return ajProjeto() !== 'DEFAULT'; }
  * seletor da linha de totais do Resumo (resumo.js:contextoSelecionado), nunca editável aqui. */
 function ajContexto() { return (ajEhProjeto() && typeof window.contextoSelecionado === 'function') ? window.contextoSelecionado() : null; }
 function ajCsv(txt) { return txt.split(',').map(s => s.trim()).filter(Boolean); }
+/** Lista de `adicionar_ativo.ativo` (TASK-047/048): cada item vira "código" ou "código:qtd" (qtd
+ * própria, substitui a compartilhada só para aquele código) — texto <-> array de string|{ativo,qtd}. */
+function ajListaAtivoParaTexto(lista) {
+    return (lista || []).map(i => (i && typeof i === 'object') ? `${i.ativo}:${i.qtd}` : i).join(', ');
+}
+function ajTextoParaListaAtivo(txt) {
+    return ajCsv(txt).map(s => {
+        const i = s.lastIndexOf(':');
+        if (i < 0) return s;
+        const cod = s.slice(0, i).trim(), n = Number(s.slice(i + 1).trim().replace(',', '.'));
+        return (cod && !isNaN(n) && n !== 0) ? { ativo: cod, qtd: n } : s;
+    });
+}
 function ajLimpa(r) { const c = {}; Object.keys(r).forEach(k => { if (!['origem', 'oculta', 'frases'].includes(k) && !k.startsWith('_')) c[k] = r[k]; }); return c; }
 
 function ajMarcarSujo() {
@@ -246,7 +259,9 @@ function ajCamposDaAcao(a, refazer) {
             f.appendChild(ajRotulo('prefixo', ajInput(a.ativo.prefixo || '', v => { if (v) a.ativo.prefixo = v; else delete a.ativo.prefixo; }, 'w-20 font-mono')));
             f.appendChild(ajRotulo('sufixo', ajInput(a.ativo.sufixo || '', v => { if (v) a.ativo.sufixo = v; else delete a.ativo.sufixo; }, 'w-20 font-mono')));
         } else if (ativoLista) {
-            f.appendChild(ajRotulo('códigos', ajInput(a.ativo.join(', '), v => { a.ativo = ajCsv(v); }, 'w-56 font-mono', 'códigos separados por vírgula, ex.: 90525, 90542, 92540', 'rdSugestoes')));
+            // TASK-048: "código:qtd" dá a esse código uma quantidade própria (substitui a
+            // compartilhada abaixo só para ele); um código sem ":qtd" usa a compartilhada.
+            f.appendChild(ajRotulo('códigos', ajInput(ajListaAtivoParaTexto(a.ativo), v => { a.ativo = ajTextoParaListaAtivo(v); }, 'w-64 font-mono', 'separados por vírgula; "código:qtd" pra uma quantidade própria, ex.: 90525:-1, 90542:-2, 92540', 'rdSugestoes')));
         } else {
             f.appendChild(ajRotulo('ativo', ajInput(a.ativo, v => { a.ativo = v.trim(); }, 'w-44 font-mono', 'código, ex.: SUPL', 'rdSugestoes')));
         }

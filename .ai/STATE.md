@@ -295,6 +295,13 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       `_validar_qtd_adicionar()` pra eliminar duplicação entre o caso de ativo único e o de lista. UI
       da gaveta ganhou a opção "ativo: lista de códigos". CONCLUÍDA. Ver
       `.ai/tasks/TASK-047-06-10-2026.md`.
+- [x] **TASK-048** (pedido de 2026-10-06): logo após a TASK-047, usuário perguntou se a lista aceita
+      mais de um fator — confirmado o pedido real: "quantidades diferentes por código pra diminuir o
+      número de regras". Um item da lista de `ativo` passou a aceitar `{"ativo": código, "qtd"?:
+      número}` — quantidade PRÓPRIA, substituindo a `qtd` compartilhada só para aquele código; itens
+      string continuam usando a compartilhada, os dois formatos podem ser misturados na mesma lista.
+      UI: campo "códigos" ganhou a sintaxe `código:qtd` por item, sem seletor de modo novo.
+      CONCLUÍDA. Ver `.ai/tasks/TASK-048-06-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -530,10 +537,27 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-06
-**Motivo:** TASK-047 — logo após a TASK-046, usuário perguntou se dava pra adicionar uma lista de
-ativos fixos (ex.: `90525, 90542, 92540`) numa única regra. Já era possível com várias ações
-`adicionar_ativo` no mesmo ajuste (o array `acoes` já suportava isso desde a TASK-023), mas o
-usuário queria algo mais compacto. Confirmado "quantidade igual pra todos" antes de implementar.
+**Motivo:** TASK-048 — logo após a TASK-047, usuário perguntou se a lista de códigos aceita mais de
+um fator; confirmado o pedido real: "quantidades diferentes por código pra diminuir o número de
+regras".
+**Alterações de código:** `services/ajustes_planilhas.py` (um item da lista de `ativo` aceita
+`{"ativo": código, "qtd"?: número}` — quantidade PRÓPRIA, substituindo a `qtd` compartilhada só
+para aquele código; itens string continuam usando a compartilhada, os dois formatos podem ser
+misturados na mesma lista; `descrever_acao()` com frase para lista mista); `static/painel_ajustes.js`
+(novos helpers `ajListaAtivoParaTexto`/`ajTextoParaListaAtivo`, sintaxe `código:qtd` no mesmo campo
+"códigos", sem seletor de modo novo).
+Testes: 7 novos em `tests/test_ajustes_planilhas.py` (quantidade própria por código — pedido real do
+usuário —, lista mista com item simples, item dict sem `qtd`, interação com `se_ja_existe`,
+validação de schema, frase em português). Suíte completa (762 testes) sem regressão. Smoke test
+real-server (uvicorn em processo, DB SQLite temporário via `database.DB_PATH` patcheado, nunca
+`banco_resumo.db`) + Playwright confirma o fluxo completo pela UI (sintaxe `código:qtd`, modelo em
+memória e frase ao vivo corretos). Ver `.ai/tasks/TASK-048-06-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-047 — logo após a TASK-046, usuário perguntou se
+dava pra adicionar uma lista de ativos fixos (ex.: `90525, 90542, 92540`) numa única regra. Já era
+possível com várias ações `adicionar_ativo` no mesmo ajuste (o array `acoes` já suportava isso desde
+a TASK-023), mas o usuário queria algo mais compacto. Confirmado "quantidade igual pra todos" antes
+de implementar.
 **Alterações de código:** `services/ajustes_planilhas.py` (`ativo` aceita também uma LISTA de
 códigos fixos — um token por código, todos com a mesma `qtd`, resolvida uma única vez; nova
 `_validar_qtd_adicionar()` extraída pra eliminar duplicação de validação entre o caso de ativo único
