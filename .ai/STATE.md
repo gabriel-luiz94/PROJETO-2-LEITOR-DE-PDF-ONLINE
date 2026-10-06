@@ -286,6 +286,15 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       carrega o prefixo/sufixo configurado é excluído dos candidatos (evita `"TR110VPVPVP..."` ao
       reaplicar sobre um curinga amplo como `"TR1*"`). UI da gaveta ganhou o seletor "ativo:
       fixo/dinâmico". CONCLUÍDA. Ver `.ai/tasks/TASK-046-06-10-2026.md`.
+- [x] **TASK-047** (pedido de 2026-10-06): logo após a TASK-046, usuário perguntou se dava pra
+      adicionar uma lista de ativos fixos (ex.: `90525, 90542, 92540`) numa única regra — já era
+      possível com várias ações `adicionar_ativo` no mesmo ajuste, mas o usuário queria algo mais
+      compacto. Confirmado "quantidade igual pra todos" antes de implementar. `adicionar_ativo.ativo`
+      passou a aceitar também uma LISTA de códigos fixos — um token por código, todos com a mesma
+      `qtd` (fixa ou dinâmica via `{"soma": ...}` da TASK-045, resolvida uma única vez). Extraída
+      `_validar_qtd_adicionar()` pra eliminar duplicação entre o caso de ativo único e o de lista. UI
+      da gaveta ganhou a opção "ativo: lista de códigos". CONCLUÍDA. Ver
+      `.ai/tasks/TASK-047-06-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -521,10 +530,29 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-06
-**Motivo:** TASK-046 — logo após a TASK-045, usuário pediu "caso tenha um trafo mono TR1* adicione
-com a mesma quantidade negativa o texto TR1* acrescido com VP no fim desse texto". O nome do ativo
-adicionado precisa ser o código especificamente encontrado na linha (ex.: `TR110`), não um texto
-fixo `"TR1*VP"` (curinga de busca não é um código válido).
+**Motivo:** TASK-047 — logo após a TASK-046, usuário perguntou se dava pra adicionar uma lista de
+ativos fixos (ex.: `90525, 90542, 92540`) numa única regra. Já era possível com várias ações
+`adicionar_ativo` no mesmo ajuste (o array `acoes` já suportava isso desde a TASK-023), mas o
+usuário queria algo mais compacto. Confirmado "quantidade igual pra todos" antes de implementar.
+**Alterações de código:** `services/ajustes_planilhas.py` (`ativo` aceita também uma LISTA de
+códigos fixos — um token por código, todos com a mesma `qtd`, resolvida uma única vez; nova
+`_validar_qtd_adicionar()` extraída pra eliminar duplicação de validação entre o caso de ativo único
+e o de lista; `_t_adicionar_ativo` com novo ramo para lista; `descrever_acao()` com frase em
+português); `static/painel_ajustes.js` (seletor "ativo" ganhou a opção "lista de códigos", campo de
+texto separado por vírgula via `ajCsv`; `qtd` reaproveita sem mudança o seletor fixa/dinâmica da
+TASK-045).
+Testes: 7 novos em `tests/test_ajustes_planilhas.py` (lista com quantidade fixa negativa — pedido
+real do usuário —, sem qtd, com qtd dinâmica, soma dinâmica zero, interação com `se_ja_existe`,
+validação de schema, frase em português). Suíte completa (755 testes) sem regressão. Smoke test
+real-server (uvicorn em processo, DB SQLite temporário via `database.DB_PATH` patcheado, nunca
+`banco_resumo.db`) + Playwright confirma o fluxo completo pela UI (alternar "ativo" para "lista de
+códigos", preencher códigos separados por vírgula, modelo em memória e frase ao vivo corretos). Ver
+`.ai/tasks/TASK-047-06-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-046 — usuário pediu "caso tenha um trafo mono TR1*
+adicione com a mesma quantidade negativa o texto TR1* acrescido com VP no fim desse texto". O nome
+do ativo adicionado precisa ser o código especificamente encontrado na linha (ex.: `TR110`), não um
+texto fixo `"TR1*VP"` (curinga de busca não é um código válido).
 **Alterações de código:** `services/ajustes_planilhas.py` (`ativo` aceita também `{"igual_a":
 SELETOR, "prefixo"?: texto, "sufixo"?: texto}`; `_aplicar_um_ativo()` extraída de
 `_t_adicionar_ativo` para reaproveitar em loop, um token por item casado; guard de idempotência
