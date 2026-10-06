@@ -8,6 +8,43 @@
 
 ---
 
+## 2026-10-06 — TASK-042: editor de Regras de Vinculação e Regras de Conectores dentro do modal
+
+**Tipo:** feature (UI) · `static/resumo.html`, `static/resumo.js` · `.ai/tasks/TASK-042-06-10-2026.md`
+
+Usuário pediu para tornar as `regras_vinculacao` (quantidade de cabos e compatibilidade por tipo
+de estrutura) editáveis numa UI dentro do modal de vinculação, e para poder acessar o ativo
+composto (cabo+estrutura vinculados, ex. `CAA2_U4`) a partir de uma regra com formato amigável,
+também dentro do modal.
+
+Investigação confirmou dois mecanismos já existentes, mas sem UI própria no lugar certo:
+
+- `regras_vinculacao` já tinha endpoint (`GET/POST /api/regras-vinculacao`), mas nenhuma tela
+  editava — só o algoritmo de vínculo automático lia.
+- O ativo composto só existe em memória durante o cálculo da Totalizadora
+  (`itens_vinculo_para_totalizadora`) e já podia ser convertido em algo real (ex. um conector) via
+  **Regra de Conversão com `origem: VINCULO`** (TASK-011/032/034) — só que misturado com as regras
+  de CABOS/OUTROS na view Totalizadora, exigindo digitar `ativo_de` cru (`"CAA2_U4"`).
+
+**Decisão: não estender o motor de Ajustes** (`services/ajustes_planilhas.py`) para ler ativos
+compostos — ele roda antes do vínculo/Totalizadora existir, e replicar a lógica de vínculo ali
+duplicaria o que a Regra de Conversão com `origem: VINCULO` já resolve. Em vez disso, duas seções
+accordion novas foram adicionadas dentro de `#modal-vinculacao`:
+
+1. **Regras de Vinculação**: tabela editável (tipo/qtd/compatibilidade/descrição) sobre o endpoint
+   já existente `/api/regras-vinculacao`.
+2. **Regras de Conectores**: formulário amigável (tipo de cabo + tipo de estrutura + ativo
+   resultante + quantidade) sobre a MESMA tabela de Regras de Conversão da Totalizadora
+   (`tableStates.regras.data`, `/api/regras/conversao`), filtrada para `origem === 'VINCULO'` e
+   traduzindo `ativo_de ↔ "<CABO>_<ESTRUTURA>"` automaticamente. Editar aqui ou na Totalizadora é a
+   mesma regra.
+
+Nenhum endpoint ou tabela nova. Verificado via smoke test real-server + Playwright (DB temporário,
+nunca o `banco_resumo.db`): adicionar/editar/salvar nas duas seções persiste corretamente
+(confirmado por `GET` de volta), e uma linha inválida é rejeitada pelo backend com erro visível.
+
+---
+
 ## 2026-10-05 — TASK-039/040/041: disponibilidade de dados e reconexão com o Supabase
 
 **Tipo:** correção de robustez + feature · `services/supabase_client.py`,

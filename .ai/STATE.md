@@ -234,6 +234,15 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       os 16 pontos silenciosos agora chamam `registrar_falha()` — decisão tomada de manter "sempre grava local,
       sempre responde sucesso", só adicionando o log (opção que não muda a experiência do usuário). CONCLUÍDAS.
       Ver `.ai/tasks/TASK-039-05-10-2026.md`, `TASK-040-05-10-2026.md`, `TASK-041-05-10-2026.md`.
+- [x] **TASK-042** (pedido de 2026-10-06): usuário pediu para tornar as `regras_vinculacao`
+      editáveis numa UI dentro do modal de vinculação, e para acessar o ativo composto
+      (cabo+estrutura vinculados, ex. `CAA2_U4`) a partir de regras com formato amigável, também
+      dentro do modal. Decisão: não estender o motor de Ajustes (roda antes do vínculo existir) —
+      em vez disso, duas seções accordion novas dentro de `#modal-vinculacao`: (1) editor de
+      `regras_vinculacao` sobre o endpoint já existente; (2) formulário amigável (tipo de cabo +
+      tipo de estrutura → ativo) sobre a MESMA tabela de Regras de Conversão da Totalizadora
+      (`origem: VINCULO`, já existente desde TASK-011/032/034), traduzindo `ativo_de` automático.
+      Nenhum endpoint/tabela novo. CONCLUÍDA. Ver `.ai/tasks/TASK-042-06-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -460,8 +469,26 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-10-05
-**Motivo:** TASK-039/040/041 — pedido do usuário "garantir que os dados estejam sempre disponíveis.
+**Data:** 2026-10-06
+**Motivo:** TASK-042 — pedido do usuário para tornar as `regras_vinculacao` editáveis numa UI dentro
+do modal de vinculação, e para acessar o ativo composto (cabo+estrutura vinculados, ex. `CAA2_U4`)
+a partir de regras com formato amigável, também dentro do modal. Decisão: não estender o motor de
+Ajustes (roda antes do vínculo/Totalizadora existirem) — em vez disso, dar UI aos dois mecanismos
+já existentes no lugar certo.
+**Alterações de código:** `static/resumo.html` (duas seções accordion novas dentro de
+`#modal-vinculacao`: `#table-vinc-regras` e `#table-vinc-conectores`), `static/resumo.js`
+(`toggleVincRegras`/`renderRegrasVinculacaoTable`/`updateRegraVinculacaoRow`/
+`adicionarRegraVinculacao`/`excluirRegraVinculacao`/`salvarRegrasVinculacaoNuvem` sobre o endpoint
+já existente `/api/regras-vinculacao`; `toggleVincConectores`/`renderRegrasConectoresTable`/
+`updateRegraConectorRow`/`adicionarRegraConector`/`excluirRegraConector`/`_splitAtivoVinculo` sobre
+a mesma tabela de Regras de Conversão da Totalizadora, `origem: VINCULO`). Nenhum endpoint/tabela
+novo, nenhum arquivo de backend tocado.
+Testes: smoke test real-server + Playwright (DB temporário, nunca o `banco_resumo.db`) — adicionar/
+editar/salvar nas duas seções persiste corretamente (confirmado via `GET` de volta nos dois
+endpoints), e uma linha inválida é rejeitada pelo backend com erro visível via toast, sem poluir o
+array salvo. Ver `.ai/tasks/TASK-042-06-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-039/040/041 — pedido do usuário "garantir que os dados estejam sempre disponíveis.
 E em caso de perda de conexão os dados se mantenham com a última versão carregada para trabalho",
 motivado pelo relato "a conexão com o Supabase está se perdendo após um tempo". Causa raiz
 confirmada: cliente Supabase era um singleton nunca recriado, e toda falha de rede era engolida
