@@ -8,6 +8,34 @@
 
 ---
 
+## 2026-10-06 — TASK-049: `adicionar_ativo` — item da lista com fator próprio sobre a qtd dinâmica
+
+**Tipo:** feature (motor de Ajustes) · `services/ajustes_planilhas.py`, `static/painel_ajustes.js` ·
+`.ai/tasks/TASK-049-06-10-2026.md`
+
+Usuário tentou combinar a sintaxe `código:qtd` (TASK-048) com "mesma quantidade de outro ativo"
+(U4, fator 2), esperando "duas vezes a quantidade de U4, um código negativo e outro positivo" — não
+funcionou, porque `qtd` própria SUBSTITUI a compartilhada por um valor literal fixo (comportamento
+correto da TASK-048, mas não servia aqui). Perguntado "não podemos adicionar a lógica do fator?" —
+confirmado.
+
+Implementado: um item da lista agora também pode ser `{"ativo": código, "fator"?: número}` —
+MULTIPLICA a mesma base da `qtd` compartilhada (a soma, se `qtd` for dinâmico; o próprio número, se
+for literal) em vez de substituí-la por um valor fixo. `"qtd"` e `"fator"` no mesmo item são
+mutuamente exclusivos. Nova `_qtd_base()` extrai a magnitude não escalada (sem fator), reaproveitada
+tanto por `_qtd_dinamica()` (TASK-045, refatorada para usá-la, comportamento idêntico) quanto pelo
+novo caso de item com fator próprio. UI: sintaxe `código:xN` no mesmo campo "códigos".
+
+Exemplo exato do pedido: `{"acao": "adicionar_ativo", "tabela": "outros", "ativo": [{"ativo":
+"90277", "fator": -2}, {"ativo": "90279", "fator": 2}], "qtd": {"soma": "U4"}, "quando": {"tem":
+"U4"}}` — com `2-U4` na linha, gera `*4-90277` e `4-90279`.
+
+6 testes novos (`tests/test_ajustes_planilhas.py`). Suíte completa sem regressão. Smoke test
+real-server + Playwright confirma o fluxo completo pela UI (sintaxe `código:xN`, modelo em memória
+e frase ao vivo corretos).
+
+---
+
 ## 2026-10-06 — TASK-048: `adicionar_ativo` — item da lista com quantidade própria
 
 **Tipo:** feature (motor de Ajustes) · `services/ajustes_planilhas.py`, `static/painel_ajustes.js` ·

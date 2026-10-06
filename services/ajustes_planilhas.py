@@ -35,6 +35,13 @@ AÇÕES (cada uma exige `acao` e `tabela`: "cabos" | "outros" | "ambos"; `id` e 
                       PRÓPRIA quantidade, substituindo a `qtd` compartilhada só para aquele código (os demais itens,
                       simples, continuam usando a `qtd` da ação). Ex.: {"ativo": [{"ativo": "90525", "qtd": -1},
                       {"ativo": "90542", "qtd": -2}, "92540"], "qtd": -3} → 92540 recebe -3.
+                      Um item da lista TAMBÉM pode ser {"ativo": código, "fator"?: número} (TASK-049, exclusivo com
+                      "qtd" no mesmo item) para ter o PRÓPRIO fator sobre a MESMA base dinâmica da `qtd`
+                      compartilhada — diferente de "qtd" (substitui por um valor fixo), "fator" MULTIPLICA a soma
+                      calculada por `qtd.soma` (ou a própria `qtd`, se for número literal). Resolve "duas vezes a
+                      quantidade de outro ativo, um código negativo e outro positivo": {"ativo": [{"ativo": "90277",
+                      "fator": -2}, {"ativo": "90279", "fator": 2}], "qtd": {"soma": "U4"}, "quando": {"tem": "U4"}}
+                      — com `2-U4` na linha, gera `*4-90277` e `4-90279`.
   remover_ativo     (Outros) {"ativo": SELETOR}
   mesclar_duplicadas(Outros) soma as quantidades do mesmo ativo repetido na linha
 
@@ -235,18 +242,21 @@ def _validar_acao(a, pre, erros, grupos):
                 erros.append(f"{pre}: 'ativo' em lista precisa ter ao menos um código.")
             for i, item in enumerate(ativo):
                 if isinstance(item, dict):
-                    if "ativo" not in item or set(item) - {"ativo", "qtd"}:
+                    if "ativo" not in item or set(item) - {"ativo", "qtd", "fator"} or ("qtd" in item and "fator" in item):
                         erros.append(f"{pre}.ativo[{i}]: item com quantidade própria precisa ser "
-                                     "{\"ativo\": código, \"qtd\"?: número}.")
+                                     "{\"ativo\": código, \"qtd\"?: número} (valor fixo) ou {\"ativo\": código, "
+                                     "\"fator\"?: número} (multiplica a base da qtd compartilhada) — não os dois.")
                         continue
                     cod = item["ativo"]
                     if not isinstance(cod, str) or not cod.strip() or re.search(r"\s", cod.strip()):
                         erros.append(f"{pre}.ativo[{i}].ativo: precisa ser um código sem espaços.")
                     if "qtd" in item and not (_numero_ok(item["qtd"]) and item["qtd"] != 0):
                         erros.append(f"{pre}.ativo[{i}].qtd: precisa ser um número diferente de zero.")
+                    if "fator" in item and not _numero_ok(item["fator"]):
+                        erros.append(f"{pre}.ativo[{i}].fator: precisa ser um número.")
                 elif not isinstance(item, str) or not item.strip() or re.search(r"\s", item.strip()):
                     erros.append(f"{pre}.ativo[{i}]: precisa ser um código sem espaços, ou "
-                                 "{\"ativo\": código, \"qtd\"?: número} para quantidade própria.")
+                                 "{\"ativo\": código, \"qtd\"?: número} / {\"fator\"?: número} para quantidade própria.")
             if "qtd" in a:
                 _validar_qtd_adicionar(a["qtd"], pre, erros, grupos)
         elif not isinstance(ativo, str) or not ativo.strip() or re.search(r"[\s]", ativo.strip()):
@@ -388,12 +398,21 @@ def _t_normalizar(a, tabela, texto, grupos):
     return texto
 
 
+def _qtd_base(qtd_spec, tabela, texto, grupos):
+    """Magnitude NÃO escalada de uma spec de `qtd`: soma do seletor (se dict, {"soma": SELETOR, ...})
+    ou o próprio número (se literal) — sem aplicar nenhum `fator`. Usada pelo `fator` PRÓPRIO de um
+    item da lista de `adicionar_ativo.ativo` (TASK-049), que substitui o fator compartilhado mas
+    continua multiplicando a MESMA base (a mesma soma, se `qtd` for dinâmico)."""
+    if isinstance(qtd_spec, dict):
+        itens = _contexto(tabela, texto, grupos).itens
+        return sum(i["qtd"] for i in itens if _casa(i["ativo"], qtd_spec["soma"], grupos))
+    return qtd_spec
+
+
 def _qtd_dinamica(spec, tabela, texto, grupos):
     """{"soma": SELETOR, "fator"?: N} → soma das quantidades dos itens da MESMA linha que casam com
     SELETOR, vezes `fator` (padrão 1). TASK-045."""
-    itens = _contexto(tabela, texto, grupos).itens
-    soma = sum(i["qtd"] for i in itens if _casa(i["ativo"], spec["soma"], grupos))
-    return soma * spec.get("fator", 1)
+    return _qtd_base(spec, tabela, texto, grupos) * spec.get("fator", 1)
 
 
 def _aplicar_um_ativo(texto, ativo, qtd, modo):
@@ -451,12 +470,24 @@ def _t_adicionar_ativo(a, tabela, texto, grupos):
         # TASK-047: lista de códigos fixos — um token por código, todos com a MESMA quantidade
         # (`qtd` da ação), resolvida uma única vez (antes de qualquer token ser adicionado), igual
         # ao caso de um único ativo abaixo. TASK-048: item pode ser {"ativo": código, "qtd"?: N}
-        # para ter a PRÓPRIA quantidade (substitui a compartilhada só para aquele código).
+        # para ter a PRÓPRIA quantidade (substitui a compartilhada só para aquele código). TASK-049:
+        # item pode ser {"ativo": código, "fator"?: N} para ter o PRÓPRIO fator sobre a MESMA base
+        # (a mesma soma, se `qtd` for dinâmico) — ex.: um código negativo e outro positivo, ambos
+        # em função da quantidade de um terceiro ativo da linha.
         qtd_spec = a.get("qtd", 1)
         qtd_padrao = _qtd_dinamica(qtd_spec, tabela, texto, grupos) if isinstance(qtd_spec, dict) else qtd_spec
+        base = None   # calculada só se algum item usar "fator" (evita custo à toa)
         for item in ativo_spec:
             if isinstance(item, dict):
-                cod, qtd_item = item["ativo"].strip(), item.get("qtd", qtd_padrao)
+                cod = item["ativo"].strip()
+                if "qtd" in item:
+                    qtd_item = item["qtd"]
+                elif "fator" in item:
+                    if base is None:
+                        base = _qtd_base(qtd_spec, tabela, texto, grupos)
+                    qtd_item = base * item["fator"]
+                else:
+                    qtd_item = qtd_padrao
             else:
                 cod, qtd_item = item.strip(), qtd_padrao
             if qtd_item == 0:
@@ -799,11 +830,20 @@ def descrever_acao(a: dict) -> str:
                     return f"a mesma quantidade de {_frase_sel(q['soma'])}" + \
                         (" (negativa)" if q.get("fator", 1) == -1 else f" × {_n(q['fator'])}" if q.get("fator", 1) != 1 else "")
                 return _fmt_qtd(q)
-            if any(isinstance(i, dict) for i in ativo):   # TASK-048: pelo menos um item com quantidade própria
+            if any(isinstance(i, dict) for i in ativo):   # TASK-048/049: pelo menos um item com qtd/fator próprio
                 partes = []
                 for i in ativo:
-                    cod, q_i = (i["ativo"], i.get("qtd", qtd)) if isinstance(i, dict) else (i, qtd)
-                    partes.append(f"'{cod}' ({_qtd_txt(q_i)})" if isinstance(q_i, dict) else f"{_qtd_txt(q_i)}-{cod}")
+                    if not isinstance(i, dict):
+                        partes.append(f"{_qtd_txt(qtd)}-{i}")
+                        continue
+                    cod = i["ativo"]
+                    if "fator" in i:
+                        base_txt = f"a mesma quantidade de {_frase_sel(qtd['soma'])}" if isinstance(qtd, dict) else "a quantidade compartilhada"
+                        sinal = " (negativa)" if i["fator"] == -1 else f" × {_n(i['fator'])}" if i["fator"] != 1 else ""
+                        partes.append(f"'{cod}' ({base_txt}{sinal})")
+                    else:
+                        q_i = i.get("qtd", qtd)
+                        partes.append(f"'{cod}' ({_qtd_txt(q_i)})" if isinstance(q_i, dict) else f"{_qtd_txt(q_i)}-{cod}")
                 return f"Em {t}: adicionar {', '.join(partes)} à linha{_frase_filtros(a)}{modo}{op}."
             if isinstance(qtd, dict):
                 lista_txt = ", ".join(f"'{c}'" for c in ativo)
