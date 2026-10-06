@@ -8,6 +8,39 @@
 
 ---
 
+## 2026-10-06 — TASK-045: `adicionar_ativo` com quantidade dinâmica (mesma quantidade de outro ativo)
+
+**Tipo:** feature (motor de Ajustes) · `services/ajustes_planilhas.py`, `static/painel_ajustes.js` ·
+`.ai/tasks/TASK-045-06-10-2026.md`
+
+Usuário, cadastrando uma regra dentro de um contexto (TASK-044), pediu: "se tem U3 adicione em mesma
+quantidade 90277 negativo" — a quantidade de "90277" precisa igualar a quantidade de U3 encontrada
+NAQUELA linha, que varia (`1-U3`, `2-U3`, `3-U3`...), não um número fixo. Confirmado com o usuário
+que U3 realmente varia (não é sempre 1) antes de implementar, já que `adicionar_ativo.qtd` só
+aceitava um número literal.
+
+Implementado: `qtd` passa a aceitar também `{"soma": SELETOR, "fator"?: número}` — soma das
+quantidades dos itens da PRÓPRIA linha que casam com `SELETOR` (mesma linguagem de seletor de
+sempre: código, curinga, `@GRUPO`, lista, regex), multiplicada por `fator` (padrão 1; `-1` gera o
+prefixo `"*"` automaticamente, mesma regra de sinal da TASK-038). Reaproveitado:
+`services/ajustes_planilhas.py::_contexto()` (já construía um `_Linha` a partir do texto de
+qualquer linha, usado por `_quando()`) e o mesmo `_casa()` que `_cond()`'s `soma` já usa para
+validação — nenhuma mudança em `regras_dominio.py`. Soma zero (seletor não casa na linha) é no-op,
+não erro. `descrever_acao()` e a UI da gaveta (`painel_ajustes.js`) ganharam suporte ao novo modo
+("quantidade": fixa/dinâmica, com campos "soma de"/"fator").
+
+Exemplo exato do pedido: `{"acao": "adicionar_ativo", "ativo": "90277", "qtd": {"soma": "U3",
+"fator": -1}, "quando": {"tem": "U3"}}`.
+
+8 testes novos (`tests/test_ajustes_planilhas.py`). Suíte completa (740 testes) sem regressão.
+Smoke test real-server + Playwright confirma o fluxo completo pela UI (trocar para quantidade
+dinâmica, preencher seletor+fator, modelo em memória correto). Achado colateral, não corrigido
+(fora do escopo): um guard de contrato pré-existente (`C1-OUT-NUM`) trata mal códigos hifenados
+(ex.: `SUP-L`) combinados a um token negativo `"*"` — reproduz igual com `qtd` fixo, não é algo
+introduzido por esta tarefa.
+
+---
+
 ## 2026-10-06 — TASK-044: contextos dentro de um projeto (terceira camada de Ajustes)
 
 **Tipo:** feature (arquitetura de dados + UI) · `database.py`, `scripts/schema_supabase.sql`,

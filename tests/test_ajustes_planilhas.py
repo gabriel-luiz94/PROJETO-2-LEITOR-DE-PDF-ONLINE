@@ -209,6 +209,62 @@ def test_adicionar_ativo_em_linha_com_condicao_de_quantidade_exata():
     assert textos(r) == ["DT11/300 1-CFU 1-SUPL", "DT11/300 2-CFU"]
 
 
+# ── adicionar_ativo com qtd dinâmica (TASK-045) ──────────────────────────────
+def test_adicionar_ativo_qtd_dinamica_mesma_quantidade_negativa():
+    """Pedido real do usuário: "se tem U3, adicionar 90277 na mesma quantidade de U3, negativo"."""
+    linhas = [o("1-U3"), o("3-U3 1-CFU"), o("DT11/300 1-CFU")]
+    acoes = [acao("adicionar_ativo", ativo="90277", qtd={"soma": "U3", "fator": -1}, quando={"tem": "U3"})]
+    r = idempotente(acoes, linhas)
+    assert textos(r) == ["1-U3 *1-90277", "3-U3 1-CFU *3-90277", "DT11/300 1-CFU"]
+
+
+def test_adicionar_ativo_qtd_dinamica_sem_fator_e_positiva():
+    r = rodar([acao("adicionar_ativo", ativo="X", qtd={"soma": "U3"})], [o("2-U3")])
+    assert textos(r) == ["2-U3 2-X"]
+
+
+def test_adicionar_ativo_qtd_dinamica_com_fator_diferente_de_1():
+    r = rodar([acao("adicionar_ativo", ativo="X", qtd={"soma": "U3", "fator": 2})], [o("2-U3")])
+    assert textos(r) == ["2-U3 4-X"]
+
+
+def test_adicionar_ativo_qtd_dinamica_soma_zero_nao_adiciona_nada():
+    # sem "quando", a ação roda em toda linha; se o seletor não casar nessa linha, soma = 0 = no-op
+    r = rodar([acao("adicionar_ativo", ativo="90277", qtd={"soma": "U3", "fator": -1})], [o("DT11/300 1-CFU")])
+    assert textos(r) == ["DT11/300 1-CFU"]
+    assert r["operacoes"] == []
+
+
+def test_adicionar_ativo_qtd_dinamica_soma_varios_itens_do_mesmo_seletor():
+    # usa @CHAVES (CFU/CFUR, sem hífen no código) para não disparar o guard pré-existente de
+    # contrato com códigos hifenados (ex.: SUP-L) combinados a um token negativo "*" — ver
+    # test_adicionar_ativo_qtd_dinamica_soma_zero_nao_adiciona_nada para o comportamento isolado.
+    r = rodar([acao("adicionar_ativo", ativo="X", qtd={"soma": "@CHAVES", "fator": -1})], [o("1-CFU 2-CFUR")], grupos=GRUPOS)
+    assert textos(r) == ["1-CFU 2-CFUR *3-X"]
+
+
+def test_adicionar_ativo_qtd_dinamica_respeita_se_ja_existe():
+    r = rodar([acao("adicionar_ativo", ativo="90277", qtd={"soma": "U3", "fator": -1}, se_ja_existe="somar")],
+              [o("2-U3 *1-90277")])
+    assert textos(r) == ["2-U3 *3-90277"]
+
+
+def test_adicionar_ativo_qtd_dinamica_valida_schema():
+    assert erros_de(acao("adicionar_ativo", ativo="X", qtd={"soma": "U3", "fator": -1}), GRUPOS) == []
+    assert erros_de(acao("adicionar_ativo", ativo="X", qtd={"soma": "U3"}), GRUPOS) == []
+    assert any("qtd" in e for e in erros_de(acao("adicionar_ativo", ativo="X", qtd={}), GRUPOS))
+    assert any("qtd" in e for e in erros_de(acao("adicionar_ativo", ativo="X", qtd={"soma": "U3", "fator": "a"}), GRUPOS))
+    assert any("qtd" in e for e in erros_de(acao("adicionar_ativo", ativo="X", qtd={"soma": "U3", "extra": 1}), GRUPOS))
+    assert any("@NAOEXISTE" in e for e in erros_de(acao("adicionar_ativo", ativo="X", qtd={"soma": "@NAOEXISTE"}), GRUPOS))
+
+
+def test_adicionar_ativo_descreve_qtd_dinamica_em_portugues():
+    assert descrever_acao(acao("adicionar_ativo", ativo="90277", qtd={"soma": "U3", "fator": -1})) == \
+        "Em Outros: adicionar '90277' na mesma quantidade de U3 (negativa) à linha."
+    assert descrever_acao(acao("adicionar_ativo", ativo="X", qtd={"soma": "U3"})) == \
+        "Em Outros: adicionar 'X' na mesma quantidade de U3 à linha."
+
+
 def test_remover_ativo_por_seletor_e_nao_deixa_espacos_sobrando():
     r = idempotente([acao("remover_ativo", ativo="@SUPLS")], [o("DT11/300 1-SUPL 1-CFU"), o("1-SUPL")], grupos=GRUPOS)
     assert textos(r) == ["DT11/300 1-CFU", ""]
