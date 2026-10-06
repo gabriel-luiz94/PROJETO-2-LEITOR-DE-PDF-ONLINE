@@ -350,6 +350,40 @@ def init_db():
     ''')
     _seed_ajustes_planilhas(cursor)
 
+    # Contextos dentro de um projeto (TASK-044) — metadados de quais contextos existem por projeto;
+    # compartilhável no futuro por outros mecanismos além de Ajustes (ex.: Regras de Domínio).
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS contextos (
+            projeto_codigo TEXT NOT NULL,
+            contexto TEXT NOT NULL,
+            criado_em TEXT DEFAULT (datetime('now')),
+            criado_por TEXT,
+            PRIMARY KEY (projeto_codigo, contexto)
+        )
+    ''')
+
+    # Overlay de Ajustes por contexto (TASK-044) — terceira camada sobre padrão+projeto, mesmo
+    # shape de overlay de services/ajustes_camadas.py, só que chaveado por (projeto_codigo, contexto).
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ajustes_contextos (
+            projeto_codigo TEXT NOT NULL,
+            contexto TEXT NOT NULL,
+            ajustes_json TEXT NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now')),
+            PRIMARY KEY (projeto_codigo, contexto)
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ajustes_contextos_historico (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            projeto_codigo TEXT NOT NULL,
+            contexto TEXT NOT NULL,
+            ajustes_json TEXT NOT NULL,
+            criado_em TEXT DEFAULT (datetime('now')),
+            criado_por TEXT
+        )
+    ''')
+
     # Tabela Orçamento (Customizado do Usuário)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS tabela_orcamento (

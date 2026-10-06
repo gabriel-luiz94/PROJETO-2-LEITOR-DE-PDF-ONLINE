@@ -8,6 +8,55 @@
 
 ---
 
+## 2026-10-06 — TASK-044: contextos dentro de um projeto (terceira camada de Ajustes)
+
+**Tipo:** feature (arquitetura de dados + UI) · `database.py`, `scripts/schema_supabase.sql`,
+`services/contextos.py`, `services/repo_json.py`, `routers/validacao_ajustes.py`,
+`static/resumo.html`, `static/resumo.js`, `static/painel_ajustes.js` ·
+`.ai/tasks/TASK-044-06-10-2026.md`
+
+Usuário pediu: dentro de um mesmo projeto, cadastrar "contextos" nomeados (ex.: "obras de 34,5kV"),
+cada um com seu próprio conjunto de ajustes ligados/desligados/sobrescritos, selecionáveis por um
+seletor na linha de totais (postes/cabos/equipamentos).
+
+Desenho (decidido com o usuário após 3 perguntas de estratégia): **terceira camada de overlay**
+sobre o que já existia — `padrão (DEFAULT) → overlay do projeto → overlay do contexto`. A peça-chave
+é que `services/ajustes_camadas.py::efetivo(padrao, overlay)` não sabe que só existe uma camada —
+ela só recebe uma lista e um overlay, então pode ser **chamada em cadeia** sem alterar uma linha
+dela: `efetivo(efetivo(padrao, overlay_projeto)[0], overlay_contexto)`. Zero mudança no motor de
+camadas existente.
+
+Implementado:
+- **Tabelas novas**: `contextos` (metadados de quais contextos existem por projeto — pensada para
+  um dia ser compartilhada por Regras de Domínio também) e `ajustes_contextos`/
+  `ajustes_contextos_historico` (overlay de Ajustes por contexto, mesmo shape do overlay de
+  projeto). Nenhuma tabela existente foi alterada.
+- **`services/repo_json.py`**: nova classe `RepoJsonContexto`, chaveada por
+  `(projeto_codigo, contexto)` — irmã de `RepoJson` (que continua intacta, chaveada só por
+  `projeto_codigo`).
+- **`routers/validacao_ajustes.py`**: `resolver(projeto_codigo, contexto=None)` resolve a cadeia;
+  toda rota (`GET/POST /`, `/preview`, `/preview-lote`) ganhou o campo opcional `contexto` —
+  **sem ele, comportamento idêntico a antes** (garantido por teste de regressão). Novas rotas
+  `GET/POST /contextos` e `POST /contextos/excluir`.
+- **Frontend**: novo seletor "Contexto" na linha de totais do Resumo (`#resumo-rede-painel`),
+  mesmo padrão visual do seletor de projeto, com "+ Novo"/"✕ Excluir" admin-only, persistido por
+  projeto em `localStorage`. O botão "Ajustar" e o editor de Ajustes da gaveta (`painel_ajustes.js`)
+  passam a considerar o contexto selecionado — a gaveta mostra "Editando o contexto..." e desabilita
+  Histórico/Restaurar nesse modo (decisão de escopo: histórico por contexto fica para outra tarefa).
+- Trocar de contexto **não recalcula nada na tela na hora** — só define o que roda na próxima vez
+  que o usuário clicar em "Ajustar" (decisão do usuário).
+
+Escopo desta rodada: só **Ajustes**. Modo autônomo (pasta monitorada) e Regras de Domínio não usam
+contexto ainda — ficam para tarefas futuras, reaproveitando o mesmo desenho de dados.
+
+11 testes novos (`tests/test_ajustes_contextos.py`): CRUD, resolução em cadeia, independência entre
+contextos, exclusão isolada, regressão byte a byte sem `contexto`, `preview-lote` respeitando o
+contexto. Suíte completa (732 testes) sem regressão. Smoke test real-server + Playwright confirma o
+fluxo completo pela UI: criar contexto, editar dentro dele na gaveta, salvar, e confirmar que o
+projeto (sem contexto) permanece intacto.
+
+---
+
 ## 2026-10-06 — TASK-043: suporte a .dwg via conversão online (CloudConvert)
 
 **Tipo:** feature · `services/cloudconvert_service.py`, `routers/upload.py`, `routers/health.py`,

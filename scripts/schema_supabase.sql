@@ -237,3 +237,36 @@ CREATE TABLE IF NOT EXISTS public.ajustes_planilhas_historico (
 );
 ALTER TABLE public.ajustes_planilhas_historico DISABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_ajustes_planilhas_hist_projeto ON public.ajustes_planilhas_historico(projeto_codigo);
+
+-- TASK-044: contextos dentro de um projeto — metadados de quais contextos existem (compartilhável
+-- no futuro por outros mecanismos além de Ajustes) + overlay de Ajustes por contexto (terceira
+-- camada sobre padrão+projeto, mesmo shape de overlay de ajustes_planilhas, chaveado também por
+-- `contexto`).
+CREATE TABLE IF NOT EXISTS public.contextos (
+    projeto_codigo TEXT NOT NULL,
+    contexto TEXT NOT NULL,
+    criado_em TIMESTAMPTZ DEFAULT NOW(),
+    criado_por TEXT,
+    PRIMARY KEY (projeto_codigo, contexto)
+);
+ALTER TABLE public.contextos DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS public.ajustes_contextos (
+    projeto_codigo TEXT NOT NULL,
+    contexto TEXT NOT NULL,
+    ajustes_json TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (projeto_codigo, contexto)
+);
+ALTER TABLE public.ajustes_contextos DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS public.ajustes_contextos_historico (
+    id BIGSERIAL PRIMARY KEY,
+    projeto_codigo TEXT NOT NULL,
+    contexto TEXT NOT NULL,
+    ajustes_json TEXT NOT NULL,
+    criado_em TIMESTAMPTZ DEFAULT NOW(),
+    criado_por TEXT
+);
+ALTER TABLE public.ajustes_contextos_historico DISABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_ajustes_contextos_hist_projeto ON public.ajustes_contextos_historico(projeto_codigo, contexto);

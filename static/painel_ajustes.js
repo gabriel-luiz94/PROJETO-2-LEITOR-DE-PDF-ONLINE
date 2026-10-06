@@ -31,6 +31,9 @@ const AJ_ACOES = {
 function ajEl(id) { return document.getElementById(id); }
 function ajProjeto() { return rdEl('rdProjeto').value || 'DEFAULT'; }
 function ajEhProjeto() { return ajProjeto() !== 'DEFAULT'; }
+/** Contexto ativo (TASK-044) — só faz sentido dentro de um projeto (nunca no DEFAULT); lido do
+ * seletor da linha de totais do Resumo (resumo.js:contextoSelecionado), nunca editável aqui. */
+function ajContexto() { return (ajEhProjeto() && typeof window.contextoSelecionado === 'function') ? window.contextoSelecionado() : null; }
 function ajCsv(txt) { return txt.split(',').map(s => s.trim()).filter(Boolean); }
 function ajLimpa(r) { const c = {}; Object.keys(r).forEach(k => { if (!['origem', 'oculta', 'frases'].includes(k) && !k.startsWith('_')) c[k] = r[k]; }); return c; }
 
@@ -65,12 +68,23 @@ async function iniciarAjustes() {
 }
 
 async function ajCarregar() {
-    const res = await fetch(`/api/validacao/ajustes?projeto_codigo=${encodeURIComponent(ajProjeto())}`);
+    const contexto = ajContexto();
+    const qs = `projeto_codigo=${encodeURIComponent(ajProjeto())}` + (contexto ? `&contexto=${encodeURIComponent(contexto)}` : '');
+    const res = await fetch(`/api/validacao/ajustes?${qs}`);
     if (!res.ok) { rpMensagem('error', 'Não foi possível carregar os ajustes.'); return; }
     const d = await res.json();
     AJ.itens = d.ajustes;
+    AJ.contexto = contexto;
     AJ.padrao = null;
-    if (ajEhProjeto()) {
+    // Base para o selo "sobrescrita"/"padrão" ao vivo: COM contexto, a base é o efetivo do PRÓPRIO
+    // projeto (sem contexto) — é contra ela que o overlay do contexto é calculado. SEM contexto,
+    // a base continua sendo o DEFAULT, como antes desta tarefa.
+    if (contexto) {
+        try {
+            const p = await fetch(`/api/validacao/ajustes?projeto_codigo=${encodeURIComponent(ajProjeto())}`);
+            if (p.ok) AJ.padrao = Object.fromEntries((await p.json()).ajustes.map(r => [r.id, r]));
+        } catch (e) { /* sem base: desativa "voltar ao padrão" */ }
+    } else if (ajEhProjeto()) {
         try {
             const p = await fetch('/api/validacao/ajustes?projeto_codigo=DEFAULT');
             if (p.ok) AJ.padrao = Object.fromEntries((await p.json()).ajustes.map(r => [r.id, r]));
@@ -79,10 +93,14 @@ async function ajCarregar() {
     AJ.sujo = false;
     const st = ajEl('ajStatus');
     delete st.dataset.sujo;
-    st.textContent = !ajEhProjeto() ? 'Padrão do sistema (vale para todos os projetos)'
+    st.textContent = contexto
+        ? `Editando o contexto "${contexto}" — histórico e "restaurar" valem só para o projeto, não para o contexto`
+        : !ajEhProjeto() ? 'Padrão do sistema (vale para todos os projetos)'
         : (d.personalizado ? 'Este projeto tem ajustes sobre o padrão' : 'Este projeto usa o padrão sem ajustes');
     ajEl('ajSemente').textContent = ajEhProjeto() ? 'Descartar ajustes do projeto' : 'Restaurar semente';
-    ajEl('ajAdicionar').textContent = ajEhProjeto() ? 'Novo ajuste só neste projeto' : 'Novo ajuste';
+    ajEl('ajSemente').disabled = !!contexto;
+    ajEl('ajHistorico').disabled = !!contexto;
+    ajEl('ajAdicionar').textContent = contexto ? `Novo ajuste só no contexto "${contexto}"` : (ajEhProjeto() ? 'Novo ajuste só neste projeto' : 'Novo ajuste');
     ajEl('ajHistLista').classList.add('hidden');
     ajErros(null);
     const av = ajEl('ajAvisos');
@@ -388,10 +406,12 @@ function ajCorpoEditor(item, refazer) {
 }
 
 /* ── ações da barra ───────────────────────────────────────────────────────── */
+function _ajPrefixoNovo() { return ajContexto() ? 'CTX' : (ajEhProjeto() ? 'PROJ' : 'AJ'); }
+
 function ajNovo() {
     let n = AJ.itens.length + 1;
     while (AJ.itens.some(r => r.id === `AJ-NOVO-${n}`)) n++;
-    AJ.itens.push({ id: `${ajEhProjeto() ? 'PROJ' : 'AJ'}-NOVO-${n}`, nome: 'Novo ajuste', ativa: false, regras: [],
+    AJ.itens.push({ id: `${_ajPrefixoNovo()}-NOVO-${n}`, nome: 'Novo ajuste', ativa: false, regras: [],
         acoes: [AJ_ACOES.normalizar.novo()], origem: ajEhProjeto() ? 'projeto' : undefined, _aberta: true, frases: [] });
     ajMarcarSujo();
     ajRenderizar();
@@ -402,7 +422,7 @@ function ajNovo() {
 function ajNovoComAcoes(acoes, nome) {
     let n = AJ.itens.length + 1;
     while (AJ.itens.some(r => r.id === `AJ-NOVO-${n}`)) n++;
-    const item = { id: `${ajEhProjeto() ? 'PROJ' : 'AJ'}-NOVO-${n}`, nome: nome || 'Novo ajuste', ativa: false, regras: [],
+    const item = { id: `${_ajPrefixoNovo()}-NOVO-${n}`, nome: nome || 'Novo ajuste', ativa: false, regras: [],
         acoes: rdClone(acoes), origem: ajEhProjeto() ? 'projeto' : undefined, _aberta: true, frases: [] };
     AJ.itens.push(item);
     ajMarcarSujo();
@@ -421,7 +441,7 @@ async function ajSalvar() {
     ajErros(null);
     const ajustes = ajParaEnvio();
     if (!ajustes) return;
-    const res = await rdPost('/api/validacao/ajustes', { projeto_codigo: ajProjeto(), ajustes });
+    const res = await rdPost('/api/validacao/ajustes', { projeto_codigo: ajProjeto(), ajustes, contexto: ajContexto() });
     if (!res.ok) { rpMensagem('error', await ajLerErro(res)); return; }
     rpMensagem('success', 'Ajustes salvos.');
     await ajCarregar();

@@ -2483,12 +2483,115 @@ document.addEventListener('DOMContentLoaded', () => {
         return sel && sel.selectedIndex >= 0 ? (sel.options[sel.selectedIndex].dataset.codigo || '') : '';
     }
 
+    /* ── TASK-044: seletor de Contexto (subconjunto de Ajustes dentro do projeto) ──
+       Terceira camada sobre padrão+projeto: nenhuma troca aqui recalcula as tabelas na hora — só
+       define o que o botão "Ajustar" e o editor de Ajustes (gaveta) vão usar na próxima chamada. */
+    function _chaveContextoLocalStorage(projCode) {
+        return `contexto_selecionado_${projCode || 'DEFAULT'}`;
+    }
+
+    /** Nome do contexto selecionado ('' tratado como "Nenhum") — lida por painel_ajustes.js e pelo fluxo de Ajustar. */
+    window.contextoSelecionado = function () {
+        const sel = document.getElementById('select-contexto');
+        return sel ? (sel.value || null) : null;
+    };
+
+    function _atualizarBotoesContexto() {
+        const sel = document.getElementById('select-contexto');
+        const btnNovo = document.getElementById('btn-novo-contexto');
+        const btnExcluir = document.getElementById('btn-excluir-contexto');
+        const admin = localStorage.getItem('is_admin') === 'true';
+        if (btnNovo) btnNovo.style.display = admin ? 'inline-block' : 'none';
+        if (btnExcluir) btnExcluir.style.display = (admin && sel && sel.value) ? 'inline-block' : 'none';
+    }
+
+    /** Recarrega a lista de contextos do projeto dado e restaura a seleção salva (se ainda existir). */
+    window.carregarContextosAjustes = async function (projCode) {
+        const sel = document.getElementById('select-contexto');
+        if (!sel) return;
+        sel.innerHTML = '';
+        sel.appendChild(new Option('Nenhum', ''));
+        if (!projCode || projCode === 'DEFAULT') { _atualizarBotoesContexto(); return; }
+        try {
+            const res = await fetch(`/api/validacao/ajustes/contextos?projeto_codigo=${encodeURIComponent(projCode)}`);
+            const data = res.ok ? await res.json() : { contextos: [] };
+            (data.contextos || []).forEach(c => sel.appendChild(new Option(c, c)));
+            const salvo = localStorage.getItem(_chaveContextoLocalStorage(projCode)) || '';
+            sel.value = (data.contextos || []).includes(salvo) ? salvo : '';
+        } catch (e) {
+            console.error('Erro ao carregar contextos:', e);
+        }
+        _atualizarBotoesContexto();
+    };
+
+    window.abrirNovoContexto = async function () {
+        const projCode = codigoDoProjetoSelecionado();
+        if (!projCode || projCode === 'DEFAULT') { showToast('Selecione um projeto primeiro.'); return; }
+        const nome = (prompt('Nome do novo contexto (ex.: "34,5kV"):') || '').trim();
+        if (!nome) return;
+        try {
+            const res = await fetch('/api/validacao/ajustes/contextos', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projeto_codigo: projCode, contexto: nome })
+            });
+            if (res.ok) {
+                await window.carregarContextosAjustes(projCode);
+                document.getElementById('select-contexto').value = nome;
+                localStorage.setItem(_chaveContextoLocalStorage(projCode), nome);
+                _atualizarBotoesContexto();
+                showToast('✓ Contexto criado!');
+                if (typeof window.ajCarregar === 'function') window.ajCarregar();
+            } else {
+                const data = await res.json().catch(() => ({}));
+                showToast((data && data.detail) || 'Erro ao criar contexto.');
+            }
+        } catch (e) {
+            showToast('Erro de conexão ao criar contexto.');
+        }
+    };
+
+    window.excluirContextoAtual = async function () {
+        const projCode = codigoDoProjetoSelecionado();
+        const sel = document.getElementById('select-contexto');
+        const contexto = sel ? sel.value : '';
+        if (!projCode || !contexto) return;
+        if (!confirm(`Excluir o contexto "${contexto}"? Os ajustes ligados/desligados só dentro dele serão perdidos.`)) return;
+        try {
+            const res = await fetch('/api/validacao/ajustes/contextos/excluir', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projeto_codigo: projCode, contexto })
+            });
+            if (res.ok) {
+                localStorage.removeItem(_chaveContextoLocalStorage(projCode));
+                await window.carregarContextosAjustes(projCode);
+                showToast('Contexto excluído.');
+                if (typeof window.ajCarregar === 'function') window.ajCarregar();
+            } else {
+                showToast('Erro ao excluir contexto.');
+            }
+        } catch (e) {
+            showToast('Erro de conexão ao excluir contexto.');
+        }
+    };
+
+    const _selectContexto = document.getElementById('select-contexto');
+    if (_selectContexto) {
+        _selectContexto.addEventListener('change', () => {
+            const projCode = codigoDoProjetoSelecionado();
+            localStorage.setItem(_chaveContextoLocalStorage(projCode), _selectContexto.value);
+            _atualizarBotoesContexto();
+            if (typeof window.ajCarregar === 'function') window.ajCarregar();
+        });
+    }
+
     const nomesDeAjuste = {};   // id → nome, para os títulos das pré-visualizações
 
     /** Ajustes (receitas) cadastrados e LIGADOS para o projeto, mais o mapa regra → ajustes que a corrigem. Falha = sem ajustes. */
     async function carregarAjustesCadastrados() {
         try {
-            const r = await fetch(`/api/validacao/ajustes?projeto_codigo=${encodeURIComponent(codigoDoProjetoSelecionado() || 'DEFAULT')}`);
+            const ctx = window.contextoSelecionado ? window.contextoSelecionado() : null;
+            const qs = `projeto_codigo=${encodeURIComponent(codigoDoProjetoSelecionado() || 'DEFAULT')}` + (ctx ? `&contexto=${encodeURIComponent(ctx)}` : '');
+            const r = await fetch(`/api/validacao/ajustes?${qs}`);
             if (r.ok) {
                 const d = await r.json();
                 d.ajustes.forEach(a => { nomesDeAjuste[a.id] = a.nome; });
@@ -3152,7 +3255,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const resp = await fetch('/api/validacao/ajustes/preview', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ receitas: ids, cabos: linhasParaValidacao('cabos', 'CABOS'), outros: linhasParaValidacao('outros', 'OUTROS'),
-                                       projeto_codigo: codigoDoProjetoSelecionado() || null })
+                                       projeto_codigo: codigoDoProjetoSelecionado() || null,
+                                       contexto: window.contextoSelecionado ? window.contextoSelecionado() : null })
             });
             if (!resp.ok) throw new Error(await lerDetalhe(resp));
             r = await resp.json();
@@ -3206,7 +3310,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const resp = await fetch('/api/validacao/ajustes/preview-lote', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ cabos: linhasParaValidacao('cabos', 'CABOS'), outros: linhasParaValidacao('outros', 'OUTROS'),
-                                       projeto_codigo: codigoDoProjetoSelecionado() || null })
+                                       projeto_codigo: codigoDoProjetoSelecionado() || null,
+                                       contexto: window.contextoSelecionado ? window.contextoSelecionado() : null })
             });
             if (!resp.ok) throw new Error(await lerDetalhe(resp));
             return await resp.json();
