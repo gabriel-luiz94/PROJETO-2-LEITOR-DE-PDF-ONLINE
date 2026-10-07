@@ -491,6 +491,16 @@ arquivo em `.ai/tasks/`.
     o problema real. Reproduz com `qtd` fixo negativo, não é algo introduzido pela TASK-045 (só
     descoberto ao testar quantidade dinâmica com `@GRUPO` contendo `SUP-L`). Sem correção ainda —
     fora do escopo do pedido que o achou.
+32. **Não corrigido — investigado na TASK-050 (2026-10-07).** Usuário relatou: quantidade decimal
+    com vírgula em Outros (ex.: `"0,7-M335"`) não aparece certa na Totalizadora. Confirmado: dos
+    quatro parsers independentes de Outros no projeto, três (`orcamento_calc.py`,
+    `resumo.js::extrairParesQtdAtivoOutros`, `ajustes_planilhas.py`) já aceitam vírgula; só o da
+    Totalizadora não — `static/resumo.js:4601` (`syncTotalizadora`) e seu porte fiel
+    `services/autonomo/totalizadora.py:19` (`_RE_OUTROS`) só reconhecem `.` como decimal, e
+    `parseFloat`/`js_parse_float` também não leem vírgula sem `.replace(',', '.')` antes. Efeito:
+    `"0,7-M335"` não casa o regex, cai no fallback que trata a linha inteira como nome do ativo com
+    quantidade 1 — sem erro visível, silenciosamente errado. Sem correção ainda — tarefa planejada,
+    aguardando autorização para implementar. Ver `.ai/tasks/TASK-050-07-10-2026.md`.
 
 ---
 
