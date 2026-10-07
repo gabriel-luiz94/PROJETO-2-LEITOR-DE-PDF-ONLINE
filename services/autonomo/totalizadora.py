@@ -16,7 +16,7 @@ from services.autonomo.montagem import _S, _WS, _trim, linha_standalone
 _PONTO = "[^\n\r  ]"   # o `.` do JS não casa com quebras de linha
 _RE_M1 = re.compile(r"([0-9.,]+)" + _S + r"*m" + _S + r"*\|" + _S + "*(" + _PONTO + "*)", re.I)
 _RE_M2 = re.compile("(" + _PONTO + r"+?)" + _S + r"+([0-9.,]+)" + _S + r"*m\Z", re.I)
-_RE_OUTROS = re.compile(r"([*\-]?[0-9]+(?:\.[0-9]+)?)[Xx\-](" + _PONTO + r"+)\Z", re.I)
+_RE_OUTROS = re.compile(r"([*\-]?[0-9]+(?:[.,][0-9]+)?)[Xx\-](" + _PONTO + r"+)\Z", re.I)
 _RE_P_ESPACO = re.compile(r"\bP" + _S + "+", re.ASCII)
 _RE_ESPACOS = re.compile(_S + "+")
 _RE_FLOAT = re.compile(r"[+-]?(?:Infinity|[0-9]+\.?[0-9]*(?:[eE][+-]?[0-9]+)?|\.[0-9]+(?:[eE][+-]?[0-9]+)?)")
@@ -178,7 +178,7 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
                 q_str, negativo = m.group(1), False
                 if q_str.startswith("*") or q_str.startswith("-"):
                     negativo, q_str = True, q_str[1:]
-                q = js_parse_float(q_str)
+                q = js_parse_float(q_str.replace(",", "."))
                 if negativo:
                     q = -q
                 nome = _trim(m.group(2))

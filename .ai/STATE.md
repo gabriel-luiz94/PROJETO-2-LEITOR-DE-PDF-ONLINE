@@ -311,6 +311,13 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       exclusivos. Nova `_qtd_base()` extrai a magnitude não escalada, reaproveitada por
       `_qtd_dinamica()` (TASK-045, refatorada, comportamento idêntico). UI: sintaxe `código:xN` no
       mesmo campo "códigos". CONCLUÍDA. Ver `.ai/tasks/TASK-049-06-10-2026.md`.
+- [x] **TASK-050** (pedido de 2026-10-07): usuário relatou que quantidade decimal com vírgula em
+      Outros (ex.: `"0,7-M335"`) não funciona. Investigado e confirmado: dos quatro parsers
+      independentes de Outros no projeto, só o da Totalizadora (`syncTotalizadora` em
+      `static/resumo.js` e seu porte fiel `services/autonomo/totalizadora.py`) não aceitava vírgula
+      — regex só reconhecia `.`, e `parseFloat`/`js_parse_float` também não leem vírgula sem
+      `.replace(',', '.')`. Corrigido nos dois lugares em paralelo, mantendo a paridade testada
+      contra o JS real. CONCLUÍDA. Ver `.ai/tasks/TASK-050-07-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -491,6 +498,15 @@ arquivo em `.ai/tasks/`.
     o problema real. Reproduz com `qtd` fixo negativo, não é algo introduzido pela TASK-045 (só
     descoberto ao testar quantidade dinâmica com `@GRUPO` contendo `SUP-L`). Sem correção ainda —
     fora do escopo do pedido que o achou.
+32. ~~Quantidade decimal com vírgula em Outros não aparece certa na Totalizadora.~~
+    ✅ **Corrigido — TASK-050 (2026-10-07):** dos quatro parsers independentes de Outros no
+    projeto, três (`orcamento_calc.py`, `resumo.js::extrairParesQtdAtivoOutros`,
+    `ajustes_planilhas.py`) já aceitavam vírgula; só o da Totalizadora não —
+    `static/resumo.js:4601` (`syncTotalizadora`) e seu porte fiel
+    `services/autonomo/totalizadora.py:19` (`_RE_OUTROS`) só reconheciam `.` como decimal, e
+    `parseFloat`/`js_parse_float` também não liam vírgula sem `.replace(',', '.')` antes. Corrigido
+    nos dois lugares em paralelo (regex `[.,]` + troca de vírgula por ponto antes de converter pra
+    número), mantendo a paridade testada contra o JS real. Ver `.ai/tasks/TASK-050-07-10-2026.md`.
 
 ---
 
@@ -545,8 +561,23 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-10-06
-**Motivo:** TASK-049 — usuário tentou combinar `código:qtd` (TASK-048) com "mesma quantidade de
+**Data:** 2026-10-07
+**Motivo:** TASK-050 — usuário relatou que quantidade decimal com vírgula em Outros (ex.:
+`"0,7-M335"`) não funciona. Investigado: dos quatro parsers independentes de Outros no projeto, só
+o da Totalizadora não aceitava vírgula.
+**Alterações de código:** `static/resumo.js:4601,4609` (`syncTotalizadora`: regex `[.,]` em vez de
+só `\.`, `.replace(',', '.')` antes do `parseFloat`); `services/autonomo/totalizadora.py:19,181`
+(`_RE_OUTROS` com `[.,]`; `.replace(",", ".")` antes de `js_parse_float`, porte fiel — os dois
+precisam mudar juntos pra manter a paridade testada contra o JS real).
+Testes: 2 novos em `tests/test_autonomo_totalizadora.py` (decimal com vírgula, determinístico e
+comparado contra o JS real via oráculo Node), mais um caso decimal adicionado ao conjunto de dados
+do teste de fuzz existente. Suíte completa (770 testes) sem regressão. Smoke test real-server
+(uvicorn em processo, DB SQLite temporário, nunca `banco_resumo.db`) + Playwright na tela de
+verdade: digitou `"0,7-M335 *0,5-TR3 2-U4"` na célula Ativo da tabela Outros, confirmou via DOM que
+a Totalizadora mostra `M335` qtd `0.7`, `TR3` qtd `-0.5`, `U4` qtd `2`. Ver
+`.ai/tasks/TASK-050-07-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-049 — usuário tentou combinar `código:qtd` (TASK-048) com "mesma quantidade de
 outro ativo" esperando "duas vezes a quantidade de U4, um código negativo e outro positivo"; não
 funcionou, pois `qtd` própria substitui a compartilhada por um valor fixo. Confirmado "não podemos
 adicionar a lógica do fator?".

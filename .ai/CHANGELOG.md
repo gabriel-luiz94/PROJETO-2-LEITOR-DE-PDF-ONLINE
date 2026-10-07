@@ -8,6 +8,34 @@
 
 ---
 
+## 2026-10-07 — TASK-050: quantidade decimal com vírgula em Outros não aparecia na Totalizadora
+
+**Tipo:** correção de bug · `static/resumo.js`, `services/autonomo/totalizadora.py` ·
+`.ai/tasks/TASK-050-07-10-2026.md`
+
+Usuário relatou: "na tabela outros não é possível utilizar uma quantidade quebrada como, por
+exemplo 0,7-M335". Investigado: o projeto tem 4 implementações independentes do parser de Outros
+(`<qtd>-<ativo>`). Três já aceitavam vírgula decimal (`orcamento_calc.py`,
+`resumo.js::extrairParesQtdAtivoOutros`, o motor de Ajustes). A quarta — `syncTotalizadora`
+(`static/resumo.js`, monta a Totalizadora/payload de cálculo) e seu porte fiel documentado no modo
+autônomo (`services/autonomo/totalizadora.py`) — não: o regex só reconhecia `.` como separador
+decimal, e mesmo reconhecendo, `parseFloat`/`js_parse_float` também não leem vírgula sem
+`.replace(',', '.')` antes. Efeito: `"0,7-M335"` não casava o regex, caía no fallback que trata a
+linha inteira como nome do ativo com quantidade 1 — sem erro visível, silenciosamente errado.
+
+Corrigido nos dois lugares em paralelo (JS e seu porte Python, que precisam mudar juntos pra manter
+a paridade testada em `tests/test_autonomo_totalizadora.py` contra o JS real via Node/QuickJS):
+regex passou a aceitar `[.,]`, e o valor captado troca vírgula por ponto antes de virar número.
+Mudança 100% aditiva — nenhum valor que já funcionava (inteiro, com ponto) muda de comportamento.
+
+2 testes novos (`tests/test_autonomo_totalizadora.py`), mais um caso decimal adicionado ao conjunto
+de dados do teste de fuzz existente (roda contra o JS real). Suíte completa (770 testes) sem
+regressão. Smoke test real-server + Playwright na tela de verdade: digitou `"0,7-M335 *0,5-TR3
+2-U4"` na célula Ativo da tabela Outros, confirmou via DOM que a Totalizadora mostra `M335` qtd
+`0.7`, `TR3` qtd `-0.5`, `U4` qtd `2`.
+
+---
+
 ## 2026-10-06 — TASK-049: `adicionar_ativo` — item da lista com fator próprio sobre a qtd dinâmica
 
 **Tipo:** feature (motor de Ajustes) · `services/ajustes_planilhas.py`, `static/painel_ajustes.js` ·
