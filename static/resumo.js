@@ -4598,7 +4598,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
             if (!p.trim()) return;
             let q = 1;
             let aName = p.trim();
-            const m = p.match(/^([\*\-]?\d+(?:\.\d+)?)[Xx\-](.+)$/i);
+            const m = p.match(/^([\*\-]?\d+(?:[.,]\d+)?)[Xx\-](.+)$/i);
             if (m) {
                 let qStr = m[1];
                 let isNegative = false;
@@ -4606,7 +4606,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
                     isNegative = true;
                     qStr = qStr.substring(1);
                 }
-                q = parseFloat(qStr);
+                q = parseFloat(qStr.replace(',', '.'));
                 if (isNegative) q = -q;
                 aName = m[2].trim();
             }

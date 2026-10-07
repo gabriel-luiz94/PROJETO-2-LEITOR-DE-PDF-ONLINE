@@ -11,7 +11,7 @@ from tests.test_autonomo_aplicar import ATIVOS_CABOS, ATIVOS_OUTROS
 pytestmark = pytest.mark.skipif(not o.NODE, reason="node não instalado (oráculo de paridade)")
 
 CABOS_EXTRA = ["CAA2 ABC 35,5 m", "CA 4 AB 10 | CA4", "12,5 m | CAA2", "P 50", "CAZ 3 ABC 1.5 m", "CAA2 ABC . m", "XX", "P 50 m", "  CU 16 m  "]
-OUTROS_EXTRA = ["2-U4 *1-CFU -3-X 4X5 2x-Y 1.5-ROCO", "  1-A   2-B  ", "*2-TR3 1-PR15", "DT11/300", "5-", "-U4", "3Xabc", "1-ÉÇÃO"]
+OUTROS_EXTRA = ["2-U4 *1-CFU -3-X 4X5 2x-Y 1.5-ROCO", "  1-A   2-B  ", "*2-TR3 1-PR15", "DT11/300", "5-", "-U4", "3Xabc", "1-ÉÇÃO", "0,7-M335 *0,5-TR3"]
 REGRAS = [
     [],
     [tt.REGRA_PADRAO],
@@ -73,6 +73,23 @@ def test_exemplo_conhecido():
                                  [{"entidade": "ESTRUTURA", "operacao": "I", "ativo": "DT11/300 2-U4 *1-CFU"}], [], BASE, "P1")
     assert [(r["origem"], r["ativo"], r["qtd"]) for r in tot] == [("CABOS", "CAA2", 35.0)] * 3 + [("OUTROS", "DT11/300", 1.0), ("OUTROS", "U4", 2.0), ("OUTROS", "CFU", -1.0)]
     assert tt.payload_calculo(tot)["outros"][-1]["ativo"] == "*1-CFU"
+
+
+def test_quantidade_decimal_com_virgula_em_outros():
+    """Pedido real do usuário: "0,7-M335" não aparecia certo na Totalizadora (TASK-050) — o regex de
+    syncTotalizadora/montar_totalizadora só reconhecia "." como decimal, então a linha inteira caía
+    no fallback e virava um ativo chamado "0,7-M335" com quantidade 1."""
+    tot = tt.montar_totalizadora([], [{"entidade": "ESTRUTURA", "operacao": "I", "ativo": "0,7-M335 *0,5-X 2-Y"}], [], BASE, "P1")
+    assert [(r["ativo"], r["qtd"]) for r in tot] == [("M335", 0.7), ("X", -0.5), ("Y", 2.0)]
+
+
+def test_quantidade_decimal_com_virgula_igual_ao_js():
+    cabos = []
+    outros = [{"entidade": "ESTRUTURA", "operacao": "I", "ativo": "0,7-M335 *0,5-TR3 2-U4"}]
+    js = o.totalizadora_e_payload(cabos, outros, [], BASE, "P1")
+    tot = tt.montar_totalizadora(cabos, outros, [], BASE, "P1")
+    assert tt.normalizar_para_json(tot) == js["totalizadora"]
+    assert tt.payload_calculo(tot) == js["payload"]
 
 
 def regra(arr, fator, **kw):
