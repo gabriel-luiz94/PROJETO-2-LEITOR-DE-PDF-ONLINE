@@ -64,7 +64,7 @@ def test_validacao_aceita_arquivo_correto():
 @pytest.mark.parametrize("carga,trecho", [
     ("texto", "objeto JSON"), ({"formato": "outro"}, "formato desconhecido"),
     (arquivo(versao=2), "versão mais nova"), (arquivo(versao="1"), "Versão do arquivo inválida"), (arquivo(versao=True), "Versão do arquivo inválida"),
-    (arquivo(tipo="modelo"), "outro tipo"), (arquivo(nome="  "), "nome da obra"), (arquivo(nome="x" * 121), "nome da obra"),
+    (arquivo(tipo="xyz"), "tipo desconhecido"), (arquivo(nome="  "), "nome da obra"), (arquivo(nome="x" * 121), "nome da obra"),
     (arquivo(projeto=""), "não informa o projeto"), (arquivo(projeto="027"), "projeto 027, mas o projeto selecionado é 229"),
     (arquivo(dados="x"), "seção 'dados'"), (arquivo(dados={"cabos": []}), "Outros: seção ausente"),
     (arquivo(dados={"cabos": "x", "outros": []}), "Cabos: precisa ser uma lista"),
@@ -231,5 +231,5 @@ def test_na_nuvem_grava_so_as_colunas_existentes_em_nome_do_importador(client, m
     r = importar(client, "b", arq)
     assert r.status_code == 200
     ultimo = nuvem.upserts[-1]
-    assert set(ultimo) == {"id", "nome", "data", "dados_json", "user_id", "projeto", "publica", "dono_nome"} and ultimo["publica"] is False and ultimo["user_id"] == "b" and ultimo["id"] == r.json()["id"]
+    assert set(ultimo) == {"id", "nome", "data", "dados_json", "user_id", "projeto", "publica", "dono_nome", "tipo"} and ultimo["publica"] is False and ultimo["user_id"] == "b" and ultimo["id"] == r.json()["id"]
     assert [o["nome"] for o in client.get("/api/obras?projeto=229", headers=cab("b")).json()] == ["Rede Norte"]

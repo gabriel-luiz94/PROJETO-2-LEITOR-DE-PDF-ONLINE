@@ -81,7 +81,7 @@ def salvar(client, uid, i, nome, projeto="229", **kw):
 def test_indice_so_do_usuario_e_do_projeto_e_sem_dados_json(client):
     salvar(client, "u1", 1, "Obra 2"); salvar(client, "u1", 2, "Obra 3", projeto="027"); salvar(client, "u2", 3, "De outro usuário")
     r = client.get("/api/obras/indice?projeto=229", headers=cab("u1")).json()
-    assert [o["nome"] for o in r] == ["Obra 2"] and set(r[0]) == {"id", "nome", "data", "projeto", "publica", "minha", "sem_dono", "dono"}
+    assert [o["nome"] for o in r] == ["Obra 2"] and set(r[0]) == {"id", "nome", "data", "projeto", "publica", "minha", "sem_dono", "dono", "tipo"}
     assert [o["nome"] for o in client.get("/api/obras/indice?projeto=027", headers=cab("u1")).json()] == ["Obra 3"]
     assert client.get("/api/obras/indice?projeto=229").status_code == 401
 

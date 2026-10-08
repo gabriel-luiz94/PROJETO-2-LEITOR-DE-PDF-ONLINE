@@ -278,3 +278,8 @@ CREATE INDEX IF NOT EXISTS idx_ajustes_contextos_hist_projeto ON public.ajustes_
 ALTER TABLE public.obras ADD COLUMN IF NOT EXISTS publica BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.obras ADD COLUMN IF NOT EXISTS dono_nome TEXT;
 CREATE INDEX IF NOT EXISTS idx_obras_projeto_publica ON public.obras(projeto, publica);
+
+-- TASK-058: modelos de obra (com variáveis V). `tipo` = 'obra' (padrão) ou 'modelo'. Modelos são sempre públicos no projeto.
+-- Requer também o bloco da TASK-057 (colunas publica e dono_nome). Até rodar este bloco o programa funciona (reconhece o modelo
+-- pela marca guardada em dados_json), mas o filtro por tipo na nuvem fica limitado.
+ALTER TABLE public.obras ADD COLUMN IF NOT EXISTS tipo TEXT DEFAULT 'obra';

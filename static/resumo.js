@@ -1698,6 +1698,92 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     }
 
+    /* ═══ MODELOS COM VARIÁVEL V (TASK-058) ═══ */
+    const projetoAtualObras = () => localStorage.getItem('projeto_selecionado_codigo') || '229';
+
+    async function mensagensDeErro(r) {
+        let j = null;
+        try { j = await r.json(); } catch (e) { /* corpo vazio */ }
+        const d = j && j.detail;
+        if (d && Array.isArray(d.erros)) return d.erros;
+        return [typeof d === 'string' ? d : `Erro HTTP ${r.status}`];
+    }
+
+    /** Janela "Parâmetros do modelo": pede os valores das variáveis V, o servidor gera a obra padrão (sem V) e devolve
+     *  {cabos:[...], outros:[...]}. Resolve null se o usuário cancelar. Nada é gravado; o modelo não muda. */
+    async function pedirParametrosModelo(obra) {
+        let info;
+        try {
+            const r = await fetch(`/api/obras/${encodeURIComponent(obra.id)}/modelo?projeto=${encodeURIComponent(projetoAtualObras())}`);
+            if (!r.ok) throw new Error((await mensagensDeErro(r)).join(' '));
+            info = await r.json();
+        } catch (e) {
+            showToast('Não foi possível abrir o modelo: ' + e.message);
+            return null;
+        }
+        return new Promise(resolve => {
+            const modal = document.getElementById('modal-parametros-modelo');
+            const campos = document.getElementById('param-modelo-campos');
+            const erro = document.getElementById('param-modelo-erro');
+            document.getElementById('param-modelo-nome').textContent = `— ${info.nome}`;
+            erro.textContent = '';
+            campos.replaceChildren();
+            const inputs = [];
+            info.parametros.forEach(p => {
+                const bloco = document.createElement('div');
+                bloco.style.cssText = 'margin-bottom:10px;';
+                const rot = document.createElement('label');
+                rot.style.cssText = 'display:block; font-size:0.85rem; font-weight:600;';
+                rot.textContent = p.rotulo;
+                const onde = document.createElement('div');
+                onde.style.cssText = 'font-size:0.7rem; color:#8b949e;';
+                onde.textContent = (p.onde || []).join(' · ');
+                const inp = document.createElement('input');
+                inp.type = 'text'; inp.inputMode = 'decimal'; inp.className = 'modal-input';
+                inp.placeholder = 'número maior que zero';
+                if (p.padrao !== null && p.padrao !== undefined) inp.value = String(p.padrao).replace('.', ',');
+                inp.dataset.chave = p.chave;
+                bloco.append(rot, onde, inp);
+                campos.appendChild(bloco);
+                inputs.push(inp);
+            });
+            const fechar = v => { modal.classList.add('hidden'); resolve(v); };
+            document.getElementById('btn-cancel-param-modelo').onclick = () => fechar(null);
+            const btnGerar = document.getElementById('btn-gerar-param-modelo');
+            const gerar = async () => {
+                const valores = {};
+                inputs.forEach(i => { valores[i.dataset.chave] = i.value.trim(); });
+                btnGerar.disabled = true;
+                try {
+                    const r = await fetch(`/api/obras/${encodeURIComponent(obra.id)}/gerar?projeto=${encodeURIComponent(projetoAtualObras())}`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valores })
+                    });
+                    if (!r.ok) { erro.textContent = (await mensagensDeErro(r)).join(' '); return; }
+                    const g = await r.json();
+                    fechar({ cabos: g.cabos || [], outros: g.outros || [] });
+                } catch (e) {
+                    erro.textContent = 'Falha ao gerar a obra: ' + e.message;
+                } finally {
+                    btnGerar.disabled = false;
+                }
+            };
+            btnGerar.onclick = gerar;
+            inputs.forEach(i => { i.onkeydown = ev => { if (ev.key === 'Enter') gerar(); }; });
+            modal.classList.remove('hidden');
+            if (inputs[0]) inputs[0].focus();
+        });
+    }
+
+    /** Há `V` de modelo sobrando nas tabelas? (espelha services/modelos_obra.py — Regra 4: mudou lá, mude aqui). */
+    const RE_V_CABO = /^.*\S\s+V(\([^()\s]+\))?(\s+[mM])?\s*$/;
+    const RE_V_OUTROS = /(^|\s)\*?V(\([^()\s]+\))?-\S/;
+    function contarVariaveisSobrando() {
+        let n = 0;
+        (tableStates.cabos.data || []).forEach(r => { if (r && RE_V_CABO.test(String(r.ativo || '').trim())) n++; });
+        (tableStates.outros.data || []).forEach(r => { if (r && RE_V_OUTROS.test(String(r.ativo || '').trim())) n++; });
+        return n;
+    }
+
     function restoreObraSnapshot(snap) {
         if (!snap) { showToast("Dados da obra inválidos."); return; }
 
@@ -1969,6 +2055,10 @@ document.addEventListener('DOMContentLoaded', () => {
         let snap;
         try { snap = typeof obra.dados_json === 'string' ? JSON.parse(obra.dados_json) : obra.dados_json; } catch (e) { snap = null; }
         if (!snap || typeof snap !== 'object') return { msg: 'Os dados dessa obra estão ilegíveis; nada foi alterado.' };
+        if (obra.tipo === 'modelo') {       // TASK-058: a IA nunca preenche valores; o usuário os digita na janela
+            snap = await pedirParametrosModelo(obra);
+            if (!snap) return { msg: 'Ação cancelada. Nada foi alterado.' };
+        }
         const nCabos = linhasDoSnap(snap, 'cabos').length, nOutros = linhasDoSnap(snap, 'outros').length;
         if (!(await confirmarAcaoObra(action.acao, obra, nCabos, nOutros))) return { msg: 'Ação cancelada. Nada foi alterado.' };
         if (action.acao === 'adicionar') adicionarObraAoProjeto(snap);
@@ -2312,13 +2402,93 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // ── Salvar como modelo (TASK-058) ──
+    let modeloEditando = null;      // {id, nome, parametros} quando o criador abriu um modelo para editar
+    function atualizarAvisoModelo() {
+        const el = document.getElementById('modelo-editando-aviso');
+        el.style.display = modeloEditando ? '' : 'none';
+        el.textContent = modeloEditando ? `Editando o modelo "${modeloEditando.nome}" — "Salvar como modelo" o sobrescreve.` : '';
+    }
+    async function definirModeloEditando(m) {
+        modeloEditando = m;
+        atualizarAvisoModelo();
+        try {   // rótulos/padrões já configurados, para não se perderem na edição
+            const r = await fetch(`/api/obras/${encodeURIComponent(m.id)}/modelo?projeto=${encodeURIComponent(projetoAtualObras())}`);
+            if (r.ok && modeloEditando && modeloEditando.id === m.id) modeloEditando.parametros = (await r.json()).parametros || [];
+        } catch (e) { /* segue sem os rótulos antigos */ }
+    }
+
+    const modalSaveModelo = document.getElementById('modal-save-modelo');
+    document.getElementById('btn-cancel-save-modelo').addEventListener('click', () => modalSaveModelo.classList.add('hidden'));
+    document.getElementById('btn-save-modelo').addEventListener('click', async () => {
+        const dadosModelo = () => ({
+            cabos: (tableStates.cabos.data || []).filter(Boolean).map(r => ({ entidade: r.entidade, operacao: r.operacao, ativo: r.ativo, qtdAtivos: r.qtdAtivos, texto: r.texto })),
+            outros: (tableStates.outros.data || []).filter(Boolean).map(r => ({ entidade: r.entidade, operacao: r.operacao, ativo: r.ativo, qtdAtivos: r.qtdAtivos, texto: r.texto }))
+        });
+        const dados = dadosModelo();
+        let params;
+        try {
+            const r = await fetch('/api/obras/modelo/detectar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados) });
+            if (!r.ok) throw new Error((await mensagensDeErro(r)).join(' '));
+            params = (await r.json()).parametros;
+        } catch (e) { showToast('Erro ao procurar variáveis: ' + e.message); return; }
+        if (!params.length) {
+            alert('Nenhuma variável V encontrada. Escreva V no lugar de uma quantidade — Cabos: "CAA 2 ABC V m"; Outros: "V-U4" ou "*V-CFU" — e tente de novo.');
+            return;
+        }
+        document.getElementById('input-modelo-nome').value = modeloEditando ? modeloEditando.nome : '';
+        document.getElementById('modelo-save-erro').textContent = '';
+        const antigos = Object.fromEntries(((modeloEditando && modeloEditando.parametros) || []).map(p => [p.chave, p]));
+        const area = document.getElementById('modelo-params-config');
+        area.replaceChildren();
+        const linhas = params.map(p => {
+            const bloco = document.createElement('div');
+            bloco.style.cssText = 'margin-bottom:10px; border-bottom:1px solid #30363d; padding-bottom:8px;';
+            const onde = document.createElement('div');
+            onde.style.cssText = 'font-size:0.7rem; color:#8b949e;';
+            onde.textContent = (p.onde || []).join(' · ');
+            const rot = document.createElement('input');
+            rot.type = 'text'; rot.className = 'modal-input'; rot.placeholder = 'Rótulo (ex: Comprimento do vão)';
+            rot.value = (antigos[p.chave] && antigos[p.chave].rotulo) || p.rotulo;
+            const pad = document.createElement('input');
+            pad.type = 'text'; pad.className = 'modal-input'; pad.placeholder = 'Valor padrão (opcional)'; pad.inputMode = 'decimal';
+            const pa = antigos[p.chave] ? antigos[p.chave].padrao : p.padrao;
+            pad.value = pa === null || pa === undefined ? '' : String(pa).replace('.', ',');
+            bloco.append(onde, rot, pad);
+            area.appendChild(bloco);
+            return { chave: p.chave, rot, pad };
+        });
+        modalSaveModelo.classList.remove('hidden');
+        document.getElementById('btn-confirm-save-modelo').onclick = async () => {
+            const nome = document.getElementById('input-modelo-nome').value.trim();
+            const erro = document.getElementById('modelo-save-erro');
+            if (!nome) { erro.textContent = 'Digite um nome para o modelo.'; return; }
+            const projeto = projetoAtualObras();
+            if (!confirm(`Modelos são públicos: todos os usuários do projeto ${projeto} poderão usá-lo (só você edita). Salvar?`)) return;
+            const corpo = {
+                id: modeloEditando ? modeloEditando.id : 'modelo_' + Date.now(), nome, data: new Date().toLocaleString(),
+                dados_json: JSON.stringify(dados), projeto, tipo: 'modelo',
+                parametros: linhas.map(l => ({ chave: l.chave, rotulo: l.rot.value.trim(), padrao: l.pad.value.trim().replace(',', '.') || null }))
+            };
+            try {
+                const r = await fetch('/api/obras', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
+                if (!r.ok) { erro.textContent = (await mensagensDeErro(r)).join(' '); return; }
+                modalSaveModelo.classList.add('hidden');
+                modeloEditando = null; atualizarAvisoModelo();
+                showToast('Modelo salvo.');
+            } catch (e) { erro.textContent = 'Erro ao salvar: ' + e.message; }
+        };
+    });
+
     let obrasCache = [];
 
     /** Desenha a lista de obras do cache aplicando os filtros Visibilidade / Origem (TASK-057). */
     function renderObras() {
         const fVis = document.getElementById('filtro-obra-visibilidade').value;
         const fOri = document.getElementById('filtro-obra-origem').value;
+        const fTipo = document.getElementById('filtro-obra-tipo').value;
         const obras = obrasCache.filter(o =>
+            (fTipo === 'todos' || (fTipo === 'modelos') === (o.tipo === 'modelo')) &&
             (fVis === 'todas' || (fVis === 'publicas') === !!o.publica) && (fOri === 'todas' || (fOri === 'minhas') === !!o.minha));
         const listDiv = document.getElementById('obras-list');
             listDiv.innerHTML = '';
@@ -2357,14 +2527,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     item.querySelector('.obra-nome').textContent = o.nome;   // textContent: nome de obra nunca vira HTML
                     item.querySelector('.obra-data').textContent = o.data;
                     item.querySelector('.btn-del-item').dataset.id = o.id;
-                    const selo = o.sem_dono ? '⚠️ sem dono (só administradores)' : (o.publica ? '🌐 Pública' : '🔒 Particular');
+                    const selo = o.sem_dono ? '⚠️ sem dono (só administradores)' : (o.tipo === 'modelo' ? '📐 Modelo' : (o.publica ? '🌐 Pública' : '🔒 Particular'));
                     item.querySelector('.obra-meta').textContent = o.minha ? selo : (o.sem_dono ? selo : `${selo} · de ${o.dono || 'outro usuário'}`);
 
                     const btnVis = item.querySelector('.btn-vis-item');
                     const btnOwn = item.querySelector('.btn-own-item');
                     const btnDel0 = item.querySelector('.btn-del-item');
                     if (!o.minha) btnDel0.style.display = 'none';      // só o dono apaga
-                    if (o.minha) {
+                    if (o.minha && o.tipo === 'modelo') {       // só o criador edita o modelo (TASK-058)
+                        const btnEd = document.createElement('button');
+                        btnEd.className = 'btn-secondary';
+                        btnEd.style.cssText = 'background:#8957e5; border:none; padding: 4px 8px; border-radius: 4px; color: white;';
+                        btnEd.textContent = 'Editar modelo';
+                        btnEd.title = 'Abre o modelo nas tabelas (com os V) para editar; depois use "Salvar como modelo"';
+                        btnEd.addEventListener('click', () => {
+                            if (!btnLoad._snap) { showToast('Dados do modelo inválidos.'); return; }
+                            if (!confirm('As tabelas atuais serão substituídas pelo modelo (Ctrl+Z desfaz). Continuar?')) return;
+                            restoreObraSnapshot(btnLoad._snap);
+                            definirModeloEditando({ id: o.id, nome: o.nome, parametros: [] });
+                            modalLoadObra.classList.add('hidden');
+                            showToast('Modelo aberto para edição. Altere e clique em "Salvar como modelo".');
+                        });
+                        btnVis.insertAdjacentElement('beforebegin', btnEd);
+                    }
+                    if (o.minha && o.tipo !== 'modelo') {
                         btnVis.style.display = '';
                         btnVis.textContent = o.publica ? 'Tornar particular' : 'Tornar pública';
                         btnVis.addEventListener('click', async () => {
@@ -2414,24 +2600,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnAdd._snap  = snap;
                     btnSub._snap  = snap;
 
-                    btnLoad.addEventListener('click', () => {
-                        if (!btnLoad._snap) { showToast('Dados da obra inválidos.'); return; }
-                        restoreObraSnapshot(btnLoad._snap);
+                    const snapDe = async (b) => (o.tipo === 'modelo' ? pedirParametrosModelo(o) : b._snap);
+
+                    btnLoad.addEventListener('click', async () => {
+                        const s = await snapDe(btnLoad);
+                        if (!s) { if (o.tipo !== 'modelo') showToast('Dados da obra inválidos.'); return; }
+                        restoreObraSnapshot(s);
                         modalLoadObra.classList.add('hidden');
                         showToast('Obra carregada!');
                     });
 
-                    btnAdd.addEventListener('click', () => {
-                        if (!btnAdd._snap) { showToast('Dados da obra inválidos.'); return; }
-                        if (adicionarObraAoProjeto(btnAdd._snap)) {
+                    btnAdd.addEventListener('click', async () => {
+                        const s = await snapDe(btnAdd);
+                        if (!s) { if (o.tipo !== 'modelo') showToast('Dados da obra inválidos.'); return; }
+                        if (adicionarObraAoProjeto(s)) {
                             modalLoadObra.classList.add('hidden');
                             showToast('Obra adicionada!');
                         }
                     });
 
-                    btnSub.addEventListener('click', () => {
-                        if (!btnSub._snap) { showToast('Dados da obra inválidos.'); return; }
-                        if (subtrairObraDoProjeto(btnSub._snap)) {
+                    btnSub.addEventListener('click', async () => {
+                        const s = await snapDe(btnSub);
+                        if (!s) { if (o.tipo !== 'modelo') showToast('Dados da obra inválidos.'); return; }
+                        if (subtrairObraDoProjeto(s)) {
                             modalLoadObra.classList.add('hidden');
                             showToast('Obra subtraída!');
                         }
@@ -2477,7 +2668,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
     }
-    ['filtro-obra-visibilidade', 'filtro-obra-origem'].forEach(id => document.getElementById(id).addEventListener('change', renderObras));
+    ['filtro-obra-visibilidade', 'filtro-obra-origem', 'filtro-obra-tipo'].forEach(id => document.getElementById(id).addEventListener('change', renderObras));
 
     async function abrirModalObras() {
         try {
@@ -3700,6 +3891,12 @@ document.addEventListener('DOMContentLoaded', () => {
             btnMontarOrcamento.textContent = 'Calculando...';
 
             try {
+                // TASK-058: `V` de modelo que sobrou nas tabelas não vira orçamento
+                const nV = contarVariaveisSobrando();
+                if (nV > 0) {
+                    alert(`Há ${nV} linha(s) com variável de modelo (V) sem valor. Gere a obra pelo modelo (Carregar/Adicionar/Subtrair) ou troque o V por um número antes de montar o orçamento.`);
+                    return;
+                }
                 // TASK-051: checagem obrigatória (contrato + ativo não encontrado), sempre ativa,
                 // independente da preferência abaixo.
                 if (!(await checarInconsistenciasBasicas())) return;

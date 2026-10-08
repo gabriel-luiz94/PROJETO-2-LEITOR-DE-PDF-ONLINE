@@ -768,6 +768,17 @@ A IA vê as próprias + públicas do projeto; o modo autônomo grava sempre part
 
 ---
 
+## 2026-10-08 — TASK-058: modelos de obra com variável V
+
+**Tipo:** Backend + frontend + schema · `.ai/tasks/TASK-058-08-10-2026.md`
+
+Novo **Salvar como modelo**: o programa acha os `V` / `V(nome)` nas tabelas (Cabos: comprimento, ex. `CAA 2 ABC V m`; Outros: quantidade, ex. `V-U4`, `*V-CFU`; só o token exato — `CAV`, `V1`, `1-VA` não contam), pede rótulo e valor padrão e grava um modelo
+**público no projeto** (só o criador edita/exclui; sem Totalizadora). Carregar/Adicionar/Subtrair um modelo — e o comando da IA — abre **"Parâmetros do modelo"**; o servidor (`services/modelos_obra.py`, função pura) gera a obra padrão, validada pela camada 1, **sem gravar**; Ctrl+Z desfaz.
+Lista com selo 📐 Modelo, filtro Tipo e "Editar modelo" (só do criador). `V` sobrando bloqueia **Montar Orçamento** e a validação ganhou `C1-VAR`. Exportar/importar aceita modelos (o importado vira modelo de quem importa).
+**Schema Supabase:** `obras.tipo` (SQL em `scripts/schema_supabase.sql`, a rodar pelo usuário; sem ele tudo funciona, reconhecendo o modelo pela marca no `dados_json`).
+
+---
+
 ## 2026-10-02 — TASK-031: achados do primeiro teste real (projeto 027/229)
 
 **Tipo:** Backend (modo autônomo)

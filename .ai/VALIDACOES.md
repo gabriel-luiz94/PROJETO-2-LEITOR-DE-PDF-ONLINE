@@ -43,6 +43,7 @@ que daria falso positivo quando uma regra troca ou gera o ativo.
 | C1-CABO-PARTE | cabos | ativo no formato `<qtd>-<ativo>` na tabela Cabos | erro | IMPLEMENTADA |
 | C1-CABO-NUM | cabos | com ≥ 2 tokens, o último (comprimento) é numérico (aceita vírgula) | erro | IMPLEMENTADA |
 | C1-OUT-ORFAO | outros | número ímpar de tokens: o último seria descartado no cálculo | erro | IMPLEMENTADA |
+| C1-VAR | cabos/outros | variável de modelo `V` / `V(nome)` sem valor (modelo usado sem gerar a obra) — TASK-058 | erro | IMPLEMENTADA |
 | C1-OUT-NUM | outros | quantidade não numérica (o cálculo assumiria 1) | erro | IMPLEMENTADA |
 | C1-OUT-CABO | outros | ativo terminando em `<número> m` (formato de cabo) | erro | IMPLEMENTADA |
 | C1-OP | ambas | operação ∈ `I, *I, R, *R, M, *M` (vazio também é erro) | erro | IMPLEMENTADA |

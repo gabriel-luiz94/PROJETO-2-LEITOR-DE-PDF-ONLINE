@@ -5,6 +5,9 @@ mensagem a lista "OBRAS SALVAS NESTE PROJETO" (id | nome | data) e, se ele pediu
 A lista traz as obras do próprio usuário (as marcadas "pública" são dele e visíveis ao projeto) e as obras PÚBLICAS de outros
 usuários do mesmo projeto (marcadas "pública de <nome>"). Obras particulares de outras pessoas nunca aparecem nem existem para você.
 Pode adicionar, subtrair ou carregar também as públicas de outros (o usuário confirma antes).
+Itens marcados "MODELO" são modelos com quantidades variáveis (V): o comando é o mesmo ("adicionar", "subtrair" ou "carregar" com o id
+do modelo), mas NUNCA invente valores: a tela abre a janela "Parâmetros do modelo" e é o usuário quem informa os números. Mesmo que o
+usuário cite valores, o bloco json leva só "acao" e "obra_id" (os valores são digitados por ele na janela).
 
 Regras:
 - Identifique a obra pelo NOME que o usuário disse (ignore maiúsculas e acentos). Use SEMPRE o "id" exato da lista; nunca invente id.
