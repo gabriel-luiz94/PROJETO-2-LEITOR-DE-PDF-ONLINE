@@ -12,7 +12,7 @@ from datetime import datetime
 import database
 
 STATUS = ("processando", "aguardando_confirmacao", "ok", "com_pendencias", "erro", "revertida")
-_JSON = ("relatorio", "originais", "diff", "decisoes")
+_JSON = ("relatorio", "originais", "diff", "decisoes", "itens_origem")
 
 
 def _agora():
@@ -27,6 +27,10 @@ def garantir_tabela(conn):
             decisoes_json TEXT, criado_em TEXT, atualizado_em TEXT)""")
     try:
         conn.execute("ALTER TABLE execucoes_autonomas ADD COLUMN arquivo_caminho TEXT")   # onde o original está agora (para reprocessar)
+    except Exception:  # noqa: BLE001 — coluna já existe
+        pass
+    try:
+        conn.execute("ALTER TABLE execucoes_autonomas ADD COLUMN itens_origem_json TEXT")   # TASK-059: de onde veio cada linha (aprendizado de regras do leitor)
     except Exception:  # noqa: BLE001 — coluna já existe
         pass
     conn.execute("CREATE INDEX IF NOT EXISTS idx_exec_aut_hash ON execucoes_autonomas (arquivo_hash, projeto_codigo)")

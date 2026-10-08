@@ -239,12 +239,95 @@
             sel.value = atual;
         } catch (e) { /* o filtro é só uma conveniência: sem a lista, segue funcionando sem opções */ }
     }
+
+    /* ── aprendizado (TASK-059) ── */
+    function msgApr(texto, tipo) { const m = $('apr-msg'); m.hidden = !texto; m.className = 'msg ' + (tipo || 'ok'); m.textContent = texto || ''; }
+    const projetoApr = () => $('apr-projeto').value;
+    async function carregarProjetosApr() {
+        try {
+            const r = await api('GET', '/api/projetos');
+            const projetos = Array.isArray(r) ? r : (r.projetos || []);
+            const sel = $('apr-projeto');
+            sel.replaceChildren();
+            projetos.forEach(p => sel.append(new Option(`${p.codigo} — ${p.nome}`, p.codigo)));
+            const salvo = localStorage.getItem('projeto_selecionado_codigo');
+            if (salvo && projetos.some(p => p.codigo === salvo)) sel.value = salvo;
+        } catch (e) { /* sem lista: a seção fica sem projetos */ }
+    }
+    function cartaoProposta(p) {
+        const d = el('div', 'pend');
+        const origem = p.origem === 'ia' ? 'IA' : (p.alvo === 'regra_leitor' ? 'Regra do leitor' : (p.rotulo || 'Estatística'));
+        d.append(el('h3', '', `${origem} · ${p.status === 'pendente' ? 'aguardando você' : p.status}`));
+        d.append(el('div', '', p.descricao));
+        if (p.alvo === 'regra_leitor' && p.simulacao) {
+            const s = p.simulacao;
+            d.append(el('div', 'vazio', `Simulada com o motor do leitor: corrige ${s.corrigidos} de ${s.grupo} ocorrência(s) (${s.fontes} arquivo(s)/sessão(ões)) e não muda nenhum dos ${s.testados} itens que já estavam certos.`));
+            const det = el('details');
+            det.append(el('summary', 'vazio', 'Ver a regra'));
+            det.append(el('pre', 'caminho', JSON.stringify(p.regra, null, 2)));
+            d.append(det);
+        } else if (p.origem !== 'ia') d.append(el('div', 'vazio', `Visto ${p.ocorrencias}× em ${p.execucoes} obra(s) · ${Math.round((p.consistencia || 0) * 100)}% das vezes`));
+        if (p.alvo === 'ajuste' && p.receita) d.append(el('div', 'caminho', `Ajuste: ${p.receita.nome}`));
+        else if (!p.alvo) d.append(el('div', 'vazio', 'Sugestão informativa: não vira ajuste automático.'));
+        if (p.status === 'pendente') {
+            const a = el('div', 'acoes');
+            if (p.pode_aprovar) a.append(botao('Aprovar', 'primario', () => decidirProposta(p, 'aprovar')));
+            a.append(botao('Recusar', '', () => decidirProposta(p, 'recusar')));
+            d.append(a);
+        }
+        return d;
+    }
+    async function decidirProposta(p, acao) {
+        await tentar(async () => {
+            const r = await api('POST', `/api/aprendizado/propostas/${p.id}/${acao}`);
+            msgApr(acao === 'aprovar' ? (r.regra ? `Regra adicionada às regras de ${r.tabela === 'classificacao' ? 'Classificação' : 'Processamento'} do projeto (com histórico para reverter).` : `Ajuste criado (${r.ajuste_id}) e ativo no projeto.`) : 'Proposta recusada.');
+            await atualizarAprendizado();
+        });
+    }
+    async function atualizarAprendizado() {
+        const proj = projetoApr();
+        if (!proj) return;
+        const q = `projeto=${encodeURIComponent(proj)}`;
+        const [res, props] = await Promise.all([api('GET', `/api/aprendizado/resumo?${q}`), api('GET', `/api/aprendizado/propostas?${q}`)]);
+        $('apr-stats').replaceChildren(stat(String(res.obras_corrigidas), 'Obras corrigidas'), stat(String(res.itens_leitor || 0), 'Itens do leitor observados'), stat(String(res.correcoes_total), 'Correções registradas'),
+            stat(String(res.propostas.pendente), 'Propostas pendentes'), stat(String(res.propostas.aprovada), 'Aprovadas'), stat(String(res.propostas.recusada), 'Recusadas'));
+        $('apr-ia').disabled = !res.ia_disponivel;
+        $('apr-ia').title = res.ia_disponivel ? 'Pede à IA sugestões a partir das suas correções' : `Liberado com ${res.ia_minimo_obras} obras corrigidas (você tem ${res.obras_corrigidas})`;
+        const box = $('apr-props');
+        box.replaceChildren();
+        if (!props.length) box.append(el('div', 'vazio', `Nenhuma proposta ainda. Aparecem quando a mesma correção se repete em ${res.limiares.ocorrencias}+ vezes e ${res.limiares.obras}+ obras.`));
+        props.forEach(p => box.append(cartaoProposta(p)));
+    }
+    $('apr-projeto').onchange = () => tentar(atualizarAprendizado);
+    $('apr-analisar').onclick = () => tentar(async () => {
+        const r = await api('POST', `/api/aprendizado/analisar?projeto=${encodeURIComponent(projetoApr())}`);
+        const l = r.leitor || {};
+        msgApr(`${r.novas} proposta(s) de ajuste e ${l.novas || 0} de regra do leitor (${r.obras} obra(s) e ${l.itens || 0} item(ns) do desenho analisados).` + (l.aviso ? ` ${l.aviso}` : ''));
+        await atualizarAprendizado();
+    });
+    $('apr-ia').onclick = () => tentar(async () => {
+        $('apr-ia').disabled = true;
+        try {
+            const r = await api('POST', `/api/aprendizado/ia/sugerir?projeto=${encodeURIComponent(projetoApr())}`);
+            msgApr(r.mensagem + (r.descartadas && r.descartadas.length ? ` (${r.descartadas.length} sugestão(ões) inválida(s) descartada(s).)` : ''), r.status === 'ok' ? 'ok' : 'erro');
+        } finally { $('apr-ia').disabled = false; }
+        await atualizarAprendizado();
+    });
+    $('apr-apagar').onclick = () => tentar(async () => {
+        if (!confirm('Apagar as correções registradas e as propostas ainda não aprovadas deste projeto? Os ajustes já aprovados continuam.')) return;
+        const r = await api('DELETE', `/api/aprendizado/historico?projeto=${encodeURIComponent(projetoApr())}`);
+        msgApr(`Apagado: ${r.correcoes} correção(ões) e ${r.propostas} proposta(s).`);
+        await atualizarAprendizado();
+    });
+
     async function iniciar() {
         await tentar(async () => {
             const c = await api('GET', '/api/autonomo/config');
             cfgAtual = c.config; usuarioAtual = c.usuario_atual;
             await montarFormulario(cfgAtual, await carregarUsuarios());
             await carregarProjetosFiltro();
+            await carregarProjetosApr();
+            await atualizarAprendizado();
             await atualizar(true);
         });
     }

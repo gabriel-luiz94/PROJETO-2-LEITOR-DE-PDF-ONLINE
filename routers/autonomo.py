@@ -32,7 +32,7 @@ class DecisaoRequest(BaseModel):
 
 def _publica(ex: dict) -> dict:
     """A execução sem os blocos grandes: as pendências aparecem como {indice, descricao}."""
-    d = {k: v for k, v in ex.items() if k not in ("originais", "diff")}
+    d = {k: v for k, v in ex.items() if k not in ("originais", "diff", "itens_origem")}
     diff, dec = ex.get("diff") or {}, ex.get("decisoes") or {}
     abertas = [i for i in dec.get("pendentes", []) if i not in dec.get("confirmadas", []) and i not in dec.get("rejeitadas", [])]
     d["pendencias"] = [{"indice": i, "descricao": (diff.get("frases") or [])[i]} for i in abertas] if diff else []

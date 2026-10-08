@@ -160,6 +160,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // TASK-059 (aprendizado, trabalho manual): foto das tabelas como saíram do Leitor, antes de qualquer edição. Vale enquanto ninguém carregar,
+    // adicionar ou subtrair uma obra (aí as tabelas deixam de ser "o que o programa entregou"). Só os campos necessários, sem o desenho.
+    const sessaoManual = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2);
+    let baselineManual = extractedDataCache.length ? {
+        cabos: tableStates.cabos.data.map(r => ({ entidade: r.entidade, operacao: r.operacao, ativo: r.ativo })),
+        outros: tableStates.outros.data.map(r => ({ entidade: r.entidade, operacao: r.operacao, ativo: r.ativo }))
+    } : null;
+
     buildAtivoSets();
     recalcAllQtdAtivos();  // calcula qtdAtivos antes do primeiro render
     pushHistory();   // estado inicial
@@ -1663,6 +1671,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /** Acrescenta as linhas da obra às tabelas atuais (um passo de histórico). */
     function adicionarObraAoProjeto(snap) {
         if (!snap) { showToast('Dados da obra inválidos.'); return false; }
+        baselineManual = null;
         pushHistory();  // snapshot ANTES de adicionar
         ['cabos', 'outros'].forEach(type => {
             const linhas = linhasDoSnap(snap, type);
@@ -1680,6 +1689,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /** Acrescenta as linhas da obra com sinal invertido (retirada) — um passo de histórico. */
     function subtrairObraDoProjeto(snap) {
         if (!snap) { showToast('Dados da obra inválidos.'); return false; }
+        baselineManual = null;
         pushHistory();  // snapshot ANTES de subtrair
         ['cabos', 'outros'].forEach(type => {
             const linhas = linhasDoSnap(snap, type);
@@ -1784,6 +1794,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return n;
     }
 
+    let execucaoOrigemAutonomo = null;
+
     function restoreObraSnapshot(snap) {
         if (!snap) { showToast("Dados da obra inválidos."); return; }
 
@@ -1799,6 +1811,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         pushHistory();  // snapshot ANTES de substituir
+        // TASK-059: obra gerada pelo modo autônomo -> ao salvar, o servidor compara com o que o usuário deixou (aprendizado)
+        baselineManual = null;
+        execucaoOrigemAutonomo = (snap.autonomo && typeof snap.autonomo.execucao_id === 'string' && !snap.autonomo.revertida) ? snap.autonomo.execucao_id : null;
         tableStates.cabos.data  = (cabosData  || []).map(deepClone);
         tableStates.outros.data = (outrosData || []).map(deepClone);
         
@@ -2387,6 +2402,8 @@ document.addEventListener('DOMContentLoaded', () => {
             projeto: projetoSalvar,
             publica: publica
         };
+        if (execucaoOrigemAutonomo) obra.origem_execucao = execucaoOrigemAutonomo;
+        else if (baselineManual && localStorage.getItem('is_admin') === 'true') obra.baseline_manual = { sessao: sessaoManual, ...baselineManual };
 
         try {
             const resp = await fetch('/api/obras', {

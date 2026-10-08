@@ -2,6 +2,7 @@
 routers/obras.py — Rotas para gerenciamento de obras.
 """
 import json
+import logging
 import secrets
 import time
 from datetime import datetime
@@ -365,7 +366,27 @@ def save_obra(obra: ObraModel, request: Request):
         publica = True
     gravar_obra(user, {"id": obra.id, "nome": obra.nome, "data": obra.data, "dados_json": dados_json,
                        "projeto": obra.projeto, "publica": publica, "tipo": tipo})
+    if (obra.origem_execucao or obra.baseline_manual) and tipo != "modelo":
+        _registrar_aprendizado(user, obra)
     return {"status": "success", "publica": bool(publica), "tipo": tipo}
+
+
+def _registrar_aprendizado(user, obra) -> None:
+    """TASK-059: obra do modo autônomo corrigida e salva -> guarda só as diferenças e atualiza as propostas. Nunca atrapalha o salvar."""
+    if (user or {}).get("role") != "admin":      # as propostas são do administrador (viram regras/ajustes do projeto)
+        return
+    try:
+        from routers.validacao_regras import regras_efetivas
+        from services.autonomo import aprendizado_repo, aprendizado_servico
+        if obra.origem_execucao:
+            r = aprendizado_repo.registrar_correcao(_uid(user), obra.origem_execucao, obra.id, obra.dados_json)
+        else:
+            b = obra.baseline_manual or {}
+            r = aprendizado_repo.registrar_correcao_manual(_uid(user), obra.projeto, b.get("sessao") or "sem_sessao", b, obra.dados_json, regras_efetivas(obra.projeto)[1])
+        if r:
+            aprendizado_servico.reanalisar_tudo(_uid(user), r["projeto"], forcar=False)
+    except Exception as e:  # noqa: BLE001 — o aprendizado é um extra
+        logging.getLogger(__name__).warning("Aprendizado do autônomo não registrado: %s", type(e).__name__)
 
 
 class DetectarModel(BaseModel):
