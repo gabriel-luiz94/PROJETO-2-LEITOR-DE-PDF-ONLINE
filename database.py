@@ -206,7 +206,8 @@ def init_db():
     except sqlite3.OperationalError:
         pass
     # TASK-057: visibilidade (0 = particular, padrão; 1 = pública no projeto) e nome curto do dono
-    for ddl in ("ALTER TABLE obras ADD COLUMN publica INTEGER DEFAULT 0", "ALTER TABLE obras ADD COLUMN dono_nome TEXT"):
+    for ddl in ("ALTER TABLE obras ADD COLUMN publica INTEGER DEFAULT 0", "ALTER TABLE obras ADD COLUMN dono_nome TEXT",
+                "ALTER TABLE obras ADD COLUMN tipo TEXT DEFAULT 'obra'"):   # TASK-058: 'obra' | 'modelo'
         try:
             cursor.execute(ddl)
         except sqlite3.OperationalError:

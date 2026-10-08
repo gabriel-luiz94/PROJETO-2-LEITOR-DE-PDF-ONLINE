@@ -70,10 +70,22 @@ def _validar_operacao(linha, linha_id, tabela, achados):
         ))
 
 
+def _variavel_sem_valor(ativo, tabela, linha_id, achados) -> bool:
+    """TASK-058: `V` de modelo que sobrou na linha (modelo usado sem gerar a obra)."""
+    from services.modelos_obra import tem_variavel   # import tardio: modelos_obra usa esta camada
+    if not tem_variavel(ativo, tabela):
+        return False
+    achados.append(_achado(linha_id, tabela, "C1-VAR", "erro",
+                           f"'{ativo}' ainda tem variável de modelo (V) sem valor. Gere a obra pelo modelo ou troque o V por um número."))
+    return True
+
+
 def _validar_linha_cabo(linha, linha_id, achados):
     ativo = (linha.get("ativo") or "").strip()
     if not ativo:
         return  # o cálculo ignora linha sem ativo
+    if _variavel_sem_valor(ativo, "cabos", linha_id, achados):
+        return
     _validar_operacao(linha, linha_id, "cabos", achados)
 
     if _RE_QTD_HIFEN_ATIVO.match(ativo):
@@ -105,6 +117,8 @@ def _validar_linha_cabo(linha, linha_id, achados):
 def _validar_linha_outros(linha, linha_id, achados):
     ativo = (linha.get("ativo") or "").strip()
     if not ativo:
+        return
+    if _variavel_sem_valor(ativo, "outros", linha_id, achados):
         return
     _validar_operacao(linha, linha_id, "outros", achados)
 

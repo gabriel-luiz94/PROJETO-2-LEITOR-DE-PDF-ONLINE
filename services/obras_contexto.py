@@ -34,6 +34,8 @@ def menciona_obra(prompt: str) -> bool:
 def _linha_indice(o: dict) -> str:
     """As próprias não ganham marca extra (como antes); as públicas de outros levam a visibilidade e o dono (TASK-057)."""
     base = f'- id={o["id"]} | nome="{o["nome"]}" | data={o.get("data", "")}'
+    if o.get("tipo") == "modelo":      # modelo (TASK-058): sempre público; a tela pede os valores das variáveis V
+        return base + " | MODELO" + ("" if o.get("minha", True) else f' de {o.get("dono") or "outro usuário"}')
     if o.get("minha", True):
         return base + (" | pública" if o.get("publica") else "")
     return base + f' | pública de {o.get("dono") or "outro usuário"}'

@@ -65,10 +65,23 @@ def normalizar_dados(dados_json) -> dict:
 
 
 def montar_exportacao(obra: dict) -> dict:
-    """`obra` = linha do banco (nome, projeto, dados_json). Devolve o envelope pronto para virar JSON."""
-    return {"formato": FORMATO, "versao": VERSAO, "exportado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "tipo": "obra", "nome": obra.get("nome") or "obra", "projeto": str(obra.get("projeto") or ""),
-            "dados": normalizar_dados(obra.get("dados_json"))}
+    """`obra` = linha do banco (nome, projeto, dados_json, tipo). Devolve o envelope pronto para virar JSON.
+    Modelo (TASK-058): `tipo` = "modelo", leva a lista de parâmetros e não leva Totalizadora."""
+    modelo = obra.get("tipo") == "modelo"
+    envelope = {"formato": FORMATO, "versao": VERSAO, "exportado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "tipo": "modelo" if modelo else "obra", "nome": obra.get("nome") or "obra", "projeto": str(obra.get("projeto") or ""),
+                "dados": normalizar_dados(obra.get("dados_json"))}
+    if modelo:
+        envelope["dados"].pop("totalizadora", None)
+        envelope["parametros"] = [{"chave": p["chave"], "rotulo": p["rotulo"], "padrao": p["padrao"]}
+                                  for p in _params(obra.get("dados_json"))]
+    return envelope
+
+
+def _params(dados_json):
+    from services.modelos_obra import detectar_variaveis, montar_parametros, separar_dados
+    cabos, outros, cfg = separar_dados(dados_json)
+    return montar_parametros(detectar_variaveis(cabos, outros), cfg)
 
 
 def nome_de_arquivo(nome: str) -> str:
@@ -111,8 +124,9 @@ def validar_importacao(carga, projeto_selecionado: str) -> dict:
         raise ErroArquivoObra(["Versão do arquivo inválida."])
     if versao > VERSAO:
         raise ErroArquivoObra([f"Este arquivo é de uma versão mais nova ({versao}); atualize o programa para importá-lo."])
-    if carga.get("tipo", "obra") != "obra":
-        erros.append("Este arquivo é de outro tipo (não é uma obra comum); ele ainda não pode ser importado aqui.")
+    tipo = carga.get("tipo", "obra")
+    if tipo not in ("obra", "modelo"):
+        erros.append("Este arquivo é de um tipo desconhecido (esperado obra ou modelo).")
     nome = carga.get("nome")
     if not isinstance(nome, str) or not nome.strip() or len(nome) > 120:
         erros.append("O nome da obra precisa ser um texto de 1 a 120 caracteres.")
@@ -133,12 +147,30 @@ def validar_importacao(carga, projeto_selecionado: str) -> dict:
                 _validar_linhas(rotulo, dados[chave], erros)
         if "totalizadora" in dados:
             _validar_linhas("Totalizadora", dados["totalizadora"], erros, completo=False)
+    parametros = []
+    if tipo == "modelo" and not erros:
+        from services.modelos_obra import ErroModelo, detectar_variaveis, validar_configuracao
+        try:
+            parametros = validar_configuracao(carga.get("parametros"))
+        except ErroModelo as e:
+            erros += e.mensagens
+        if not detectar_variaveis(dados.get("cabos"), dados.get("outros")):
+            erros.append("O modelo não tem nenhuma variável V.")
     if erros:
         raise ErroArquivoObra(erros[:LIMITE_ERROS])
-    return {"nome": nome.strip(), "projeto": projeto.strip(), "dados": normalizar_dados(dados)}
+    pronta = {"nome": nome.strip(), "projeto": projeto.strip(), "dados": normalizar_dados(dados), "tipo": tipo}
+    if tipo == "modelo":
+        pronta["dados"].pop("totalizadora", None)
+        pronta["parametros"] = parametros
+    return pronta
 
 
-def dados_json_para_gravar(dados: dict) -> str:
-    """Mesmo formato que o botão Salvar obra grava (`tableStates`), para o Carregar/Adicionar/Subtrair funcionarem como nas obras normais."""
-    return json.dumps({"cabos": {"bodyId": "body-cabos", "data": dados["cabos"]}, "outros": {"bodyId": "body-outros", "data": dados["outros"]},
-                       "totalizadora": {"bodyId": "body-totalizadora", "data": dados["totalizadora"]}}, ensure_ascii=False)
+def dados_json_para_gravar(dados: dict, parametros=None) -> str:
+    """Mesmo formato que o botão Salvar obra grava (`tableStates`), para o Carregar/Adicionar/Subtrair funcionarem como nas obras normais.
+    Com `parametros` (modelo, TASK-058) grava a lista de parâmetros em `modelo` e não grava a Totalizadora."""
+    saida = {"cabos": {"bodyId": "body-cabos", "data": dados["cabos"]}, "outros": {"bodyId": "body-outros", "data": dados["outros"]}}
+    if parametros is None:
+        saida["totalizadora"] = {"bodyId": "body-totalizadora", "data": dados["totalizadora"]}
+    else:
+        saida["modelo"] = {"parametros": parametros}
+    return json.dumps(saida, ensure_ascii=False)

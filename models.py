@@ -12,6 +12,8 @@ class ObraModel(BaseModel):
     dados_json: str
     projeto: str = "229"
     publica: Optional[bool] = None   # None = mantém a visibilidade atual (nova obra: particular)
+    tipo: Optional[str] = None       # None = mantém o tipo atual (nova: "obra"); "modelo" = modelo com variáveis V (TASK-058)
+    parametros: Optional[list] = None  # modelo: [{chave, rotulo, padrao}] configurados pelo criador
 
 
 class RegraModel(BaseModel):

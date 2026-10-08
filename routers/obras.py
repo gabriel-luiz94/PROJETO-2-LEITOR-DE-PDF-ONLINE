@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from database import get_connection
 from models import ObraModel
 from middleware.auth_middleware import get_current_user_from_state
-from services import obras_arquivo
+from services import modelos_obra, obras_arquivo
 
 router = APIRouter(prefix="/api/obras", tags=["obras"])
 
@@ -46,12 +46,21 @@ def _pode_ver(linha: dict, user, projeto) -> bool:
     return bool(linha.get("publica")) and bool(projeto) and str(linha.get("projeto")) == str(projeto)
 
 
+def _tipo_de(linha: dict) -> str:
+    """'modelo' ou 'obra'. Nuvem sem a coluna `tipo` (SQL da TASK-058 não rodado): reconhece o modelo pela marca em `dados_json`."""
+    if linha.get("tipo") in ("obra", "modelo"):
+        return linha["tipo"]
+    dj = linha.get("dados_json")
+    return "modelo" if isinstance(dj, str) and '"modelo"' in dj and '"parametros"' in dj else "obra"
+
+
 def _apresentar(linha: dict, user) -> dict:
     """Linha do banco -> resposta da API. Nunca expõe `user_id`/e-mail de outros; só o nome curto do dono."""
     uid = _uid(user)
     dono = linha.get("user_id") or None
     saida = {k: linha[k] for k in ("id", "nome", "data", "projeto", "dados_json") if k in linha}
-    saida["publica"] = bool(linha.get("publica"))
+    saida["tipo"] = _tipo_de(linha)
+    saida["publica"] = bool(linha.get("publica")) or saida["tipo"] == "modelo"
     saida["minha"] = dono is not None and dono == uid
     saida["sem_dono"] = dono is None
     if saida["minha"]:
@@ -63,18 +72,20 @@ def _apresentar(linha: dict, user) -> dict:
     return saida
 
 
-_COLS_LEVES = "id, nome, data, projeto, user_id, publica, dono_nome"
+_COLS_LEVES = "id, nome, data, projeto, user_id, publica, dono_nome, tipo"
+_COLS_LEVES_057 = "id, nome, data, projeto, user_id, publica, dono_nome"
 _COLS_LEVES_ANTIGAS = "id, nome, data, projeto, user_id"   # nuvem ainda sem as colunas novas (SQL da TASK-057 não rodado)
 
 
 def _nuvem(sb, completo, montar):
-    cols = "*" if completo else _COLS_LEVES
-    try:
-        return montar(sb.table("obras").select(cols)).execute().data or []
-    except Exception:
-        if completo:
-            raise
-        return montar(sb.table("obras").select(_COLS_LEVES_ANTIGAS)).execute().data or []
+    if completo:
+        return montar(sb.table("obras").select("*")).execute().data or []
+    for cols in (_COLS_LEVES, _COLS_LEVES_057):      # nuvem sem `tipo` (TASK-058) e/ou sem `publica` (TASK-057)
+        try:
+            return montar(sb.table("obras").select(cols)).execute().data or []
+        except Exception:
+            continue
+    return montar(sb.table("obras").select(_COLS_LEVES_ANTIGAS)).execute().data or []
 
 
 def _ler_linhas(user, projeto=None, completo=False, obra_id=None) -> list:
@@ -110,7 +121,7 @@ def _ler_linhas(user, projeto=None, completo=False, obra_id=None) -> list:
             registrar_falha("obras.ler", e)
             linhas = None
     if linhas is None:
-        cols = "id, nome, data, projeto, user_id, publica, dono_nome" + (", dados_json" if completo else "")
+        cols = "id, nome, data, projeto, user_id, publica, dono_nome, tipo" + (", dados_json" if completo else "")
         sql = f"SELECT {cols} FROM obras WHERE (user_id = ? OR (publica = 1 AND projeto = ?) OR (? AND (user_id IS NULL OR user_id = '')))"
         args = [uid, projeto, 1 if admin else 0]
         if projeto:
@@ -137,7 +148,7 @@ def _ler_linhas(user, projeto=None, completo=False, obra_id=None) -> list:
 
 
 @router.get("")
-def get_obras(request: Request, projeto: str = None, visibilidade: str = "todas", origem: str = "todas"):
+def get_obras(request: Request, projeto: str = None, visibilidade: str = "todas", origem: str = "todas", tipo: str = "todos"):
     """Obras visíveis ao usuário (TASK-057): as dele + as públicas de outros no `projeto`. Filtros: visibilidade
     (todas|particulares|publicas) e origem (todas|minhas|outros). Sem `projeto` só vêm as dele."""
     user = get_current_user_from_state(request)
@@ -146,6 +157,10 @@ def get_obras(request: Request, projeto: str = None, visibilidade: str = "todas"
         itens = [o for o in itens if o["publica"]]
     elif visibilidade == "particulares":
         itens = [o for o in itens if not o["publica"]]
+    if tipo == "obras":
+        itens = [o for o in itens if o["tipo"] == "obra"]
+    elif tipo == "modelos":
+        itens = [o for o in itens if o["tipo"] == "modelo"]
     if origem == "minhas":
         itens = [o for o in itens if o["minha"]]
     elif origem == "outros":
@@ -222,9 +237,14 @@ async def importar_obra(request: Request, projeto: str = None):
     user_id = user["user_id"]
     obra_id = f"obra_{int(time.time() * 1000)}_{secrets.token_hex(2)}"
     nome = _nome_livre(user_id, pronta["projeto"], pronta["nome"])
+    modelo = pronta["tipo"] == "modelo"
+    dados_json = (obras_arquivo.dados_json_para_gravar(pronta["dados"], pronta["parametros"]) if modelo
+                  else obras_arquivo.dados_json_para_gravar(pronta["dados"]))
+    if modelo:      # o modelo importado vira modelo de quem importa; os rótulos/padrões vêm do arquivo (TASK-058)
+        dados_json = _preparar_modelo(dados_json, pronta["parametros"])
     gravar_obra(user, {"id": obra_id, "nome": nome, "data": datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
-                       "dados_json": obras_arquivo.dados_json_para_gravar(pronta["dados"]), "projeto": pronta["projeto"], "publica": False})
-    return {"status": "success", "id": obra_id, "nome": nome, "projeto": pronta["projeto"],
+                       "dados_json": dados_json, "projeto": pronta["projeto"], "publica": modelo, "tipo": pronta["tipo"]})
+    return {"status": "success", "id": obra_id, "nome": nome, "projeto": pronta["projeto"], "tipo": pronta["tipo"],
             "cabos": len(pronta["dados"]["cabos"]), "outros": len(pronta["dados"]["outros"])}
 
 
@@ -250,61 +270,150 @@ def get_obra(obra_id: str, request: Request, projeto: str = None):
 
 
 def _existente(obra_id):
-    """(existe, user_id, publica) da obra `obra_id` em qualquer dono — para proteger contra sobrescrita (TASK-057)."""
+    """(existe, user_id, publica, tipo) da obra `obra_id` em qualquer dono — para proteger contra sobrescrita (TASK-057)."""
     conn = get_connection()
     try:
-        r = conn.execute("SELECT user_id, publica FROM obras WHERE id = ?", (obra_id,)).fetchone()
+        r = conn.execute("SELECT user_id, publica, tipo FROM obras WHERE id = ?", (obra_id,)).fetchone()
     finally:
         conn.close()
     if r:
-        return True, (r[0] or None), bool(r[1])
+        return True, (r[0] or None), bool(r[1]), (r[2] or "obra")
     sb = get_supabase()
     if sb:
         try:
             d = sb.table("obras").select("id, user_id").eq("id", obra_id).execute().data
             if d:
-                return True, (d[0].get("user_id") or None), False
+                return True, (d[0].get("user_id") or None), False, "obra"
         except Exception as e:
             registrar_falha("obras.existente", e)
-    return False, None, False
+    return False, None, False, "obra"
 
 
 def gravar_obra(user, registro: dict) -> None:
     """Grava a obra do `user` (Supabase quando disponível + SQLite). `registro['publica']` (bool, padrão falso).
     Usado por `save_obra`, pela importação e pelo modo autônomo."""
     uid = _uid(user)
-    publica = bool(registro.get("publica"))
+    tipo = registro.get("tipo") if registro.get("tipo") in ("obra", "modelo") else "obra"
+    publica = bool(registro.get("publica")) or tipo == "modelo"      # modelo é sempre público no projeto (TASK-058)
     dono_nome = _nome_curto((user or {}).get("email")) or None
     base = {"id": registro["id"], "nome": registro["nome"], "data": registro["data"], "dados_json": registro["dados_json"],
             "user_id": uid, "projeto": registro["projeto"]}
     supabase = get_supabase()
     if supabase:
         try:
-            try:
-                supabase.table("obras").upsert({**base, "publica": publica, "dono_nome": dono_nome}).execute()
-            except Exception:   # nuvem ainda sem as colunas novas: grava como antes (a obra segue particular)
-                supabase.table("obras").upsert(base).execute()
+            for extra in ({"publica": publica, "dono_nome": dono_nome, "tipo": tipo}, {"publica": publica, "dono_nome": dono_nome}, {}):
+                try:      # nuvem sem as colunas novas (SQL das TASK-057/058 não rodado): recua até gravar como antes
+                    supabase.table("obras").upsert({**base, **extra}).execute()
+                    break
+                except Exception:
+                    if not extra:
+                        raise
         except Exception as e:
             registrar_falha("obras.save_obra", e)
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT OR REPLACE INTO obras (id, nome, data, dados_json, user_id, projeto, publica, dono_nome) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                   (registro["id"], registro["nome"], registro["data"], registro["dados_json"], uid, registro["projeto"], int(publica), dono_nome))
+    cursor.execute("INSERT OR REPLACE INTO obras (id, nome, data, dados_json, user_id, projeto, publica, dono_nome, tipo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                   (registro["id"], registro["nome"], registro["data"], registro["dados_json"], uid, registro["projeto"], int(publica), dono_nome, tipo))
     conn.commit()
     conn.close()
+
+
+def _preparar_modelo(dados_json, parametros, atuais_json=None):
+    """Valida e normaliza o `dados_json` de um modelo (TASK-058): precisa ter ao menos um `V`; sem Totalizadora; guarda os parâmetros."""
+    try:
+        snap = json.loads(dados_json) if isinstance(dados_json, str) else None
+    except ValueError:
+        snap = None
+    if not isinstance(snap, dict):
+        raise HTTPException(status_code=400, detail={"erros": ["Os dados do modelo estão ilegíveis."]})
+    cabos, outros, cfg = modelos_obra.separar_dados(snap)
+    if len(cabos) > obras_arquivo.LIMITE_LINHAS or len(outros) > obras_arquivo.LIMITE_LINHAS:
+        raise HTTPException(status_code=400, detail={"erros": ["Linhas demais no modelo."]})
+    variaveis = modelos_obra.detectar_variaveis(cabos, outros)
+    if not variaveis:
+        raise HTTPException(status_code=400, detail={"erros": ["O modelo precisa ter ao menos uma variável V (ex.: 'CAA 2 ABC V m' ou 'V-U4')."]})
+    try:
+        if parametros is None:       # não enviados: mantém os já gravados (ou os do próprio dados_json)
+            cfg_final = cfg or (modelos_obra.separar_dados(atuais_json)[2] if atuais_json else [])
+        else:
+            cfg_final = modelos_obra.validar_configuracao(parametros)
+    except modelos_obra.ErroModelo as e:
+        raise HTTPException(status_code=400, detail={"erros": e.mensagens})
+    params = [{"chave": p["chave"], "rotulo": p["rotulo"], "padrao": p["padrao"]} for p in modelos_obra.montar_parametros(variaveis, cfg_final)]
+    return obras_arquivo.dados_json_para_gravar({"cabos": cabos, "outros": outros}, params)
+
+
+def _dados_atuais(user, obra_id):
+    o = buscar_obra(user, obra_id)
+    return o.get("dados_json") if o else None
 
 
 @router.post("")
 def save_obra(obra: ObraModel, request: Request):
     user = get_current_user_from_state(request)
-    existe, dono, publica_atual = _existente(obra.id)
+    existe, dono, publica_atual, tipo_atual = _existente(obra.id)
     if existe and dono != _uid(user):
         raise HTTPException(status_code=403, detail="Esta obra pertence a outro usuário. Salve como uma nova obra.")
+    if obra.tipo not in (None, "obra", "modelo"):
+        raise HTTPException(status_code=400, detail="Tipo inválido (use obra ou modelo).")
+    tipo = obra.tipo or (tipo_atual if existe else "obra")
     publica = obra.publica if obra.publica is not None else (publica_atual if existe else False)
-    gravar_obra(user, {"id": obra.id, "nome": obra.nome, "data": obra.data, "dados_json": obra.dados_json,
-                       "projeto": obra.projeto, "publica": publica})
-    return {"status": "success", "publica": bool(publica)}
+    dados_json = obra.dados_json
+    if tipo == "modelo":
+        dados_json = _preparar_modelo(dados_json, obra.parametros, _dados_atuais(user, obra.id) if existe else None)
+        publica = True
+    gravar_obra(user, {"id": obra.id, "nome": obra.nome, "data": obra.data, "dados_json": dados_json,
+                       "projeto": obra.projeto, "publica": publica, "tipo": tipo})
+    return {"status": "success", "publica": bool(publica), "tipo": tipo}
+
+
+class DetectarModel(BaseModel):
+    cabos: list = []
+    outros: list = []
+
+
+@router.post("/modelo/detectar")
+def detectar_variaveis_modelo(corpo: DetectarModel, request: Request):
+    """Variáveis `V` encontradas nas tabelas enviadas (para a janela de "Salvar como modelo") — TASK-058."""
+    get_current_user_from_state(request)
+    if len(corpo.cabos) > obras_arquivo.LIMITE_LINHAS or len(corpo.outros) > obras_arquivo.LIMITE_LINHAS:
+        raise HTTPException(status_code=400, detail="Linhas demais.")
+    return {"parametros": modelos_obra.montar_parametros(modelos_obra.detectar_variaveis(corpo.cabos, corpo.outros))}
+
+
+def _modelo_visivel(request: Request, obra_id: str, projeto):
+    user = get_current_user_from_state(request)
+    obra = buscar_obra(user, obra_id, projeto)
+    if obra is None:
+        raise HTTPException(status_code=404, detail="Obra não encontrada.")
+    if obra["tipo"] != "modelo":
+        raise HTTPException(status_code=400, detail="Esta obra não é um modelo.")
+    return obra
+
+
+@router.get("/{obra_id}/modelo")
+def parametros_do_modelo(obra_id: str, request: Request, projeto: str = None):
+    """Parâmetros (variáveis V) do modelo, para a janela "Parâmetros do modelo" — TASK-058."""
+    obra = _modelo_visivel(request, obra_id, projeto)
+    cabos, outros, cfg = modelos_obra.separar_dados(obra["dados_json"])
+    return {"id": obra["id"], "nome": obra["nome"], "parametros": modelos_obra.montar_parametros(modelos_obra.detectar_variaveis(cabos, outros), cfg)}
+
+
+class GerarModel(BaseModel):
+    valores: dict = {}
+
+
+@router.post("/{obra_id}/gerar")
+def gerar_obra_do_modelo(obra_id: str, corpo: GerarModel, request: Request, projeto: str = None):
+    """Gera uma obra PADRÃO (sem V) a partir do modelo e dos valores informados. Não grava nada — TASK-058."""
+    obra = _modelo_visivel(request, obra_id, projeto)
+    cabos, outros, cfg = modelos_obra.separar_dados(obra["dados_json"])
+    try:
+        gerada = modelos_obra.gerar(cabos, outros, cfg, corpo.valores)
+    except modelos_obra.ErroModelo as e:
+        raise HTTPException(status_code=400, detail={"erros": e.mensagens})
+    return {"nome": obra["nome"], "projeto": obra["projeto"], **gerada}
 
 
 class VisibilidadeModel(BaseModel):
@@ -315,13 +424,15 @@ class VisibilidadeModel(BaseModel):
 def alterar_visibilidade(obra_id: str, corpo: VisibilidadeModel, request: Request):
     """Torna a obra pública (visível no projeto) ou particular. Só o dono (TASK-057)."""
     user = get_current_user_from_state(request)
-    existe, dono, _ = _existente(obra_id)
+    existe, dono, _, _ = _existente(obra_id)
     if not existe or dono is None:
         raise HTTPException(status_code=404, detail="Obra não encontrada.")
     if dono != _uid(user):
         # quem não enxerga a obra recebe 404 (não revela que existe); quem a enxerga (pública) recebe 403
         visivel = any(l["id"] == obra_id for l in _ler_linhas(user, _projeto_da(obra_id)))
         raise HTTPException(status_code=403 if visivel else 404, detail="Só o dono da obra altera a visibilidade." if visivel else "Obra não encontrada.")
+    if _existente(obra_id)[3] == "modelo":
+        raise HTTPException(status_code=400, detail="Modelos são sempre públicos no projeto.")
     dono_nome = _nome_curto(user.get("email")) or None
     aviso = None
     sb = get_supabase()
@@ -354,7 +465,7 @@ def assumir_obra(obra_id: str, request: Request):
     user = get_current_user_from_state(request)
     if not _e_admin(user):
         raise HTTPException(status_code=403, detail="Só administradores podem assumir obras sem dono.")
-    existe, dono, _ = _existente(obra_id)
+    existe, dono, _, _ = _existente(obra_id)
     if not existe or dono is not None:
         raise HTTPException(status_code=404, detail="Obra sem dono não encontrada.")
     dono_nome = _nome_curto(user.get("email")) or None

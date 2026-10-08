@@ -581,6 +581,10 @@
                     <button class="btn-primary" id="btn-save-obra" title="Salvar Obra na Memória">
                         Salvar Obra
                     </button>
+                    <button class="btn-secondary" id="btn-save-modelo" title="Salva as tabelas como MODELO: quantidades escritas V (ou V(nome)) viram variáveis pedidas a quem usar o modelo">
+                        Salvar como modelo
+                    </button>
+                    <span id="modelo-editando-aviso" style="display:none; font-size:0.75rem; color:#d29922;"></span>
                 </div>
             </div>
             <div class="ai-chat-container">
@@ -970,6 +974,36 @@
             </div>
         </div>
 
+        <!-- Salvar como modelo (TASK-058) -->
+        <div id="modal-save-modelo" class="modal-overlay hidden" style="z-index: 10000;">
+            <div class="modal-content" style="max-width: 560px; width: 92%;">
+                <h3>Salvar como modelo</h3>
+                <p style="font-size:0.8rem; color:#8b949e; margin:0 0 8px;">Modelos são públicos no projeto; só você os edita ou exclui. A Totalizadora não é guardada.
+                    Variáveis: <code>V</code> ou <code>V(nome)</code> — Cabos: <code>CAA 2 ABC V m</code>; Outros: <code>V-U4</code>, <code>*V-CFU</code>.</p>
+                <input type="text" id="input-modelo-nome" placeholder="Nome do modelo (ex: Extensão de rede BT)" class="modal-input">
+                <div id="modelo-params-config" style="max-height:40vh; overflow:auto; margin:8px 0;"></div>
+                <div id="modelo-save-erro" style="color:#f85149; font-size:0.8rem; min-height:1em;"></div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" id="btn-cancel-save-modelo">Cancelar</button>
+                    <button class="btn-primary" id="btn-confirm-save-modelo">Salvar modelo</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parâmetros do modelo (TASK-058) -->
+        <div id="modal-parametros-modelo" class="modal-overlay hidden" style="z-index: 10000;">
+            <div class="modal-content" style="max-width: 560px; width: 92%;">
+                <h3>Parâmetros do modelo <span id="param-modelo-nome" style="font-weight:normal; color:#8b949e;"></span></h3>
+                <p style="font-size:0.8rem; color:#8b949e; margin:0 0 8px;">Informe os valores (números maiores que zero). Será gerada uma obra comum, sem alterar o modelo.</p>
+                <div id="param-modelo-campos" style="max-height:45vh; overflow:auto;"></div>
+                <div id="param-modelo-erro" style="color:#f85149; font-size:0.8rem; min-height:1em; margin-top:6px;"></div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" id="btn-cancel-param-modelo">Cancelar</button>
+                    <button class="btn-primary" id="btn-gerar-param-modelo">Gerar obra</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Save Obra Modal -->
         <div id="modal-save-obra" class="modal-overlay hidden">
             <div class="modal-content">
@@ -999,6 +1033,10 @@
                     <label>Visibilidade
                         <select id="filtro-obra-visibilidade" class="modal-input" style="width:auto; padding:2px 6px;">
                             <option value="todas">Todas</option><option value="particulares">Particulares</option><option value="publicas">Públicas</option>
+                        </select></label>
+                    <label>Tipo
+                        <select id="filtro-obra-tipo" class="modal-input" style="width:auto; padding:2px 6px;">
+                            <option value="todos">Todos</option><option value="obras">Obras</option><option value="modelos">Modelos</option>
                         </select></label>
                     <label>Origem
                         <select id="filtro-obra-origem" class="modal-input" style="width:auto; padding:2px 6px;">
