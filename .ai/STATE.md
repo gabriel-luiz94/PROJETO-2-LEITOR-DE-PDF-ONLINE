@@ -391,6 +391,10 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       criador, filtráveis) com quantidades `V` (variável); carregar/adicionar/subtrair (e o comando da IA) abre
       a janela de parâmetros e gera uma obra padrão (não salva). **Ação do usuário:** rodar o SQL novo
       (`obras.tipo`) de `scripts/schema_supabase.sql`. CONCLUÍDA. Ver `.ai/tasks/TASK-058-08-10-2026.md`.
+- [~] **TASK-059** (pedido de 2026-10-08): aprendizado supervisionado do modo autônomo. **Etapa 1 concluída:** registra
+      as correções (só diferenças), propõe ajustes (estatística + IA opcional após 10 obras), aprovação sempre manual,
+      só do próprio usuário. Faltam: etapa 2 (propor regras do leitor — exige guardar a origem de cada linha) e etapa 3
+      (nível de confiança). Ver `.ai/tasks/TASK-059-08-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 

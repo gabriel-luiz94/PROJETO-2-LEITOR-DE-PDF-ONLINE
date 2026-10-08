@@ -1784,6 +1784,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return n;
     }
 
+    let execucaoOrigemAutonomo = null;
+
     function restoreObraSnapshot(snap) {
         if (!snap) { showToast("Dados da obra inválidos."); return; }
 
@@ -1799,6 +1801,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         pushHistory();  // snapshot ANTES de substituir
+        // TASK-059: obra gerada pelo modo autônomo -> ao salvar, o servidor compara com o que o usuário deixou (aprendizado)
+        execucaoOrigemAutonomo = (snap.autonomo && typeof snap.autonomo.execucao_id === 'string' && !snap.autonomo.revertida) ? snap.autonomo.execucao_id : null;
         tableStates.cabos.data  = (cabosData  || []).map(deepClone);
         tableStates.outros.data = (outrosData || []).map(deepClone);
         
@@ -2387,6 +2391,7 @@ document.addEventListener('DOMContentLoaded', () => {
             projeto: projetoSalvar,
             publica: publica
         };
+        if (execucaoOrigemAutonomo) obra.origem_execucao = execucaoOrigemAutonomo;
 
         try {
             const resp = await fetch('/api/obras', {

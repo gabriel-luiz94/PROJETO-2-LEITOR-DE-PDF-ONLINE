@@ -2,6 +2,7 @@
 routers/obras.py — Rotas para gerenciamento de obras.
 """
 import json
+import logging
 import secrets
 import time
 from datetime import datetime
@@ -365,7 +366,21 @@ def save_obra(obra: ObraModel, request: Request):
         publica = True
     gravar_obra(user, {"id": obra.id, "nome": obra.nome, "data": obra.data, "dados_json": dados_json,
                        "projeto": obra.projeto, "publica": publica, "tipo": tipo})
+    if obra.origem_execucao and tipo != "modelo":
+        _registrar_aprendizado(user, obra)
     return {"status": "success", "publica": bool(publica), "tipo": tipo}
+
+
+def _registrar_aprendizado(user, obra) -> None:
+    """TASK-059: obra do modo autônomo corrigida e salva -> guarda só as diferenças e atualiza as propostas. Nunca atrapalha o salvar."""
+    try:
+        from routers.validacao_regras import regras_efetivas
+        from services.autonomo import aprendizado_repo
+        r = aprendizado_repo.registrar_correcao(_uid(user), obra.origem_execucao, obra.id, obra.dados_json)
+        if r:
+            aprendizado_repo.reanalisar(_uid(user), r["projeto"], regras_efetivas(r["projeto"])[1])
+    except Exception as e:  # noqa: BLE001 — o aprendizado é um extra
+        logging.getLogger(__name__).warning("Aprendizado do autônomo não registrado: %s", type(e).__name__)
 
 
 class DetectarModel(BaseModel):

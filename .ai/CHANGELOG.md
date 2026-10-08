@@ -779,6 +779,15 @@ Lista com selo 📐 Modelo, filtro Tipo e "Editar modelo" (só do criador). `V` 
 
 ---
 
+## 2026-10-08 — TASK-059 (etapa 1): aprendizado supervisionado do modo autônomo
+
+**Tipo:** Backend + frontend · `.ai/tasks/TASK-059-08-10-2026.md`
+
+Ao salvar uma obra que veio do autônomo (a tela envia `origem_execucao`), o servidor guarda **só as diferenças** para o que o autônomo entregou (troca/remoção/adição de ativo, texto trocado em cabo, linha excluída/adicionada, operação/quantidade alterada). Padrões repetidos (≥ 3 vezes, ≥ 2 obras, ≥ 80% dos casos) viram **propostas de ajuste**,
+validadas pelo motor; **Aprovar** cria o ajuste no projeto (com histórico), **Recusar** não volta. Depois de 10 obras corrigidas, "Sugestões da IA" propõe mais (só códigos de ativo e contagens; sempre pendente). Seção "Aprendizado" em `/autonomo`; só administrador, só o próprio usuário, por projeto; armazenamento local (SQLite), sem mudança de schema do Supabase.
+
+---
+
 ## 2026-10-02 — TASK-031: achados do primeiro teste real (projeto 027/229)
 
 **Tipo:** Backend (modo autônomo)

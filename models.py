@@ -14,6 +14,7 @@ class ObraModel(BaseModel):
     publica: Optional[bool] = None   # None = mantém a visibilidade atual (nova obra: particular)
     tipo: Optional[str] = None       # None = mantém o tipo atual (nova: "obra"); "modelo" = modelo com variáveis V (TASK-058)
     parametros: Optional[list] = None  # modelo: [{chave, rotulo, padrao}] configurados pelo criador
+    origem_execucao: Optional[str] = None   # id da execução do modo autônomo cuja obra foi corrigida e salva (aprendizado, TASK-059)
 
 
 class RegraModel(BaseModel):
