@@ -8,6 +8,42 @@
 
 ---
 
+## 2026-10-08 — TASK-051: checagem obrigatória (contrato + ativo não encontrado) ao Ajustar/Montar Orçamento
+
+**Tipo:** feature (validação) · `static/resumo.js` · `.ai/tasks/TASK-051-07-10-2026.md`
+
+Usuário pediu que erros na tabela Outros fossem sinalizados pra evitar erros em grandes obras.
+Depois de descartar a opção de unificar os 4 parsers de Outros (risco alto, muitos pontos de
+regressão), desenhamos destaque ao vivo na tabela — mas o usuário mudou o modelo de disparo: "quero
+que esse tipo de sinalização seja disparada quando clicar em ajustar, validar ou montar orçamento.
+Exiba uma mensagem e não prossiga devido às inconsistências." Confirmado: bloqueia mas permite
+"continuar mesmo assim" (mesmo padrão que Montar Orçamento já tinha, opcionalmente); roda sempre,
+automaticamente, sem precisar ligar nenhuma preferência.
+
+Investigação mostrou que **Validar** já cobria os dois sinais pedidos por padrão (Camada 1 de
+contrato + `validar_base`/ativo não encontrado, via `MODOS_PADRAO.det = true`) — zero mudança
+necessária ali. Faltava: (1) Ajustar não validava nada antes de abrir a gaveta; (2) Montar Orçamento
+só validava se a preferência "Validar ao montar orçamento" (desligada por padrão) estivesse ligada.
+
+Implementado com reaproveitamento total da lógica existente, sem duplicar nada: `executarValidacao`
+ganhou um parâmetro opcional `somenteContrato` que, quando `true`, ignora a preferência salva do
+usuário e força `{det:true, dominio:false, ia:false, pularIa:true}` — mesma montagem de payload,
+mesma chamada a `/api/validacao/planilhas`, mesmo formato de retorno de sempre, só sem regras de
+domínio nem IA. Nova função `checarInconsistenciasBasicas()` chama `executarValidacao(true)` e, se
+houver achado de erro/aviso, usa o mesmo `cicloValidacao(res, true)` que o Montar Orçamento opcional
+já usava pra mostrar o painel e perguntar "continuar mesmo assim" — nenhuma UI nova. `btnAjustar`
+agora chama essa checagem antes de abrir a gaveta; `btnMontarOrcamento` passou a chamá-la sempre,
+antes da checagem opcional mais completa (que continua intacta, pra quem já liga "Validar ao montar
+orçamento" e quer domínio/IA também). `btnValidar` não mudou.
+
+Suíte completa (770 testes) sem regressão — nenhuma mudança de backend. Smoke test real-server +
+Playwright: linha de Outros com quantidade não numérica bloqueou Ajustar e Montar Orçamento (mesmo
+com a preferência desligada) com a mensagem certa no painel; "continuar mesmo assim" seguiu
+normalmente; linha com ativo não encontrado na base técnica também bloqueou; linha sem nenhuma
+inconsistência abriu a gaveta/montou o orçamento direto, sem painel.
+
+---
+
 ## 2026-10-07 — TASK-050: quantidade decimal com vírgula em Outros não aparecia na Totalizadora
 
 **Tipo:** correção de bug · `static/resumo.js`, `services/autonomo/totalizadora.py` ·
