@@ -31,12 +31,20 @@ def menciona_obra(prompt: str) -> bool:
     return bool(_RE_OBRA.search(normalizar(prompt)))
 
 
+def _linha_indice(o: dict) -> str:
+    """As próprias não ganham marca extra (como antes); as públicas de outros levam a visibilidade e o dono (TASK-057)."""
+    base = f'- id={o["id"]} | nome="{o["nome"]}" | data={o.get("data", "")}'
+    if o.get("minha", True):
+        return base + (" | pública" if o.get("publica") else "")
+    return base + f' | pública de {o.get("dono") or "outro usuário"}'
+
+
 def montar_indice(obras: list) -> str:
     """Índice enxuto das obras (já na ordem desejada, mais recentes primeiro)."""
     cab = "OBRAS SALVAS NESTE PROJETO (mais recentes primeiro):"
     if not obras:
         return cab + "\n(nenhuma obra salva neste projeto)"
-    linhas = [f'- id={o["id"]} | nome="{o["nome"]}" | data={o.get("data", "")}' for o in obras[:LIMITE_INDICE]]
+    linhas = [_linha_indice(o) for o in obras[:LIMITE_INDICE]]
     if len(obras) > LIMITE_INDICE:
         linhas.append(f"(+{len(obras) - LIMITE_INDICE} obras mais antigas não listadas)")
     return cab + "\n" + "\n".join(linhas)

@@ -11,6 +11,7 @@ class ObraModel(BaseModel):
     data: str
     dados_json: str
     projeto: str = "229"
+    publica: Optional[bool] = None   # None = mantém a visibilidade atual (nova obra: particular)
 
 
 class RegraModel(BaseModel):

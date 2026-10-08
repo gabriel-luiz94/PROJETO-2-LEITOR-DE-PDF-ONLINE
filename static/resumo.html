@@ -975,6 +975,10 @@
             <div class="modal-content">
                 <h3>Salvar Obra</h3>
                 <input type="text" id="input-obra-nome" placeholder="Nome da Obra (ex: Extensão Rural João)" class="modal-input">
+                <div style="display:flex; gap:14px; margin:8px 0; font-size:0.85rem;" title="Obras públicas ficam visíveis (para ver e copiar) a todos os usuários do mesmo projeto">
+                    <label><input type="radio" name="obra-vis" id="obra-vis-particular" checked> 🔒 Particular</label>
+                    <label><input type="radio" name="obra-vis" id="obra-vis-publica"> 🌐 Pública no projeto</label>
+                </div>
                 <div class="modal-actions">
                     <button class="btn-secondary" onclick="document.getElementById('modal-save-obra').classList.add('hidden')">Cancelar</button>
                     <button class="btn-primary" id="btn-confirm-save-obra">Salvar na Memória</button>
@@ -990,6 +994,16 @@
                     <button class="btn-secondary" id="btn-importar-obra" type="button" title="Importa um arquivo .obra.json como cópia particular sua, no projeto selecionado">Importar obra</button>
                     <input type="file" id="input-importar-obra" accept=".json,application/json" style="display:none">
                     <span id="importar-obra-msg" style="font-size:0.78rem; color:#8b949e;"></span>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; font-size:0.8rem;">
+                    <label>Visibilidade
+                        <select id="filtro-obra-visibilidade" class="modal-input" style="width:auto; padding:2px 6px;">
+                            <option value="todas">Todas</option><option value="particulares">Particulares</option><option value="publicas">Públicas</option>
+                        </select></label>
+                    <label>Origem
+                        <select id="filtro-obra-origem" class="modal-input" style="width:auto; padding:2px 6px;">
+                            <option value="todas">Todas</option><option value="minhas">Minhas</option><option value="outros">De outros</option>
+                        </select></label>
                 </div>
                 <div class="obras-list" id="obras-list">
                     <!-- Preenchido via JS -->

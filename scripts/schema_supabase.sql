@@ -272,3 +272,9 @@ CREATE TABLE IF NOT EXISTS public.ajustes_contextos_historico (
 );
 ALTER TABLE public.ajustes_contextos_historico DISABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_ajustes_contextos_hist_projeto ON public.ajustes_contextos_historico(projeto_codigo, contexto);
+
+-- TASK-057: obras públicas/particulares. `publica` (padrão falso = particular) e `dono_nome` (parte do e-mail antes do @).
+-- Obras já existentes continuam particulares do seu usuário. Até rodar este bloco o programa funciona como antes.
+ALTER TABLE public.obras ADD COLUMN IF NOT EXISTS publica BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.obras ADD COLUMN IF NOT EXISTS dono_nome TEXT;
+CREATE INDEX IF NOT EXISTS idx_obras_projeto_publica ON public.obras(projeto, publica);
