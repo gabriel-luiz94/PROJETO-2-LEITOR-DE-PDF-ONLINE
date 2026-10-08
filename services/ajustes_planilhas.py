@@ -44,6 +44,18 @@ AÇÕES (cada uma exige `acao` e `tabela`: "cabos" | "outros" | "ambos"; `id` e 
                       — com `2-U4` na linha, gera `*4-90277` e `4-90279`.
   remover_ativo     (Outros) {"ativo": SELETOR}
   mesclar_duplicadas(Outros) soma as quantidades do mesmo ativo repetido na linha
+  criar_linha_derivada {"de": {"regex": ".."}, "ativo_novo": "texto com \\1, \\2..", "operacao_nova"?: "I",
+                      "entidade_nova"?: "0", "posicao": "depois"(padrão)|"antes", "apenas_se_nao_existir": true}
+                      (TASK-053) Para cada linha que casar com `de` (regex, pode ter grupos), insere uma linha NOVA
+                      na mesma tabela, logo depois (ou antes) da linha que gerou — com `ativo_novo` resolvido via
+                      backreferences do MATCH DAQUELA linha (nunca de outra). `operacao_nova` ausente = usa a
+                      operação da própria linha; `entidade_nova` ausente = "0". A linha recém-criada nunca é
+                      reavaliada contra `de` na mesma execução do ajuste (sem risco de crescimento em cadeia).
+                      Diferente de `adicionar_linha` (texto fixo, sem regex, insere uma vez só por execução), esta
+                      ação roda uma vez POR LINHA que casar, com conteúdo DERIVADO daquela linha. Ex.: ativo
+                      "CA 1/0(2) ABC 35m" (bitola do cabo ≠ bitola do neutro "(2)") → criar a linha do neutro
+                      "CA 2 N 35 m" usando o comprimento capturado: {"de": {"regex":
+                      "^[A-Za-z]+\\s*[\\d/]+\\(2\\)\\s+[A-Za-z]+\\s+([\\d.,]+)\\s*m\\s*$"}, "ativo_novo": "CA 2 N \\1 m"}.
 
 Campos comuns opcionais: `operacoes` (só linhas com essas operações), `quando` (condição da linguagem de regras v2, só
 Outros e só tem/soma/texto/combinadores; em Cabos só `texto`) e `operacao_nova` — a operação da linha só muda quando a ação
@@ -76,6 +88,8 @@ ESPECIFICOS = {
     "adicionar_ativo": {"ativo", "qtd", "se_ja_existe", "operacao_nova", "operacoes", "quando"},
     "remover_ativo": {"ativo", "operacao_nova", "operacoes", "quando"},
     "mesclar_duplicadas": {"operacao_nova", "operacoes", "quando"},
+    "criar_linha_derivada": {"de", "ativo_novo", "operacao_nova", "entidade_nova", "posicao",
+                             "apenas_se_nao_existir", "operacoes", "quando"},
 }
 SO_OUTROS = {"adicionar_ativo", "remover_ativo", "mesclar_duplicadas"}
 SO_UMA_TABELA = {"adicionar_linha"}
@@ -268,6 +282,27 @@ def _validar_acao(a, pre, erros, grupos):
             erros.append(f"{pre}: 'se_ja_existe' precisa ser ignorar, somar ou substituir.")
     elif nome == "remover_ativo":
         _validar_sel(a.get("ativo"), f"{pre}.ativo", erros, grupos)
+    elif nome == "criar_linha_derivada":
+        de = a.get("de")
+        if not isinstance(de, dict) or set(de) != {"regex"}:
+            erros.append(f"{pre}.de: use {{\"regex\": \"...\"}} (precisa ter grupo(s) pra 'ativo_novo' reusar).")
+        else:
+            _regex_ok(de["regex"], f"{pre}.de.regex", erros)
+        ativo_novo = a.get("ativo_novo")
+        if not isinstance(ativo_novo, str) or not ativo_novo.strip():
+            erros.append(f"{pre}: 'ativo_novo' precisa ser um texto (pode usar \\1, \\2... capturados em 'de').")
+        elif isinstance(de, dict) and "regex" in de:
+            try:
+                re.compile(de["regex"]).sub(ativo_novo, "")
+            except (re.error, IndexError) as e:
+                erros.append(f"{pre}.ativo_novo: referência inválida ({e}).")
+        if "entidade_nova" in a and not isinstance(a["entidade_nova"], str):
+            erros.append(f"{pre}: 'entidade_nova' precisa ser um texto.")
+        pos = a.get("posicao", "depois")
+        if pos not in ("depois", "antes"):
+            erros.append(f"{pre}: 'posicao' precisa ser 'depois' ou 'antes'.")
+        if "apenas_se_nao_existir" in a and not isinstance(a["apenas_se_nao_existir"], bool):
+            erros.append(f"{pre}: 'apenas_se_nao_existir' precisa ser true ou false.")
 
 
 def validar_acoes(acoes, grupos=None, limite=LIMITE_ACOES) -> list:
@@ -702,8 +737,52 @@ def _aplicar_adicionar_linha(est, idx, a):
             tentar(i, vizinho)
 
 
+def _aplicar_criar_linha_derivada(est, idx, a):
+    """TASK-053: pra cada linha que casar com `de` (regex), insere uma linha NOVA logo depois/antes
+    dela, com `ativo_novo` resolvido via backreferences do match DAQUELA linha. Itera um snapshot
+    das linhas que já existiam antes desta ação começar — uma linha recém-criada por esta mesma
+    chamada nunca é reavaliada contra `de` (sem risco de crescimento em cadeia)."""
+    filtro = _ops_filtro(a)
+    padrao = re.compile(a["de"]["regex"], re.IGNORECASE)
+    depois = a.get("posicao", "depois") == "depois"
+    unico = a.get("apenas_se_nao_existir", True)
+    for tabela in _alvos(a):
+        for row in list(est.tabelas[tabela]):
+            texto = row["ativo"]
+            if not texto.strip():
+                continue
+            if filtro is not None and row["operacao"].strip().upper() not in filtro:
+                continue
+            if not _quando(a.get("quando"), tabela, texto, est.grupos):
+                continue
+            m = padrao.search(texto)
+            if not m:
+                continue
+            ativo_novo = m.expand(a["ativo_novo"]).strip()
+            if not ativo_novo:
+                continue
+            operacao_nova = str(a["operacao_nova"]).strip().upper() if a.get("operacao_nova") else row["operacao"]
+            chave_nova = _chave_linha(operacao_nova, ativo_novo)
+            atual = est.tabelas[tabela]
+            if unico and any(_chave_linha(r["operacao"], r["ativo"]) == chave_nova for r in atual):
+                continue
+            est.novas += 1
+            nova = {"id": f"NOVA-{est.novas}", "operacao": operacao_nova, "ativo": ativo_novo,
+                    "entidade": a.get("entidade_nova", "0")}
+            erro = _novo_erro_c1(tabela, {"id": nova["id"], "operacao": "I", "ativo": ""}, nova)
+            if erro:
+                est.descartar(idx, nova["id"], f"a linha derivada seria inválida ({erro})")
+                continue
+            indice = next((k for k, r in enumerate(atual) if r["id"] == row["id"]), None)
+            if indice is None:
+                continue   # a linha original já não existe mais (removida por uma ação anterior)
+            est.tabelas[tabela].insert(indice + 1 if depois else indice, nova)
+            est.marcar(tabela, nova["id"], idx)
+
+
 EXECUTORES = {
     "ordenar": _aplicar_ordenar, "excluir_linhas": _aplicar_excluir, "adicionar_linha": _aplicar_adicionar_linha,
+    "criar_linha_derivada": _aplicar_criar_linha_derivada,
 }
 
 
@@ -856,4 +935,9 @@ def descrever_acao(a: dict) -> str:
         return f"Em {t}: adicionar {qtd_txt} à linha{_frase_filtros(a)}{modo}{op}."
     if nome == "remover_ativo":
         return f"Em {t}: remover {_frase_sel(a['ativo'])} da linha{_frase_filtros(a)}{op}."
+    if nome == "criar_linha_derivada":
+        pos_txt = "antes" if a.get("posicao", "depois") == "antes" else "depois"
+        return (f"Em {t}: quando a linha casar com /{a['de']['regex']}/, criar a linha nova "
+                f"'{a['ativo_novo']}' (usando o que foi capturado naquela linha) {pos_txt} dela"
+                f"{_frase_filtros(a)}.")
     return f"Em {t}: somar as quantidades do mesmo ativo repetido na linha{_frase_filtros(a)}{op}."

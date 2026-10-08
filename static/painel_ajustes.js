@@ -25,7 +25,9 @@ const AJ_ACOES = {
     remover_ativo: { rot: 'Remover ativo da linha', tabelas: ['outros'], filtros: true,
         novo: () => ({ acao: 'remover_ativo', tabela: 'outros', ativo: '' }) },
     mesclar_duplicadas: { rot: 'Mesclar ativos repetidos na linha', tabelas: ['outros'], filtros: true,
-        novo: () => ({ acao: 'mesclar_duplicadas', tabela: 'outros' }) }
+        novo: () => ({ acao: 'mesclar_duplicadas', tabela: 'outros' }) },
+    criar_linha_derivada: { rot: 'Criar linha derivada (regex)', tabelas: ['outros', 'cabos', 'ambos'], filtros: true,
+        novo: () => ({ acao: 'criar_linha_derivada', tabela: 'cabos', de: { regex: '' }, ativo_novo: '', posicao: 'depois' }) }
 };
 
 function ajEl(id) { return document.getElementById(id); }
@@ -299,6 +301,18 @@ function ajCamposDaAcao(a, refazer) {
         f.appendChild(ajRotulo('se já existir', ajSelect([['ignorar', 'ignorar'], ['somar', 'somar a quantidade'], ['substituir', 'trocar a quantidade']], a.se_ja_existe || 'ignorar', v => { if (v === 'ignorar') delete a.se_ja_existe; else a.se_ja_existe = v; })));
     } else if (nome === 'remover_ativo') {
         f.appendChild(ajRotulo('ativo', ajInput(rdSelParaTexto(a.ativo), v => { a.ativo = rdTextoParaSel(v); }, 'w-56 font-mono', 'código, curinga, @GRUPO, lista', 'rdSugestoes')));
+    } else if (nome === 'criar_linha_derivada') {
+        // TASK-053: pra cada linha que casar com o regex, cria uma linha NOVA (não edita a própria),
+        // com o texto montado a partir dos grupos capturados NAQUELA linha (\1, \2...).
+        f.appendChild(ajRotulo('quando a linha casar com', ajInput((a.de && a.de.regex) || '', v => { a.de = { regex: v }; }, 'w-64 font-mono',
+            'regex com grupo(s) entre parênteses, ex.: ^CA ([\\d/]+)\\(2\\) (\\w+) ([\\d.,]+)m$')));
+        f.appendChild(ajRotulo('criar a linha', ajInput(a.ativo_novo, v => { a.ativo_novo = v; }, 'w-56 font-mono',
+            'use \\1, \\2... pra reusar o que foi capturado acima, ex.: CA 2 N \\3 m')));
+        f.appendChild(ajRotulo('entidade da linha nova', ajInput(a.entidade_nova || '', v => { if (v) a.entidade_nova = v; else delete a.entidade_nova; }, 'w-20', 'opcional, padrão "0"')));
+        f.appendChild(ajRotulo('posição', ajSelect([['depois', 'depois da linha que casou'], ['antes', 'antes da linha que casou']], a.posicao || 'depois', v => { a.posicao = v; })));
+        const c = document.createElement('input'); c.type = 'checkbox'; c.checked = a.apenas_se_nao_existir !== false;
+        c.onchange = () => { if (c.checked) delete a.apenas_se_nao_existir; else a.apenas_se_nao_existir = false; };
+        f.appendChild(ajRotulo('só se ainda não existir', c));
     }
     return f;
 }
@@ -326,6 +340,8 @@ function ajAcaoEditor(item, a, i, refazer) {
         fl.appendChild(ajRotulo('só nas operações', ajInput((a.operacoes || []).join(', '), v => { const l = ajCsv(v); if (l.length) a.operacoes = l; else delete a.operacoes; }, 'w-32', 'ex.: I, *I (vazio = todas)')));
         if (['substituir', 'adicionar_ativo', 'remover_ativo', 'mesclar_duplicadas'].includes(a.acao)) {
             fl.appendChild(ajRotulo('mudar a operação para', ajSelect([['', '(manter)'], ...AJ_OPERACOES.map(o => [o, o])], a.operacao_nova || '', v => { if (v) a.operacao_nova = v; else delete a.operacao_nova; })));
+        } else if (a.acao === 'criar_linha_derivada') {
+            fl.appendChild(ajRotulo('operação da linha nova', ajSelect([['', '(igual à linha que casou)'], ...AJ_OPERACOES.map(o => [o, o])], a.operacao_nova || '', v => { if (v) a.operacao_nova = v; else delete a.operacao_nova; })));
         }
         caixa.appendChild(fl);
         caixa.appendChild(ajCondicao(a, 'quando', 'Só nas linhas em que (opcional)', refazer, a));

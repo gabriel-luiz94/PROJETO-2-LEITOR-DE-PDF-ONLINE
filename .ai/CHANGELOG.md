@@ -8,6 +8,45 @@
 
 ---
 
+## 2026-10-08 — TASK-053: motor de ajustes ganha a ação `criar_linha_derivada`
+
+**Tipo:** feature (motor de ajustes) · `services/ajustes_planilhas.py`, `static/painel_ajustes.js`,
+`data/manual_regras_e_ajustes.md` · `.ai/tasks/TASK-053-08-10-2026.md`
+
+Usuário pediu pra ajustar a regra `"AJUSTE DO (2)"` (Cabos: `"(2)"` depois da bitola = "tem neutro,
+bitola 2") pra que, quando a bitola da linha for igual à do neutro, junte o N na fase na mesma
+linha; quando for diferente, limpe o `(2)` e crie uma linha nova com o neutro, usando o MESMO
+comprimento capturado na linha original.
+
+Investigação em `services/ajustes_planilhas.py` (leitura completa): juntar N na fase e limpar o
+`(2)` sem criar linha já eram possíveis com `substituir` + regex/backreferences existentes — sem
+precisar de código novo. Criar a linha nova com conteúdo DINÂMICO (dependente do que foi capturado
+em cada linha) não era possível: a única ação que insere linha (`adicionar_linha`) usa texto
+literal fixo, sem regex, insere uma vez só por execução do ajuste — não existia primitivo pra "pra
+cada linha que bate um regex, derive uma linha-filha a partir dos grupos capturados dessa mesma
+linha".
+
+Nova ação `criar_linha_derivada` (família `EXECUTORES`, mesmo padrão de `adicionar_linha` —
+`_novo_erro_c1` pro guard de Camada 1, `_alvos`/`_quando`/`_Estado.marcar` reaproveitados): pra cada
+linha que casa com `de` (regex com grupos), insere uma linha nova logo depois (ou antes) dela, com
+`ativo_novo` resolvido via `match.expand()` — backreferences do match DAQUELA linha, nunca de
+outra. Itera um snapshot das linhas que já existiam antes da ação começar, pra uma linha recém-
+criada nunca ser reavaliada contra `de` na mesma execução (sem risco de crescimento em cadeia).
+Campos `operacao_nova`/`entidade_nova` reaproveitam nomes/validação já existentes no motor.
+`static/painel_ajustes.js` ganhou a seção de campos do editor; `data/manual_regras_e_ajustes.md`
+documenta a ação com a própria regra do pedido como exemplo. Deliberadamente não adicionada ao
+prompt de correção por IA (TASK-025) — fora do escopo daquele prompt, pensado pra correções
+simples, não pra gerar regex/linhas novas sem supervisão.
+
+18 testes novos (`tests/test_ajustes_planilhas.py`), incluindo a regra completa dos 4 passos sobre
+as três linhas de exemplo do pedido. Suíte completa (806 testes) sem regressão. Smoke test
+real-server + Playwright: editor renderizado sem erro com os campos da ação nova, pré-visualização
+confirmando os três resultados exatos do pedido (`"CA 2(2) ABC 35m"` → `"CA 2 ABCN 35 m"`;
+`"CA 1/0(2) ABC 35M"` → `"CA 1/0 ABC 35 m"` + nova linha `"CA 2 N 35 m"`; `"CA 2(2) AN 35M"` →
+`"CA 2 AN 35 m"`).
+
+---
+
 ## 2026-10-08 — TASK-052: base de orçamento totalmente separada por projeto
 
 **Tipo:** feature (dados + admin) · `services/sync_service.py`, `routers/orcamento.py`,

@@ -269,6 +269,35 @@ Use `"qtd"` **negativo** para adicionar como "linha viva"/retirada — o ativo e
 [{"acao": "mesclar_duplicadas", "tabela": "outros"}]
 ```
 
+**criar_linha_derivada:** pra cada linha que casar com `de` (um regex, com grupo(s) entre parênteses), cria uma linha
+**nova** logo depois (ou antes) dela — nunca edita a linha original. `ativo_novo` é um texto que pode reusar o que foi
+capturado por `de` com `\1`, `\2`... (o que o grupo 1, grupo 2... capturou NAQUELA linha). Diferente de
+`adicionar_linha` (texto sempre igual, não depende de regex), esta ação roda uma vez por linha que casar, com
+conteúdo derivado dela.
+
+Exemplo real: em Cabos, `"(2)"` depois da bitola significa "tem neutro, bitola 2" — se a bitola da linha já é 2, o
+neutro só precisa de uma letra na fase (outro ajuste, de `substituir`, cuida disso — ver abaixo); se é diferente,
+o neutro precisa de uma linha própria, com o mesmo comprimento da linha original:
+
+```json acoes
+[{"acao": "criar_linha_derivada", "tabela": "cabos",
+  "quando": {"nao": {"texto": "(?<![A-Za-z0-9/])2\\(2\\)"}},
+  "de": {"regex": "^[A-Za-z]+\\s*[\\d/]+\\(2\\)\\s+[A-Za-z]+\\s+([\\d.,]+)\\s*m\\s*$"},
+  "ativo_novo": "CA 2 N \\1 m"}]
+```
+
+Com a linha `"CA 1/0(2) ABC 35m"` (bitola `1/0`, diferente de `2`), essa ação cria a linha `"CA 2 N 35 m"` logo
+abaixo — o `35` veio do grupo capturado NAQUELA linha, não de um valor fixo na regra.
+
+Campos opcionais: `operacao_nova` (operação da linha nova; sem ele, usa a operação da linha que casou),
+`entidade_nova` (padrão `"0"`), `posicao` (`"depois"`, padrão, ou `"antes"`), `apenas_se_nao_existir` (padrão
+`true` — não duplica se a linha derivada já existir). A linha recém-criada nunca é reavaliada contra `de` na
+mesma execução do ajuste (sem risco de crescer em cadeia).
+
+**Atenção à ordem das ações**: se outra ação do mesmo ajuste remove o trecho que `de` procura (no exemplo, o
+`"(2)"`), ela precisa rodar **depois** de `criar_linha_derivada` — senão, quando a ordem chegar nela, o regex já
+não bate mais e a linha nova deixa de ser criada, sem nenhum erro visível.
+
 ### Mudando a operação de uma linha
 
 Por segurança, uma ação **não muda a operação** (`I`, `R`, `M`...) da linha. Para mudar, a ação precisa dizer explicitamente `"operacao_nova": "*I"`; e só as linhas que a ação de fato alterou mudam.
