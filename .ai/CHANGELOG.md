@@ -758,6 +758,16 @@ tamanho (5 MB), linhas (5.000) e campos; o conteúdo entra na tela só como text
 
 ---
 
+## 2026-10-08 — TASK-057: obras públicas e particulares
+
+**Tipo:** Backend + frontend + schema · `.ai/tasks/TASK-057-08-10-2026.md`
+
+Cada obra tem visibilidade: **particular** (padrão) ou **pública** (visível, para ver/copiar/carregar/adicionar/subtrair/exportar, só a usuários do **mesmo projeto**). Particulares de outros nunca aparecem (lista, índice, por id, exportar, IA).
+A lista ganhou filtros (Visibilidade, Origem), selos e o dono (só a parte antes do `@`); só o dono altera a visibilidade, sobrescreve ou apaga (salvar sobre id alheio dá 403). Obras sem dono: só administradores, com "Assumir" (viram particulares do admin).
+A IA vê as próprias + públicas do projeto; o modo autônomo grava sempre particular. **Schema Supabase:** `obras.publica` e `obras.dono_nome` (SQL em `scripts/schema_supabase.sql`, a rodar pelo usuário; sem ele tudo segue como antes).
+
+---
+
 ## 2026-10-02 — TASK-031: achados do primeiro teste real (projeto 027/229)
 
 **Tipo:** Backend (modo autônomo)

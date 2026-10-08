@@ -81,7 +81,7 @@ def salvar(client, uid, i, nome, projeto="229", **kw):
 def test_indice_so_do_usuario_e_do_projeto_e_sem_dados_json(client):
     salvar(client, "u1", 1, "Obra 2"); salvar(client, "u1", 2, "Obra 3", projeto="027"); salvar(client, "u2", 3, "De outro usuário")
     r = client.get("/api/obras/indice?projeto=229", headers=cab("u1")).json()
-    assert [o["nome"] for o in r] == ["Obra 2"] and set(r[0]) == {"id", "nome", "data", "projeto"}
+    assert [o["nome"] for o in r] == ["Obra 2"] and set(r[0]) == {"id", "nome", "data", "projeto", "publica", "minha", "sem_dono", "dono"}
     assert [o["nome"] for o in client.get("/api/obras/indice?projeto=027", headers=cab("u1")).json()] == ["Obra 3"]
     assert client.get("/api/obras/indice?projeto=229").status_code == 401
 
@@ -101,7 +101,7 @@ def req_falso(prompt, projeto="229", uid="u1"):
 def test_sem_a_palavra_obra_nao_ha_contexto_nem_consulta_ao_banco(monkeypatch):
     def proibido(*a, **k):
         raise AssertionError("não devia consultar obras")
-    monkeypatch.setattr(chat, "listar_leves", proibido); monkeypatch.setattr(chat, "buscar_obra", proibido)
+    monkeypatch.setattr(chat, "listar_visiveis", proibido); monkeypatch.setattr(chat, "buscar_obra", proibido)
     for prompt in ("gere uma rede com 3 postes", "adicionar 2 CFU", "analise a tabela", "ordene os cabos"):
         assert chat._contexto_obras(*req_falso(prompt)) == ("", ""), prompt
 
@@ -120,7 +120,7 @@ def test_com_a_palavra_obra_vai_indice_e_instrucoes_e_conteudo_so_se_pedido(clie
 
 
 def test_falha_ao_montar_o_contexto_nao_derruba_o_chat(monkeypatch):
-    monkeypatch.setattr(chat, "listar_leves", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("banco fora")))
+    monkeypatch.setattr(chat, "listar_visiveis", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("banco fora")))
     assert chat._contexto_obras(*req_falso("quais obras eu tenho?")) == ("", "")
 
 

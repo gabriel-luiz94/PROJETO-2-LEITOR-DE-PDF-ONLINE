@@ -185,24 +185,10 @@ def _validar(ctx: Contexto, cabos: list, outros: list) -> list:
 
 
 def _salvar_obra(obra_id: str, nome: str, projeto: str, user_id: str, dados: dict) -> None:
-    """Mesma gravação de POST /api/obras (SQLite + Supabase quando disponível)."""
-    import database
-    from services.supabase_client import get_supabase
-    registro = {"id": obra_id, "nome": nome, "data": datetime.now().strftime("%d/%m/%Y, %H:%M:%S"), "dados_json": json.dumps(dados, ensure_ascii=False),
-                "user_id": user_id, "projeto": projeto}
-    supabase = get_supabase()
-    if supabase:
-        try:
-            supabase.table("obras").upsert(registro).execute()
-        except Exception:  # noqa: BLE001 — como a rota: a nuvem é best-effort, o local é a fonte
-            pass
-    conn = database.get_connection()
-    try:
-        conn.execute("INSERT OR REPLACE INTO obras (id, nome, data, dados_json, user_id, projeto) VALUES (?, ?, ?, ?, ?, ?)",
-                     (registro["id"], registro["nome"], registro["data"], registro["dados_json"], registro["user_id"], registro["projeto"]))
-        conn.commit()
-    finally:
-        conn.close()
+    """Mesma gravação de POST /api/obras (SQLite + Supabase quando disponível). Sempre PARTICULAR do usuário dono (TASK-057)."""
+    from routers.obras import gravar_obra
+    gravar_obra({"user_id": user_id}, {"id": obra_id, "nome": nome, "data": datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
+                                       "dados_json": json.dumps(dados, ensure_ascii=False), "projeto": projeto, "publica": False})
 
 
 # ── fluxo ───────────────────────────────────────────────────────────────────

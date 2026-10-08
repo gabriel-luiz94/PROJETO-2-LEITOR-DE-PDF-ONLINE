@@ -13,7 +13,7 @@ from database import get_connection
 from models import ChatRequest
 from config import PROMPT_OBRAS_PATH, PROMPT_PATH, logger
 from routers.regras import get_regras
-from routers.obras import buscar_obra, listar_leves
+from routers.obras import buscar_obra, listar_visiveis
 from services.obras_contexto import menciona_obra, montar_indice, obras_citadas, resumir_obra
 
 router = APIRouter(prefix="/api/gemini", tags=["ai"])
@@ -172,11 +172,10 @@ def _contexto_obras(req, request):
         return "", ""
     try:
         user = getattr(request.state, "user", None)
-        user_id = user["user_id"] if user else None
-        obras = listar_leves(user_id, req.projeto_codigo)
+        obras = listar_visiveis(user, req.projeto_codigo) if user else []   # próprias + públicas de outros (TASK-057)
         extra = montar_indice(obras)
         for o in obras_citadas(req.prompt, obras):
-            completa = buscar_obra(user_id, o["id"])
+            completa = buscar_obra(user, o["id"], req.projeto_codigo)
             if completa:
                 extra += "\n\n" + resumir_obra(completa)
         instrucoes = ""

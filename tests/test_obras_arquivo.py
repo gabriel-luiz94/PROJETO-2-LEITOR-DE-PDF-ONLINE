@@ -231,5 +231,5 @@ def test_na_nuvem_grava_so_as_colunas_existentes_em_nome_do_importador(client, m
     r = importar(client, "b", arq)
     assert r.status_code == 200
     ultimo = nuvem.upserts[-1]
-    assert set(ultimo) == {"id", "nome", "data", "dados_json", "user_id", "projeto"} and ultimo["user_id"] == "b" and ultimo["id"] == r.json()["id"]
+    assert set(ultimo) == {"id", "nome", "data", "dados_json", "user_id", "projeto", "publica", "dono_nome"} and ultimo["publica"] is False and ultimo["user_id"] == "b" and ultimo["id"] == r.json()["id"]
     assert [o["nome"] for o in client.get("/api/obras?projeto=229", headers=cab("b")).json()] == ["Rede Norte"]

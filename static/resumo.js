@@ -1955,8 +1955,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!rotulo[action.acao] || typeof action.obra_id !== 'string' || !action.obra_id) return { msg: 'Comando de obra inválido; nada foi alterado.' };
         let obra;
         try {
-            const r = await fetch(`/api/obras/${encodeURIComponent(action.obra_id)}`);
-            if (r.status === 404) return { msg: 'Não encontrei essa obra entre as suas obras salvas; nada foi alterado.' };
+            const projetoAtual = localStorage.getItem('projeto_selecionado_codigo') || '229';
+            const r = await fetch(`/api/obras/${encodeURIComponent(action.obra_id)}?projeto=${encodeURIComponent(projetoAtual)}`);
+            if (r.status === 404) return { msg: 'Não encontrei essa obra entre as suas obras ou as públicas do projeto; nada foi alterado.' };
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             obra = await r.json();
         } catch (e) {
@@ -2277,46 +2278,53 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('btn-save-obra').addEventListener('click', () => {
         document.getElementById('input-obra-nome').value = '';
+        document.getElementById('obra-vis-particular').checked = true;
         modalSaveObra.classList.remove('hidden');
     });
 
     document.getElementById('btn-confirm-save-obra').addEventListener('click', async () => {
         const nome = document.getElementById('input-obra-nome').value.trim();
         if (!nome) return alert('Digite um nome');
-        
+        const publica = document.getElementById('obra-vis-publica').checked;
+        const projetoSalvar = localStorage.getItem('projeto_selecionado_codigo') || '229';
+        if (publica && !confirm(`Todos os usuários do projeto ${projetoSalvar} poderão ver e copiar esta obra. Deseja torná-la pública?`)) return;
+
         const obra = {
             id: 'obra_' + Date.now(),
             nome: nome,
             data: new Date().toLocaleString(),
             dados_json: JSON.stringify(tableStates),
-            projeto: localStorage.getItem('projeto_selecionado_codigo') || '229'
+            projeto: projetoSalvar,
+            publica: publica
         };
 
         try {
-            await fetch('/api/obras', {
+            const resp = await fetch('/api/obras', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(obra)
             });
+            if (!resp.ok) throw new Error(await lerDetalhe(resp));
             modalSaveObra.classList.add('hidden');
-            showToast('Obra salva com sucesso!');
+            showToast(publica ? 'Obra salva como pública.' : 'Obra salva com sucesso!');
         } catch (e) {
-            showToast('Erro ao salvar no backend');
+            showToast('Erro ao salvar: ' + (e.message || 'backend indisponível'));
         }
     });
 
-    async function abrirModalObras() {
-        try {
-            const projCodeObras = localStorage.getItem('projeto_selecionado_codigo') || '229';
-            const res = await fetch(`/api/obras?projeto=${encodeURIComponent(projCodeObras)}`);
-            if (!res.ok) throw new Error('Falha ao listar obras');
-            const obras = await res.json();
-            
-            const listDiv = document.getElementById('obras-list');
+    let obrasCache = [];
+
+    /** Desenha a lista de obras do cache aplicando os filtros Visibilidade / Origem (TASK-057). */
+    function renderObras() {
+        const fVis = document.getElementById('filtro-obra-visibilidade').value;
+        const fOri = document.getElementById('filtro-obra-origem').value;
+        const obras = obrasCache.filter(o =>
+            (fVis === 'todas' || (fVis === 'publicas') === !!o.publica) && (fOri === 'todas' || (fOri === 'minhas') === !!o.minha));
+        const listDiv = document.getElementById('obras-list');
             listDiv.innerHTML = '';
             
             if (obras.length === 0) {
-                listDiv.innerHTML = '<div style="color:#8b949e;padding:10px;">Nenhuma obra salva ainda.</div>';
+                listDiv.innerHTML = '<div style="color:#8b949e;padding:10px;">Nenhuma obra encontrada.</div>';
             } else {
                 obras.forEach(o => {
                     // Parse do JSON salvo (pode ser tableStates completo ou snap simples)
@@ -2333,12 +2341,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="obra-info">
                             <span class="obra-nome"></span>
                             <span class="obra-data"></span>
+                            <span class="obra-meta" style="font-size:0.72rem; color:#8b949e;"></span>
                         </div>
                         <div class="obra-actions">
                             <button class="btn-primary btn-load-item"  style="background:#238636; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Carregar</button>
                             <button class="btn-secondary btn-add-item"  style="background:#1f6feb; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Adicionar</button>
                             <button class="btn-secondary btn-sub-item"  style="background:#d29922; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Subtrair</button>
                             <button class="btn-secondary btn-exp-item"  style="background:#6e7681; border:none; padding: 4px 8px; border-radius: 4px; color: white;" title="Baixa a obra como arquivo .obra.json">Exportar</button>
+                            <button class="btn-secondary btn-vis-item"  style="background:#8957e5; border:none; padding: 4px 8px; border-radius: 4px; color: white; display:none;"></button>
+                            <button class="btn-secondary btn-own-item"  style="background:#bf8700; border:none; padding: 4px 8px; border-radius: 4px; color: white; display:none;" title="Torna esta obra antiga (sem dono) uma obra particular sua">Assumir</button>
                             <button class="btn-secondary btn-del-item"  style="background:#da3633; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Excluir</button>
                         </div>
                     `;
@@ -2346,6 +2357,52 @@ document.addEventListener('DOMContentLoaded', () => {
                     item.querySelector('.obra-nome').textContent = o.nome;   // textContent: nome de obra nunca vira HTML
                     item.querySelector('.obra-data').textContent = o.data;
                     item.querySelector('.btn-del-item').dataset.id = o.id;
+                    const selo = o.sem_dono ? '⚠️ sem dono (só administradores)' : (o.publica ? '🌐 Pública' : '🔒 Particular');
+                    item.querySelector('.obra-meta').textContent = o.minha ? selo : (o.sem_dono ? selo : `${selo} · de ${o.dono || 'outro usuário'}`);
+
+                    const btnVis = item.querySelector('.btn-vis-item');
+                    const btnOwn = item.querySelector('.btn-own-item');
+                    const btnDel0 = item.querySelector('.btn-del-item');
+                    if (!o.minha) btnDel0.style.display = 'none';      // só o dono apaga
+                    if (o.minha) {
+                        btnVis.style.display = '';
+                        btnVis.textContent = o.publica ? 'Tornar particular' : 'Tornar pública';
+                        btnVis.addEventListener('click', async () => {
+                            const tornarPublica = !o.publica;
+                            const proj = localStorage.getItem('projeto_selecionado_codigo') || '229';
+                            if (tornarPublica && !confirm(`Todos os usuários do projeto ${proj} poderão ver e copiar esta obra. Deseja torná-la pública?`)) return;
+                            btnVis.disabled = true;
+                            try {
+                                const r = await fetch(`/api/obras/${encodeURIComponent(o.id)}/visibilidade`, {
+                                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ publica: tornarPublica })
+                                });
+                                if (!r.ok) throw new Error(await lerDetalhe(r));
+                                const resp = await r.json();
+                                o.publica = tornarPublica;
+                                showToast(resp.aviso || (tornarPublica ? 'Obra agora é pública no projeto.' : 'Obra agora é particular.'));
+                                renderObras();
+                            } catch (err) {
+                                showToast('Erro ao alterar a visibilidade: ' + err.message);
+                                btnVis.disabled = false;
+                            }
+                        });
+                    }
+                    if (o.sem_dono) {
+                        btnOwn.style.display = '';
+                        btnOwn.addEventListener('click', async () => {
+                            btnOwn.disabled = true;
+                            try {
+                                const r = await fetch(`/api/obras/${encodeURIComponent(o.id)}/assumir`, { method: 'POST' });
+                                if (!r.ok) throw new Error(await lerDetalhe(r));
+                                o.sem_dono = false; o.minha = true; o.publica = false; o.dono = '';
+                                showToast('Obra assumida: agora é particular sua.');
+                                renderObras();
+                            } catch (err) {
+                                showToast('Erro ao assumir a obra: ' + err.message);
+                                btnOwn.disabled = false;
+                            }
+                        });
+                    }
 
                     // Guarda o snap diretamente no elemento via propriedade JS (sem HTML encoding)
                     const btnLoad = item.querySelector('.btn-load-item');
@@ -2384,7 +2441,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnExp.addEventListener('click', async () => {
                         btnExp.disabled = true;
                         try {
-                            const r = await fetch(`/api/obras/${encodeURIComponent(o.id)}/exportar`);
+                            const projExp = localStorage.getItem('projeto_selecionado_codigo') || '229';
+                            const r = await fetch(`/api/obras/${encodeURIComponent(o.id)}/exportar?projeto=${encodeURIComponent(projExp)}`);
                             if (!r.ok) throw new Error(await lerDetalhe(r));
                             const blob = new Blob([JSON.stringify(await r.json(), null, 2)], { type: 'application/json' });
                             const arquivo = `${String(o.nome || 'obra').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80)}.obra.json`;
@@ -2406,7 +2464,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnDel.addEventListener('click', async () => {
                         btnDel.disabled = true;
                         try {
-                            await fetch(`/api/obras/${o.id}`, { method: 'DELETE' });
+                            const rd = await fetch(`/api/obras/${o.id}`, { method: 'DELETE' });
+                            if (!rd.ok) throw new Error('falha');
+                            obrasCache = obrasCache.filter(x => x.id !== o.id);
                             item.remove();
                         } catch (err) {
                             btnDel.disabled = false;
@@ -2416,6 +2476,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     listDiv.appendChild(item);
                 });
             }
+    }
+    ['filtro-obra-visibilidade', 'filtro-obra-origem'].forEach(id => document.getElementById(id).addEventListener('change', renderObras));
+
+    async function abrirModalObras() {
+        try {
+            const projCodeObras = localStorage.getItem('projeto_selecionado_codigo') || '229';
+            const res = await fetch(`/api/obras?projeto=${encodeURIComponent(projCodeObras)}`);
+            if (!res.ok) throw new Error('Falha ao listar obras');
+            const obras = await res.json();
+            
+            obrasCache = obras;
+            renderObras();
             modalLoadObra.classList.remove('hidden');
         } catch (e) {
             console.error('Erro ao carregar obras:', e);
