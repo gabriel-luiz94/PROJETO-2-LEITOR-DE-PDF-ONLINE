@@ -70,6 +70,8 @@ CREATE INDEX IF NOT EXISTS idx_historico_rec_data ON public.historico_rec(data_c
 CREATE INDEX IF NOT EXISTS idx_obras_user_id ON public.obras(user_id);
 CREATE INDEX IF NOT EXISTS idx_tabela_master_codigo ON public.tabela_orcamento_master(codigo);
 CREATE INDEX IF NOT EXISTS idx_tabela_master_ativo ON public.tabela_orcamento_master(ativo);
+-- TASK-052: a tela de edição por projeto filtra/escopa toda consulta e todo DELETE por `projeto`.
+CREATE INDEX IF NOT EXISTS idx_tabela_master_projeto ON public.tabela_orcamento_master(projeto);
 
 -- 7. Desabilitar RLS (Row Level Security) temporariamente ou permitir acesso pela API Key
 ALTER TABLE public.historico_rec DISABLE ROW LEVEL SECURITY;

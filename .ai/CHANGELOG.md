@@ -8,6 +8,46 @@
 
 ---
 
+## 2026-10-08 — TASK-052: base de orçamento totalmente separada por projeto
+
+**Tipo:** feature (dados + admin) · `services/sync_service.py`, `routers/orcamento.py`,
+`routers/admin.py`, `models.py`, `static/orcamento.html`, `scripts/schema_supabase.sql` ·
+`.ai/tasks/TASK-052-08-10-2026.md`
+
+Usuário relatou: "da forma como está estruturada eu posso colocar uma regra de um projeto estando
+dentro de outro" e pediu uma estratégia pra editar a base técnica (`tabela_orcamento_master`)
+escopada por projeto. Pedido de análise antes de implementar: investigação do CSV real de produção
+(2.646 linhas, exportado pelo usuário do Supabase — o sandbox não tinha acesso de rede pra ler
+direto) revelou que `projeto` já suporta mais de um valor por linha, separado por `/` (ex.
+`"PARAIBA/PARAIBANOVO"`, 108 linhas reais), lido por `processar_calculo`. Pedido final do usuário,
+depois desse achado: "projetos totalmente manipuláveis de forma separada... editando inclusive as
+linhas compartilhadas".
+
+Resolvido com uma migração única (dado, não schema): toda linha com `/` em `projeto` é dividida em
+uma cópia exclusiva por projeto da lista, valores idênticos no momento da migração — local e
+Supabase, cada um migrado a partir da própria consulta (os `id`s de um não correspondem aos do
+outro). Depois da migração não existe mais "linha compartilhada": `GET /api/orcamento/dados` ganhou
+os parâmetros opcionais `projeto` (igualdade exata), `genericas` e `nao_reconhecido`, usados pela
+tela `/orcamento` (seletor de projeto + abas, reaproveitando o padrão de `#select-projeto` de
+`resumo.html`); `POST /api/admin/upload-master` e `/sync-master-all` ganharam um `projeto` opcional
+que escopa o `DELETE` (antes sempre apagava a tabela inteira, todos os projetos, local e Supabase)
+e valida que toda linha do CSV/payload pertence ao projeto selecionado; `POST /api/orcamento/salvar`
+(cópia pessoal do usuário) recebeu o mesmo tratamento — achado durante a implementação que esse
+endpoint tinha o mesmo risco (DELETE sem filtro de projeto), fora do previsto no desenho original.
+Campo Projeto da tela fica travado (`disabled`) no projeto da aba atual, exceto na aba "Projeto não
+reconhecido" (pensada pra corrigir o valor). Modo "todos os projetos" continua existindo, ação
+separada, com aviso reforçado. Normalização de projeto extraída uma única vez
+(`services/sync_service.py`), reaproveitada em vez de duplicada pela terceira vez.
+
+18 testes novos (`tests/test_orcamento_projeto.py`), incluindo Supabase simulado para a migração e
+para o DELETE escopado. Suíte completa sem regressão. Smoke test real-server + Playwright: populou
+as 3 categorias (exclusiva, genérica, não reconhecida) e uma linha compartilhada, confirmou a visão
+por projeto, o campo travado, a migração ao vivo (a linha compartilhada virou duas cópias, cada
+uma só na visão do seu projeto) e que importar um CSV escopado em PARAIBA não afeta RONDONIA nem a
+cópia de PARAIBANOVO.
+
+---
+
 ## 2026-10-08 — TASK-051: checagem obrigatória (contrato + ativo não encontrado) ao Ajustar/Montar Orçamento
 
 **Tipo:** feature (validação) · `static/resumo.js` · `.ai/tasks/TASK-051-07-10-2026.md`

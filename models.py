@@ -84,6 +84,9 @@ class AjustesIARequest(BaseModel):
 
 class SalvarOrcamentoRequest(BaseModel):
     dados: List[Dict[str, Any]]
+    # TASK-052: quando enviado, escopa o DELETE que precede a reinserção a só este projeto
+    # (comparação normalizada .strip().upper()), em vez de substituir a tabela inteira.
+    projeto: Optional[str] = None
 
 
 class ProjetoRequest(BaseModel):

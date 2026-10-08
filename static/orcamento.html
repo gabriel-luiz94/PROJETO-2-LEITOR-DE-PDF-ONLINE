@@ -165,6 +165,19 @@
             color: #ffffff;
         }
 
+        .btn-action.aba-ativa {
+            background-color: var(--btn-primary-bg);
+            border-color: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
+            font-weight: 600;
+        }
+
+        .cell-input:disabled {
+            color: var(--text-muted);
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+
         /* Table Card Section */
         .table-section-card {
             background-color: var(--bg-surface);
@@ -359,7 +372,11 @@
             <div class="toolbar-actions">
                 <input type="file" id="file-upload" accept=".csv" style="display: none;">
                 <input type="file" id="file-upload-master" accept=".csv" style="display: none;">
-                
+
+                <select id="select-projeto" class="btn-action" style="min-width: 160px;" onchange="trocarProjetoSelecionado()" title="Projeto cuja fatia da base está sendo vista/editada">
+                    <option value="">Selecione um projeto...</option>
+                </select>
+
                 <button class="btn-action" onclick="adicionarLinha()" title="Adiciona na sua tabela local">
                     + Adicionar Linha
                 </button>
@@ -372,17 +389,28 @@
                 <button class="btn-action" onclick="document.getElementById('file-upload').click()" title="Sobrescreve a sua tabela local">
                     Importar CSV Local
                 </button>
-                <button id="btn-admin-csv" class="btn-action btn-master hidden" onclick="document.getElementById('file-upload-master').click()" title="Sobrescreve a tabela mestre de TODOS os usuários">
+                <button id="btn-admin-csv" class="btn-action btn-master hidden" onclick="document.getElementById('file-upload-master').click()" title="Com um projeto selecionado, substitui só as linhas desse projeto. Sem projeto selecionado (visão Comuns/Não reconhecido), substitui TODOS os projetos.">
                     Importar CSV Master
                 </button>
                 <button class="btn-action" onclick="exportarCSV()" title="Exporta a tabela atual como CSV (pode ser importado depois)">
                     &#x2193; Exportar CSV
                 </button>
-                <button id="btn-admin-sync-all" class="btn-action btn-master hidden" onclick="sincronizarTudoNuvem()" title="Envia toda a sua tabela local atual para a nuvem">
+                <button id="btn-admin-sync-all" class="btn-action btn-master hidden" onclick="sincronizarTudoNuvem()" title="Com um projeto selecionado, sincroniza só esse projeto. Sem projeto selecionado, sincroniza TODOS os projetos.">
                     Sincronizar Tudo com a Nuvem
+                </button>
+                <button id="btn-admin-migrar" class="btn-action btn-master hidden" onclick="migrarProjetosCompartilhados()" title="Ação única: divide toda linha que hoje vale para mais de um projeto (ex. PARAIBA/PARAIBANOVO) em uma cópia exclusiva por projeto">
+                    Migrar linhas compartilhadas
                 </button>
             </div>
         </header>
+
+        <div class="page-header-card" style="padding: 8px 18px;">
+            <div class="toolbar-actions" style="gap: 4px;">
+                <button id="aba-projeto" class="btn-action" onclick="trocarAba('projeto')" title="Só as linhas exclusivas do projeto selecionado acima">Projeto selecionado</button>
+                <button id="aba-genericas" class="btn-action" onclick="trocarAba('genericas')" title="Linhas sem projeto definido — valem para qualquer projeto">Comuns a todos os projetos</button>
+                <button id="aba-nao-reconhecido" class="btn-action" onclick="trocarAba('nao_reconhecido')" title="Linhas cujo projeto não bate com nenhum projeto cadastrado (provável erro de digitação)">Projeto não reconhecido</button>
+            </div>
+        </div>
 
         <main class="table-section-card">
             <div class="table-scroll-wrapper">
@@ -446,41 +474,120 @@
             document.getElementById('btn-admin-add').classList.remove('hidden');
             document.getElementById('btn-admin-csv').classList.remove('hidden');
             document.getElementById('btn-admin-sync-all').classList.remove('hidden');
+            document.getElementById('btn-admin-migrar').classList.remove('hidden');
+        }
+
+        // ── TASK-052: visão/edição escopada por projeto ─────────────────────────
+        let visaoAtual = 'projeto';   // 'projeto' | 'genericas' | 'nao_reconhecido'
+        let projetoAtual = localStorage.getItem('projeto_selecionado') || '';
+
+        async function carregarProjetosSelect() {
+            try {
+                const res = await fetch('/api/projetos');
+                const data = await res.json();
+                const sel = document.getElementById('select-projeto');
+                sel.innerHTML = '<option value="">Selecione um projeto...</option>';
+                (data.projetos || []).forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.nome;
+                    opt.textContent = p.nome;
+                    sel.appendChild(opt);
+                });
+                if (projetoAtual && Array.from(sel.options).some(o => o.value === projetoAtual)) {
+                    sel.value = projetoAtual;
+                } else {
+                    projetoAtual = '';
+                }
+            } catch (e) { console.error('Erro ao carregar projetos:', e); }
+        }
+
+        function trocarProjetoSelecionado() {
+            projetoAtual = document.getElementById('select-projeto').value;
+            localStorage.setItem('projeto_selecionado', projetoAtual);
+            carregarDados();
+        }
+
+        function trocarAba(aba) {
+            visaoAtual = aba;
+            document.getElementById('aba-projeto').classList.toggle('aba-ativa', aba === 'projeto');
+            document.getElementById('aba-genericas').classList.toggle('aba-ativa', aba === 'genericas');
+            document.getElementById('aba-nao-reconhecido').classList.toggle('aba-ativa', aba === 'nao_reconhecido');
+            carregarDados();
+        }
+
+        /** Projeto a usar pra ESCOPAR uma ação em massa (Importar CSV Master/Sincronizar Tudo) — só
+         * na aba "Projeto selecionado" com um projeto escolhido; nas outras abas essas ações
+         * continuam no modo histórico "todos os projetos" (null = sem escopo). */
+        function projetoParaEscopo() {
+            return (visaoAtual === 'projeto' && projetoAtual) ? projetoAtual : null;
+        }
+
+        /** Trava o campo Projeto no projeto da aba atual (decisão da TASK-052) — exceto na aba
+         * "Projeto não reconhecido", onde fica editável de propósito (é a aba de corrigir o valor). */
+        function campoProjetoHTML(valor) {
+            if (visaoAtual === 'nao_reconhecido') {
+                return `<input type="text" class="cell-input" value="${valor || ''}">`;
+            }
+            const travado = visaoAtual === 'projeto' ? projetoAtual : '';
+            return `<input type="text" class="cell-input" value="${travado}" disabled title="Travado pela aba/projeto selecionado acima">`;
+        }
+
+        function criarLinhaExistente(r) {
+            const tr = document.createElement('tr');
+            tr.innerHTML =
+                `<td><input type="text" class="cell-input" value="${r.ativo || ''}"></td>` +
+                `<td><input type="text" class="cell-input" value="${r.desc_ativo || ''}"></td>` +
+                `<td><input type="text" class="cell-input" value="${r.componente || ''}"></td>` +
+                `<td>${campoProjetoHTML(r.projeto)}</td>` +
+                `<td><input type="text" class="cell-input" value="${r.mdo || ''}"></td>` +
+                `<td><input type="text" class="cell-input" value="${r.origem || ''}"></td>` +
+                `<td><input type="text" class="cell-input" value="${r.codigo || ''}"></td>` +
+                `<td><input type="text" class="cell-input" value="${r.desc_codigo || ''}"></td>` +
+                `<td><input type="number" step="0.01" class="cell-input" value="${r.fator_i !== null ? r.fator_i : ''}"></td>` +
+                `<td><input type="number" step="0.01" class="cell-input" value="${r.fator_r !== null ? r.fator_r : ''}"></td>` +
+                `<td><input type="text" class="cell-input" value="${r.filtro || ''}"></td>` +
+                '<td style="text-align:center;"><button class="btn-del" onclick="this.closest(\'tr\').remove()" title="Excluir">Excluir</button></td>';
+            return tr;
+        }
+
+        function urlDados() {
+            if (visaoAtual === 'genericas') return '/api/orcamento/dados?genericas=true';
+            if (visaoAtual === 'nao_reconhecido') return '/api/orcamento/dados?nao_reconhecido=true';
+            if (projetoAtual) return `/api/orcamento/dados?projeto=${encodeURIComponent(projetoAtual)}`;
+            return null;   // aba "projeto" sem nenhum projeto escolhido ainda
         }
 
         async function carregarDados() {
+            const url = urlDados();
+            if (!url) {
+                tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:35px; color:var(--text-secondary);">Selecione um projeto acima para ver e editar a base técnica dele.</td></tr>';
+                return;
+            }
             try {
-                const res = await fetch('/api/orcamento/dados');
+                const res = await fetch(url);
                 const data = await res.json();
                 tbody.innerHTML = '';
                 if (data.dados && data.dados.length > 0) {
-                    data.dados.forEach(r => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML =
-                            `<td><input type="text" class="cell-input" value="${r.ativo || ''}"></td>` +
-                            `<td><input type="text" class="cell-input" value="${r.desc_ativo || ''}"></td>` +
-                            `<td><input type="text" class="cell-input" value="${r.componente || ''}"></td>` +
-                            `<td><input type="text" class="cell-input" value="${r.projeto || ''}"></td>` +
-                            `<td><input type="text" class="cell-input" value="${r.mdo || ''}"></td>` +
-                            `<td><input type="text" class="cell-input" value="${r.origem || ''}"></td>` +
-                            `<td><input type="text" class="cell-input" value="${r.codigo || ''}"></td>` +
-                            `<td><input type="text" class="cell-input" value="${r.desc_codigo || ''}"></td>` +
-                            `<td><input type="number" step="0.01" class="cell-input" value="${r.fator_i !== null ? r.fator_i : ''}"></td>` +
-                            `<td><input type="number" step="0.01" class="cell-input" value="${r.fator_r !== null ? r.fator_r : ''}"></td>` +
-                            `<td><input type="text" class="cell-input" value="${r.filtro || ''}"></td>` +
-                            '<td style="text-align:center;"><button class="btn-del" onclick="this.closest(\'tr\').remove()" title="Excluir">Excluir</button></td>';
-                        tbody.appendChild(tr);
-                    });
+                    data.dados.forEach(r => tbody.appendChild(criarLinhaExistente(r)));
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhuma tabela base carregada. Clique em "Importar CSV Local" para carregar.</td></tr>';
+                    const msg = visaoAtual === 'genericas'
+                        ? 'Nenhuma linha comum a todos os projetos.'
+                        : visaoAtual === 'nao_reconhecido'
+                        ? 'Nenhuma linha com projeto não reconhecido — tudo certo.'
+                        : `Nenhuma linha cadastrada para "${projetoAtual}" ainda.`;
+                    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding:35px; color:var(--text-secondary);">${msg}</td></tr>`;
                 }
-            } catch(e) { 
-                console.error(e); 
-                tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:35px; color:#f87171;">Erro ao carregar dados da base.</td></tr>';
+            } catch(e) {
+                console.error(e);
+                tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:35px; color:#f87171;">Erro ao carregar dados da base.</td></tr>';
             }
         }
 
-        carregarDados();
+        (async function iniciar() {
+            await carregarProjetosSelect();
+            document.getElementById('aba-projeto').classList.add('aba-ativa');
+            carregarDados();
+        })();
 
         document.getElementById('file-upload').addEventListener('change', async (e) => {
             const file = e.target.files[0];
@@ -508,22 +615,24 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            showToast("Fazendo upload para a Nuvem Master...");
+            const escopo = projetoParaEscopo();
+            showToast(escopo ? `Fazendo upload para a Nuvem Master (projeto ${escopo})...` : "Fazendo upload para a Nuvem Master (TODOS os projetos)...");
             const formData = new FormData();
             formData.append('file', file);
+            if (escopo) formData.append('projeto', escopo);
             const token = localStorage.getItem('auth_token');
 
             try {
-                const res = await fetch('/api/admin/upload-master', { 
-                    method: 'POST', 
+                const res = await fetch('/api/admin/upload-master', {
+                    method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData 
+                    body: formData
                 });
-                
+
                 const data = await res.json().catch(() => ({}));
 
                 if (res.ok) {
-                    showToast("Tabela Mestre atualizada para TODOS!");
+                    showToast(escopo ? `Tabela Mestre atualizada para o projeto ${escopo}!` : "Tabela Mestre atualizada para TODOS!");
                     await fetch('/api/health/sync-master', {method: 'POST'});
                     carregarDados();
                 } else {
@@ -537,12 +646,16 @@
         });
 
         function adicionarLinha() {
+            if (visaoAtual === 'projeto' && !projetoAtual) {
+                alert("Selecione um projeto acima antes de adicionar uma linha.");
+                return;
+            }
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
-                <td><input type="text" class="cell-input"></td>
+                <td>${campoProjetoHTML('')}</td>
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
@@ -556,13 +669,17 @@
         }
 
         function adicionarLinhaMaster() {
+            if (visaoAtual === 'projeto' && !projetoAtual) {
+                alert("Selecione um projeto acima antes de adicionar uma linha.");
+                return;
+            }
             const tr = document.createElement('tr');
             tr.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
             tr.innerHTML = `
                 <td><input type="text" class="cell-input" placeholder="Novo Master"></td>
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
-                <td><input type="text" class="cell-input"></td>
+                <td>${campoProjetoHTML('')}</td>
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
@@ -623,6 +740,15 @@
         }
 
         async function salvarAlteracoes() {
+            // TASK-052: "Salvar Alterações" substitui TODA a cópia pessoal do usuário no projeto
+            // escopado — só roda com um projeto escolhido na aba "Projeto selecionado", senão o
+            // backend não teria como escopar o DELETE (apagaria a cópia pessoal inteira, de todos
+            // os projetos, achando que a intenção era "salvar nada").
+            if (visaoAtual !== 'projeto' || !projetoAtual) {
+                alert('Selecione um projeto na aba "Projeto selecionado" antes de usar "Salvar Alterações".');
+                return;
+            }
+
             const trs = Array.from(tbody.querySelectorAll("tr"));
             const dados = trs.map(tr => {
                 const inputs = tr.querySelectorAll('.cell-input');
@@ -633,7 +759,7 @@
                     desc_codigo: inputs[7].value, fator_i: inputs[8].value, fator_r: inputs[9].value, filtro: inputs[10].value
                 };
             }).filter(d => d);
-            
+
             const token = localStorage.getItem('auth_token');
             if (!token) {
                 alert("Você precisa estar autenticado como Administrador.");
@@ -646,7 +772,7 @@
                 const res = await fetch('/api/orcamento/salvar', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-                    body: JSON.stringify({ dados: dados })
+                    body: JSON.stringify({ dados: dados, projeto: projetoAtual })
                 });
                 const data = await res.json();
                 if (res.ok) {
@@ -701,8 +827,12 @@
         }
 
         async function sincronizarTudoNuvem() {
-            if (!confirm("Isso vai apagar a tabela master atual da nuvem e substituí-la por TODA a tabela que você está vendo agora. Tem certeza?")) return;
-            
+            const escopo = projetoParaEscopo();
+            const confirmacao = escopo
+                ? `Isso vai apagar as linhas master do projeto "${escopo}" (local e nuvem) e substituí-las pelas linhas desse projeto que você está vendo agora. Outros projetos não são afetados. Tem certeza?`
+                : "Isso vai apagar TODA a tabela master atual (TODOS os projetos, local e nuvem) e substituí-la por TODA a tabela que você está vendo agora. Tem certeza?";
+            if (!confirm(confirmacao)) return;
+
             const trs = Array.from(tbody.querySelectorAll("tr"));
             const dados = trs.map(tr => {
                 const inputs = tr.querySelectorAll('.cell-input');
@@ -722,11 +852,12 @@
             }
 
             try {
-                showToast("Sincronizando tudo com a nuvem...");
+                showToast(escopo ? `Sincronizando o projeto ${escopo} com a nuvem...` : "Sincronizando tudo com a nuvem...");
+                const corpo = escopo ? { dados: dados, projeto: escopo } : { dados: dados };
                 const res = await fetch('/api/admin/sync-master-all', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-                    body: JSON.stringify({ dados: dados })
+                    body: JSON.stringify(corpo)
                 });
                 const data = await res.json();
                 if (res.ok) {
@@ -738,6 +869,41 @@
                     alert(msg);
                 }
             } catch(e) { alert("Erro de conexão."); }
+        }
+
+        async function migrarProjetosCompartilhados() {
+            if (!confirm('Isso divide toda linha da base que hoje vale para mais de um projeto (ex. "PARAIBA/PARAIBANOVO") em uma cópia exclusiva por projeto, com os mesmos valores — local e nuvem. É uma ação única: depois de rodada, não deve sobrar nenhuma linha compartilhada. Continuar?')) return;
+
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                alert("Você precisa estar autenticado como Administrador.");
+                window.location.href = '/login';
+                return;
+            }
+
+            try {
+                showToast("Migrando linhas compartilhadas...");
+                const res = await fetch('/api/admin/migrar-projetos-compartilhados', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    showToast("Migração concluída!");
+                    alert(
+                        `Migração concluída.\n` +
+                        `Local: ${data.linhas_divididas_local} linha(s) dividida(s), ${data.linhas_criadas_local} nova(s) criada(s).\n` +
+                        `Nuvem: ${data.linhas_divididas_nuvem} linha(s) dividida(s), ${data.linhas_criadas_nuvem} nova(s) criada(s).`
+                    );
+                    carregarDados();
+                } else {
+                    const msg = data.detail || "Erro ao migrar.";
+                    showToast(msg);
+                    alert(msg);
+                }
+            } catch (err) {
+                showToast("Erro de conexão.");
+            }
         }
 
         function filterTable() {
