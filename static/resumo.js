@@ -2603,8 +2603,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /** Roda os modos ligados: determinística (camadas 1-2) e, depois, a IA. Devolve { achados, ia, modos, falhou }.
      *  `falhou` = a determinística foi pedida e não pôde rodar. `modos` diz o que rodou (a tela mostra ao usuário). */
-    async function executarValidacao() {
-        const prefs = lerModos();
+    /** `somenteContrato` (TASK-051): ignora a preferência salva e força só Camada 1 + ativo não
+     * encontrado (sem regras de domínio nem IA) — usado pela checagem obrigatória antes de Ajustar/
+     * Montar Orçamento, independente do que o usuário tiver configurado em "Validar ao montar". */
+    async function executarValidacao(somenteContrato = false) {
+        const prefs = somenteContrato ? { det: true, dominio: false, ia: false, pularIa: true } : lerModos();
         const modos = { det: prefs.det, dominio: prefs.det && prefs.dominio, ia: 'desligada' };
         if (!prefs.det && !prefs.ia) return { achados: [], ia: null, modos, falhou: null, nada: true };
         let ajustes = { ajustes: [], por_regra: {} };
@@ -2870,6 +2873,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 return 'continuar';
             }
         }
+    }
+
+    /** Checagem mínima e SEMPRE ativa (Camada 1 + ativo não encontrado) antes de Ajustar/Montar
+     * Orçamento (TASK-051) — independente da preferência "Validar ao montar orçamento", que
+     * continua controlando só a validação completa (regras de domínio/IA) em `validarAntesDeMontar`.
+     * "Bloqueia mas permite continuar mesmo assim": reaproveita o mesmo painel/fluxo de sempre. */
+    async function checarInconsistenciasBasicas() {
+        const res = await executarValidacao(true);
+        if (res.nada || res.falhou) return true;   // validação indisponível: não trava a ação
+        if (!res.achados.some(a => a.severidade === 'erro' || a.severidade === 'aviso')) return true;
+        const escolha = await cicloValidacao(res, true);
+        return escolha === 'continuar';
     }
 
     /** Devolve true se o orçamento deve seguir. Só erro/aviso interrompem; info sozinho não pergunta. */
@@ -3466,7 +3481,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const btnAjustar = document.getElementById('btn-ajustar');
-    if (btnAjustar) btnAjustar.addEventListener('click', () => abrirPainelAjustar());
+    if (btnAjustar) btnAjustar.addEventListener('click', async () => {
+        // TASK-051: checagem obrigatória (contrato + ativo não encontrado) antes de abrir a gaveta.
+        if (!(await checarInconsistenciasBasicas())) return;
+        abrirPainelAjustar();
+    });
 
     const btnMontarOrcamento = document.getElementById('btn-montar-orcamento');
     const modalOrcamento = document.getElementById('modal-orcamento');
@@ -3480,6 +3499,10 @@ document.addEventListener('DOMContentLoaded', () => {
             btnMontarOrcamento.textContent = 'Calculando...';
 
             try {
+                // TASK-051: checagem obrigatória (contrato + ativo não encontrado), sempre ativa,
+                // independente da preferência abaixo.
+                if (!(await checarInconsistenciasBasicas())) return;
+
                 // Validação automática (opção local, desligada por padrão): se houver erro/aviso, pergunta
                 // "continuar mesmo assim?" e só segue com o orçamento se o usuário confirmar.
                 if (validacaoAutomaticaLigada() && !(await validarAntesDeMontar())) return;

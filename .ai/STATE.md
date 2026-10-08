@@ -318,6 +318,16 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       — regex só reconhecia `.`, e `parseFloat`/`js_parse_float` também não leem vírgula sem
       `.replace(',', '.')`. Corrigido nos dois lugares em paralelo, mantendo a paridade testada
       contra o JS real. CONCLUÍDA. Ver `.ai/tasks/TASK-050-07-10-2026.md`.
+- [x] **TASK-051** (pedido de 2026-10-07/08): usuário pediu que erros na tabela Outros fossem
+      sinalizados pra evitar erros em grandes obras; depois pediu que a sinalização disparasse ao
+      clicar em Ajustar, Validar ou Montar Orçamento, bloqueando mas permitindo "continuar mesmo
+      assim", sempre ativa e automática. Achado: **Validar** já cobria os dois sinais (contrato +
+      ativo não encontrado) por padrão, sem mudança; faltava ligar a mesma checagem em **Ajustar**
+      (não validava nada) e tornar obrigatória em **Montar Orçamento** (só validava com a
+      preferência opcional ligada). `executarValidacao` ganhou o parâmetro `somenteContrato`, que
+      força Camada 1 + ativo não encontrado ignorando a preferência salva, sem duplicar nenhuma
+      lógica; nova `checarInconsistenciasBasicas()` reaproveita o mesmo `cicloValidacao(res, true)`
+      que o Montar Orçamento opcional já usava. CONCLUÍDA. Ver `.ai/tasks/TASK-051-07-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -561,10 +571,31 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-10-07
-**Motivo:** TASK-050 — usuário relatou que quantidade decimal com vírgula em Outros (ex.:
-`"0,7-M335"`) não funciona. Investigado: dos quatro parsers independentes de Outros no projeto, só
-o da Totalizadora não aceitava vírgula.
+**Data:** 2026-10-08
+**Motivo:** TASK-051 — usuário pediu que erros na tabela Outros fossem sinalizados pra evitar erros
+em grandes obras; depois refinou para disparar ao clicar em Ajustar, Validar ou Montar Orçamento,
+bloqueando mas permitindo "continuar mesmo assim", sempre ativo e automático. Achado: Validar já
+cobria os dois sinais (Camada 1 de contrato + ativo não encontrado) por padrão; faltava ligar a
+mesma checagem em Ajustar (não validava nada) e tornar obrigatória em Montar Orçamento (só validava
+com a preferência opcional ligada).
+**Alterações de código:** `static/resumo.js` — `executarValidacao` ganhou o parâmetro opcional
+`somenteContrato` (quando `true`, força `{det:true, dominio:false, ia:false, pularIa:true}` em vez
+de `lerModos()`, resto da função inalterado); nova `checarInconsistenciasBasicas()` (chama
+`executarValidacao(true)`, mostra o painel via `cicloValidacao(res, true)` só se houver achado de
+erro/aviso, devolve se o usuário confirmou "continuar mesmo assim"); `btnAjustar` passou a chamar
+essa checagem antes de abrir a gaveta; `btnMontarOrcamento` passou a chamá-la sempre, antes da
+checagem opcional mais completa já existente (inalterada). `btnValidar` sem mudança.
+Testes: suíte completa (770 testes) sem regressão — nenhuma mudança de backend. Smoke test
+real-server (uvicorn em processo, DB SQLite temporário, nunca `banco_resumo.db`) + Playwright:
+linha de Outros com quantidade não numérica bloqueou Ajustar e Montar Orçamento (mesmo com a
+preferência desligada) mostrando a mensagem certa no painel; "continuar mesmo assim" seguiu
+normalmente; linha com ativo não encontrado na base técnica também bloqueou; linha sem
+inconsistência (ativo real da base técnica, sem pendência de vínculo) abriu a gaveta/montou o
+orçamento direto, sem painel. Ver `.ai/tasks/TASK-051-07-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-050 — usuário relatou que quantidade decimal com
+vírgula em Outros (ex.: `"0,7-M335"`) não funciona. Investigado: dos quatro parsers independentes
+de Outros no projeto, só o da Totalizadora não aceitava vírgula.
 **Alterações de código:** `static/resumo.js:4601,4609` (`syncTotalizadora`: regex `[.,]` em vez de
 só `\.`, `.replace(',', '.')` antes do `parseFloat`); `services/autonomo/totalizadora.py:19,181`
 (`_RE_OUTROS` com `[.,]`; `.replace(",", ".")` antes de `js_parse_float`, porte fiel — os dois
