@@ -1,5 +1,5 @@
 """
-routers/ai_chat.py — Integração com Gemini e OpenAI.
+routers/ai_chat.py — Integração com Gemini, OpenAI e Claude (Anthropic — TASK-055).
 """
 import os
 import re
@@ -29,6 +29,12 @@ RATE_LIMIT_POR_MINUTO = int(os.getenv("AI_RATE_LIMIT_POR_MINUTO", "20") or "20")
 _rate_lock = threading.Lock()
 _rate_hits: dict = defaultdict(deque)
 
+# Erros que acionam o fallback para o próximo modelo da lista (cota/indisponibilidade), em vez de
+# devolver erro direto ao usuário (TASK-054). "invalid_argument"/"multiturn" cobrem o erro "Multiturn
+# chat is not enabled for this model" (e variações futuras parecidas) como defesa em profundidade —
+# a troca para generate_content_stream (sem sessão) já elimina a causa raiz desse erro específico.
+_GATILHOS_FALLBACK = ("429", "quota", "exhausted", "not found", "404", "unavailable", "invalid_argument", "multiturn")
+
 
 def _ler_configuracao(chave: str, padrao=None):
     conn = get_connection()
@@ -39,21 +45,28 @@ def _ler_configuracao(chave: str, padrao=None):
     return row[0] if row else padrao
 
 
-def _chave_padrao() -> str:
+def _chave_padrao(provider: str = "gemini") -> str:
+    """Chave padrão do ambiente para o provedor (TASK-055: OpenAI e Claude ganharam a própria)."""
+    if provider == "openai":
+        return (os.getenv("OPENAI_API_KEY") or "").strip()
+    if provider == "claude":
+        return (os.getenv("ANTHROPIC_API_KEY") or "").strip()
     return (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
 
 
-def resolver_credencial(header_key: str | None, saved_key: str | None):
+def resolver_credencial(header_key: str | None, saved_key: str | None, provider: str = "gemini"):
     """Devolve (chave, origem). Precedência: usuário > salva > padrão do ambiente.
 
-    origem: "usuario" | "salva" | "padrao" | "nenhuma".
+    origem: "usuario" | "salva" | "padrao" | "nenhuma". `provider` escolhe a variável de ambiente
+    padrão certa (TASK-055) — "gemini" (padrão, compatível com as chamadas existentes), "openai" ou
+    "claude".
     """
     chave = (header_key or "").strip()
     if chave and chave != SENTINELA_CHAVE:
         return chave, "usuario"
     if saved_key:
         return saved_key, "salva"
-    padrao = _chave_padrao()
+    padrao = _chave_padrao(provider)
     if padrao:
         return padrao, "padrao"
     return None, "nenhuma"
@@ -84,15 +97,16 @@ def _checar_rate_limit(request: Request):
 @router.get("/models")
 def get_gemini_models(request: Request):
     provider = request.headers.get("X-Provider", "gemini")
+    if provider == "anthropic":
+        provider = "claude"
     openai_base_url = request.headers.get("X-OpenAI-Base-URL", "")
 
-    api_key, _origem = resolver_credencial(
-        request.headers.get("X-Gemini-Key"), _ler_configuracao("gemini_api_key")
-    )
-    if not api_key:
-        raise HTTPException(status_code=401, detail="API Key não encontrada.")
-
     if provider == "openai":
+        api_key, _origem = resolver_credencial(
+            request.headers.get("X-OpenAI-Key"), _ler_configuracao("openai_api_key"), "openai"
+        )
+        if not api_key:
+            raise HTTPException(status_code=401, detail="API Key não encontrada.")
         try:
             from openai import OpenAI
             base = openai_base_url or "https://api.openai.com/v1"
@@ -103,11 +117,31 @@ def get_gemini_models(request: Request):
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
 
+    if provider == "claude":
+        api_key, _origem = resolver_credencial(
+            request.headers.get("X-Anthropic-Key"), _ler_configuracao("anthropic_api_key"), "claude"
+        )
+        if not api_key:
+            raise HTTPException(status_code=401, detail="API Key não encontrada.")
+        # Anthropic não tem um endpoint de listagem tão aberto quanto Gemini/OpenAI (TASK-055) —
+        # lista fixa da família atual é suficiente; o Haiku é o padrão pedido pelo usuário.
+        modelos_formatados = [
+            {"id": "claude-haiku-5-5", "label": "claude-haiku-5-5 ★ (Padrão)"},
+            {"id": "claude-sonnet-5-5", "label": "claude-sonnet-5-5 (Reserva)"},
+            {"id": "claude-opus-5-5", "label": "claude-opus-5-5"},
+        ]
+        return {"models": modelos_formatados, "provider": "claude"}
+
     # Gemini (padrão)
+    api_key, _origem = resolver_credencial(
+        request.headers.get("X-Gemini-Key"), _ler_configuracao("gemini_api_key")
+    )
+    if not api_key:
+        raise HTTPException(status_code=401, detail="API Key não encontrada.")
     try:
         from google import genai as _genai
         _client = _genai.Client(api_key=api_key)
-        preferencias_gemini = ["gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+        preferencias_gemini = ["gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3.5-flash"]
         models_page = _client.models.list()
         modelos_raw = []
         for m in models_page:
@@ -157,37 +191,62 @@ def _contexto_obras(req, request):
 
 @router.post("/chat")
 async def gemini_chat(req: ChatRequest, request: Request):
-    header_key = request.headers.get("X-Gemini-Key")
-    custom_model = request.headers.get("X-Gemini-Model")
     provider = req.provider or "gemini"
+    if provider == "anthropic":
+        provider = "claude"
     openai_base_url = req.openai_base_url or ""
+
+    # Headers e configuração salva são por provedor (TASK-055), mesma precedência de sempre
+    # (usuário > salva > padrão do ambiente), com os nomes já usados pro Gemini preservados.
+    header_por_provider = {
+        "gemini": request.headers.get("X-Gemini-Key"),
+        "openai": request.headers.get("X-OpenAI-Key"),
+        "claude": request.headers.get("X-Anthropic-Key"),
+    }
+    custom_model_header_por_provider = {
+        "gemini": request.headers.get("X-Gemini-Model"),
+        "openai": request.headers.get("X-OpenAI-Model"),
+        "claude": request.headers.get("X-Anthropic-Model"),
+    }
+    chave_config_por_provider = {
+        "gemini": "gemini_api_key", "openai": "openai_api_key", "claude": "anthropic_api_key",
+    }
+    modelo_config_por_provider = {
+        "gemini": "gemini_model", "openai": "openai_model", "claude": "anthropic_model",
+    }
 
     conn = get_connection()
     cursor = conn.cursor()
-    saved_key = _ler_configuracao("gemini_api_key")
-    saved_model = _ler_configuracao("gemini_model")
     saved_provider = _ler_configuracao("ai_provider", "gemini")
     saved_base_url = _ler_configuracao("openai_base_url", "")
 
-    api_key, origem_chave = resolver_credencial(header_key, saved_key)
+    if provider == "gemini" and saved_provider != "gemini":
+        provider = "claude" if saved_provider == "anthropic" else saved_provider
+    if provider not in ("gemini", "openai", "claude"):
+        provider = "gemini"
+    if not openai_base_url and saved_base_url:
+        openai_base_url = saved_base_url
+
+    chave_config = chave_config_por_provider[provider]
+    modelo_config = modelo_config_por_provider[provider]
+    saved_key = _ler_configuracao(chave_config)
+    saved_model = _ler_configuracao(modelo_config)
+
+    api_key, origem_chave = resolver_credencial(header_por_provider[provider], saved_key, provider)
     if not api_key:
         conn.close()
         raise HTTPException(status_code=401, detail="API Key não fornecida, não salva e sem chave padrão do sistema.")
     # Só a chave digitada pelo usuário é persistida; a padrão vem sempre do ambiente.
     if origem_chave == "usuario":
-        cursor.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES ('gemini_api_key', ?)", (api_key,))
+        cursor.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES (?, ?)", (chave_config, api_key))
         conn.commit()
 
+    custom_model = custom_model_header_por_provider[provider]
     if custom_model == SENTINELA_CHAVE:
         custom_model = saved_model
     elif custom_model is not None:
-        cursor.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES ('gemini_model', ?)", (custom_model,))
+        cursor.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES (?, ?)", (modelo_config, custom_model))
         conn.commit()
-
-    if provider == "gemini" and saved_provider != "gemini":
-        provider = saved_provider
-    if not openai_base_url and saved_base_url:
-        openai_base_url = saved_base_url
     conn.close()
 
     # Fast-Path
@@ -243,12 +302,12 @@ async def gemini_chat(req: ChatRequest, request: Request):
         from google.genai import types
         client = genai.Client(api_key=api_key)
 
+        # gemini-1.5-flash/pro: desligados desde 2025 (404). gemini-2.5-flash: desligamento
+        # anunciado pela Google para 16/10/2026 — removidos da lista (TASK-054).
         preferencias = [
             "gemini-3.1-flash-lite",
-            "gemini-2.5-flash",
             "gemini-3.6-flash",
-            "gemini-1.5-flash",
-            "gemini-1.5-pro",
+            "gemini-3.5-flash",
         ]
         modelos = [custom_model] if custom_model else preferencias
         if len(req.prompt.split()) < 15 and not precisa_contexto:
@@ -260,24 +319,28 @@ async def gemini_chat(req: ChatRequest, request: Request):
             if parts:
                 texto = parts[0].get("text", "") if isinstance(parts[0], dict) else str(parts[0])
                 sdk_history.append({"role": msg.get("role", "user"), "parts": [{"text": texto}]})
+        # Chamada única com o histórico embutido em `contents` (TASK-054), em vez da API de sessão
+        # (`chats.create`/`send_message_stream`), que alguns modelos recusam com "Multiturn chat is
+        # not enabled for this model". `generate_content_stream` não tem essa restrição porque não
+        # depende de sessão nenhuma — é a mesma chamada única usada em `chamar_gemini`, em streaming.
+        contents = sdk_history + [{"role": "user", "parts": [{"text": prompt_final}]}]
 
         async def _stream_gemini():
             last_err = None
             for modelo in modelos:
                 try:
-                    chat = client.aio.chats.create(
+                    response = await client.aio.models.generate_content_stream(
                         model=modelo,
+                        contents=contents,
                         config=types.GenerateContentConfig(system_instruction=system_instruction),
-                        history=sdk_history
                     )
-                    response = await chat.send_message_stream(prompt_final)
                     async for chunk in response:
                         if chunk.text:
                             yield chunk.text
                     return
                 except Exception as e:
                     err = str(e).lower()
-                    if any(k in err for k in ["429", "quota", "exhausted", "not found", "404", "unavailable"]):
+                    if any(k in err for k in _GATILHOS_FALLBACK):
                         last_err = e
                         logger.warning(f"Gemini {modelo} indisponível. Tentando fallback...")
                         continue
@@ -288,4 +351,81 @@ async def gemini_chat(req: ChatRequest, request: Request):
 
         return StreamingResponse(_stream_gemini(), media_type="text/plain")
 
-    return PlainTextResponse("[ERRO] Provider não suportado neste momento.")
+    if provider == "openai":
+        from openai import AsyncOpenAI
+        base = openai_base_url or "https://api.openai.com/v1"
+        client = AsyncOpenAI(api_key=api_key, base_url=base)
+
+        preferencias = ["gpt-4o-mini", "gpt-4o"]
+        modelos = [custom_model] if custom_model else preferencias
+
+        mensagens = [{"role": "system", "content": system_instruction}]
+        for msg in req.history:
+            parts = msg.get("parts", [])
+            texto = (parts[0].get("text", "") if isinstance(parts[0], dict) else str(parts[0])) if parts else ""
+            mensagens.append({"role": "assistant" if msg.get("role") == "model" else "user", "content": texto})
+        mensagens.append({"role": "user", "content": prompt_final})
+
+        async def _stream_openai():
+            last_err = None
+            for modelo in modelos:
+                try:
+                    stream = await client.chat.completions.create(model=modelo, messages=mensagens, stream=True)
+                    async for chunk in stream:
+                        delta = chunk.choices[0].delta.content if chunk.choices else None
+                        if delta:
+                            yield delta
+                    return
+                except Exception as e:
+                    err = str(e).lower()
+                    if any(k in err for k in _GATILHOS_FALLBACK):
+                        last_err = e
+                        logger.warning(f"OpenAI {modelo} indisponível. Tentando fallback...")
+                        continue
+                    yield f"\n[ERRO] {str(e)}"
+                    return
+            msg = str(last_err) if last_err else "Nenhum modelo OpenAI disponível."
+            yield f"\n[ERRO] {msg}"
+
+        return StreamingResponse(_stream_openai(), media_type="text/plain")
+
+    if provider == "claude":
+        from anthropic import AsyncAnthropic
+        client = AsyncAnthropic(api_key=api_key)
+
+        # Haiku primeiro: modelo mais rápido/barato da linha, padrão pedido pelo usuário (TASK-055).
+        # Sonnet como reserva de qualidade, não como padrão.
+        preferencias = ["claude-haiku-5-5", "claude-sonnet-5-5"]
+        modelos = [custom_model] if custom_model else preferencias
+
+        mensagens = []
+        for msg in req.history:
+            parts = msg.get("parts", [])
+            texto = (parts[0].get("text", "") if isinstance(parts[0], dict) else str(parts[0])) if parts else ""
+            mensagens.append({"role": "assistant" if msg.get("role") == "model" else "user", "content": texto})
+        mensagens.append({"role": "user", "content": prompt_final})
+
+        async def _stream_claude():
+            last_err = None
+            for modelo in modelos:
+                try:
+                    async with client.messages.stream(
+                        model=modelo, max_tokens=4096, system=system_instruction, messages=mensagens,
+                    ) as stream:
+                        async for texto in stream.text_stream:
+                            yield texto
+                    return
+                except Exception as e:
+                    err = str(e).lower()
+                    if any(k in err for k in _GATILHOS_FALLBACK):
+                        last_err = e
+                        logger.warning(f"Claude {modelo} indisponível. Tentando fallback...")
+                        continue
+                    yield f"\n[ERRO] {str(e)}"
+                    return
+            msg = str(last_err) if last_err else "Nenhum modelo Claude disponível."
+            yield f"\n[ERRO] {msg}"
+
+        return StreamingResponse(_stream_claude(), media_type="text/plain")
+
+    return PlainTextResponse(f"[ERRO] Provider '{provider}' não suportado.")

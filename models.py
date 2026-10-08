@@ -28,7 +28,7 @@ class ChatRequest(BaseModel):
     prompt: str
     table_context: str = ""
     history: List[Dict[str, Any]]
-    provider: str = "gemini"          # "gemini" | "openai"
+    provider: str = "gemini"          # "gemini" | "openai" | "claude" (TASK-055; "anthropic" também aceito)
     openai_base_url: str = ""         # ex: http://localhost:11434/v1 (Ollama) ou https://openrouter.ai/api/v1
     projeto_codigo: str = "229"
 

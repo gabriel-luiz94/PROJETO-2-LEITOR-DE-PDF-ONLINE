@@ -15,9 +15,20 @@ import re
 from services.prompts_validacao import parse_prompt
 
 SEVERIDADES = {"erro", "aviso", "info"}
-# Mesma ordem de reserva do chat (routers/ai_chat.py); o modelo do cabeçalho do prompt vem primeiro.
-MODELOS_RESERVA = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.6-flash", "gemini-1.5-flash"]
-_ERROS_DE_FALLBACK = ("429", "quota", "exhausted", "not found", "404", "unavailable")
+# Mesma ordem de reserva do chat (routers/ai_chat.py); o modelo do cabeçalho do prompt vem primeiro
+# (só para Gemini — o campo "modelo" dos prompts salvos sempre guarda um ID Gemini; ver
+# routers/validacao.py:_preparar_ia). gemini-1.5-flash/pro: desligados desde 2025 (404).
+# gemini-2.5-flash: desligamento anunciado pela Google para 16/10/2026 — removidos (TASK-054).
+MODELOS_RESERVA = ["gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3.5-flash"]
+# Claude com claude-haiku-5-5 primeiro (rápido/barato, padrão pedido pelo usuário) e
+# claude-sonnet-5-5 como reserva de qualidade (TASK-055).
+MODELOS_RESERVA_OPENAI = ["gpt-4o-mini", "gpt-4o"]
+MODELOS_RESERVA_CLAUDE = ["claude-haiku-5-5", "claude-sonnet-5-5"]
+# "invalid_argument"/"multiturn" cobrem o erro "Multiturn chat is not enabled for this model" (e
+# variações parecidas) como defesa em profundidade (TASK-054) — `chamar_gemini` já usa chamada
+# única (sem sessão), então não tem a causa raiz desse erro, mas um modelo futuro pode ter outra
+# restrição parecida.
+_ERROS_DE_FALLBACK = ("429", "quota", "exhausted", "not found", "404", "unavailable", "invalid_argument", "multiturn")
 TIMEOUT_S = 60
 TAMANHO_LOTE = 40      # linhas por chamada ao modelo
 LIMITE_LINHAS = 400    # acima disso a IA revisa só as primeiras (resposta indica `truncado`)
@@ -178,3 +189,51 @@ async def chamar_gemini(api_key, modelos, texto, temperatura=0.0):
                 continue
             raise
     raise ultimo or RuntimeError("Nenhum modelo Gemini disponível.")
+
+
+async def chamar_openai(api_key, modelos, texto, temperatura=0.0):
+    """Mesmo contrato de `chamar_gemini` (TASK-055), usando o modo JSON nativo da OpenAI."""
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(api_key=api_key)
+    ultimo = None
+    for modelo in modelos:
+        try:
+            resposta = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=modelo, messages=[{"role": "user", "content": texto}],
+                    temperature=temperatura, response_format={"type": "json_object"},
+                ),
+                timeout=TIMEOUT_S,
+            )
+            return resposta.choices[0].message.content or ""
+        except Exception as e:
+            if any(k in str(e).lower() for k in _ERROS_DE_FALLBACK):
+                ultimo = e
+                continue
+            raise
+    raise ultimo or RuntimeError("Nenhum modelo OpenAI disponível.")
+
+
+async def chamar_claude(api_key, modelos, texto, temperatura=0.0):
+    """Mesmo contrato de `chamar_gemini` (TASK-055). A Anthropic não tem um modo JSON dedicado — os
+    prompts salvos já instruem o modelo a responder só com JSON no próprio texto (mesmo mecanismo
+    que já sustenta isso para o Gemini hoje; `response_mime_type` é reforço, não a única garantia)."""
+    from anthropic import AsyncAnthropic
+    client = AsyncAnthropic(api_key=api_key)
+    ultimo = None
+    for modelo in modelos:
+        try:
+            resposta = await asyncio.wait_for(
+                client.messages.create(
+                    model=modelo, max_tokens=4096, temperature=temperatura,
+                    messages=[{"role": "user", "content": texto}],
+                ),
+                timeout=TIMEOUT_S,
+            )
+            return "".join(b.text for b in resposta.content if getattr(b, "type", None) == "text")
+        except Exception as e:
+            if any(k in str(e).lower() for k in _ERROS_DE_FALLBACK):
+                ultimo = e
+                continue
+            raise
+    raise ultimo or RuntimeError("Nenhum modelo Claude disponível.")

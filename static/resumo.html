@@ -498,6 +498,22 @@
             border-color: rgba(63, 185, 80, 0.5);
             outline: none;
         }
+        /* ── Seletor de provedor de IA (TASK-055) ── */
+        .btn-provider {
+            flex: 1;
+            padding: 8px;
+            border-radius: 8px;
+            border: 2px solid #30363d;
+            background: #0d1117;
+            color: #8b949e;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all .2s;
+        }
+        .btn-provider.active {
+            border-color: #b45309;
+            color: #d97706;
+        }
     </style>
 </head>
 <body>
@@ -772,17 +788,44 @@
 
                 <p style="font-size:0.75rem;color:#8b949e;margin:10px 0 4px;">PROVEDOR DE IA</p>
                 <div style="display:flex;gap:8px;margin-bottom:12px;">
-                    <button class="btn-provider active" data-provider="gemini" style="flex:1;padding:8px;border-radius:8px;border:2px solid #b45309;background:#0d1117;color:#d97706;font-size:0.8rem;cursor:pointer;transition:all .2s;">Google Gemini</button>
+                    <button class="btn-provider active" data-provider="gemini">Google Gemini</button>
+                    <button class="btn-provider" data-provider="openai">OpenAI</button>
+                    <button class="btn-provider" data-provider="claude">Claude</button>
                 </div>
 
                 <!-- Seção Gemini -->
-                <div id="section-gemini">
+                <div id="section-gemini" class="section-provider">
                     <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">GEMINI API KEY <span style="color:#3fb950;font-size:0.7rem;">(gratuita em aistudio.google.com)</span></p>
                     <input type="password" id="input-apikey" placeholder="AIzaSy... (opcional)" class="modal-input" style="margin-bottom:4px;">
                     <p id="apikey-status" style="font-size:0.7rem;color:#8b949e;margin-bottom:10px;"></p>
                     <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">MODELO (deixe Automático para usar gemini-3.1-flash-lite)</p>
                     <select id="input-model" class="modal-input">
                         <option value="">Automático</option>
+                    </select>
+                </div>
+
+                <!-- Seção OpenAI -->
+                <div id="section-openai" class="section-provider hidden">
+                    <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">OPENAI API KEY <span style="color:#3fb950;font-size:0.7rem;">(platform.openai.com)</span></p>
+                    <input type="password" id="input-apikey-openai" placeholder="sk-... (opcional)" class="modal-input" style="margin-bottom:4px;">
+                    <p id="apikey-status-openai" style="font-size:0.7rem;color:#8b949e;margin-bottom:10px;"></p>
+                    <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">MODELO (deixe Automático para usar gpt-4o-mini)</p>
+                    <select id="input-model-openai" class="modal-input">
+                        <option value="">Automático</option>
+                    </select>
+                </div>
+
+                <!-- Seção Claude (Anthropic) -->
+                <div id="section-claude" class="section-provider hidden">
+                    <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">ANTHROPIC API KEY <span style="color:#3fb950;font-size:0.7rem;">(console.anthropic.com)</span></p>
+                    <input type="password" id="input-apikey-claude" placeholder="sk-ant-... (opcional)" class="modal-input" style="margin-bottom:4px;">
+                    <p id="apikey-status-claude" style="font-size:0.7rem;color:#8b949e;margin-bottom:10px;"></p>
+                    <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">MODELO (deixe Automático para usar claude-haiku-5-5)</p>
+                    <select id="input-model-claude" class="modal-input">
+                        <option value="">Automático (Haiku ★)</option>
+                        <option value="claude-haiku-5-5">claude-haiku-5-5 ★ (Padrão)</option>
+                        <option value="claude-sonnet-5-5">claude-sonnet-5-5 (Reserva)</option>
+                        <option value="claude-opus-5-5">claude-opus-5-5</option>
                     </select>
                 </div>
 
