@@ -328,6 +328,21 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       força Camada 1 + ativo não encontrado ignorando a preferência salva, sem duplicar nenhuma
       lógica; nova `checarInconsistenciasBasicas()` reaproveita o mesmo `cicloValidacao(res, true)`
       que o Montar Orçamento opcional já usava. CONCLUÍDA. Ver `.ai/tasks/TASK-051-07-10-2026.md`.
+- [x] **TASK-052** (pedido de 2026-10-08): usuário pediu análise e estratégia (depois autorizou
+      implementar) pra editar a base técnica (`tabela_orcamento_master`) escopada por projeto —
+      hoje uma tabela única com todos os projetos misturados, campo Projeto como texto livre.
+      Análise sobre o CSV real de produção (2.646 linhas, sem acesso de rede ao Supabase neste
+      sandbox) revelou que `projeto` já suporta mais de um valor por linha via `/` (ex.
+      `"PARAIBA/PARAIBANOVO"`, 108 linhas reais), lido por `processar_calculo`. Pedido final do
+      usuário: "projetos totalmente manipuláveis de forma separada... editando inclusive as linhas
+      compartilhadas". Resolvido com migração única (dado, sem alteração de schema): toda linha
+      com `/` vira uma cópia exclusiva por projeto, valores idênticos no momento da migração, local
+      e Supabase. `GET /api/orcamento/dados` ganhou `projeto`/`genericas`/`nao_reconhecido`
+      opcionais; `upload-master`/`sync-master-all`/`salvar` (achado durante a implementação: o
+      mesmo risco de DELETE sem filtro de projeto também existia na cópia pessoal do usuário, não
+      só na master) ganharam escopo por projeto no DELETE, com validação das linhas enviadas.
+      `static/orcamento.html` ganhou seletor de projeto + abas (Projeto selecionado/Comuns/Não
+      reconhecido), campo Projeto travado. CONCLUÍDA. Ver `.ai/tasks/TASK-052-08-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -572,7 +587,34 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-08
-**Motivo:** TASK-051 — usuário pediu que erros na tabela Outros fossem sinalizados pra evitar erros
+**Motivo:** TASK-052 — usuário pediu análise e estratégia (depois autorizou implementar) pra editar
+a base técnica (`tabela_orcamento_master`) escopada por projeto — hoje misturada numa tabela única,
+campo Projeto como texto livre. Análise sobre o CSV real de produção (2.646 linhas) revelou que
+`projeto` já suporta mais de um valor por linha via `/` (108 linhas reais `"PARAIBA/PARAIBANOVO"`).
+Pedido final: "projetos totalmente manipuláveis de forma separada... editando inclusive as linhas
+compartilhadas".
+**Alterações de código:** `services/sync_service.py` — `migrar_projetos_compartilhados()` (divide
+toda linha com `/` em cópias exclusivas por projeto, local e Supabase, cada um a partir da própria
+consulta); `normalizar_projeto`/`validar_linhas_do_projeto`/`filtrar_linhas_por_categoria` (regra de
+comparação de projeto extraída uma única vez). `routers/orcamento.py` — `GET /dados` ganhou
+`projeto`/`genericas`/`nao_reconhecido` opcionais; `POST /salvar` ganhou `projeto` opcional que
+escopa o DELETE (achado durante a implementação: tinha o mesmo risco sem filtro de projeto da
+master, só que na cópia pessoal do usuário). `routers/admin.py` — `upload-master`/`sync-master-all`
+ganharam `projeto` opcional (DELETE escopado por igualdade exata, local e Supabase, valida que toda
+linha pertence ao projeto); novo `POST /admin/migrar-projetos-compartilhados`. `models.py` —
+`SalvarOrcamentoRequest.projeto` opcional. `static/orcamento.html` — seletor de projeto + abas
+(Projeto selecionado/Comuns a todos/Não reconhecido), campo Projeto travado (`disabled`) exceto na
+aba de corrigir typo, botão de migração. `scripts/schema_supabase.sql` — índice opcional em
+`projeto` (não obrigatório, sem mudança de schema).
+Testes: 18 novos em `tests/test_orcamento_projeto.py` (migração, idempotência, filtro por
+categoria, DELETE escopado em upload-master/sync-master-all/salvar, Supabase simulado). Suíte
+completa (788 testes) sem regressão. Smoke test real-server + Playwright: populou as 3 categorias
++ uma linha compartilhada, confirmou a visão por projeto e o campo travado, rodou a migração ao
+vivo (linha compartilhada virou duas cópias, cada uma só na visão do seu projeto) e confirmou que
+importar um CSV escopado em PARAIBA não afeta RONDONIA nem a cópia de PARAIBANOVO. Ver
+`.ai/tasks/TASK-052-08-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-051 — usuário pediu que erros na tabela Outros fossem sinalizados pra evitar erros
 em grandes obras; depois refinou para disparar ao clicar em Ajustar, Validar ou Montar Orçamento,
 bloqueando mas permitindo "continuar mesmo assim", sempre ativo e automático. Achado: Validar já
 cobria os dois sinais (Camada 1 de contrato + ativo não encontrado) por padrão; faltava ligar a

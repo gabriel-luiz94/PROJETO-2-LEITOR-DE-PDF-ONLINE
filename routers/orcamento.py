@@ -9,7 +9,10 @@ from fastapi.responses import JSONResponse
 from database import get_connection, get_row_connection
 from models import SalvarOrcamentoRequest, OrcamentoRequest, DetalhesRequest
 from services.orcamento_calc import processar_calculo
-from services.sync_service import get_merged_orcamento, sync_tabela_master
+from services.sync_service import (
+    get_merged_orcamento, sync_tabela_master, filtrar_linhas_por_categoria,
+    validar_linhas_do_projeto,
+)
 from middleware.auth_middleware import get_current_user_from_state
 
 router = APIRouter(prefix="/api/orcamento", tags=["orcamento"])
@@ -80,11 +83,33 @@ async def upload_orcamento(request: Request, file: UploadFile = File(...)):
 
 
 @router.get("/dados")
-def get_orcamento_dados(request: Request):
+def get_orcamento_dados(request: Request, projeto: str = None, genericas: bool = False,
+                         nao_reconhecido: bool = False):
+    """Sem nenhum dos parâmetros abaixo, devolve a base inteira (comportamento histórico, usado
+    pelo cálculo do orçamento — RN-06 já filtra por projeto internamente, com a base completa).
+
+    TASK-052: `projeto` (igualdade exata), `genericas` (projeto vazio) ou `nao_reconhecido`
+    (projeto preenchido mas não cadastrado em `projetos`) recortam a tela `/orcamento` por
+    categoria — no máximo um por chamada.
+    """
     user = getattr(request.state, "user", None)
     user_id = user["user_id"] if user else None
     sync_tabela_master()
     merged_rows = get_merged_orcamento(user_id)
+
+    if projeto or genericas or nao_reconhecido:
+        projetos_validos = None
+        if nao_reconhecido:
+            conn = get_row_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT nome FROM projetos")
+            projetos_validos = [r["nome"] for r in cursor.fetchall()]
+            conn.close()
+        merged_rows = filtrar_linhas_por_categoria(
+            merged_rows, projeto=projeto, genericas=genericas, nao_reconhecido=nao_reconhecido,
+            projetos_validos=projetos_validos,
+        )
+
     return {"dados": merged_rows}
 
 
@@ -93,15 +118,36 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
     user = get_current_user_from_state(request)
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Apenas administradores podem atualizar a base de orçamento.")
+    user_id = user["user_id"]
+    dados = req.dados
+    if req.projeto:
+        # TASK-052: sem isso, salvar a visão filtrada de um projeto apagaria TODOS os projetos
+        # da cópia pessoal do usuário (o DELETE abaixo não tinha filtro de projeto, só de dono).
+        # Fora do `try` de baixo de propósito: o `except Exception` genérico ali mascararia o
+        # HTTPException como um erro 400 "{error: ...}" em vez do formato padrão de validação.
+        try:
+            dados = validar_linhas_do_projeto(dados, req.projeto)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
     try:
-        user_id = user["user_id"]
         conn = get_connection()
         cursor = conn.cursor()
-        if user_id:
+        if req.projeto:
+            projeto_norm = req.projeto.strip().upper()
+            if user_id:
+                cursor.execute(
+                    "DELETE FROM tabela_orcamento WHERE user_id = ? AND UPPER(TRIM(projeto)) = ?",
+                    (user_id, projeto_norm))
+            else:
+                cursor.execute(
+                    "DELETE FROM tabela_orcamento WHERE user_id IS NULL AND UPPER(TRIM(projeto)) = ?",
+                    (projeto_norm,))
+        elif user_id:
             cursor.execute("DELETE FROM tabela_orcamento WHERE user_id = ?", (user_id,))
         else:
             cursor.execute("DELETE FROM tabela_orcamento WHERE user_id IS NULL")
-        for row in req.dados:
+        for row in dados:
             ativo = row.get("ativo", "").strip()
             codigo = row.get("codigo", "").strip()
             if not ativo and not codigo:

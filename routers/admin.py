@@ -6,10 +6,14 @@ Inclui audit log e sincronização com Supabase.
 """
 import io
 import csv
-from fastapi import APIRouter, HTTPException, Request, UploadFile, File
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel
 from database import get_connection, get_row_connection, hash_password
 from services.supabase_client import get_supabase, registrar_falha
+from services.sync_service import (
+    validar_linhas_do_projeto, normalizar_projeto, migrar_projetos_compartilhados,
+)
 from middleware.auth_middleware import get_current_user_from_state
 from config import logger
 from models import SalvarOrcamentoRequest
@@ -367,8 +371,15 @@ def add_master_row(req: MasterRowCreate, request: Request):
 
 
 @router.post("/upload-master")
-async def upload_master_csv(request: Request, file: UploadFile = File(...)):
-    """(Admin) Upload de arquivo CSV para atualizar a Tabela Master no SQLite e no Supabase."""
+async def upload_master_csv(request: Request, file: UploadFile = File(...), projeto: Optional[str] = Form(None)):
+    """(Admin) Upload de arquivo CSV para atualizar a Tabela Master no SQLite e no Supabase.
+
+    TASK-052: sem `projeto`, comportamento histórico — substitui a tabela inteira (modo "todos os
+    projetos", ação deliberada e separada na tela). Com `projeto`, escopa tudo ao projeto
+    selecionado: só as linhas desse projeto são apagadas antes de inserir (local e Supabase); toda
+    linha do CSV deve pertencer a esse projeto (vazia é aceita e preenchida automaticamente; outro
+    projeto nomeado é rejeitado, nada é gravado).
+    """
     admin = _require_admin(request)
     try:
         contents = await file.read()
@@ -378,10 +389,6 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...)):
             reader = csv.DictReader(io.StringIO(text), delimiter=",")
 
         rows_to_insert = []
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute("DELETE FROM tabela_orcamento_master")
-
         for row in reader:
             row_upper = {k.strip().upper(): v for k, v in row.items() if k}
             ativo = row_upper.get("ATIVO", "").strip()
@@ -399,7 +406,7 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...)):
             except ValueError:
                 fator_r = 0.0
 
-            item_dict = {
+            rows_to_insert.append({
                 "ativo": ativo,
                 "desc_ativo": row_upper.get("DESC ATIVO", "").strip(),
                 "componente": row_upper.get("COMPONENTE", "").strip(),
@@ -411,11 +418,25 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...)):
                 "fator_r": fator_r,
                 "filtro": row_upper.get("FILTRO", "").strip(),
                 "origem": row_upper.get("ORIGEM", "").strip()
-            }
-            rows_to_insert.append(item_dict)
+            })
 
+        if projeto:
+            try:
+                rows_to_insert = validar_linhas_do_projeto(rows_to_insert, projeto)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+
+        conn = get_connection()
+        cur = conn.cursor()
+        if projeto:
+            cur.execute("DELETE FROM tabela_orcamento_master WHERE UPPER(TRIM(projeto)) = ?",
+                        (normalizar_projeto(projeto),))
+        else:
+            cur.execute("DELETE FROM tabela_orcamento_master")
+
+        for item_dict in rows_to_insert:
             cur.execute('''
-                INSERT INTO tabela_orcamento_master 
+                INSERT INTO tabela_orcamento_master
                 (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
@@ -430,15 +451,21 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...)):
         supabase = get_supabase()
         if supabase and rows_to_insert:
             try:
-                supabase.table("tabela_orcamento_master").delete().neq("id", 0).execute()
+                if projeto:
+                    supabase.table("tabela_orcamento_master").delete().ilike(
+                        "projeto", normalizar_projeto(projeto)).execute()
+                else:
+                    supabase.table("tabela_orcamento_master").delete().neq("id", 0).execute()
                 for i in range(0, len(rows_to_insert), 500):
                     supabase.table("tabela_orcamento_master").insert(rows_to_insert[i:i+500]).execute()
-                logger.info(f"Master sincronizado com Supabase: {len(rows_to_insert)} linhas")
+                logger.info(f"Master sincronizado com Supabase: {len(rows_to_insert)} linhas"
+                            + (f" (projeto={projeto})" if projeto else " (todos os projetos)"))
             except Exception as e:
                 logger.warning(f"Erro ao enviar Master para Supabase: {e}")
                 raise HTTPException(status_code=500, detail=f"Tabela local atualizada, mas falhou ao sincronizar com a nuvem (Supabase): {e}")
 
-        _audit(admin, "UPLOAD_MASTER_CSV", "tabela_orcamento_master", None, f"total_rows={len(rows_to_insert)}")
+        _audit(admin, "UPLOAD_MASTER_CSV", "tabela_orcamento_master", None,
+               f"total_rows={len(rows_to_insert)}, projeto={projeto or 'TODOS'}")
         return {"status": "ok", "msg": f"Tabela Master atualizada com {len(rows_to_insert)} linhas."}
 
     except HTTPException:
@@ -448,33 +475,49 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...)):
 
 @router.post("/sync-master-all")
 def sync_master_all(req: SalvarOrcamentoRequest, request: Request):
-    """(Admin) Sobrescreve toda a tabela master da nuvem e local com os dados fornecidos."""
+    """(Admin) Sobrescreve a tabela master da nuvem e local com os dados fornecidos.
+
+    TASK-052: sem `req.projeto`, comportamento histórico — substitui a tabela inteira (modo "todos
+    os projetos", ação deliberada e separada na tela). Com `req.projeto`, escopa tudo ao projeto
+    selecionado, no mesmo padrão de `upload-master`.
+    """
     admin = _require_admin(request)
-    
+
+    dados = req.dados
+    if req.projeto:
+        try:
+            dados = validar_linhas_do_projeto(dados, req.projeto)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
     conn = get_connection()
     cur = conn.cursor()
-    
+
     rows_to_insert = []
-    
+
     cur.execute("BEGIN TRANSACTION")
-    cur.execute("DELETE FROM tabela_orcamento_master")
-    
-    for row in req.dados:
+    if req.projeto:
+        cur.execute("DELETE FROM tabela_orcamento_master WHERE UPPER(TRIM(projeto)) = ?",
+                    (normalizar_projeto(req.projeto),))
+    else:
+        cur.execute("DELETE FROM tabela_orcamento_master")
+
+    for row in dados:
         ativo = row.get("ativo", "").strip()
         codigo = row.get("codigo", "").strip()
         if not ativo and not codigo:
             continue
-            
+
         try:
             fator_i = float(str(row.get("fator_i", "0")).replace(",", "."))
         except ValueError:
             fator_i = 0.0
-            
+
         try:
             fator_r = float(str(row.get("fator_r", "0")).replace(",", "."))
         except ValueError:
             fator_r = 0.0
-            
+
         item_dict = {
             "ativo": ativo,
             "desc_ativo": row.get("desc_ativo", "").strip(),
@@ -499,19 +542,40 @@ def sync_master_all(req: SalvarOrcamentoRequest, request: Request):
             item_dict["projeto"], item_dict["mdo"], item_dict["codigo"],
             item_dict["desc_codigo"], item_dict["fator_i"], item_dict["fator_r"], item_dict["filtro"], item_dict["origem"]
         ))
-    
+
     cur.execute("COMMIT")
     conn.close()
-    
+
     supabase = get_supabase()
     if supabase and rows_to_insert:
         try:
-            supabase.table("tabela_orcamento_master").delete().neq("id", 0).execute()
+            if req.projeto:
+                supabase.table("tabela_orcamento_master").delete().ilike(
+                    "projeto", normalizar_projeto(req.projeto)).execute()
+            else:
+                supabase.table("tabela_orcamento_master").delete().neq("id", 0).execute()
             for i in range(0, len(rows_to_insert), 500):
                 supabase.table("tabela_orcamento_master").insert(rows_to_insert[i:i+500]).execute()
         except Exception as e:
             logger.warning(f"Erro ao enviar Master all para Supabase: {e}")
             raise HTTPException(status_code=500, detail=f"Erro ao sincronizar com Supabase: {e}")
-            
-    _audit(admin, "SYNC_MASTER_ALL", "tabela_orcamento_master", None, f"total_rows={len(rows_to_insert)}")
+
+    _audit(admin, "SYNC_MASTER_ALL", "tabela_orcamento_master", None,
+           f"total_rows={len(rows_to_insert)}, projeto={req.projeto or 'TODOS'}")
     return {"status": "ok", "msg": f"Tabela Master na nuvem atualizada com {len(rows_to_insert)} linhas."}
+
+
+@router.post("/migrar-projetos-compartilhados")
+def migrar_projetos_compartilhados_endpoint(request: Request):
+    """(Admin) TASK-052: divide toda linha de `tabela_orcamento_master` cujo `projeto` combina mais
+    de um nome separado por "/" (ex. "PARAIBA/PARAIBANOVO") em uma linha exclusiva por projeto —
+    pré-requisito pra tela por projeto poder escopar o DELETE por igualdade exata sem nunca atingir
+    uma linha compartilhada. Ação explícita, não automática; idempotente (rodar de novo sem
+    nenhuma linha com "/" não faz nada)."""
+    admin = _require_admin(request)
+    try:
+        resultado = migrar_projetos_compartilhados()
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    _audit(admin, "MIGRAR_PROJETOS_COMPARTILHADOS", "tabela_orcamento_master", None, str(resultado))
+    return {"status": "ok", **resultado}
