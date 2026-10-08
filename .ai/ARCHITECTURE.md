@@ -127,7 +127,7 @@
 | `recs.py` | — | `/api/recs` e `/api/rec/*`: histórico de RECs com preservação de REC de terceiros |
 | `obras.py` | `/api/obras` | CRUD de obras por usuário (Supabase com fallback SQLite); `GET /indice` (leve, sem `dados_json`) e `GET /{id}` (uma obra) servem à IA do chat (TASK-028) |
 | `projetos.py` | `/api/projetos` | Lista mesclada local+nuvem; cadastro só admin |
-| `ai_chat.py` | `/api/gemini` | Listagem de modelos e chat com Gemini/OpenAI, injetando `prompt_rede_eletrica.txt` e as regras aprendidas. Chave resolvida por `resolver_credencial()`: usuário > salva > padrão do ambiente (`GEMINI_API_KEY`/`GOOGLE_API_KEY`); rate-limit por usuário só com a chave padrão (TASK-009) |
+| `ai_chat.py` | `/api/gemini` | Listagem de modelos e chat com Gemini/OpenAI/Claude (TASK-055), injetando `prompt_rede_eletrica.txt` e as regras aprendidas. Gemini usa `generate_content_stream` (chamada única, sem sessão — TASK-054); cada provedor tem a própria lista de fallback. Chave resolvida por `resolver_credencial()`: usuário > salva > padrão do ambiente (`GEMINI_API_KEY`/`GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`); rate-limit por usuário só com a chave padrão (TASK-009) |
 | `validacao.py` | `/api/validacao` | Validação das planilhas Cabos/Outros: `POST /planilhas` (camadas 1 e 2, `services/validacao_planilhas.py` e `regras_dominio.py`) `POST /ia` (camada 3, `services/validacao_ia.py`) e `POST /corrigir` (`services/correcao_ia.py`) |
 | `validacao_ajustes.py` | `/api/validacao/ajustes` | Cadastro de ajustes (receitas) em camadas, histórico, reversão, semente, `preview` (diff), `preview-lote` (cartões por ajuste + cadeia; alimenta o botão Ajustar) e `descrever`; motor em `services/ajustes_planilhas.py`, camadas em `services/ajustes_camadas.py`, armazenamento em `services/repo_json.py` (TASK-022/023, ADR-006) |
 | `services/autonomo/` (não é rota) | — | Modo autônomo (TASK-031; API e tela `/autonomo` prontas — falta verificar no .exe/Windows): `leitor_js.py`/`trabalhador_js.py` rodam o mesmo `static/regras_leitor_engine.js` num QuickJS em subprocesso; `montagem.py`, `aplicar.py` e `totalizadora.py` portam `resumo.js`; `pipeline.py` orquestra (confirmação de exclusões, reversão); `execucoes.py` (tabela local `execucoes_autonomas`) e `saida.py` (JSON+CSV) Paridade com o JS real em `tests/test_autonomo_*.py` (oráculo `tests/oraculo_tela.py`) — alterar o motor do leitor ou a montagem do `resumo.js` exige rodar esses testes |
@@ -317,7 +317,7 @@ ativado definindo explicitamente `APP_MODE=server` no ambiente.
 | `regras_orcamento_<projCode>` | `resumo.js:salvarRegras` | `resumo.js:carregarRegras` |
 | `numero_obra` | `resumo.html`, `resultado_orcamento.html` | `resultado_orcamento.html` |
 | `auth_token`, `user_id`, `user_email`, `is_admin` | `login.js` | `auth_fetch.js` e páginas |
-| `ai_provider`, `gemini_api_key`, `gemini_model` | `resumo.js` | `resumo.js` |
+| `ai_provider`, `gemini_api_key`, `gemini_model`, `openai_api_key`, `openai_model`, `anthropic_api_key`, `anthropic_model` | `resumo.js` | `resumo.js` |
 
 ⚠️ `localStorage` é o mecanismo de transporte entre telas. Qualquer mudança no formato de
 `processar_dados` ou `orcamentoPayload` quebra a página seguinte — são **contratos**, trate-os como tal.

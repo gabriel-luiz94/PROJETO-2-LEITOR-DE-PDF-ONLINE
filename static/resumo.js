@@ -1738,39 +1738,79 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiChatInput = document.getElementById('chat-input');
     const btnSendChat = document.getElementById('btn-send-chat');
     
-    // API Key config
+    // API Key config — três provedores (TASK-055): Gemini, OpenAI e Claude. Campos, headers e
+    // chaves de localStorage de cada um, usados pelas funções abaixo em vez de ids fixos.
     const modalApikey = document.getElementById('modal-apikey');
-    const inputApikey = document.getElementById('input-apikey');
-    const inputModel = document.getElementById('input-model');
-    
-    async function fetchModels() {
-        const keyToUse = inputApikey.value.trim() || "SAVED_IN_BACKEND";
+    const inputApikey = document.getElementById('input-apikey');       // listeners de blur/input do Gemini
+    const PROVIDER_CAMPOS = {
+        gemini: {
+            apikeyId: 'input-apikey', modelId: 'input-model', statusId: 'apikey-status',
+            keyStorage: 'gemini_api_key', modelStorage: 'gemini_model',
+            keyHeader: 'X-Gemini-Key', modelHeader: 'X-Gemini-Model',
+        },
+        openai: {
+            apikeyId: 'input-apikey-openai', modelId: 'input-model-openai', statusId: 'apikey-status-openai',
+            keyStorage: 'openai_api_key', modelStorage: 'openai_model',
+            keyHeader: 'X-OpenAI-Key', modelHeader: 'X-OpenAI-Model',
+        },
+        claude: {
+            apikeyId: 'input-apikey-claude', modelId: 'input-model-claude', statusId: 'apikey-status-claude',
+            keyStorage: 'anthropic_api_key', modelStorage: 'anthropic_model',
+            keyHeader: 'X-Anthropic-Key', modelHeader: 'X-Anthropic-Model',
+        },
+    };
+
+    function providerAtivo() {
+        const btn = document.querySelector('.btn-provider.active');
+        return (btn && btn.dataset.provider) || localStorage.getItem('ai_provider') || 'gemini';
+    }
+
+    async function fetchModelsPara(provider) {
+        const campos = PROVIDER_CAMPOS[provider];
+        const inputKeyEl = document.getElementById(campos.apikeyId);
+        const inputModelEl = document.getElementById(campos.modelId);
+        if (!inputKeyEl || !inputModelEl || provider === 'claude') return; // Claude: lista fixa já no HTML
+        const keyToUse = inputKeyEl.value.trim() || "SAVED_IN_BACKEND";
         try {
             const resp = await fetch('/api/gemini/models', {
-                headers: { 'X-Gemini-Key': keyToUse }
+                headers: { [campos.keyHeader]: keyToUse, 'X-Provider': provider }
             });
             if (resp.ok) {
                 const data = await resp.json();
-                inputModel.innerHTML = '<option value="">Automático (gemini-3.1-flash-lite)</option>';
+                inputModelEl.innerHTML = '<option value="">Automático</option>';
                 (data.models || []).forEach(m => {
                     const opt = document.createElement('option');
                     opt.value = m.id || m;
                     opt.textContent = m.label || m.id || m;
-                    inputModel.appendChild(opt);
+                    inputModelEl.appendChild(opt);
                 });
-                inputModel.value = localStorage.getItem('gemini_model') || '';
+                inputModelEl.value = localStorage.getItem(campos.modelStorage) || '';
             }
         } catch (e) {
             console.error("Erro ao carregar modelos", e);
         }
     }
+    const fetchModels = () => fetchModelsPara('gemini');   // compatibilidade com o listener do Gemini
 
     inputApikey.addEventListener('blur', fetchModels);
+    const inputApikeyOpenai = document.getElementById('input-apikey-openai');
+    if (inputApikeyOpenai) inputApikeyOpenai.addEventListener('blur', () => fetchModelsPara('openai'));
 
     // Informa de onde virá a chave quando o usuário não digita nenhuma (nunca mostra o valor).
-    async function atualizarStatusChave() {
-        const el = document.getElementById('apikey-status');
-        if (!el) return;
+    // O diagnóstico de origem da chave (/api/health) hoje só existe para o Gemini; para os demais
+    // provedores mostramos só se uma chave foi digitada nesta tela (sem distinguir salva/padrão).
+    async function atualizarStatusChavePara(provider) {
+        const campos = PROVIDER_CAMPOS[provider];
+        const el = document.getElementById(campos.statusId);
+        const inputKeyEl = document.getElementById(campos.apikeyId);
+        if (!el || !inputKeyEl) return;
+        if (inputKeyEl.value.trim()) { el.textContent = 'Sua chave será usada e salva.'; return; }
+        if (provider !== 'gemini') {
+            el.textContent = localStorage.getItem(campos.keyStorage)
+                ? 'Sem chave digitada: será usada a chave salva neste navegador.'
+                : 'Nenhuma chave disponível: informe a sua para usar a IA.';
+            return;
+        }
         const textos = {
             salva: 'Sem chave digitada: será usada a chave salva neste servidor.',
             padrao: 'Sem chave digitada: será usada a chave padrão do sistema (com limite de mensagens por minuto).',
@@ -1779,22 +1819,47 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const resp = await fetch('/api/health');
             const info = resp.ok ? await resp.json() : {};
-            el.textContent = inputApikey.value.trim()
-                ? 'Sua chave será usada e salva.'
-                : (textos[info.ai_key_source] || '');
+            el.textContent = textos[info.ai_key_source] || '';
         } catch (e) {
             el.textContent = '';
         }
     }
+    const atualizarStatusChave = () => atualizarStatusChavePara('gemini');
     inputApikey.addEventListener('input', atualizarStatusChave);
+    if (inputApikeyOpenai) inputApikeyOpenai.addEventListener('input', () => atualizarStatusChavePara('openai'));
+    const inputApikeyClaude = document.getElementById('input-apikey-claude');
+    if (inputApikeyClaude) inputApikeyClaude.addEventListener('input', () => atualizarStatusChavePara('claude'));
+
+    // Troca de provedor no modal: mostra a seção certa e marca o botão ativo (TASK-055).
+    function selecionarProvider(provider) {
+        if (!PROVIDER_CAMPOS[provider]) provider = 'gemini';
+        document.querySelectorAll('.btn-provider').forEach(b => b.classList.toggle('active', b.dataset.provider === provider));
+        Object.keys(PROVIDER_CAMPOS).forEach(p => {
+            const secao = document.getElementById(`section-${p}`);
+            if (secao) secao.classList.toggle('hidden', p !== provider);
+        });
+        if (provider === 'claude') {
+            atualizarStatusChavePara('claude');
+        } else {
+            fetchModelsPara(provider);
+            atualizarStatusChavePara(provider);
+        }
+    }
+    document.querySelectorAll('.btn-provider').forEach(btn => {
+        btn.addEventListener('click', () => selecionarProvider(btn.dataset.provider));
+    });
 
     const btnConfigApi = document.getElementById('btn-config-api');
     if (btnConfigApi) {
         btnConfigApi.addEventListener('click', () => {
-            inputApikey.value = localStorage.getItem('gemini_api_key') || '';
-            inputModel.value = localStorage.getItem('gemini_model') || '';
-            fetchModels();
-            atualizarStatusChave();
+            Object.entries(PROVIDER_CAMPOS).forEach(([provider, campos]) => {
+                const keyEl = document.getElementById(campos.apikeyId);
+                const modelEl = document.getElementById(campos.modelId);
+                if (keyEl) keyEl.value = localStorage.getItem(campos.keyStorage) || '';
+                // Claude tem modelo padrão pré-selecionado (Haiku) quando nada foi salvo ainda.
+                if (modelEl) modelEl.value = localStorage.getItem(campos.modelStorage) || (provider === 'claude' ? 'claude-haiku-5-5' : '');
+            });
+            selecionarProvider(providerAtivo());
             modalApikey.classList.remove('hidden');
         });
     }
@@ -1802,9 +1867,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnSaveApiKey = document.getElementById('btn-save-apikey');
     if (btnSaveApiKey) {
         btnSaveApiKey.addEventListener('click', () => {
-            localStorage.setItem('ai_provider', 'gemini');
-            localStorage.setItem('gemini_api_key', inputApikey.value.trim());
-            localStorage.setItem('gemini_model', inputModel.value.trim());
+            const provider = providerAtivo();
+            const campos = PROVIDER_CAMPOS[provider];
+            // Bug corrigido (TASK-055): salvava 'ai_provider' sempre como 'gemini', ignorando o
+            // provedor escolhido no seletor.
+            localStorage.setItem('ai_provider', provider);
+            const keyEl = document.getElementById(campos.apikeyId);
+            const modelEl = document.getElementById(campos.modelId);
+            if (keyEl) localStorage.setItem(campos.keyStorage, keyEl.value.trim());
+            if (modelEl) localStorage.setItem(campos.modelStorage, modelEl.value.trim());
             modalApikey.classList.add('hidden');
             showToast('Configurações salvas!');
         });
@@ -1960,8 +2031,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = aiChatInput.value.trim();
         if (!text) return;
 
-        const apiKey = localStorage.getItem('gemini_api_key') || 'SAVED_IN_BACKEND';
-        const customModel = localStorage.getItem('gemini_model') || 'SAVED_IN_BACKEND';
+        // Provedor de IA selecionado (TASK-055): chave/modelo/headers são os do provedor salvo,
+        // não mais fixos no Gemini.
+        const providerChat = localStorage.getItem('ai_provider') || 'gemini';
+        const camposChat = PROVIDER_CAMPOS[providerChat] || PROVIDER_CAMPOS.gemini;
+        const apiKey = localStorage.getItem(camposChat.keyStorage) || 'SAVED_IN_BACKEND';
+        const customModel = localStorage.getItem(camposChat.modelStorage) || 'SAVED_IN_BACKEND';
 
         addChatMessage(text, 'user');
         aiChatInput.value = '';
@@ -2007,16 +2082,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 prompt: text,
                 table_context: tableContext,
                 history: chatHistory,
-                provider: "gemini",
-                openai_base_url: "",
+                provider: providerChat,
+                openai_base_url: providerChat === 'openai' ? (localStorage.getItem('openai_base_url') || '') : '',
                 projeto_codigo: localStorage.getItem('projeto_selecionado_codigo') || '229'
             };
             const response = await fetch('/api/gemini/chat', {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
-                    'X-Gemini-Key': apiKey,
-                    'X-Gemini-Model': customModel
+                    [camposChat.keyHeader]: apiKey,
+                    [camposChat.modelHeader]: customModel
                 },
                 body: JSON.stringify(reqBody)
             });

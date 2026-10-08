@@ -8,6 +8,116 @@
 
 ---
 
+## 2026-10-08 — TASK-055: suporte real a OpenAI e Claude como provedor de IA, Haiku como padrão
+
+**Tipo:** feature (integração de IA) · `services/validacao_ia.py`, `routers/validacao.py`,
+`routers/ai_chat.py`, `models.py`, `static/resumo.html`, `static/resumo.js`, `requirements.txt`,
+`.env.example` · `.ai/tasks/TASK-055-08-10-2026.md`
+
+Depois de uma investigação de custo/arquitetura, usuário pediu suporte real a dois provedores de IA
+novos — OpenAI e Claude (Anthropic) — nos dois lugares que até então só falavam com o Gemini: a
+Camada 3 (validação/correção/ajustes de planilha por IA) e o chat geral. Pedido explícito: Claude
+usando o modelo Haiku (`claude-haiku-5-5`) como padrão, por ser o mais rápido e barato da linha, com
+Sonnet (`claude-sonnet-5-5`) como reserva de qualidade.
+
+Investigação prévia (nesta mesma conversa) já tinha mapeado o ponto de injeção certo pra Camada 3:
+`routers/validacao.py:_preparar_ia`, que hoje só sabia montar `chamar_gemini` e injetar numa função
+`chamar(texto) -> str` que nem `executar_em_lotes` nem os validadores/corretores precisam saber de
+qual provedor vem. `_preparar_ia` ficou provider-aware: lê `ai_provider` salvo, resolve a chave do
+provedor certo (headers novos `X-OpenAI-Key`/`X-Anthropic-Key`, mesma precedência usuário > salva >
+padrão do ambiente já usada pro Gemini) e escolhe entre `chamar_gemini`/`chamar_openai`/
+`chamar_claude` — as duas novas em `services/validacao_ia.py`, mesmo contrato de `chamar_gemini`
+(`chamar(api_key, modelos, texto, temperatura) -> str`, tentando os modelos da lista em ordem só
+pra erro de cota/indisponibilidade). Decisão técnica: a função de chamada é resolvida pelo NOME via
+`globals()` dentro de `_preparar_ia`, não por referência direta — necessário pra preservar a
+testabilidade existente (os testes substituem `chamar_gemini` via `monkeypatch.setattr(rota,
+"chamar_gemini", fake)`, que só funciona se a busca for dinâmica). O campo `modelo` do cabeçalho dos
+prompts salvos (ex. `modelo: gemini-3.1-flash-lite`) só é usado como primeira tentativa quando o
+provedor é Gemini — é sempre um ID Gemini, sem equivalente para OpenAI/Claude nos prompts salvos.
+
+No chat geral, `routers/ai_chat.py:gemini_chat` ganhou branches reais de streaming pra `openai` e
+pra `claude`/`anthropic`, com histórico e `system_instruction` aplicados do mesmo jeito que no
+Gemini (antes, o branch de provedor diferente de Gemini simplesmente devolvia "Provider não
+suportado"). `resolver_credencial`/`_chave_padrao` ganharam um parâmetro `provider` (compatível com
+as chamadas existentes, que continuam usando o padrão "gemini") pra resolver a variável de ambiente
+certa (`OPENAI_API_KEY`/`ANTHROPIC_API_KEY`). `GET /api/gemini/models` ganhou uma listagem fixa pra
+Claude (Anthropic não tem um endpoint de listagem tão aberto quanto Gemini/OpenAI) e passou a usar o
+header próprio `X-OpenAI-Key` pra OpenAI, em vez de reaproveitar a chave do Gemini como fazia antes
+(esse reaproveitamento não tinha uso real, já que a UI só tinha a seção do Gemini).
+
+UI: o modal único de configuração de IA (`static/resumo.html`/`resumo.js`) ganhou um seletor de
+provedor com 3 botões e duas seções novas (OpenAI, Claude), reaproveitando o modal existente em vez
+de criar um painel novo — ao trocar de provedor, aparece a seção certa (campo de chave + lista de
+modelos), e o Claude já vem com o Haiku pré-selecionado. De passagem, corrigido um bug já
+identificado: o botão Salvar gravava `ai_provider: 'gemini'` fixo, sempre, independente do que o
+usuário tinha escolhido no seletor — agora grava o provedor realmente ativo.
+
+`anthropic` adicionado ao `requirements.txt` (`openai` já estava); `.env.example` passou a
+documentar `OPENAI_API_KEY`/`ANTHROPIC_API_KEY`.
+
+Testes: 14 novos em `tests/test_validacao_ia.py` (`chamar_openai`/`chamar_claude` com fake de SDK —
+sucesso, fallback só em erro de cota/indisponibilidade, erro sem gatilho não tenta outro modelo —
+e dispatch de provedor em `_preparar_ia`/rota `/api/validacao/ia`: provedor salvo escolhe a função
+certa, chave por header/salva/padrão do ambiente, `"anthropic"` tratado como `"claude"`, provedor
+desconhecido cai pro Gemini) e parte dos 23 novos em `tests/test_ai_chat.py` (branches de chat
+OpenAI/Claude em streaming, fallback, `/models` da Claude, UI estática do seletor e do bug
+corrigido). Nenhum teste faz chamada de rede real — SDKs sempre mockados. Suíte completa (843
+testes) sem regressão. **Sem chave de teste real de OpenAI/Anthropic disponível neste ambiente de
+implementação** — a chamada real ponta-a-ponta ainda precisa ser confirmada pelo usuário com a
+própria chave; validado com fakes de SDK e com um smoke test real-server + Playwright (servidor
+uvicorn real, SDKs mockados em processo, banco SQLite temporário) confirmando a troca de provedor no
+modal, o modelo padrão do Claude pré-selecionado e a gravação correta de `ai_provider` pelo
+navegador de verdade.
+
+---
+
+## 2026-10-08 — TASK-054: chat sem o erro "Multiturn chat is not enabled", limpeza de modelos mortos
+
+**Tipo:** fix (integração com o Gemini) · `routers/ai_chat.py`, `services/validacao_ia.py` ·
+`.ai/tasks/TASK-054-08-10-2026.md`
+
+Usuário mandou `"substitua o texto S3 por S3T na tabela outros"` no chat e recebeu `[ERRO] 400
+INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Multiturn chat is not enabled for this
+model', 'status': 'INVALID_ARGUMENT'}}`. Investigação: o chat (`routers/ai_chat.py`) usava a API de
+**sessão com histórico** do Gemini (`client.aio.chats.create(..., history=...)` +
+`chat.send_message_stream(...)`) — API que alguns modelos (sobretudo variantes "lite") recusam. O
+fallback do código só reconhecia erro de cota/indisponibilidade (`429/quota/exhausted/not found/
+404/unavailable`) pra tentar o próximo modelo da lista; esse erro não batia com nenhuma dessas
+palavras, então o código desistia em vez de tentar o próximo modelo da lista.
+
+Correção robusta (em vez de só ampliar palavras-chave de fallback): trocada a chamada de sessão por
+uma chamada única de `generate_content_stream` (streaming, SEM sessão) com o histórico montado
+manualmente dentro de `contents` — exatamente a mesma API de chamada única (`generate_content`,
+sem streaming) que `chamar_gemini` (Camada 3) já usava e que nunca teve esse bug. Confirmado por
+introspecção do SDK instalado (`pip show google-genai` → 2.28.0;
+`inspect.signature(AsyncModels.generate_content_stream)`) que o método e a assinatura do plano
+original estavam certos: uma coroutine que devolve um `AsyncIterator`, usada como `response = await
+client.aio.models.generate_content_stream(...)` + `async for chunk in response:` — mesmo padrão já
+usado com `send_message_stream`. De defesa em profundidade, os gatilhos de fallback (tanto no chat
+quanto em `services/validacao_ia.py:_ERROS_DE_FALLBACK`) ganharam `invalid_argument`/`multiturn`,
+pro caso de um modelo futuro ter outra restrição parecida.
+
+No mesmo pedido, usuário apontou (e uma pesquisa nesta conversa confirmou) modelos mortos nas listas
+de fallback: `gemini-1.5-flash`/`gemini-1.5-pro` desligados desde 2025 (404/model-not-found);
+`gemini-2.5-flash` com desligamento anunciado pela Google pra 16/10/2026 — a poucos dias desta
+implementação. As duas listas (`routers/ai_chat.py` preferências do chat e
+`services/validacao_ia.py:MODELOS_RESERVA`, que já eram quase idênticas) ficaram iguais e limpas:
+`["gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3.5-flash"]`, mantendo `gemini-3.1-flash-lite`
+como padrão (já era antes desta tarefa). **Sem chave de API Gemini real disponível neste ambiente de
+implementação**, não foi possível confirmar esses IDs contra `GET /api/gemini/models` como pedido —
+usuário precisa confirmar com a própria chave antes de considerar a lista definitiva.
+
+Testes: 23 novos em `tests/test_ai_chat.py` (primeiro teste dedicado à rota `/api/gemini/chat` —
+sucesso com `generate_content_stream` sem sessão, histórico enviado em `contents` na ordem certa,
+fallback acionado pelo erro exato "Multiturn chat is not enabled", erro sem gatilho não tenta outro
+modelo, lista de preferências sem as entradas mortas). Nenhum teste faz chamada de rede real — SDK
+do Gemini sempre mockado. Suíte completa (843 testes) sem regressão. Smoke test real-server +
+Playwright (servidor uvicorn real, SDK mockado em processo, banco SQLite temporário): a mensagem
+exata do bug reportado, com histórico prévio de uma troca de mensagens, respondeu sem o erro de
+multiturn.
+
+---
+
 ## 2026-10-08 — TASK-053: motor de ajustes ganha a ação `criar_linha_derivada`
 
 **Tipo:** feature (motor de ajustes) · `services/ajustes_planilhas.py`, `static/painel_ajustes.js`,
