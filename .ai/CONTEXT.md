@@ -58,6 +58,7 @@ O seed `data/tabela_seed.csv` (2.328 linhas) contém a base técnica de `RONDONI
 |---|---|
 | **google-genai** | Provider `gemini` (padrão) |
 | **openai** | Provider `openai` e compatíveis (Ollama, OpenRouter) via `base_url` customizável |
+| **anthropic** | Provider `claude` (TASK-055) — `claude-haiku-5-5` padrão (rápido/barato), `claude-sonnet-5-5` de reserva |
 
 ### Frontend
 HTML/CSS/JavaScript **vanilla** (sem framework, sem build step), servido como estático

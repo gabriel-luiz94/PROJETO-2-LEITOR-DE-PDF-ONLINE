@@ -355,6 +355,29 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       `_alvos`/`_quando` já existentes; itera um snapshot pra nunca reavaliar a linha recém-criada
       na mesma execução. Editor da gaveta e manual atualizados. CONCLUÍDA. Ver
       `.ai/tasks/TASK-053-08-10-2026.md`.
+- [x] **TASK-054** (pedido de 2026-10-08): usuário recebeu `[ERRO] 400 INVALID_ARGUMENT ...
+      'Multiturn chat is not enabled for this model'` no chat. Causa raiz: `routers/ai_chat.py`
+      usava a API de sessão do Gemini (`chats.create`/`send_message_stream`), que alguns modelos
+      recusam, e o fallback não reconhecia esse erro. Corrigido trocando para
+      `client.aio.models.generate_content_stream` (chamada única em streaming, histórico embutido
+      em `contents`, sem API de sessão) — elimina a causa raiz. Fallback ampliado com
+      `invalid_argument`/`multiturn` (defesa em profundidade). Listas de modelo limpas
+      (`gemini-1.5-flash`/`gemini-1.5-pro`/`gemini-2.5-flash` removidas das duas listas,
+      `gemini-3.1-flash-lite` mantido como padrão). CONCLUÍDA. Ver
+      `.ai/tasks/TASK-054-08-10-2026.md`.
+- [x] **TASK-055** (pedido de 2026-10-08, logo após a TASK-054): usuário pediu suporte real a
+      OpenAI e Claude como provedores de IA (hoje só Gemini funcionava), com o Claude Haiku
+      (`claude-haiku-5-5`) como modelo padrão rápido/barato. `services/validacao_ia.py` ganhou
+      `chamar_openai`/`chamar_claude` (mesmo contrato de `chamar_gemini`);
+      `routers/validacao.py:_preparar_ia` ficou provider-aware (lê `ai_provider` salvo, chave/header
+      próprios por provedor); `routers/ai_chat.py:gemini_chat` ganhou branches reais de streaming
+      para os dois provedores novos. UI: seletor de provedor no modal único de config de IA
+      (`static/resumo.html`/`resumo.js`), com o bug já identificado corrigido de passagem — o botão
+      Salvar gravava `ai_provider: 'gemini'` fixo, agora grava o provedor escolhido. `anthropic`
+      adicionado ao `requirements.txt`; `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` documentadas no
+      `.env.example`. Sem chave de teste real de OpenAI/Anthropic disponível na implementação —
+      validado com fakes de SDK; usuário precisa confirmar com a própria chave. CONCLUÍDA. Ver
+      `.ai/tasks/TASK-055-08-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -469,8 +492,12 @@ arquivo em `.ai/tasks/`.
 ### IA (achados na TASK-009, não corrigidos)
 26. A chave digitada pelo usuário é salva em `configuracoes` (global, sem `user_id`, texto puro): no
     servidor, a chave de um usuário passa a valer para os demais.
-27. `POST /api/gemini/chat` só implementa `provider="gemini"`; `openai` responde "não suportado"
-    embora `GET /api/gemini/models` liste modelos da OpenAI.
+27. ~~`POST /api/gemini/chat` só implementa `provider="gemini"`; `openai` responde "não suportado"
+    embora `GET /api/gemini/models` liste modelos da OpenAI.~~ **Resolvido na TASK-055
+    (2026-10-08):** branches reais de streaming para `openai` e `claude`/`anthropic` (SDKs próprios,
+    histórico e `system_instruction` aplicados do mesmo jeito que no Gemini); `_preparar_ia`
+    (Camada 3) também ficou provider-aware. Sem chave de teste real de OpenAI/Anthropic disponível
+    na implementação — validado com fakes de SDK; usuário precisa confirmar com a própria chave.
 28. O rate-limit do chat é em memória e por processo.
 
 29. ~~**Desfazer/refazer com desvio de uma posição**~~ **Resolvido na TASK-021 (2026-10-01):** `undo()` grava o estado
@@ -599,7 +626,65 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-08
-**Motivo:** TASK-053 — usuário trouxe o ajuste existente "AJUSTE DO (2)" (um `substituir` simples que
+**Motivo:** TASK-054/TASK-055 — usuário mandou `"substitua o texto S3 por S3T na tabela outros"` no
+chat e recebeu `[ERRO] 400 INVALID_ARGUMENT ... 'Multiturn chat is not enabled for this model'`.
+Investigado: o chat usava a API de sessão do Gemini (`chats.create`/`send_message_stream`), que
+alguns modelos recusam, e o fallback não reconhecia esse erro pra tentar o próximo modelo. No mesmo
+pedido, o usuário apontou modelos mortos na lista de fallback (`gemini-1.5-flash`/`gemini-1.5-pro`
+desligados desde 2025; `gemini-2.5-flash` com desligamento anunciado para 16/10/2026) e, depois de
+uma investigação de custo/arquitetura, pediu suporte real a OpenAI e Claude como provedores de IA
+(hoje só Gemini funcionava), com o Claude Haiku (`claude-haiku-5-5`) como modelo padrão rápido/barato.
+**TASK-054 — Alterações de código:** `routers/ai_chat.py` (`_stream_gemini` reescrita: troca de
+`client.aio.chats.create`/`chat.send_message_stream` para `client.aio.models.generate_content_stream`
+— chamada única em streaming com o histórico embutido manualmente em `contents`, eliminando a
+dependência da API de sessão; gatilhos de fallback ampliados com `invalid_argument`/`multiturn`;
+listas de modelo limpas — `gemini-1.5-flash`/`gemini-1.5-pro`/`gemini-2.5-flash` removidas, ficando
+`["gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3.5-flash"]`), `services/validacao_ia.py`
+(`MODELOS_RESERVA` e `_ERROS_DE_FALLBACK` com a mesma limpeza/ampliação — `chamar_gemini` já usava
+chamada única, sem o bug do multiturn, só tinha os modelos mortos na lista).
+**TASK-055 — Alterações de código:** `services/validacao_ia.py` (`chamar_openai`/`chamar_claude`,
+mesmo contrato de `chamar_gemini`; `MODELOS_RESERVA_OPENAI`/`MODELOS_RESERVA_CLAUDE`, Claude com
+Haiku primeiro e Sonnet como reserva de qualidade); `routers/validacao.py` (`_preparar_ia` ganhou
+dispatch por provedor — lê `ai_provider` salvo, resolve a chave certa por header/config próprios
+`X-OpenAI-Key`/`openai_api_key` e `X-Anthropic-Key`/`anthropic_api_key`, e escolhe a função de
+chamada pelo NOME via `globals()` pra preservar a testabilidade existente — "modelo" do cabeçalho do
+prompt salvo só é usado pro Gemini, nunca pra OpenAI/Claude); `routers/ai_chat.py` (`resolver_credencial`
+e `_chave_padrao` ganharam o parâmetro `provider`; `gemini_chat` ganhou branches reais de streaming
+pra `openai` e `claude`/`anthropic`, com histórico e `system_instruction` aplicados do mesmo jeito
+que no Gemini; `GET /models` ganhou listagem fixa para Claude e passou a usar `X-OpenAI-Key` próprio
+em vez de reaproveitar a chave do Gemini); `models.py` (comentário do `ChatRequest.provider`
+documentando o terceiro valor); `requirements.txt` (`anthropic` adicionado); `.env.example`
+(`OPENAI_API_KEY`/`ANTHROPIC_API_KEY` documentadas); `static/resumo.html` (seletor de provedor com
+3 botões, seções `#section-openai`/`#section-claude` novas, modelo padrão do Claude pré-selecionado);
+`static/resumo.js` (`PROVIDER_CAMPOS`, troca de seção ao clicar no provedor, `sendToGemini` provider-
+aware — chave/modelo/headers conforme o provedor salvo — e **bug corrigido**: o botão Salvar gravava
+`ai_provider: 'gemini'` fixo, agora grava o provedor realmente escolhido).
+Testes: `tests/test_ai_chat.py` (23, novo — chat completo: Gemini sem sessão, histórico no `contents`,
+fallback em erro de multiturn/cota, listas sem modelos mortos, branches OpenAI/Claude, `/models` da
+Claude, precedência de chave, UI estática do seletor e do bug corrigido) e 14 testes novos em
+`tests/test_validacao_ia.py` (`chamar_openai`/`chamar_claude` unitários com fake de SDK, dispatch de
+provedor em `_preparar_ia`, listas sem modelos mortos). Nenhum teste faz chamada de rede real —
+SDKs (`google.genai`, `openai`, `anthropic`) sempre mockados. Suíte completa (843 testes) sem
+regressão. Smoke test real-server + Playwright (uvicorn real numa thread, SDKs de IA mockados em
+processo, banco SQLite temporário, Chromium via `executable_path` explícito — o download da revisão
+esperada pelo Playwright foi bloqueado pelo proxy deste sandbox, usada uma revisão já presente no
+ambiente): login real pela UI, chat respondendo à mensagem simples e à mensagem exata do bug
+reportado COM histórico prévio (confirmado sem "[ERRO]"/"multiturn"), troca de provedor no modal
+mostrando a seção certa a cada clique, modelo padrão do Claude pré-selecionado, `ai_provider` salvo
+corretamente como "claude" (bug confirmado corrigido pelo navegador, não só por teste estático) e
+provedor salvo restaurado ao reabrir o modal.
+**Pendências explícitas para o usuário** (sem chave de API real de Gemini/OpenAI/Anthropic
+disponível neste ambiente de implementação): (1) confirmar os IDs de modelo Gemini
+(`gemini-3.1-flash-lite`/`gemini-3.6-flash`/`gemini-3.5-flash`) contra `GET /api/gemini/models` com
+uma chave real; (2) confirmar que `claude-haiku-5-5`/`claude-sonnet-5-5` existem e respondem na
+conta Anthropic do usuário (uma fonte de terceiros consultada nesta implementação dava o Haiku 5.5
+como ainda não lançado em 08/10/2026 — tratado como ruído de pesquisa, não como motivo para desviar
+do ID pedido explicitamente, mas vale confirmar); (3) os modelos padrão/reserva da OpenAI
+(`gpt-4o-mini`/`gpt-4o`) foram uma escolha razoável desta implementação, não um pedido explícito do
+usuário — vale confirmar ou trocar. Ver `.ai/tasks/TASK-054-08-10-2026.md`,
+`.ai/tasks/TASK-055-08-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-053 — usuário trouxe o ajuste existente "AJUSTE DO (2)" (um `substituir` simples que
 removia "(2)" do Cabos) e pediu pra ele passar a: quando a bitola do cabo bate com a bitola do
 neutro "(2)", juntar o N na fase da mesma linha; quando a bitola diverge, tirar o "(2)" da linha
 original e criar uma linha nova separada só com o neutro, reusando o comprimento capturado; quando a

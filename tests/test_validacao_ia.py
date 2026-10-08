@@ -1,10 +1,16 @@
 """tests/test_validacao_ia.py — camada 3 (TASK-014): lotes, prompt, interpretação da resposta e rota /ia.
 
+TASK-055 adiciona: `chamar_openai`/`chamar_claude` (mesmo contrato de `chamar_gemini`) e o dispatch
+por provedor em `routers/validacao.py:_preparar_ia`.
+
 O modelo é sempre simulado: nenhum teste faz chamada de rede nem usa chave real.
 """
 import asyncio
 import json
+import types
 
+import anthropic
+import openai
 import pytest
 from fastapi.testclient import TestClient
 
@@ -15,7 +21,10 @@ import routers.validacao as rota
 from config import VALIDACOES_SEED_DIR
 from middleware.auth_middleware import create_jwt_token
 from services.prompts_validacao import ler_sementes
-from services.validacao_ia import dividir_em_lotes, interpretar_resposta, montar_prompt, validar_com_ia
+from services.validacao_ia import (
+    MODELOS_RESERVA, MODELOS_RESERVA_CLAUDE, MODELOS_RESERVA_OPENAI, _ERROS_DE_FALLBACK,
+    chamar_claude, chamar_openai, dividir_em_lotes, interpretar_resposta, montar_prompt, validar_com_ia,
+)
 
 PROMPT, _ = ler_sementes(VALIDACOES_SEED_DIR)
 PROMPT = PROMPT["validar-planilhas"]
@@ -276,3 +285,213 @@ def test_prompt_inexistente(client, modelo, monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "K")
     r = client.post("/api/validacao/ia", json={**CORPO, "prompt_id": "nao-existe"}, headers=cab())
     assert r.json()["status"] == "indisponivel"
+
+
+# ── TASK-054: listas sem modelos mortos e fallback ampliado ──────────────────
+def test_modelos_reserva_sem_entradas_mortas():
+    assert "gemini-1.5-flash" not in MODELOS_RESERVA and "gemini-1.5-pro" not in MODELOS_RESERVA
+    assert "gemini-2.5-flash" not in MODELOS_RESERVA  # desligamento anunciado para 16/10/2026
+    assert MODELOS_RESERVA[0] == "gemini-3.1-flash-lite"  # modelo padrão
+
+
+def test_erros_de_fallback_cobrem_multiturn_e_invalid_argument():
+    assert "multiturn" in _ERROS_DE_FALLBACK and "invalid_argument" in _ERROS_DE_FALLBACK
+
+
+# ── TASK-055: chamar_openai / chamar_claude (mesmo contrato de chamar_gemini) ────────────────────
+def rodar(coro):
+    return asyncio.run(coro)
+
+
+def test_chamar_openai_usa_modo_json_e_devolve_o_texto(monkeypatch):
+    chamadas = []
+
+    class FakeCompletions:
+        async def create(self, **kw):
+            chamadas.append(kw)
+            msg = types.SimpleNamespace(content='{"achados": []}')
+            return types.SimpleNamespace(choices=[types.SimpleNamespace(message=msg)])
+
+    class FakeAsyncOpenAI:
+        def __init__(self, api_key=None):
+            self.api_key = api_key
+            self.chat = types.SimpleNamespace(completions=FakeCompletions())
+
+    monkeypatch.setattr(openai, "AsyncOpenAI", FakeAsyncOpenAI)
+    resultado = rodar(chamar_openai("CHAVE", ["gpt-4o-mini"], "texto do prompt", 0.0))
+    assert resultado == '{"achados": []}'
+    assert chamadas[0]["model"] == "gpt-4o-mini" and chamadas[0]["response_format"] == {"type": "json_object"}
+    assert chamadas[0]["messages"] == [{"role": "user", "content": "texto do prompt"}]
+
+
+def test_chamar_openai_tenta_o_proximo_modelo_so_para_erro_de_cota(monkeypatch):
+    class FakeCompletions:
+        def __init__(self):
+            self.n = 0
+
+        async def create(self, **kw):
+            self.n += 1
+            if self.n == 1:
+                raise RuntimeError("429 rate limit exceeded")
+            msg = types.SimpleNamespace(content="ok")
+            return types.SimpleNamespace(choices=[types.SimpleNamespace(message=msg)])
+
+    fake = FakeCompletions()
+
+    class FakeAsyncOpenAI:
+        def __init__(self, api_key=None):
+            self.chat = types.SimpleNamespace(completions=fake)
+
+    monkeypatch.setattr(openai, "AsyncOpenAI", FakeAsyncOpenAI)
+    resultado = rodar(chamar_openai("CHAVE", ["gpt-4o-mini", "gpt-4o"], "texto", 0.0))
+    assert resultado == "ok" and fake.n == 2
+
+
+def test_chamar_openai_erro_sem_gatilho_nao_tenta_outro_modelo(monkeypatch):
+    class FakeCompletions:
+        async def create(self, **kw):
+            raise RuntimeError("erro irrecuperável")
+
+    class FakeAsyncOpenAI:
+        def __init__(self, api_key=None):
+            self.chat = types.SimpleNamespace(completions=FakeCompletions())
+
+    monkeypatch.setattr(openai, "AsyncOpenAI", FakeAsyncOpenAI)
+    with pytest.raises(RuntimeError, match="irrecuperável"):
+        rodar(chamar_openai("CHAVE", ["gpt-4o-mini", "gpt-4o"], "texto", 0.0))
+
+
+def test_chamar_claude_devolve_o_texto_do_bloco(monkeypatch):
+    chamadas = []
+
+    class FakeMessages:
+        async def create(self, **kw):
+            chamadas.append(kw)
+            bloco = types.SimpleNamespace(type="text", text='{"achados": []}')
+            return types.SimpleNamespace(content=[bloco])
+
+    class FakeAsyncAnthropic:
+        def __init__(self, api_key=None):
+            self.api_key = api_key
+            self.messages = FakeMessages()
+
+    monkeypatch.setattr(anthropic, "AsyncAnthropic", FakeAsyncAnthropic)
+    resultado = rodar(chamar_claude("CHAVE", ["claude-haiku-5-5"], "texto do prompt", 0.0))
+    assert resultado == '{"achados": []}'
+    assert chamadas[0]["model"] == "claude-haiku-5-5" and chamadas[0]["max_tokens"] == 4096
+    assert chamadas[0]["messages"] == [{"role": "user", "content": "texto do prompt"}]
+
+
+def test_chamar_claude_tenta_o_proximo_modelo_so_para_erro_de_cota(monkeypatch):
+    class FakeMessages:
+        def __init__(self):
+            self.n = 0
+
+        async def create(self, **kw):
+            self.n += 1
+            if self.n == 1:
+                raise RuntimeError("overloaded_error: 503 unavailable")
+            return types.SimpleNamespace(content=[types.SimpleNamespace(type="text", text="ok")])
+
+    fake = FakeMessages()
+
+    class FakeAsyncAnthropic:
+        def __init__(self, api_key=None):
+            self.messages = fake
+
+    monkeypatch.setattr(anthropic, "AsyncAnthropic", FakeAsyncAnthropic)
+    resultado = rodar(chamar_claude("CHAVE", ["claude-haiku-5-5", "claude-sonnet-5-5"], "texto", 0.0))
+    assert resultado == "ok" and fake.n == 2
+
+
+def test_modelos_reserva_claude_tem_haiku_primeiro():
+    assert MODELOS_RESERVA_CLAUDE[0] == "claude-haiku-5-5" and "claude-sonnet-5-5" in MODELOS_RESERVA_CLAUDE
+
+
+def test_modelos_reserva_openai_nao_vazia():
+    assert MODELOS_RESERVA_OPENAI
+
+
+# ── TASK-055: _preparar_ia escolhe a função certa por provedor salvo ─────────
+def _salvar_provider(provider):
+    conn = database.get_connection()
+    conn.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES ('ai_provider', ?)", (provider,))
+    conn.commit()
+    conn.close()
+
+
+@pytest.fixture
+def modelo_openai(monkeypatch):
+    class Falso:
+        resposta = json.dumps({"achados": []})
+        erro = None
+        chamadas = []
+
+    async def falso(api_key, modelos, texto, temperatura=0.0):
+        Falso.chamadas.append({"api_key": api_key, "modelos": modelos, "texto": texto})
+        if Falso.erro:
+            raise Falso.erro
+        return Falso.resposta
+
+    Falso.chamadas = []
+    monkeypatch.setattr(rota, "chamar_openai", falso)
+    return Falso
+
+
+@pytest.fixture
+def modelo_claude(monkeypatch):
+    class Falso:
+        resposta = json.dumps({"achados": []})
+        erro = None
+        chamadas = []
+
+    async def falso(api_key, modelos, texto, temperatura=0.0):
+        Falso.chamadas.append({"api_key": api_key, "modelos": modelos, "texto": texto})
+        if Falso.erro:
+            raise Falso.erro
+        return Falso.resposta
+
+    Falso.chamadas = []
+    monkeypatch.setattr(rota, "chamar_claude", falso)
+    return Falso
+
+
+def test_provider_openai_salvo_usa_chamar_openai_e_nao_chamar_gemini(client, modelo, modelo_openai, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "CHAVE-OPENAI")
+    _salvar_provider("openai")
+    r = client.post("/api/validacao/ia", json=CORPO, headers=cab())
+    assert r.status_code == 200 and r.json()["status"] == "ok"
+    assert len(modelo_openai.chamadas) == 1 and modelo.chamadas == []
+    assert modelo_openai.chamadas[0]["api_key"] == "CHAVE-OPENAI"
+    # O "modelo" do cabeçalho do prompt salvo é um ID Gemini — não entra na lista para OpenAI.
+    assert "gemini-3.1-flash-lite" not in modelo_openai.chamadas[0]["modelos"]
+    assert modelo_openai.chamadas[0]["modelos"] == MODELOS_RESERVA_OPENAI
+
+
+def test_provider_claude_salvo_usa_chamar_claude_com_chave_do_header(client, modelo, modelo_claude, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "CHAVE-PADRAO-CLAUDE")
+    _salvar_provider("claude")
+    r = client.post("/api/validacao/ia", json=CORPO, headers={**cab(), "X-Anthropic-Key": "CHAVE-DO-USUARIO"})
+    assert r.status_code == 200 and r.json()["status"] == "ok"
+    assert modelo_claude.chamadas[0]["api_key"] == "CHAVE-DO-USUARIO" and modelo.chamadas == []
+    assert modelo_claude.chamadas[0]["modelos"][0] == "claude-haiku-5-5"
+
+
+def test_provider_claude_sem_nenhuma_chave_devolve_sem_chave(client, modelo, modelo_claude):
+    _salvar_provider("claude")
+    r = client.post("/api/validacao/ia", json=CORPO, headers=cab())
+    assert r.json()["status"] == "sem_chave" and modelo_claude.chamadas == [] and modelo.chamadas == []
+
+
+def test_provider_anthropic_salvo_e_tratado_como_claude(client, modelo, modelo_claude, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "K")
+    _salvar_provider("anthropic")
+    r = client.post("/api/validacao/ia", json=CORPO, headers=cab())
+    assert r.json()["status"] == "ok" and len(modelo_claude.chamadas) == 1
+
+
+def test_provider_desconhecido_salvo_cai_para_gemini(client, modelo, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "K")
+    _salvar_provider("deepseek")
+    r = client.post("/api/validacao/ia", json=CORPO, headers=cab())
+    assert r.json()["status"] == "ok" and len(modelo.chamadas) == 1
