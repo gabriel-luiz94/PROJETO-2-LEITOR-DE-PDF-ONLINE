@@ -11,7 +11,7 @@ import logging
 from datetime import datetime
 
 import database
-from services.autonomo import aprendizado, execucoes
+from services.autonomo import aprendizado, aprendizado_leitor, execucoes
 
 logger = logging.getLogger(__name__)
 STATUS_PROPOSTA = ("pendente", "aprovada", "recusada")
@@ -31,7 +31,43 @@ def _conectar():
         id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, projeto_codigo TEXT NOT NULL, chave TEXT NOT NULL, tipo TEXT, tabela TEXT,
         origem TEXT, status TEXT NOT NULL DEFAULT 'pendente', descricao TEXT, ocorrencias INTEGER, execucoes INTEGER, consistencia REAL,
         receita_json TEXT, criado_em TEXT, decidido_em TEXT, UNIQUE (user_id, projeto_codigo, chave))""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS aprendizado_itens (
+        user_id TEXT NOT NULL, projeto_codigo TEXT NOT NULL, fonte TEXT NOT NULL, texto TEXT, cor TEXT, layer TEXT,
+        e0 TEXT, o0 TEXT, a0 TEXT, e1 TEXT, o1 TEXT, a1 TEXT, n INTEGER NOT NULL DEFAULT 1, atualizado_em TEXT)""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_apr_itens ON aprendizado_itens (user_id, projeto_codigo, fonte)")
     return conn
+
+
+# ── itens do desenho (regras do leitor, etapa 2) ────────────────────────────
+def registrar_itens(user_id, projeto, fonte, linhas: list) -> int:
+    """Guarda (substituindo o que essa `fonte` já tinha) os itens com o que o motor entregou e o que o usuário deixou, juntando linhas iguais."""
+    juntos = {}
+    for l in linhas[: aprendizado_leitor.LIMITE_ITENS * 2]:
+        try:
+            k = tuple(str(l.get(c) or "") for c in ("texto", "cor", "layer", "e0", "o0", "a0", "e1", "o1", "a1"))
+        except AttributeError:
+            continue
+        if len(k[0]) > 500 or len(k[5]) > 500 or len(k[8]) > 500:
+            continue
+        juntos[k] = juntos.get(k, 0) + 1
+    conn = _conectar()
+    try:
+        conn.execute("DELETE FROM aprendizado_itens WHERE user_id = ? AND projeto_codigo = ? AND fonte = ?", (user_id, projeto, fonte))
+        conn.executemany("INSERT INTO aprendizado_itens (user_id, projeto_codigo, fonte, texto, cor, layer, e0, o0, a0, e1, o1, a1, n, atualizado_em) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                         [(user_id, projeto, fonte, *k, n, _agora()) for k, n in list(juntos.items())[: aprendizado_leitor.LIMITE_ITENS]])
+        conn.commit()
+    finally:
+        conn.close()
+    return len(juntos)
+
+
+def listar_itens(user_id, projeto) -> list:
+    conn = _conectar()
+    try:
+        rows = conn.execute("SELECT * FROM aprendizado_itens WHERE user_id = ? AND projeto_codigo = ?", (user_id, projeto)).fetchall()
+    finally:
+        conn.close()
+    return aprendizado_leitor.agregar([{**dict(r), "fonte": r["fonte"]} for r in rows])
 
 
 # ── correções ───────────────────────────────────────────────────────────────
@@ -63,6 +99,11 @@ def registrar_correcao(user_id, execucao_id, obra_salva_id, dados_salvos_json):
     if not agente or not usuario:
         return None
     r = aprendizado.comparar(agente, usuario)
+    try:
+        registrar_itens(user_id, ex["projeto_codigo"], execucao_id,
+                        aprendizado_leitor.montar_conjunto_autonomo(ex.get("itens_origem"), agente, usuario))
+    except Exception as e:  # noqa: BLE001 — o conjunto do leitor é um extra
+        logger.warning("Itens do leitor não registrados: %s", type(e).__name__)
     conn = _conectar()
     try:
         conn.execute("""INSERT INTO aprendizado_correcoes (execucao_id, user_id, projeto_codigo, arquivo, obra_salva, eventos_json, base_json, linhas_json, criado_em, atualizado_em)
@@ -74,6 +115,45 @@ def registrar_correcao(user_id, execucao_id, obra_salva_id, dados_salvos_json):
     finally:
         conn.close()
     return {"projeto": ex["projeto_codigo"], "eventos": len(r["eventos"])}
+
+
+def registrar_correcao_manual(user_id, projeto, sessao, baseline: dict, dados_salvos_json, grupos=None):
+    """Trabalho MANUAL (opção 1): `baseline` = as tabelas como o Resumo as montou a partir do Leitor, antes de qualquer edição. O "que o programa
+    entregaria" é o baseline com os ajustes ATIVOS do projeto aplicados (como o autônomo faria); a diferença para a obra salva é a correção."""
+    usuario = _tabelas_da_obra(dados_salvos_json)
+    if not usuario or not isinstance(baseline, dict):
+        return None
+    cabos, outros = [dict(l) for l in _lista(baseline.get("cabos"))], [dict(l) for l in _lista(baseline.get("outros"))]
+    if len(cabos) > aprendizado.LIMITE_LINHAS_COMPARAR or len(outros) > aprendizado.LIMITE_LINHAS_COMPARAR:
+        return None
+    agente = {"cabos": cabos, "outros": outros}
+    try:
+        from routers.validacao_ajustes import ajustes_efetivos
+        from services.ajustes_planilhas import ajustar
+        acoes = [a for r in ajustes_efetivos(projeto) if r.get("ativa") and not r.get("oculta") for a in r.get("acoes") or []]
+        if acoes:
+            diff = ajustar(acoes, cabos, outros, grupos or {}, 300)
+            agente = {"cabos": diff["cabos"], "outros": diff["outros"]}
+    except Exception as e:  # noqa: BLE001 — sem os ajustes, compara com o baseline puro
+        logger.warning("Ajustes não aplicados ao baseline manual: %s", type(e).__name__)
+    r = aprendizado.comparar(agente, usuario)
+    fonte = f"manual:{str(sessao)[:40]}"
+    conn = _conectar()
+    try:
+        conn.execute("""INSERT INTO aprendizado_correcoes (execucao_id, user_id, projeto_codigo, arquivo, obra_salva, eventos_json, base_json, linhas_json, criado_em, atualizado_em)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(execucao_id, user_id) DO UPDATE SET
+            eventos_json=excluded.eventos_json, base_json=excluded.base_json, linhas_json=excluded.linhas_json, atualizado_em=excluded.atualizado_em""",
+                     (fonte, user_id, projeto, "(trabalho manual)", None, json.dumps(r["eventos"], ensure_ascii=False), json.dumps(r["base"], ensure_ascii=False),
+                      json.dumps(r["linhas"]), _agora(), _agora()))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"projeto": projeto, "eventos": len(r["eventos"])}
+
+
+def _lista(valor):
+    dados = valor.get("data") if isinstance(valor, dict) else valor
+    return [l for l in (dados if isinstance(dados, list) else []) if isinstance(l, dict)]
 
 
 def listar_registros(user_id, projeto) -> list:
@@ -92,6 +172,7 @@ def apagar_historico(user_id, projeto) -> dict:
     conn = _conectar()
     try:
         a = conn.execute("DELETE FROM aprendizado_correcoes WHERE user_id = ? AND projeto_codigo = ?", (user_id, projeto)).rowcount
+        conn.execute("DELETE FROM aprendizado_itens WHERE user_id = ? AND projeto_codigo = ?", (user_id, projeto))
         b = conn.execute("DELETE FROM aprendizado_propostas WHERE user_id = ? AND projeto_codigo = ? AND status != 'aprovada'", (user_id, projeto)).rowcount
         conn.commit()
     finally:
@@ -161,11 +242,28 @@ def reanalisar(user_id, projeto, grupos=None) -> dict:
     return {"obras": len(registros), "padroes": len(padroes), "novas": guardar_propostas(user_id, projeto, padroes)}
 
 
+def reanalisar_leitor(user_id, projeto, simular, proc, cls, validar=None) -> dict:
+    """Minera regras do leitor nos itens guardados e guarda as propostas verificadas (simulação com o motor real). `validar(tabela, regra)` -> lista de
+    erros do cadastro (regra com erro nunca vira proposta)."""
+    itens = listar_itens(user_id, projeto)
+    candidatas = aprendizado_leitor.minerar(itens, proc, cls, simular)
+    padroes = []
+    for p in candidatas:
+        if validar and validar(p["tabela"], p["regra"]):
+            continue
+        padroes.append({"chave": p["chave"], "tipo": "regra_leitor", "tabela": p["tabela"],
+                        "descricao": f"Regra do leitor ({'classificação' if p['tabela'] == 'classificacao' else 'processamento'}): {p['descricao']}",
+                        "ocorrencias": p["corrigidos"], "execucoes": p["fontes"], "consistencia": round(p["corrigidos"] / max(p["grupo"], 1), 3),
+                        "receita": {"regra_leitor": {"tabela": p["tabela"], "regra": p["regra"]},
+                                    "simulacao": {k: p[k] for k in ("corrigidos", "grupo", "testados", "regressoes", "fontes")}}})
+    return {"itens": len(itens), "padroes": len(padroes), "novas": guardar_propostas(user_id, projeto, padroes)}
+
+
 def resumo(user_id, projeto) -> dict:
     regs = listar_registros(user_id, projeto)
     props = listar_propostas(user_id, projeto)
     cont = {s: sum(1 for p in props if p["status"] == s) for s in STATUS_PROPOSTA}
-    return {"obras_corrigidas": len(regs), "obras_sem_correcao": sum(1 for r in regs if not r["eventos"]),
+    return {"itens_leitor": len(listar_itens(user_id, projeto)), "obras_corrigidas": len(regs), "obras_sem_correcao": sum(1 for r in regs if not r["eventos"]),
             "correcoes_total": sum(len(r["eventos"]) for r in regs), "propostas": cont,
             "ia_minimo_obras": aprendizado.IA_MINIMO_OBRAS, "ia_disponivel": len(regs) >= aprendizado.IA_MINIMO_OBRAS,
             "limiares": {"ocorrencias": aprendizado.MINIMO_OCORRENCIAS, "obras": aprendizado.MINIMO_EXECUCOES, "consistencia": aprendizado.CONSISTENCIA_MINIMA}}

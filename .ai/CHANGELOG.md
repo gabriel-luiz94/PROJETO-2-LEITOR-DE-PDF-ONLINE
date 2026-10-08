@@ -788,6 +788,16 @@ validadas pelo motor; **Aprovar** cria o ajuste no projeto (com histórico), **R
 
 ---
 
+## 2026-10-08 — TASK-059 (etapa 2): regras do leitor aprendidas + aprendizado no trabalho manual
+
+**Tipo:** Backend + frontend · `.ai/tasks/TASK-059-08-10-2026.md`
+
+O aprendizado passa a valer também no **trabalho manual**: o botão **Processar** do Leitor envia o que o motor preencheu × o que você deixou nas colunas, e o Resumo guarda a foto das tabelas vindas do Leitor para comparar com a obra salva (com os ajustes ativos aplicados à foto, como o autônomo faria).
+No autônomo cada linha agora carrega a origem (texto/cor/camada/coordenada). Com esses itens o programa **propõe regras do leitor** (classificação e processamento): cada regra é **simulada com o motor real** e só aparece se corrigir ≥ 80% do grupo sem estragar nenhum item que já estava certo. Aprovar grava a regra pelo cadastro de regras do leitor (com histórico para reverter).
+Mudança de privacidade: texto, cor e camada dos itens observados ficam guardados no SQLite **local** do usuário (apagáveis em "Apagar histórico").
+
+---
+
 ## 2026-10-02 — TASK-031: achados do primeiro teste real (projeto 027/229)
 
 **Tipo:** Backend (modo autônomo)

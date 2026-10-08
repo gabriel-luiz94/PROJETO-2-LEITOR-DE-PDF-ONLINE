@@ -130,10 +130,20 @@ def _item_exportado(item: dict, r: dict) -> dict:
 
 def montar_tabelas(itens: list, regras_proc: list, regras_cls: list, leitor=None) -> dict:
     """Da extração (lista de {pagina,texto,cor,layer}) às tabelas: {cabos, outros, ramais} como o Resumo as monta."""
+    return _montar(itens, regras_proc, regras_cls, leitor)[0]
+
+
+def montar_tabelas_com_origens(itens: list, regras_proc: list, regras_cls: list, leitor=None):
+    """Igual a `montar_tabelas`, e mais a ORIGEM de cada linha (TASK-059, aprendizado de regras do leitor): lista de
+    {texto, cor, layer, x, y, e, o, a} — o item do desenho que virou uma linha de Cabos/Outros e o que o motor entregou
+    (entidade, operação, ativo, já normalizados como na linha). Só entra quem tem coordenada (é por ela que se reencontra a linha)."""
+    return _montar(itens, regras_proc, regras_cls, leitor)
+
+
+def _montar(itens, regras_proc, regras_cls, leitor):
     leitor = leitor or obter_leitor()
     # passo 1 — tela do Leitor: o motor roda em todas as linhas
     exportados = [_item_exportado(it, r) for it, r in zip(itens, leitor.processar_lote(itens, regras_proc, regras_cls, "extracao"))]
-
     # passo 2 — Resumo (computeRowLogic): confia em entidade/ativo já definidos; senão roda o motor de novo
     confia = [bool(e["entidade"]) and e["entidade"] != "0" and bool(e["ativo"]) and _trim(e["ativo"]) != "" for e in exportados]
     refazer = [i for i, ok in enumerate(confia) if not ok]
@@ -168,4 +178,11 @@ def montar_tabelas(itens: list, regras_proc: list, regras_cls: list, leitor=None
             ramais.append({"entidade": r["entidade"], "texto": r["_raw"].get("texto") or r["ativo"] or "",
                            "pagina": r["_raw"]["pagina"] if r["_raw"].get("pagina") is not None else "-"})
     recalcular_qtd_ativos(cabos)
-    return {"cabos": cabos, "outros": outros, "ramais": ramais}
+    origens = []
+    for r in processados:
+        raw = r["_raw"]
+        if r["entidade"] in ("RAMAIS", "IP", "0") or raw.get("_x") is None or raw.get("_y") is None:
+            continue
+        origens.append({"texto": raw.get("texto") or "", "cor": raw.get("cor") or "", "layer": raw.get("layer") or "", "x": raw["_x"], "y": raw["_y"],
+                        "e": r["entidade"] or "0", "o": r["operacao"] or "M", "a": r["ativo"] or ""})
+    return {"cabos": cabos, "outros": outros, "ramais": ramais}, origens

@@ -256,12 +256,19 @@
     }
     function cartaoProposta(p) {
         const d = el('div', 'pend');
-        const origem = p.origem === 'ia' ? 'IA' : p.rotulo || 'Estatística';
+        const origem = p.origem === 'ia' ? 'IA' : (p.alvo === 'regra_leitor' ? 'Regra do leitor' : (p.rotulo || 'Estatística'));
         d.append(el('h3', '', `${origem} · ${p.status === 'pendente' ? 'aguardando você' : p.status}`));
         d.append(el('div', '', p.descricao));
-        if (p.origem !== 'ia') d.append(el('div', 'vazio', `Visto ${p.ocorrencias}× em ${p.execucoes} obra(s) · ${Math.round((p.consistencia || 0) * 100)}% das vezes`));
-        if (p.receita) d.append(el('div', 'caminho', `Ajuste: ${p.receita.nome}`));
-        else d.append(el('div', 'vazio', 'Sugestão informativa: não vira ajuste automático.'));
+        if (p.alvo === 'regra_leitor' && p.simulacao) {
+            const s = p.simulacao;
+            d.append(el('div', 'vazio', `Simulada com o motor do leitor: corrige ${s.corrigidos} de ${s.grupo} ocorrência(s) (${s.fontes} arquivo(s)/sessão(ões)) e não muda nenhum dos ${s.testados} itens que já estavam certos.`));
+            const det = el('details');
+            det.append(el('summary', 'vazio', 'Ver a regra'));
+            det.append(el('pre', 'caminho', JSON.stringify(p.regra, null, 2)));
+            d.append(det);
+        } else if (p.origem !== 'ia') d.append(el('div', 'vazio', `Visto ${p.ocorrencias}× em ${p.execucoes} obra(s) · ${Math.round((p.consistencia || 0) * 100)}% das vezes`));
+        if (p.alvo === 'ajuste' && p.receita) d.append(el('div', 'caminho', `Ajuste: ${p.receita.nome}`));
+        else if (!p.alvo) d.append(el('div', 'vazio', 'Sugestão informativa: não vira ajuste automático.'));
         if (p.status === 'pendente') {
             const a = el('div', 'acoes');
             if (p.pode_aprovar) a.append(botao('Aprovar', 'primario', () => decidirProposta(p, 'aprovar')));
@@ -273,7 +280,7 @@
     async function decidirProposta(p, acao) {
         await tentar(async () => {
             const r = await api('POST', `/api/aprendizado/propostas/${p.id}/${acao}`);
-            msgApr(acao === 'aprovar' ? `Ajuste criado (${r.ajuste_id}) e ativo no projeto.` : 'Proposta recusada.');
+            msgApr(acao === 'aprovar' ? (r.regra ? `Regra adicionada às regras de ${r.tabela === 'classificacao' ? 'Classificação' : 'Processamento'} do projeto (com histórico para reverter).` : `Ajuste criado (${r.ajuste_id}) e ativo no projeto.`) : 'Proposta recusada.');
             await atualizarAprendizado();
         });
     }
@@ -282,7 +289,7 @@
         if (!proj) return;
         const q = `projeto=${encodeURIComponent(proj)}`;
         const [res, props] = await Promise.all([api('GET', `/api/aprendizado/resumo?${q}`), api('GET', `/api/aprendizado/propostas?${q}`)]);
-        $('apr-stats').replaceChildren(stat(String(res.obras_corrigidas), 'Obras corrigidas'), stat(String(res.correcoes_total), 'Correções registradas'),
+        $('apr-stats').replaceChildren(stat(String(res.obras_corrigidas), 'Obras corrigidas'), stat(String(res.itens_leitor || 0), 'Itens do leitor observados'), stat(String(res.correcoes_total), 'Correções registradas'),
             stat(String(res.propostas.pendente), 'Propostas pendentes'), stat(String(res.propostas.aprovada), 'Aprovadas'), stat(String(res.propostas.recusada), 'Recusadas'));
         $('apr-ia').disabled = !res.ia_disponivel;
         $('apr-ia').title = res.ia_disponivel ? 'Pede à IA sugestões a partir das suas correções' : `Liberado com ${res.ia_minimo_obras} obras corrigidas (você tem ${res.obras_corrigidas})`;
@@ -294,7 +301,8 @@
     $('apr-projeto').onchange = () => tentar(atualizarAprendizado);
     $('apr-analisar').onclick = () => tentar(async () => {
         const r = await api('POST', `/api/aprendizado/analisar?projeto=${encodeURIComponent(projetoApr())}`);
-        msgApr(`${r.novas} proposta(s) nova(s) (${r.obras} obra(s) analisada(s)).`);
+        const l = r.leitor || {};
+        msgApr(`${r.novas} proposta(s) de ajuste e ${l.novas || 0} de regra do leitor (${r.obras} obra(s) e ${l.itens || 0} item(ns) do desenho analisados).` + (l.aviso ? ` ${l.aviso}` : ''));
         await atualizarAprendizado();
     });
     $('apr-ia').onclick = () => tentar(async () => {

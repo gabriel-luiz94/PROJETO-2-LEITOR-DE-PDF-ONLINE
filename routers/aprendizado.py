@@ -15,7 +15,8 @@ from middleware.auth_middleware import require_role
 from routers.ai_chat import _checar_rate_limit, _ler_configuracao, resolver_credencial
 from routers.validacao_regras import DEFAULT, regras_efetivas
 from services.ajustes_planilhas import descrever_acao, validar_acoes
-from services.autonomo import aprendizado, aprendizado_repo
+from pydantic import BaseModel
+from services.autonomo import aprendizado, aprendizado_leitor, aprendizado_repo, aprendizado_servico
 from services.correcao_ia import interpretar_acoes
 from services.validacao_ia import MODELOS_RESERVA, MODELOS_RESERVA_CLAUDE, MODELOS_RESERVA_OPENAI
 
@@ -34,7 +35,11 @@ def _user(request: Request) -> dict:
 
 def _publica(p: dict) -> dict:
     d = {k: v for k, v in p.items() if k != "user_id"}
-    d["pode_aprovar"] = bool(p.get("receita"))
+    rec = p.get("receita") or {}
+    d["pode_aprovar"] = bool(rec.get("acoes") or rec.get("regra_leitor"))
+    d["alvo"] = "regra_leitor" if rec.get("regra_leitor") else ("ajuste" if rec.get("acoes") else None)
+    d["simulacao"] = rec.get("simulacao")
+    d["regra"] = (rec.get("regra_leitor") or {}).get("regra")
     return d
 
 
@@ -60,8 +65,8 @@ def correcoes(request: Request, projeto: str):
 
 @router.post("/analisar")
 def analisar(request: Request, projeto: str):
-    """Recalcula os padrões (estatística) e guarda as propostas novas como pendentes."""
-    return aprendizado_repo.reanalisar(_user(request).get("user_id"), projeto, regras_efetivas(projeto)[1])
+    """Recalcula os padrões (ajustes por estatística; regras do leitor por simulação no motor) e guarda as propostas novas como pendentes."""
+    return aprendizado_servico.reanalisar_tudo(_user(request).get("user_id"), projeto, forcar=True)
 
 
 @router.post("/propostas/{proposta_id}/recusar")
@@ -89,12 +94,46 @@ def aprovar(proposta_id: int, request: Request):
     if not p.get("receita"):
         raise HTTPException(status_code=400, detail="Esta sugestão é só informativa (não vira ajuste automático). Recuse-a ou crie a regra manualmente.")
     receita = dict(p["receita"])
+    if receita.get("regra_leitor"):
+        return _aprovar_regra_leitor(uid, p, receita["regra_leitor"], request)
     existentes = va.ajustes_efetivos(p["projeto_codigo"])
     if any(r.get("id") == receita["id"] for r in existentes):
         raise HTTPException(status_code=400, detail="Este ajuste já existe no projeto.")
     va._salvar(p["projeto_codigo"], [va._limpa(r) for r in existentes] + [receita], _user(request).get("email"))
     aprendizado_repo.decidir_proposta(uid, proposta_id, "aprovada")
     return {"status": "success", "ajuste_id": receita["id"]}
+
+
+def _aprovar_regra_leitor(uid, p, alvo, request):
+    """Acrescenta a regra à tabela de Processamento/Classificação do projeto pelo MESMO caminho da tela de regras (validação, histórico e nuvem)."""
+    from routers import regras_leitor as rl
+    tabela, regra = alvo["tabela"], alvo["regra"]
+    atuais = rl._get_regras(tabela, p["projeto_codigo"])
+    if not atuais:
+        raise HTTPException(status_code=400, detail="O projeto não tem regras do leitor cadastradas; cadastre-as antes de aprovar uma regra aprendida.")
+    if regra in atuais:
+        raise HTTPException(status_code=400, detail="Esta regra já existe no projeto.")
+    rl._save_regras(tabela, rl.RegrasLeitorPayload(projeto_codigo=p["projeto_codigo"], regras=atuais + [regra]), _user(request).get("email"))
+    aprendizado_repo.decidir_proposta(uid, p["id"], "aprovada")
+    return {"status": "success", "regra": regra, "tabela": tabela}
+
+
+class ItensLeitorPayload(BaseModel):
+    projeto: str
+    sessao: str
+    itens: list
+
+
+@router.post("/leitor")
+def capturar_leitor(payload: ItensLeitorPayload, request: Request):
+    """Trabalho MANUAL no Leitor (botão Processar): para cada item, o que o motor preencheu e o que ficou nas colunas depois das suas edições.
+    Guarda local (por usuário/projeto), substituindo a captura anterior da mesma sessão, e atualiza as propostas (com intervalo mínimo)."""
+    uid = _user(request).get("user_id")
+    if len(payload.itens) > aprendizado_leitor.LIMITE_ITENS * 2:
+        raise HTTPException(status_code=400, detail="Itens demais.")
+    n = aprendizado_repo.registrar_itens(uid, payload.projeto, f"leitor:{payload.sessao[:40]}", [i for i in payload.itens if isinstance(i, dict)])
+    r = aprendizado_servico.reanalisar_tudo(uid, payload.projeto, forcar=False)
+    return {"itens": n, "novas": (r.get("leitor") or {}).get("novas", 0)}
 
 
 @router.delete("/historico")

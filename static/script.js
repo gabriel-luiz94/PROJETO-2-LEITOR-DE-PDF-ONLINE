@@ -220,6 +220,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentFile = null;
     let extractedDataCache = [];
     let userFields = {}; // stores { rowIndex: { entidade, operacao, ativo } }
+    let engineFields = {}; // o que o MOTOR de regras entregou por linha (TASK-059: base do aprendizado de regras do leitor)
+    const sessaoAprendizado = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2);
     let deletedRows = new Set(); // tracks deleted row indices
 
     // Context menu
@@ -343,6 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsSection.classList.add('hidden');
         extractedDataCache = [];
         userFields = {};
+        engineFields = {};
         deletedRows = new Set();
     });
 
@@ -408,6 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.__regrasLeitorClassificacao || []
         );
         userFields[index] = { entidade: resultado.entidade, operacao: resultado.operacao, ativo: resultado.ativo };
+        engineFields[index] = { entidade: resultado.entidade, operacao: resultado.operacao, ativo: resultado.ativo };
         const entInput = tr.querySelector('[data-field="entidade"]');
         const opInput = tr.querySelector('[data-field="operacao"]');
         const atInput = tr.querySelector('[data-field="ativo"]');
@@ -665,9 +669,14 @@ document.addEventListener('DOMContentLoaded', () => {
         processarBtn.addEventListener('click', () => {
             const rows = tableBody.querySelectorAll('tr');
             const exportData = [];
+            const aprendizado = [];   // TASK-059: motor × o que ficou nas colunas (itens apagados = entidade '0')
 
             rows.forEach(tr => {
                 const idx = tr.dataset.index;
+                if (idx !== undefined && tr.classList.contains('row-deleted') && engineFields[idx] && extractedDataCache[idx]) {
+                    const it = extractedDataCache[idx], en = engineFields[idx];
+                    aprendizado.push({ texto: it.texto, cor: it.cor || '', layer: it.layer || '', e0: en.entidade, o0: en.operacao, a0: en.ativo, e1: '0', o1: en.operacao, a1: en.ativo });
+                }
                 if (idx === undefined || tr.style.display === 'none' || tr.classList.contains('row-deleted')) return;
 
                 const entInput = tr.querySelector('input[data-field="entidade"]');
@@ -691,7 +700,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     linha._y = item._y;
                 }
                 exportData.push(linha);
+                if (engineFields[idx]) {
+                    const en = engineFields[idx];
+                    aprendizado.push({ texto: item.texto, cor: item.cor || '', layer: item.layer || '', e0: en.entidade, o0: en.operacao, a0: en.ativo,
+                                       e1: linha.entidade, o1: linha.operacao, a1: linha.ativo });
+                }
             });
+
+            // Aprendizado supervisionado (só administrador; fire-and-forget: nunca atrapalha o Processar)
+            try {
+                const projAprendizado = localStorage.getItem('projeto_selecionado_codigo');
+                if (is_admin && projAprendizado && aprendizado.length) {
+                    fetch('/api/aprendizado/leitor', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ projeto: projAprendizado, sessao: sessaoAprendizado, itens: aprendizado.slice(0, 12000) }) }).catch(() => {});
+                }
+            } catch (e) { /* aprendizado é um extra */ }
 
             localStorage.setItem('processar_dados', JSON.stringify(exportData));
             window.open('/resumo', '_blank');

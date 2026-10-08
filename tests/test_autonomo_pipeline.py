@@ -261,14 +261,14 @@ def test_vinculo_sem_coordenada_so_gera_achado_nao_bloqueia(ambiente, leitor):
         {"entidade": "ESTRUTURA", "operacao": "I", "ativo": "1-U4"},
     ])
     import services.autonomo.pipeline as plmod
-    original = plmod.montar_tabelas
+    original = plmod.montar_tabelas_com_origens
     def sem_coordenada(*a, **kw):
-        t = original(*a, **kw)
+        t, origens = original(*a, **kw)
         for c in t["cabos"]:
             c.pop("_x", None); c.pop("_y", None)
-        return t
+        return t, origens
     import unittest.mock as mock
-    with mock.patch.object(plmod, "montar_tabelas", side_effect=sem_coordenada):
+    with mock.patch.object(plmod, "montar_tabelas_com_origens", side_effect=sem_coordenada):
         ex = pl.processar_arquivo(arq, "P1", "u1", str(ambiente / "saida"), ctx=ctx)
     assert ex["status"] in ("ok", "com_pendencias")   # nunca "aguardando_confirmacao" por falta de vínculo
     rel = json.load(open(os.path.join(ex["pasta_saida"], "relatorio.json"), encoding="utf-8"))

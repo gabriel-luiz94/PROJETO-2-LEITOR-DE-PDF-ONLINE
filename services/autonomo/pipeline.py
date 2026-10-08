@@ -20,7 +20,7 @@ from services.ajustes_planilhas import ajustar, validar_receitas
 from services.autonomo import execucoes, saida
 from services.autonomo.aplicar import aplicar_operacoes
 from services.autonomo.leitor_js import obter_leitor
-from services.autonomo.montagem import montar_tabelas
+from services.autonomo.montagem import montar_tabelas_com_origens
 from services.autonomo.ramais import linhas_ramais
 from services.autonomo.totalizadora import REGRA_PADRAO, montar_totalizadora, normalizar_para_json, payload_calculo
 from services.autonomo.vinculacao import avaliar_vinculacao, itens_vinculo_para_totalizadora, tentar_vincular_automaticamente
@@ -217,7 +217,7 @@ def processar_arquivo(caminho: str, projeto_codigo: str, user_id: str, pasta_sai
         if not ctx.regras_proc and not ctx.regras_cls:
             raise ErroPipeline(f"O projeto '{projeto_codigo}' não tem regras do leitor cadastradas.")
         with etapas("montar") as e:
-            tabelas = montar_tabelas(itens, ctx.regras_proc, ctx.regras_cls, leitor)
+            tabelas, origens = montar_tabelas_com_origens(itens, ctx.regras_proc, ctx.regras_cls, leitor)
             e["detalhe"] = {k: len(v) for k, v in tabelas.items()}
         with etapas("ramais") as e:      # decisão do usuário: os ramais ENTRAM no orçamento autônomo (como o botão "Adicionar" do modal RAMAIS)
             novas = linhas_ramais([r["texto"] for r in tabelas.get("ramais", [])])
@@ -245,7 +245,7 @@ def processar_arquivo(caminho: str, projeto_codigo: str, user_id: str, pasta_sai
             pendentes = [i for i, op in enumerate(ops) if _destrutiva(op, acoes)]
             e["detalhe"] = {"operacoes": len(ops), "pendentes_de_confirmacao": len(pendentes), "descartadas": len(diff["descartadas"]),
                             "ajustes_ignorados": ignorados}
-        execucoes.atualizar(exec_id, pasta_saida=pasta, originais=tabelas,
+        execucoes.atualizar(exec_id, pasta_saida=pasta, originais=tabelas, itens_origem=origens,
                             diff={"operacoes": ops, "acoes": acoes, "descartadas": diff["descartadas"], "avisos": diff["avisos"],
                                   "frases": [_frase_op(op) for op in ops]},
                             decisoes={"pendentes": pendentes, "confirmadas": [], "rejeitadas": []},
