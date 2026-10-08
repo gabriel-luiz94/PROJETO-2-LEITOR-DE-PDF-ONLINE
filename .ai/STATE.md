@@ -343,6 +343,18 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       só na master) ganharam escopo por projeto no DELETE, com validação das linhas enviadas.
       `static/orcamento.html` ganhou seletor de projeto + abas (Projeto selecionado/Comuns/Não
       reconhecido), campo Projeto travado. CONCLUÍDA. Ver `.ai/tasks/TASK-052-08-10-2026.md`.
+- [x] **TASK-053** (pedido de 2026-10-08): usuário pediu pra ajustar a regra "AJUSTE DO (2)" (Cabos:
+      "(2)" depois da bitola = "tem neutro, bitola 2") pra, quando a bitola da linha for diferente
+      da do neutro, criar uma linha nova com o neutro usando o MESMO comprimento capturado na linha
+      original. Investigação: juntar N na fase e limpar o "(2)" sem criar linha já eram possíveis
+      com `substituir` + regex/backreferences existentes; criar linha com conteúdo dinâmico não
+      era — a única ação que insere linha (`adicionar_linha`) usa texto fixo, sem regex, sem
+      condição. Nova ação `criar_linha_derivada` (motor de ajustes): pra cada linha que casa com um
+      regex, insere uma linha nova logo depois/antes dela, com o texto resolvido via
+      `match.expand()` — backreferences do match DAQUELA linha. Reaproveita `_novo_erro_c1`/
+      `_alvos`/`_quando` já existentes; itera um snapshot pra nunca reavaliar a linha recém-criada
+      na mesma execução. Editor da gaveta e manual atualizados. CONCLUÍDA. Ver
+      `.ai/tasks/TASK-053-08-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
@@ -587,7 +599,38 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-08
-**Motivo:** TASK-052 — usuário pediu análise e estratégia (depois autorizou implementar) pra editar
+**Motivo:** TASK-053 — usuário trouxe o ajuste existente "AJUSTE DO (2)" (um `substituir` simples que
+removia "(2)" do Cabos) e pediu pra ele passar a: quando a bitola do cabo bate com a bitola do
+neutro "(2)", juntar o N na fase da mesma linha; quando a bitola diverge, tirar o "(2)" da linha
+original e criar uma linha nova separada só com o neutro, reusando o comprimento capturado; quando a
+fase já tem "N", só tirar o "(2)" sem duplicar. Investigação: 2 das 3 transformações já eram
+alcançáveis com `substituir` + backreferences de regex; criar a linha nova dinâmica não era possível
+com nada existente (`adicionar_linha` só aceita texto fixo, sem regex, insere uma vez só por
+execução, sem suporte a `quando`) — gap explicado ao usuário, que autorizou implementar e mesclar.
+**Alterações de código:** `services/ajustes_planilhas.py` — nova ação `criar_linha_derivada`
+(`{"de": {"regex"}, "ativo_novo", "operacao_nova"?, "entidade_nova"?, "posicao"?, "quando"?,
+"apenas_se_nao_existir"?}`): pra cada linha que casar com `de`, insere uma linha NOVA logo
+depois/antes dela com `ativo_novo` resolvido via backreferences do match daquela linha (nunca de
+outra); reusa `_novo_erro_c1` (mesmo guarda de contrato Camada 1 do `adicionar_linha` — linha
+inválida é descartada, não inserida) e `_ops_filtro`/`_alvos`/`_quando` já existentes; itera um
+snapshot pra nunca reavaliar a linha recém-criada na mesma execução (sem risco de crescimento em
+cadeia). Campo `operacao_nova` reaproveitado de propósito (mesmo nome usado por outras ações) pra
+ganhar validação genérica já existente sem código duplicado. Editor da gaveta
+(`static/painel_ajustes.js`) e manual (`data/manual_regras_e_ajustes.md`) atualizados com a nova
+ação, usando o exemplo real do "(2)" do usuário. Decisão: NÃO adicionada ao vocabulário do prompt de
+correção por IA (`data/validacoes/ajustar-planilhas.md`) — fora do escopo deliberadamente limitado
+desse prompt (máx. 5 ações, correções simples).
+Testes: 18 novos em `tests/test_ajustes_planilhas.py` (ação isolada, `posicao`, filtro por `quando`,
+`apenas_se_nao_existir`, descarte de linha inválida, não-reprocessamento da linha recém-criada,
+`operacao_nova`/`entidade_nova`, validação de schema, `descrever_acao`, e um teste de integração com
+a regra completa de 4 ações reproduzindo os três exemplos exatos do pedido). Suíte completa (806
+testes) sem regressão. Smoke test real-server (uvicorn em processo, DB SQLite temporário via
+`database.DB_PATH` patcheado, nunca `banco_resumo.db`) + Playwright: 3 linhas de Cabos com os
+exemplos do usuário, editor da gaveta renderizado com os campos da nova ação, pré-visualização
+confirmando os três resultados exatos ("CA 2 ABCN 35 m", "CA 1/0 ABC 35 m" + linha nova "CA 2 N 35
+m", "CA 2 AN 35 m"). Ver `.ai/tasks/TASK-053-08-10-2026.md` e `.ai/CHANGELOG.md`.
+
+Entrada anterior (mantida para histórico): TASK-052 — usuário pediu análise e estratégia (depois autorizou implementar) pra editar
 a base técnica (`tabela_orcamento_master`) escopada por projeto — hoje misturada numa tabela única,
 campo Projeto como texto livre. Análise sobre o CSV real de produção (2.646 linhas) revelou que
 `projeto` já suporta mais de um valor por linha via `/` (108 linhas reais `"PARAIBA/PARAIBANOVO"`).

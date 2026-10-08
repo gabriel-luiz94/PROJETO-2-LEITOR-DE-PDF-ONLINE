@@ -162,6 +162,84 @@ def test_adicionar_linha_depois_e_antes_de_cada_linha_que_satisfaz():
     assert textos(r) == ["DT11/300 1-SI3", "1-RA2", "DT11/300 1-CFU", "DT11/300 1-SI4"]
 
 
+# ── criar_linha_derivada (TASK-053) ───────────────────────────────────────────
+def test_criar_linha_derivada_usa_grupo_capturado_da_propria_linha():
+    a = acao("criar_linha_derivada", "cabos", de={"regex": r"^CA ([\d/]+)\(2\) (\w+) ([\d.,]+)m$"},
+             ativo_novo=r"CA 2 N \3 m")
+    r = idempotente([a], cabos=[o("CA 1/0(2) ABC 35m"), o("CA 4/0(2) XYZ 50m")])
+    assert textos(r, "cabos") == ["CA 1/0(2) ABC 35m", "CA 2 N 35 m", "CA 4/0(2) XYZ 50m", "CA 2 N 50 m"]
+    assert all(linha["id"].startswith(("CABOS-", "NOVA-")) for linha in r["cabos"])
+
+
+def test_criar_linha_derivada_posicao_antes():
+    a = acao("criar_linha_derivada", "cabos", de={"regex": r"^(X)$"}, ativo_novo=r"CA2 \1 10", posicao="antes")
+    r = rodar([a], cabos=[o("X")])
+    assert textos(r, "cabos") == ["CA2 X 10", "X"]
+
+
+def test_criar_linha_derivada_so_roda_nas_linhas_que_batem_o_quando():
+    linhas = [o("CA 2(2) ABC 35m"), o("CA 1/0(2) ABC 35m")]
+    a = acao("criar_linha_derivada", "cabos", quando={"nao": {"texto": r"(?<![A-Za-z0-9/])2\(2\)"}},
+             de={"regex": r"^[A-Za-z]+\s*[\d/]+\(2\)\s+[A-Za-z]+\s+([\d.,]+)\s*m\s*$"}, ativo_novo=r"CA 2 N \1 m")
+    r = rodar([a], cabos=linhas)
+    assert textos(r, "cabos") == ["CA 2(2) ABC 35m", "CA 1/0(2) ABC 35m", "CA 2 N 35 m"]   # só a 2ª gerou linha
+
+
+def test_criar_linha_derivada_apenas_se_nao_existir_evita_duplicar():
+    a = acao("criar_linha_derivada", "cabos", de={"regex": r"^(X)$"}, ativo_novo=r"CA2 \1 10")
+    r = rodar([a], cabos=[o("X"), o("X")])
+    assert textos(r, "cabos") == ["X", "CA2 X 10", "X"]   # a 2ª ocorrência de "CA2 X 10" não entra de novo
+    r2 = rodar([acao("criar_linha_derivada", "cabos", de={"regex": r"^(X)$"}, ativo_novo=r"CA2 \1 10",
+                     apenas_se_nao_existir=False)], cabos=[o("X"), o("X")])
+    assert textos(r2, "cabos") == ["X", "CA2 X 10", "X", "CA2 X 10"]
+
+
+def test_criar_linha_derivada_descarta_linha_invalida_sem_inserir():
+    # comprimento não numérico: a linha derivada violaria o contrato C1-CABO-NUM
+    a = acao("criar_linha_derivada", "cabos", de={"regex": r"^(X)$"}, ativo_novo="CA 2 N abc m")
+    r = rodar([a], cabos=[o("X")])
+    assert textos(r, "cabos") == ["X"]
+    assert r["descartadas"] and "inválida" in r["descartadas"][0]["motivo"]
+
+
+def test_criar_linha_derivada_nao_reprocessa_linha_recem_criada():
+    # o regex bateria na própria linha derivada também — sem a proteção, cresceria a cada linha nova
+    a = acao("criar_linha_derivada", "cabos", de={"regex": r"^CA (\d+) N \d+ m$|^(X)$"}, ativo_novo=r"CA 1 N 1 m")
+    r = rodar([a], cabos=[o("X")])
+    assert textos(r, "cabos") == ["X", "CA 1 N 1 m"]     # só uma linha nova, não uma cadeia
+
+
+def test_criar_linha_derivada_operacao_nova_e_entidade_nova():
+    r = rodar([acao("criar_linha_derivada", "cabos", de={"regex": r"^(X)$"}, ativo_novo=r"CA2 \1 10",
+                     operacao_nova="R", entidade_nova="POSTE")], cabos=[o("X", "I")])
+    assert r["cabos"][1]["operacao"] == "R" and r["cabos"][1]["entidade"] == "POSTE"
+    sem = rodar([acao("criar_linha_derivada", "cabos", de={"regex": r"^(X)$"}, ativo_novo=r"CA2 \1 10")], cabos=[o("X", "R")])
+    assert sem["cabos"][1]["operacao"] == "R"            # sem operacao_nova: herda a operação da linha original
+
+
+def test_criar_linha_derivada_regra_completa_do_ajuste_do_2():
+    """Cenário real do pedido do usuário (TASK-053): (2) = neutro bitola 2. Bitola igual a 2 junta N na
+    fase; bitola diferente limpa o (2) e cria a linha do neutro em separado, com o mesmo comprimento."""
+    acoes = [
+        acao("criar_linha_derivada", "cabos",
+             quando={"nao": {"texto": r"(?<![A-Za-z0-9/])2\(2\)"}},
+             de={"regex": r"^[A-Za-z]+\s*[\d/]+\(2\)\s+[A-Za-z]+\s+([\d.,]+)\s*m\s*$"},
+             ativo_novo=r"CA 2 N \1 m"),
+        acao("substituir", "cabos",
+             quando={"todos": [{"texto": r"(?<![A-Za-z0-9/])2\(2\)"}, {"texto": r"\(2\)\s+[A-Za-z]*N[A-Za-z]*\s"}]},
+             de={"regex": r"^([A-Za-z]+)\s*2\(2\)\s+([A-Za-z]+)\s+([\d.,]+)\s*m\s*$"}, para=r"\1 2 \2 \3 m"),
+        acao("substituir", "cabos",
+             quando={"todos": [{"texto": r"(?<![A-Za-z0-9/])2\(2\)"}, {"nao": {"texto": r"\(2\)\s+[A-Za-z]*N[A-Za-z]*\s"}}]},
+             de={"regex": r"^([A-Za-z]+)\s*2\(2\)\s+([A-Za-z]+)\s+([\d.,]+)\s*m\s*$"}, para=r"\1 2 \2N \3 m"),
+        acao("substituir", "cabos",
+             quando={"todos": [{"texto": r"\(2\)"}, {"nao": {"texto": r"(?<![A-Za-z0-9/])2\(2\)"}}]},
+             de={"regex": r"^([A-Za-z]+\s*[\d/]+)\(2\)(\s+[A-Za-z]+\s+[\d.,]+)\s*m\s*$"}, para=r"\1\2 m"),
+    ]
+    assert validar_acoes(acoes) == []
+    r = rodar(acoes, cabos=[o("CA 2(2) ABC 35m"), o("CA 1/0(2) ABC 35M"), o("CA 2(2) AN 35M")])
+    assert textos(r, "cabos") == ["CA 2 ABCN 35 m", "CA 1/0 ABC 35 m", "CA 2 N 35 m", "CA 2 AN 35 m"]
+
+
 # ── adicionar_ativo / remover_ativo / mesclar ────────────────────────────────
 def test_adicionar_ativo_se_ja_existe():
     linhas = [o("DT11/300 1-CFU"), o("DT11/300 1-CFU 1-SUPL"), o("DT11/300 1-CFU 2-SUPL")]
@@ -552,6 +630,15 @@ def erros_de(a, grupos=None):
     ({"acao": "adicionar_ativo", "tabela": "outros", "ativo": "A", "qtd": 0}, "'qtd'"),
     ({"acao": "adicionar_ativo", "tabela": "outros", "ativo": "A", "se_ja_existe": "x"}, "se_ja_existe"),
     ({"acao": "remover_ativo", "tabela": "outros", "ativo": []}, "lista de seletores vazia"),
+    ({"acao": "criar_linha_derivada", "tabela": "cabos", "de": "X", "ativo_novo": "Y"}, "de: use"),
+    ({"acao": "criar_linha_derivada", "tabela": "cabos", "de": {"regex": "(["}, "ativo_novo": "Y"}, "regex inválida"),
+    ({"acao": "criar_linha_derivada", "tabela": "cabos", "de": {"regex": "X"}, "ativo_novo": r"\1"}, "referência inválida"),
+    ({"acao": "criar_linha_derivada", "tabela": "cabos", "de": {"regex": "X"}}, "'ativo_novo'"),
+    ({"acao": "criar_linha_derivada", "tabela": "cabos", "de": {"regex": "X"}, "ativo_novo": " "}, "'ativo_novo'"),
+    ({"acao": "criar_linha_derivada", "tabela": "cabos", "de": {"regex": "X"}, "ativo_novo": "Y", "entidade_nova": 1}, "entidade_nova"),
+    ({"acao": "criar_linha_derivada", "tabela": "cabos", "de": {"regex": "X"}, "ativo_novo": "Y", "posicao": "meio"}, "'posicao'"),
+    ({"acao": "criar_linha_derivada", "tabela": "cabos", "de": {"regex": "X"}, "ativo_novo": "Y", "apenas_se_nao_existir": 1}, "apenas_se_nao_existir"),
+    ({"acao": "criar_linha_derivada", "tabela": "cabos", "de": {"regex": "X"}, "ativo_novo": "Y", "operacao_nova": "Z"}, "operacao_nova"),
 ])
 def test_schema_rejeita(a, trecho):
     assert any(trecho in e for e in erros_de(a, GRUPOS)), erros_de(a, GRUPOS)
@@ -561,7 +648,8 @@ def test_schema_aceita_o_exemplo_completo_e_rejeita_o_que_nao_e_lista():
     ok = [acao("substituir", de="SUP-L", para="SUPL", operacoes=["I"], quando={"tem": "CFU"}),
           acao("normalizar", "ambos", regras=["espacos"]), acao("ordenar", por=[{"coluna": "ativo", "ordem": "desc"}]),
           acao("excluir_linhas", "cabos", onde={"texto": "^$"}), acao("adicionar_linha", "cabos", valores={"operacao": "I", "ativo": "CAA 2 A 1 m"}),
-          acao("adicionar_ativo", ativo="SUPL"), acao("remover_ativo", ativo=["A", {"regex": "^B"}]), acao("mesclar_duplicadas")]
+          acao("adicionar_ativo", ativo="SUPL"), acao("remover_ativo", ativo=["A", {"regex": "^B"}]), acao("mesclar_duplicadas"),
+          acao("criar_linha_derivada", "cabos", de={"regex": r"^(X)$"}, ativo_novo=r"CA2 \1 10")]
     assert validar_acoes(ok, GRUPOS) == []
     assert validar_acoes({"a": 1}) == ["O payload de ações precisa ser uma lista."]
     assert validar_acoes(["x"]) == ["Ação #1: precisa ser um objeto."]
@@ -587,6 +675,8 @@ def test_descrever_acao():
     assert "somar as quantidades" in descrever_acao(acao("mesclar_duplicadas"))
     assert "normalizar (espaços, maiúsculas, poste sem '1-' no início)" in descrever_acao(acao("normalizar", regras=["espacos", "maiusculas", "poste"]))
     assert descrever_acao(acao("excluir_linhas", onde={"texto": "^X"})) == "Em Outros: excluir linhas cujo texto casa com /^X/."
+    assert descrever_acao(acao("criar_linha_derivada", "cabos", de={"regex": r"^(X)$"}, ativo_novo=r"CA2 \1 10")) == \
+        r"Em Cabos: quando a linha casar com /^(X)$/, criar a linha nova 'CA2 \1 10' (usando o que foi capturado naquela linha) depois dela."
 
 
 # ── rotas ────────────────────────────────────────────────────────────────────
