@@ -748,6 +748,16 @@ no início desta sessão com TASK-001-004.
 
 ---
 
+## 2026-10-08 — TASK-056: exportar e importar obras (`.obra.json`)
+
+**Tipo:** Backend + frontend · `.ai/tasks/TASK-056-08-10-2026.md`
+
+Cada obra do modal Carregar Obra ganhou **Exportar** (baixa `<nome>.obra.json` com Cabos, Outros e Totalizadora; sem regras de conversão, usuário, e-mail ou marcas do autônomo) e o modal ganhou
+**Importar obra**: qualquer usuário importa e recebe uma **cópia particular** (id novo, nome com " (importada)" se repetir), **só de obra do projeto selecionado na tela**. O servidor valida formato, versão,
+tamanho (5 MB), linhas (5.000) e campos; o conteúdo entra na tela só como texto. Sem mudança de schema. As TASK-057 (obras públicas/particulares) e TASK-058 (modelos com `V`) estão planejadas com as decisões confirmadas.
+
+---
+
 ## 2026-10-02 — TASK-031: achados do primeiro teste real (projeto 027/229)
 
 **Tipo:** Backend (modo autônomo)

@@ -378,16 +378,16 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       `.env.example`. Sem chave de teste real de OpenAI/Anthropic disponível na implementação —
       validado com fakes de SDK; usuário precisa confirmar com a própria chave. CONCLUÍDA. Ver
       `.ai/tasks/TASK-055-08-10-2026.md`.
-- [ ] **TASK-056** (pedido de 2026-10-08): exportar obra para arquivo `.obra.json` e importar por qualquer
-      usuário (vira cópia particular de quem importa). PLANEJAMENTO — 3 decisões a confirmar. Ver
+- [x] **TASK-056** (pedido de 2026-10-08): exportar obra para arquivo `.obra.json` e importar por qualquer
+      usuário (vira cópia particular de quem importa, só do projeto selecionado). CONCLUÍDA. Ver
       `.ai/tasks/TASK-056-08-10-2026.md`.
 - [ ] **TASK-057** (pedido de 2026-10-08): obras **públicas** (só visíveis no mesmo projeto, para leitura e
       cópia) ou **particulares** (padrão), com filtros; a IA enxerga as particulares do usuário e as públicas
       do projeto; obras do modo autônomo sempre particulares; muda o schema do Supabase (SQL para o
-      usuário). PLANEJAMENTO — 3 decisões a confirmar. Ver `.ai/tasks/TASK-057-08-10-2026.md`.
+      usuário). PLANEJAMENTO — decisões confirmadas, aguardando implementação. Ver `.ai/tasks/TASK-057-08-10-2026.md`.
 - [ ] **TASK-058** (pedido de 2026-10-08): **modelos** de obra (públicos no projeto, editáveis só pelo
       criador, filtráveis) com quantidades `V` (variável); carregar/adicionar/subtrair abre a janela de
-      parâmetros e gera uma obra padrão. Depende da 057. PLANEJAMENTO — 5 decisões a confirmar. Ver
+      parâmetros e gera uma obra padrão. Depende da 057. PLANEJAMENTO — decisões confirmadas, aguardando implementação. Ver
       `.ai/tasks/TASK-058-08-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
