@@ -986,6 +986,11 @@
         <div id="modal-load-obra" class="modal-overlay hidden">
             <div class="modal-content" style="max-width: 500px; width: 90%;">
                 <h3>Carregar Obra</h3>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+                    <button class="btn-secondary" id="btn-importar-obra" type="button" title="Importa um arquivo .obra.json como cópia particular sua, no projeto selecionado">Importar obra</button>
+                    <input type="file" id="input-importar-obra" accept=".json,application/json" style="display:none">
+                    <span id="importar-obra-msg" style="font-size:0.78rem; color:#8b949e;"></span>
+                </div>
                 <div class="obras-list" id="obras-list">
                     <!-- Preenchido via JS -->
                 </div>

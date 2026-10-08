@@ -125,7 +125,7 @@
 | `orcamento.py` | `/api/orcamento` | `upload` e `salvar` da base (admin), `dados` (merge), `search`, `detalhes`, **`calcular`** |
 | `regras.py` | `/api/regras` | Regras de aprendizado da IA (`GET`/`POST`) e **regras de conversão por projeto** (`/conversao`) |
 | `recs.py` | — | `/api/recs` e `/api/rec/*`: histórico de RECs com preservação de REC de terceiros |
-| `obras.py` | `/api/obras` | CRUD de obras por usuário (Supabase com fallback SQLite); `GET /indice` (leve, sem `dados_json`) e `GET /{id}` (uma obra) servem à IA do chat (TASK-028) |
+| `obras.py` | `/api/obras` | CRUD de obras por usuário (Supabase com fallback SQLite); `GET /indice` (leve, sem `dados_json`) e `GET /{id}` (uma obra) servem à IA do chat (TASK-028); `GET /{id}/exportar` (arquivo `.obra.json`) e `POST /importar?projeto=` (cópia particular de quem importa, só do projeto selecionado) — TASK-056, formato em `services/obras_arquivo.py` |
 | `projetos.py` | `/api/projetos` | Lista mesclada local+nuvem; cadastro só admin |
 | `ai_chat.py` | `/api/gemini` | Listagem de modelos e chat com Gemini/OpenAI/Claude (TASK-055), injetando `prompt_rede_eletrica.txt` e as regras aprendidas. Gemini usa `generate_content_stream` (chamada única, sem sessão — TASK-054); cada provedor tem a própria lista de fallback. Chave resolvida por `resolver_credencial()`: usuário > salva > padrão do ambiente (`GEMINI_API_KEY`/`GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`); rate-limit por usuário só com a chave padrão (TASK-009) |
 | `validacao.py` | `/api/validacao` | Validação das planilhas Cabos/Outros: `POST /planilhas` (camadas 1 e 2, `services/validacao_planilhas.py` e `regras_dominio.py`) `POST /ia` (camada 3, `services/validacao_ia.py`) e `POST /corrigir` (`services/correcao_ia.py`) |
@@ -255,6 +255,7 @@ DEMAIS ENTIDADES (obras, recs, projetos):
 | GET/POST/DELETE | `/api/recs`, `/api/recs/{n}` | JWT | Histórico de RECs |
 | POST/GET | `/api/rec/salvar`, `/api/rec/{n}` | JWT | Rotas alternativas de REC |
 | GET/POST/DELETE | `/api/obras` | JWT | Obras do usuário |
+| GET/POST | `/api/obras/{id}/exportar` · `/api/obras/importar?projeto=` | JWT | Exportar a obra do usuário como `.obra.json` · importar arquivo (até 5 MB, só do projeto selecionado) como obra nova e particular |
 | GET | `/api/obras/indice?projeto=` · `/api/obras/{id}` | JWT | Índice leve das obras do projeto · uma obra completa (o frontend valida o id citado pela IA) |
 | GET | `/api/projetos` | opcional | Lista mesclada |
 | POST | `/api/projetos` | JWT + admin | Cadastra projeto |

@@ -2305,7 +2305,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('btn-load-obra').addEventListener('click', async () => {
+    async function abrirModalObras() {
         try {
             const projCodeObras = localStorage.getItem('projeto_selecionado_codigo') || '229';
             const res = await fetch(`/api/obras?projeto=${encodeURIComponent(projCodeObras)}`);
@@ -2338,6 +2338,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <button class="btn-primary btn-load-item"  style="background:#238636; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Carregar</button>
                             <button class="btn-secondary btn-add-item"  style="background:#1f6feb; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Adicionar</button>
                             <button class="btn-secondary btn-sub-item"  style="background:#d29922; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Subtrair</button>
+                            <button class="btn-secondary btn-exp-item"  style="background:#6e7681; border:none; padding: 4px 8px; border-radius: 4px; color: white;" title="Baixa a obra como arquivo .obra.json">Exportar</button>
                             <button class="btn-secondary btn-del-item"  style="background:#da3633; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Excluir</button>
                         </div>
                     `;
@@ -2379,6 +2380,29 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
 
+                    const btnExp = item.querySelector('.btn-exp-item');
+                    btnExp.addEventListener('click', async () => {
+                        btnExp.disabled = true;
+                        try {
+                            const r = await fetch(`/api/obras/${encodeURIComponent(o.id)}/exportar`);
+                            if (!r.ok) throw new Error(await lerDetalhe(r));
+                            const blob = new Blob([JSON.stringify(await r.json(), null, 2)], { type: 'application/json' });
+                            const arquivo = `${String(o.nome || 'obra').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80)}.obra.json`;
+                            const a = document.createElement('a');
+                            a.href = URL.createObjectURL(blob);
+                            a.download = arquivo;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+                            showToast('Obra exportada.');
+                        } catch (err) {
+                            showToast('Erro ao exportar a obra: ' + err.message);
+                        } finally {
+                            btnExp.disabled = false;
+                        }
+                    });
+
                     btnDel.addEventListener('click', async () => {
                         btnDel.disabled = true;
                         try {
@@ -2396,6 +2420,36 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             console.error('Erro ao carregar obras:', e);
             showToast('Erro ao carregar obras');
+        }
+    }
+    document.getElementById('btn-load-obra').addEventListener('click', abrirModalObras);
+
+    // Importar obra (TASK-056): arquivo .obra.json → cópia PARTICULAR do usuário, só se for do projeto selecionado.
+    const inputImportarObra = document.getElementById('input-importar-obra');
+    document.getElementById('btn-importar-obra').addEventListener('click', () => inputImportarObra.click());
+    inputImportarObra.addEventListener('change', async () => {
+        const arquivo = inputImportarObra.files[0];
+        inputImportarObra.value = '';
+        const msg = document.getElementById('importar-obra-msg');
+        const dizer = (texto, erro) => { msg.style.color = erro ? '#f85149' : '#3fb950'; msg.textContent = texto; };
+        msg.textContent = '';
+        if (!arquivo) return;
+        if (arquivo.size > 5 * 1024 * 1024) { dizer('Arquivo grande demais (máx. 5 MB).', true); return; }
+        try {
+            const projeto = localStorage.getItem('projeto_selecionado_codigo') || '229';
+            const r = await fetch(`/api/obras/importar?projeto=${encodeURIComponent(projeto)}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: await arquivo.text()
+            });
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok) {
+                const erros = d.detail && Array.isArray(d.detail.erros) ? d.detail.erros : [typeof d.detail === 'string' ? d.detail : 'Falha ao importar a obra.'];
+                dizer(erros.join(' · '), true);
+                return;
+            }
+            await abrirModalObras();
+            dizer(`Importada: “${d.nome}” (${d.cabos} linha(s) de Cabos, ${d.outros} de Outros) — particular, só sua.`, false);
+        } catch (e) {
+            dizer('Não foi possível importar: ' + e.message, true);
         }
     });
 
