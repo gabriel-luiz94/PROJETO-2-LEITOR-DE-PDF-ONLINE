@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from services.ajustes_planilhas import ajustar, validar_receitas
-from services.autonomo import execucoes, saida
+from services.autonomo import config_autonomo, confianca, execucoes, saida
 from services.autonomo.aplicar import aplicar_operacoes
 from services.autonomo.leitor_js import obter_leitor
 from services.autonomo.montagem import montar_tabelas_com_origens
@@ -245,12 +245,20 @@ def processar_arquivo(caminho: str, projeto_codigo: str, user_id: str, pasta_sai
             pendentes = [i for i, op in enumerate(ops) if _destrutiva(op, acoes)]
             e["detalhe"] = {"operacoes": len(ops), "pendentes_de_confirmacao": len(pendentes), "descartadas": len(diff["descartadas"]),
                             "ajustes_ignorados": ignorados}
+        auto = confianca.decidir_autoconfirmacao(user_id, projeto_codigo, os.path.basename(caminho), len(tabelas["cabos"]) + len(tabelas["outros"]),
+                                                 len(pendentes), config_autonomo.carregar()) if pendentes else None
+        info_confianca = None if auto is None else {"auto": auto["auto"], "motivo": auto["motivo"], "estado": auto["estado"]}
         execucoes.atualizar(exec_id, pasta_saida=pasta, originais=tabelas, itens_origem=origens,
                             diff={"operacoes": ops, "acoes": acoes, "descartadas": diff["descartadas"], "avisos": diff["avisos"],
                                   "frases": [_frase_op(op) for op in ops]},
-                            decisoes={"pendentes": pendentes, "confirmadas": [], "rejeitadas": []},
-                            relatorio={"etapas": etapas.lista, "validacao_antes": resumir(antes), "ajustes_ignorados": ignorados})
-        if pendentes:
+                            decisoes={"pendentes": pendentes, "confirmadas": list(pendentes) if auto and auto["auto"] else [], "rejeitadas": []},
+                            relatorio={"etapas": etapas.lista, "validacao_antes": resumir(antes), "ajustes_ignorados": ignorados, "confianca": info_confianca})
+        if pendentes and auto["auto"]:
+            _finalizar(exec_id, ctx, pasta)           # exclusões confirmadas sozinhas: confiança alta e nada anormal (registrado no relatório)
+            ex_fim = execucoes.buscar(exec_id)
+            if ex_fim["status"] in ("ok", "com_pendencias"):
+                execucoes.atualizar(exec_id, mensagem=f"{ex_fim['mensagem']} {len(pendentes)} exclusão(ões) confirmada(s) automaticamente (confiança {round(auto['estado']['taxa'] * 100)}%).")
+        elif pendentes:
             _gravar_pendencias(exec_id, pasta)
             execucoes.atualizar(exec_id, status="aguardando_confirmacao",
                                 mensagem=f"{len(pendentes)} exclusão(ões) aguardando confirmação.")
@@ -316,6 +324,7 @@ def _finalizar(exec_id: str, ctx: Contexto, pasta: str, reverter: bool = False) 
         relatorio = {
             "execucao_id": exec_id, "arquivo": ex["arquivo"], "projeto": ex["projeto_codigo"], "etapas": etapas.lista,
             "validacao_antes": (ex["relatorio"] or {}).get("validacao_antes"), "validacao_depois": resumir(depois),
+            "confianca": (ex["relatorio"] or {}).get("confianca"),
             "achados_restantes": depois, "ajustes_ignorados": (ex["relatorio"] or {}).get("ajustes_ignorados", []),
             "ajustes": {"aplicados": [ex_diff["frases"][i] for i in sorted(escolhidas)], "rejeitados": [ex_diff["frases"][i] for i in dec["rejeitadas"]]
                         if not reverter else [], "descartados": ex_diff["descartadas"], "avisos": ex_diff["avisos"],

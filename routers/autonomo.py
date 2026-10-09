@@ -24,6 +24,9 @@ class ConfigRequest(BaseModel):
     user_id: Optional[str] = None
     intervalo_s: Optional[int] = None
     estabilizacao_s: Optional[int] = None
+    autoconfirmar_projetos: Optional[List[str]] = None
+    confianca_janela: Optional[int] = None
+    confianca_taxa: Optional[float] = None
 
 
 class DecisaoRequest(BaseModel):

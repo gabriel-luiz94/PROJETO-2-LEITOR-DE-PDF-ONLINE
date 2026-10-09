@@ -798,6 +798,15 @@ Mudança de privacidade: texto, cor e camada dos itens observados ficam guardado
 
 ---
 
+## 2026-10-09 — TASK-059 (etapa 3): nível de confiança do autônomo
+
+**Tipo:** Backend + frontend · `.ai/tasks/TASK-059-08-10-2026.md`
+
+Novo painel "Confiança do autônomo" em `/autonomo`: por tipo de arquivo, das últimas N (10) obras que você revisou, quantas ficaram sem correção (confiável a partir de 90%; recomeça quando você aprova uma proposta). Opcional e **desligada por padrão**: com a opção ligada num projeto e o tipo confiável, as exclusões que sempre pediam confirmação passam a ser confirmadas sozinhas
+(exceto se forem anormalmente muitas — mais de 25% das linhas); fica registrado no relatório e dá para reverter. Janela e taxa configuráveis na tela de configuração. Sem mudança de schema.
+
+---
+
 ## 2026-10-02 — TASK-031: achados do primeiro teste real (projeto 027/229)
 
 **Tipo:** Backend (modo autônomo)
