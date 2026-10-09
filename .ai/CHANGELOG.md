@@ -807,6 +807,14 @@ Mudança de privacidade: texto, cor e camada dos itens observados ficam guardado
 
 ---
 
+## 2026-10-09 — TASK-059: Montar Orçamento também alimenta o aprendizado
+
+**Tipo:** Backend + frontend · `.ai/tasks/TASK-059-08-10-2026.md`
+
+Além do **Salvar obra**, o **Montar Orçamento** passa a registrar as correções da sessão (obra do autônomo ou trabalho manual) para o aprendizado, sem salvar obra: `POST /api/aprendizado/sessao`. Só depois de passar a checagem de contrato; salvar e montar na mesma sessão contam uma vez só.
+
+---
+
 ## 2026-10-09 — TASK-059 (etapa 3): nível de confiança do autônomo
 
 **Tipo:** Backend + frontend · `.ai/tasks/TASK-059-08-10-2026.md`

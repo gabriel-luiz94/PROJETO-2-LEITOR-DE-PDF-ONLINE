@@ -408,15 +408,8 @@ def _registrar_aprendizado(user, obra) -> None:
     if (user or {}).get("role") != "admin":      # as propostas são do administrador (viram regras/ajustes do projeto)
         return
     try:
-        from routers.validacao_regras import regras_efetivas
-        from services.autonomo import aprendizado_repo, aprendizado_servico
-        if obra.origem_execucao:
-            r = aprendizado_repo.registrar_correcao(_uid(user), obra.origem_execucao, obra.id, obra.dados_json)
-        else:
-            b = obra.baseline_manual or {}
-            r = aprendizado_repo.registrar_correcao_manual(_uid(user), obra.projeto, b.get("sessao") or "sem_sessao", b, obra.dados_json, regras_efetivas(obra.projeto)[1])
-        if r:
-            aprendizado_servico.reanalisar_tudo(_uid(user), r["projeto"], forcar=False)
+        from services.autonomo import aprendizado_servico
+        aprendizado_servico.registrar_sessao(_uid(user), obra.projeto, obra.origem_execucao, obra.baseline_manual, obra.dados_json, obra.id)
     except Exception as e:  # noqa: BLE001 — o aprendizado é um extra
         logging.getLogger(__name__).warning("Aprendizado do autônomo não registrado: %s", type(e).__name__)
 
