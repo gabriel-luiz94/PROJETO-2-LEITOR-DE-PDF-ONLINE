@@ -1171,6 +1171,8 @@ function _renderRegrasLeitorTabela(tabela) {
         html += `<div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
             <button type="button" onclick="abrirEditorRegraLeitor('${tabela}', null)" class="btn-secondary" style="font-size:0.75rem; padding:4px 10px;">+ Nova regra</button>
             <button type="button" onclick="abrirHistoricoRegrasLeitor('${tabela}')" class="btn-secondary" style="font-size:0.75rem; padding:4px 10px;">Histórico</button>
+            <button type="button" onclick="exportarRegrasLeitor('${tabela}')" class="btn-secondary" style="font-size:0.75rem; padding:4px 10px;" title="Baixa as regras desta tabela (como estão no rascunho) em um arquivo .json">Exportar JSON</button>
+            <button type="button" onclick="importarRegrasLeitor('${tabela}')" class="btn-secondary" style="font-size:0.75rem; padding:4px 10px;" title="Carrega regras de um arquivo .json no rascunho (só vale ao clicar em Salvar alterações)">Importar JSON</button>
             <button type="button" onclick="salvarRegrasLeitorTabela('${tabela}')" class="btn-primary" style="font-size:0.75rem; padding:4px 10px; background:#238636;">Salvar alterações</button>
         </div>`;
     }
@@ -1253,6 +1255,51 @@ function removerRegraLeitor(tabela, indice) {
     _renderRegrasLeitorTabela(tabela);
 }
 
+/* ── Exportar / importar em arquivo JSON (TASK-061) ── */
+function _projetoDasRegrasLeitor() {
+    return window.__regrasLeitorProjetoCarregado || localStorage.getItem('projeto_selecionado_codigo');
+}
+
+function exportarRegrasLeitor(tabela) {
+    const projeto = _projetoDasRegrasLeitor();
+    if (!projeto) { alert('Nenhum projeto selecionado.'); return; }
+    const draft = _regrasLeitorDraft(tabela);
+    if (!draft.length) { alert('Não há regras para exportar nesta tabela.'); return; }
+    RegrasArquivo.baixar(RegrasArquivo.nomeDeArquivo('regras', projeto, tabela), RegrasArquivo.montarEnvelope('regras', projeto, tabela, draft));
+}
+
+async function importarRegrasLeitor(tabela) {
+    const projeto = _projetoDasRegrasLeitor();
+    if (!projeto) { alert('Nenhum projeto selecionado.'); return; }
+    const arquivo = await RegrasArquivo.escolherArquivo();
+    if (!arquivo) return;
+    let lido;
+    try {
+        lido = RegrasArquivo.interpretar(await RegrasArquivo.lerTexto(arquivo), 'regras', tabela);
+        const res = await fetch(`/api/regras-leitor/${tabela}/validar`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projeto_codigo: projeto, regras: lido.itens }) });
+        if (!res.ok) throw new RegrasArquivo.ErroArquivo(['Não foi possível validar o arquivo no servidor (' + res.status + ').']);
+        const v = await res.json();
+        if (v.erros && v.erros.length) throw new RegrasArquivo.ErroArquivo(v.erros);
+    } catch (e) {
+        alert('Importação recusada:\n\n' + (e.mensagens ? e.mensagens.join('\n') : e.message));
+        return;
+    }
+    const atual = _regrasLeitorDraft(tabela);
+    const opcoes = { porFase: tabela === 'processamento' };
+    const aviso = lido.projeto && String(lido.projeto) !== String(projeto)
+        ? `Atenção: este arquivo é do projeto ${lido.projeto} e você está no projeto ${projeto}. Confirme que quer usar estas regras aqui.` : null;
+    const modo = await RegrasArquivo.janelaImportacao({
+        titulo: `Importar regras de ${tabela === 'processamento' ? 'Processamento' : 'Classificação'} — ${arquivo.name}`, aviso, rotuloItem: 'regra',
+        calcular: m => RegrasArquivo.resumir(atual, lido.itens, m, opcoes)
+    });
+    if (!modo) return;
+    const nova = RegrasArquivo.aplicar(atual, lido.itens, modo, opcoes);
+    atual.splice(0, atual.length, ...nova);
+    _renderRegrasLeitorTabela(tabela);
+    showToastRegrasLeitor('Regras carregadas no rascunho. Clique em "Salvar alterações" para gravar (a versão anterior fica no histórico).');
+}
+
 async function salvarRegrasLeitorTabela(tabela) {
     const projetoCodigo = window.__regrasLeitorProjetoCarregado || localStorage.getItem('projeto_selecionado_codigo');
     if (!projetoCodigo) { alert('Nenhum projeto selecionado.'); return; }
@@ -1304,17 +1351,86 @@ function abrirEditorRegraLeitor(tabela, indice) {
             (tabela === 'processamento' ? ' — Processamento' : ' — Classificação');
     }
 
-    const formEl = document.getElementById('regra-leitor-editor-form');
-    if (!formEl) return;
-    formEl.innerHTML = tabela === 'processamento' ? _formHtmlRegraProcessamento(regra) : _formHtmlRegraClassificacao(regra);
+    if (!document.getElementById('regra-leitor-editor-form')) return;
+    _montarFormularioRegraLeitor();
+    _mostrarModoJsonRegraLeitor(false);
 
+    document.getElementById('modal-regra-leitor-editor').style.display = 'flex';
+}
+
+function _montarFormularioRegraLeitor() {
+    const { tabela, regra } = _regraLeitorEditorEstado;
+    const formEl = document.getElementById('regra-leitor-editor-form');
+    formEl.innerHTML = tabela === 'processamento' ? _formHtmlRegraProcessamento(regra) : _formHtmlRegraClassificacao(regra);
     if (tabela === 'processamento') {
         _atualizarCamposModoRegraLeitor();
         document.getElementById('rle-viz-usar').addEventListener('change', _atualizarCamposVizinhancaRegraLeitor);
         _atualizarCamposVizinhancaRegraLeitor();
     }
+}
 
-    document.getElementById('modal-regra-leitor-editor').style.display = 'flex';
+/* ── Modo avançado (JSON) de UMA regra (TASK-061) ── */
+function _mostrarModoJsonRegraLeitor(json) {
+    document.getElementById('regra-leitor-editor-form').style.display = json ? 'none' : '';
+    document.getElementById('regra-leitor-editor-json').style.display = json ? '' : 'none';
+    const btn = document.getElementById('btn-regra-leitor-json');
+    if (btn) btn.textContent = json ? '← Voltar ao formulário' : 'Modo avançado (JSON)';
+    const ta = document.getElementById('rle-json');
+    if (ta) ta.style.borderColor = '#30363d';
+    const er = document.getElementById('rle-json-erro');
+    if (er) er.textContent = '';
+}
+
+function _lerJsonRegraLeitor() {
+    const ta = document.getElementById('rle-json');
+    let regra;
+    try { regra = JSON.parse(ta.value); } catch (e) {
+        ta.style.borderColor = '#f85149';
+        document.getElementById('rle-json-erro').textContent = 'JSON inválido: ' + e.message;
+        return null;
+    }
+    if (!regra || typeof regra !== 'object' || Array.isArray(regra)) {
+        ta.style.borderColor = '#f85149';
+        document.getElementById('rle-json-erro').textContent = 'A regra precisa ser um objeto JSON ({ ... }).';
+        return null;
+    }
+    ta.style.borderColor = '#30363d';
+    document.getElementById('rle-json-erro').textContent = '';
+    return regra;
+}
+
+function alternarModoJsonRegraLeitor() {
+    if (!_regraLeitorEditorEstado) return;
+    const emJson = document.getElementById('regra-leitor-editor-json').style.display !== 'none';
+    if (!emJson) {
+        const { tabela } = _regraLeitorEditorEstado;
+        const regra = tabela === 'processamento' ? _lerFormularioRegraProcessamento() : _lerFormularioRegraClassificacao();
+        _regraLeitorEditorEstado.regra = regra;
+        document.getElementById('rle-json').value = JSON.stringify(regra, null, 2);
+        _mostrarModoJsonRegraLeitor(true);
+    } else {
+        const regra = _lerJsonRegraLeitor();
+        if (!regra) return;                      // JSON inválido: fica no modo JSON (campo em vermelho)
+        _regraLeitorEditorEstado.regra = regra;
+        _montarFormularioRegraLeitor();
+        _mostrarModoJsonRegraLeitor(false);
+    }
+}
+
+function salvarRegraLeitorDoJson() {
+    if (!_regraLeitorEditorEstado) return;
+    const regra = _lerJsonRegraLeitor();
+    if (!regra) return;
+    if (typeof regra.ordem !== 'number' || !isFinite(regra.ordem)) {
+        document.getElementById('rle-json-erro').textContent = 'A regra precisa do campo "ordem" (número).';
+        return;
+    }
+    const { tabela, indice } = _regraLeitorEditorEstado;
+    const draft = _regrasLeitorDraft(tabela);
+    if (indice !== null) draft[indice] = regra; else draft.push(regra);
+    fecharEditorRegraLeitor();
+    _renderRegrasLeitorTabela(tabela);
+    showToastRegrasLeitor('Regra aplicada ao rascunho. A validação completa acontece ao clicar em "Salvar alterações".');
 }
 
 function fecharEditorRegraLeitor() {

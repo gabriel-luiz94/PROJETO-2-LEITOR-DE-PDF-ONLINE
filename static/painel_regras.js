@@ -7,7 +7,7 @@
 ═══════════════════════════════════════════════════════════════════════════ */
 (function () {
     const ehAdmin = () => localStorage.getItem('is_admin') === 'true';
-    const SCRIPTS = ['/static/regras_editor.js', '/static/painel_ajustes.js', '/static/painel_prompts.js'];
+    const SCRIPTS = ['/static/regras_editor.js', '/static/regras_arquivo.js', '/static/painel_ajustes.js', '/static/painel_prompts.js'];
     let montado = false, carregando = null;
 
     // Mensagem curta usada pelos editores (toast do Resumo).
@@ -123,7 +123,10 @@
         const dl = document.createElement('datalist'); dl.id = 'ajRegrasSugestoes';
         const barra = no('div', 'flex flex-wrap gap-2 mt-3 ' + ADM);
         barra.append(botao('ajAdicionar', 'Novo ajuste'), botao('ajSalvar', 'Salvar', 'btn-primary'),
-            botao('ajSemente', 'Restaurar semente'), botao('ajHistorico', 'Histórico'));
+            botao('ajSemente', 'Restaurar semente'), botao('ajHistorico', 'Histórico'),
+            botao('ajExportar', 'Exportar JSON'), botao('ajImportar', 'Importar JSON'));
+        barra.querySelector('#ajExportar').title = 'Baixa os ajustes desta lista (como estão no rascunho) em um arquivo .json';
+        barra.querySelector('#ajImportar').title = 'Carrega ajustes de um arquivo .json no rascunho; só vale ao clicar em Salvar';
         const hist = no('div', 'rp-hist hidden'); hist.id = 'ajHistLista';
         p.append(status, erros, avisos, lista, dl, barra, hist);
         return p;

@@ -113,6 +113,30 @@ def _valida_regra_classificacao(regra: dict, idx: int, erros: list):
     _valida_campos_lista(regra, prefixo, erros)
 
 
+LIMITE_REGRAS_ARQUIVO = 1000   # TASK-061: regras por importação
+LIMITE_REGEX_ARQUIVO = 500     # TASK-061: tamanho de cada regex importada (contra regex catastrófica que travaria a tela)
+
+
+def validar_importacao(tabela: str, regras) -> list:
+    """Erros (vazia = válida) de uma lista de regras que veio de ARQUIVO: tudo o que `validar_regras` confere + limites de quantidade e de
+    tamanho de regex. Não grava nada (a gravação continua sendo o Salvar de sempre)."""
+    if not isinstance(regras, list):
+        return ["O arquivo precisa conter uma lista de regras."]
+    if len(regras) > LIMITE_REGRAS_ARQUIVO:
+        return [f"Regras demais no arquivo ({len(regras)}; máx. {LIMITE_REGRAS_ARQUIVO})."]
+    erros = []
+    for i, r in enumerate(regras):
+        if not isinstance(r, dict):
+            continue                      # validar_regras acusa abaixo
+        alvos = [("texto_regex", r.get("texto_regex")), ("ativo_regex", r.get("ativo_regex"))]
+        if isinstance(r.get("vizinhanca"), dict):
+            alvos.append(("vizinhanca.regex", r["vizinhanca"].get("regex")))
+        for campo, valor in alvos:
+            if isinstance(valor, str) and len(valor) > LIMITE_REGEX_ARQUIVO:
+                erros.append(f"Regra #{i + 1}: '{campo}' passa de {LIMITE_REGEX_ARQUIVO} caracteres.")
+    return erros + validar_regras(tabela, regras)
+
+
 def validar_regras(tabela: str, regras) -> list:
     if not isinstance(regras, list):
         return ["O payload de regras precisa ser uma lista."]
@@ -285,6 +309,17 @@ def _extrair_email(request: Request) -> str | None:
 @router.get("/processamento")
 def get_processamento(projeto_codigo: str = "DEFAULT"):
     return {"regras": _get_regras("processamento", projeto_codigo)}
+
+
+@router.post("/processamento/validar", dependencies=[Depends(require_role("admin"))])
+def validar_importacao_processamento(payload: RegrasLeitorPayload):
+    """Confere uma lista importada de arquivo SEM gravar (TASK-061)."""
+    return {"erros": validar_importacao("processamento", payload.regras)[:30], "total": len(payload.regras)}
+
+
+@router.post("/classificacao/validar", dependencies=[Depends(require_role("admin"))])
+def validar_importacao_classificacao(payload: RegrasLeitorPayload):
+    return {"erros": validar_importacao("classificacao", payload.regras)[:30], "total": len(payload.regras)}
 
 
 @router.post("/processamento", dependencies=[Depends(require_role("admin"))])

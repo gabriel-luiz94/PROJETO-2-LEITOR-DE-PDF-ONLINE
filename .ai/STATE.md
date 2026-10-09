@@ -398,9 +398,8 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [x] **TASK-060** (pedido de 2026-10-09): modelos de obra com **ativo variável** (`V(quantidade)-X(ativo1,ativo2,ativo3)`,
       dropdown na janela de parâmetros; campos nomeados, grupos `@GRUPO`, aviso de opção fora da base). CONCLUÍDA. Ver
       `.ai/tasks/TASK-060-09-10-2026.md`.
-- [ ] **TASK-061** (pedido de 2026-10-09): regras do leitor e ajustes em **JSON** — modo avançado por regra (leitor),
-      exportar e importar arquivo `.json` com resumo antes de aplicar, gravação só pelo Salvar existente. PLANEJAMENTO —
-      aguardando o aval do usuário e 5 decisões. Ver `.ai/tasks/TASK-061-09-10-2026.md`.
+- [x] **TASK-061** (pedido de 2026-10-09): regras do leitor e ajustes em **JSON** — modo avançado por regra (leitor),
+      exportar e importar arquivo `.json` com resumo antes de aplicar, gravação só pelo Salvar existente. CONCLUÍDA. Ver `.ai/tasks/TASK-061-09-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
