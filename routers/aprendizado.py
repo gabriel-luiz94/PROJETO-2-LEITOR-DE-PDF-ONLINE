@@ -129,6 +129,28 @@ def _aprovar_regra_leitor(uid, p, alvo, request):
     return {"status": "success", "regra": regra, "tabela": tabela}
 
 
+class SessaoPayload(BaseModel):
+    projeto: str
+    cabos: list = []
+    outros: list = []
+    origem_execucao: Optional[str] = None
+    baseline_manual: Optional[dict] = None
+
+
+@router.post("/sessao")
+def registrar_sessao(payload: SessaoPayload, request: Request):
+    """Montar Orçamento (tela do Resumo): as tabelas neste momento são "a versão final" da sessão. Mesmo registro do Salvar obra, sem salvar nada;
+    chamar de novo na mesma sessão substitui o registro anterior. Só vale para obra do autônomo (`origem_execucao`) ou trabalho manual (`baseline_manual`)."""
+    if len(payload.cabos) > aprendizado.LIMITE_LINHAS_COMPARAR or len(payload.outros) > aprendizado.LIMITE_LINHAS_COMPARAR:
+        raise HTTPException(status_code=400, detail="Linhas demais.")
+    dados = json.dumps({"cabos": {"data": payload.cabos}, "outros": {"data": payload.outros}}, ensure_ascii=False)
+    try:
+        r = aprendizado_servico.registrar_sessao(_user(request).get("user_id"), payload.projeto, payload.origem_execucao, payload.baseline_manual, dados)
+    except Exception as e:  # noqa: BLE001 — o aprendizado é um extra
+        return {"registrado": False, "motivo": f"falha ({type(e).__name__})"}
+    return {"registrado": bool(r), "correcoes": (r or {}).get("eventos", 0)}
+
+
 class ItensLeitorPayload(BaseModel):
     projeto: str
     sessao: str

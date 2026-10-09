@@ -19,6 +19,22 @@ def simulador():
     return lambda entrada, proc, cls: leitor.processar_lote(entrada, proc, cls, "extracao")
 
 
+def registrar_sessao(user_id, projeto, origem_execucao, baseline_manual, dados_json, obra_id=None):
+    """Registra as correções da sessão atual (obra do autônomo OU trabalho manual) e atualiza as propostas. Usado ao SALVAR a obra e ao MONTAR o
+    orçamento (as duas são "esta é a versão final"); registrar de novo na mesma sessão substitui o registro anterior. Devolve {projeto, eventos} ou None."""
+    from routers.validacao_regras import regras_efetivas
+    if origem_execucao:
+        r = aprendizado_repo.registrar_correcao(user_id, origem_execucao, obra_id, dados_json)
+    elif isinstance(baseline_manual, dict):
+        r = aprendizado_repo.registrar_correcao_manual(user_id, projeto, baseline_manual.get("sessao") or "sem_sessao", baseline_manual, dados_json,
+                                                       regras_efetivas(projeto)[1])
+    else:
+        return None
+    if r:
+        reanalisar_tudo(user_id, r["projeto"], forcar=False)
+    return r
+
+
 def reanalisar_tudo(user_id, projeto, forcar=True) -> dict:
     """Ajustes (estatística) + regras do leitor (simulação). A parte do leitor é opcional: sem o motor (quickjs) ou sem regras cadastradas, só avisa."""
     from routers import regras_leitor as rl

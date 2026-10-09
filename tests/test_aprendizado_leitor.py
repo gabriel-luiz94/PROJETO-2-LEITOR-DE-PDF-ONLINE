@@ -283,3 +283,53 @@ def test_regra_que_so_corrige_parte_do_grupo_nao_e_proposta(simular):
     assert al.minerar(itens, PROC, CLS, simular) == []
     itens[1]["n"] = 1                       # 3 de 4 = 75% ainda é pouco
     assert al.minerar(itens, PROC, CLS, simular) == []
+
+
+# ── Montar Orçamento também registra (POST /api/aprendizado/sessao) ──────────
+def sessao(client, corpo, **kw):
+    return client.post("/api/aprendizado/sessao", json={"projeto": "229", **corpo}, headers=cab(**kw))
+
+
+def test_montar_orcamento_registra_trabalho_manual_sem_salvar_obra(client):
+    base = {"sessao": "orc1", "cabos": [L("CA 2 ABC 35 m")], "outros": [L("2-U4"), L("LIXO")]}
+    r = sessao(client, {"baseline_manual": base, "cabos": [L("CAA 2 ABC 35 m")], "outros": [L("2-U3")]})
+    assert r.status_code == 200 and r.json()["registrado"] is True and r.json()["correcoes"] == 3
+    regs = repo.listar_registros("adm", "229")
+    assert len(regs) == 1 and regs[0]["execucao_id"] == "manual:orc1" and regs[0]["obra_salva"] is None
+    assert client.get("/api/obras", headers=cab()).json() == []                                   # nenhuma obra foi criada
+    # montar de novo na mesma sessão substitui (não conta duas vezes)
+    sessao(client, {"baseline_manual": base, "cabos": [L("CAA 2 ABC 35 m")], "outros": [L("2-U4"), L("LIXO")]})
+    regs = repo.listar_registros("adm", "229")
+    assert len(regs) == 1 and [e["tipo"] for e in regs[0]["eventos"]] == ["texto_trocado"]
+
+
+def test_salvar_e_montar_na_mesma_sessao_dao_um_registro_so(client):
+    base = {"cabos": [], "outros": [L("2-U4")]}
+    salvar_manual(client, base, [], [L("2-U3")], sessao="mesma")
+    sessao(client, {"baseline_manual": {"sessao": "mesma", **base}, "cabos": [], "outros": [L("2-U3")]})
+    assert len(repo.listar_registros("adm", "229")) == 1
+
+
+def test_montar_orcamento_de_obra_do_autonomo_registra_pela_execucao(client):
+    eid = execucoes.criar("a.dxf", uuid.uuid4().hex, "229", "adm")
+    ag = [L("P11", "M", "POSTE", _x=1, _y=2)]
+    rota_obras.gravar_obra({"user_id": "adm"}, {"id": f"auto_{eid}", "nome": "x", "data": "d", "projeto": "229", "publica": False,
+                                                "dados_json": json.dumps({"cabos": {"data": []}, "outros": {"data": ag}, "autonomo": {"execucao_id": eid}})})
+    execucoes.atualizar(eid, status="ok", obra_id=f"auto_{eid}", itens_origem=[{"texto": "POSTE 11", "cor": "#000000", "layer": "", "x": 1, "y": 2, "e": "POSTE", "o": "M", "a": "P11"}])
+    r = sessao(client, {"origem_execucao": eid, "cabos": [], "outros": [L("P11", "M", "APOIO", _x=1, _y=2)]})
+    assert r.json()["registrado"] is True and repo.listar_registros("adm", "229")[0]["execucao_id"] == eid
+    assert [i["user"] for i in repo.listar_itens("adm", "229")] == [("APOIO", "M", "P11")]
+
+
+def test_sessao_sem_origem_ou_de_outro_usuario_ou_nao_admin(client):
+    assert sessao(client, {"cabos": [], "outros": []}).json()["registrado"] is False                # nem baseline nem execução
+    assert sessao(client, {"origem_execucao": "nao_existe", "cabos": [], "outros": []}).json()["registrado"] is False
+    assert sessao(client, {"baseline_manual": {"sessao": "x", "cabos": [], "outros": []}, "cabos": [], "outros": []}, uid="op", role="operador").status_code == 403
+    assert client.post("/api/aprendizado/sessao", json={"projeto": "229"}).status_code == 401
+    assert sessao(client, {"baseline_manual": {"sessao": "x", "cabos": [], "outros": []}, "cabos": [L("a")] * 3001, "outros": []}).status_code == 400
+
+
+def test_falha_interna_nao_vira_erro_para_a_tela(client, monkeypatch):
+    monkeypatch.setattr(svc, "registrar_sessao", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("x")))
+    r = sessao(client, {"baseline_manual": {"sessao": "x", "cabos": [], "outros": []}, "cabos": [], "outros": []})
+    assert r.status_code == 200 and r.json()["registrado"] is False

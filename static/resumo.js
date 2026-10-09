@@ -3934,6 +3934,18 @@ document.addEventListener('DOMContentLoaded', () => {
         abrirPainelAjustar();
     });
 
+    /** Montar Orçamento = "esta é a versão final": registra as correções da sessão para o aprendizado (como o Salvar obra; só administrador). */
+    function registrarAprendizadoDoOrcamento() {
+        try {
+            if (localStorage.getItem('is_admin') !== 'true' || !(execucaoOrigemAutonomo || baselineManual)) return;
+            const min = t => (tableStates[t].data || []).filter(Boolean).map(r => ({ entidade: r.entidade, operacao: r.operacao, ativo: r.ativo, _x: r._x, _y: r._y }));
+            const corpo = { projeto: projetoAtualObras(), cabos: min('cabos'), outros: min('outros') };
+            if (execucaoOrigemAutonomo) corpo.origem_execucao = execucaoOrigemAutonomo;
+            else corpo.baseline_manual = { sessao: sessaoManual, ...baselineManual };
+            fetch('/api/aprendizado/sessao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }).catch(() => {});
+        } catch (e) { /* o aprendizado nunca atrapalha o orçamento */ }
+    }
+
     const btnMontarOrcamento = document.getElementById('btn-montar-orcamento');
     const modalOrcamento = document.getElementById('modal-orcamento');
     const tbodyOrcamento = document.getElementById('resultado-orcamento-tbody');
@@ -3977,6 +3989,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('projeto_selecionado_codigo', projCode);
                 }
                 
+                registrarAprendizadoDoOrcamento();
                 localStorage.setItem('orcamentoPayload', JSON.stringify(payload));
                 window.open('/resultado_orcamento', '_blank');
             } finally {
