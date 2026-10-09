@@ -77,7 +77,11 @@ input, select { width:100%; font:inherit; background:var(--bg); color:var(--fg);
         </div>
         <div id="apr-msg" class="msg" hidden></div>
         <div class="stats" id="apr-stats"></div>
-        <h2 style="margin-top:14px">Propostas</h2>
+        <h2 style="margin-top:14px">Confiança do autônomo</h2>
+        <p class="sub">Mede, por tipo de arquivo, quantas das últimas obras do autônomo que você <strong>revisou e salvou</strong> ficaram <strong>sem nenhuma correção</strong>. Recomeça a contar quando você aprova uma proposta (o comportamento mudou). Com a opção abaixo ligada <strong>neste projeto</strong>, quando o tipo está <strong>confiável</strong> e nada parece anormal, as exclusões deixam de pedir a sua confirmação (ficam registradas no relatório e dá para reverter).</p>
+        <div id="conf-tipos"></div>
+        <label style="display:flex;gap:8px;align-items:center;color:var(--fg);margin:8px 0 14px"><input id="conf-auto" type="checkbox" style="width:auto"> Confirmar as exclusões automaticamente neste projeto quando o autônomo estiver confiável</label>
+        <h2>Propostas</h2>
         <div id="apr-props"></div>
     </section>
 
@@ -105,6 +109,8 @@ input, select { width:100%; font:inherit; background:var(--bg); color:var(--fg);
             <div><label for="cfg-base">Pasta base (caminho completo)</label><input id="cfg-base" type="text" autocomplete="off"></div>
             <div><label for="cfg-intervalo">Verificar a pasta a cada (segundos)</label><input id="cfg-intervalo" type="number" min="1" max="3600"></div>
             <div><label for="cfg-estab">Esperar o arquivo parar de crescer (segundos)</label><input id="cfg-estab" type="number" min="0" max="600"></div>
+            <div><label for="cfg-conf-janela">Confiança: obras revisadas consideradas</label><input id="cfg-conf-janela" type="number" min="3" max="100"></div>
+            <div><label for="cfg-conf-taxa">Confiança: acerto mínimo (%)</label><input id="cfg-conf-taxa" type="number" min="50" max="100"></div>
         </div>
         <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--mut);font-size:.85rem">Pastas avançadas (opcional)</summary>
             <div class="cols">

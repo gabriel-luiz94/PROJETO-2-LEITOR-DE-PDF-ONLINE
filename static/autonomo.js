@@ -183,6 +183,8 @@
         $('cfg-base').value = c.pasta_base || '';
         $('cfg-intervalo').value = c.intervalo_s;
         $('cfg-estab').value = c.estabilizacao_s;
+        $('cfg-conf-janela').value = c.confianca_janela;
+        $('cfg-conf-taxa').value = Math.round((c.confianca_taxa || 0.9) * 100);
         $('cfg-p-entrada').value = c.pasta_entrada || '';
         $('cfg-p-processados').value = c.pasta_processados || '';
         $('cfg-p-erros').value = c.pasta_erros || '';
@@ -194,8 +196,10 @@
         try {
             const corpo = {
                 user_id: $('cfg-user').value, pasta_base: $('cfg-base').value.trim(), intervalo_s: parseInt($('cfg-intervalo').value, 10), estabilizacao_s: parseInt($('cfg-estab').value, 10),
+                confianca_janela: parseInt($('cfg-conf-janela').value, 10), confianca_taxa: parseFloat($('cfg-conf-taxa').value) / 100,
                 pasta_entrada: $('cfg-p-entrada').value.trim(), pasta_processados: $('cfg-p-processados').value.trim(), pasta_erros: $('cfg-p-erros').value.trim(), pasta_saida: $('cfg-p-saida').value.trim()
             };
+            if (Number.isNaN(corpo.confianca_janela) || Number.isNaN(corpo.confianca_taxa)) throw new Error('Informe números nos campos de confiança.');
             if (Number.isNaN(corpo.intervalo_s) || Number.isNaN(corpo.estabilizacao_s)) throw new Error('Informe números nos campos de segundos.');
             const r = await api('PUT', '/api/autonomo/config', corpo);
             cfgAtual = r.config;
@@ -284,9 +288,41 @@
             await atualizarAprendizado();
         });
     }
+    const NIVEL_COR = { confiavel: 'bom', revisar: 'perigo', observando: '' };
+    async function atualizarConfianca() {
+        const proj = projetoApr();
+        const c = await api('GET', `/api/aprendizado/confianca?projeto=${encodeURIComponent(proj)}`);
+        const box = $('conf-tipos');
+        box.replaceChildren();
+        if (!c.tipos.length) box.append(el('div', 'vazio', `Ainda não há obras do autônomo revisadas neste projeto. Para o nível de confiança é preciso revisar ${c.janela} obras de um mesmo tipo de arquivo.`));
+        c.tipos.forEach(t => {
+            const d = el('div', 'pend');
+            const h = el('h3', NIVEL_COR[t.nivel] || '', `.${t.tipo} · ${t.rotulo}`);
+            d.append(h);
+            d.append(el('div', '', t.revisadas ? `${t.acertos} de ${t.revisadas} obra(s) sem correção` + (t.taxa !== null ? ` (${Math.round(t.taxa * 100)}%)` : '') + ` — preciso de ${t.janela} revisadas e ${Math.round(t.taxa_minima * 100)}% de acerto.` : 'Sem revisões.'));
+            const lista = el('div', 'vazio');
+            lista.textContent = t.ultimas.slice(0, 10).map(u => (u.correcoes === 0 ? '✓ ' : `✗ ${u.correcoes} correção(ões) · `) + u.arquivo).join('   |   ');
+            d.append(lista);
+            box.append(d);
+        });
+        if (c.desde_ultima_aprovacao) box.append(el('div', 'vazio', `Contando só as revisões a partir da última proposta aprovada (${c.desde_ultima_aprovacao.replace('T', ' ')}).`));
+        $('conf-auto').checked = c.autoconfirmar;
+    }
+    $('conf-auto').onchange = () => tentar(async () => {
+        const proj = projetoApr();
+        const ligar = $('conf-auto').checked;
+        if (ligar && !confirm(`Com isto, no projeto ${proj}, quando o autônomo estiver confiável as exclusões serão confirmadas sozinhas (dá para reverter cada execução). Ligar?`)) { $('conf-auto').checked = false; return; }
+        const atual = (cfgAtual && cfgAtual.autoconfirmar_projetos) || [];
+        const lista = ligar ? [...new Set([...atual, proj])] : atual.filter(p => p !== proj);
+        const r = await api('PUT', '/api/autonomo/config', { autoconfirmar_projetos: lista });
+        cfgAtual = r.config;
+        msgApr(ligar ? `Confirmação automática ligada no projeto ${proj} (só age com nível confiável).` : `Confirmação automática desligada no projeto ${proj}.`);
+        await atualizarConfianca();
+    });
     async function atualizarAprendizado() {
         const proj = projetoApr();
         if (!proj) return;
+        await atualizarConfianca();
         const q = `projeto=${encodeURIComponent(proj)}`;
         const [res, props] = await Promise.all([api('GET', `/api/aprendizado/resumo?${q}`), api('GET', `/api/aprendizado/propostas?${q}`)]);
         $('apr-stats').replaceChildren(stat(String(res.obras_corrigidas), 'Obras corrigidas'), stat(String(res.itens_leitor || 0), 'Itens do leitor observados'), stat(String(res.correcoes_total), 'Correções registradas'),

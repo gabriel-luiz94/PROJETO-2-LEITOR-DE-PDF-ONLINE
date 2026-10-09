@@ -16,7 +16,7 @@ from routers.ai_chat import _checar_rate_limit, _ler_configuracao, resolver_cred
 from routers.validacao_regras import DEFAULT, regras_efetivas
 from services.ajustes_planilhas import descrever_acao, validar_acoes
 from pydantic import BaseModel
-from services.autonomo import aprendizado, aprendizado_leitor, aprendizado_repo, aprendizado_servico
+from services.autonomo import aprendizado, aprendizado_leitor, aprendizado_repo, aprendizado_servico, config_autonomo, confianca
 from services.correcao_ia import interpretar_acoes
 from services.validacao_ia import MODELOS_RESERVA, MODELOS_RESERVA_CLAUDE, MODELOS_RESERVA_OPENAI
 
@@ -53,6 +53,17 @@ def propostas(request: Request, projeto: str, status: Optional[str] = None):
     if status and status not in aprendizado_repo.STATUS_PROPOSTA:
         raise HTTPException(status_code=400, detail="Status inválido.")
     return [_publica(p) for p in aprendizado_repo.listar_propostas(_user(request).get("user_id"), projeto, status)]
+
+
+@router.get("/confianca")
+def nivel_de_confianca(request: Request, projeto: str):
+    """Painel de acertos do autônomo (etapa 3): por tipo de arquivo, quantas das últimas obras revisadas ficaram sem correção.
+    Calculado para o usuário dono das obras do autônomo (ou, sem configuração, para o usuário atual)."""
+    cfg = config_autonomo.carregar()
+    uid = cfg.get("user_id") or _user(request).get("user_id")
+    return {"usuario": uid, "projeto": projeto, "autoconfirmar": projeto in cfg["autoconfirmar_projetos"],
+            "janela": cfg["confianca_janela"], "taxa_minima": cfg["confianca_taxa"],
+            "desde_ultima_aprovacao": aprendizado_repo.ultima_aprovacao(uid, projeto), "tipos": [{"tipo": t, **e} for t, e in confianca.estados(uid, projeto, cfg).items()]}
 
 
 @router.get("/correcoes")

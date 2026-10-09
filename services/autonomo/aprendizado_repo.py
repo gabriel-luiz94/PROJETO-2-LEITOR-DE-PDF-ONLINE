@@ -156,6 +156,26 @@ def _lista(valor):
     return [l for l in (dados if isinstance(dados, list) else []) if isinstance(l, dict)]
 
 
+def revisoes_autonomo(user_id, projeto) -> list:
+    """Obras do AUTÔNOMO que o usuário revisou e salvou: [{execucao_id, arquivo, atualizado_em, correcoes}] (a sessão manual não entra: não é obra do autônomo)."""
+    conn = _conectar()
+    try:
+        rows = conn.execute("SELECT execucao_id, arquivo, atualizado_em, eventos_json FROM aprendizado_correcoes "
+                            "WHERE user_id = ? AND projeto_codigo = ? AND execucao_id NOT LIKE 'manual:%' ORDER BY atualizado_em DESC", (user_id, projeto)).fetchall()
+    finally:
+        conn.close()
+    return [{"execucao_id": r["execucao_id"], "arquivo": r["arquivo"] or "", "atualizado_em": r["atualizado_em"], "correcoes": len(json.loads(r["eventos_json"] or "[]"))} for r in rows]
+
+
+def ultima_aprovacao(user_id, projeto):
+    conn = _conectar()
+    try:
+        r = conn.execute("SELECT MAX(decidido_em) FROM aprendizado_propostas WHERE user_id = ? AND projeto_codigo = ? AND status = 'aprovada'", (user_id, projeto)).fetchone()
+    finally:
+        conn.close()
+    return r[0] if r and r[0] else None
+
+
 def listar_registros(user_id, projeto) -> list:
     conn = _conectar()
     try:
