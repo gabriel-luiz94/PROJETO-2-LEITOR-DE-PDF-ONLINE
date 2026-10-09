@@ -187,7 +187,18 @@
                 <h3 id="regra-leitor-editor-titulo" style="margin:0; font-size:1.05rem;">Editar regra</h3>
                 <button onclick="fecharEditorRegraLeitor()" style="background: transparent; border: none; color: #8b949e; font-size: 1.2rem; cursor: pointer;">✕</button>
             </div>
+            <div style="display:flex; justify-content:flex-end; margin:-4px 0 8px;">
+                <button type="button" id="btn-regra-leitor-json" onclick="alternarModoJsonRegraLeitor()" class="btn-secondary" style="font-size:0.75rem; padding:3px 9px;">Modo avançado (JSON)</button>
+            </div>
             <div id="regra-leitor-editor-form"></div>
+            <div id="regra-leitor-editor-json" style="display:none;">
+                <textarea id="rle-json" spellcheck="false" style="width:100%; height:300px; box-sizing:border-box; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:white; padding:8px; font-family:ui-monospace,Consolas,monospace; font-size:0.78rem;"></textarea>
+                <div id="rle-json-erro" style="color:#f85149; font-size:0.78rem; min-height:1em; margin-top:4px;"></div>
+                <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
+                    <button type="button" onclick="fecharEditorRegraLeitor()" class="btn-secondary" style="padding:6px 14px; font-size:0.85rem;">Cancelar</button>
+                    <button type="button" onclick="salvarRegraLeitorDoJson()" class="btn-primary" style="padding:6px 14px; font-size:0.85rem; background:#238636;">Salvar regra</button>
+                </div>
+            </div>
         </div>
     </div>
     <!-- Histórico de Regras do Leitor (TASK-007, só admin) -->
@@ -222,6 +233,7 @@
         </div>
     </div>
     <script src="/static/regras_leitor_engine.js"></script>
+    <script src="/static/regras_arquivo.js"></script>
     <script src="/static/script.js?v=3.5"></script>
 </body>
 </html>

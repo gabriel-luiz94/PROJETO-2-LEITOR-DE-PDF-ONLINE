@@ -807,6 +807,15 @@ Mudança de privacidade: texto, cor e camada dos itens observados ficam guardado
 
 ---
 
+## 2026-10-09 — TASK-061: regras do leitor e ajustes em JSON (modo avançado, exportar, importar)
+
+**Tipo:** Backend + frontend · `.ai/tasks/TASK-061-09-10-2026.md`
+
+**Exportar JSON** / **Importar JSON** nas duas tabelas de regras do leitor e nos ajustes, e **Modo avançado (JSON)** por regra do leitor (os ajustes já tinham). A importação valida (formato, versão, limites, regras e regex, no servidor), mostra o resumo (novas / iguais / a remover) e deixa escolher **Acrescentar** ou **Substituir**; **nada é gravado**: vai para o rascunho e só vale no Salvar de sempre (com histórico e reversão).
+Arquivo de outro projeto é aceito com aviso (copiar regras entre projetos); da outra tabela é recusado. Sem mudança de schema. Manual atualizado.
+
+---
+
 ## 2026-10-09 — TASK-059: Montar Orçamento também alimenta o aprendizado
 
 **Tipo:** Backend + frontend · `.ai/tasks/TASK-059-08-10-2026.md`

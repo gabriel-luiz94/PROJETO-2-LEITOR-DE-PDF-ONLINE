@@ -92,6 +92,43 @@ async function iniciarAjustes() {
     lig('ajSalvar', ajSalvar);
     lig('ajSemente', ajRestaurarSemente);
     lig('ajHistorico', ajAlternarHistorico);
+    lig('ajExportar', ajExportar);
+    lig('ajImportar', ajImportar);
+}
+
+/* ── Exportar / importar em arquivo JSON (TASK-061) ─────────────────────────── */
+function ajExportar() {
+    if (!AJ.itens.length) { rpMensagem('error', 'Não há ajustes para exportar.'); return; }
+    RegrasArquivo.baixar(RegrasArquivo.nomeDeArquivo('ajustes', ajProjeto()), RegrasArquivo.montarEnvelope('ajustes', ajProjeto(), null, AJ.itens.map(ajLimpa)));
+}
+
+async function ajImportar() {
+    ajErros(null);
+    const arquivo = await RegrasArquivo.escolherArquivo();
+    if (!arquivo) return;
+    let lido;
+    try {
+        lido = RegrasArquivo.interpretar(await RegrasArquivo.lerTexto(arquivo), 'ajustes');
+        const res = await rdPost('/api/validacao/ajustes/validar', { projeto_codigo: ajProjeto(), ajustes: lido.itens });
+        if (!res.ok) throw new RegrasArquivo.ErroArquivo(['Não foi possível validar o arquivo no servidor (' + res.status + ').']);
+        const v = await res.json();
+        if (v.erros && v.erros.length) throw new RegrasArquivo.ErroArquivo(v.erros);
+    } catch (e) {
+        ajErros(['Importação recusada:'].concat(e.mensagens || [e.message]));
+        return;
+    }
+    const opcoes = { chave: 'id', limpar: ajLimpa };
+    const aviso = lido.projeto && lido.projeto !== ajProjeto()
+        ? `Atenção: este arquivo é do projeto ${lido.projeto} e você está em ${ajProjeto()}. Confirme que quer usar estes ajustes aqui.` : null;
+    const modo = await RegrasArquivo.janelaImportacao({ titulo: `Importar ajustes — ${arquivo.name}`, aviso, rotuloItem: 'ajuste', calcular: m => RegrasArquivo.resumir(AJ.itens, lido.itens, m, opcoes) });
+    if (!modo) return;
+    const nova = RegrasArquivo.aplicar(AJ.itens, lido.itens, modo, opcoes);
+    const idsAntigos = new Set(AJ.itens.map(r => r.id));
+    AJ.itens = nova.map(r => (r.origem || !ajEhProjeto() || idsAntigos.has(r.id)) ? r : Object.assign(r, { origem: 'projeto' }));
+    ajMarcarSujo();
+    ajRenderizar();
+    AJ.itens.filter(i => !i.frases).slice(0, 40).forEach(ajAtualizarFrases);      // frases em linguagem natural dos itens vindos do arquivo
+    rpMensagem('success', 'Ajustes carregados no rascunho. Clique em Salvar para gravar (a versão anterior fica no histórico).');
 }
 
 async function ajCarregar() {

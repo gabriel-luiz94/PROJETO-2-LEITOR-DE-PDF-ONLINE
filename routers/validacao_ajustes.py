@@ -210,6 +210,18 @@ def obter(projeto_codigo: str = DEFAULT, contexto: Optional[str] = None):
             "personalizado": personalizado, "contexto": contexto}
 
 
+LIMITE_AJUSTES_ARQUIVO = 1000
+
+
+@router.post("/validar", dependencies=[Depends(require_role("admin"))])
+def validar_importacao_ajustes(payload: SalvarAjustesPayload):
+    """Confere uma lista de ajustes vinda de ARQUIVO sem gravar (TASK-061): formato, ações e grupos do projeto."""
+    if len(payload.ajustes) > LIMITE_AJUSTES_ARQUIVO:
+        return {"erros": [f"Ajustes demais no arquivo ({len(payload.ajustes)}; máx. {LIMITE_AJUSTES_ARQUIVO})."], "total": len(payload.ajustes)}
+    erros = validar_receitas([_limpa(r) for r in payload.ajustes], _grupos(payload.projeto_codigo))
+    return {"erros": erros[:30], "total": len(payload.ajustes)}
+
+
 @router.post("", dependencies=[Depends(require_role("admin"))])
 def salvar(payload: SalvarAjustesPayload, request: Request):
     return _salvar(payload.projeto_codigo, payload.ajustes, _email(request), payload.contexto)

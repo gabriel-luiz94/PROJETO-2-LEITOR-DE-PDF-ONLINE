@@ -317,6 +317,17 @@ Um ajuste pode apontar as regras que ele corrige (campo `regras`). Assim, no pai
 
 Proteções: se uma correção deixar a linha com um erro de contrato novo, ela é descartada e listada no cartão; se a linha mudou desde a pré-visualização, aquela mudança é ignorada.
 
+### Exportar e importar em arquivo (JSON)
+
+Os **ajustes** (aba Ajustes) e as **regras do leitor** (botão **Regras do Leitor** da tela do Leitor, tabelas de Processamento e de Classificação) podem ser levados para um arquivo `.json` e trazidos de volta:
+
+- **Exportar JSON** baixa a lista como está na tela, inclusive o que ainda é rascunho e as regras desligadas. O arquivo traz `formato`, `versao`, o `projeto` de origem e a lista (`ajustes` ou `regras`). Não leva usuário, e-mail nem dados de obra.
+- **Importar JSON** lê o arquivo, confere tudo (formato, tamanho, regras e regex) e, antes de aplicar, mostra o resumo: quantas são **novas**, quantas **já existem** e quantas seriam **removidas**. Você escolhe **Acrescentar** (mantém o que existe e junta o novo; as regras do leitor novas entram no fim, com a ordem renumerada; ajustes com o mesmo código são atualizados) ou **Substituir** (a lista fica igual à do arquivo).
+- **Nada é gravado na importação**: o resultado vai para o **rascunho**. Só vale ao clicar em **Salvar** / **Salvar alterações**, que valida de novo no servidor e guarda a versão anterior no **Histórico** (dá para reverter).
+- Arquivo de **outro projeto** é aceito (serve para copiar regras entre projetos), com um aviso na janela. Arquivo da **outra tabela** (ex.: Classificação importado em Processamento) ou de outro cadastro é recusado.
+- Limites: até 1 MB, 1.000 itens e 500 caracteres por regex. Também é aceita uma lista pura (como os arquivos de semente).
+- Cada **regra do leitor** ainda tem o **Modo avançado (JSON)** no editor: mostra a regra em JSON, que você edita e aplica; JSON inválido fica em vermelho e não deixa continuar (os ajustes já tinham esse modo).
+
 ## 5. Usando a IA
 
 - **Validar com IA:** ligue a camada de IA na aba **Execução**. A IA aponta o que as regras não cobrem. Só administradores editam os prompts da IA.

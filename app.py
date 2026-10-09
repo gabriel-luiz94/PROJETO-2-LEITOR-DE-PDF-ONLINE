@@ -114,6 +114,10 @@ async def serve_voz_js():
 async def serve_painel_regras_js():
     return _serve_js("painel_regras.js")
 
+@app.get("/static/regras_arquivo.js")
+async def serve_regras_arquivo_js():
+    return _serve_js("regras_arquivo.js")
+
 @app.get("/static/painel_ajustes.js")
 async def serve_painel_ajustes_js():
     return _serve_js("painel_ajustes.js")
