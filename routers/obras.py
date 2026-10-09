@@ -6,6 +6,7 @@ import logging
 import secrets
 import time
 from datetime import datetime
+from typing import Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request
@@ -242,7 +243,7 @@ async def importar_obra(request: Request, projeto: str = None):
     dados_json = (obras_arquivo.dados_json_para_gravar(pronta["dados"], pronta["parametros"]) if modelo
                   else obras_arquivo.dados_json_para_gravar(pronta["dados"]))
     if modelo:      # o modelo importado vira modelo de quem importa; os rótulos/padrões vêm do arquivo (TASK-058)
-        dados_json = _preparar_modelo(dados_json, pronta["parametros"])
+        dados_json, _ = _preparar_modelo(dados_json, pronta["parametros"], None, user, pronta["projeto"])
     gravar_obra(user, {"id": obra_id, "nome": nome, "data": datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
                        "dados_json": dados_json, "projeto": pronta["projeto"], "publica": modelo, "tipo": pronta["tipo"]})
     return {"status": "success", "id": obra_id, "nome": nome, "projeto": pronta["projeto"], "tipo": pronta["tipo"],
@@ -320,8 +321,35 @@ def gravar_obra(user, registro: dict) -> None:
     conn.close()
 
 
-def _preparar_modelo(dados_json, parametros, atuais_json=None):
-    """Valida e normaliza o `dados_json` de um modelo (TASK-058): precisa ter ao menos um `V`; sem Totalizadora; guarda os parâmetros."""
+def _contexto_modelo(user, projeto):
+    """(grupos do projeto, universo de ativos da base técnica) — para expandir `X(@GRUPO)` e avisar de opção fora da base (TASK-060). Nunca levanta."""
+    grupos, universo = {}, set()
+    try:
+        from routers.validacao_regras import regras_efetivas
+        grupos = regras_efetivas(projeto or "DEFAULT")[1] or {}
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger(__name__).warning("Grupos do projeto indisponíveis: %s", type(e).__name__)
+    try:
+        from services.sync_service import get_merged_orcamento
+        conn = get_connection()
+        try:
+            r = conn.execute("SELECT nome FROM projetos WHERE codigo = ?", (projeto,)).fetchone()
+        finally:
+            conn.close()
+        nome = (r[0] if r else str(projeto or "")).strip().upper()
+        for linha in get_merged_orcamento(_uid(user)):
+            projs = [p.strip() for p in (linha.get("projeto") or "").strip().upper().split("/") if p.strip()]
+            ativo = (linha.get("ativo") or "").strip().upper()
+            if ativo and (not projs or nome in projs):
+                universo.add(ativo)
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger(__name__).warning("Base técnica indisponível para conferir opções: %s", type(e).__name__)
+    return grupos, universo
+
+
+def _preparar_modelo(dados_json, parametros, atuais_json=None, user=None, projeto=None):
+    """Valida e normaliza o `dados_json` de um modelo (TASK-058/060): precisa ter ao menos uma variável (`V` ou `X(...)`); sem Totalizadora;
+    guarda os parâmetros. Devolve (dados_json a gravar, avisos) — os avisos (ex.: opção fora da base técnica) não impedem salvar."""
     try:
         snap = json.loads(dados_json) if isinstance(dados_json, str) else None
     except ValueError:
@@ -333,7 +361,7 @@ def _preparar_modelo(dados_json, parametros, atuais_json=None):
         raise HTTPException(status_code=400, detail={"erros": ["Linhas demais no modelo."]})
     variaveis = modelos_obra.detectar_variaveis(cabos, outros)
     if not variaveis:
-        raise HTTPException(status_code=400, detail={"erros": ["O modelo precisa ter ao menos uma variável V (ex.: 'CAA 2 ABC V m' ou 'V-U4')."]})
+        raise HTTPException(status_code=400, detail={"erros": ["O modelo precisa ter ao menos uma variável (ex.: 'CAA 2 ABC V m', 'V-U4' ou 'V-X(U3,U4)')."]})
     try:
         if parametros is None:       # não enviados: mantém os já gravados (ou os do próprio dados_json)
             cfg_final = cfg or (modelos_obra.separar_dados(atuais_json)[2] if atuais_json else [])
@@ -341,8 +369,12 @@ def _preparar_modelo(dados_json, parametros, atuais_json=None):
             cfg_final = modelos_obra.validar_configuracao(parametros)
     except modelos_obra.ErroModelo as e:
         raise HTTPException(status_code=400, detail={"erros": e.mensagens})
-    params = [{"chave": p["chave"], "rotulo": p["rotulo"], "padrao": p["padrao"]} for p in modelos_obra.montar_parametros(variaveis, cfg_final)]
-    return obras_arquivo.dados_json_para_gravar({"cabos": cabos, "outros": outros}, params)
+    grupos, universo = _contexto_modelo(user, projeto)
+    analise = modelos_obra.analisar(cabos, outros, cfg_final, grupos, universo)
+    if analise["erros"]:
+        raise HTTPException(status_code=400, detail={"erros": analise["erros"]})
+    params = [{"chave": p["chave"], "rotulo": p["rotulo"], "padrao": p["padrao"]} for p in analise["parametros"]]
+    return obras_arquivo.dados_json_para_gravar({"cabos": cabos, "outros": outros}, params), analise["avisos"]
 
 
 def _dados_atuais(user, obra_id):
@@ -360,15 +392,15 @@ def save_obra(obra: ObraModel, request: Request):
         raise HTTPException(status_code=400, detail="Tipo inválido (use obra ou modelo).")
     tipo = obra.tipo or (tipo_atual if existe else "obra")
     publica = obra.publica if obra.publica is not None else (publica_atual if existe else False)
-    dados_json = obra.dados_json
+    dados_json, avisos = obra.dados_json, []
     if tipo == "modelo":
-        dados_json = _preparar_modelo(dados_json, obra.parametros, _dados_atuais(user, obra.id) if existe else None)
+        dados_json, avisos = _preparar_modelo(dados_json, obra.parametros, _dados_atuais(user, obra.id) if existe else None, user, obra.projeto)
         publica = True
     gravar_obra(user, {"id": obra.id, "nome": obra.nome, "data": obra.data, "dados_json": dados_json,
                        "projeto": obra.projeto, "publica": publica, "tipo": tipo})
     if (obra.origem_execucao or obra.baseline_manual) and tipo != "modelo":
         _registrar_aprendizado(user, obra)
-    return {"status": "success", "publica": bool(publica), "tipo": tipo}
+    return {"status": "success", "publica": bool(publica), "tipo": tipo, **({"avisos": avisos} if avisos else {})}
 
 
 def _registrar_aprendizado(user, obra) -> None:
@@ -392,15 +424,23 @@ def _registrar_aprendizado(user, obra) -> None:
 class DetectarModel(BaseModel):
     cabos: list = []
     outros: list = []
+    projeto: Optional[str] = None
+    parametros: Optional[list] = None      # rótulos/padrões já escolhidos (para conferir o padrão dos campos de ativo)
 
 
 @router.post("/modelo/detectar")
 def detectar_variaveis_modelo(corpo: DetectarModel, request: Request):
-    """Variáveis `V` encontradas nas tabelas enviadas (para a janela de "Salvar como modelo") — TASK-058."""
-    get_current_user_from_state(request)
+    """Variáveis (`V` e `X(...)`) das tabelas enviadas, para a janela de "Salvar como modelo" — TASK-058/060.
+    Devolve `parametros` (campos de ativo com `opcoes` já expandidas), `erros` (impedem salvar) e `avisos` (não impedem)."""
+    user = get_current_user_from_state(request)
     if len(corpo.cabos) > obras_arquivo.LIMITE_LINHAS or len(corpo.outros) > obras_arquivo.LIMITE_LINHAS:
         raise HTTPException(status_code=400, detail="Linhas demais.")
-    return {"parametros": modelos_obra.montar_parametros(modelos_obra.detectar_variaveis(corpo.cabos, corpo.outros))}
+    try:
+        cfg = modelos_obra.validar_configuracao(corpo.parametros) if corpo.parametros is not None else None
+    except modelos_obra.ErroModelo as e:
+        raise HTTPException(status_code=400, detail={"erros": e.mensagens})
+    grupos, universo = _contexto_modelo(user, corpo.projeto)
+    return modelos_obra.analisar(corpo.cabos, corpo.outros, cfg, grupos, universo)
 
 
 def _modelo_visivel(request: Request, obra_id: str, projeto):
@@ -415,10 +455,12 @@ def _modelo_visivel(request: Request, obra_id: str, projeto):
 
 @router.get("/{obra_id}/modelo")
 def parametros_do_modelo(obra_id: str, request: Request, projeto: str = None):
-    """Parâmetros (variáveis V) do modelo, para a janela "Parâmetros do modelo" — TASK-058."""
+    """Parâmetros do modelo (quantidades e escolhas de ativo, com as opções de HOJE — grupos expandidos agora), para a janela "Parâmetros do modelo" — TASK-058/060."""
     obra = _modelo_visivel(request, obra_id, projeto)
     cabos, outros, cfg = modelos_obra.separar_dados(obra["dados_json"])
-    return {"id": obra["id"], "nome": obra["nome"], "parametros": modelos_obra.montar_parametros(modelos_obra.detectar_variaveis(cabos, outros), cfg)}
+    grupos, universo = _contexto_modelo(get_current_user_from_state(request), projeto)
+    analise = modelos_obra.analisar(cabos, outros, cfg, grupos, universo)
+    return {"id": obra["id"], "nome": obra["nome"], "parametros": analise["parametros"], "erros": analise["erros"]}
 
 
 class GerarModel(BaseModel):
@@ -431,7 +473,7 @@ def gerar_obra_do_modelo(obra_id: str, corpo: GerarModel, request: Request, proj
     obra = _modelo_visivel(request, obra_id, projeto)
     cabos, outros, cfg = modelos_obra.separar_dados(obra["dados_json"])
     try:
-        gerada = modelos_obra.gerar(cabos, outros, cfg, corpo.valores)
+        gerada = modelos_obra.gerar(cabos, outros, cfg, corpo.valores, *_contexto_modelo(get_current_user_from_state(request), projeto))
     except modelos_obra.ErroModelo as e:
         raise HTTPException(status_code=400, detail={"erros": e.mensagens})
     return {"nome": obra["nome"], "projeto": obra["projeto"], **gerada}

@@ -979,9 +979,10 @@
             <div class="modal-content" style="max-width: 560px; width: 92%;">
                 <h3>Salvar como modelo</h3>
                 <p style="font-size:0.8rem; color:#8b949e; margin:0 0 8px;">Modelos são públicos no projeto; só você os edita ou exclui. A Totalizadora não é guardada.
-                    Variáveis: <code>V</code> ou <code>V(nome)</code> — Cabos: <code>CAA 2 ABC V m</code>; Outros: <code>V-U4</code>, <code>*V-CFU</code>.</p>
+                    Variáveis: <code>V</code> ou <code>V(nome)</code> — Cabos: <code>CAA 2 ABC V m</code>; Outros: <code>V-U4</code>, <code>*V-CFU</code>. Ativo a escolher (só em Outros): <code>V-X(U3,U4,U5)</code>, <code>X(poste:DT11/300,DT9/150)</code> e <code>X(poste:)</code> para repetir a escolha, ou <code>X(@GRUPO)</code>.</p>
                 <input type="text" id="input-modelo-nome" placeholder="Nome do modelo (ex: Extensão de rede BT)" class="modal-input">
                 <div id="modelo-params-config" style="max-height:40vh; overflow:auto; margin:8px 0;"></div>
+                <div id="modelo-save-avisos" style="color:#d29922; font-size:0.8rem;"></div>
                 <div id="modelo-save-erro" style="color:#f85149; font-size:0.8rem; min-height:1em;"></div>
                 <div class="modal-actions">
                     <button class="btn-secondary" id="btn-cancel-save-modelo">Cancelar</button>

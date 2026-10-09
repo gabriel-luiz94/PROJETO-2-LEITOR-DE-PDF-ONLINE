@@ -76,7 +76,7 @@ def _variavel_sem_valor(ativo, tabela, linha_id, achados) -> bool:
     if not tem_variavel(ativo, tabela):
         return False
     achados.append(_achado(linha_id, tabela, "C1-VAR", "erro",
-                           f"'{ativo}' ainda tem variável de modelo (V) sem valor. Gere a obra pelo modelo ou troque o V por um número."))
+                           f"'{ativo}' ainda tem variável de modelo (V ou X(...)) sem valor. Gere a obra pelo modelo ou troque a variável por um valor."))
     return True
 
 
