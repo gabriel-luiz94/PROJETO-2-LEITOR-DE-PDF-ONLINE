@@ -788,6 +788,15 @@ validadas pelo motor; **Aprovar** cria o ajuste no projeto (com histórico), **R
 
 ---
 
+## 2026-10-09 — TASK-060: modelos com ativo variável `X(opções)`
+
+**Tipo:** Backend + frontend · `.ai/tasks/TASK-060-09-10-2026.md`
+
+Nos modelos (Outros) o **ativo** também pode ser variável: `V(quantidade)-X(U3,U4,U5)` — quem usa o modelo **escolhe num dropdown** entre as opções (2 a 30 escritas). `X(poste:A,B)` + `X(poste:)` repete a mesma escolha; `X(@GRUPO)` usa os ativos do grupo do projeto (expandido na hora do uso). O servidor só aceita uma das opções; opção que não existe na base técnica só **avisa** ao salvar; padrão opcional (sem padrão é preciso escolher).
+`X(...)` sobrando bloqueia Montar Orçamento e a validação (`C1-VAR`). Modelos antigos não mudam; sem mudança de schema.
+
+---
+
 ## 2026-10-08 — TASK-059 (etapa 2): regras do leitor aprendidas + aprendizado no trabalho manual
 
 **Tipo:** Backend + frontend · `.ai/tasks/TASK-059-08-10-2026.md`

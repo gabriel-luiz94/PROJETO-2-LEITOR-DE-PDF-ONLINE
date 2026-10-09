@@ -1739,19 +1739,32 @@ document.addEventListener('DOMContentLoaded', () => {
             erro.textContent = '';
             campos.replaceChildren();
             const inputs = [];
+            if ((info.erros || []).length) erro.textContent = info.erros.join(' ');
             info.parametros.forEach(p => {
                 const bloco = document.createElement('div');
                 bloco.style.cssText = 'margin-bottom:10px;';
                 const rot = document.createElement('label');
                 rot.style.cssText = 'display:block; font-size:0.85rem; font-weight:600;';
-                rot.textContent = p.rotulo;
+                rot.textContent = p.rotulo + (p.tipo === 'ativo' ? ' (escolha o ativo)' : '');
                 const onde = document.createElement('div');
                 onde.style.cssText = 'font-size:0.7rem; color:#8b949e;';
                 onde.textContent = (p.onde || []).join(' · ');
-                const inp = document.createElement('input');
-                inp.type = 'text'; inp.inputMode = 'decimal'; inp.className = 'modal-input';
-                inp.placeholder = 'número maior que zero';
-                if (p.padrao !== null && p.padrao !== undefined) inp.value = String(p.padrao).replace('.', ',');
+                let inp;
+                if (p.tipo === 'ativo') {       // TASK-060: ativo variável = escolha entre as opções do modelo
+                    inp = document.createElement('select');
+                    inp.className = 'modal-input';
+                    const vazio = new Option('— escolha —', '');
+                    inp.append(vazio);
+                    (p.opcoes || []).forEach(o => inp.append(new Option(o, o)));
+                    inp.value = p.padrao || '';
+                    inp.dataset.obrigatorio = p.padrao ? '' : '1';
+                    inp.addEventListener('change', () => atualizarBotaoGerar());
+                } else {
+                    inp = document.createElement('input');
+                    inp.type = 'text'; inp.inputMode = 'decimal'; inp.className = 'modal-input';
+                    inp.placeholder = 'número maior que zero';
+                    if (p.padrao !== null && p.padrao !== undefined) inp.value = String(p.padrao).replace('.', ',');
+                }
                 inp.dataset.chave = p.chave;
                 bloco.append(rot, onde, inp);
                 campos.appendChild(bloco);
@@ -1760,7 +1773,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const fechar = v => { modal.classList.add('hidden'); resolve(v); };
             document.getElementById('btn-cancel-param-modelo').onclick = () => fechar(null);
             const btnGerar = document.getElementById('btn-gerar-param-modelo');
+            // Gerar só habilita com todas as escolhas de ativo feitas (e sem erro do modelo)
+            const atualizarBotaoGerar = () => {
+                btnGerar.disabled = (info.erros || []).length > 0 || inputs.some(i => i.tagName === 'SELECT' && i.dataset.obrigatorio === '1' && !i.value);
+            };
+            atualizarBotaoGerar();
             const gerar = async () => {
+                if (btnGerar.disabled) return;
                 const valores = {};
                 inputs.forEach(i => { valores[i.dataset.chave] = i.value.trim(); });
                 btnGerar.disabled = true;
@@ -1774,7 +1793,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (e) {
                     erro.textContent = 'Falha ao gerar a obra: ' + e.message;
                 } finally {
-                    btnGerar.disabled = false;
+                    atualizarBotaoGerar();
                 }
             };
             btnGerar.onclick = gerar;
@@ -1784,9 +1803,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /** Há `V` de modelo sobrando nas tabelas? (espelha services/modelos_obra.py — Regra 4: mudou lá, mude aqui). */
+    /** Há `V` ou `X(...)` de modelo sobrando nas tabelas? (espelha services/modelos_obra.py — Regra 4: mudou lá, mude aqui). */
     const RE_V_CABO = /^.*\S\s+V(\([^()\s]+\))?(\s+[mM])?\s*$/;
-    const RE_V_OUTROS = /(^|\s)\*?V(\([^()\s]+\))?-\S/;
+    const RE_V_OUTROS = /(^|\s)\*?(?:V(?:\([^()\s]+\))?-\S|(?:V(?:\([^()\s]+\))?|\d+(?:[.,]\d+)?)-X\((?:[^():\s,]+:)?[^()\s]*\))/;
     function contarVariaveisSobrando() {
         let n = 0;
         (tableStates.cabos.data || []).forEach(r => { if (r && RE_V_CABO.test(String(r.ativo || '').trim())) n++; });
@@ -2443,18 +2462,22 @@ document.addEventListener('DOMContentLoaded', () => {
             outros: (tableStates.outros.data || []).filter(Boolean).map(r => ({ entidade: r.entidade, operacao: r.operacao, ativo: r.ativo, qtdAtivos: r.qtdAtivos, texto: r.texto }))
         });
         const dados = dadosModelo();
-        let params;
+        let params, errosModelo = [], avisosModelo = [];
         try {
-            const r = await fetch('/api/obras/modelo/detectar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados) });
+            const r = await fetch('/api/obras/modelo/detectar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...dados, projeto: projetoAtualObras() }) });
             if (!r.ok) throw new Error((await mensagensDeErro(r)).join(' '));
-            params = (await r.json()).parametros;
+            const det = await r.json();
+            params = det.parametros; errosModelo = det.erros || []; avisosModelo = det.avisos || [];
         } catch (e) { showToast('Erro ao procurar variáveis: ' + e.message); return; }
         if (!params.length) {
-            alert('Nenhuma variável V encontrada. Escreva V no lugar de uma quantidade — Cabos: "CAA 2 ABC V m"; Outros: "V-U4" ou "*V-CFU" — e tente de novo.');
+            alert('Nenhuma variável encontrada. Escreva V no lugar de uma quantidade — Cabos: "CAA 2 ABC V m"; Outros: "V-U4" ou "*V-CFU" — ou X(A,B,C) no lugar do ativo (o usuário escolherá), e tente de novo.');
             return;
         }
         document.getElementById('input-modelo-nome').value = modeloEditando ? modeloEditando.nome : '';
-        document.getElementById('modelo-save-erro').textContent = '';
+        document.getElementById('modelo-save-erro').textContent = errosModelo.join(' ');
+        document.getElementById('modelo-save-avisos').textContent = avisosModelo.join(' ');
+        document.getElementById('btn-confirm-save-modelo').disabled = errosModelo.length > 0;
         const antigos = Object.fromEntries(((modeloEditando && modeloEditando.parametros) || []).map(p => [p.chave, p]));
         const area = document.getElementById('modelo-params-config');
         area.replaceChildren();
@@ -2467,13 +2490,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const rot = document.createElement('input');
             rot.type = 'text'; rot.className = 'modal-input'; rot.placeholder = 'Rótulo (ex: Comprimento do vão)';
             rot.value = (antigos[p.chave] && antigos[p.chave].rotulo) || p.rotulo;
-            const pad = document.createElement('input');
-            pad.type = 'text'; pad.className = 'modal-input'; pad.placeholder = 'Valor padrão (opcional)'; pad.inputMode = 'decimal';
+            let pad;
             const pa = antigos[p.chave] ? antigos[p.chave].padrao : p.padrao;
-            pad.value = pa === null || pa === undefined ? '' : String(pa).replace('.', ',');
-            bloco.append(onde, rot, pad);
+            if (p.tipo === 'ativo') {        // TASK-060: as opções vêm do texto X(...) da tabela; aqui só se escolhe o padrão (opcional)
+                const ops = document.createElement('div');
+                ops.style.cssText = 'font-size:0.75rem; color:#8b949e; margin:4px 0;';
+                ops.textContent = `Ativo a escolher entre: ${(p.opcoes || []).join(', ') || '(sem opções válidas)'}`;
+                pad = document.createElement('select');
+                pad.className = 'modal-input';
+                pad.append(new Option('Sem padrão (o usuário precisa escolher)', ''));
+                (p.opcoes || []).forEach(o => pad.append(new Option(o, o)));
+                pad.value = (pa && (p.opcoes || []).includes(String(pa).toUpperCase())) ? String(pa).toUpperCase() : '';
+                bloco.append(onde, rot, ops, pad);
+            } else {
+                pad = document.createElement('input');
+                pad.type = 'text'; pad.className = 'modal-input'; pad.placeholder = 'Valor padrão (opcional)'; pad.inputMode = 'decimal';
+                pad.value = pa === null || pa === undefined ? '' : String(pa).replace('.', ',');
+                bloco.append(onde, rot, pad);
+            }
             area.appendChild(bloco);
-            return { chave: p.chave, rot, pad };
+            return { chave: p.chave, tipo: p.tipo, rot, pad };
         });
         modalSaveModelo.classList.remove('hidden');
         document.getElementById('btn-confirm-save-modelo').onclick = async () => {
@@ -2485,14 +2521,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const corpo = {
                 id: modeloEditando ? modeloEditando.id : 'modelo_' + Date.now(), nome, data: new Date().toLocaleString(),
                 dados_json: JSON.stringify(dados), projeto, tipo: 'modelo',
-                parametros: linhas.map(l => ({ chave: l.chave, rotulo: l.rot.value.trim(), padrao: l.pad.value.trim().replace(',', '.') || null }))
+                parametros: linhas.map(l => ({ chave: l.chave, rotulo: l.rot.value.trim(),
+                    padrao: l.tipo === 'ativo' ? (l.pad.value || null) : (l.pad.value.trim().replace(',', '.') || null) }))
             };
             try {
                 const r = await fetch('/api/obras', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
                 if (!r.ok) { erro.textContent = (await mensagensDeErro(r)).join(' '); return; }
+                const salvo = await r.json().catch(() => ({}));
                 modalSaveModelo.classList.add('hidden');
                 modeloEditando = null; atualizarAvisoModelo();
-                showToast('Modelo salvo.');
+                showToast('Modelo salvo.' + ((salvo.avisos || []).length ? ' Atenção: ' + salvo.avisos.join(' ') : ''));
             } catch (e) { erro.textContent = 'Erro ao salvar: ' + e.message; }
         };
     });
@@ -3911,7 +3949,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // TASK-058: `V` de modelo que sobrou nas tabelas não vira orçamento
                 const nV = contarVariaveisSobrando();
                 if (nV > 0) {
-                    alert(`Há ${nV} linha(s) com variável de modelo (V) sem valor. Gere a obra pelo modelo (Carregar/Adicionar/Subtrair) ou troque o V por um número antes de montar o orçamento.`);
+                    alert(`Há ${nV} linha(s) com variável de modelo (V ou X(...)) sem valor. Gere a obra pelo modelo (Carregar/Adicionar/Subtrair) ou troque a variável por um valor antes de montar o orçamento.`);
                     return;
                 }
                 // TASK-051: checagem obrigatória (contrato + ativo não encontrado), sempre ativa,

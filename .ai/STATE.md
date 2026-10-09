@@ -395,6 +395,9 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       (autônomo **e trabalho manual**: botão Processar do Leitor + obras salvas), propõe **ajustes** (estatística + IA opcional
       após 10 obras) e **regras do leitor** (simuladas no motor real, sem regressões), aprovação sempre manual, só do próprio
       usuário; **nível de confiança** do autônomo por tipo de arquivo, com confirmação automática de exclusões opcional (desligada por padrão). Ver `.ai/tasks/TASK-059-08-10-2026.md`.
+- [x] **TASK-060** (pedido de 2026-10-09): modelos de obra com **ativo variável** (`V(quantidade)-X(ativo1,ativo2,ativo3)`,
+      dropdown na janela de parâmetros; campos nomeados, grupos `@GRUPO`, aviso de opção fora da base). CONCLUÍDA. Ver
+      `.ai/tasks/TASK-060-09-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
