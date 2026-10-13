@@ -338,6 +338,10 @@ As tabelas **Cabos** e **Demais Ativos** funcionam como uma planilha: clique e a
 
 A **Entidade** não aparece mais; em Demais Ativos ela é recalculada sozinha quando o ativo muda. Se a regra errar, clique com o botão direito na linha → **Definir entidade…** (a linha fica travada; "Automática" destrava).
 
+### Geradores de Cabos e de Postes/Estruturas
+
+Os dois geradores têm painéis de atalhos. **Operação** (I, R, M…) cria uma linha nova; **ativo, fase e comprimento** alteram a linha em destaque (amarela): a linha selecionada ou, sem seleção, a última. Em **＋ Novo** você cria atalhos seus e escolhe onde guardar: **só neste computador** (⌂) ou **no projeto** (☁, todos do projeto veem; só o administrador exclui os do projeto). **✎ Editar atalhos** permite editar, excluir ou ocultar (os de fábrica só podem ser ocultados). **★** guarda a linha (operação, ativo, fase e comprimento) como **favorito**; clicar no favorito insere a linha pronta. As linhas são como as de uma planilha: selecione, **Ctrl+C**, **Ctrl+V** (inclusive uma coluna só com “CAA 2 ABC 80 m”), **Delete** e **Ctrl+Z** dentro do modal.
+
 ## 5. Usando a IA
 
 - **Validar com IA:** ligue a camada de IA na aba **Execução**. A IA aponta o que as regras não cobrem. Só administradores editam os prompts da IA.

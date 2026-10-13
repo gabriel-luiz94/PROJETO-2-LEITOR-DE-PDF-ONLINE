@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-13 — TASK-068: modais de Cabos e Postes com atalhos, favoritos e linhas estilo Excel
+
+**Tipo:** Backend + frontend + schema · `routers/atalhos.py`, `database.py` (tabela `atalhos_modais`), `static/atalhos_modal.js`, `static/gerador_modal.js`, `static/grade_tabela.js`, `static/resumo.js/.html`, `app.py` · `.ai/tasks/TASK-068-13-10-2026.md`
+
+Os geradores de **Cabos** e de **Postes e Estruturas** ganharam painéis de atalhos (operação cria linha; ativo/fase/comprimento alteram a linha em destaque), botão **＋ Novo** (guarda no computador ou no projeto, na nuvem), **favoritos ★** (linha completa), modo de edição (ocultar, editar, excluir) e linhas estilo Excel com copiar/colar e Ctrl+Z próprio. Atalhos de projeto: qualquer usuário cria e altera os seus, só administrador exclui. **Supabase:** criar a tabela `atalhos_modais` (SQL na task). No Postes a entidade inserida em Outros passa a ser reclassificada (antes `OUTRO`).
+
+---
+
 ## 2026-10-13 — TASK-063 a 067: seletor cinza, Entidade escondida, RAMAIS e grade estilo Excel
 
 **Tipo:** Frontend · `static/grade_tabela.js` (novo), `static/resumo.js`, `static/resumo.html`, `static/styles.css`, `static/autonomo.html`, `app.py` · `.ai/tasks/TASK-063…067-13-10-2026.md`
