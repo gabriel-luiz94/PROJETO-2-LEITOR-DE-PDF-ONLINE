@@ -403,6 +403,11 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [x] **TASK-062** (pedido de 2026-10-13): botão **"Ler projeto"** no Resumo — ler, extrair e processar o arquivo
       direto nas tabelas, na mesma aba (Substituir padrão / Adicionar, `processar_dados`, arrastar-e-soltar). CONCLUÍDA. Ver
       `.ai/tasks/TASK-062-13-10-2026.md`.
+- [ ] **TASK-063** (pedido de 2026-10-13): seletor de projetos com fundo cinza. PLANEJAMENTO. `.ai/tasks/TASK-063-13-10-2026.md`.
+- [ ] **TASK-064**: remover coluna Entidade da tabela Cabos (só visualização). PLANEJAMENTO. `.ai/tasks/TASK-064-13-10-2026.md`.
+- [ ] **TASK-065**: classificação por Entidade em Outros (automática + trava manual, sem coluna). PLANEJAMENTO. `.ai/tasks/TASK-065-13-10-2026.md`.
+- [ ] **TASK-066**: modal RAMAIS com colar/copiar várias linhas e recálculo automático. PLANEJAMENTO. `.ai/tasks/TASK-066-13-10-2026.md`.
+- [ ] **TASK-067**: Cabos e Outros como grade contínua estilo Excel (selecionar/copiar/colar). PLANEJAMENTO. `.ai/tasks/TASK-067-13-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
