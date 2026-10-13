@@ -302,6 +302,7 @@ ativado definindo explicitamente `APP_MODE=server` no ambiente.
 |---|---|
 | `index.html` + `script.js` | Upload, tabela de extração, edição de entidade/operação/ativo, filtros estilo Excel, seleção de células, cópia, modal de RECs |
 | `resumo.html` + `resumo.js` | Tabelas Cabos e Outros, undo/redo, autocomplete, chat de IA, modais geradores (Cabos, Postes e Estruturas, Ramais, Conexões), Tabela de Regras, Tabela Totalizadora |
+| `ler_projeto.js` | Botão "Ler projeto" do Resumo (TASK-062): módulo puro `processar(itens, proc, cls, motor)` (passo do Leitor + computeRowLogic + separação) e `extrair(arquivo)` (`POST /upload`); paridade com Leitor→Processar→Resumo em `tests/test_ler_projeto.py` |
 | `resultado_orcamento.html` | Chama `/api/orcamento/calcular`, consolida por `operação|mdo|código`, permite edição manual, salva REC, exporta |
 | `orcamento.html` | Visualiza e edita a base técnica com filtros por coluna |
 | `admin.html` + `admin.js` | Painel administrativo (usuários, tabela master, audit log) |

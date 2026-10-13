@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // TASK-059 (aprendizado, trabalho manual): foto das tabelas como saíram do Leitor, antes de qualquer edição. Vale enquanto ninguém carregar,
     // adicionar ou subtrair uma obra (aí as tabelas deixam de ser "o que o programa entregou"). Só os campos necessários, sem o desenho.
-    const sessaoManual = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2);
+    let sessaoManual = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2);
     let baselineManual = extractedDataCache.length ? {
         cabos: tableStates.cabos.data.map(r => ({ entidade: r.entidade, operacao: r.operacao, ativo: r.ativo })),
         outros: tableStates.outros.data.map(r => ({ entidade: r.entidade, operacao: r.operacao, ativo: r.ativo }))
@@ -1853,6 +1853,126 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshAllFilters('outros');
         updateHistoryUI();
     }
+
+
+    /* ═══════════════════════════════════════
+       LER PROJETO (TASK-062)
+       Lê o PDF/DXF/DWG, extrai os textos e processa direto aqui, sem abrir o Leitor nem trocar de aba.
+       Mesmo motor do Leitor (static/ler_projeto.js); Ctrl+Z desfaz.
+    ═══════════════════════════════════════ */
+    function perguntarLerProjeto(nomeArquivo, nCabos, nOutros) {
+        return new Promise(resolve => {
+            const fundo = document.createElement('div');
+            fundo.id = 'modal-ler-projeto';
+            fundo.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;';
+            const caixa = document.createElement('div');
+            caixa.style.cssText = 'background:var(--bg-canvas,#0d1117);color:var(--text-primary,#e6edf3);border:1px solid var(--border-default,#30363d);border-radius:10px;padding:20px;max-width:460px;width:92%;font-family:Inter,sans-serif;';
+            const titulo = document.createElement('h3');
+            titulo.textContent = 'Ler projeto';
+            titulo.style.margin = '0 0 10px';
+            const msg = document.createElement('p');
+            msg.style.cssText = 'margin:0 0 16px;font-size:.9rem;line-height:1.4;';
+            msg.textContent = `As tabelas já têm conteúdo (${nCabos} cabos, ${nOutros} outros). O que fazer com "${nomeArquivo}"?`;
+            const linha = document.createElement('div');
+            linha.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;';
+            const fim = v => { fundo.remove(); document.removeEventListener('keydown', tecla, true); resolve(v); };
+            const mk = (rotulo, valor, primario) => {
+                const b = document.createElement('button');
+                b.className = primario ? 'btn-primary' : 'btn-secondary';
+                b.textContent = rotulo;
+                b.addEventListener('click', () => fim(valor));
+                linha.appendChild(b);
+                return b;
+            };
+            const tecla = e => { if (e.key === 'Escape') { e.preventDefault(); fim(null); } };
+            document.addEventListener('keydown', tecla, true);
+            mk('Cancelar', null, false);
+            mk('Adicionar', 'adicionar', false);
+            const bs = mk('Substituir', 'substituir', true);
+            caixa.append(titulo, msg, linha);
+            fundo.appendChild(caixa);
+            document.body.appendChild(fundo);
+            bs.focus();
+        });
+    }
+
+    let lendoProjeto = false;
+    async function lerProjeto(arquivo) {
+        if (!arquivo || lendoProjeto) return;
+        const btn = document.getElementById('btn-ler-projeto');
+        const rotuloOriginal = btn ? btn.textContent : '';
+        if (!window.LerProjeto.extensaoValida(arquivo.name)) { showToast('Formato não suportado. Use PDF, DXF ou DWG.'); return; }
+        const projeto = localStorage.getItem('projeto_selecionado_codigo');
+        if (!projeto) { showToast('Selecione um projeto antes de ler o arquivo.'); return; }
+
+        let modo = 'substituir';
+        const temConteudo = tableStates.cabos.data.length + tableStates.outros.data.length > 0;
+        if (temConteudo) {
+            modo = await perguntarLerProjeto(arquivo.name, tableStates.cabos.data.length, tableStates.outros.data.length);
+            if (!modo) { showToast('Leitura cancelada. Nada foi alterado.'); return; }
+        }
+
+        lendoProjeto = true;
+        if (btn) { btn.disabled = true; btn.textContent = 'Lendo…'; }
+        try {
+            await window.carregarRegrasLeitorResumo(projeto);
+            const proc = window.__regrasLeitorProcessamento || [], cls = window.__regrasLeitorClassificacao || [];
+            if (!proc.length && !cls.length) { showToast('Este projeto não tem regras do Leitor; nada foi alterado.'); return; }
+            const itens = await window.LerProjeto.extrair(arquivo, localStorage.getItem('cloudconvert_api_key') || '');
+            const r = await window.LerProjeto.processar(itens, proc, cls, RegrasLeitorEngine);
+
+            pushHistory();  // snapshot ANTES (Ctrl+Z desfaz)
+            if (modo === 'adicionar') {
+                extractedDataCache = extractedDataCache.concat(r.exportados);
+                tableStates.cabos.data = tableStates.cabos.data.concat(r.cabos.map(deepClone));
+                tableStates.outros.data = tableStates.outros.data.concat(r.outros.map(deepClone));
+                window._ramaisData = (window._ramaisData || []).concat(r.ramais);
+                baselineManual = null;  // mistura de conteúdo: deixa de ser "o que o programa entregou"
+            } else {
+                extractedDataCache = r.exportados;
+                tableStates.cabos.data = r.cabos.map(deepClone);
+                tableStates.outros.data = r.outros.map(deepClone);
+                tableStates.totalizadora.data = [];
+                window._ramaisData = r.ramais;
+                execucaoOrigemAutonomo = null;
+            }
+            recalcAllQtdAtivos();
+            if (modo !== 'adicionar') {
+                sessaoManual = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2);
+                baselineManual = {
+                    cabos: tableStates.cabos.data.map(x => ({ entidade: x.entidade, operacao: x.operacao, ativo: x.ativo })),
+                    outros: tableStates.outros.data.map(x => ({ entidade: x.entidade, operacao: x.operacao, ativo: x.ativo }))
+                };
+            }
+            try { localStorage.setItem('processar_dados', JSON.stringify(extractedDataCache)); } catch (e) { /* sem espaço: a tela segue valendo, só não sobrevive ao F5 */ }
+            renderTable('cabos');
+            renderTable('outros');
+            if (window.renderTotalizadora) window.renderTotalizadora();
+            buildAtivoSets();
+            buildDataLists();
+            refreshAllFilters('cabos');
+            refreshAllFilters('outros');
+            updateCounters();
+            updateHistoryUI();
+            showToast(`Projeto lido: ${r.cabos.length} cabos, ${r.outros.length} outros${r.ramais.length ? `, ${r.ramais.length} ramais` : ''}. Ctrl+Z desfaz.`);
+        } catch (e) {
+            showToast(`${e.message || e}`.slice(0, 160));
+        } finally {
+            lendoProjeto = false;
+            if (btn) { btn.disabled = false; btn.textContent = rotuloOriginal; }
+        }
+    }
+    window.lerProjeto = lerProjeto;
+
+    (function ligarLerProjeto() {
+        const btn = document.getElementById('btn-ler-projeto'), inp = document.getElementById('input-ler-projeto');
+        if (!btn || !inp) return;
+        btn.addEventListener('click', () => { inp.value = ''; inp.click(); });
+        inp.addEventListener('change', () => { const f = inp.files && inp.files[0]; inp.value = ''; if (f) lerProjeto(f); });
+        ['dragenter', 'dragover'].forEach(ev => btn.addEventListener(ev, e => { e.preventDefault(); btn.classList.add('arrastando'); }));
+        ['dragleave', 'drop'].forEach(ev => btn.addEventListener(ev, e => { e.preventDefault(); btn.classList.remove('arrastando'); }));
+        btn.addEventListener('drop', e => { const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) lerProjeto(f); });
+    })();
 
     const aiChatMessages = document.getElementById('chat-messages');
     const aiChatInput = document.getElementById('chat-input');

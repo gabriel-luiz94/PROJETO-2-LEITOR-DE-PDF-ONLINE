@@ -130,6 +130,10 @@ async def serve_painel_prompts_js():
 async def serve_regras_editor_js():
     return _serve_js("regras_editor.js")
 
+@app.get("/static/ler_projeto.js")
+async def serve_ler_projeto_js():
+    return _serve_js("ler_projeto.js")
+
 @app.get("/static/auth_fetch.js")
 async def serve_auth_fetch_js():
     return _serve_js("auth_fetch.js")

@@ -807,6 +807,14 @@ Mudança de privacidade: texto, cor e camada dos itens observados ficam guardado
 
 ---
 
+## 2026-10-13 — TASK-062: botão "Ler projeto" no Resumo
+
+**Tipo:** Frontend · `static/ler_projeto.js` (novo), `static/resumo.js`, `static/resumo.html`, `app.py` · `.ai/tasks/TASK-062-13-10-2026.md`
+
+O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/DWG; o arquivo vai ao `/upload`, os textos passam pelo mesmo motor do Leitor + a lógica do Resumo, no navegador, e as tabelas são preenchidas **na mesma aba**. Com conteúdo nas tabelas pergunta **Substituir** (padrão) / **Adicionar** / **Cancelar**. Ctrl+Z desfaz; grava `processar_dados` (F5 mantém). Aprendizado: Substituir reinicia o `baselineManual`; Adicionar o zera. Sem mudança de schema nem de API. Paridade com o fluxo antigo provada por `tests/test_ler_projeto.py`.
+
+---
+
 ## 2026-10-09 — TASK-061: regras do leitor e ajustes em JSON (modo avançado, exportar, importar)
 
 **Tipo:** Backend + frontend · `.ai/tasks/TASK-061-09-10-2026.md`
