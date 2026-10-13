@@ -188,6 +188,30 @@
         .resumo-table th.col-qtd-ativos { width: 70px; text-align: center; }
         .resumo-table th.col-del      { width: 34px; padding: 8px 4px; }
 
+
+        /* ── TASK-067: grade contínua estilo Excel (Cabos e Outros) ── */
+        .resumo-table th.col-num { width: 44px; text-align: center; padding: 8px 2px; }
+        #table-cabos td, #table-outros td { padding: 0; border: 1px solid rgba(48,54,61,0.6); position: relative; }
+        #table-cabos td.col-num, #table-outros td.col-num {
+            text-align: center; font-size: 0.7rem; color: #6e7681; background: rgba(22,27,34,0.97);
+            cursor: pointer; user-select: none; font-variant-numeric: tabular-nums;
+        }
+        #table-cabos td.col-num:hover, #table-outros td.col-num:hover { color: #c9d1d9; background: rgba(48,54,61,0.8); }
+        #table-cabos tr.row-selected td.col-num, #table-outros tr.row-selected td.col-num { background: rgba(217,119,6,0.3); color: #fff; }
+        #table-cabos .sel-operacao, #table-outros .sel-operacao {
+            border: none; border-radius: 0; background: transparent; padding: 6px 4px; height: 100%;
+        }
+        #table-cabos .inp-ativo, #table-outros .inp-ativo { border: none; border-radius: 0; padding: 6px 8px; }
+        #table-cabos .inp-qtd-ativos { border: none; border-radius: 0; background: transparent; padding: 6px 4px; }
+        #table-cabos .inp-ativo:focus, #table-outros .inp-ativo:focus,
+        #table-cabos .inp-qtd-ativos:focus, #table-outros .sel-operacao:focus, #table-cabos .sel-operacao:focus {
+            outline: 2px solid #388bfd; outline-offset: -2px; background: rgba(56,139,253,0.08); border: none;
+        }
+        #table-cabos td.cel-sel, #table-outros td.cel-sel { background: rgba(56,139,253,0.20); }
+        #table-cabos td.cel-sel input, #table-outros td.cel-sel input,
+        #table-cabos td.cel-sel select, #table-outros td.cel-sel select { background: transparent; }
+        .resumo-table td.col-del { padding: 0 2px; }
+        body.grade-arrastando { user-select: none; }
         /* ── Qtd Ativos input ── */
         .inp-qtd-ativos {
             width: 100%;
@@ -1096,10 +1120,7 @@
                     <table class="resumo-table" id="table-cabos">
                         <thead>
                             <tr>
-                                <th class="col-entidade">
-                                    <div class="th-label">Entidade</div>
-                                    <div class="r-filter-container" id="rfc-cabos-entidade"></div>
-                                </th>
+                                <th class="col-num" title="Clique no número para selecionar a linha">#</th>
                                 <th class="col-operacao">
                                     <div class="th-label">Operação</div>
                                     <div class="r-filter-container" id="rfc-cabos-operacao"></div>
@@ -1148,10 +1169,7 @@
                     <table class="resumo-table" id="table-outros">
                         <thead>
                             <tr>
-                                <th class="col-entidade">
-                                    <div class="th-label">Entidade</div>
-                                    <div class="r-filter-container" id="rfc-outros-entidade"></div>
-                                </th>
+                                <th class="col-num" title="Clique no número para selecionar a linha">#</th>
                                 <th class="col-operacao">
                                     <div class="th-label">Operação</div>
                                     <div class="r-filter-container" id="rfc-outros-operacao"></div>
@@ -1280,6 +1298,10 @@
         <div class="ctx-r-item" id="ctx-add-below">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Inserir linha abaixo
+        </div>
+        <div class="ctx-r-item" id="ctx-entidade" style="display:none;">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            Definir entidade…
         </div>
         <div class="ctx-r-sep"></div>
         <div class="ctx-r-item danger" id="ctx-del">
@@ -1474,7 +1496,8 @@
                         </table>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
-                        <span style="font-size: 0.72rem; color: #6e7681;">💡 Clique em qualquer célula de texto para editar. O botão Copiar exporta no formato TSV (compatível com Excel).</span>
+                        <span style="font-size: 0.72rem; color: #6e7681;">💡 Edite ou cole (Ctrl+V) várias linhas do Excel: os ativos se atualizam na hora. Clique no TIPO para selecionar linhas (Shift/Ctrl), Ctrl+C copia, Delete remove. "Copiar Tabela" exporta tudo.</span>
+                        <button class="btn-secondary" onclick="adicionarLinhaRamais()" style="display:flex; align-items:center; gap:6px;" title="Acrescentar uma linha vazia (ou cole várias linhas com Ctrl+V)">+ Linha</button>
                         <button id="btn-copy-ramais" class="btn-secondary" onclick="copyRamaisTable()" style="display:flex; align-items:center; gap:6px;">
                             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>
                             Copiar Tabela
@@ -1700,6 +1723,7 @@
 
     <script src="/static/regras_leitor_engine.js"></script>
     <script src="/static/ler_projeto.js"></script>
+    <script src="/static/grade_tabela.js"></script>
     <script src="/static/resumo.js?v=5.3"></script>
     <script src="/static/painel_regras.js"></script>
     <script src="/static/voz.js"></script>

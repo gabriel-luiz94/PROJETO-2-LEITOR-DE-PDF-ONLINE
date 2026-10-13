@@ -332,6 +332,12 @@ Os **ajustes** (aba Ajustes) e as **regras do leitor** (botão **Regras do Leito
 
 O botão **Ler projeto** (no alto do Resumo) faz tudo de uma vez: lê o PDF/DXF/DWG, extrai os textos e aplica as regras do leitor do projeto selecionado, preenchendo Cabos e Outros **sem sair da aba**. Clique nele ou arraste o arquivo sobre ele. Se as tabelas já tiverem linhas, escolha **Substituir** (padrão, Enter), **Adicionar** ou **Cancelar**. Ctrl+Z desfaz. Se o projeto não tiver regras do leitor, nada é alterado.
 
+### Tabelas como planilha (Cabos e Outros)
+
+As tabelas **Cabos** e **Demais Ativos** funcionam como uma planilha: clique e arraste (ou Shift+clique) para selecionar várias células, clique no **número da linha** para selecionar a linha, **Ctrl+A** para tudo. **Ctrl+C** copia em formato de planilha (cola direto no Excel); **Ctrl+V** cola várias linhas do Excel a partir da célula atual — sobrescreve as linhas existentes e cria novas se faltar. Uma coluna cola no Ativo; duas colunas, Operação + Ativo (em Cabos, uma terceira com `-` marca a linha como negativa). Operação inválida é ignorada (mantém a que estava) e aparece um aviso. **Delete** esvazia o Ativo do intervalo; **Excluir** remove as linhas selecionadas. **Ctrl+Z** desfaz a colagem inteira de uma vez.
+
+A **Entidade** não aparece mais; em Demais Ativos ela é recalculada sozinha quando o ativo muda. Se a regra errar, clique com o botão direito na linha → **Definir entidade…** (a linha fica travada; "Automática" destrava).
+
 ## 5. Usando a IA
 
 - **Validar com IA:** ligue a camada de IA na aba **Execução**. A IA aponta o que as regras não cobrem. Só administradores editam os prompts da IA.

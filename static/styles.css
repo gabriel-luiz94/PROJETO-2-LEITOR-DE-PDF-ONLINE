@@ -958,3 +958,8 @@ tr.row-deleted {
     gap: 8px;
 }
 
+
+/* TASK-063: lista aberta dos selects com fundo cinza escuro (antes: fundo branco do navegador com texto branco) */
+select { color-scheme: dark; }
+select option, select optgroup { background-color: #1c1f26; color: #c9d1d9; }
+select option:checked { background-color: #30363d; color: #ffffff; }

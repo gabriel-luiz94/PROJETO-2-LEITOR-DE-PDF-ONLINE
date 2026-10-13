@@ -815,6 +815,18 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-13 — TASK-063 a 067: seletor cinza, Entidade escondida, RAMAIS e grade estilo Excel
+
+**Tipo:** Frontend · `static/grade_tabela.js` (novo), `static/resumo.js`, `static/resumo.html`, `static/styles.css`, `static/autonomo.html`, `app.py` · `.ai/tasks/TASK-063…067-13-10-2026.md`
+
+- **063:** lista aberta dos seletores (projeto etc.) com fundo cinza `#1c1f26`.
+- **064/065:** a coluna **Entidade** sai das tabelas Cabos e Outros (o dado continua nas linhas; aparece ao passar o mouse no nº da linha). Em Outros a entidade passa a ser **recalculada pelo motor do Leitor sempre que o ativo muda** (edição ou colagem); a correção manual é pelo menu de contexto (**Definir entidade…**) e **trava** a linha (`entidadeManual`, preservado em Ctrl+Z e obras salvas). Entidade que vira CABO/RAMAIS por edição não move a linha.
+- **067:** Cabos e Outros viram **grade contínua**: seleção de intervalo, Ctrl+C em TSV, Ctrl+V de várias linhas/colunas do Excel (sobrescreve e cria linhas; um único Ctrl+Z), Delete, Excluir por intervalo, Enter/setas. Lógica pura e testada em `grade_tabela.js`.
+- **066:** modal **RAMAIS** aceita colar várias linhas (uma por linha, tipo RAMAIS), recalcula INSTALANDO/REMOVENDO na hora, tem + Linha, seleção/cópia/Delete de linhas e guarda as edições.
+Sem mudança de schema nem de API.
+
+---
+
 ## 2026-10-09 — TASK-061: regras do leitor e ajustes em JSON (modo avançado, exportar, importar)
 
 **Tipo:** Backend + frontend · `.ai/tasks/TASK-061-09-10-2026.md`

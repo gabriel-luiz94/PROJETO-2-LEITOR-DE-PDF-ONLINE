@@ -83,13 +83,13 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ─── Column filters ─── */
     // Selections: type → field → Set of selected values
     const filterSelections = {
-        cabos:  { entidade: new Set(), operacao: new Set(), ativo: new Set() },
-        outros: { entidade: new Set(), operacao: new Set(), ativo: new Set() }
+        cabos:  { operacao: new Set(), ativo: new Set() },
+        outros: { operacao: new Set(), ativo: new Set() }
     };
-    const FILTER_FIELDS = ['entidade', 'operacao', 'ativo'];
+    const FILTER_FIELDS = ['operacao', 'ativo'];   // TASK-064/065: a Entidade não aparece mais na tela (segue no dado)
     const FILTER_CONTAINERS = {
-        cabos:  { entidade: 'rfc-cabos-entidade', operacao: 'rfc-cabos-operacao', ativo: 'rfc-cabos-ativo' },
-        outros: { entidade: 'rfc-outros-entidade', operacao: 'rfc-outros-operacao', ativo: 'rfc-outros-ativo' }
+        cabos:  { operacao: 'rfc-cabos-operacao', ativo: 'rfc-cabos-ativo' },
+        outros: { operacao: 'rfc-outros-operacao', ativo: 'rfc-outros-ativo' }
     };
 
     /* ─── Undo / Redo history ─── */
@@ -233,34 +233,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const state = tableStates[type];
         const body = document.getElementById(state.bodyId);
         body.innerHTML = '';
+        const frag = document.createDocumentFragment();   // uma única inserção no DOM (tabelas grandes)
 
         state.data.forEach((row, idx) => {
             const tr = document.createElement('tr');
             tr.dataset.index = idx;
             tr.dataset.type = type;
 
-            /* ── Entidade ── */
-            const tdEnt = document.createElement('td');
-            const selEnt = document.createElement('select');
-            selEnt.className = 'sel-entidade';
-            selEnt.dataset.field = 'entidade';
-            ENTIDADES.forEach(e => {
-                const opt = document.createElement('option');
-                opt.value = e; opt.textContent = e;
-                if (e === row.entidade) opt.selected = true;
-                selEnt.appendChild(opt);
-            });
-            selEnt.addEventListener('change', () => {
-                const old = row.entidade;
-                if (old !== selEnt.value) {
-                    pushHistory();  // snapshot ANTES da mudança
-                    row.entidade = selEnt.value;
-                    refreshAllFilters(type);
-                    atualizarResumoRedeUI();
-                }
-            });
-            tdEnt.appendChild(selEnt);
-            tr.appendChild(tdEnt);
+            /* ── Nº da linha (seleciona a linha; mostra a entidade ao passar o mouse — TASK-064/065) ── */
+            const tdNum = document.createElement('td');
+            tdNum.className = 'col-num';
+            tdNum.textContent = idx + 1;
+            if (type === 'outros') tdNum.title = `Entidade: ${row.entidade || '0'}${row.entidadeManual ? ' (definida manualmente)' : ' (automática)'}`;
+            tr.appendChild(tdNum);
 
             /* ── Operação ── */
             const tdOp = document.createElement('td');
@@ -283,6 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             tdOp.appendChild(selOp);
+            tdOp.dataset.col = '0';
             tr.appendChild(tdOp);
 
             /* ── Ativo ── */
@@ -317,7 +303,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const consumed = handleAcKeydown(e, inpAt, type);
                 if (e.key === 'Enter' && !consumed) {
                     e.preventDefault();
-                    addRow(type, idx);
+                    // como no Excel: Enter desce; na última linha cria uma nova
+                    if (!irParaCelula(type, idx + 1, 1, 1)) addRow(type, idx);
+                }
+                if (!consumed && !e.shiftKey && !e.ctrlKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                    e.preventDefault();
+                    irParaCelula(type, idx + (e.key === 'ArrowDown' ? 1 : -1), 1, e.key === 'ArrowDown' ? 1 : -1);
                 }
             });
             inpAt.addEventListener('blur', () => {
@@ -330,6 +321,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         row.ativo = snapAtivo;
                         pushHistory();  // snapshot com valor ANTES
                         row.ativo = inpAt.value;  // aplica o novo valor
+                        if (type === 'outros') {                              // TASK-065
+                            reclassificarEntidade(row);
+                            tdNum.title = `Entidade: ${row.entidade || '0'}${row.entidadeManual ? ' (definida manualmente)' : ' (automática)'}`;
+                        }
                         buildAtivoSets();
                         buildDataLists();
                         if (type === 'cabos') {
@@ -360,6 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             tdAt.appendChild(inpAt);
+            tdAt.dataset.col = '1';
             tr.appendChild(tdAt);
 
             /* ── Qtd Ativos (apenas para cabos) ── */
@@ -387,6 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 tdQtd.appendChild(inpQtd);
+                tdQtd.dataset.col = '2';
                 tr.appendChild(tdQtd);
             }
 
@@ -411,8 +408,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 showCtxMenu(e.clientX, e.clientY);
             });
 
-            body.appendChild(tr);
+            frag.appendChild(tr);
         });
+        body.appendChild(frag);
 
         updateCounters();
         atualizarResumoRedeUI();
@@ -636,11 +634,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function deleteSelectedOrLast(type) {
         const body = document.getElementById(tableStates[type].bodyId);
         const selected = Array.from(body.querySelectorAll('tr.row-selected'));
-        if (selected.length > 0) {
+        const doIntervalo = selected.length ? [] : linhasDoIntervaloSelecionado(type);
+        if (selected.length > 0 || doIntervalo.length > 0) {
             pushHistory();  // snapshot ANTES da exclusão em lote
             // Remove de trás pra frente para não deslocar índices
-            const idxs = selected.map(tr => parseInt(tr.dataset.index)).sort((a,b) => b-a);
-            idxs.forEach(i => tableStates[type].data.splice(i, 1));
+            const idxs = (selected.length ? selected.map(tr => parseInt(tr.dataset.index)) : doIntervalo).sort((a,b) => b-a);
+            idxs.forEach(i => {
+                tableStates[type].data.splice(i, 1);
+                if (type === 'outros') _reajustarVinculosAposRemoverOutros(i);
+            });
+            limparGrade();
             renderTable(type);
             buildAtivoSets(); buildDataLists();
             refreshAllFilters(type);
@@ -695,6 +698,8 @@ document.addEventListener('DOMContentLoaded', () => {
        CONTEXT MENU
     ═══════════════════════════════════════ */
     function showCtxMenu(x, y) {
+        const itemEnt = document.getElementById('ctx-entidade');
+        if (itemEnt) itemEnt.style.display = ctxType === 'outros' ? '' : 'none';
         ctxMenu.style.left = Math.min(x, window.innerWidth - 180) + 'px';
         ctxMenu.style.top  = Math.min(y, window.innerHeight - 140) + 'px';
         ctxMenu.classList.add('visible');
@@ -720,15 +725,365 @@ document.addEventListener('DOMContentLoaded', () => {
         hideCtxMenu();
     });
 
-    /* Seleção de linha com clique */
-    document.addEventListener('click', e => {
-        const tr = e.target.closest('tr[data-index]');
-        if (!tr) return;
-        if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT' || e.target.closest('.btn-row-del')) return;
-        if (!e.ctrlKey && !e.shiftKey) {
-            document.querySelectorAll('tr.row-selected').forEach(r => r.classList.remove('row-selected'));
+    /* ═══════════════════════════════════════
+       GRADE ESTILO EXCEL (TASK-067) — Cabos e Outros
+       Seleção de intervalo (arrastar, Shift, nº da linha, Ctrl+A), copiar/colar em TSV, Delete.
+       A lógica pura está em static/grade_tabela.js; aqui só a ligação com a tela e o histórico.
+    ═══════════════════════════════════════ */
+    const grade = { tipo: null, ancora: null, foco: null, arrastando: false, ultimaLinha: null };
+    const G = window.GradeTabela;
+
+    function colunasGrade(tipo) { return G.colunasDe(tipo); }
+    function bodyDe(tipo) { return document.getElementById(tableStates[tipo].bodyId); }
+    function linhaVisivel(tr) { return tr && tr.style.display !== 'none'; }
+
+    function intervaloGrade() {
+        if (!grade.tipo || !grade.ancora || !grade.foco) return null;
+        return {
+            tipo: grade.tipo,
+            r1: Math.min(grade.ancora.r, grade.foco.r), r2: Math.max(grade.ancora.r, grade.foco.r),
+            c1: Math.min(grade.ancora.c, grade.foco.c), c2: Math.max(grade.ancora.c, grade.foco.c)
+        };
+    }
+    function multiCelulas(iv) { return !!iv && (iv.r2 > iv.r1 || iv.c2 > iv.c1); }
+
+    function pintarGrade() {
+        document.querySelectorAll('td.cel-sel').forEach(td => td.classList.remove('cel-sel'));
+        const iv = intervaloGrade();
+        if (!iv || !multiCelulas(iv)) return;
+        Array.from(bodyDe(iv.tipo).children).forEach(tr => {
+            const r = parseInt(tr.dataset.index);
+            if (isNaN(r) || r < iv.r1 || r > iv.r2 || !linhaVisivel(tr)) return;
+            tr.querySelectorAll('td[data-col]').forEach(td => {
+                const c = parseInt(td.dataset.col);
+                if (c >= iv.c1 && c <= iv.c2) td.classList.add('cel-sel');
+            });
+        });
+    }
+    function limparGrade() {
+        if (!grade.tipo) return;
+        grade.tipo = grade.ancora = grade.foco = null;
+        pintarGrade();
+    }
+
+    function celulaDe(el) {
+        const td = el && el.closest ? el.closest('td[data-col]') : null;
+        if (!td) return null;
+        const tr = td.parentElement;
+        if (!tr || tr.dataset.index === undefined || !tableStates[tr.dataset.type]) return null;
+        return { tipo: tr.dataset.type, r: parseInt(tr.dataset.index), c: parseInt(td.dataset.col) };
+    }
+
+    function ehCampoDeTexto(el) {
+        return !!el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && /^(text|search|number|)$/.test(el.type)));
+    }
+    function dentroDaGrade(el) { return !!(el && el.closest && el.closest('#body-cabos, #body-outros')); }
+
+    function focarCelula(tipo, r, c) {
+        const body = bodyDe(tipo), n = tableStates[tipo].data.length;
+        if (r < 0 || r >= n) return false;
+        const tr = Array.from(body.children).find(x => parseInt(x.dataset.index) === r);
+        if (!tr) return false;
+        const td = tr.querySelector(`td[data-col="${c}"]`);
+        const campo = td && td.querySelector('input,select');
+        if (campo) { campo.focus(); if (campo.select && campo.tagName === 'INPUT') campo.select(); return true; }
+        return false;
+    }
+    function irParaCelula(tipo, r, c, passo) {
+        const n = tableStates[tipo].data.length;
+        const body = bodyDe(tipo);
+        while (r >= 0 && r < n) {      // pula linhas escondidas por filtro
+            const tr = Array.from(body.children).find(x => parseInt(x.dataset.index) === r);
+            if (linhaVisivel(tr)) return focarCelula(tipo, r, c);
+            r += passo;
         }
-        tr.classList.toggle('row-selected');
+        return false;
+    }
+
+    function textoDaSelecao() {
+        const iv = intervaloGrade();
+        if (!iv) return '';
+        const body = bodyDe(iv.tipo), partes = [];
+        for (let r = iv.r1; r <= iv.r2; r++) {
+            const tr = Array.from(body.children).find(x => parseInt(x.dataset.index) === r);
+            if (tr && !linhaVisivel(tr)) continue;
+            partes.push(G.textoDoIntervalo(tableStates[iv.tipo].data, iv.tipo, r, iv.c1, r, iv.c2));
+        }
+        return partes.join('\n');
+    }
+
+    function finalizarEdicaoEmLote(tipo) {
+        if (tipo === 'cabos') recalcAllQtdAtivos();
+        renderTable(tipo);
+        buildAtivoSets(); buildDataLists();
+        refreshAllFilters(tipo);
+        updateHistoryUI();
+    }
+
+    function colarNaGrade(tipo, linha, coluna, texto) {
+        const dados = tableStates[tipo].data;
+        pushHistory();      // um único passo de Ctrl+Z para a colagem inteira
+        const r = G.aplicarColagem(dados, texto, { tipo, linha, coluna });
+        if (!r.linhasColadas) { showToast('Nada para colar.'); return; }
+        r.alteradas.forEach(i => { if (tipo === 'outros') reclassificarEntidade(dados[i]); else dados[i].entidade = 'CABO'; });
+        finalizarEdicaoEmLote(tipo);
+        const cols = colunasGrade(tipo);
+        grade.tipo = tipo;
+        grade.ancora = { r: linha, c: Math.min(coluna, cols.length - 1) };
+        grade.foco = { r: r.alteradas[r.alteradas.length - 1], c: Math.min(cols.length - 1, Math.max(grade.ancora.c, coluna)) };
+        pintarGrade();
+        let msg = `${r.linhasColadas} linha(s) coladas` + (r.criadas ? `, ${r.criadas} nova(s)` : '') + '. Ctrl+Z desfaz.';
+        if (r.opsInvalidas) msg += ` ${r.opsInvalidas} operação(ões) inválida(s) mantida(s) como estavam.`;
+        if (r.truncado) msg += ` Limite de ${G.MAX_LINHAS} linhas: o restante foi ignorado.`;
+        showToast(msg);
+    }
+
+    function limparSelecaoGrade() {
+        const iv = intervaloGrade();
+        if (!iv) return;
+        pushHistory();
+        const alt = G.limparIntervalo(tableStates[iv.tipo].data, iv.tipo, iv.r1, iv.c1, iv.r2, iv.c2);
+        if (!alt.length) { showToast('Nada para limpar (só o Ativo é esvaziado).'); return; }
+        finalizarEdicaoEmLote(iv.tipo);
+        pintarGrade();
+    }
+
+    function selecionarTudoGrade(tipo) {
+        const n = tableStates[tipo].data.length;
+        if (!n) return;
+        grade.tipo = tipo;
+        grade.ancora = { r: 0, c: 0 };
+        grade.foco = { r: n - 1, c: colunasGrade(tipo).length - 1 };
+        pintarGrade();
+    }
+
+    // Nº da linha: seleciona a linha toda (Ctrl alterna, Shift estende) e marca para o botão Excluir
+    function clicarNumeroLinha(td, e) {
+        const tr = td.parentElement, tipo = tr.dataset.type, r = parseInt(tr.dataset.index);
+        const body = bodyDe(tipo);
+        const marcar = (a, b) => Array.from(body.children).forEach(x => {
+            const i = parseInt(x.dataset.index);
+            if (i >= Math.min(a, b) && i <= Math.max(a, b) && linhaVisivel(x)) x.classList.add('row-selected');
+        });
+        if (e.shiftKey && grade.ultimaLinha && grade.ultimaLinha.tipo === tipo) {
+            document.querySelectorAll('tr.row-selected').forEach(x => x.classList.remove('row-selected'));
+            marcar(grade.ultimaLinha.r, r);
+        } else if (e.ctrlKey || e.metaKey) {
+            tr.classList.toggle('row-selected');
+            grade.ultimaLinha = { tipo, r };
+        } else {
+            document.querySelectorAll('tr.row-selected').forEach(x => x.classList.remove('row-selected'));
+            tr.classList.add('row-selected');
+            grade.ultimaLinha = { tipo, r };
+        }
+        // a seleção de células acompanha: linhas inteiras
+        const sel = Array.from(body.querySelectorAll('tr.row-selected')).map(x => parseInt(x.dataset.index));
+        grade.tipo = tipo;
+        grade.ancora = { r: Math.min(...sel), c: 0 };
+        grade.foco = { r: Math.max(...sel), c: colunasGrade(tipo).length - 1 };
+        pintarGrade();
+    }
+
+    document.addEventListener('mousedown', e => {
+        if (e.button !== 0) return;
+        const num = e.target.closest ? e.target.closest('td.col-num') : null;
+        if (num && num.parentElement.dataset.index !== undefined) { e.preventDefault(); clicarNumeroLinha(num, e); return; }
+        const cel = celulaDe(e.target);
+        if (!cel) {
+            // clique fora da grade: some o intervalo (as linhas marcadas pelo nº seguem marcadas até o próximo clique numa célula/nº)
+            if (!(e.target.closest && e.target.closest('#ctx-menu-resumo, #modal-ler-projeto, #modal-definir-entidade, .modal-overlay, .section-actions, button'))) limparGrade();
+            return;
+        }
+        document.querySelectorAll('tr.row-selected').forEach(x => x.classList.remove('row-selected'));
+        if (e.shiftKey && grade.tipo === cel.tipo && grade.ancora) {
+            e.preventDefault();
+            grade.foco = { r: cel.r, c: cel.c };
+            if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+            pintarGrade();
+            return;
+        }
+        grade.tipo = cel.tipo;
+        grade.ancora = { r: cel.r, c: cel.c };
+        grade.foco = { r: cel.r, c: cel.c };
+        grade.arrastando = true;
+        pintarGrade();
+    });
+    document.addEventListener('mousemove', e => {
+        if (!grade.arrastando || !(e.buttons & 1)) { grade.arrastando = grade.arrastando && !!(e.buttons & 1); return; }
+        const cel = celulaDe(e.target);
+        if (!cel || cel.tipo !== grade.tipo) return;
+        if (cel.r === grade.foco.r && cel.c === grade.foco.c) return;
+        grade.foco = { r: cel.r, c: cel.c };
+        if (multiCelulas(intervaloGrade())) {
+            e.preventDefault();
+            document.body.classList.add('grade-arrastando');
+            const sel = window.getSelection && window.getSelection();
+            if (sel) sel.removeAllRanges();
+            if (document.activeElement && dentroDaGrade(document.activeElement)) document.activeElement.blur();
+        }
+        pintarGrade();
+    });
+    document.addEventListener('mouseup', () => { grade.arrastando = false; document.body.classList.remove('grade-arrastando'); });
+
+    const modalRamaisAberto = () => { const m = document.getElementById('modal-ramais'); return !!m && !m.classList.contains('hidden'); };
+
+    document.addEventListener('copy', e => {
+        if (modalRamaisAberto()) return;
+        const iv = intervaloGrade();
+        if (!iv) return;
+        const ativo = document.activeElement;
+        if (!multiCelulas(iv) && ehCampoDeTexto(ativo)) return;             // uma célula em edição: cópia nativa do texto
+        if (ativo && !dentroDaGrade(ativo) && ativo !== document.body && ehCampoDeTexto(ativo)) return;
+        const t = textoDaSelecao();
+        if (!t) return;
+        e.preventDefault();
+        e.clipboardData.setData('text/plain', t);
+        showToast('Copiado (' + t.split('\n').length + ' linha(s)).');
+    });
+
+    document.addEventListener('paste', e => {
+        if (modalRamaisAberto()) return;
+        const alvo = e.target;
+        const cd = e.clipboardData || window.clipboardData;
+        const texto = cd ? cd.getData('text') : '';
+        if (!texto) return;
+        const iv = intervaloGrade();
+        const naGrade = dentroDaGrade(alvo);
+        const corpo = alvo === document.body || alvo === document.documentElement;
+        if (!naGrade && !(corpo && iv)) return;
+        if (!G.ehColagemMultipla(texto) && !(corpo && iv)) return;          // valor único num campo: colagem nativa
+        let tipo, linha, coluna;
+        const cel = naGrade ? celulaDe(alvo) : null;
+        const dentroDoIntervalo = !!(iv && cel && cel.tipo === iv.tipo && cel.r >= iv.r1 && cel.r <= iv.r2 && cel.c >= iv.c1 && cel.c <= iv.c2);
+        if (iv && (!cel || (multiCelulas(iv) && dentroDoIntervalo))) { tipo = iv.tipo; linha = iv.r1; coluna = iv.c1; }
+        else if (cel) { tipo = cel.tipo; linha = cel.r; coluna = cel.c; }
+        else return;
+        e.preventDefault();
+        colarNaGrade(tipo, linha, coluna, texto);
+    });
+
+    document.addEventListener('keydown', e => {
+        if (modalRamaisAberto()) return;
+        const ativo = document.activeElement;
+        const noCampo = ehCampoDeTexto(ativo);
+        const emGrade = dentroDaGrade(ativo) || ativo === document.body;
+        if (!emGrade) return;
+        const iv = intervaloGrade();
+        const mod = e.ctrlKey || e.metaKey;
+
+        if (mod && (e.key === 'a' || e.key === 'A')) {
+            let tipo = iv ? iv.tipo : null;
+            const cel = celulaDe(ativo);
+            if (!tipo && cel) tipo = cel.tipo;
+            if (!tipo) return;
+            if (noCampo && ativo.value && !(ativo.selectionStart === 0 && ativo.selectionEnd === ativo.value.length)) return;  // 1º Ctrl+A: texto do campo
+            e.preventDefault();
+            selecionarTudoGrade(tipo);
+            if (ativo && ativo.blur && dentroDaGrade(ativo)) ativo.blur();
+            return;
+        }
+        if (e.key === 'Escape' && iv) { limparGrade(); return; }
+
+        if ((e.key === 'Delete' || e.key === 'Backspace') && iv && (multiCelulas(iv) || !noCampo) && !(ativo && ativo.tagName === 'SELECT')) {
+            e.preventDefault();
+            limparSelecaoGrade();
+            return;
+        }
+
+        if (e.shiftKey && !mod && /^Arrow(Up|Down|Left|Right)$/.test(e.key)) {
+            if (noCampo && /Left|Right/.test(e.key)) return;                    // Shift+←/→ dentro do campo seleciona texto
+            if (ativo && ativo.tagName === 'SELECT') return;
+            let base = iv;
+            if (!base) {
+                const cel = celulaDe(ativo);
+                if (!cel) return;
+                grade.tipo = cel.tipo; grade.ancora = { r: cel.r, c: cel.c }; grade.foco = { r: cel.r, c: cel.c };
+                base = intervaloGrade();
+            }
+            e.preventDefault();
+            const n = tableStates[grade.tipo].data.length, nc = colunasGrade(grade.tipo).length;
+            const f = grade.foco;
+            if (e.key === 'ArrowUp') f.r = Math.max(0, f.r - 1);
+            if (e.key === 'ArrowDown') f.r = Math.min(n - 1, f.r + 1);
+            if (e.key === 'ArrowLeft') f.c = Math.max(0, f.c - 1);
+            if (e.key === 'ArrowRight') f.c = Math.min(nc - 1, f.c + 1);
+            if (ativo && ativo.blur && dentroDaGrade(ativo)) ativo.blur();
+            pintarGrade();
+            return;
+        }
+        // sem foco em campo (depois de selecionar por arraste): setas movem para a célula
+        if (ativo === document.body && iv && !mod && /^Arrow/.test(e.key)) {
+            e.preventDefault();
+            const f = grade.foco, n = tableStates[iv.tipo].data.length, nc = colunasGrade(iv.tipo).length;
+            let r = f.r, c = f.c;
+            if (e.key === 'ArrowUp') r = Math.max(0, r - 1);
+            if (e.key === 'ArrowDown') r = Math.min(n - 1, r + 1);
+            if (e.key === 'ArrowLeft') c = Math.max(0, c - 1);
+            if (e.key === 'ArrowRight') c = Math.min(nc - 1, c + 1);
+            grade.ancora = { r, c }; grade.foco = { r, c };
+            pintarGrade();
+            focarCelula(iv.tipo, r, c);
+        }
+    });
+
+    // Excluir (botão): linhas marcadas pelo nº da linha, senão as linhas do intervalo selecionado, senão a última
+    function linhasDoIntervaloSelecionado(tipo) {
+        const iv = intervaloGrade();
+        if (!iv || iv.tipo !== tipo || !multiCelulas(iv)) return [];
+        const body = bodyDe(tipo), out = [];
+        Array.from(body.children).forEach(tr => {
+            const r = parseInt(tr.dataset.index);
+            if (r >= iv.r1 && r <= iv.r2 && linhaVisivel(tr)) out.push(r);
+        });
+        return out;
+    }
+
+    // Entidade em Outros: correção manual pelo menu de contexto (TASK-065)
+    function pedirEntidade(qtd, atual) {
+        return new Promise(resolve => {
+            const fundo = document.createElement('div');
+            fundo.id = 'modal-definir-entidade';
+            fundo.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;';
+            const caixa = document.createElement('div');
+            caixa.style.cssText = 'background:var(--bg-canvas,#0d1117);color:var(--text-primary,#e6edf3);border:1px solid var(--border-default,#30363d);border-radius:10px;padding:20px;max-width:420px;width:92%;font-family:Inter,sans-serif;';
+            const t = document.createElement('h3'); t.textContent = 'Definir entidade'; t.style.margin = '0 0 8px';
+            const p = document.createElement('p'); p.style.cssText = 'margin:0 0 12px;font-size:.85rem;color:#8b949e;line-height:1.4;';
+            p.textContent = `${qtd} linha(s). A entidade escolhida fica travada (não é recalculada ao editar o ativo). "Automática" destrava e recalcula pelas regras do Leitor.`;
+            const sel = document.createElement('select');
+            sel.style.cssText = 'width:100%;padding:6px;margin-bottom:14px;background:#1c1f26;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;';
+            const auto = document.createElement('option'); auto.value = '__auto__'; auto.textContent = 'Automática (destravar)'; sel.appendChild(auto);
+            ENTIDADES.filter(x => x !== 'CABO').forEach(x => { const o = document.createElement('option'); o.value = x; o.textContent = x === '0' ? '0 (sem classificação)' : x; if (x === atual) o.selected = true; sel.appendChild(o); });
+            const linha = document.createElement('div'); linha.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;';
+            const fim = v => { fundo.remove(); resolve(v); };
+            const bc = document.createElement('button'); bc.className = 'btn-secondary'; bc.textContent = 'Cancelar'; bc.onclick = () => fim(null);
+            const bo = document.createElement('button'); bo.className = 'btn-primary'; bo.textContent = 'Aplicar'; bo.onclick = () => fim(sel.value);
+            linha.append(bc, bo);
+            caixa.append(t, p, sel, linha); fundo.appendChild(caixa); document.body.appendChild(fundo);
+            sel.focus();
+        });
+    }
+    document.getElementById('ctx-entidade').addEventListener('click', async () => {
+        if (!ctxRow || ctxType !== 'outros') return;
+        const idxClicado = parseInt(ctxRow.dataset.index);
+        let alvos = linhasDoIntervaloSelecionado('outros');
+        const marcadas = Array.from(bodyDe('outros').querySelectorAll('tr.row-selected')).map(x => parseInt(x.dataset.index));
+        if (marcadas.length) alvos = marcadas;
+        if (!alvos.includes(idxClicado)) alvos = [idxClicado];
+        hideCtxMenu();
+        const dados = tableStates.outros.data;
+        const v = await pedirEntidade(alvos.length, dados[alvos[0]] && dados[alvos[0]].entidade);
+        if (v === null) return;
+        pushHistory();
+        alvos.forEach(i => {
+            const row = dados[i];
+            if (!row) return;
+            if (v === '__auto__') { delete row.entidadeManual; reclassificarEntidade(row); }
+            else { row.entidade = v; row.entidadeManual = true; }
+        });
+        renderTable('outros');
+        refreshAllFilters('outros');
+        updateHistoryUI();
+        showToast(v === '__auto__' ? 'Entidade automática.' : `Entidade ${v} definida em ${alvos.length} linha(s). Ctrl+Z desfaz.`);
     });
 
     /* ═══════════════════════════════════════
@@ -1421,6 +1776,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function deepClone(obj) {
         const c = { entidade: obj.entidade || '0', operacao: obj.operacao || 'M', ativo: obj.ativo || '' };
         if (obj.qtdAtivos !== undefined) c.qtdAtivos = obj.qtdAtivos;
+        if (obj.entidadeManual) c.entidadeManual = true;   // TASK-065: classificação definida à mão não é recalculada
         // TASK-032: coordenada de origem (presente em obj._raw na primeira montagem da linha, e
         // em obj diretamente depois) e vínculo cabo<->estrutura — preservados através de
         // undo/redo e salvar/carregar obra, já que tudo passa por esta função.
@@ -1448,6 +1804,15 @@ document.addEventListener('DOMContentLoaded', () => {
             window.__regrasLeitorClassificacao || []
         );
         return resultado.entidade;
+    }
+
+    /** TASK-065: depois de editar/colar o ativo de uma linha de Outros, a entidade acompanha (mesmo motor do Leitor).
+     *  Linha travada à mão (`entidadeManual`) não muda; se a regra não reconhece o ativo, mantém a entidade que já tinha. */
+    function reclassificarEntidade(row) {
+        if (!row || row.entidadeManual) return false;
+        const nova = autoClassifyEntidade(row.ativo);
+        if (nova && nova !== '0' && nova !== row.entidade) { row.entidade = nova; return true; }
+        return false;
     }
 
 
@@ -1635,25 +2000,6 @@ document.addEventListener('DOMContentLoaded', () => {
             calc(index - 1);
         }
     }
-
-    // Ao desfocar um input de ativo, tenta auto-classificar se a Entidade for "0"
-    document.addEventListener('blur', (e) => {
-        if (e.target.classList.contains('inp-ativo')) {
-            const tr = e.target.closest('tr');
-            if (tr) {
-                const selEnt = tr.querySelector('.sel-entidade');
-                if (selEnt && selEnt.value === '0') {
-                    const novaEntidade = autoClassifyEntidade(e.target.value);
-                    if (novaEntidade !== '0') {
-                        selEnt.value = novaEntidade;
-                        // Aciona evento change para salvar no state e history
-                        selEnt.dispatchEvent(new Event('change'));
-                    }
-                }
-            }
-        }
-    }, true);
-
 
     /* ═══════════════════════════════════════
        INTEGRAÇÃO IA (GEMINI) E MEMÓRIA
@@ -2239,6 +2585,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast(`Tabela ${alvo} ordenada!`);
             } 
             else if (action.acao_ui === 'filtrar') {
+                if (!filterSelections[alvo][action.coluna]) { showToast('Coluna não filtrável: ' + action.coluna); return; }
                 filterSelections[alvo][action.coluna].clear();
                 filterSelections[alvo][action.coluna].add(action.valor);
                 applyFilters(alvo);
@@ -4530,28 +4877,31 @@ function renderizarTabelaRamais(dados) {
     tbody.innerHTML = '';
 
     if (dados.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#8b949e; padding:20px;">Nenhum item de RAMAIS, IP ou Apoio relevante encontrado no processamento.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#8b949e; padding:20px;">Nenhum item de RAMAIS, IP ou Apoio relevante encontrado. Cole linhas aqui (Ctrl+V) ou use "+ Linha".</td></tr>';
+        window.recalcularAtivosRamais();
+        atualizarBadgeRamais();
         return;
     }
 
-    dados.forEach((r) => {
+    dados.forEach((r, i) => {
         const tr = document.createElement('tr');
+        tr.dataset.i = i;
 
         const tdTipo = document.createElement('td');
         const tipoColor = r.entidade === 'RAMAIS' ? '#58a6ff' : r.entidade === 'IP' ? '#d2991e' : '#3fb950';
         tdTipo.innerHTML = `<span style="background:${tipoColor}22; color:${tipoColor}; border:1px solid ${tipoColor}44; padding:2px 7px; border-radius:4px; font-size:0.72rem; font-weight:600;">${r.entidade}</span>`;
-        tdTipo.style.cssText = 'padding:6px 8px; white-space:nowrap;';
+        tdTipo.style.cssText = 'padding:6px 8px; white-space:nowrap; cursor:pointer; user-select:none;';
+        tdTipo.className = 'ram-tipo';
+        tdTipo.title = 'Clique para selecionar a linha (Shift/Ctrl para várias). Ctrl+C copia, Delete remove.';
 
         const tdTexto = document.createElement('td');
         tdTexto.style.cssText = 'padding:4px 8px;';
         tdTexto.contentEditable = 'true';
         tdTexto.style.outline = 'none';
-        tdTexto.textContent = r._textoOriginal || (r._raw && r._raw.texto) || r.texto || '';
+        tdTexto.className = 'ram-texto';
+        tdTexto.textContent = typeof r._textoEditado === 'string' ? r._textoEditado : (r._textoOriginal || (r._raw && r._raw.texto) || r.texto || '');
         tdTexto.addEventListener('focus', () => tdTexto.style.background = 'rgba(88,166,255,0.06)');
-        tdTexto.addEventListener('blur',  () => {
-            tdTexto.style.background = '';
-            window.recalcularAtivosRamais();
-        });
+        tdTexto.addEventListener('blur',  () => { tdTexto.style.background = ''; });
 
         const tdPag = document.createElement('td');
         tdPag.style.cssText = 'padding:6px 8px; text-align:center; color:#8b949e; font-size:0.78rem;';
@@ -4565,7 +4915,139 @@ function renderizarTabelaRamais(dados) {
     });
 
     window.recalcularAtivosRamais();
+    atualizarBadgeRamais();
 }
+
+/* ── TASK-066: colar/copiar várias linhas, seleção, linhas novas e recálculo automático ── */
+function atualizarBadgeRamais() {
+    const badge = document.getElementById('badge-ramais');
+    const n = (window._ramaisData || []).length;
+    if (badge) { badge.style.display = n > 0 ? 'inline-flex' : 'none'; badge.textContent = n; }
+}
+
+function ramaisLinhaNova(texto) {
+    return { entidade: 'RAMAIS', texto: texto, _textoOriginal: '', _textoEditado: texto, _raw: null, pagina: '-' };
+}
+
+/** Cola `texto` (várias linhas/colunas) a partir da linha `inicio`: sobrescreve e cria linhas novas (tipo RAMAIS). */
+window.colarNosRamais = function(texto, inicio) {
+    const G = window.GradeTabela;
+    const parsed = G.parseColagem(texto, 1000);
+    if (!parsed.linhas.length) return 0;
+    const dados = window._ramaisData = window._ramaisData || [];
+    parsed.linhas.forEach((cel, k) => {
+        // com várias colunas coladas (tipo, texto, página) usa a coluna de texto; com uma só, ela é o texto
+        const comTipo = cel.length >= 2 && /^(RAMAIS|IP|APOIO)$/i.test((cel[0] || '').trim());
+        const t = (comTipo ? cel[1] : cel[0]).trim();
+        const idx = inicio + k;
+        if (idx < dados.length) dados[idx]._textoEditado = t;
+        else dados.push(ramaisLinhaNova(t));
+    });
+    renderizarTabelaRamais(dados);
+    return parsed.linhas.length;
+};
+
+window.adicionarLinhaRamais = function() {
+    const dados = window._ramaisData = window._ramaisData || [];
+    dados.push(ramaisLinhaNova(''));
+    renderizarTabelaRamais(dados);
+    const cel = document.querySelector('#body-modal-ramais tr:last-child .ram-texto');
+    if (cel) cel.focus();
+};
+
+function ramaisLinhasSelecionadas() {
+    return Array.from(document.querySelectorAll('#body-modal-ramais tr.ram-sel')).map(tr => parseInt(tr.dataset.i)).filter(i => !isNaN(i));
+}
+
+(function ligarModalRamais() {
+    const modal = document.getElementById('modal-ramais');
+    const tbody = document.getElementById('body-modal-ramais');
+    if (!modal || !tbody) return;
+    let ultima = null;
+
+    // edição digitada: guarda e recalcula na hora
+    tbody.addEventListener('input', e => {
+        const td = e.target.closest ? e.target.closest('td.ram-texto') : null;
+        if (!td) return;
+        const dados = window._ramaisData || [], i = parseInt(td.parentElement.dataset.i);
+        if (dados[i]) dados[i]._textoEditado = td.textContent;
+        window.recalcularAtivosRamais();
+    });
+
+    // colar: sempre texto puro; várias linhas distribuem uma por linha da tabela
+    tbody.addEventListener('paste', e => {
+        const td = e.target.closest ? e.target.closest('td.ram-texto') : null;
+        if (!td) return;
+        const texto = (e.clipboardData || window.clipboardData).getData('text');
+        e.preventDefault();
+        if (!texto) return;
+        if (window.GradeTabela.ehColagemMultipla(texto)) {
+            const n = window.colarNosRamais(texto, parseInt(td.parentElement.dataset.i));
+            if (window.showToast) window.showToast(`${n} linha(s) coladas. Ativos atualizados.`);
+        } else {
+            document.execCommand('insertText', false, texto.replace(/\r?\n/g, ' '));
+        }
+    });
+
+    // Enter desce (na última linha cria outra)
+    tbody.addEventListener('keydown', e => {
+        const td = e.target.closest ? e.target.closest('td.ram-texto') : null;
+        if (!td) return;
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const prox = td.parentElement.nextElementSibling;
+            if (prox && prox.querySelector('.ram-texto')) prox.querySelector('.ram-texto').focus();
+            else window.adicionarLinhaRamais();
+        }
+    });
+
+    // seleção de linhas pelo tipo
+    tbody.addEventListener('mousedown', e => {
+        const td = e.target.closest ? e.target.closest('td.ram-tipo') : null;
+        if (!td) return;
+        e.preventDefault();
+        const tr = td.parentElement, i = parseInt(tr.dataset.i);
+        const marcar = on => { tr.classList.toggle('ram-sel', on); tr.style.background = tr.classList.contains('ram-sel') ? 'rgba(56,139,253,0.2)' : ''; };
+        if (e.shiftKey && ultima !== null) {
+            Array.from(tbody.children).forEach(x => { x.classList.remove('ram-sel'); x.style.background = ''; });
+            Array.from(tbody.children).forEach(x => {
+                const k = parseInt(x.dataset.i);
+                if (k >= Math.min(ultima, i) && k <= Math.max(ultima, i)) { x.classList.add('ram-sel'); x.style.background = 'rgba(56,139,253,0.2)'; }
+            });
+        } else if (e.ctrlKey || e.metaKey) { marcar(!tr.classList.contains('ram-sel')); ultima = i; }
+        else {
+            Array.from(tbody.children).forEach(x => { x.classList.remove('ram-sel'); x.style.background = ''; });
+            marcar(true); ultima = i;
+        }
+        if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    });
+
+    // Ctrl+C copia só as linhas selecionadas; Delete remove
+    const aberto = () => !modal.classList.contains('hidden');
+    document.addEventListener('copy', e => {
+        if (!aberto()) return;
+        const sel = ramaisLinhasSelecionadas();
+        if (!sel.length || (document.activeElement && document.activeElement.isContentEditable)) return;
+        const dados = window._ramaisData || [];
+        const linhas = sel.map(i => {
+            const tr = tbody.querySelector(`tr[data-i="${i}"]`);
+            const tx = tr ? tr.querySelector('.ram-texto').textContent.trim() : '';
+            return `${dados[i] ? dados[i].entidade : ''}\t${tx}\t${tr ? tr.children[2].textContent : ''}`;
+        });
+        e.preventDefault();
+        e.clipboardData.setData('text/plain', linhas.join('\n'));
+        if (window.showToast) window.showToast(`${linhas.length} linha(s) copiadas.`);
+    });
+    document.addEventListener('keydown', e => {
+        if (aberto() && (e.key === 'Delete' || e.key === 'Backspace') && !(document.activeElement && document.activeElement.isContentEditable)) {
+            const sel = ramaisLinhasSelecionadas();
+            if (!sel.length) return;
+            e.preventDefault();
+            window._ramaisData = (window._ramaisData || []).filter((_, i) => !sel.includes(i));
+            renderizarTabelaRamais(window._ramaisData);
+        }
+    });
+})();
 
 window.recalcularAtivosRamais = function() {
     const isCorrosao = document.querySelector('input[name="ramais-corrosao"][value="sim"]')?.checked;
