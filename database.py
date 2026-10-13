@@ -293,6 +293,18 @@ def init_db():
     ''')
     _seed_regras_vinculacao(cursor)
 
+    # Atalhos e favoritos dos modais geradores (TASK-068) — um JSON por (projeto, modal). Escopo "Projeto" na nuvem;
+    # o escopo "Computador" fica só no localStorage do navegador.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS atalhos_modais (
+            projeto_codigo TEXT NOT NULL,
+            modal TEXT NOT NULL,
+            dados_json TEXT NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now')),
+            PRIMARY KEY (projeto_codigo, modal)
+        )
+    ''')
+
     # Prompts de validação (TASK-012) — um texto (cabeçalho + corpo) por (projeto, prompt), com
     # histórico de versões para reverter pela UI (admin). "DEFAULT" vale para todo projeto sem
     # versão própria.

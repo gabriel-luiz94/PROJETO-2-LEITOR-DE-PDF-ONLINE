@@ -304,6 +304,7 @@ ativado definindo explicitamente `APP_MODE=server` no ambiente.
 | `resumo.html` + `resumo.js` | Tabelas Cabos e Outros, undo/redo, autocomplete, chat de IA, modais geradores (Cabos, Postes e Estruturas, Ramais, Conexões), Tabela de Regras, Tabela Totalizadora |
 | `ler_projeto.js` | Botão "Ler projeto" do Resumo (TASK-062): módulo puro `processar(itens, proc, cls, motor)` (passo do Leitor + computeRowLogic + separação) e `extrair(arquivo)` (`POST /upload`); paridade com Leitor→Processar→Resumo em `tests/test_ler_projeto.py` |
 | `grade_tabela.js` | Grade estilo Excel de Cabos/Outros (TASK-067): lógica pura de colar (`aplicarColagem`, `parseColagem`), copiar (`textoDoIntervalo`) e limpar intervalo; também usada pelo modal RAMAIS (TASK-066). Testes: `tests/test_grade_tabela.py` |
+| `atalhos_modal.js` · `gerador_modal.js` | Modais geradores de Cabos e Postes (TASK-068): atalhos de fábrica/projeto/computador (mescla pura + armazenamento), painéis, favoritos e grade estilo Excel. API: `routers/atalhos.py` (`/api/atalhos/{modal}`, tabela `atalhos_modais`) |
 | `resultado_orcamento.html` | Chama `/api/orcamento/calcular`, consolida por `operação|mdo|código`, permite edição manual, salva REC, exporta |
 | `orcamento.html` | Visualiza e edita a base técnica com filtros por coluna |
 | `admin.html` + `admin.js` | Painel administrativo (usuários, tabela master, audit log) |
