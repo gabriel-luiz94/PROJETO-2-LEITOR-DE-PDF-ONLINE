@@ -400,6 +400,9 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
       `.ai/tasks/TASK-060-09-10-2026.md`.
 - [x] **TASK-061** (pedido de 2026-10-09): regras do leitor e ajustes em **JSON** — modo avançado por regra (leitor),
       exportar e importar arquivo `.json` com resumo antes de aplicar, gravação só pelo Salvar existente. CONCLUÍDA. Ver `.ai/tasks/TASK-061-09-10-2026.md`.
+- [x] **TASK-062** (pedido de 2026-10-13): botão **"Ler projeto"** no Resumo — ler, extrair e processar o arquivo
+      direto nas tabelas, na mesma aba (Substituir padrão / Adicionar, `processar_dados`, arrastar-e-soltar). CONCLUÍDA. Ver
+      `.ai/tasks/TASK-062-13-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
