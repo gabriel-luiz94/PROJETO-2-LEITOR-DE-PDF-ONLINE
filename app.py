@@ -134,6 +134,10 @@ async def serve_regras_editor_js():
 async def serve_ler_projeto_js():
     return _serve_js("ler_projeto.js")
 
+@app.get("/static/grade_tabela.js")
+async def serve_grade_tabela_js():
+    return _serve_js("grade_tabela.js")
+
 @app.get("/static/auth_fetch.js")
 async def serve_auth_fetch_js():
     return _serve_js("auth_fetch.js")
