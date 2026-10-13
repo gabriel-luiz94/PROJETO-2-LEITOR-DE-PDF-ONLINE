@@ -408,6 +408,7 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [x] **TASK-065**: classificação por Entidade em Outros (automática + trava manual, sem coluna). CONCLUÍDA. `.ai/tasks/TASK-065-13-10-2026.md`.
 - [x] **TASK-066**: modal RAMAIS com colar/copiar várias linhas e recálculo automático. CONCLUÍDA. `.ai/tasks/TASK-066-13-10-2026.md`.
 - [x] **TASK-067**: Cabos e Outros como grade contínua estilo Excel (selecionar/copiar/colar). CONCLUÍDA. `.ai/tasks/TASK-067-13-10-2026.md`.
+- [ ] **TASK-068** (pedido de 2026-10-13): modal de Cabos refatorado (grade Excel, atalhos de ativos/fases/comprimentos com "Novo" local/projeto, favoritos, copiar/colar). PLANEJAMENTO — aguardando aval e 8 decisões. `.ai/tasks/TASK-068-13-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 
