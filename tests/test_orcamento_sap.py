@@ -57,12 +57,24 @@ def test_filtros_global_coluna_e_filtro_exato():
 
 def test_tsv_sem_cabecalho_com_m_e_n():
     t = js("S.tsv(e.l)", l=[L(mdo="MATERIAL", cod="1", desc="A", qtd="2,00"), L(mdo="MAO-DE-OBRA", cod="2", desc="B", qtd="3,50")])
-    assert t == "M\t1\tA\t2,00\nN\t2\tB\t3,50"
+    assert t == "M\t1\t1600\tA\t2,00\nN\t2\t1000\tB\t3,50"                 # TIPO MDO · CÓDIGO · CENTRO · DESCRIÇÃO · QUANTIDADE
 
 
 def test_para_excel_com_quantidade_numerica():
     r = js("S.paraExcel(e.l)", l=[L(mdo="MAO-DE-OBRA", cod="0007", desc="x", qtd="1.234,50")])
-    assert r == [{"mdo": "N", "codigo": "0007", "desc": "x", "qtd": 1234.5}]
+    assert r == [{"mdo": "N", "codigo": "0007", "centro": "1000", "desc": "x", "qtd": 1234.5}]
+
+
+def test_centro_1600_material_e_1000_mao_de_obra():
+    assert js("['MATERIAL','M','MAO-DE-OBRA','N','','OUTRO'].map(S.centroDe)") == ["1600", "1600", "1000", "1000", "1000", ""]
+
+
+def test_filtro_por_centro_e_busca_global_acha_o_centro():
+    mat, mo = L(mdo="MATERIAL", cod="1"), L(mdo="MAO-DE-OBRA", cod="2")
+    f = lambda l, **k: js("S.passaFiltro(e.l, e.f)", l=l, f=k)
+    assert f(mat, centro="1600") is True and f(mat, centro="1000") is False and f(mo, centro="1000") is True
+    assert f(mat, **{"global": "1600"}) is True and f(mo, **{"global": "1600"}) is False
+    assert js("S.ordenar(e.l,'centro',true).map(x=>x.codigo)", l=[mat, mo]) == ["2", "1"]          # 1000 antes de 1600
 
 
 def test_valores_unicos():

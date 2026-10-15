@@ -21,6 +21,12 @@
         return null;
     }
 
+    /** CENTRO da visão SAP: 1600 para material, 1000 para mão de obra (derivado do TIPO MDO; outro tipo = vazio). */
+    function centroDe(mdo) {
+        const r = rotuloMdo(mdo);
+        return r === 'M' ? '1600' : (r === 'N' ? '1000' : '');
+    }
+
     /** linhas do REC ({operacao, ...}) -> { odi, odd }. Só 'R' é remoção; tudo o mais é instalação (como o REC mostra). */
     function separar(linhas) {
         const odi = [], odd = [];
@@ -38,6 +44,7 @@
         switch (coluna) {
             case 'mdo': return rotuloMdo(l.mdo);
             case 'codigo': return String(l.codigo || '');
+            case 'centro': return centroDe(l.mdo);
             case 'desc': return String(l.desc || '');
             case 'qtd': return String(l.qtd == null ? '' : l.qtd);
             case 'filtro': return String(l.filtro || '');
@@ -64,33 +71,34 @@
         const up = s => String(s == null ? '' : s).toUpperCase();
         const g = up(f.global);
         const mdoTxt = rotuloMdo(l.mdo) + ' ' + up(l.mdo);
-        if (g && (mdoTxt + ' ' + up(l.codigo) + ' ' + up(l.desc) + ' ' + up(l.qtd) + ' ' + up(l.filtro)).indexOf(g) === -1) return false;
+        if (g && (mdoTxt + ' ' + up(l.codigo) + ' ' + centroDe(l.mdo) + ' ' + up(l.desc) + ' ' + up(l.qtd) + ' ' + up(l.filtro)).indexOf(g) === -1) return false;
         if (f.mdo) {                                  // "M"/"N" sozinhos são o tipo; mais letras casam o nome por extenso
             const fm = up(f.mdo).trim();
             if (fm.length === 1 && (fm === 'M' || fm === 'N')) { if (rotuloMdo(l.mdo) !== fm) return false; }
             else if (mdoTxt.indexOf(fm) === -1) return false;
         }
         if (f.codigo && up(l.codigo).indexOf(up(f.codigo)) === -1) return false;
+        if (f.centro && centroDe(l.mdo).indexOf(String(f.centro).trim()) === -1) return false;
         if (f.desc && up(l.desc).indexOf(up(f.desc)) === -1) return false;
         if (f.filtro && up(l.filtro).trim() !== up(f.filtro).trim()) return false;
         return true;
     }
 
-    /** TSV de uma tabela, sem cabeçalho: TIPO MDO (M/N) ⇥ CÓDIGO ⇥ DESCRIÇÃO ⇥ QUANTIDADE (como o Copiar do REC). */
+    /** TSV de uma tabela, sem cabeçalho: TIPO MDO (M/N) ⇥ CÓDIGO ⇥ CENTRO ⇥ DESCRIÇÃO ⇥ QUANTIDADE (como o Copiar do REC). */
     function tsv(linhas) {
-        return linhas.map(l => [rotuloMdo(l.mdo), l.codigo || '', l.desc || '', l.qtd == null ? '' : l.qtd].join('\t')).join('\n');
+        return linhas.map(l => [rotuloMdo(l.mdo), l.codigo || '', centroDe(l.mdo), l.desc || '', l.qtd == null ? '' : l.qtd].join('\t')).join('\n');
     }
 
     /** Linhas -> corpo do POST /api/orcamento/exportar-xlsx (quantidade numérica). */
     function paraExcel(linhas) {
-        return linhas.map(l => ({ mdo: rotuloMdo(l.mdo), codigo: String(l.codigo || ''), desc: String(l.desc || ''), qtd: numeroPtBr(l.qtd) }));
+        return linhas.map(l => ({ mdo: rotuloMdo(l.mdo), codigo: String(l.codigo || ''), centro: centroDe(l.mdo), desc: String(l.desc || ''), qtd: numeroPtBr(l.qtd) }));
     }
 
     function valoresUnicos(linhas, coluna) {
         return Array.from(new Set(linhas.map(l => textoDaColuna(l, coluna).trim()).filter(Boolean))).sort();
     }
 
-    const api = { rotuloMdo, mdoDeRotulo, separar, numeroPtBr, ordenar, passaFiltro, tsv, paraExcel, valoresUnicos };
+    const api = { centroDe, rotuloMdo, mdoDeRotulo, separar, numeroPtBr, ordenar, passaFiltro, tsv, paraExcel, valoresUnicos };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     raiz.OrcamentoSap = api;
 })(typeof window !== 'undefined' ? window : globalThis);

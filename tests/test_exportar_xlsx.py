@@ -21,25 +21,25 @@ def abrir(conteudo):
 def test_duas_planilhas_odi_e_odd_com_cabecalho():
     wb = abrir(gerar_xlsx(ODI, ODD))
     assert wb.sheetnames == ["ODI", "ODD"]
-    assert [c.value for c in wb["ODI"][1]] == ["TIPO MDO", "CÓDIGO", "DESCRIÇÃO", "QUANTIDADE"]
-    assert [[c.value for c in r] for r in wb["ODI"].iter_rows(min_row=2)] == [["M", "000123", "CABO CAA 2", 12.5], ["N", "9", "INSTALAR", 1.0]]
-    assert [[c.value for c in r] for r in wb["ODD"].iter_rows(min_row=2)] == [["M", "55", "POSTE", 3.0]]
+    assert [c.value for c in wb["ODI"][1]] == ["TIPO MDO", "CÓDIGO", "CENTRO", "DESCRIÇÃO", "QUANTIDADE"]
+    assert [[c.value for c in r] for r in wb["ODI"].iter_rows(min_row=2)] == [["M", "000123", "1600", "CABO CAA 2", 12.5], ["N", "9", "1000", "INSTALAR", 1.0]]
+    assert [[c.value for c in r] for r in wb["ODD"].iter_rows(min_row=2)] == [["M", "55", "1600", "POSTE", 3.0]]
 
 
 def test_codigo_com_zeros_a_esquerda_continua_texto_e_quantidade_numerica():
     ws = abrir(gerar_xlsx(ODI, [])) ["ODI"]
     assert ws["B2"].value == "000123" and ws["B2"].data_type == "s"
-    assert isinstance(ws["D2"].value, float)
+    assert isinstance(ws["E2"].value, float)
 
 
 def test_texto_que_parece_formula_nao_vira_formula():
     ws = abrir(gerar_xlsx([{"mdo": "M", "codigo": "1", "desc": "=1+1", "qtd": 1}], []))["ODI"]
-    assert ws["C2"].value == "=1+1" and ws["C2"].data_type == "s"
+    assert ws["D2"].value == "=1+1" and ws["D2"].data_type == "s"
 
 
 def test_planilhas_vazias_so_com_cabecalho_e_caracteres_ilegais_removidos():
     wb = abrir(gerar_xlsx([{"mdo": "M", "codigo": "1\x00", "desc": "a\x01b", "qtd": 1}], []))
-    assert wb["ODD"].max_row == 1 and wb["ODI"]["C2"].value == "ab"
+    assert wb["ODD"].max_row == 1 and wb["ODI"]["D2"].value == "ab"
 
 
 def test_limites_e_formato_invalido():
