@@ -410,6 +410,7 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [x] **TASK-067**: Cabos e Outros como grade contínua estilo Excel (selecionar/copiar/colar). CONCLUÍDA. `.ai/tasks/TASK-067-13-10-2026.md`.
 - [x] **TASK-068** (pedido de 2026-10-13): modais de Cabos e Postes refatorados (grade Excel, atalhos com "Novo" no computador/projeto, favoritos, copiar/colar). CONCLUÍDA. Ver `.ai/tasks/TASK-068-13-10-2026.md`.
 - [x] **TASK-069** (pedido de 2026-10-13): Entidade de volta em Outros (seletor, trava manual) + classificar/agrupar por coluna em Outros e Cabos (vínculos remapeados; Qtd Ativos não recalculada em Cabos). CONCLUÍDA. Ver `.ai/tasks/TASK-069-13-10-2026.md`.
+- [x] **TASK-070** (pedido de 2026-10-15): Resultado do Orçamento com visão **SAP** (ODI/ODD lado a lado, M/N) alternável com o REC + exportar Excel (ODI/ODD). CONCLUÍDA. Ver `.ai/tasks/TASK-070-15-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 

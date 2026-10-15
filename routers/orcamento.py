@@ -5,10 +5,11 @@ import io
 import csv
 import sqlite3
 from fastapi import APIRouter, UploadFile, File, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from database import get_connection, get_row_connection
 from models import SalvarOrcamentoRequest, OrcamentoRequest, DetalhesRequest
 from services.orcamento_calc import processar_calculo
+from services.exportar_xlsx import ErroExportacao, gerar_xlsx
 from services.sync_service import (
     get_merged_orcamento, sync_tabela_master, filtrar_linhas_por_categoria,
     validar_linhas_do_projeto,
@@ -245,3 +246,20 @@ def calcular_orcamento(req: OrcamentoRequest, request: Request):
     user_id = user["user_id"] if user else None
     merged_rows = get_merged_orcamento(user_id)
     return processar_calculo(req.cabos, req.outros, req.projeto, merged_rows)
+
+
+@router.post("/exportar-xlsx")
+async def exportar_xlsx(request: Request):
+    """TASK-070: planilhas ODI e ODD do Resultado do Orçamento (visão SAP). Corpo: {odi: [...], odd: [...]}, cada linha {mdo, codigo, desc, qtd}."""
+    try:
+        corpo = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Corpo inválido.")
+    if not isinstance(corpo, dict):
+        raise HTTPException(status_code=400, detail="Corpo inválido.")
+    try:
+        conteudo = gerar_xlsx(corpo.get("odi", []), corpo.get("odd", []))
+    except ErroExportacao as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return Response(content=conteudo, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": 'attachment; filename="SAP.xlsx"'})

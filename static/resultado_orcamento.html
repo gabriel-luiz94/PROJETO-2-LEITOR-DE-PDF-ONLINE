@@ -703,6 +703,29 @@
                 width: 100%;
             }
         }
+
+        /* ── TASK-070: visão SAP (ODI / ODD) ── */
+        .seg-visao { display: inline-flex; border: 1px solid var(--border-default); border-radius: 6px; overflow: hidden; }
+        .seg-visao button { background: var(--btn-neutral-bg); color: var(--text-secondary); border: none; padding: 5px 12px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; cursor: pointer; }
+        .seg-visao button + button { border-left: 1px solid var(--border-default); }
+        .seg-visao button.ativo { background: var(--btn-primary-bg); color: var(--btn-primary-text); }
+        .sap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+        @media (max-width: 1100px) { .sap-grid { grid-template-columns: 1fr; } }
+        .sap-card { background-color: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 6px; overflow: hidden; }
+        .sap-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border-default); }
+        .sap-card-head h3 { margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+        .sap-card-head h3 small { color: var(--text-secondary); font-weight: 400; font-size: 0.72rem; }
+        .sap-card-head .acoes { display: flex; gap: 6px; }
+        .sap-card.odi h3 .sap-nome { color: var(--badge-i-color); }
+        .sap-card.odd h3 .sap-nome { color: var(--badge-r-color); }
+        .sap-card .table-scroll-wrapper { min-height: 240px; }
+        .sap-table td.sap-mdo { text-align: center; width: 70px; font-family: 'JetBrains Mono', monospace; }
+        .sap-table .btn-mover { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 2px 5px; font-size: 0.85rem; }
+        .sap-table .btn-mover:hover { color: var(--text-primary); }
+        .sap-vazio td { text-align: center; padding: 28px; color: var(--text-secondary); }
+        body.visao-sap .sap-so-rec { display: none !important; }
+        body:not(.visao-sap) .sap-only { display: none !important; }
+        @media print { .sap-card-head .acoes, .seg-visao { display: none !important; } .sap-grid { grid-template-columns: 1fr 1fr; } }
     </style>
 </head>
 <body>
@@ -798,6 +821,10 @@
             </div>
 
             <div class="toolbar-right">
+                <div class="seg-visao" role="group" aria-label="Modelo de visualização" title="Modelo de visualização — só muda a tela; salvar e exportar .rec seguem o REC">
+                    <button id="visao-rec" class="ativo" onclick="definirVisao('rec')">REC</button><button id="visao-sap" onclick="definirVisao('sap')">SAP</button>
+                </div>
+
                 <div class="search-box-wrapper">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="11" cy="11" r="8"></circle>
@@ -812,6 +839,11 @@
                         <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
                     </svg>
                     Copiar
+                </button>
+
+                <button class="btn-action sap-only" id="btn-exportar-xlsx" onclick="exportarExcelSap()" title="Exportar um arquivo Excel com as planilhas ODI e ODD">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+                    Exportar Excel
                 </button>
 
                 <button class="btn-action" onclick="window.print()" title="Imprimir Relatório">
@@ -847,7 +879,7 @@
         </div>
 
         <!-- Main Data Table Section -->
-        <main class="table-section-card">
+        <main class="table-section-card sap-so-rec" id="visao-rec-wrap">
             <div class="table-scroll-wrapper">
                 <table class="budget-data-table">
                     <thead>
@@ -880,6 +912,9 @@
                 </table>
             </div>
         </main>
+
+        <!-- Visão SAP: duas tabelas, ODI (instalando) e ODD (removendo). É só uma projeção da tabela REC acima. -->
+        <section id="visao-sap-wrap" class="sap-only"><div class="sap-grid" id="sap-grid"></div></section>
     </div>
 
     <!-- Modal RECs Salvos -->
@@ -939,6 +974,7 @@
         </div>
     </div>
 
+    <script src="/static/orcamento_sap.js"></script>
     <script>
         const tbody = document.getElementById('resultado-orcamento-tbody');
         const statusMsg = document.getElementById('status-msg');
@@ -947,6 +983,9 @@
         const countInc = document.getElementById('count-inc');
         const countRet = document.getElementById('count-ret');
         const countQtd = document.getElementById('count-qtd');
+
+        let uidSeq = 0;
+        let modoVisao = 'rec';      // 'rec' | 'sap' (TASK-070)
 
         function log(msg, isLoading = false) {
             console.log(msg);
@@ -988,7 +1027,7 @@
         }
         carregarProjetosSelect();
 
-        function updateStats(data) {
+        function updateStats(data, semRenderSap) {
             if (!data) data = getRowsData();
             totalBadge.textContent = `${data.length} item${data.length === 1 ? '' : 's'}`;
             
@@ -1007,6 +1046,7 @@
             countInc.textContent = inc;
             countRet.textContent = ret;
             countQtd.textContent = totalQ.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (modoVisao === 'sap' && !semRenderSap) renderSap();     // a visão SAP acompanha qualquer mudança do REC
         }
 
         function getRowsData() {
@@ -1074,6 +1114,7 @@
                 const badgeClass = isRetirada ? 'badge-r' : 'badge-i';
                 const opText = isRetirada ? 'R' : 'I';
                 const tr = document.createElement('tr');
+                tr.dataset.uid = 'r' + (++uidSeq);          // TASK-070: a visão SAP aponta para a linha REC por este id
                 
                 tr.innerHTML = `
                     <td contenteditable="true" style="text-align: center;"><span class="badge-op ${badgeClass}" contenteditable="false">${opText}</span></td>
@@ -1143,9 +1184,9 @@
             return Object.values(map);
         }
 
-        function adicionarLinhaManual() {
+        function adicionarLinhaManual(operacao) {
             let data = getRowsData();
-            data.push({ operacao: 'I', mdo: 'MATERIAL', codigo: 'NOVO_COD', desc_codigo: 'Nova Descrição', total: 1.00 });
+            data.push({ operacao: operacao === 'R' ? 'R' : 'I', mdo: 'MATERIAL', codigo: 'NOVO_COD', desc_codigo: 'Nova Descrição', total: 1.00 });
             renderRowsData(data);
         }
 
@@ -1509,6 +1550,7 @@
         }
 
         function applyAllFilters() {
+            if (modoVisao === 'sap') { aplicarFiltrosSap(); return; }     // na SAP o filtro NÃO esconde linhas do REC (o que é gravado)
             const globalFilter = document.getElementById("searchInput").value.toUpperCase();
             const colInputs = document.querySelectorAll('.filters-row input');
             const selectElement = document.getElementById("filtro-col-select");
@@ -1696,6 +1738,232 @@
                 }
             }
         });
+
+        /* ═══════════════════════════════════════════════════════════
+           VISÃO SAP (TASK-070) — ODI (instalando) e ODD (removendo) lado a lado.
+           É só uma projeção da tabela REC: cada linha SAP aponta para a linha REC por data-uid; editar/mover/excluir grava na
+           linha REC. Assim salvar, exportar .rec, somar/subtrair e importar PDFs seguem exatamente o fluxo do REC.
+           O filtro/ordenação da SAP NÃO escondem nem reordenam linhas do REC.
+        ═══════════════════════════════════════════════════════════ */
+        const SAP = window.OrcamentoSap;
+        const sapOrdem = { odi: { col: null, asc: true }, odd: { col: null, asc: true } };
+        const SAP_COLS = [['mdo', 'TIPO MDO', 0], ['codigo', 'CÓDIGO', 1], ['desc', 'DESCRIÇÃO', 2], ['qtd', 'QUANTIDADE', 3]];
+        const REC_CELULA = { mdo: 1, codigo: 2, desc: 3, qtd: 4, filtro: 5 };
+
+        function lerLinhasRec() {
+            return Array.from(tbody.querySelectorAll('tr[data-uid]')).filter(tr => tr.cells.length >= 5).map(tr => ({
+                uid: tr.dataset.uid,
+                operacao: tr.cells[0].innerText.trim().toUpperCase() || 'I',
+                mdo: tr.cells[1].innerText.trim(),
+                codigo: tr.cells[2].innerText.trim(),
+                desc: tr.cells[3].innerText.trim(),
+                qtd: tr.cells[4].innerText.trim(),
+                filtro: tr.cells[5] ? tr.cells[5].innerText.trim() : ''
+            }));
+        }
+        const recTrDe = uid => tbody.querySelector('tr[data-uid="' + uid + '"]');
+        const sapBody = tipo => document.getElementById('sap-tbody-' + tipo);
+
+        function montarCartoesSap() {
+            const grid = document.getElementById('sap-grid');
+            ['odi', 'odd'].forEach(tipo => {
+                const nome = tipo.toUpperCase(), sub = tipo === 'odi' ? 'Instalando' : 'Removendo';
+                const card = document.createElement('div');
+                card.className = 'sap-card ' + tipo;
+                card.dataset.tipo = tipo;
+                card.innerHTML = `
+                    <div class="sap-card-head">
+                        <h3><span class="sap-nome">${nome}</span><small>${sub}</small><span class="page-badge-counter" id="sap-count-${tipo}">0</span></h3>
+                        <div class="acoes">
+                            <button class="btn-action" data-acao="copiar" title="Copiar só a ${nome} (texto tabulado, sem cabeçalho)">Copiar</button>
+                            <button class="btn-action" data-acao="linha" title="Nova linha em ${nome}">+ Linha</button>
+                        </div>
+                    </div>
+                    <div class="table-scroll-wrapper">
+                        <table class="budget-data-table sap-table">
+                            <thead>
+                                <tr>
+                                    ${SAP_COLS.map(([c, t]) => `<th class="sortable-th" data-sort="${c}" title="Ordenar por ${t}"${c === 'qtd' ? ' style="text-align:right;"' : ''}>${t} ↕</th>`).join('')}
+                                    <th class="sortable-th" data-sort="filtro" title="Ordenar por Filtro">FILTRO ↕</th>
+                                    <th style="text-align:center; width:64px;">AÇÃO</th>
+                                </tr>
+                                <tr class="filters-row">
+                                    <th><input type="text" data-f="mdo" placeholder="M/N" class="col-filter-input"></th>
+                                    <th><input type="text" data-f="codigo" placeholder="Filtro..." class="col-filter-input"></th>
+                                    <th><input type="text" data-f="desc" placeholder="Filtro..." class="col-filter-input"></th>
+                                    <th></th>
+                                    <th><select data-f="filtro" class="col-filter-input" style="width:100%; padding:4px; background:transparent; color:var(--text-primary); border:1px solid var(--border-default); outline:none; appearance:auto;"><option value="">Todos</option></select></th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="sap-tbody-${tipo}"></tbody>
+                        </table>
+                    </div>`;
+                grid.appendChild(card);
+                const tb = card.querySelector('tbody');
+                card.querySelectorAll('[data-f]').forEach(el => { el.addEventListener('input', aplicarFiltrosSap); el.addEventListener('change', aplicarFiltrosSap); });
+                card.querySelectorAll('[data-sort]').forEach(th => th.addEventListener('click', () => {
+                    const o = sapOrdem[tipo], col = th.dataset.sort;
+                    o.asc = o.col === col ? !o.asc : true;
+                    o.col = col;
+                    renderSap();
+                }));
+                card.querySelector('[data-acao="copiar"]').addEventListener('click', () => copiarSap(tipo));
+                card.querySelector('[data-acao="linha"]').addEventListener('click', () => adicionarLinhaManual(tipo === 'odd' ? 'R' : 'I'));
+                // edição: grava na linha REC correspondente (sem redesenhar, para não perder o cursor)
+                tb.addEventListener('input', e => {
+                    const td = e.target.closest ? e.target.closest('td[data-campo]') : null;
+                    if (!td || td.dataset.campo === 'mdo') return;
+                    const rec = recTrDe(td.parentElement.dataset.uid);
+                    if (!rec) return;
+                    rec.cells[REC_CELULA[td.dataset.campo]].textContent = td.textContent.trim();
+                    atualizarEstatisticasSap();
+                });
+                tb.addEventListener('focusout', e => {
+                    const td = e.target.closest ? e.target.closest('td[data-campo="mdo"]') : null;
+                    if (!td) return;
+                    const rec = recTrDe(td.parentElement.dataset.uid);
+                    if (!rec) return;
+                    const interno = SAP.mdoDeRotulo(td.textContent);
+                    if (interno) rec.cells[1].textContent = interno;           // grava MATERIAL / MAO-DE-OBRA, como o REC espera
+                    td.textContent = SAP.rotuloMdo(rec.cells[1].innerText);       // valor inválido volta ao que estava
+                });
+                tb.addEventListener('click', e => {
+                    const b = e.target.closest ? e.target.closest('button') : null;
+                    if (!b) return;
+                    const uid = b.closest('tr').dataset.uid, rec = recTrDe(uid);
+                    if (!rec) return;
+                    if (b.dataset.acao === 'mover') {                              // ⇄ ODI <-> ODD (troca I <-> R na linha REC)
+                        const vaiParaR = tipo === 'odi';
+                        rec.cells[0].innerHTML = `<span class="badge-op ${vaiParaR ? 'badge-r' : 'badge-i'}" contenteditable="false">${vaiParaR ? 'R' : 'I'}</span>`;
+                        updateStats(getRowsData());
+                    } else if (b.dataset.acao === 'excluir') {
+                        rec.remove();
+                        const data = getRowsData();
+                        if (data.length === 0) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum item presente na tabela.</td></tr>';
+                        updateStats(data);
+                    }
+                });
+            });
+        }
+
+        function atualizarEstatisticasSap() { updateStats(getRowsData(), true); }
+
+        function renderSap() {
+            const { odi, odd } = SAP.separar(lerLinhasRec());
+            [['odi', odi], ['odd', odd]].forEach(([tipo, linhasBrutas]) => {
+                const o = sapOrdem[tipo];
+                const linhas = o.col ? SAP.ordenar(linhasBrutas, o.col, o.asc) : linhasBrutas;
+                const tb = sapBody(tipo), card = tb.closest('.sap-card');
+                const sel = card.querySelector('select[data-f="filtro"]'), atual = sel.value;
+                sel.innerHTML = '<option value="">Todos</option>' + SAP.valoresUnicos(linhasBrutas, 'filtro').map(v => `<option>${v.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</option>`).join('');
+                if (Array.from(sel.options).some(op => op.value === atual)) sel.value = atual;
+                card.querySelectorAll('[data-sort]').forEach(th => {
+                    const t = th.textContent.replace(/[↕▲▼]/g, '').trim();
+                    th.textContent = t + (o.col === th.dataset.sort ? (o.asc ? ' ▲' : ' ▼') : ' ↕');
+                });
+                tb.innerHTML = '';
+                if (!linhas.length) {
+                    tb.innerHTML = `<tr class="sap-vazio"><td colspan="6">Nenhum item em ${tipo.toUpperCase()}.</td></tr>`;
+                } else {
+                    const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+                    tb.innerHTML = linhas.map(l => `<tr data-uid="${l.uid}">
+                        <td contenteditable="true" class="sap-mdo" data-campo="mdo" title="M = MATERIAL · N = MAO-DE-OBRA">${esc(SAP.rotuloMdo(l.mdo))}</td>
+                        <td contenteditable="true" class="cell-mono" data-campo="codigo">${esc(l.codigo)}</td>
+                        <td contenteditable="true" data-campo="desc">${esc(l.desc)}</td>
+                        <td contenteditable="true" class="cell-qty" data-campo="qtd">${esc(l.qtd)}</td>
+                        <td contenteditable="true" data-campo="filtro">${esc(l.filtro)}</td>
+                        <td style="text-align:center; white-space:nowrap;">
+                            <button class="btn-mover" data-acao="mover" title="Mover para ${tipo === 'odi' ? 'ODD' : 'ODI'}">⇄</button>
+                            <button class="btn-delete-row" data-acao="excluir" title="Excluir linha">✕</button>
+                        </td></tr>`).join('');
+                }
+            });
+            aplicarFiltrosSap();
+        }
+
+        function filtrosDoCartao(card) {
+            const f = { global: document.getElementById('searchInput').value };
+            card.querySelectorAll('[data-f]').forEach(el => { f[el.dataset.f] = el.value; });
+            return f;
+        }
+        function linhaSapDoDom(tr) {
+            const c = k => { const td = tr.querySelector('[data-campo="' + k + '"]'); return td ? td.innerText.trim() : ''; };
+            return { mdo: c('mdo'), codigo: c('codigo'), desc: c('desc'), qtd: c('qtd'), filtro: c('filtro') };
+        }
+        function aplicarFiltrosSap() {
+            ['odi', 'odd'].forEach(tipo => {
+                const tb = sapBody(tipo), card = tb.closest('.sap-card'), f = filtrosDoCartao(card);
+                let visiveis = 0, total = 0;
+                tb.querySelectorAll('tr[data-uid]').forEach(tr => {
+                    total++;
+                    const ok = SAP.passaFiltro(linhaSapDoDom(tr), f);
+                    tr.style.display = ok ? '' : 'none';
+                    if (ok) visiveis++;
+                });
+                document.getElementById('sap-count-' + tipo).textContent = visiveis < total ? `${visiveis}/${total}` : String(total);
+            });
+        }
+        function linhasVisiveisSap(tipo) {
+            return Array.from(sapBody(tipo).querySelectorAll('tr[data-uid]')).filter(tr => tr.style.display !== 'none').map(linhaSapDoDom);
+        }
+
+        function copiarSap(tipo) {
+            const linhas = linhasVisiveisSap(tipo);
+            if (!linhas.length) { alert('Nenhum dado para copiar em ' + tipo.toUpperCase() + '.'); return; }
+            navigator.clipboard.writeText(SAP.tsv(linhas)).then(() => {
+                log(tipo.toUpperCase() + ' copiada (' + linhas.length + ' linha(s), sem cabeçalho).');
+                alert(tipo.toUpperCase() + ' copiada para a área de transferência!');
+            }).catch(() => alert('Não foi possível copiar automaticamente.'));
+        }
+
+        async function exportarExcelSap() {
+            const odi = linhasVisiveisSap('odi'), odd = linhasVisiveisSap('odd');
+            if (!odi.length && !odd.length) return alert('Não há dados para exportar.');
+            const numObra = document.getElementById('obra-numero').value.trim() || 'EXPORT';
+            const selectUf = document.getElementById('obra-uf');
+            const prefix = selectUf.options[selectUf.selectedIndex]?.dataset.codigo || '000';
+            const filename = `${prefix}_${numObra}_SAP.xlsx`;
+            try {
+                log('Gerando o Excel...', true);
+                const res = await fetch('/api/orcamento/exportar-xlsx', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ odi: SAP.paraExcel(odi), odd: SAP.paraExcel(odd) }) });
+                if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.detail || ('HTTP ' + res.status)); }
+                const blob = await res.blob();
+                if (window.showSaveFilePicker) {
+                    const handle = await window.showSaveFilePicker({ suggestedName: filename, types: [{ description: 'Planilha Excel (*.xlsx)', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }] });
+                    const w = await handle.createWritable(); await w.write(blob); await w.close();
+                } else {
+                    const url = URL.createObjectURL(blob), a = document.createElement('a');
+                    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                }
+                log(`Excel exportado: ODI ${odi.length} · ODD ${odd.length} linha(s).`);
+            } catch (err) {
+                if (err.name !== 'AbortError') { console.error(err); log('Erro ao exportar o Excel.'); alert('Erro ao exportar o Excel: ' + err.message); }
+                else log('Exportação cancelada.');
+            }
+        }
+
+        function definirVisao(modo) {
+            if (modo !== 'rec' && modo !== 'sap') modo = 'rec';
+            const antes = modoVisao;
+            modoVisao = modo;
+            document.body.classList.toggle('visao-sap', modo === 'sap');
+            document.getElementById('visao-rec').classList.toggle('ativo', modo === 'rec');
+            document.getElementById('visao-sap').classList.toggle('ativo', modo === 'sap');
+            try { localStorage.setItem('orcamento_visao', modo); } catch (e) { /* só não lembra da escolha */ }
+            if (modo === 'sap') {
+                Array.from(tbody.rows).forEach(r => { r.style.display = ''; });   // filtro do REC não pode ficar escondendo linhas que a SAP mostra
+                renderSap();
+            } else if (antes === 'sap') {
+                applyAllFilters();
+            }
+        }
+        montarCartoesSap();
+        document.getElementById('searchInput').addEventListener('input', () => { if (modoVisao === 'sap') aplicarFiltrosSap(); });   // colar/limpar com o mouse também filtra
+        let visaoSalva = 'rec';
+        try { visaoSalva = localStorage.getItem('orcamento_visao') === 'sap' ? 'sap' : 'rec'; } catch (e) { /* ignora */ }
+        definirVisao(visaoSalva);
     </script>
 </body>
 </html>

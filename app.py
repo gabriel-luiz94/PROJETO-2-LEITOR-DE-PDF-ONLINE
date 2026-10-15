@@ -146,6 +146,10 @@ async def serve_atalhos_modal_js():
 async def serve_gerador_modal_js():
     return _serve_js("gerador_modal.js")
 
+@app.get("/static/orcamento_sap.js")
+async def serve_orcamento_sap_js():
+    return _serve_js("orcamento_sap.js")
+
 @app.get("/static/auth_fetch.js")
 async def serve_auth_fetch_js():
     return _serve_js("auth_fetch.js")
