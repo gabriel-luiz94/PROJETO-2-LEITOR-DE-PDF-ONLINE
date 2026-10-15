@@ -31,7 +31,9 @@ def test_cabos_sem_coluna_de_entidade_e_outros_com_ela():
     for t, campos in (("cabos", ("operacao", "ativo", "qtdAtivos")), ("outros", ("entidade", "operacao", "ativo"))):
         bloco = cabos if t == "cabos" else outros
         for c in campos:
-            assert f'data-tipo="{t}" data-campo="{c}"' in bloco                       # botão de classificar em cada coluna
+            assert f'class="th-label th-sort" data-tipo="{t}" data-campo="{c}"' in bloco      # o próprio título da coluna classifica
+    assert "btn-sort" not in h                                                          # sem botão de ordenar separado
+    assert 'id="btn-toggle-entidade"' in h                                              # ocultar/mostrar a coluna Entidade de Outros
 
 
 def test_modulo_da_grade_e_carregado_antes_do_resumo_e_tem_rota_sem_cache(client):

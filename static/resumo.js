@@ -507,7 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     sep.className = 'grupo-sep';
                     sep.dataset.grupoCampo = campoGrupo;
                     const tdSep = document.createElement('td');
-                    tdSep.colSpan = type === 'cabos' ? 5 : 5;
+                    tdSep.colSpan = (type === 'outros' && document.getElementById('table-outros').classList.contains('sem-entidade')) ? 4 : 5;
                     tdSep.textContent = `▸ ${campoGrupo.toUpperCase()}: ${chave}  (${n})`;
                     sep.appendChild(tdSep);
                     frag.appendChild(sep);
@@ -871,50 +871,72 @@ document.addEventListener('DOMContentLoaded', () => {
     function atualizarIndicadoresOrdem(tipo) {
         const GT = window.GradeTabela;
         if (ordemAtual[tipo].length && !(GT && GT.estaOrdenado(tableStates[tipo].data, ordemAtual[tipo]))) ordemAtual[tipo] = [];   // edição/undo desfez a ordem
-        document.querySelectorAll(`.btn-sort[data-tipo="${tipo}"]`).forEach(b => {
-            const i = ordemAtual[tipo].findIndex(c => c.campo === b.dataset.campo);
-            const grupo = agrupamento[tipo] === b.dataset.campo;
-            b.classList.toggle('ativo', i >= 0 || grupo);
-            b.textContent = i >= 0 ? (ordemAtual[tipo][i].dir === 'desc' ? '▼' : '▲') + (ordemAtual[tipo].length > 1 ? (i + 1) : '') : (grupo ? '▤' : '⇅');
+        document.querySelectorAll(`.th-sort[data-tipo="${tipo}"]`).forEach(th => {
+            const i = ordemAtual[tipo].findIndex(c => c.campo === th.dataset.campo);
+            const ind = th.querySelector('.sort-ind');
+            if (!ind) return;
+            if (i >= 0) ind.textContent = (ordemAtual[tipo][i].dir === 'desc' ? '▼' : '▲') + (ordemAtual[tipo].length > 1 ? (i + 1) : '');
+            else ind.textContent = agrupamento[tipo] === th.dataset.campo ? '▤' : '';
         });
     }
 
-    (function ligarMenuClassificar() {
+    /** Clique no título da coluna: 1º clique crescente, de novo decrescente, e assim por diante. Shift = critério adicional. */
+    function alternarOrdem(tipo, campo, shift) {
+        const atual = ordemAtual[tipo].map(c => Object.assign({}, c));
+        const i = atual.findIndex(c => c.campo === campo);
+        const dir = i >= 0 && atual[i].dir === 'asc' ? 'desc' : 'asc';
+        let crit;
+        if (shift && atual.length) { if (i >= 0) { atual[i].dir = dir; crit = atual; } else crit = atual.concat([{ campo, dir }]); }
+        else crit = [{ campo, dir }];
+        ordenarTabela(tipo, crit);
+    }
+
+    (function ligarCabecalhosClassificar() {
         const menu = document.createElement('div');
         menu.id = 'menu-classificar';
         document.body.appendChild(menu);
-        let ctx = null;
-        const NUM = { qtdAtivos: true };
-        function abrir(btn) {
-            ctx = { tipo: btn.dataset.tipo, campo: btn.dataset.campo };
-            const num = !!NUM[ctx.campo];
-            menu.innerHTML = '';
-            const item = (txt, acao) => { const d = document.createElement('div'); d.className = 'mc-item'; d.textContent = txt; d.addEventListener('click', e => { fechar(); acao(e.shiftKey); }); menu.appendChild(d); };
-            const criterio = dir => (shift) => {
-                const atual = shift ? ordemAtual[ctx.tipo].filter(c => c.campo !== ctx.campo) : [];
-                ordenarTabela(ctx.tipo, atual.concat([{ campo: ctx.campo, dir }]));
-            };
-            item(num ? 'Classificar: menor → maior' : 'Classificar: A → Z', criterio('asc'));
-            item(num ? 'Classificar: maior → menor' : 'Classificar: Z → A', criterio('desc'));
-            if (ctx.campo !== 'qtdAtivos') {
-                item('Agrupar por esta coluna', () => { agrupamento[ctx.tipo] = ctx.campo; ordenarTabela(ctx.tipo, [{ campo: ctx.campo, dir: 'asc' }]); });
-                if (agrupamento[ctx.tipo]) item('Limpar agrupamento', () => { agrupamento[ctx.tipo] = null; renderTable(ctx.tipo); });
-            }
-            const hint = document.createElement('div'); hint.className = 'mc-hint';
-            hint.textContent = 'Shift + clique em Classificar = critério secundário. Para filtrar por valor use a caixa “Todos” abaixo do título.';
-            menu.appendChild(hint);
-            const r = btn.getBoundingClientRect();
-            menu.style.left = Math.min(r.left, window.innerWidth - 240) + 'px';
-            menu.style.top = (r.bottom + 4) + 'px';
-            menu.classList.add('visible');
-        }
-        function fechar() { menu.classList.remove('visible'); }
+        const fechar = () => menu.classList.remove('visible');
         document.addEventListener('click', e => {
-            const b = e.target.closest ? e.target.closest('.btn-sort') : null;
-            if (b) { e.stopPropagation(); abrir(b); return; }
+            const th = e.target.closest ? e.target.closest('.th-sort') : null;
+            if (th) { fechar(); alternarOrdem(th.dataset.tipo, th.dataset.campo, e.shiftKey); return; }
             if (!menu.contains(e.target)) fechar();
-        }, true);
+        });
+        // botão direito no título: agrupar (visual) / limpar agrupamento
+        document.addEventListener('contextmenu', e => {
+            const th = e.target.closest ? e.target.closest('.th-sort') : null;
+            if (!th) return;
+            e.preventDefault();
+            const tipo = th.dataset.tipo, campo = th.dataset.campo;
+            menu.innerHTML = '';
+            const item = (txt, acao) => { const d = document.createElement('div'); d.className = 'mc-item'; d.textContent = txt; d.addEventListener('click', () => { fechar(); acao(); }); menu.appendChild(d); };
+            if (campo !== 'qtdAtivos') item('Agrupar por esta coluna', () => { agrupamento[tipo] = campo; ordenarTabela(tipo, [{ campo, dir: 'asc' }]); });
+            if (agrupamento[tipo]) item('Limpar agrupamento', () => { agrupamento[tipo] = null; renderTable(tipo); });
+            if (!menu.children.length) { fechar(); return; }
+            menu.style.left = Math.min(e.clientX, window.innerWidth - 230) + 'px';
+            menu.style.top = (e.clientY + 4) + 'px';
+            menu.classList.add('visible');
+        });
         document.addEventListener('keydown', e => { if (e.key === 'Escape') fechar(); });
+    })();
+
+    // Coluna Entidade de Outros: ocultar/mostrar (só visual; a preferência fica neste navegador)
+    (function ligarOcultarEntidade() {
+        const btn = document.getElementById('btn-toggle-entidade'), tabela = document.getElementById('table-outros');
+        if (!btn || !tabela) return;
+        const OLHO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+        const OLHO_RISCADO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+        const aplicar = (oculto, persistir) => {
+            tabela.classList.toggle('sem-entidade', oculto);
+            btn.innerHTML = oculto ? OLHO_RISCADO : OLHO;
+            btn.title = oculto ? 'Mostrar a coluna Entidade' : 'Ocultar a coluna Entidade';
+            if (oculto && filterSelections.outros.entidade.size) { filterSelections.outros.entidade.clear(); refreshAllFilters('outros'); applyFilters('outros'); }   // filtro invisível não pode ficar ativo
+            if (agrupamento.outros) renderTable('outros');          // a largura dos separadores depende das colunas visíveis
+            if (persistir) { try { localStorage.setItem('resumo_ocultar_entidade', oculto ? '1' : '0'); } catch (e) { /* sem localStorage: vale só nesta sessão */ } }
+        };
+        let inicial = false;
+        try { inicial = localStorage.getItem('resumo_ocultar_entidade') === '1'; } catch (e) { /* ignora */ }
+        aplicar(inicial, false);
+        btn.addEventListener('click', () => aplicar(!tabela.classList.contains('sem-entidade'), true));
     })();
 
     /* ═══════════════════════════════════════

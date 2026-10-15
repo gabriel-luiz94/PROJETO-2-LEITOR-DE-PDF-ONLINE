@@ -338,7 +338,7 @@ As tabelas **Cabos** e **Demais Ativos** funcionam como uma planilha: clique e a
 
 Em **Demais Ativos** a **Entidade** é a primeira coluna: ela é recalculada sozinha quando o ativo muda; se a regra errar, clique nela e escolha outra (a linha fica travada 🔒) ou use o botão direito → **Definir entidade…** ("Automática" destrava). Em Cabos não há Entidade.
 
-O botão **⇅** no título de cada coluna abre o menu **Classificar** (A → Z, Z → A; **Shift** + clique adiciona um segundo critério), **Agrupar por esta coluna** (separadores com a contagem de cada grupo) e **Limpar agrupamento**. Classificar reordena as linhas de verdade (Ctrl+Z desfaz) e mantém os vínculos cabo↔estrutura. Em Cabos a **Qtd Ativos** não é recalculada ao classificar. Para filtrar por valor use a caixa “Todos” abaixo do título.
+Para **classificar**, clique no **título da coluna**: o 1º clique ordena do menor para o maior (▲), o seguinte inverte (▼); **Shift** + clique adiciona um segundo critério. Com o **botão direito** no título você escolhe **Agrupar por esta coluna** (separadores com a contagem de cada grupo) ou **Limpar agrupamento**. Classificar reordena as linhas de verdade (Ctrl+Z desfaz) e mantém os vínculos cabo↔estrutura; em Cabos a **Qtd Ativos** não é recalculada. Para filtrar por valor use a caixa “Todos” abaixo do título. O ícone de **olho** ao lado do contador de Demais Ativos oculta ou mostra a coluna Entidade.
 
 ### Geradores de Cabos e de Postes/Estruturas
 
