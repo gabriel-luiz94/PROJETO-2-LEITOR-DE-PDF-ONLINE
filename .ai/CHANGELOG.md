@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-15 — TASK-070: visão SAP (ODI/ODD) no Resultado do Orçamento + Excel
+
+**Tipo:** Backend + frontend · `static/resultado_orcamento.html`, `static/orcamento_sap.js` (novo), `services/exportar_xlsx.py` (novo), `routers/orcamento.py`, `requirements.txt`/`build.bat` (**nova dependência: openpyxl**) · `.ai/tasks/TASK-070-15-10-2026.md`
+
+A tela ganhou o alternador **REC | SAP**. Na SAP há duas tabelas lado a lado, **ODI** (instalando) e **ODD** (removendo), com TIPO MDO em **M/N**, mesmos campos editáveis, filtros dinâmicos, ordenação, **Copiar** por tabela, ⇄ para mover entre elas e **Exportar Excel** (planilhas ODI e ODD; `POST /api/orcamento/exportar-xlsx`). A SAP é só uma projeção do REC: salvar, exportar `.rec`, somar/subtrair e importar PDFs seguem o fluxo do REC, e o filtro da SAP não esconde linhas do REC. Instalar a dependência: `pip install openpyxl` (já no `requirements.txt`).
+
+---
+
 ## 2026-10-15 — TASK-069: Entidade de volta em Outros e classificar/agrupar por coluna
 
 **Tipo:** Frontend · `static/resumo.js/.html`, `static/grade_tabela.js` · `.ai/tasks/TASK-069-13-10-2026.md`
