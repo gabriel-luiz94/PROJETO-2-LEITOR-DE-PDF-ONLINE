@@ -719,6 +719,7 @@
         .sap-card.odi h3 .sap-nome { color: var(--badge-i-color); }
         .sap-card.odd h3 .sap-nome { color: var(--badge-r-color); }
         .sap-card .table-scroll-wrapper { min-height: 240px; }
+        .sap-table td.sap-centro { text-align: center; width: 70px; color: var(--text-secondary); }
         .sap-table td.sap-mdo { text-align: center; width: 70px; font-family: 'JetBrains Mono', monospace; }
         .sap-table .btn-mover { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 2px 5px; font-size: 0.85rem; }
         .sap-table .btn-mover:hover { color: var(--text-primary); }
@@ -1747,7 +1748,7 @@
         ═══════════════════════════════════════════════════════════ */
         const SAP = window.OrcamentoSap;
         const sapOrdem = { odi: { col: null, asc: true }, odd: { col: null, asc: true } };
-        const SAP_COLS = [['mdo', 'TIPO MDO', 0], ['codigo', 'CÓDIGO', 1], ['desc', 'DESCRIÇÃO', 2], ['qtd', 'QUANTIDADE', 3]];
+        const SAP_COLS = [['mdo', 'TIPO MDO', 0], ['codigo', 'CÓDIGO', 1], ['centro', 'CENTRO', 2], ['desc', 'DESCRIÇÃO', 3], ['qtd', 'QUANTIDADE', 4]];
         const REC_CELULA = { mdo: 1, codigo: 2, desc: 3, qtd: 4, filtro: 5 };
 
         function lerLinhasRec() {
@@ -1790,6 +1791,7 @@
                                 <tr class="filters-row">
                                     <th><input type="text" data-f="mdo" placeholder="M/N" class="col-filter-input"></th>
                                     <th><input type="text" data-f="codigo" placeholder="Filtro..." class="col-filter-input"></th>
+                                    <th><input type="text" data-f="centro" placeholder="Filtro..." class="col-filter-input"></th>
                                     <th><input type="text" data-f="desc" placeholder="Filtro..." class="col-filter-input"></th>
                                     <th></th>
                                     <th><select data-f="filtro" class="col-filter-input" style="width:100%; padding:4px; background:transparent; color:var(--text-primary); border:1px solid var(--border-default); outline:none; appearance:auto;"><option value="">Todos</option></select></th>
@@ -1827,6 +1829,9 @@
                     const interno = SAP.mdoDeRotulo(td.textContent);
                     if (interno) rec.cells[1].textContent = interno;           // grava MATERIAL / MAO-DE-OBRA, como o REC espera
                     td.textContent = SAP.rotuloMdo(rec.cells[1].innerText);       // valor inválido volta ao que estava
+                    const tdCentro = td.parentElement.querySelector('[data-campo="centro"]');
+                    if (tdCentro) tdCentro.textContent = SAP.centroDe(rec.cells[1].innerText);   // o CENTRO acompanha o TIPO MDO
+                    aplicarFiltrosSap();
                 });
                 tb.addEventListener('click', e => {
                     const b = e.target.closest ? e.target.closest('button') : null;
@@ -1864,12 +1869,13 @@
                 });
                 tb.innerHTML = '';
                 if (!linhas.length) {
-                    tb.innerHTML = `<tr class="sap-vazio"><td colspan="6">Nenhum item em ${tipo.toUpperCase()}.</td></tr>`;
+                    tb.innerHTML = `<tr class="sap-vazio"><td colspan="7">Nenhum item em ${tipo.toUpperCase()}.</td></tr>`;
                 } else {
                     const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
                     tb.innerHTML = linhas.map(l => `<tr data-uid="${l.uid}">
                         <td contenteditable="true" class="sap-mdo" data-campo="mdo" title="M = MATERIAL · N = MAO-DE-OBRA">${esc(SAP.rotuloMdo(l.mdo))}</td>
                         <td contenteditable="true" class="cell-mono" data-campo="codigo">${esc(l.codigo)}</td>
+                        <td class="cell-mono sap-centro" data-campo="centro" title="1600 = material · 1000 = mão de obra (acompanha o TIPO MDO)">${SAP.centroDe(l.mdo)}</td>
                         <td contenteditable="true" data-campo="desc">${esc(l.desc)}</td>
                         <td contenteditable="true" class="cell-qty" data-campo="qtd">${esc(l.qtd)}</td>
                         <td contenteditable="true" data-campo="filtro">${esc(l.filtro)}</td>
@@ -1889,7 +1895,7 @@
         }
         function linhaSapDoDom(tr) {
             const c = k => { const td = tr.querySelector('[data-campo="' + k + '"]'); return td ? td.innerText.trim() : ''; };
-            return { mdo: c('mdo'), codigo: c('codigo'), desc: c('desc'), qtd: c('qtd'), filtro: c('filtro') };
+            return { mdo: c('mdo'), codigo: c('codigo'), centro: c('centro'), desc: c('desc'), qtd: c('qtd'), filtro: c('filtro') };
         }
         function aplicarFiltrosSap() {
             ['odi', 'odd'].forEach(tipo => {
