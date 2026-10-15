@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-15 — TASK-069: Entidade de volta em Outros e classificar/agrupar por coluna
+
+**Tipo:** Frontend · `static/resumo.js/.html`, `static/grade_tabela.js` · `.ai/tasks/TASK-069-13-10-2026.md`
+
+A coluna **Entidade** volta à tabela **Outros** (clique para trocar; escolher à mão trava a linha 🔒; filtro por entidade de volta; não entra em colar/copiar). Cada coluna de Outros e de Cabos ganha o menu **⇅**: Classificar A→Z / Z→A (Shift = critério secundário), Agrupar com separadores e Limpar agrupamento. A ordenação reordena de verdade, é estável (Ativo em ordem natural, Operação em ordem lógica), tem um passo de Ctrl+Z e **remapeia os vínculos cabo↔estrutura**; em Cabos a Qtd Ativos não é recalculada (aviso). A ação de IA "ordenar" usa a mesma rotina. Selects de Operação/Entidade carregam a lista só ao focar (desempenho). **Ordenar é o próprio título da coluna** (clique = crescente, de novo = decrescente; Shift = 2º critério; botão direito = agrupar) e a coluna Entidade de Outros tem um olho discreto para ocultar/mostrar.
+
+---
+
 ## 2026-10-13 — TASK-068: modais de Cabos e Postes com atalhos, favoritos e linhas estilo Excel
 
 **Tipo:** Backend + frontend + schema · `routers/atalhos.py`, `database.py` (tabela `atalhos_modais`), `static/atalhos_modal.js`, `static/gerador_modal.js`, `static/grade_tabela.js`, `static/resumo.js/.html`, `app.py` · `.ai/tasks/TASK-068-13-10-2026.md`

@@ -84,12 +84,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Selections: type → field → Set of selected values
     const filterSelections = {
         cabos:  { operacao: new Set(), ativo: new Set() },
-        outros: { operacao: new Set(), ativo: new Set() }
+        outros: { entidade: new Set(), operacao: new Set(), ativo: new Set() }
     };
-    const FILTER_FIELDS = ['operacao', 'ativo'];   // TASK-064/065: a Entidade não aparece mais na tela (segue no dado)
+    const FILTER_FIELDS_POR_TIPO = { cabos: ['operacao', 'ativo'], outros: ['entidade', 'operacao', 'ativo'] };   // Cabos não tem coluna Entidade (TASK-064); Outros voltou a ter (TASK-069)
+    const camposFiltro = type => FILTER_FIELDS_POR_TIPO[type];
+    // TASK-069: estado de classificação por coluna (critérios aplicados) e agrupamento visual por tabela
+    const ordemAtual = { cabos: [], outros: [] };
+    const agrupamento = { cabos: null, outros: null };
     const FILTER_CONTAINERS = {
         cabos:  { operacao: 'rfc-cabos-operacao', ativo: 'rfc-cabos-ativo' },
-        outros: { operacao: 'rfc-outros-operacao', ativo: 'rfc-outros-ativo' }
+        outros: { entidade: 'rfc-outros-entidade', operacao: 'rfc-outros-operacao', ativo: 'rfc-outros-ativo' }
     };
 
     /* ─── Undo / Redo history ─── */
@@ -229,6 +233,35 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ═══════════════════════════════════════
        RENDER TABLE
     ═══════════════════════════════════════ */
+    /** Select com só a opção atual no DOM; a lista completa entra ao focar/clicar (milhares de linhas ficam bem mais leves). */
+    function preencherSelectPreguicoso(sel, valores, atual) {
+        const uma = document.createElement('option');
+        uma.value = atual; uma.textContent = atual; uma.selected = true;
+        sel.appendChild(uma);
+        const completar = () => {
+            if (sel.dataset.completo) return;
+            sel.dataset.completo = '1';
+            const agora = sel.value;
+            sel.innerHTML = '';
+            valores.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v; opt.textContent = v;
+                if (v === agora) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        };
+        sel.definirValor = v => {          // troca o valor sem exigir a lista completa
+            if (sel.dataset.completo) { sel.value = v; return; }
+            sel.innerHTML = '';
+            const o = document.createElement('option');
+            o.value = v; o.textContent = v; o.selected = true;
+            sel.appendChild(o);
+        };
+        sel.addEventListener('focus', completar);
+        sel.addEventListener('mousedown', completar);
+        sel.addEventListener('keydown', completar);
+    }
+
     function renderTable(type) {
         const state = tableStates[type];
         const body = document.getElementById(state.bodyId);
@@ -240,24 +273,73 @@ document.addEventListener('DOMContentLoaded', () => {
             tr.dataset.index = idx;
             tr.dataset.type = type;
 
-            /* ── Nº da linha (seleciona a linha; mostra a entidade ao passar o mouse — TASK-064/065) ── */
+            /* ── Nº da linha (seleciona a linha) ── */
             const tdNum = document.createElement('td');
             tdNum.className = 'col-num';
             tdNum.textContent = idx + 1;
-            if (type === 'outros') tdNum.title = `Entidade: ${row.entidade || '0'}${row.entidadeManual ? ' (definida manualmente)' : ' (automática)'}`;
             tr.appendChild(tdNum);
+
+            /* ── Entidade (só Outros — TASK-069): texto leve; clicar abre o seletor. Escolher à mão trava a linha (entidadeManual) ── */
+            let atualizarCelulaEntidade = () => {};
+            if (type === 'outros') {
+                const tdEnt = document.createElement('td');
+                tdEnt.className = 'cel-ent';                     // sem data-col: fora da grade (copiar/colar/intervalo), só o seletor
+                const view = document.createElement('div');
+                view.className = 'ent-view';
+                view.tabIndex = 0;
+                const lockEnt = document.createElement('span');
+                lockEnt.className = 'ent-lock';
+                atualizarCelulaEntidade = () => {
+                    view.textContent = row.entidade || '0';
+                    lockEnt.textContent = row.entidadeManual ? '🔒' : '';
+                    view.title = row.entidadeManual ? 'Definida manualmente (travada). Clique para trocar; botão direito → Definir entidade… → Automática destrava.' : 'Automática: acompanha o ativo. Clique para escolher à mão.';
+                };
+                atualizarCelulaEntidade();
+                const abrirSeletor = () => {
+                    if (tdEnt.querySelector('select')) return;
+                    const sel = document.createElement('select');
+                    sel.className = 'sel-entidade';
+                    sel.dataset.field = 'entidade';
+                    const lista = ENTIDADES.filter(e => e !== 'CABO');
+                    if (row.entidade && !lista.includes(row.entidade)) lista.push(row.entidade);
+                    lista.forEach(e => {
+                        const opt = document.createElement('option');
+                        opt.value = e; opt.textContent = e;
+                        if (e === (row.entidade || '0')) opt.selected = true;
+                        sel.appendChild(opt);
+                    });
+                    let fechado = false;
+                    const fechar = () => { if (fechado) return; fechado = true; if (sel.parentNode) sel.remove(); view.style.display = ''; atualizarCelulaEntidade(); };
+                    sel.addEventListener('change', () => {
+                        if (sel.value !== row.entidade) {
+                            pushHistory();                          // snapshot ANTES da mudança
+                            row.entidade = sel.value;
+                            row.entidadeManual = true;              // escolha manual: não é recalculada ao editar o ativo
+                            refreshAllFilters(type);
+                            atualizarResumoRedeUI();
+                        }
+                        fechar();
+                    });
+                    sel.addEventListener('blur', fechar);
+                    sel.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); fechar(); } });
+                    view.style.display = 'none';
+                    tdEnt.insertBefore(sel, view);
+                    sel.focus();
+                    try { if (sel.showPicker) sel.showPicker(); } catch (err) { /* sem showPicker: o usuário abre com um clique */ }
+                };
+                view.addEventListener('click', abrirSeletor);
+                view.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirSeletor(); } });
+                tdEnt.appendChild(view);
+                tdEnt.appendChild(lockEnt);
+                tr.appendChild(tdEnt);
+            }
 
             /* ── Operação ── */
             const tdOp = document.createElement('td');
             const selOp = document.createElement('select');
             selOp.className = 'sel-operacao';
             selOp.dataset.field = 'operacao';
-            OPERACOES.forEach(o => {
-                const opt = document.createElement('option');
-                opt.value = o; opt.textContent = o;
-                if (o === row.operacao) opt.selected = true;
-                selOp.appendChild(opt);
-            });
+            preencherSelectPreguicoso(selOp, OPERACOES, row.operacao);
             selOp.addEventListener('change', () => {
                 const old = row.operacao;
                 if (old !== selOp.value) {
@@ -323,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         row.ativo = inpAt.value;  // aplica o novo valor
                         if (type === 'outros') {                              // TASK-065
                             reclassificarEntidade(row);
-                            tdNum.title = `Entidade: ${row.entidade || '0'}${row.entidadeManual ? ' (definida manualmente)' : ' (automática)'}`;
+                            atualizarCelulaEntidade();
                         }
                         buildAtivoSets();
                         buildDataLists();
@@ -408,9 +490,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 showCtxMenu(e.clientX, e.clientY);
             });
 
+            // TASK-069: agrupamento visual (separador antes de cada trecho de valores iguais da coluna agrupada)
+            const campoGrupo = agrupamento[type];
+            if (campoGrupo) {
+                const chave = String(row[campoGrupo] == null || row[campoGrupo] === '' ? '(vazio)' : row[campoGrupo]);
+                const ant = idx > 0 ? state.data[idx - 1] : null;
+                const chaveAnt = ant ? String(ant[campoGrupo] == null || ant[campoGrupo] === '' ? '(vazio)' : ant[campoGrupo]) : null;
+                if (chave !== chaveAnt) {
+                    let n = 0;
+                    for (let k = idx; k < state.data.length; k++) {
+                        const v = state.data[k][campoGrupo];
+                        if (String(v == null || v === '' ? '(vazio)' : v) !== chave) break;
+                        n++;
+                    }
+                    const sep = document.createElement('tr');
+                    sep.className = 'grupo-sep';
+                    sep.dataset.grupoCampo = campoGrupo;
+                    const tdSep = document.createElement('td');
+                    tdSep.colSpan = (type === 'outros' && document.getElementById('table-outros').classList.contains('sem-entidade')) ? 4 : 5;
+                    tdSep.textContent = `▸ ${campoGrupo.toUpperCase()}: ${chave}  (${n})`;
+                    sep.appendChild(tdSep);
+                    frag.appendChild(sep);
+                }
+            }
             frag.appendChild(tr);
         });
         body.appendChild(frag);
+        atualizarIndicadoresOrdem(type);
 
         updateCounters();
         atualizarResumoRedeUI();
@@ -603,7 +709,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function refreshAllFilters(type) {
-        FILTER_FIELDS.forEach(field => {
+        camposFiltro(type).forEach(field => {
             buildFilterDropdown(FILTER_CONTAINERS[type][field], type, field);
         });
     }
@@ -619,13 +725,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const row = state.data[idx];
             if (!row) return;
             let visible = true;
-            for (const field of FILTER_FIELDS) {
+            for (const field of camposFiltro(type)) {
                 const sel = sels[field];
                 if (sel.size > 0 && !sel.has(row[field] || '')) {
                     visible = false; break;
                 }
             }
             tr.style.display = visible ? '' : 'none';
+        });
+        // separador de grupo só aparece se sobrou alguma linha visível depois dele
+        const filhos = Array.from(body.children);
+        filhos.forEach((tr, i) => {
+            if (!tr.classList.contains('grupo-sep')) return;
+            let algum = false;
+            for (let k = i + 1; k < filhos.length && !filhos[k].classList.contains('grupo-sep'); k++) if (filhos[k].style.display !== 'none') { algum = true; break; }
+            tr.style.display = algum ? '' : 'none';
         });
         updateCounters();
     }
@@ -724,6 +838,106 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteRow(ctxType, parseInt(ctxRow.dataset.index));
         hideCtxMenu();
     });
+
+    /* ═══════════════════════════════════════
+       CLASSIFICAR / AGRUPAR POR COLUNA (TASK-069)
+       Ordena de verdade (estável, natural no ativo, ordem lógica nas operações), com um passo de Ctrl+Z. Em Outros os vínculos
+       cabo<->estrutura (por índice) são remapeados; em Cabos a Qtd Ativos NÃO é recalculada (fica com a linha).
+    ═══════════════════════════════════════ */
+    function ordenarTabela(tipo, criterios) {
+        const GT = window.GradeTabela;
+        const dados = tableStates[tipo].data;
+        if (dados.length < 2) { showToast('Nada para ordenar.'); return; }
+        pushHistory();
+        const ordem = GT.ordenarLinhas(dados, criterios);
+        const mapa = GT.mapaDeOrdem(ordem);
+        tableStates[tipo].data = ordem.map(i => dados[i]);
+        if (tipo === 'outros') {
+            tableStates.cabos.data.forEach(c => {
+                if (Array.isArray(c.vinculoEstruturas)) c.vinculoEstruturas = c.vinculoEstruturas.map(i => (mapa[i] !== undefined ? mapa[i] : i));
+            });
+        }
+        ordemAtual[tipo] = criterios.map(c => Object.assign({}, c));
+        limparGrade();
+        document.querySelectorAll('tr.row-selected').forEach(x => x.classList.remove('row-selected'));
+        renderTable(tipo);
+        buildAtivoSets(); buildDataLists();
+        refreshAllFilters(tipo);
+        updateHistoryUI();
+        showToast(`${tipo === 'cabos' ? 'Cabos' : 'Outros'} classificado por ${criterios.map(c => c.campo + (c.dir === 'desc' ? ' ↓' : ' ↑')).join(', ')}. Ctrl+Z desfaz.`
+            + (tipo === 'cabos' ? ' Qtd Ativos não foi recalculada.' : ''));
+    }
+
+    function atualizarIndicadoresOrdem(tipo) {
+        const GT = window.GradeTabela;
+        if (ordemAtual[tipo].length && !(GT && GT.estaOrdenado(tableStates[tipo].data, ordemAtual[tipo]))) ordemAtual[tipo] = [];   // edição/undo desfez a ordem
+        document.querySelectorAll(`.th-sort[data-tipo="${tipo}"]`).forEach(th => {
+            const i = ordemAtual[tipo].findIndex(c => c.campo === th.dataset.campo);
+            const ind = th.querySelector('.sort-ind');
+            if (!ind) return;
+            if (i >= 0) ind.textContent = (ordemAtual[tipo][i].dir === 'desc' ? '▼' : '▲') + (ordemAtual[tipo].length > 1 ? (i + 1) : '');
+            else ind.textContent = agrupamento[tipo] === th.dataset.campo ? '▤' : '';
+        });
+    }
+
+    /** Clique no título da coluna: 1º clique crescente, de novo decrescente, e assim por diante. Shift = critério adicional. */
+    function alternarOrdem(tipo, campo, shift) {
+        const atual = ordemAtual[tipo].map(c => Object.assign({}, c));
+        const i = atual.findIndex(c => c.campo === campo);
+        const dir = i >= 0 && atual[i].dir === 'asc' ? 'desc' : 'asc';
+        let crit;
+        if (shift && atual.length) { if (i >= 0) { atual[i].dir = dir; crit = atual; } else crit = atual.concat([{ campo, dir }]); }
+        else crit = [{ campo, dir }];
+        ordenarTabela(tipo, crit);
+    }
+
+    (function ligarCabecalhosClassificar() {
+        const menu = document.createElement('div');
+        menu.id = 'menu-classificar';
+        document.body.appendChild(menu);
+        const fechar = () => menu.classList.remove('visible');
+        document.addEventListener('click', e => {
+            const th = e.target.closest ? e.target.closest('.th-sort') : null;
+            if (th) { fechar(); alternarOrdem(th.dataset.tipo, th.dataset.campo, e.shiftKey); return; }
+            if (!menu.contains(e.target)) fechar();
+        });
+        // botão direito no título: agrupar (visual) / limpar agrupamento
+        document.addEventListener('contextmenu', e => {
+            const th = e.target.closest ? e.target.closest('.th-sort') : null;
+            if (!th) return;
+            e.preventDefault();
+            const tipo = th.dataset.tipo, campo = th.dataset.campo;
+            menu.innerHTML = '';
+            const item = (txt, acao) => { const d = document.createElement('div'); d.className = 'mc-item'; d.textContent = txt; d.addEventListener('click', () => { fechar(); acao(); }); menu.appendChild(d); };
+            if (campo !== 'qtdAtivos') item('Agrupar por esta coluna', () => { agrupamento[tipo] = campo; ordenarTabela(tipo, [{ campo, dir: 'asc' }]); });
+            if (agrupamento[tipo]) item('Limpar agrupamento', () => { agrupamento[tipo] = null; renderTable(tipo); });
+            if (!menu.children.length) { fechar(); return; }
+            menu.style.left = Math.min(e.clientX, window.innerWidth - 230) + 'px';
+            menu.style.top = (e.clientY + 4) + 'px';
+            menu.classList.add('visible');
+        });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') fechar(); });
+    })();
+
+    // Coluna Entidade de Outros: ocultar/mostrar (só visual; a preferência fica neste navegador)
+    (function ligarOcultarEntidade() {
+        const btn = document.getElementById('btn-toggle-entidade'), tabela = document.getElementById('table-outros');
+        if (!btn || !tabela) return;
+        const OLHO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+        const OLHO_RISCADO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+        const aplicar = (oculto, persistir) => {
+            tabela.classList.toggle('sem-entidade', oculto);
+            btn.innerHTML = oculto ? OLHO_RISCADO : OLHO;
+            btn.title = oculto ? 'Mostrar a coluna Entidade' : 'Ocultar a coluna Entidade';
+            if (oculto && filterSelections.outros.entidade.size) { filterSelections.outros.entidade.clear(); refreshAllFilters('outros'); applyFilters('outros'); }   // filtro invisível não pode ficar ativo
+            if (agrupamento.outros) renderTable('outros');          // a largura dos separadores depende das colunas visíveis
+            if (persistir) { try { localStorage.setItem('resumo_ocultar_entidade', oculto ? '1' : '0'); } catch (e) { /* sem localStorage: vale só nesta sessão */ } }
+        };
+        let inicial = false;
+        try { inicial = localStorage.getItem('resumo_ocultar_entidade') === '1'; } catch (e) { /* ignora */ }
+        aplicar(inicial, false);
+        btn.addEventListener('click', () => aplicar(!tabela.classList.contains('sem-entidade'), true));
+    })();
 
     /* ═══════════════════════════════════════
        GRADE ESTILO EXCEL (TASK-067) — Cabos e Outros
@@ -1287,7 +1501,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Conta apenas as linhas visíveis (não filtradas)
         ['cabos', 'outros'].forEach(type => {
             const body = document.getElementById(tableStates[type].bodyId);
-            const visible = body ? Array.from(body.children).filter(tr => tr.style.display !== 'none').length : tableStates[type].data.length;
+            const visible = body ? Array.from(body.children).filter(tr => tr.style.display !== 'none' && !tr.classList.contains('grupo-sep')).length : tableStates[type].data.length;
             const total   = tableStates[type].data.length;
             const badge   = document.getElementById(`count-${type}`);
             if (badge) badge.textContent = visible < total ? `${visible}/${total}` : total;
@@ -2575,15 +2789,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!tableStates[alvo]) return;
 
             if (action.acao_ui === 'ordenar') {
-                pushHistory();
-                tableStates[alvo].data.sort((a, b) => {
-                    let valA = (a[action.coluna] || '').toString();
-                    let valB = (b[action.coluna] || '').toString();
-                    if (action.ordem === 'desc') return valB.localeCompare(valA);
-                    return valA.localeCompare(valB);
-                });
-                renderTable(alvo);
-                showToast(`Tabela ${alvo} ordenada!`);
+                if (!['entidade', 'operacao', 'ativo', 'qtdAtivos'].includes(action.coluna)) { showToast('Coluna não ordenável: ' + action.coluna); return; }
+                ordenarTabela(alvo, [{ campo: action.coluna, dir: action.ordem === 'desc' ? 'desc' : 'asc' }]);
             } 
             else if (action.acao_ui === 'filtrar') {
                 if (!filterSelections[alvo][action.coluna]) { showToast('Coluna não filtrável: ' + action.coluna); return; }
@@ -2612,7 +2819,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast(`Filtro aplicado na tabela ${alvo}!`);
             }
             else if (action.acao_ui === 'limpar_filtros') {
-                FILTER_FIELDS.forEach(field => filterSelections[alvo][field].clear());
+                camposFiltro(alvo).forEach(field => filterSelections[alvo][field].clear());
                 applyFilters(alvo);
                 refreshAllFilters(alvo);
                 showToast(`Filtros limpos na tabela ${alvo}!`);

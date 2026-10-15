@@ -206,8 +206,73 @@
         return saida.join('\n');
     }
 
+
+    /* ── TASK-069: ordenação por coluna (Outros e Cabos) ── */
+    const RANK_OPERACAO = { 'I': 0, '*I': 1, 'R': 2, '*R': 3, 'M': 4, '*M': 5 };
+    const vazio = v => v === undefined || v === null || String(v).trim() === '';
+
+    function fichas(texto) {                      // "2-U4" -> [2, '-U', 4]; "CAA 2 ABC 80 m" -> ['CAA ', 2, ' ABC ', 80, ' m']
+        const out = [], re = /(\d+(?:[.,]\d+)?)|(\D+)/g;
+        let m;
+        while ((m = re.exec(String(texto))) !== null) out.push(m[1] !== undefined ? parseFloat(m[1].replace(',', '.')) : m[2].toUpperCase());
+        return out;
+    }
+    function compararNatural(a, b) {
+        const fa = fichas(a), fb = fichas(b);
+        for (let i = 0; i < Math.min(fa.length, fb.length); i++) {
+            const x = fa[i], y = fb[i];
+            if (typeof x === 'number' && typeof y === 'number') { if (x !== y) return x < y ? -1 : 1; }
+            else if (typeof x === 'number') return -1;                // número antes de texto
+            else if (typeof y === 'number') return 1;
+            else if (x !== y) return x.localeCompare(y, 'pt-BR');
+        }
+        return fa.length - fb.length;
+    }
+    function compararCampo(campo, a, b) {         // só chamado com os dois preenchidos
+        if (campo === 'operacao') {
+            const ra = RANK_OPERACAO[String(a).trim().toUpperCase()], rb = RANK_OPERACAO[String(b).trim().toUpperCase()];
+            return (ra === undefined ? 99 : ra) - (rb === undefined ? 99 : rb) || String(a).localeCompare(String(b), 'pt-BR');
+        }
+        if (campo === 'entidade') {
+            const za = String(a) === '0', zb = String(b) === '0';
+            if (za !== zb) return za ? 1 : -1;                         // "0" (sem classificação) por último
+            return String(a).localeCompare(String(b), 'pt-BR');
+        }
+        if (campo === 'qtdAtivos') {
+            const x = parseFloat(String(a).replace(',', '.')), y = parseFloat(String(b).replace(',', '.'));
+            if (isNaN(x) || isNaN(y)) return isNaN(x) === isNaN(y) ? 0 : (isNaN(x) ? 1 : -1);
+            return x - y;
+        }
+        return compararNatural(a, b);                                  // ativo
+    }
+    function compararLinhas(criterios, la, lb) {
+        for (const c of criterios) {
+            const a = la[c.campo], b = lb[c.campo], va = vazio(a), vb = vazio(b);
+            if (va || vb) { if (va && vb) continue; return va ? 1 : -1; }   // vazio sempre por último, em qualquer sentido
+            const r = compararCampo(c.campo, a, b);
+            if (r !== 0) return c.dir === 'desc' ? -r : r;
+        }
+        return 0;
+    }
+    /** Ordem estável: devolve os índices ANTIGOS na ordem nova. */
+    function ordenarLinhas(linhas, criterios) {
+        return linhas.map((l, i) => i).sort((i, j) => compararLinhas(criterios, linhas[i], linhas[j]) || (i - j));
+    }
+    /** ordem (índices antigos por posição nova) -> mapa antigo->novo, para remapear referências por índice (vínculos). */
+    function mapaDeOrdem(ordem) {
+        const mapa = new Array(ordem.length);
+        ordem.forEach((antigo, novo) => { mapa[antigo] = novo; });
+        return mapa;
+    }
+    function estaOrdenado(linhas, criterios) {
+        if (!criterios || !criterios.length) return false;
+        for (let i = 1; i < linhas.length; i++) if (compararLinhas(criterios, linhas[i - 1], linhas[i]) > 0) return false;
+        return true;
+    }
+
     const api = { OPERACOES, COLUNAS, MAX_LINHAS, colunasDe, parseColagem, ehColagemMultipla, operacaoValida, aplicarColagem, textoDoIntervalo, limparIntervalo,
-        FASES, parseAtivoMontado, aplicarColagemModal, textoDoIntervaloModal };
+        FASES, parseAtivoMontado, aplicarColagemModal, textoDoIntervaloModal,
+        compararLinhas, ordenarLinhas, mapaDeOrdem, estaOrdenado };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     raiz.GradeTabela = api;
 })(typeof window !== 'undefined' ? window : globalThis);
