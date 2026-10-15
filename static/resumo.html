@@ -183,9 +183,9 @@
             vertical-align: top;
         }
         .resumo-table th.col-entidade { width: 130px; }
-        .resumo-table th.col-operacao { width: 90px; }
+        .resumo-table th.col-operacao { width: 118px; }
         .resumo-table th.col-ativo    { width: auto; }
-        .resumo-table th.col-qtd-ativos { width: 70px; text-align: center; }
+        .resumo-table th.col-qtd-ativos { width: 104px; text-align: center; }
         .resumo-table th.col-del      { width: 34px; padding: 8px 4px; }
 
 
@@ -245,6 +245,25 @@
         .gm-btn-fav { color: #6e7681; }
         .gm-btn-fav:hover { color: #f0883e; }
         .gm-btn-del { color: #f85149; }
+
+
+        /* ── TASK-069: entidade visível em Outros, classificar/agrupar por coluna ── */
+        .btn-sort { background: none; border: none; color: #6e7681; cursor: pointer; font-size: 0.78rem; padding: 0 3px; border-radius: 3px; }
+        .btn-sort:hover { color: #fff; background: rgba(255,255,255,0.1); }
+        .btn-sort.ativo { color: #58a6ff; font-weight: 700; }
+        #table-outros .sel-entidade { border: none; border-radius: 0; background: transparent; padding: 6px 4px; font-size: 0.78rem; }
+        #table-outros .sel-entidade:focus { outline: 2px solid #388bfd; outline-offset: -2px; background: rgba(56,139,253,0.08); }
+        #table-outros td.cel-ent { position: relative; }
+        .ent-view { padding: 6px 8px; font-size: 0.78rem; color: #c9d1d9; cursor: pointer; min-height: 1.2em; }
+        .ent-view:hover { background: rgba(255,255,255,0.05); }
+        .ent-view:focus { outline: 2px solid #388bfd; outline-offset: -2px; }
+        .ent-lock { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); font-size: 0.62rem; pointer-events: none; }
+        tr.grupo-sep td { background: rgba(88,166,255,0.10); color: #58a6ff; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; padding: 4px 10px !important; border-top: 2px solid rgba(88,166,255,0.4); }
+        #menu-classificar { position: fixed; z-index: 10000; background: rgba(22,27,34,0.98); border: 1px solid rgba(48,54,61,0.9); border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,0.55); padding: 5px 0; min-width: 210px; display: none; }
+        #menu-classificar.visible { display: block; }
+        #menu-classificar .mc-item { padding: 7px 14px; font-size: 0.8rem; color: #c9d1d9; cursor: pointer; }
+        #menu-classificar .mc-item:hover { background: rgba(255,255,255,0.07); }
+        #menu-classificar .mc-hint { padding: 4px 14px 6px; font-size: 0.65rem; color: #6e7681; border-top: 1px solid rgba(48,54,61,0.8); margin-top: 3px; }
 
         /* ── Qtd Ativos input ── */
         .inp-qtd-ativos {
@@ -1156,15 +1175,15 @@
                             <tr>
                                 <th class="col-num" title="Clique no número para selecionar a linha">#</th>
                                 <th class="col-operacao">
-                                    <div class="th-label">Operação</div>
+                                    <div class="th-label">Operação <button class="btn-sort" data-tipo="cabos" data-campo="operacao" title="Classificar / agrupar">⇅</button></div>
                                     <div class="r-filter-container" id="rfc-cabos-operacao"></div>
                                 </th>
                                 <th class="col-ativo">
-                                    <div class="th-label">Ativo</div>
+                                    <div class="th-label">Ativo <button class="btn-sort" data-tipo="cabos" data-campo="ativo" title="Classificar / agrupar">⇅</button></div>
                                     <div class="r-filter-container" id="rfc-cabos-ativo"></div>
                                 </th>
                                 <th class="col-qtd-ativos">
-                                    <div class="th-label">Qtd Ativos</div>
+                                    <div class="th-label">Qtd Ativos <button class="btn-sort" data-tipo="cabos" data-campo="qtdAtivos" title="Classificar">⇅</button></div>
                                 </th>
                                 <th class="col-del"></th>
                             </tr>
@@ -1204,12 +1223,16 @@
                         <thead>
                             <tr>
                                 <th class="col-num" title="Clique no número para selecionar a linha">#</th>
+                                <th class="col-entidade">
+                                    <div class="th-label">Entidade <button class="btn-sort" data-tipo="outros" data-campo="entidade" title="Classificar / agrupar">⇅</button></div>
+                                    <div class="r-filter-container" id="rfc-outros-entidade"></div>
+                                </th>
                                 <th class="col-operacao">
-                                    <div class="th-label">Operação</div>
+                                    <div class="th-label">Operação <button class="btn-sort" data-tipo="outros" data-campo="operacao" title="Classificar / agrupar">⇅</button></div>
                                     <div class="r-filter-container" id="rfc-outros-operacao"></div>
                                 </th>
                                 <th class="col-ativo">
-                                    <div class="th-label">Ativo</div>
+                                    <div class="th-label">Ativo <button class="btn-sort" data-tipo="outros" data-campo="ativo" title="Classificar / agrupar">⇅</button></div>
                                     <div class="r-filter-container" id="rfc-outros-ativo"></div>
                                 </th>
                                 <th class="col-del"></th>

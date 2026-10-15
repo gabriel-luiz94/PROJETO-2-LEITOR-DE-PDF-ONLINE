@@ -336,7 +336,9 @@ O botão **Ler projeto** (no alto do Resumo) faz tudo de uma vez: lê o PDF/DXF/
 
 As tabelas **Cabos** e **Demais Ativos** funcionam como uma planilha: clique e arraste (ou Shift+clique) para selecionar várias células, clique no **número da linha** para selecionar a linha, **Ctrl+A** para tudo. **Ctrl+C** copia em formato de planilha (cola direto no Excel); **Ctrl+V** cola várias linhas do Excel a partir da célula atual — sobrescreve as linhas existentes e cria novas se faltar. Uma coluna cola no Ativo; duas colunas, Operação + Ativo (em Cabos, uma terceira com `-` marca a linha como negativa). Operação inválida é ignorada (mantém a que estava) e aparece um aviso. **Delete** esvazia o Ativo do intervalo; **Excluir** remove as linhas selecionadas. **Ctrl+Z** desfaz a colagem inteira de uma vez.
 
-A **Entidade** não aparece mais; em Demais Ativos ela é recalculada sozinha quando o ativo muda. Se a regra errar, clique com o botão direito na linha → **Definir entidade…** (a linha fica travada; "Automática" destrava).
+Em **Demais Ativos** a **Entidade** é a primeira coluna: ela é recalculada sozinha quando o ativo muda; se a regra errar, clique nela e escolha outra (a linha fica travada 🔒) ou use o botão direito → **Definir entidade…** ("Automática" destrava). Em Cabos não há Entidade.
+
+O botão **⇅** no título de cada coluna abre o menu **Classificar** (A → Z, Z → A; **Shift** + clique adiciona um segundo critério), **Agrupar por esta coluna** (separadores com a contagem de cada grupo) e **Limpar agrupamento**. Classificar reordena as linhas de verdade (Ctrl+Z desfaz) e mantém os vínculos cabo↔estrutura. Em Cabos a **Qtd Ativos** não é recalculada ao classificar. Para filtrar por valor use a caixa “Todos” abaixo do título.
 
 ### Geradores de Cabos e de Postes/Estruturas
 

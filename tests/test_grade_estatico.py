@@ -22,13 +22,16 @@ def _ler(nome):
         return f.read()
 
 
-def test_tabelas_cabos_e_outros_sem_coluna_ou_filtro_de_entidade():
+def test_cabos_sem_coluna_de_entidade_e_outros_com_ela():
     h = _ler("resumo.html")
-    for t in ("cabos", "outros"):
-        tabela = re.search(r'<table class="resumo-table" id="table-%s">.*?</thead>' % t, h, re.S).group(0)
-        assert "Entidade" not in tabela and "entidade" not in tabela
-        assert 'class="col-num"' in tabela
-    assert "rfc-cabos-entidade" not in h and "rfc-outros-entidade" not in h
+    cabos = re.search(r'<table class="resumo-table" id="table-cabos">.*?</thead>', h, re.S).group(0)
+    outros = re.search(r'<table class="resumo-table" id="table-outros">.*?</thead>', h, re.S).group(0)
+    assert "ntidade" not in cabos and "rfc-cabos-entidade" not in h
+    assert "Entidade" in outros and 'id="rfc-outros-entidade"' in outros          # TASK-069: voltou em Outros
+    for t, campos in (("cabos", ("operacao", "ativo", "qtdAtivos")), ("outros", ("entidade", "operacao", "ativo"))):
+        bloco = cabos if t == "cabos" else outros
+        for c in campos:
+            assert f'data-tipo="{t}" data-campo="{c}"' in bloco                       # botão de classificar em cada coluna
 
 
 def test_modulo_da_grade_e_carregado_antes_do_resumo_e_tem_rota_sem_cache(client):
