@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-16 — TASK-071: modo comparação com um REC de referência
+
+**Tipo:** Frontend · `static/resultado_orcamento.html`, `static/orcamento_comparar.js` (novo), `static/orcamento_sap.js`, `app.py` · `.ai/tasks/TASK-071-16-10-2026.md`
+
+Além de somar e subtrair, é possível **comparar** o REC atual com outro (do banco ou de arquivo): coluna **REFERÊNCIA** (só leitura) antes de QUANTIDADE, nas visões REC e SAP; 🟢 iguais · 🟡 diferentes · 🔴 só no atual (referência = 0) · 🔵 só na referência (atual = 0, em linha-fantasma intercalada, com botão ＋ para adicionar ao atual). Barra com liga/desliga, trocar, remover, filtro por status e legenda com contagens. Salvar, exportar `.rec`, Copiar e Excel continuam só com os dados atuais. Internamente a tabela REC ganhou a coluna REFERÊNCIA (QUANTIDADE e FILTRO passaram aos índices 5 e 6).
+
+---
+
 ## 2026-10-15 — TASK-070: visão SAP (ODI/ODD) no Resultado do Orçamento + Excel
 
 **Tipo:** Backend + frontend · `static/resultado_orcamento.html`, `static/orcamento_sap.js` (novo), `services/exportar_xlsx.py` (novo), `routers/orcamento.py`, `requirements.txt`/`build.bat` (**nova dependência: openpyxl**) · `.ai/tasks/TASK-070-15-10-2026.md`

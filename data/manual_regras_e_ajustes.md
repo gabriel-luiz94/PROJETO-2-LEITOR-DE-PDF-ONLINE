@@ -348,6 +348,10 @@ Os dois geradores têm painéis de atalhos. **Operação** (I, R, M…) cria uma
 
 Na tela de resultado há um alternador **REC | SAP**. O **REC** é a tabela única de sempre. Na **SAP** os mesmos itens aparecem em duas tabelas: **ODI** (tudo que está instalando) e **ODD** (tudo que está removendo), com TIPO MDO abreviado (**M** = material, **N** = mão de obra) e uma coluna **CENTRO** logo depois do código (**1600** para material, **1000** para mão de obra — acompanha o TIPO MDO). As tabelas têm os mesmos campos editáveis, filtros, busca e ordenação; **⇄** move uma linha entre ODI e ODD; **Copiar** (acima de cada tabela) copia só aquela tabela. **Exportar Excel** (só na SAP) gera um arquivo com as planilhas ODI e ODD. A SAP é apenas outra forma de ver: salvar no banco e exportar o `.rec` continuam exatamente como no REC.
 
+### Resultado do Orçamento: comparar com um REC
+
+Além de **somar** e **subtrair**, dá para **comparar** o REC atual com outro: **⇄ Comparar** (arquivo `.rec`) ou **⇄ Comparar** ao lado da obra, em **RECs do Banco**. Aparece uma coluna **REFERÊNCIA** antes de QUANTIDADE (nas visões REC e SAP) e as linhas ganham cor: **verde** = igual, **amarelo** = quantidade diferente, **vermelho** = existe só no atual (a referência vale 0), **azul** = existe só na referência (o atual vale 0; a linha é só visual, com um **＋** para adicioná-la ao atual). A barra do modo liga/desliga a comparação (a referência fica guardada até **✕ Remover**) e tem um filtro para ver só um tipo de diferença. Salvar, exportar `.rec`, Copiar e Exportar Excel não levam a coluna nem as linhas azuis.
+
 ## 5. Usando a IA
 
 - **Validar com IA:** ligue a camada de IA na aba **Execução**. A IA aponta o que as regras não cobrem. Só administradores editam os prompts da IA.

@@ -52,15 +52,17 @@
         }
     }
 
+    /** Comparador de duas linhas por coluna (texto A-Z, quantidade numérica). Positivo = a depois de b (no sentido `asc`). */
+    function compararColuna(a, b, coluna, asc) {
+        const dir = asc ? 1 : -1;
+        const r = coluna === 'qtd' ? numeroPtBr(a.qtd) - numeroPtBr(b.qtd)
+            : textoDaColuna(a, coluna).localeCompare(textoDaColuna(b, coluna), 'pt-BR');
+        return r * dir;
+    }
+
     /** Ordenação de exibição (não mexe no REC): texto A-Z/Z-A, quantidade numérica. Estável. */
     function ordenar(linhas, coluna, asc) {
-        const dir = asc ? 1 : -1;
-        return linhas.map((l, i) => ({ l, i })).sort((a, b) => {
-            let r;
-            if (coluna === 'qtd') r = numeroPtBr(a.l.qtd) - numeroPtBr(b.l.qtd);
-            else r = textoDaColuna(a.l, coluna).localeCompare(textoDaColuna(b.l, coluna), 'pt-BR');
-            return r * dir || (a.i - b.i);
-        }).map(x => x.l);
+        return linhas.map((l, i) => ({ l, i })).sort((a, b) => compararColuna(a.l, b.l, coluna, asc) || (a.i - b.i)).map(x => x.l);
     }
 
     /**
@@ -98,7 +100,7 @@
         return Array.from(new Set(linhas.map(l => textoDaColuna(l, coluna).trim()).filter(Boolean))).sort();
     }
 
-    const api = { centroDe, rotuloMdo, mdoDeRotulo, separar, numeroPtBr, ordenar, passaFiltro, tsv, paraExcel, valoresUnicos };
+    const api = { compararColuna, centroDe, rotuloMdo, mdoDeRotulo, separar, numeroPtBr, ordenar, passaFiltro, tsv, paraExcel, valoresUnicos };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     raiz.OrcamentoSap = api;
 })(typeof window !== 'undefined' ? window : globalThis);
