@@ -48,3 +48,11 @@ def test_modo_comparacao_ligado_na_tela_e_rota_sem_cache(client):
     assert "tr.classList.contains('fantasma')" in h                                # leitores do REC ignoram as linhas-fantasma
     r = client.get("/static/orcamento_comparar.js")
     assert r.status_code == 200 and "no-cache" in r.headers.get("cache-control", "").lower()
+
+
+def test_sap_tem_selecao_copia_de_intervalo_e_marcacao_de_copiadas():
+    """TASK-072: botões e ganchos da seleção/cópia de células e da marcação do que já foi copiado."""
+    h = _html()
+    for trecho in ('data-acao="copiar-sel"', 'data-acao="limpar-marcas"', "function copiarSelecaoSap", "function aplicarMarcasSap",
+                   "td.sap-copiada::after", "SAP.COLUNAS_COPIA"):
+        assert trecho in h, trecho
