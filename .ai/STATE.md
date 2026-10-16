@@ -411,7 +411,7 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [x] **TASK-068** (pedido de 2026-10-13): modais de Cabos e Postes refatorados (grade Excel, atalhos com "Novo" no computador/projeto, favoritos, copiar/colar). CONCLUÍDA. Ver `.ai/tasks/TASK-068-13-10-2026.md`.
 - [x] **TASK-069** (pedido de 2026-10-13): Entidade de volta em Outros (seletor, trava manual) + classificar/agrupar por coluna em Outros e Cabos (vínculos remapeados; Qtd Ativos não recalculada em Cabos). CONCLUÍDA. Ver `.ai/tasks/TASK-069-13-10-2026.md`.
 - [x] **TASK-070** (pedido de 2026-10-15): Resultado do Orçamento com visão **SAP** (ODI/ODD lado a lado, M/N) alternável com o REC + exportar Excel (ODI/ODD). CONCLUÍDA. Ver `.ai/tasks/TASK-070-15-10-2026.md`.
-- [ ] **TASK-071** (pedido de 2026-10-16): modo **comparação** com um REC de referência no Resultado do Orçamento (coluna REFERÊNCIA, cores igual/diferente/faltando, REC e SAP). PLANEJAMENTO — aguardando aval e 7 decisões. `.ai/tasks/TASK-071-16-10-2026.md`.
+- [x] **TASK-071** (pedido de 2026-10-16): modo **comparação** com um REC de referência (coluna REFERÊNCIA, cores igual/diferente/faltando, fantasmas intercalados, REC e SAP). CONCLUÍDA. Ver `.ai/tasks/TASK-071-16-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um
 arquivo em `.ai/tasks/`.
 

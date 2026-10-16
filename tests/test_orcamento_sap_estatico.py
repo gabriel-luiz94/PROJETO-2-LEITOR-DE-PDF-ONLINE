@@ -37,3 +37,14 @@ def test_o_filtro_da_sap_nao_toca_nas_linhas_do_rec():
 def test_rota_do_modulo_sem_cache(client):
     r = client.get("/static/orcamento_sap.js")
     assert r.status_code == 200 and "no-cache" in r.headers.get("cache-control", "").lower()
+
+
+def test_modo_comparacao_ligado_na_tela_e_rota_sem_cache(client):
+    """TASK-071: barra, botões, coluna REFERÊNCIA antes de QUANTIDADE e fantasmas fora do .rec."""
+    h = _html()
+    assert 'id="barra-comparar"' in h and "compararComRecBanco(" in h and 'id="file-rec-comparar"' in h
+    assert h.index("/static/orcamento_comparar.js") < h.index("const tbody = document.getElementById('resultado-orcamento-tbody')")
+    assert h.index("REFERÊNCIA ↕") < h.index("QUANTIDADE ↕")                       # coluna só de visualização, antes da quantidade
+    assert "tr.classList.contains('fantasma')" in h                                # leitores do REC ignoram as linhas-fantasma
+    r = client.get("/static/orcamento_comparar.js")
+    assert r.status_code == 200 and "no-cache" in r.headers.get("cache-control", "").lower()

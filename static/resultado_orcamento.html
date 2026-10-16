@@ -720,6 +720,17 @@
         .sap-card.odd h3 .sap-nome { color: var(--badge-r-color); }
         .sap-card .table-scroll-wrapper { min-height: 240px; }
         .sap-table td.sap-centro { text-align: center; width: 70px; color: var(--text-secondary); }
+        .sap-table { table-layout: fixed; width: 100%; min-width: 700px; }
+        .sap-table th, .sap-table td { padding-left: 5px; padding-right: 5px; overflow: hidden; text-overflow: ellipsis; }
+        .sap-table td:last-child { overflow: visible; }
+        .sap-table thead tr:first-child th { letter-spacing: 0; }
+        .sap-table thead tr:first-child th:nth-child(1) { width: 88px; } .sap-table thead tr:first-child th:nth-child(2) { width: 82px; }
+        .sap-table thead tr:first-child th:nth-child(3) { width: 74px; } .sap-table thead tr:first-child th:nth-child(5) { width: 96px; }
+        .sap-table thead tr:first-child th:nth-child(6) { width: 104px; } .sap-table thead tr:first-child th:nth-child(7) { width: 84px; }
+        .sap-table thead tr:first-child th:nth-child(8) { width: 64px; }
+        .sap-table .col-filter-input { width: 100%; min-width: 0; box-sizing: border-box; }
+        .sap-table th.col-ref, .sap-table td.col-ref { width: 84px; }
+        .sap-table td.sap-mdo { width: 52px; }
         .sap-table td.sap-mdo { text-align: center; width: 70px; font-family: 'JetBrains Mono', monospace; }
         .sap-table .btn-mover { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 2px 5px; font-size: 0.85rem; }
         .sap-table .btn-mover:hover { color: var(--text-primary); }
@@ -727,6 +738,33 @@
         body.visao-sap .sap-so-rec { display: none !important; }
         body:not(.visao-sap) .sap-only { display: none !important; }
         @media print { .sap-card-head .acoes, .seg-visao { display: none !important; } .sap-grid { grid-template-columns: 1fr 1fr; } }
+
+        /* ── TASK-071: modo comparação com um REC de referência ── */
+        .budget-data-table:not(.comparando) .col-ref { display: none; }
+        .budget-data-table th.col-ref { text-align: right; width: 110px; }
+        .budget-data-table td.col-ref { color: var(--text-secondary); }
+        tr.cmp-igual td { background: rgba(46, 160, 67, 0.13); }
+        tr.cmp-diferente td { background: rgba(210, 153, 34, 0.18); }
+        tr.cmp-so-atual td { background: rgba(248, 81, 73, 0.15); }
+        tr.cmp-so-ref td { background: rgba(56, 139, 253, 0.16); }
+        tr.cmp-igual td:first-child { box-shadow: inset 3px 0 0 #2ea043; }
+        tr.cmp-diferente td:first-child { box-shadow: inset 3px 0 0 #d2991e; }
+        tr.cmp-so-atual td:first-child { box-shadow: inset 3px 0 0 #f85149; }
+        tr.cmp-so-ref td:first-child { box-shadow: inset 3px 0 0 #388bfd; }
+        tr.fantasma td { font-style: italic; }
+        tr.fantasma td.cell-qty:not(.col-ref) { color: var(--text-muted); }
+        .cmp-oculta { display: none !important; }
+        .btn-add-fantasma { background: rgba(56,139,253,0.18); color: #79c0ff; border: 1px solid rgba(56,139,253,0.4); border-radius: 4px; cursor: pointer; font-size: 0.78rem; padding: 1px 7px; }
+        .btn-add-fantasma:hover { background: rgba(56,139,253,0.35); }
+        .barra-comparar { display: none; align-items: center; flex-wrap: wrap; gap: 10px; padding: 8px 14px; margin-bottom: 10px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 6px; font-size: 0.8rem; }
+        .barra-comparar .cmp-nome { color: var(--text-primary); font-weight: 600; }
+        .barra-comparar select { background: transparent; color: var(--text-primary); border: 1px solid var(--border-default); border-radius: 4px; padding: 3px 6px; }
+        .cmp-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; border: 1px solid; }
+        .cmp-chip.igual { color: #56d364; border-color: rgba(46,160,67,.5); background: rgba(46,160,67,.12); }
+        .cmp-chip.diferente { color: #e3b341; border-color: rgba(210,153,34,.55); background: rgba(210,153,34,.14); }
+        .cmp-chip.so-atual { color: #ff7b72; border-color: rgba(248,81,73,.5); background: rgba(248,81,73,.12); }
+        .cmp-chip.so-ref { color: #79c0ff; border-color: rgba(56,139,253,.5); background: rgba(56,139,253,.14); }
+        @media print { tr[class*="cmp-"] td { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .barra-comparar { display: none !important; } }
     </style>
 </head>
 <body>
@@ -776,6 +814,7 @@
 
         <!-- Hidden Inputs for Files -->
         <input type="file" id="file-rec-externo" accept=".rec, .json" style="display: none;" onchange="carregarRecExterno(event, false)">
+        <input type="file" id="file-rec-comparar" accept=".rec, .json" style="display: none;" onchange="carregarRecComparar(event)">
         <input type="file" id="file-rec-subtrair" accept=".rec, .json" style="display: none;" onchange="carregarRecExterno(event, true)">
 
         <!-- Toolbar -->
@@ -794,6 +833,10 @@
 
                 <button class="btn-action" onclick="document.getElementById('file-rec-subtrair').click()" title="Subtrair itens de um arquivo .REC externo">
                     - Subtrair REC
+                </button>
+
+                <button class="btn-action" onclick="document.getElementById('file-rec-comparar').click()" title="Comparar com um arquivo .REC (modo comparação: referência × atual)">
+                    ⇄ Comparar
                 </button>
 
                 <button class="btn-action" onclick="abrirModalImportarPdfs()" title="Importar e mesclar Orçamento e Lista de Materiais em PDF">
@@ -857,6 +900,26 @@
             </div>
         </div>
 
+        <!-- Barra do modo comparação (TASK-071) -->
+        <div class="barra-comparar" id="barra-comparar">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="cmp-ativo"> Comparação ativa</label>
+            <span>Referência: <span class="cmp-nome" id="cmp-nome"></span></span>
+            <button class="btn-action" onclick="abrirModalRecs()" title="Escolher outro REC do banco como referência">Trocar</button>
+            <button class="btn-action" onclick="document.getElementById('file-rec-comparar').click()" title="Usar um arquivo .REC como referência">Arquivo…</button>
+            <button class="btn-action" onclick="removerReferencia()" title="Remover a referência e sair do modo comparação">✕ Remover</button>
+            <select id="cmp-filtro-status" title="Mostrar só um tipo de diferença">
+                <option value="">Todos os itens</option>
+                <option value="igual">Só iguais</option>
+                <option value="diferente">Só diferentes</option>
+                <option value="so_atual">Só no atual</option>
+                <option value="so_referencia">Só na referência</option>
+            </select>
+            <span class="cmp-chip igual" title="Item nos dois lados com a mesma quantidade">🟢 <b id="cmp-n-igual">0</b> iguais</span>
+            <span class="cmp-chip diferente" title="Item nos dois lados com quantidades diferentes">🟡 <b id="cmp-n-diferente">0</b> diferentes</span>
+            <span class="cmp-chip so-atual" title="Está no atual e não está na referência (referência = 0)">🔴 <b id="cmp-n-so_atual">0</b> faltando na referência</span>
+            <span class="cmp-chip so-ref" title="Está na referência e não está no atual (atual = 0)">🔵 <b id="cmp-n-so_referencia">0</b> faltando no atual</span>
+        </div>
+
         <!-- Status & Stats Bar -->
         <div class="status-container">
             <div class="status-left">
@@ -889,8 +952,9 @@
                             <th class="sortable-th" onclick="sortTable(1)" style="width: 140px;" title="Ordenar por MDO">TIPO MDO ↕</th>
                             <th class="sortable-th" onclick="sortTable(2)" style="width: 120px;" title="Ordenar por Código">CÓDIGO ↕</th>
                             <th class="sortable-th" onclick="sortTable(3)" title="Ordenar por Descrição">DESCRIÇÃO ↕</th>
-                            <th class="sortable-th" onclick="sortTable(4)" style="width: 120px; text-align: right;" title="Ordenar por Quantidade">QUANTIDADE ↕</th>
-                            <th class="sortable-th" onclick="sortTable(5)" style="width: 120px;" title="Ordenar por Filtro">FILTRO ↕</th>
+                            <th class="sortable-th col-ref" onclick="sortTable(4)" title="Quantidade no REC de referência (modo comparação)">REFERÊNCIA ↕</th>
+                            <th class="sortable-th" onclick="sortTable(5)" style="width: 120px; text-align: right;" title="Ordenar por Quantidade">QUANTIDADE ↕</th>
+                            <th class="sortable-th" onclick="sortTable(6)" style="width: 120px;" title="Ordenar por Filtro">FILTRO ↕</th>
                             <th style="text-align: center; width: 50px;">AÇÃO</th>
                         </tr>
                         <tr class="filters-row">
@@ -898,6 +962,7 @@
                             <th><input type="text" oninput="applyAllFilters()" placeholder="Filtro..." class="col-filter-input"></th>
                             <th><input type="text" oninput="applyAllFilters()" placeholder="Filtro..." class="col-filter-input"></th>
                             <th><input type="text" oninput="applyAllFilters()" placeholder="Filtro..." class="col-filter-input"></th>
+                            <th class="col-ref"></th>
                             <th></th>
                             <th>
                                 <select id="filtro-col-select" onchange="applyAllFilters()" class="col-filter-input" style="width: 100%; padding: 4px; background: transparent; color: var(--text-primary); border: 1px solid var(--border-default); outline: none; appearance: auto;">
@@ -908,7 +973,7 @@
                         </tr>
                     </thead>
                     <tbody id="resultado-orcamento-tbody">
-                        <tr><td colspan="6" style="text-align:center; padding:35px; color:var(--text-secondary);">Calculando orçamento...</td></tr>
+                        <tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-secondary);">Calculando orçamento...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -976,6 +1041,7 @@
     </div>
 
     <script src="/static/orcamento_sap.js"></script>
+    <script src="/static/orcamento_comparar.js"></script>
     <script>
         const tbody = document.getElementById('resultado-orcamento-tbody');
         const statusMsg = document.getElementById('status-msg');
@@ -987,6 +1053,8 @@
 
         let uidSeq = 0;
         let modoVisao = 'rec';      // 'rec' | 'sap' (TASK-070)
+        let recOrdemAtual = null;   // última ordenação manual do REC (para encaixar as linhas-fantasma)
+        const cmp = { ref: null, nome: '', ativo: false, filtroStatus: '' };   // modo comparação (TASK-071)
 
         function log(msg, isLoading = false) {
             console.log(msg);
@@ -1047,7 +1115,8 @@
             countInc.textContent = inc;
             countRet.textContent = ret;
             countQtd.textContent = totalQ.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            if (modoVisao === 'sap' && !semRenderSap) renderSap();     // a visão SAP acompanha qualquer mudança do REC
+            if (modoVisao === 'sap' && !semRenderSap) renderSap();     // a visão SAP acompanha qualquer mudança do REC (e já refaz a comparação)
+            else atualizarComparacao();
         }
 
         function getRowsData() {
@@ -1055,14 +1124,15 @@
             let data = [];
             trs.forEach(tr => {
                 if (tr.innerText.includes("Calculando") || tr.innerText.includes("Nenhum") || tr.innerText.includes("Tabela vazia")) return;
-                if (tr.cells.length < 5) return;
+                if (tr.classList.contains('fantasma')) return;          // linha-fantasma do modo comparação nunca é dado
+                if (tr.cells.length < 6) return;
                 
                 const op = tr.cells[0].innerText.trim().toUpperCase() || 'I';
                 const mdo = tr.cells[1].innerText.trim();
                 const codigo = tr.cells[2].innerText.trim();
                 const desc = tr.cells[3].innerText.trim();
-                const qtdStr = tr.cells[4] ? tr.cells[4].innerText.trim().replace(/\./g, '').replace(',', '.') : '0';
-                const filtro = tr.cells[5] ? tr.cells[5].innerText.trim() : '';
+                const qtdStr = tr.cells[5] ? tr.cells[5].innerText.trim().replace(/\./g, '').replace(',', '.') : '0';
+                const filtro = tr.cells[6] ? tr.cells[6].innerText.trim() : '';
                 const qtd = parseFloat(qtdStr) || 0;
                 
                 if (codigo || desc) {
@@ -1080,6 +1150,7 @@
         }
 
         function renderRowsData(data) {
+            recOrdemAtual = null;       // a tabela foi refeita na ordem padrão
             // Nova ordenação: Descrição A-Z, Operação A-Z, TIPO MDO A-Z
             data.sort((a, b) => {
                 // 1. TIPO MDO: Forçado (vazio, '-' ou MAO-DE-OBRA = 1, MATERIAL = 2)
@@ -1122,6 +1193,7 @@
                     <td contenteditable="true">${item.mdo || 'MAO-DE-OBRA'}</td>
                     <td contenteditable="true" class="cell-mono">${item.codigo || ''}</td>
                     <td contenteditable="true">${item.desc_codigo || ''}</td>
+                    <td class="col-ref cell-qty" contenteditable="false"></td>
                     <td contenteditable="true" class="cell-qty">${(item.total || 0).toFixed(2).replace('.', ',')}</td>
                     <td contenteditable="true">${item.filtro || ''}</td>
                     <td style="text-align:center;">
@@ -1136,7 +1208,7 @@
             });
 
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum item presente na tabela.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum item presente na tabela.</td></tr>';
             }
 
             const selectFiltro = document.getElementById("filtro-col-select");
@@ -1162,7 +1234,7 @@
             btn.closest('tr').remove();
             const data = getRowsData();
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum item presente na tabela.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum item presente na tabela.</td></tr>';
             }
             updateStats(data);
         }
@@ -1196,7 +1268,7 @@
                 log('Lendo dados para cálculo do orçamento...', true);
                 const payloadStr = localStorage.getItem('orcamentoPayload');
                 if (!payloadStr) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum payload encontrado. Volte na tela de Resumo e clique em "Montar Orçamento".</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum payload encontrado. Volte na tela de Resumo e clique em "Montar Orçamento".</td></tr>';
                     log('Nenhum dado ativo no momento.');
                     updateStats([]);
                     return;
@@ -1228,17 +1300,17 @@
                         renderRowsData(data.resultado);
                     } else {
                         log('Cálculo finalizado. Nenhum item encontrado.');
-                        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum código encontrado na base para os itens selecionados.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum código encontrado na base para os itens selecionados.</td></tr>';
                         updateStats([]);
                     }
                 } else {
                     log('Erro ao calcular orçamento: ' + (data.detail || data.error || 'Erro'));
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:35px; color:#f87171;">Erro: ' + (data.detail || data.error || JSON.stringify(data)) + '</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:#f87171;">Erro: ' + (data.detail || data.error || JSON.stringify(data)) + '</td></tr>';
                 }
             } catch(e) {
                 log('Erro de comunicação: ' + e.message);
                 console.error(e);
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:35px; color:#f87171;">Erro: ' + e.message + '</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:#f87171;">Erro: ' + e.message + '</td></tr>';
             }
         }
 
@@ -1263,19 +1335,20 @@
             montarOrcamento();
         }
 
-        let sortDirections = [true, true, true, true, true];
+        let sortDirections = [true, true, true, true, true, true, true, true];
         function sortTable(columnIndex) {
             const trs = Array.from(tbody.querySelectorAll("tr"));
-            if (trs.length <= 1 || trs[0].cells.length < 6) return;
+            if (trs.length <= 1 || trs[0].cells.length < 7) return;
 
             const isAsc = sortDirections[columnIndex];
             sortDirections[columnIndex] = !isAsc;
+            recOrdemAtual = { col: columnIndex, asc: isAsc };      // as linhas-fantasma novas entram respeitando esta ordem
 
             trs.sort((a, b) => {
                 let textA = a.cells[columnIndex].innerText.trim();
                 let textB = b.cells[columnIndex].innerText.trim();
 
-                if (columnIndex === 4) {
+                if (columnIndex === 4 || columnIndex === 5) {
                     let numA = parseFloat(textA.replace(/\./g, '').replace(',', '.')) || 0;
                     let numB = parseFloat(textB.replace(/\./g, '').replace(',', '.')) || 0;
                     return isAsc ? numA - numB : numB - numA;
@@ -1297,9 +1370,9 @@
             
             let tsv = "";
             trs.forEach(tr => {
-                if (tr.style.display === "none" || tr.cells.length < 5) return;
+                if (tr.style.display === "none" || tr.cells.length < 6 || tr.classList.contains('fantasma') || tr.classList.contains('cmp-oculta')) return;
                 let rowData = [];
-                for (let c = 0; c < 5; c++) {
+                for (const c of [0, 1, 2, 3, 5]) {          // sem a coluna REFERÊNCIA (só visual)
                     rowData.push(tr.cells[c].innerText.trim());
                 }
                 tsv += rowData.join("\t") + "\n";
@@ -1321,11 +1394,11 @@
             }
             let recLines = [];
             trs.forEach(tr => {
-                if (tr.style.display === "none" || tr.cells.length < 5) return;
+                if (tr.style.display === "none" || tr.cells.length < 6 || tr.classList.contains('fantasma')) return;   // fantasma (só na referência) nunca é gravado
                 const op = tr.cells[0].innerText.trim().toUpperCase();
                 const mdo = tr.cells[1].innerText.trim().toUpperCase();
                 const codigo = tr.cells[2].innerText.trim();
-                const qtd = tr.cells[4].innerText.trim();
+                const qtd = tr.cells[5].innerText.trim();
                 
                 const mdoCode = (mdo === "MATERIAL") ? "M" : "S";
                 const opCode = (op === "I") ? "IN" : "DR"; 
@@ -1516,6 +1589,7 @@
                         <td style="text-align:right; white-space:nowrap;">
                             <button onclick="carregarRecBanco('${r.numero_obra}', false)" class="btn-mini" title="Somar itens">+ Somar</button>
                             <button onclick="carregarRecBanco('${r.numero_obra}', true)" class="btn-mini" style="margin: 0 3px;" title="Subtrair itens">- Subtrair</button>
+                            <button onclick="compararComRecBanco('${r.numero_obra}')" class="btn-mini" style="margin: 0 3px 0 0;" title="Usar como referência de comparação">⇄ Comparar</button>
                             <button onclick="excluirRecBanco('${r.numero_obra}')" class="btn-mini btn-mini-danger" title="Excluir">Excluir</button>
                         </td>
                     `;
@@ -1559,7 +1633,7 @@
             const trs = tbody.getElementsByTagName("tr");
             
             for (let i = 0; i < trs.length; i++) {
-                if (trs[i].cells.length < 6) continue;
+                if (trs[i].cells.length < 7) continue;
                 
                 let show = true;
                 
@@ -1578,7 +1652,7 @@
                 }
 
                 if (show && selectFiltro) {
-                    const cellFiltro = trs[i].cells[5].innerText.toUpperCase();
+                    const cellFiltro = trs[i].cells[6].innerText.toUpperCase();
                     if (cellFiltro !== selectFiltro) {
                         show = false;
                     }
@@ -1590,7 +1664,7 @@
         
         function limparTabela() {
             if (confirm("Tem certeza que deseja limpar a tabela?")) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:35px; color:var(--text-secondary);">Tabela vazia.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-secondary);">Tabela vazia.</td></tr>';
                 updateStats([]);
                 log('Tabela limpa.');
             }
@@ -1749,17 +1823,17 @@
         const SAP = window.OrcamentoSap;
         const sapOrdem = { odi: { col: null, asc: true }, odd: { col: null, asc: true } };
         const SAP_COLS = [['mdo', 'TIPO MDO', 0], ['codigo', 'CÓDIGO', 1], ['centro', 'CENTRO', 2], ['desc', 'DESCRIÇÃO', 3], ['qtd', 'QUANTIDADE', 4]];
-        const REC_CELULA = { mdo: 1, codigo: 2, desc: 3, qtd: 4, filtro: 5 };
+        const REC_CELULA = { mdo: 1, codigo: 2, desc: 3, qtd: 5, filtro: 6 };
 
         function lerLinhasRec() {
-            return Array.from(tbody.querySelectorAll('tr[data-uid]')).filter(tr => tr.cells.length >= 5).map(tr => ({
+            return Array.from(tbody.querySelectorAll('tr[data-uid]')).filter(tr => tr.cells.length >= 6).map(tr => ({
                 uid: tr.dataset.uid,
                 operacao: tr.cells[0].innerText.trim().toUpperCase() || 'I',
                 mdo: tr.cells[1].innerText.trim(),
                 codigo: tr.cells[2].innerText.trim(),
                 desc: tr.cells[3].innerText.trim(),
-                qtd: tr.cells[4].innerText.trim(),
-                filtro: tr.cells[5] ? tr.cells[5].innerText.trim() : ''
+                qtd: tr.cells[5].innerText.trim(),
+                filtro: tr.cells[6] ? tr.cells[6].innerText.trim() : ''
             }));
         }
         const recTrDe = uid => tbody.querySelector('tr[data-uid="' + uid + '"]');
@@ -1784,7 +1858,7 @@
                         <table class="budget-data-table sap-table">
                             <thead>
                                 <tr>
-                                    ${SAP_COLS.map(([c, t]) => `<th class="sortable-th" data-sort="${c}" title="Ordenar por ${t}"${c === 'qtd' ? ' style="text-align:right;"' : ''}>${t} ↕</th>`).join('')}
+                                    ${SAP_COLS.map(([c, t]) => (c === 'qtd' ? '<th class="col-ref" title="Quantidade no REC de referência">REFERÊNCIA</th>' : '') + `<th class="sortable-th" data-sort="${c}" title="Ordenar por ${t}"${c === 'qtd' ? ' style="text-align:right;"' : ''}>${t} ↕</th>`).join('')}
                                     <th class="sortable-th" data-sort="filtro" title="Ordenar por Filtro">FILTRO ↕</th>
                                     <th style="text-align:center; width:64px;">AÇÃO</th>
                                 </tr>
@@ -1793,6 +1867,7 @@
                                     <th><input type="text" data-f="codigo" placeholder="Filtro..." class="col-filter-input"></th>
                                     <th><input type="text" data-f="centro" placeholder="Filtro..." class="col-filter-input"></th>
                                     <th><input type="text" data-f="desc" placeholder="Filtro..." class="col-filter-input"></th>
+                                    <th class="col-ref"></th>
                                     <th></th>
                                     <th><select data-f="filtro" class="col-filter-input" style="width:100%; padding:4px; background:transparent; color:var(--text-primary); border:1px solid var(--border-default); outline:none; appearance:auto;"><option value="">Todos</option></select></th>
                                     <th></th>
@@ -1845,7 +1920,7 @@
                     } else if (b.dataset.acao === 'excluir') {
                         rec.remove();
                         const data = getRowsData();
-                        if (data.length === 0) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum item presente na tabela.</td></tr>';
+                        if (data.length === 0) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum item presente na tabela.</td></tr>';
                         updateStats(data);
                     }
                 });
@@ -1869,7 +1944,7 @@
                 });
                 tb.innerHTML = '';
                 if (!linhas.length) {
-                    tb.innerHTML = `<tr class="sap-vazio"><td colspan="7">Nenhum item em ${tipo.toUpperCase()}.</td></tr>`;
+                    tb.innerHTML = `<tr class="sap-vazio"><td colspan="8">Nenhum item em ${tipo.toUpperCase()}.</td></tr>`;
                 } else {
                     const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
                     tb.innerHTML = linhas.map(l => `<tr data-uid="${l.uid}">
@@ -1877,6 +1952,7 @@
                         <td contenteditable="true" class="cell-mono" data-campo="codigo">${esc(l.codigo)}</td>
                         <td class="cell-mono sap-centro" data-campo="centro" title="1600 = material · 1000 = mão de obra (acompanha o TIPO MDO)">${SAP.centroDe(l.mdo)}</td>
                         <td contenteditable="true" data-campo="desc">${esc(l.desc)}</td>
+                        <td class="col-ref cell-qty" data-campo="ref"></td>
                         <td contenteditable="true" class="cell-qty" data-campo="qtd">${esc(l.qtd)}</td>
                         <td contenteditable="true" data-campo="filtro">${esc(l.filtro)}</td>
                         <td style="text-align:center; white-space:nowrap;">
@@ -1886,6 +1962,7 @@
                 }
             });
             aplicarFiltrosSap();
+            atualizarComparacao();
         }
 
         function filtrosDoCartao(card) {
@@ -1901,17 +1978,17 @@
             ['odi', 'odd'].forEach(tipo => {
                 const tb = sapBody(tipo), card = tb.closest('.sap-card'), f = filtrosDoCartao(card);
                 let visiveis = 0, total = 0;
-                tb.querySelectorAll('tr[data-uid]').forEach(tr => {
-                    total++;
+                tb.querySelectorAll('tr[data-uid], tr.fantasma').forEach(tr => {
+                    const real = !tr.classList.contains('fantasma');
                     const ok = SAP.passaFiltro(linhaSapDoDom(tr), f);
                     tr.style.display = ok ? '' : 'none';
-                    if (ok) visiveis++;
+                    if (real) { total++; if (ok && !tr.classList.contains('cmp-oculta')) visiveis++; }
                 });
                 document.getElementById('sap-count-' + tipo).textContent = visiveis < total ? `${visiveis}/${total}` : String(total);
             });
         }
         function linhasVisiveisSap(tipo) {
-            return Array.from(sapBody(tipo).querySelectorAll('tr[data-uid]')).filter(tr => tr.style.display !== 'none').map(linhaSapDoDom);
+            return Array.from(sapBody(tipo).querySelectorAll('tr[data-uid]')).filter(tr => tr.style.display !== 'none' && !tr.classList.contains('cmp-oculta')).map(linhaSapDoDom);
         }
 
         function copiarSap(tipo) {
@@ -1965,6 +2042,186 @@
                 applyAllFilters();
             }
         }
+
+        /* ═══════════════════════════════════════════════════════════
+           MODO COMPARAÇÃO (TASK-071) — REC atual × um REC de referência (do banco ou de arquivo), nas visões REC e SAP.
+           Cores: 🟢 igual · 🟡 quantidades diferentes · 🔴 só no atual (falta na referência; referência = 0)
+                  🔵 só na referência (falta no atual; atual = 0, linha-fantasma).
+           As linhas-fantasma (class "fantasma") são só visuais: NUNCA entram em getRowsData, gerarConteudoRec, Copiar, Excel,
+           somar/subtrair. A coluna REFERÊNCIA é só leitura. O filtro por status usa a classe cmp-oculta (não mexe no .rec).
+        ═══════════════════════════════════════════════════════════ */
+        const CMP = window.OrcamentoComparar;
+        const fmtQtd = n => (Number(n) || 0).toFixed(2).replace('.', ',');
+        const escHtml = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        const CLASSES_CMP = ['cmp-igual', 'cmp-diferente', 'cmp-so-atual', 'cmp-so-ref'];
+
+        function comparacaoAtiva() { return !!(cmp.ref && cmp.ativo); }
+
+        function limparComparacao() {
+            document.querySelectorAll('tr.fantasma').forEach(tr => tr.remove());
+            document.querySelectorAll('tr[class*="cmp-"]').forEach(tr => { tr.classList.remove(...CLASSES_CMP, 'cmp-oculta'); });
+            document.querySelectorAll('td.col-ref').forEach(td => { td.textContent = ''; });
+        }
+
+        function marcarStatus(tr, info) {
+            tr.classList.remove(...CLASSES_CMP);
+            tr.classList.add(CMP.STATUS_CLASSE[info.status]);
+            const celRef = tr.querySelector('td.col-ref');
+            if (celRef) celRef.textContent = info.ref === null ? '' : fmtQtd(info.ref);
+        }
+
+        /** Cria/atualiza/remove as linhas-fantasma de um <tbody>, mantendo as que já existem (e a ordem em que o usuário as deixou). */
+        function sincronizarFantasmas(corpo, fantasmas, ops) {
+            const existentes = new Map(Array.from(corpo.querySelectorAll('tr.fantasma')).map(tr => [tr.dataset.chave, tr]));
+            const desejadas = new Map(fantasmas.map(f => [f.chave, f]));
+            existentes.forEach((tr, k) => { if (!desejadas.has(k)) tr.remove(); });
+            fantasmas.filter(f => !existentes.has(f.chave)).sort(CMP.comparadorPadrao).forEach(f => {
+                const tr = ops.criar(f);
+                const linhas = Array.from(corpo.querySelectorAll('tr[data-uid], tr.fantasma'));
+                const pos = CMP.posicaoInsercao(linhas.map(ops.objeto), ops.objetoDeFantasma(f), ops.cmp());
+                corpo.insertBefore(tr, linhas[pos] || null);
+            });
+        }
+
+        const opsRec = {
+            criar(f) {
+                const tr = document.createElement('tr');
+                tr.className = 'fantasma cmp-so-ref';
+                tr.dataset.chave = f.chave;
+                tr.innerHTML = `<td style="text-align:center;"><span class="badge-op ${f.operacao === 'R' ? 'badge-r' : 'badge-i'}">${f.operacao}</span></td>
+                    <td>${escHtml(f.mdo)}</td><td class="cell-mono">${escHtml(f.codigo)}</td><td>${escHtml(f.desc || 'Descrição indisponível')}</td>
+                    <td class="col-ref cell-qty">${fmtQtd(f.qtd)}</td><td class="cell-qty">0,00</td><td></td>
+                    <td style="text-align:center;"><button class="btn-add-fantasma" data-chave="${escHtml(f.chave)}" title="Adicionar ao atual com a quantidade da referência">＋</button></td>`;
+                return tr;
+            },
+            objeto(tr) { const t = Array.from(tr.cells).map(c => c.innerText.trim()); return { mdo: t[1], operacao: t[0], desc: t[3], t }; },
+            objetoDeFantasma(f) { return { mdo: f.mdo, operacao: f.operacao, desc: f.desc, t: [f.operacao, f.mdo, f.codigo, f.desc, fmtQtd(f.qtd), '0,00', ''] }; },
+            cmp() {
+                if (!recOrdemAtual) return CMP.comparadorPadrao;
+                const { col, asc } = recOrdemAtual, num = col === 4 || col === 5;
+                return (a, b) => {
+                    const x = a.t[col] || '', y = b.t[col] || '';
+                    const r = num ? (CMP.qtdPtBr(x) - CMP.qtdPtBr(y)) : x.localeCompare(y);
+                    return asc ? r : -r;
+                };
+            }
+        };
+        const opsSap = tipo => ({
+            criar(f) {
+                const tr = document.createElement('tr');
+                tr.className = 'fantasma cmp-so-ref';
+                tr.dataset.chave = f.chave;
+                tr.innerHTML = `<td class="sap-mdo" data-campo="mdo">${SAP.rotuloMdo(f.mdo)}</td><td class="cell-mono" data-campo="codigo">${escHtml(f.codigo)}</td>
+                    <td class="cell-mono sap-centro" data-campo="centro">${SAP.centroDe(f.mdo)}</td><td data-campo="desc">${escHtml(f.desc || 'Descrição indisponível')}</td>
+                    <td class="col-ref cell-qty" data-campo="ref">${fmtQtd(f.qtd)}</td><td class="cell-qty" data-campo="qtd">0,00</td><td data-campo="filtro"></td>
+                    <td style="text-align:center;"><button class="btn-add-fantasma" data-chave="${escHtml(f.chave)}" title="Adicionar ao atual com a quantidade da referência">＋</button></td>`;
+                return tr;
+            },
+            objeto(tr) { const l = linhaSapDoDom(tr); return Object.assign(l, { operacao: tipo === 'odd' ? 'R' : 'I' }); },
+            objetoDeFantasma(f) { return { mdo: f.mdo, operacao: f.operacao, desc: f.desc, codigo: f.codigo, qtd: '0,00', filtro: '' }; },
+            cmp() {
+                const o = sapOrdem[tipo];
+                return o.col ? ((a, b) => SAP.compararColuna(a, b, o.col, o.asc)) : CMP.comparadorPadrao;
+            }
+        });
+
+        function aplicarFiltroStatus() {
+            const f = cmp.ativo && cmp.ref ? cmp.filtroStatus : '';
+            const alvo = f ? CMP.STATUS_CLASSE[f] : null;
+            document.querySelectorAll('tr.cmp-igual, tr.cmp-diferente, tr.cmp-so-atual, tr.cmp-so-ref').forEach(tr => {
+                tr.classList.toggle('cmp-oculta', !!alvo && !tr.classList.contains(alvo));
+            });
+            if (modoVisao === 'sap') aplicarFiltrosSap();       // recalcula os contadores dos cartões
+        }
+
+        function atualizarBarraComparar(contagem) {
+            const barra = document.getElementById('barra-comparar');
+            barra.style.display = cmp.ref ? 'flex' : 'none';
+            document.getElementById('cmp-ativo').checked = cmp.ativo;
+            document.getElementById('cmp-nome').textContent = cmp.ref ? cmp.nome : '';
+            ['igual', 'diferente', 'so_atual', 'so_referencia'].forEach(k => {
+                document.getElementById('cmp-n-' + k).textContent = contagem ? contagem[k] : 0;
+            });
+        }
+
+        function atualizarComparacao() {
+            const ativa = comparacaoAtiva();
+            document.querySelectorAll('.budget-data-table').forEach(t => t.classList.toggle('comparando', ativa));
+            if (!ativa) { limparComparacao(); atualizarBarraComparar(null); return; }
+            const linhas = lerLinhasRec().map(l => Object.assign({}, l, { qtd: CMP.qtdPtBr(l.qtd) }));
+            const res = CMP.comparar(linhas, cmp.ref.itens);
+            const recPorUid = new Map(Array.from(tbody.querySelectorAll('tr[data-uid]')).map(tr => [tr.dataset.uid, tr]));
+            const sapPorUid = modoVisao === 'sap' ? new Map(Array.from(document.querySelectorAll('.sap-table tr[data-uid]')).map(tr => [tr.dataset.uid, tr])) : new Map();
+            linhas.forEach((l, i) => {
+                const tr = recPorUid.get(l.uid);
+                if (tr) marcarStatus(tr, res.linhas[i]);
+                const trSap = sapPorUid.get(l.uid);
+                if (trSap) marcarStatus(trSap, res.linhas[i]);
+            });
+            sincronizarFantasmas(tbody, res.fantasmas, opsRec);
+            if (modoVisao === 'sap') {
+                [['odi', 'I'], ['odd', 'R']].forEach(([tipo, op]) => sincronizarFantasmas(sapBody(tipo), res.fantasmas.filter(f => f.operacao === op), opsSap(tipo)));
+            }
+            atualizarBarraComparar(res.contagem);
+            aplicarFiltroStatus();
+        }
+
+        async function definirReferencia(texto, nome) {
+            const itens = CMP.parseRec(texto);
+            if (!itens.length) { alert('Arquivo REC vazio ou em formato inválido.'); return; }
+            log('Buscando descrições da referência...', true);
+            try {
+                const res = await fetch('/api/orcamento/detalhes', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigos: [...new Set(itens.map(i => i.codigo))] }) });
+                const det = res.ok ? await res.json() : {};
+                itens.forEach(i => { i.desc = (det[i.codigo] && det[i.codigo].desc_codigo) || 'Descrição indisponível'; });
+            } catch (e) { itens.forEach(i => { i.desc = 'Descrição indisponível'; }); }
+            cmp.ref = { nome, itens };
+            cmp.nome = nome;
+            cmp.ativo = true;
+            atualizarComparacao();
+            log(`Comparando com ${nome}: ${itens.length} item(ns) na referência.`);
+        }
+        async function compararComRecBanco(numObra) {
+            document.getElementById('modal-recs').style.display = 'none';
+            try {
+                log(`Carregando a obra ${numObra} como referência...`, true);
+                const res = await fetch(`/api/recs/${numObra}`);
+                const data = await res.json();
+                await definirReferencia(data.dados_json, 'Obra ' + numObra);
+            } catch (e) { alert('Erro ao carregar a obra do banco.'); log('Erro ao carregar a referência.'); }
+        }
+        function carregarRecComparar(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => definirReferencia(e.target.result, file.name);
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+        function removerReferencia() {
+            cmp.ref = null; cmp.nome = ''; cmp.ativo = false; cmp.filtroStatus = '';
+            document.getElementById('cmp-filtro-status').value = '';
+            atualizarComparacao();
+            log('Modo comparação removido.');
+        }
+        document.getElementById('cmp-ativo').addEventListener('change', e => { cmp.ativo = e.target.checked; atualizarComparacao(); });
+        document.getElementById('cmp-filtro-status').addEventListener('change', e => { cmp.filtroStatus = e.target.value; aplicarFiltroStatus(); });
+        // editar uma célula do REC (quantidade, código...) recolore na hora
+        let cmpTimer = null;
+        tbody.addEventListener('input', () => { if (comparacaoAtiva()) { clearTimeout(cmpTimer); cmpTimer = setTimeout(atualizarComparacao, 120); } });
+        // linha-fantasma: "＋" adiciona ao atual com a quantidade da referência
+        document.addEventListener('click', e => {
+            const b = e.target.closest ? e.target.closest('.btn-add-fantasma') : null;
+            if (!b || !cmp.ref) return;
+            const item = cmp.ref.itens.find(i => i.chave === b.dataset.chave);
+            if (!item) return;
+            const data = getRowsData();
+            data.push({ operacao: item.operacao, mdo: item.mdo, codigo: item.codigo, desc_codigo: item.desc, total: item.qtd });
+            renderRowsData(data);
+            log(`Item ${item.codigo} adicionado ao atual (${fmtQtd(item.qtd)}).`);
+        });
+
         montarCartoesSap();
         document.getElementById('searchInput').addEventListener('input', () => { if (modoVisao === 'sap') aplicarFiltrosSap(); });   // colar/limpar com o mouse também filtra
         let visaoSalva = 'rec';
