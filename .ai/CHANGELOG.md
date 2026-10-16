@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-16 — SAP: nova ordem das colunas
+
+**Tipo:** Frontend + exportação · `static/resultado_orcamento.html`, `static/orcamento_sap.js`, `services/exportar_xlsx.py`
+
+A visão SAP (tela, Copiar e Excel) passou à ordem **TIPO MDO · CÓDIGO · QUANTIDADE · CENTRO · DESCRIÇÃO** (a REFERÊNCIA do modo comparação continua antes da quantidade).
+
+---
+
 ## 2026-10-16 — TASK-071: modo comparação com um REC de referência
 
 **Tipo:** Frontend · `static/resultado_orcamento.html`, `static/orcamento_comparar.js` (novo), `static/orcamento_sap.js`, `app.py` · `.ai/tasks/TASK-071-16-10-2026.md`

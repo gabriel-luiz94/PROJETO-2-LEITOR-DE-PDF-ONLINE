@@ -57,7 +57,7 @@ def test_filtros_global_coluna_e_filtro_exato():
 
 def test_tsv_sem_cabecalho_com_m_e_n():
     t = js("S.tsv(e.l)", l=[L(mdo="MATERIAL", cod="1", desc="A", qtd="2,00"), L(mdo="MAO-DE-OBRA", cod="2", desc="B", qtd="3,50")])
-    assert t == "M\t1\t1600\tA\t2,00\nN\t2\t1000\tB\t3,50"                 # TIPO MDO · CÓDIGO · CENTRO · DESCRIÇÃO · QUANTIDADE
+    assert t == "M\t1\t2,00\t1600\tA\nN\t2\t3,50\t1000\tB"                 # TIPO MDO · CÓDIGO · QUANTIDADE · CENTRO · DESCRIÇÃO
 
 
 def test_para_excel_com_quantidade_numerica():

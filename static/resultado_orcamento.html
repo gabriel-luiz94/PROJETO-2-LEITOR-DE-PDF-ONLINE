@@ -725,8 +725,8 @@
         .sap-table td:last-child { overflow: visible; }
         .sap-table thead tr:first-child th { letter-spacing: 0; }
         .sap-table thead tr:first-child th:nth-child(1) { width: 88px; } .sap-table thead tr:first-child th:nth-child(2) { width: 82px; }
-        .sap-table thead tr:first-child th:nth-child(3) { width: 74px; } .sap-table thead tr:first-child th:nth-child(5) { width: 96px; }
-        .sap-table thead tr:first-child th:nth-child(6) { width: 104px; } .sap-table thead tr:first-child th:nth-child(7) { width: 84px; }
+        .sap-table thead tr:first-child th:nth-child(3) { width: 96px; } .sap-table thead tr:first-child th:nth-child(4) { width: 104px; }
+        .sap-table thead tr:first-child th:nth-child(5) { width: 74px; } .sap-table thead tr:first-child th:nth-child(7) { width: 84px; }
         .sap-table thead tr:first-child th:nth-child(8) { width: 64px; }
         .sap-table .col-filter-input { width: 100%; min-width: 0; box-sizing: border-box; }
         .sap-table th.col-ref, .sap-table td.col-ref { width: 84px; }
@@ -1822,7 +1822,7 @@
         ═══════════════════════════════════════════════════════════ */
         const SAP = window.OrcamentoSap;
         const sapOrdem = { odi: { col: null, asc: true }, odd: { col: null, asc: true } };
-        const SAP_COLS = [['mdo', 'TIPO MDO', 0], ['codigo', 'CÓDIGO', 1], ['centro', 'CENTRO', 2], ['desc', 'DESCRIÇÃO', 3], ['qtd', 'QUANTIDADE', 4]];
+        const SAP_COLS = [['mdo', 'TIPO MDO', 0], ['codigo', 'CÓDIGO', 1], ['qtd', 'QUANTIDADE', 2], ['centro', 'CENTRO', 3], ['desc', 'DESCRIÇÃO', 4]];   // ordem da visão SAP (REFERÊNCIA entra antes da QUANTIDADE)
         const REC_CELULA = { mdo: 1, codigo: 2, desc: 3, qtd: 5, filtro: 6 };
 
         function lerLinhasRec() {
@@ -1865,10 +1865,10 @@
                                 <tr class="filters-row">
                                     <th><input type="text" data-f="mdo" placeholder="M/N" class="col-filter-input"></th>
                                     <th><input type="text" data-f="codigo" placeholder="Filtro..." class="col-filter-input"></th>
-                                    <th><input type="text" data-f="centro" placeholder="Filtro..." class="col-filter-input"></th>
-                                    <th><input type="text" data-f="desc" placeholder="Filtro..." class="col-filter-input"></th>
                                     <th class="col-ref"></th>
                                     <th></th>
+                                    <th><input type="text" data-f="centro" placeholder="Filtro..." class="col-filter-input"></th>
+                                    <th><input type="text" data-f="desc" placeholder="Filtro..." class="col-filter-input"></th>
                                     <th><select data-f="filtro" class="col-filter-input" style="width:100%; padding:4px; background:transparent; color:var(--text-primary); border:1px solid var(--border-default); outline:none; appearance:auto;"><option value="">Todos</option></select></th>
                                     <th></th>
                                 </tr>
@@ -1950,10 +1950,10 @@
                     tb.innerHTML = linhas.map(l => `<tr data-uid="${l.uid}">
                         <td contenteditable="true" class="sap-mdo" data-campo="mdo" title="M = MATERIAL · N = MAO-DE-OBRA">${esc(SAP.rotuloMdo(l.mdo))}</td>
                         <td contenteditable="true" class="cell-mono" data-campo="codigo">${esc(l.codigo)}</td>
-                        <td class="cell-mono sap-centro" data-campo="centro" title="1600 = material · 1000 = mão de obra (acompanha o TIPO MDO)">${SAP.centroDe(l.mdo)}</td>
-                        <td contenteditable="true" data-campo="desc">${esc(l.desc)}</td>
                         <td class="col-ref cell-qty" data-campo="ref"></td>
                         <td contenteditable="true" class="cell-qty" data-campo="qtd">${esc(l.qtd)}</td>
+                        <td class="cell-mono sap-centro" data-campo="centro" title="1600 = material · 1000 = mão de obra (acompanha o TIPO MDO)">${SAP.centroDe(l.mdo)}</td>
+                        <td contenteditable="true" data-campo="desc">${esc(l.desc)}</td>
                         <td contenteditable="true" data-campo="filtro">${esc(l.filtro)}</td>
                         <td style="text-align:center; white-space:nowrap;">
                             <button class="btn-mover" data-acao="mover" title="Mover para ${tipo === 'odi' ? 'ODD' : 'ODI'}">⇄</button>
@@ -2112,8 +2112,8 @@
                 tr.className = 'fantasma cmp-so-ref';
                 tr.dataset.chave = f.chave;
                 tr.innerHTML = `<td class="sap-mdo" data-campo="mdo">${SAP.rotuloMdo(f.mdo)}</td><td class="cell-mono" data-campo="codigo">${escHtml(f.codigo)}</td>
-                    <td class="cell-mono sap-centro" data-campo="centro">${SAP.centroDe(f.mdo)}</td><td data-campo="desc">${escHtml(f.desc || 'Descrição indisponível')}</td>
-                    <td class="col-ref cell-qty" data-campo="ref">${fmtQtd(f.qtd)}</td><td class="cell-qty" data-campo="qtd">0,00</td><td data-campo="filtro"></td>
+                    <td class="col-ref cell-qty" data-campo="ref">${fmtQtd(f.qtd)}</td><td class="cell-qty" data-campo="qtd">0,00</td>
+                    <td class="cell-mono sap-centro" data-campo="centro">${SAP.centroDe(f.mdo)}</td><td data-campo="desc">${escHtml(f.desc || 'Descrição indisponível')}</td><td data-campo="filtro"></td>
                     <td style="text-align:center;"><button class="btn-add-fantasma" data-chave="${escHtml(f.chave)}" title="Adicionar ao atual com a quantidade da referência">＋</button></td>`;
                 return tr;
             },

@@ -346,7 +346,7 @@ Os dois geradores têm painéis de atalhos. **Operação** (I, R, M…) cria uma
 
 ### Resultado do Orçamento: modelo REC ou SAP
 
-Na tela de resultado há um alternador **REC | SAP**. O **REC** é a tabela única de sempre. Na **SAP** os mesmos itens aparecem em duas tabelas: **ODI** (tudo que está instalando) e **ODD** (tudo que está removendo), com TIPO MDO abreviado (**M** = material, **N** = mão de obra) e uma coluna **CENTRO** logo depois do código (**1600** para material, **1000** para mão de obra — acompanha o TIPO MDO). As tabelas têm os mesmos campos editáveis, filtros, busca e ordenação; **⇄** move uma linha entre ODI e ODD; **Copiar** (acima de cada tabela) copia só aquela tabela. **Exportar Excel** (só na SAP) gera um arquivo com as planilhas ODI e ODD. A SAP é apenas outra forma de ver: salvar no banco e exportar o `.rec` continuam exatamente como no REC.
+Na tela de resultado há um alternador **REC | SAP**. O **REC** é a tabela única de sempre. Na **SAP** os mesmos itens aparecem em duas tabelas: **ODI** (tudo que está instalando) e **ODD** (tudo que está removendo), com TIPO MDO abreviado (**M** = material, **N** = mão de obra) e uma coluna **CENTRO** (**1600** para material, **1000** para mão de obra — acompanha o TIPO MDO). A ordem das colunas é TIPO MDO, CÓDIGO, QUANTIDADE, CENTRO e DESCRIÇÃO (o Copiar e o Excel seguem a mesma ordem). As tabelas têm os mesmos campos editáveis, filtros, busca e ordenação; **⇄** move uma linha entre ODI e ODD; **Copiar** (acima de cada tabela) copia só aquela tabela. **Exportar Excel** (só na SAP) gera um arquivo com as planilhas ODI e ODD. A SAP é apenas outra forma de ver: salvar no banco e exportar o `.rec` continuam exatamente como no REC.
 
 ### Resultado do Orçamento: comparar com um REC
 

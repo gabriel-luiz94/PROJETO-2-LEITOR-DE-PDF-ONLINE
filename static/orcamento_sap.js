@@ -86,9 +86,9 @@
         return true;
     }
 
-    /** TSV de uma tabela, sem cabeçalho: TIPO MDO (M/N) ⇥ CÓDIGO ⇥ CENTRO ⇥ DESCRIÇÃO ⇥ QUANTIDADE (como o Copiar do REC). */
+    /** TSV de uma tabela, sem cabeçalho: TIPO MDO (M/N) ⇥ CÓDIGO ⇥ QUANTIDADE ⇥ CENTRO ⇥ DESCRIÇÃO (como o Copiar do REC). */
     function tsv(linhas) {
-        return linhas.map(l => [rotuloMdo(l.mdo), l.codigo || '', centroDe(l.mdo), l.desc || '', l.qtd == null ? '' : l.qtd].join('\t')).join('\n');
+        return linhas.map(l => [rotuloMdo(l.mdo), l.codigo || '', l.qtd == null ? '' : l.qtd, centroDe(l.mdo), l.desc || ''].join('\t')).join('\n');
     }
 
     /** Linhas -> corpo do POST /api/orcamento/exportar-xlsx (quantidade numérica). */
