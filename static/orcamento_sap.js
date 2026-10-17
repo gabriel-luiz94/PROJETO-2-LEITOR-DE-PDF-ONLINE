@@ -86,9 +86,30 @@
         return true;
     }
 
-    /** TSV de uma tabela, sem cabeçalho: TIPO MDO (M/N) ⇥ CÓDIGO ⇥ CENTRO ⇥ DESCRIÇÃO ⇥ QUANTIDADE (como o Copiar do REC). */
-    function tsv(linhas) {
-        return linhas.map(l => [rotuloMdo(l.mdo), l.codigo || '', centroDe(l.mdo), l.desc || '', l.qtd == null ? '' : l.qtd].join('\t')).join('\n');
+    /** Colunas que o botão Copiar leva (TASK-072): a DESCRIÇÃO fica de fora. */
+    const COLUNAS_COPIA = ['mdo', 'codigo', 'qtd', 'centro'];
+
+    function valorDaColuna(l, coluna) {
+        if (coluna === 'qtd') return l.qtd == null ? '' : String(l.qtd);
+        return textoDaColuna(l, coluna);
+    }
+
+    /** TSV de uma tabela, sem cabeçalho: TIPO MDO (M/N) ⇥ CÓDIGO ⇥ QUANTIDADE ⇥ CENTRO (sem a descrição). `colunas` muda o conjunto. */
+    function tsv(linhas, colunas) {
+        const cols = colunas || COLUNAS_COPIA;
+        return linhas.map(l => cols.map(c => valorDaColuna(l, c)).join('\t')).join('\n');
+    }
+
+    /** Matriz de textos (linhas × colunas) -> TSV. Usado na cópia de um intervalo selecionado. */
+    function tsvDeMatriz(matriz) { return matriz.map(r => r.join('\t')).join('\n'); }
+
+    /** Chave da marca "já copiado": tabela + item (MDO|código) + coluna. Não depende do id da linha (que muda ao refazer a tela). */
+    function chaveMarca(tipo, l, coluna) {
+        return tipo + '|' + rotuloMdo(l.mdo) + '|' + String(l.codigo == null ? '' : l.codigo).trim().toUpperCase() + '|' + coluna;
+    }
+    /** A marca só vale enquanto o valor da célula for o que foi copiado. */
+    function marcaValida(marcas, chave, valorAtual) {
+        return marcas.has(chave) && marcas.get(chave) === String(valorAtual == null ? '' : valorAtual).trim();
     }
 
     /** Linhas -> corpo do POST /api/orcamento/exportar-xlsx (quantidade numérica). */
@@ -100,7 +121,7 @@
         return Array.from(new Set(linhas.map(l => textoDaColuna(l, coluna).trim()).filter(Boolean))).sort();
     }
 
-    const api = { compararColuna, centroDe, rotuloMdo, mdoDeRotulo, separar, numeroPtBr, ordenar, passaFiltro, tsv, paraExcel, valoresUnicos };
+    const api = { COLUNAS_COPIA, tsvDeMatriz, chaveMarca, marcaValida, compararColuna, centroDe, rotuloMdo, mdoDeRotulo, separar, numeroPtBr, ordenar, passaFiltro, tsv, paraExcel, valoresUnicos };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     raiz.OrcamentoSap = api;
 })(typeof window !== 'undefined' ? window : globalThis);

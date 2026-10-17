@@ -719,14 +719,21 @@
         .sap-card.odi h3 .sap-nome { color: var(--badge-i-color); }
         .sap-card.odd h3 .sap-nome { color: var(--badge-r-color); }
         .sap-card .table-scroll-wrapper { min-height: 240px; }
+        .sap-table td { position: relative; }
+        .sap-table td.sap-sel { background: rgba(56, 139, 253, 0.32) !important; box-shadow: inset 0 0 0 1px rgba(56,139,253,0.7); }
+        .sap-table td.sap-copiada { background: rgba(45, 212, 191, 0.20); box-shadow: inset 0 0 0 1px rgba(45,212,191,0.5); }
+        .sap-table td.sap-copiada::after { content: '✓'; position: absolute; right: 3px; top: 1px; font-size: 0.6rem; color: #2dd4bf; pointer-events: none; }
+        .sap-table td.sap-sel.sap-copiada { background: rgba(56, 139, 253, 0.32) !important; }
+        .btn-limpar-marcas { background: none; border: none; color: var(--text-muted); font-size: 0.7rem; cursor: pointer; text-decoration: underline; padding: 0 4px; }
+        .btn-limpar-marcas:hover { color: var(--text-primary); }
         .sap-table td.sap-centro { text-align: center; width: 70px; color: var(--text-secondary); }
         .sap-table { table-layout: fixed; width: 100%; min-width: 700px; }
         .sap-table th, .sap-table td { padding-left: 5px; padding-right: 5px; overflow: hidden; text-overflow: ellipsis; }
         .sap-table td:last-child { overflow: visible; }
         .sap-table thead tr:first-child th { letter-spacing: 0; }
         .sap-table thead tr:first-child th:nth-child(1) { width: 88px; } .sap-table thead tr:first-child th:nth-child(2) { width: 82px; }
-        .sap-table thead tr:first-child th:nth-child(3) { width: 74px; } .sap-table thead tr:first-child th:nth-child(5) { width: 96px; }
-        .sap-table thead tr:first-child th:nth-child(6) { width: 104px; } .sap-table thead tr:first-child th:nth-child(7) { width: 84px; }
+        .sap-table thead tr:first-child th:nth-child(3) { width: 96px; } .sap-table thead tr:first-child th:nth-child(4) { width: 104px; }
+        .sap-table thead tr:first-child th:nth-child(5) { width: 74px; } .sap-table thead tr:first-child th:nth-child(7) { width: 84px; }
         .sap-table thead tr:first-child th:nth-child(8) { width: 64px; }
         .sap-table .col-filter-input { width: 100%; min-width: 0; box-sizing: border-box; }
         .sap-table th.col-ref, .sap-table td.col-ref { width: 84px; }
@@ -1296,6 +1303,7 @@
                     }
 
                     if (data.resultado && data.resultado.length > 0) {
+                        sapCopiadas.clear();              // outro cálculo: as marcações de "já copiado" recomeçam
                         log(`Orçamento gerado: ${data.resultado.length} item(ns) encontrado(s).`);
                         renderRowsData(data.resultado);
                     } else {
@@ -1664,6 +1672,7 @@
         
         function limparTabela() {
             if (confirm("Tem certeza que deseja limpar a tabela?")) {
+                sapCopiadas.clear();
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-secondary);">Tabela vazia.</td></tr>';
                 updateStats([]);
                 log('Tabela limpa.');
@@ -1821,8 +1830,10 @@
            O filtro/ordenação da SAP NÃO escondem nem reordenam linhas do REC.
         ═══════════════════════════════════════════════════════════ */
         const SAP = window.OrcamentoSap;
+        const sapCopiadas = new Map();      // marcas "já copiado": chave (tabela|MDO|código|coluna) -> valor copiado (TASK-072)
+        let sapSel = null;                  // seleção de células: { tipo, a:{uid,campo}, f:{uid,campo} }
         const sapOrdem = { odi: { col: null, asc: true }, odd: { col: null, asc: true } };
-        const SAP_COLS = [['mdo', 'TIPO MDO', 0], ['codigo', 'CÓDIGO', 1], ['centro', 'CENTRO', 2], ['desc', 'DESCRIÇÃO', 3], ['qtd', 'QUANTIDADE', 4]];
+        const SAP_COLS = [['mdo', 'TIPO MDO', 0], ['codigo', 'CÓDIGO', 1], ['qtd', 'QUANTIDADE', 2], ['centro', 'CENTRO', 3], ['desc', 'DESCRIÇÃO', 4]];   // ordem da visão SAP (REFERÊNCIA entra antes da QUANTIDADE)
         const REC_CELULA = { mdo: 1, codigo: 2, desc: 3, qtd: 5, filtro: 6 };
 
         function lerLinhasRec() {
@@ -1850,7 +1861,9 @@
                     <div class="sap-card-head">
                         <h3><span class="sap-nome">${nome}</span><small>${sub}</small><span class="page-badge-counter" id="sap-count-${tipo}">0</span></h3>
                         <div class="acoes">
-                            <button class="btn-action" data-acao="copiar" title="Copiar só a ${nome} (texto tabulado, sem cabeçalho)">Copiar</button>
+                            <button class="btn-limpar-marcas" data-acao="limpar-marcas" title="Tira a cor das células já copiadas desta tabela">Limpar marcações</button>
+                            <button class="btn-action" data-acao="copiar-sel" style="display:none;" title="Copiar as células selecionadas (Ctrl+C)">Copiar seleção</button>
+                            <button class="btn-action" data-acao="copiar" title="Copiar a ${nome}: TIPO MDO, CÓDIGO, QUANTIDADE e CENTRO (sem a descrição; texto tabulado, sem cabeçalho)">Copiar</button>
                             <button class="btn-action" data-acao="linha" title="Nova linha em ${nome}">+ Linha</button>
                         </div>
                     </div>
@@ -1865,10 +1878,10 @@
                                 <tr class="filters-row">
                                     <th><input type="text" data-f="mdo" placeholder="M/N" class="col-filter-input"></th>
                                     <th><input type="text" data-f="codigo" placeholder="Filtro..." class="col-filter-input"></th>
-                                    <th><input type="text" data-f="centro" placeholder="Filtro..." class="col-filter-input"></th>
-                                    <th><input type="text" data-f="desc" placeholder="Filtro..." class="col-filter-input"></th>
                                     <th class="col-ref"></th>
                                     <th></th>
+                                    <th><input type="text" data-f="centro" placeholder="Filtro..." class="col-filter-input"></th>
+                                    <th><input type="text" data-f="desc" placeholder="Filtro..." class="col-filter-input"></th>
                                     <th><select data-f="filtro" class="col-filter-input" style="width:100%; padding:4px; background:transparent; color:var(--text-primary); border:1px solid var(--border-default); outline:none; appearance:auto;"><option value="">Todos</option></select></th>
                                     <th></th>
                                 </tr>
@@ -1886,6 +1899,8 @@
                     renderSap();
                 }));
                 card.querySelector('[data-acao="copiar"]').addEventListener('click', () => copiarSap(tipo));
+                card.querySelector('[data-acao="copiar-sel"]').addEventListener('click', () => copiarSelecaoSap(tipo));
+                card.querySelector('[data-acao="limpar-marcas"]').addEventListener('click', () => limparMarcasSap(tipo));
                 card.querySelector('[data-acao="linha"]').addEventListener('click', () => adicionarLinhaManual(tipo === 'odd' ? 'R' : 'I'));
                 // edição: grava na linha REC correspondente (sem redesenhar, para não perder o cursor)
                 tb.addEventListener('input', e => {
@@ -1895,6 +1910,7 @@
                     if (!rec) return;
                     rec.cells[REC_CELULA[td.dataset.campo]].textContent = td.textContent.trim();
                     atualizarEstatisticasSap();
+                    aplicarMarcasSap();                                          // editar o valor copiado tira a marca
                 });
                 tb.addEventListener('focusout', e => {
                     const td = e.target.closest ? e.target.closest('td[data-campo="mdo"]') : null;
@@ -1907,6 +1923,7 @@
                     const tdCentro = td.parentElement.querySelector('[data-campo="centro"]');
                     if (tdCentro) tdCentro.textContent = SAP.centroDe(rec.cells[1].innerText);   // o CENTRO acompanha o TIPO MDO
                     aplicarFiltrosSap();
+                    aplicarMarcasSap();
                 });
                 tb.addEventListener('click', e => {
                     const b = e.target.closest ? e.target.closest('button') : null;
@@ -1950,10 +1967,10 @@
                     tb.innerHTML = linhas.map(l => `<tr data-uid="${l.uid}">
                         <td contenteditable="true" class="sap-mdo" data-campo="mdo" title="M = MATERIAL · N = MAO-DE-OBRA">${esc(SAP.rotuloMdo(l.mdo))}</td>
                         <td contenteditable="true" class="cell-mono" data-campo="codigo">${esc(l.codigo)}</td>
-                        <td class="cell-mono sap-centro" data-campo="centro" title="1600 = material · 1000 = mão de obra (acompanha o TIPO MDO)">${SAP.centroDe(l.mdo)}</td>
-                        <td contenteditable="true" data-campo="desc">${esc(l.desc)}</td>
                         <td class="col-ref cell-qty" data-campo="ref"></td>
                         <td contenteditable="true" class="cell-qty" data-campo="qtd">${esc(l.qtd)}</td>
+                        <td class="cell-mono sap-centro" data-campo="centro" title="1600 = material · 1000 = mão de obra (acompanha o TIPO MDO)">${SAP.centroDe(l.mdo)}</td>
+                        <td contenteditable="true" data-campo="desc">${esc(l.desc)}</td>
                         <td contenteditable="true" data-campo="filtro">${esc(l.filtro)}</td>
                         <td style="text-align:center; white-space:nowrap;">
                             <button class="btn-mover" data-acao="mover" title="Mover para ${tipo === 'odi' ? 'ODD' : 'ODI'}">⇄</button>
@@ -1963,6 +1980,9 @@
             });
             aplicarFiltrosSap();
             atualizarComparacao();
+            sapSel = null;
+            pintarSelecaoSap();
+            aplicarMarcasSap();
         }
 
         function filtrosDoCartao(card) {
@@ -1992,13 +2012,132 @@
         }
 
         function copiarSap(tipo) {
-            const linhas = linhasVisiveisSap(tipo);
-            if (!linhas.length) { alert('Nenhum dado para copiar em ' + tipo.toUpperCase() + '.'); return; }
+            const trs = linhasSelecionaveisSap(tipo);
+            if (!trs.length) { alert('Nenhum dado para copiar em ' + tipo.toUpperCase() + '.'); return; }
+            const linhas = trs.map(linhaSapDoDom);
             navigator.clipboard.writeText(SAP.tsv(linhas)).then(() => {
-                log(tipo.toUpperCase() + ' copiada (' + linhas.length + ' linha(s), sem cabeçalho).');
+                marcarCopiadasSap(tipo, trs, SAP.COLUNAS_COPIA);
+                log(tipo.toUpperCase() + ' copiada (' + linhas.length + ' linha(s): TIPO MDO, CÓDIGO, QUANTIDADE e CENTRO; sem descrição nem cabeçalho).');
                 alert(tipo.toUpperCase() + ' copiada para a área de transferência!');
             }).catch(() => alert('Não foi possível copiar automaticamente.'));
         }
+
+        /* ── Seleção de células e marcação do que já foi copiado (TASK-072) ── */
+        const celSap = (tr, campo) => { const td = tr.querySelector('[data-campo="' + campo + '"]'); return td ? td.innerText.trim() : ''; };
+        function linhasSelecionaveisSap(tipo) {
+            return Array.from(sapBody(tipo).querySelectorAll('tr[data-uid]')).filter(tr => tr.style.display !== 'none' && !tr.classList.contains('cmp-oculta'));
+        }
+        const camposVisiveisSap = tr => Array.from(tr.querySelectorAll('td[data-campo]')).filter(td => td.offsetParent !== null).map(td => td.dataset.campo);
+        function celulaSapDe(td) {
+            const tr = td.parentElement;
+            return { tipo: tr.closest('tbody').id.replace('sap-tbody-', ''), uid: tr.dataset.uid, campo: td.dataset.campo };
+        }
+        function intervaloSap() {
+            if (!sapSel) return null;
+            const trs = linhasSelecionaveisSap(sapSel.tipo);
+            const r1 = trs.findIndex(t => t.dataset.uid === sapSel.a.uid), r2 = trs.findIndex(t => t.dataset.uid === sapSel.f.uid);
+            if (r1 < 0 || r2 < 0) return null;
+            const ordem = camposVisiveisSap(trs[0]);
+            const c1 = ordem.indexOf(sapSel.a.campo), c2 = ordem.indexOf(sapSel.f.campo);
+            if (c1 < 0 || c2 < 0) return null;
+            return { tipo: sapSel.tipo, trs: trs.slice(Math.min(r1, r2), Math.max(r1, r2) + 1), campos: ordem.slice(Math.min(c1, c2), Math.max(c1, c2) + 1) };
+        }
+        const intervaloMulti = iv => !!iv && (iv.trs.length > 1 || iv.campos.length > 1);
+
+        function pintarSelecaoSap() {
+            document.querySelectorAll('.sap-table td.sap-sel').forEach(td => td.classList.remove('sap-sel'));
+            const iv = intervaloSap();
+            const multi = intervaloMulti(iv);
+            if (multi) iv.trs.forEach(tr => iv.campos.forEach(c => { const td = tr.querySelector('[data-campo="' + c + '"]'); if (td) td.classList.add('sap-sel'); }));
+            ['odi', 'odd'].forEach(t => {
+                const b = sapBody(t).closest('.sap-card').querySelector('[data-acao="copiar-sel"]');
+                if (b) b.style.display = (multi && iv.tipo === t) ? '' : 'none';
+            });
+        }
+
+        function marcarCopiadasSap(tipo, trs, campos) {
+            trs.forEach(tr => { const l = linhaSapDoDom(tr); campos.forEach(c => sapCopiadas.set(SAP.chaveMarca(tipo, l, c), celSap(tr, c))); });
+            aplicarMarcasSap();
+        }
+        let marcasPendentes = false;
+        function aplicarMarcasSap() {
+            if (marcasPendentes) return;
+            marcasPendentes = true;
+            requestAnimationFrame(() => {
+                marcasPendentes = false;
+                ['odi', 'odd'].forEach(tipo => sapBody(tipo).querySelectorAll('tr[data-uid]').forEach(tr => {
+                    const l = linhaSapDoDom(tr);
+                    tr.querySelectorAll('td[data-campo]').forEach(td => {
+                        td.classList.toggle('sap-copiada', SAP.marcaValida(sapCopiadas, SAP.chaveMarca(tipo, l, td.dataset.campo), td.innerText));
+                    });
+                }));
+            });
+        }
+        function limparMarcasSap(tipo) {
+            Array.from(sapCopiadas.keys()).filter(k => k.indexOf(tipo + '|') === 0).forEach(k => sapCopiadas.delete(k));
+            aplicarMarcasSap();
+            log('Marcações de ' + tipo.toUpperCase() + ' removidas.');
+        }
+
+        function textoDoIntervaloSap(iv) {
+            return SAP.tsvDeMatriz(iv.trs.map(tr => iv.campos.map(c => celSap(tr, c))));
+        }
+        function copiarSelecaoSap(tipo) {
+            const iv = intervaloSap();
+            if (!iv || iv.tipo !== tipo) return;
+            navigator.clipboard.writeText(textoDoIntervaloSap(iv)).then(() => {
+                marcarCopiadasSap(tipo, iv.trs, iv.campos);
+                log(`Seleção copiada: ${iv.trs.length} linha(s) × ${iv.campos.length} coluna(s).`);
+            }).catch(() => alert('Não foi possível copiar automaticamente.'));
+        }
+
+        let arrastandoSap = false;
+        document.addEventListener('mousedown', e => {
+            if (modoVisao !== 'sap' || e.button !== 0) return;
+            const td = e.target.closest ? e.target.closest('.sap-table tbody td[data-campo]') : null;
+            if (td && td.parentElement.dataset.uid) {
+                const c = celulaSapDe(td);
+                if (e.shiftKey && sapSel && sapSel.tipo === c.tipo) {
+                    e.preventDefault();
+                    sapSel.f = { uid: c.uid, campo: c.campo };
+                    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+                    pintarSelecaoSap();
+                    return;
+                }
+                sapSel = { tipo: c.tipo, a: { uid: c.uid, campo: c.campo }, f: { uid: c.uid, campo: c.campo } };
+                arrastandoSap = true;
+                pintarSelecaoSap();
+                return;
+            }
+            if (sapSel && !(e.target.closest && e.target.closest('.sap-card-head'))) { sapSel = null; pintarSelecaoSap(); }
+        });
+        document.addEventListener('mousemove', e => {
+            if (!arrastandoSap || !(e.buttons & 1)) { arrastandoSap = arrastandoSap && !!(e.buttons & 1); return; }
+            const td = e.target.closest ? e.target.closest('.sap-table tbody td[data-campo]') : null;
+            if (!td || !td.parentElement.dataset.uid) return;
+            const c = celulaSapDe(td);
+            if (!sapSel || c.tipo !== sapSel.tipo || (c.uid === sapSel.f.uid && c.campo === sapSel.f.campo)) return;
+            sapSel.f = { uid: c.uid, campo: c.campo };
+            if (intervaloMulti(intervaloSap())) {
+                e.preventDefault();
+                const s = window.getSelection && window.getSelection(); if (s) s.removeAllRanges();
+                if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+            }
+            pintarSelecaoSap();
+        });
+        document.addEventListener('mouseup', () => { arrastandoSap = false; });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape' && sapSel) { sapSel = null; pintarSelecaoSap(); } });
+        document.addEventListener('copy', e => {
+            if (modoVisao !== 'sap' || !sapSel) return;
+            const iv = intervaloSap();
+            if (!iv) return;
+            const a = document.activeElement;
+            if (!intervaloMulti(iv) && a && a.isContentEditable) return;      // uma célula em edição: cópia nativa do texto
+            e.preventDefault();
+            e.clipboardData.setData('text/plain', textoDoIntervaloSap(iv));
+            marcarCopiadasSap(iv.tipo, iv.trs, iv.campos);
+            log(`Seleção copiada: ${iv.trs.length} linha(s) × ${iv.campos.length} coluna(s).`);
+        });
 
         async function exportarExcelSap() {
             const odi = linhasVisiveisSap('odi'), odd = linhasVisiveisSap('odd');
@@ -2112,8 +2251,8 @@
                 tr.className = 'fantasma cmp-so-ref';
                 tr.dataset.chave = f.chave;
                 tr.innerHTML = `<td class="sap-mdo" data-campo="mdo">${SAP.rotuloMdo(f.mdo)}</td><td class="cell-mono" data-campo="codigo">${escHtml(f.codigo)}</td>
-                    <td class="cell-mono sap-centro" data-campo="centro">${SAP.centroDe(f.mdo)}</td><td data-campo="desc">${escHtml(f.desc || 'Descrição indisponível')}</td>
-                    <td class="col-ref cell-qty" data-campo="ref">${fmtQtd(f.qtd)}</td><td class="cell-qty" data-campo="qtd">0,00</td><td data-campo="filtro"></td>
+                    <td class="col-ref cell-qty" data-campo="ref">${fmtQtd(f.qtd)}</td><td class="cell-qty" data-campo="qtd">0,00</td>
+                    <td class="cell-mono sap-centro" data-campo="centro">${SAP.centroDe(f.mdo)}</td><td data-campo="desc">${escHtml(f.desc || 'Descrição indisponível')}</td><td data-campo="filtro"></td>
                     <td style="text-align:center;"><button class="btn-add-fantasma" data-chave="${escHtml(f.chave)}" title="Adicionar ao atual com a quantidade da referência">＋</button></td>`;
                 return tr;
             },

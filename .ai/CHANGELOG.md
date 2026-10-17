@@ -815,6 +815,22 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-16 — TASK-072: SAP copiar sem descrição, seleção de células e marcação do copiado
+
+**Tipo:** Frontend · `static/resultado_orcamento.html`, `static/orcamento_sap.js` · `.ai/tasks/TASK-072-16-10-2026.md`
+
+Os botões **Copiar** ODI/ODD passam a levar só TIPO MDO, CÓDIGO, QUANTIDADE e CENTRO (sem descrição). Dá para **selecionar células** (arrastar ou Shift+clique) e **copiar várias de uma vez** (Ctrl+C ou "Copiar seleção"). O que foi copiado fica **marcado em teal com ✓** (some se o valor for editado; "Limpar marcações" por tabela). Exportar Excel não mudou (mantém a descrição).
+
+---
+
+## 2026-10-16 — SAP: nova ordem das colunas
+
+**Tipo:** Frontend + exportação · `static/resultado_orcamento.html`, `static/orcamento_sap.js`, `services/exportar_xlsx.py`
+
+A visão SAP (tela, Copiar e Excel) passou à ordem **TIPO MDO · CÓDIGO · QUANTIDADE · CENTRO · DESCRIÇÃO** (a REFERÊNCIA do modo comparação continua antes da quantidade).
+
+---
+
 ## 2026-10-16 — TASK-071: modo comparação com um REC de referência
 
 **Tipo:** Frontend · `static/resultado_orcamento.html`, `static/orcamento_comparar.js` (novo), `static/orcamento_sap.js`, `app.py` · `.ai/tasks/TASK-071-16-10-2026.md`

@@ -57,7 +57,25 @@ def test_filtros_global_coluna_e_filtro_exato():
 
 def test_tsv_sem_cabecalho_com_m_e_n():
     t = js("S.tsv(e.l)", l=[L(mdo="MATERIAL", cod="1", desc="A", qtd="2,00"), L(mdo="MAO-DE-OBRA", cod="2", desc="B", qtd="3,50")])
-    assert t == "M\t1\t1600\tA\t2,00\nN\t2\t1000\tB\t3,50"                 # TIPO MDO · CÓDIGO · CENTRO · DESCRIÇÃO · QUANTIDADE
+    assert t == "M\t1\t2,00\t1600\nN\t2\t3,50\t1000"                           # TIPO MDO · CÓDIGO · QUANTIDADE · CENTRO (sem a descrição)
+    t2 = js("S.tsv(e.l, ['mdo','codigo','desc'])", l=[L(mdo="MATERIAL", cod="1", desc="A", qtd="2,00")])
+    assert t2 == "M\t1\tA"                                                         # colunas configuráveis (a descrição só sai se pedida)
+
+
+def test_tsv_do_intervalo_selecionado():
+    assert js("S.tsvDeMatriz(e.m)", m=[["M", "1", "2,00"], ["N", "2", "3,50"]]) == "M\t1\t2,00\nN\t2\t3,50"
+    assert js("S.tsvDeMatriz([])") == ""
+
+
+def test_marca_de_copiado_vale_so_enquanto_o_valor_for_o_copiado():
+    r = js("""(()=>{const m=new Map();const l={mdo:'MATERIAL',codigo:' ab1 '};
+        const k=S.chaveMarca('odi',l,'qtd'); m.set(k,'2,00');
+        return {k, igual:S.marcaValida(m,k,'2,00'), igualComEspaco:S.marcaValida(m,k,' 2,00 '), mudou:S.marcaValida(m,k,'3,00'),
+                outraTabela:S.marcaValida(m,S.chaveMarca('odd',l,'qtd'),'2,00'), outraColuna:S.marcaValida(m,S.chaveMarca('odi',l,'codigo'),'2,00'),
+                mesmoItemOutraGrafia:S.marcaValida(m,S.chaveMarca('odi',{mdo:'M',codigo:'AB1'},'qtd'),'2,00')};})()""")
+    assert r["k"] == "odi|M|AB1|qtd"
+    assert r["igual"] and r["igualComEspaco"] and r["mesmoItemOutraGrafia"]
+    assert not r["mudou"] and not r["outraTabela"] and not r["outraColuna"]
 
 
 def test_para_excel_com_quantidade_numerica():
