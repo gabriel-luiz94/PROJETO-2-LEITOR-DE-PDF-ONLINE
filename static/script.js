@@ -1178,7 +1178,7 @@ function _renderRegrasLeitorTabela(tabela) {
     }
 
     if (!draft.length) {
-        html += `<div style="color:#8b949e; padding:8px;">Nenhuma regra de ${tabela === 'processamento' ? 'processamento' : 'classificação'} carregada para este projeto.</div>`;
+        html += `<div style="color:#8b949e; padding:8px;">Nenhuma regra de ${tabela === 'processamento' ? 'processamento' : 'classificação'} carregada para este projeto.${admin ? '' : ' Importar/exportar JSON e editar regras exige um usuário administrador (entre com uma conta admin).'}</div>`;
     } else if (tabela === 'processamento') {
         [1, 2, 3].forEach(fase => {
             const doFase = draft.map((r, i) => ({ r, i })).filter(x => (x.r.fase || 3) === fase).sort((a, b) => (a.r.ordem || 0) - (b.r.ordem || 0));

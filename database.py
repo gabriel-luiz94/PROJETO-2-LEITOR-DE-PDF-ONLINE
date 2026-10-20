@@ -66,15 +66,13 @@ def _migrate_legacy_password(email: str, password: str, conn: sqlite3.Connection
 def _seed_regras_leitor(cursor: sqlite3.Cursor):
     """
     Seed inicial das regras do leitor (TASK-006), para os projetos PARAIBA (código "027") e
-    RONDONIA (código "229"), só se as tabelas ainda estiverem vazias. Ambos os projetos recebem
+    RONDONIA (código "229"), só para o projeto que ainda não tem linha na tabela. Ambos os projetos recebem
     o mesmo conjunto de regras — a transcrição fiel do comportamento hoje embutido em
     static/script.js — já que hoje a classificação é idêntica para qualquer projeto. Depois do
     seed, cada projeto pode editar suas próprias regras livremente.
     """
-    cursor.execute("SELECT COUNT(*) FROM regras_leitor_processamento")
-    if cursor.fetchone()[0] > 0:
-        return  # já semeado
-
+    # Semeia por projeto (INSERT OR IGNORE abaixo): um banco que já tem regras de outro projeto
+    # (ex.: salvas por um admin antes do seed existir) ainda recebe 027/229 se faltarem.
     try:
         with open(REGRAS_LEITOR_PROCESSAMENTO_SEED_PATH, "r", encoding="utf-8") as f:
             regras_proc = json.load(f)
@@ -102,7 +100,7 @@ def _seed_regras_leitor(cursor: sqlite3.Cursor):
 def _seed_regras_vinculacao(cursor: sqlite3.Cursor):
     """
     Seed inicial das regras de vinculação estrutura<->cabo (TASK-032), para os projetos PARAIBA
-    ("027") e RONDONIA ("229"), só se as tabelas ainda estiverem vazias. Mesmo padrão de
+    ("027") e RONDONIA ("229"), só para o projeto que ainda não tem linha na tabela. Mesmo padrão de
     _seed_regras_leitor.
     """
     cursor.execute("SELECT COUNT(*) FROM regras_vinculacao")
