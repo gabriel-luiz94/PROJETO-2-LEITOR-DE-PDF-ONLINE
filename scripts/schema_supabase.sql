@@ -283,3 +283,14 @@ CREATE INDEX IF NOT EXISTS idx_obras_projeto_publica ON public.obras(projeto, pu
 -- Requer também o bloco da TASK-057 (colunas publica e dono_nome). Até rodar este bloco o programa funciona (reconhece o modelo
 -- pela marca guardada em dados_json), mas o filtro por tipo na nuvem fica limitado.
 ALTER TABLE public.obras ADD COLUMN IF NOT EXISTS tipo TEXT DEFAULT 'obra';
+
+-- TASK-068: atalhos e favoritos dos modais geradores (Cabos e Postes/Estruturas), escopo "Projeto" (nuvem).
+-- Um JSON por (projeto, modal). Sem esta tabela os atalhos de projeto ficam só no SQLite local (e o app avisa que não sincronizou).
+CREATE TABLE IF NOT EXISTS public.atalhos_modais (
+    projeto_codigo TEXT NOT NULL,
+    modal TEXT NOT NULL,
+    dados_json TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (projeto_codigo, modal)
+);
+ALTER TABLE public.atalhos_modais DISABLE ROW LEVEL SECURITY;
