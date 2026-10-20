@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-20 — TASK-074/075: admin online e regras do leitor sincronizadas com a nuvem
+
+**Tipo:** Backend + Frontend · `routers/auth.py`, `routers/regras_leitor.py`, `static/script.js` · `.ai/tasks/TASK-074-20-10-2026.md`, `TASK-075-20-10-2026.md`
+
+Online, `usuarios_nuvem` só tem `role`; o login agora considera admin quem tem `role = admin` (antes `is_admin` vinha sempre falso e os botões de admin sumiam). Leitura das regras do leitor: linha vazia na nuvem não bloqueia mais; as regras do SQLite (inclusive o seed 027/229) são usadas e enviadas ao Supabase quando a nuvem não tem. A tela distingue "falha ao carregar" de "sem regras". Quem já estava logado precisa sair e entrar de novo.
+
+---
+
 ## 2026-10-20 — TASK-073: regras do leitor 027/229 semeadas por projeto
 
 **Tipo:** Backend + Frontend · `database.py`, `static/script.js` · `.ai/tasks/TASK-073-20-10-2026.md`

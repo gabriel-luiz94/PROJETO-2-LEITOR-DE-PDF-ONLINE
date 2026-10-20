@@ -113,8 +113,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetch(`/api/regras-leitor/processamento?projeto_codigo=${encodeURIComponent(projetoCodigo)}`),
                 fetch(`/api/regras-leitor/classificacao?projeto_codigo=${encodeURIComponent(projetoCodigo)}`)
             ]);
-            const dataProc = resProc.ok ? await resProc.json() : { regras: [] };
-            const dataCls = resCls.ok ? await resCls.json() : { regras: [] };
+            if (!resProc.ok || !resCls.ok) {
+                // Falha de carregamento (rede/servidor) não é "projeto sem regras": não oferece regras de outro projeto.
+                const st = !resProc.ok ? resProc.status : resCls.status;
+                window.__regrasLeitorProcessamento = [];
+                window.__regrasLeitorClassificacao = [];
+                window.__regrasLeitorProjetoCarregado = null;
+                window.__regrasLeitorFalhaCarga = `Falha ao carregar as regras do leitor (HTTP ${st}). Recarregue a página ou entre novamente.`;
+                alert(window.__regrasLeitorFalhaCarga);
+                return;
+            }
+            window.__regrasLeitorFalhaCarga = null;
+            const dataProc = await resProc.json();
+            const dataCls = await resCls.json();
 
             if ((!dataProc.regras || dataProc.regras.length === 0) && (!dataCls.regras || dataCls.regras.length === 0)) {
                 window.__regrasLeitorProcessamento = [];
@@ -154,8 +165,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetch(`/api/regras-leitor/processamento?projeto_codigo=${encodeURIComponent(origem.codigo)}`),
                 fetch(`/api/regras-leitor/classificacao?projeto_codigo=${encodeURIComponent(origem.codigo)}`)
             ]);
-            const dataProc = resProc.ok ? await resProc.json() : { regras: [] };
-            const dataCls = resCls.ok ? await resCls.json() : { regras: [] };
+            if (!resProc.ok || !resCls.ok) {
+                // Falha de carregamento (rede/servidor) não é "projeto sem regras": não oferece regras de outro projeto.
+                const st = !resProc.ok ? resProc.status : resCls.status;
+                window.__regrasLeitorProcessamento = [];
+                window.__regrasLeitorClassificacao = [];
+                window.__regrasLeitorProjetoCarregado = null;
+                window.__regrasLeitorFalhaCarga = `Falha ao carregar as regras do leitor (HTTP ${st}). Recarregue a página ou entre novamente.`;
+                alert(window.__regrasLeitorFalhaCarga);
+                return;
+            }
+            window.__regrasLeitorFalhaCarga = null;
+            const dataProc = await resProc.json();
+            const dataCls = await resCls.json();
             window.__regrasLeitorProcessamento = dataProc.regras || [];
             window.__regrasLeitorClassificacao = dataCls.regras || [];
             alert(`Usando as regras do projeto ${origem.nome} (${origem.codigo}) só para esta leitura.`);
@@ -1177,7 +1199,9 @@ function _renderRegrasLeitorTabela(tabela) {
         </div>`;
     }
 
-    if (!draft.length) {
+    if (!draft.length && window.__regrasLeitorFalhaCarga) {
+        html += `<div style="color:#f85149; padding:8px;">${_escapeHtmlRegrasLeitor(window.__regrasLeitorFalhaCarga)}</div>`;
+    } else if (!draft.length) {
         html += `<div style="color:#8b949e; padding:8px;">Nenhuma regra de ${tabela === 'processamento' ? 'processamento' : 'classificação'} carregada para este projeto.${admin ? '' : ' Importar/exportar JSON e editar regras exige um usuário administrador (entre com uma conta admin).'}</div>`;
     } else if (tabela === 'processamento') {
         [1, 2, 3].forEach(fase => {
