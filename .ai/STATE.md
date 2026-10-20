@@ -412,6 +412,7 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [x] **TASK-069** (pedido de 2026-10-13): Entidade de volta em Outros (seletor, trava manual) + classificar/agrupar por coluna em Outros e Cabos (vínculos remapeados; Qtd Ativos não recalculada em Cabos). CONCLUÍDA. Ver `.ai/tasks/TASK-069-13-10-2026.md`.
 - [x] **TASK-070** (pedido de 2026-10-15): Resultado do Orçamento com visão **SAP** (ODI/ODD lado a lado, M/N) alternável com o REC + exportar Excel (ODI/ODD). CONCLUÍDA. Ver `.ai/tasks/TASK-070-15-10-2026.md`.
 - [x] **TASK-071** (pedido de 2026-10-16): modo **comparação** com um REC de referência (coluna REFERÊNCIA, cores igual/diferente/faltando, fantasmas intercalados, REC e SAP). CONCLUÍDA. Ver `.ai/tasks/TASK-071-16-10-2026.md`.
+- [x] **TASK-074/075** (pedido de 2026-10-20): admin online (is_admin pelo role) + regras do leitor sincronizadas com a nuvem. CONCLUÍDAS. Ver `.ai/tasks/TASK-074-20-10-2026.md`, `TASK-075-20-10-2026.md`.
 - [x] **TASK-073** (pedido de 2026-10-20): Regras do Leitor online vazias para 027 — seed por projeto + aviso de admin p/ importar. CONCLUÍDA. Ver `.ai/tasks/TASK-073-20-10-2026.md`.
 - [x] **TASK-072** (pedido de 2026-10-16): SAP — Copiar sem descrição + seleção/cópia de várias células + marcação (✓ teal) do que já foi copiado. CONCLUÍDA. Ver `.ai/tasks/TASK-072-16-10-2026.md`.
 Nenhuma outra tarefa futura foi inferida. O que o usuário quiser fazer além disso deve virar um

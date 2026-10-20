@@ -54,8 +54,8 @@ def login(req: LoginRequest):
                 if verify_password(req.password, user_cloud.get("senha_hash", "")):
                     user_id = str(user_cloud.get("id"))
                     email = user_cloud.get("email")
-                    is_admin = bool(user_cloud.get("is_admin"))
-                    role = user_cloud.get("role", "admin" if is_admin else "operador")
+                    role = user_cloud.get("role") or ("admin" if user_cloud.get("is_admin") else "operador")
+                    is_admin = bool(user_cloud.get("is_admin")) or role == "admin"  # TASK-074: usuarios_nuvem só tem `role`
 
                     access_token = create_jwt_token(user_id, email, role)
                     refresh_token = create_refresh_token(user_id)
@@ -100,8 +100,8 @@ def login(req: LoginRequest):
         if verify_password(req.password, user_local["senha_hash"]):
             user_id = str(user_local["id"])
             email = user_local["email"]
-            is_admin = bool(user_local["is_admin"])
-            role = user_local["role"] if user_local["role"] else ("admin" if is_admin else "operador")
+            role = user_local["role"] if user_local["role"] else ("admin" if user_local["is_admin"] else "operador")
+            is_admin = bool(user_local["is_admin"]) or role == "admin"  # TASK-074
 
             # Migrar senha legada SHA-256 → bcrypt se necessário
             if not user_local["senha_hash"].startswith("$2"):
@@ -146,8 +146,8 @@ def login(req: LoginRequest):
 
         user_id = str(user_cloud.get("id"))
         email = user_cloud.get("email")
-        is_admin = bool(user_cloud.get("is_admin"))
-        role = user_cloud.get("role", "admin" if is_admin else "operador")
+        role = user_cloud.get("role") or ("admin" if user_cloud.get("is_admin") else "operador")
+        is_admin = bool(user_cloud.get("is_admin")) or role == "admin"  # TASK-074
 
         # Gerar tokens JWT
         access_token = create_jwt_token(user_id, email, role)

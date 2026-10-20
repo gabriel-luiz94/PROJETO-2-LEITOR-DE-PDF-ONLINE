@@ -154,6 +154,11 @@ def validar_regras(tabela: str, regras) -> list:
 # LEITURA / ESCRITA
 # ═══════════════════════════════════════════════════════════════════════════
 def _get_regras(tabela: str, projeto_codigo: str):
+    """
+    Nuvem primeiro; linha ausente OU vazia (`[]`) na nuvem não bloqueia — cai no SQLite (que traz o seed de
+    fábrica de 027/229). Quando o SQLite tem regras e a nuvem não, elas são enviadas à nuvem (TASK-075),
+    para que o servidor online e o app local passem a enxergar as mesmas regras.
+    """
     chave_local = f"regras_leitor_{tabela}"
 
     supabase = get_supabase()
@@ -161,21 +166,31 @@ def _get_regras(tabela: str, projeto_codigo: str):
         try:
             res = supabase.table(chave_local).select("regras_json").eq("projeto_codigo", projeto_codigo).execute()
             if res.data:
-                return json.loads(res.data[0]["regras_json"])
+                regras_nuvem = json.loads(res.data[0]["regras_json"])
+                if regras_nuvem:
+                    return regras_nuvem
         except Exception as e:
             logger.warning(f"Falha ao buscar regras_leitor_{tabela} no Supabase: {e}")
+            supabase = None  # não tenta enviar nada se a leitura falhou
 
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT regras_json FROM {chave_local} WHERE projeto_codigo = ?", (projeto_codigo,))
     row = cursor.fetchone()
     conn.close()
-    if row:
+    if not row:
+        return []
+    try:
+        regras = json.loads(row[0])
+    except Exception:
+        return []
+
+    if regras and supabase:
         try:
-            return json.loads(row[0])
-        except Exception:
-            return []
-    return []
+            supabase.table(chave_local).upsert({"projeto_codigo": projeto_codigo, "regras_json": row[0]}).execute()
+        except Exception as e:
+            logger.warning(f"Não foi possível enviar regras_leitor_{tabela} ({projeto_codigo}) à nuvem: {e}")
+    return regras
 
 
 def _save_regras(tabela: str, payload: RegrasLeitorPayload, usuario_email: str | None):
