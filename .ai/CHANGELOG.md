@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-20 — TASK-073: regras do leitor 027/229 semeadas por projeto
+
+**Tipo:** Backend + Frontend · `database.py`, `static/script.js` · `.ai/tasks/TASK-073-20-10-2026.md`
+
+O seed das regras de fábrica do leitor (027/229) deixou de depender de a tabela inteira estar vazia: cada projeto sem linha recebe as suas. Quando a lista está vazia e o usuário não é admin, a mensagem explica que importar/editar regras exige conta administradora.
+
+---
+
 ## 2026-10-16 — TASK-072: SAP copiar sem descrição, seleção de células e marcação do copiado
 
 **Tipo:** Frontend · `static/resultado_orcamento.html`, `static/orcamento_sap.js` · `.ai/tasks/TASK-072-16-10-2026.md`
