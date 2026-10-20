@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-20 — TASK-076: 401 leva ao login
+
+**Tipo:** Frontend · `static/auth_fetch.js` · `.ai/tasks/TASK-076-20-10-2026.md`
+
+Resposta 401 de qualquer `/api/*` (exceto o login) limpa a sessão do navegador e redireciona para `/login` com o aviso "Sessão expirada. Entre novamente." (uma vez por página). Antes a tela seguia "logada" e as chamadas falhavam em silêncio (causa do "sem regras" online). Validade do token mantida em 24 h. Conferir `JWT_SECRET` fixo nas variáveis do Render.
+
+---
+
 ## 2026-10-20 — TASK-074/075: admin online e regras do leitor sincronizadas com a nuvem
 
 **Tipo:** Backend + Frontend · `routers/auth.py`, `routers/regras_leitor.py`, `static/script.js` · `.ai/tasks/TASK-074-20-10-2026.md`, `TASK-075-20-10-2026.md`
