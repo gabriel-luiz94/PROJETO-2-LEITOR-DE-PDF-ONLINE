@@ -182,3 +182,88 @@ def test_api_so_admin_grava_e_valida(client):
     r = client.put("/api/modais-montaveis", json=ruim, headers=hdr("admin"))
     assert r.status_code == 400 and r.json()["detail"]["erros"]
     assert client.get("/api/modais-montaveis?projeto_codigo=229", headers=hdr("admin")).json()["dados"]["modais"] == []
+
+
+# ── E3: condições compostas, regras condicionais e [campo] nas quantidades ──
+@node
+def test_condicao_composta_e_ou_nao():
+    c = {"todos": [{"campo": "a", "op": "igual", "valor": "1"}, {"algum": [{"campo": "b", "op": "preenchido"}, {"campo": "c", "op": "maior", "valor": 5}]}]}
+    assert js("M.avaliarCondicao(e.c, e.v)", c=c, v={"a": "1", "b": "", "c": "7"}) is True
+    assert js("M.avaliarCondicao(e.c, e.v)", c=c, v={"a": "1", "b": "", "c": "3"}) is False
+    assert js("M.avaliarCondicao(e.c, e.v)", c=c, v={"a": "2", "b": "x", "c": "9"}) is False
+    assert js("M.avaliarCondicao({nao: e.c}, e.v)", c=c, v={"a": "2"}) is True
+    assert js("M.avaliarCondicao(null, {})") is True
+
+
+@node
+def test_operadores_numericos_e_contem():
+    f = lambda op, valor, v: js("M.avaliarCondicao({campo:'x',op:e.op,valor:e.val}, {x:e.v})", op=op, val=valor, v=v)
+    assert f("maior", 5, "5,5") is True and f("maior", 5, "5") is False
+    assert f("maior_igual", 5, "5") is True and f("menor", 5, "4.9") is True and f("menor_igual", 5, "6") is False
+    assert f("maior", 5, "abc") is False and f("menor", 5, "") is False          # não numérico nunca satisfaz
+    assert f("contem", "mac", "Mufla MAC 3") is True and f("contem", "zz", "abc") is False
+
+
+@node
+def test_visivel_usa_a_mesma_linguagem():
+    b = {"visivel_se": {"todos": [{"campo": "a", "op": "igual", "valor": "1"}, {"nao": {"campo": "b", "op": "vazio"}}]}}
+    assert js("M.visivel(e.b, {a:'1', b:'x'})", b=b) is True and js("M.visivel(e.b, {a:'1', b:''})", b=b) is False
+
+
+@node
+def test_campo_na_quantidade_e_no_ativo():
+    assert js("M.avaliarExpressao('{1}*[fator]', ['x','3'], {fator:'2,5'})") == 7.5
+    assert js("M.avaliarExpressao('[fator]+1', [], {fator:'abc'})") == 1        # não numérico = 0
+    assert js("M.avaliarExpressao('[nao_existe]*2', [], {})") is None
+    b = {"regras": [{"quando": {"regex": "(\\d+)"}, "gera": [{"ativo": "P{1}-[regiao]", "qtd": "[fator]"}]}]}
+    r = js("M.interpretar(e.b, e.l, e.v)", b=b, l=[{"t": "poste 12"}], v={"regiao": "SUL", "fator": "3"})
+    assert r == [{"ativo": "P12-SUL", "qtd": 3, "operacao": "I"}]
+
+
+@node
+def test_regra_com_se_so_vale_quando_a_condicao_dos_campos_e_verdadeira():
+    b = {"regras": [{"se": {"campo": "corr", "op": "igual", "valor": "sim"}, "quando": {"regex": "RS"}, "gera": [{"ativo": "COM_CORROSAO"}]},
+                    {"quando": {"regex": "RS"}, "gera": [{"ativo": "NORMAL"}]}]}
+    sim = js("M.interpretar(e.b, e.l, {corr:'sim'})", b=b, l=[{"t": "RS"}])
+    nao = js("M.interpretar(e.b, e.l, {corr:'nao'})", b=b, l=[{"t": "RS"}])
+    assert [x["ativo"] for x in sim] == ["COM_CORROSAO"] and [x["ativo"] for x in nao] == ["NORMAL"]
+
+
+def test_validador_condicoes_compostas_e_referencias():
+    import copy
+    base = copy.deepcopy(TITULOS)
+    base["blocos"][1]["visivel_se"] = {"todos": [{"campo": "regiao", "op": "igual", "valor": "SUL"}, {"nao": {"campo": "regiao", "op": "vazio"}}]}
+    assert mm.validar(_com(base)) == []
+    base["blocos"][1]["visivel_se"] = {"algum": [{"campo": "fantasma", "op": "vazio"}]}
+    assert any("fantasma" in e for e in mm.validar(_com(base)))
+    base["blocos"][1]["visivel_se"] = {"algum": []}
+    assert any("algum" in e for e in mm.validar(_com(base)))
+    base["blocos"][1]["visivel_se"] = {"campo": "regiao", "op": "maior", "valor": "abc"}
+    assert any("número" in e for e in mm.validar(_com(base)))
+    fundo = {"campo": "regiao", "op": "vazio"}
+    for _ in range(6):
+        fundo = {"nao": fundo}
+    base["blocos"][1]["visivel_se"] = fundo
+    assert any("aninhada" in e for e in mm.validar(_com(base)))
+
+
+def test_validador_regra_com_se_e_campo_na_qtd():
+    import copy
+    m = copy.deepcopy(RAMAIS)
+    m["blocos"].insert(0, {"tipo": "campo", "id": "fator", "rotulo": "Fator", "entrada": "numero"})
+    m["blocos"][3]["regras"][0]["gera"][0]["qtd"] = "{1}*[fator]"
+    m["blocos"][3]["regras"][0]["se"] = {"campo": "fator", "op": "maior", "valor": 0}
+    assert mm.validar(_com(m)) == []
+    m["blocos"][3]["regras"][0]["gera"][0]["qtd"] = "{1}*[inexistente]"
+    assert any("inexistente" in e for e in mm.validar(_com(m)))
+    m["blocos"][3]["regras"][0]["gera"][0]["qtd"] = "{1}"
+    m["blocos"][3]["regras"][0]["se"] = {"campo": "nada", "op": "vazio"}
+    assert any("se.campo" in e for e in mm.validar(_com(m)))
+    m["blocos"][3]["regras"][0]["se"] = None
+    m["blocos"][3]["regras"][0]["gera"][0]["ativo"] = "P[fantasma]"
+    assert any("fantasma" in e for e in mm.validar(_com(m)))
+
+
+def test_expressao_segura_aceita_campo():
+    assert mm.expressao_segura("{1}*[fator]") and mm.expressao_segura("[a]+[b-2]/2")
+    assert not mm.expressao_segura("[a b]") and not mm.expressao_segura("[a]**2")

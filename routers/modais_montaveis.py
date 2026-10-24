@@ -27,12 +27,16 @@ CHAVE = "montaveis"
 TIPOS_MODAL = {"montagem", "colagem", "interpretativo", "processamento", "gerador_texto"}
 TIPOS_BLOCO = {"texto", "campo", "grade", "interpretar", "tabela_interna", "saida_texto", "destino", "acao_adicionar"}
 ENTRADAS = {"texto", "numero", "select", "radio"}
-OPERACOES_CONDICAO = {"igual", "diferente", "vazio", "preenchido", "em"}
+OPERACOES_CONDICAO = {"igual", "diferente", "vazio", "preenchido", "em", "contem", "maior", "menor", "maior_igual", "menor_igual"}
+OPS_NUMERICAS = {"maior", "menor", "maior_igual", "menor_igual"}
+PROFUNDIDADE_CONDICAO = 4
+MAX_FILHOS_CONDICAO = 10
 OPERACOES_LINHA = {"I", "*I", "R", "*R", "M", "*M"}
 DESTINOS = {"outros", "cabos"}
 MAX_MODAIS, MAX_BLOCOS, MAX_REGRAS, MAX_GERA, MAX_COLUNAS, MAX_LINHAS_INTERNAS = 30, 40, 100, 20, 20, 500
 _RE_ID = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 _RE_CHAR_EXPR = re.compile(r"^[0-9+\-*/().\s]+$")
+_RE_REF_CAMPO = re.compile(r"\[([A-Za-z0-9_-]+)\]")
 
 
 class ModaisPayload(BaseModel):
@@ -62,7 +66,7 @@ def expressao_segura(expr) -> bool:
         return True
     if not isinstance(expr, str) or not expr.strip() or len(expr) > 100:
         return False
-    s = re.sub(r"\{\d+\}", "1", expr)
+    s = _RE_REF_CAMPO.sub("1", re.sub(r"\{\d+\}", "1", expr))
     if not _RE_CHAR_EXPR.match(s):
         return False
     try:
@@ -87,16 +91,56 @@ def _regex(v, rotulo, erros):
         erros.append(f"{rotulo}: regex inválida ({e}).")
 
 
-def _condicao(c, rotulo, erros):
+def _condicao(c, rotulo, erros, nome="visivel_se", nivel=0):
+    """Condição: folha {campo, op, valor} ou composta {todos:[...]} / {algum:[...]} / {nao: cond} (até 4 níveis)."""
     if c is None:
         return
-    if not isinstance(c, dict) or c.get("op") not in OPERACOES_CONDICAO or not isinstance(c.get("campo"), str):
-        erros.append(f"{rotulo}: 'visivel_se' precisa de campo e op ({sorted(OPERACOES_CONDICAO)}).")
+    if nivel > PROFUNDIDADE_CONDICAO:
+        erros.append(f"{rotulo}: '{nome}' muito aninhada (máximo {PROFUNDIDADE_CONDICAO} níveis).")
         return
-    if c["op"] in ("igual", "diferente") and not isinstance(c.get("valor"), (str, int, float)):
-        erros.append(f"{rotulo}: 'visivel_se.valor' obrigatório.")
+    if not isinstance(c, dict):
+        erros.append(f"{rotulo}: '{nome}' precisa ser um objeto.")
+        return
+    for chave in ("todos", "algum"):
+        if chave in c:
+            filhos = c[chave]
+            if not isinstance(filhos, list) or not 1 <= len(filhos) <= MAX_FILHOS_CONDICAO:
+                erros.append(f"{rotulo}: '{nome}.{chave}' precisa ser uma lista de 1 a {MAX_FILHOS_CONDICAO} condições.")
+                return
+            for f in filhos:
+                _condicao(f, rotulo, erros, nome, nivel + 1)
+            return
+    if "nao" in c:
+        _condicao(c["nao"], rotulo, erros, nome, nivel + 1) if isinstance(c["nao"], dict) else erros.append(f"{rotulo}: '{nome}.nao' precisa ser uma condição.")
+        return
+    if c.get("op") not in OPERACOES_CONDICAO or not isinstance(c.get("campo"), str):
+        erros.append(f"{rotulo}: '{nome}' precisa de campo e op ({sorted(OPERACOES_CONDICAO)}), ou todos/algum/nao.")
+        return
+    if c["op"] in ("igual", "diferente", "contem") and not isinstance(c.get("valor"), (str, int, float)):
+        erros.append(f"{rotulo}: '{nome}.valor' obrigatório.")
+    if c["op"] in OPS_NUMERICAS and (isinstance(c.get("valor"), bool) or not isinstance(c.get("valor"), (int, float))):
+        erros.append(f"{rotulo}: '{nome}.valor' precisa ser um número para '{c['op']}'.")
     if c["op"] == "em" and not isinstance(c.get("valor"), list):
-        erros.append(f"{rotulo}: 'visivel_se.valor' precisa ser uma lista para 'em'.")
+        erros.append(f"{rotulo}: '{nome}.valor' precisa ser uma lista para 'em'.")
+
+
+def campos_da_condicao(c, acc=None):
+    """Todos os ids de campo citados numa condição (folhas dentro de todos/algum/nao)."""
+    acc = set() if acc is None else acc
+    if isinstance(c, dict):
+        if isinstance(c.get("campo"), str):
+            acc.add(c["campo"])
+        for chave in ("todos", "algum"):
+            if isinstance(c.get(chave), list):
+                for f in c[chave]:
+                    campos_da_condicao(f, acc)
+        if "nao" in c:
+            campos_da_condicao(c["nao"], acc)
+    return acc
+
+
+def campos_da_expressao(texto) -> set:
+    return set(_RE_REF_CAMPO.findall(texto)) if isinstance(texto, str) else set()
 
 
 def _bloco(b, i, ids_por_tipo, erros):
@@ -152,6 +196,7 @@ def _bloco(b, i, ids_por_tipo, erros):
             if not isinstance(r, dict) or not isinstance(r.get("quando"), dict):
                 erros.append(f"{q}: precisa de 'quando' e 'gera'.")
                 continue
+            _condicao(r.get("se"), q, erros, nome="se")
             _regex(r["quando"].get("regex"), f"{q}.quando.regex", erros)
             if r["quando"].get("flags") is not None and (not isinstance(r["quando"]["flags"], str) or not re.fullmatch(r"[gimsu]{0,5}", r["quando"]["flags"])):
                 erros.append(f"{q}.quando.flags: só letras gimsu.")
@@ -165,7 +210,7 @@ def _bloco(b, i, ids_por_tipo, erros):
                     continue
                 _texto(g.get("ativo"), 120, f"{q}.gera.ativo", erros)
                 if "qtd" in g and not expressao_segura(g["qtd"]):
-                    erros.append(f"{q}.gera.qtd: só números, + - * / ( ) e {{n}} (ex.: {{1}}*20).")
+                    erros.append(f"{q}.gera.qtd: só números, + - * / ( ), {{n}} (captura) e [campo] (ex.: {{1}}*[fator]).")
                 if g.get("operacao") is not None and g["operacao"] not in OPERACOES_LINHA:
                     erros.append(f"{q}.gera.operacao: uma de {sorted(OPERACOES_LINHA)}.")
     elif t == "tabela_interna":
@@ -225,9 +270,20 @@ def validar_modal(m, idx=0) -> list:
             d = b.get("destino")
             if d not in DESTINOS and d not in ids.get("destino", set()):
                 erros.append(f"{q} (acao_adicionar): 'destino' é 'outros', 'cabos' ou o id de um bloco 'destino'.")
-        c = b.get("visivel_se")
-        if isinstance(c, dict) and c.get("campo") not in ids.get("campo", set()):
-            erros.append(f"{q}: 'visivel_se.campo' precisa ser o id de um campo deste modal.")
+        campos = ids.get("campo", set())
+        for ref in sorted(campos_da_condicao(b.get("visivel_se")) - campos):
+            erros.append(f"{q}: 'visivel_se.campo' precisa ser o id de um campo deste modal (recebido: {ref}).")
+        if b.get("tipo") == "interpretar":
+            for k, r in enumerate(b.get("regras") or []):
+                if not isinstance(r, dict):
+                    continue
+                for ref in sorted(campos_da_condicao(r.get("se")) - campos):
+                    erros.append(f"{q}, regra #{k + 1}: 'se.campo' precisa ser o id de um campo deste modal (recebido: {ref}).")
+                for g in r.get("gera") or []:
+                    if not isinstance(g, dict):
+                        continue
+                    for ref in sorted((campos_da_expressao(g.get("qtd")) | campos_da_expressao(g.get("ativo"))) - campos):
+                        erros.append(f"{q}, regra #{k + 1}: [{ref}] não é o id de um campo deste modal.")
     return erros
 
 

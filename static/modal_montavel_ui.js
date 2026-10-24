@@ -109,7 +109,7 @@
                 const b = x.bloco;
                 x.raiz.style.display = MM.visivel(b, valores) ? '' : 'none';
                 if (b.tipo === 'interpretar') {
-                    const itens = MM.interpretar(b, grades[b.fonte] || []);
+                    const itens = MM.interpretar(b, grades[b.fonte] || [], valores);
                     resultados[b.id] = itens;
                     x.atualizar(itens);
                 } else if (b.tipo === 'saida_texto') x.atualizar(MM.gerarTexto(b, valores, tabelas, b.fonte ? grades[b.fonte] : null));

@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-24 — TASK-077 (etapa 3): condicionais dos modais montáveis
+
+**Tipo:** Backend + Frontend · `routers/modais_montaveis.py`, `static/modal_montavel_engine.js`, `static/modal_montavel_editor.js`, `static/modal_montavel_ui.js`
+
+Condições compostas (E / OU / NÃO, até 4 níveis) com operadores `contem`, `maior`, `menor`, `maior_igual`, `menor_igual`; regras de interpretação com `se` (só valem quando a condição dos campos é verdadeira); e `[campo]` na quantidade (`{1}*[fator]`) e no ativo (`P{1}-[regiao]`). O editor visual ganhou a árvore de condições. Definições antigas continuam válidas. Sem mudança de banco.
+
+---
+
 ## 2026-10-24 — TASK-077 (etapa 2): editor visual dos modais montáveis
 
 **Tipo:** Frontend · `static/modal_montavel_editor.js` (novo), `static/modal_montavel_ui.js`, `static/resumo.html`, `app.py`

@@ -21,6 +21,16 @@
         });
     }
 
+    /** Troca [campo] pelo valor do campo (numérico: número ou 0; texto: o texto). Campo desconhecido fica como está. */
+    function substituirCampos(texto, valores, numerico) {
+        return String(texto == null ? '' : texto).replace(/\[([A-Za-z0-9_-]+)\]/g, (m, id) => {
+            if (!valores || !Object.prototype.hasOwnProperty.call(valores, id)) return m;
+            const v = valores[id];
+            if (numerico) { const x = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isNaN(x) ? '(0)' : '(' + x + ')'; }
+            return v == null ? '' : String(v);
+        });
+    }
+
     /** Avalia só + - * / ( ) e números (descida recursiva). Retorna número ou null se a expressão for inválida. */
     function calcular(expr) {
         const s = String(expr).replace(/\s+/g, '');
@@ -58,9 +68,9 @@
     }
 
     /** Expressão numérica com capturas: avaliarExpressao("{1}*20", ["x","3"]) = 60. Número puro também vale. */
-    function avaliarExpressao(expr, caps) {
+    function avaliarExpressao(expr, caps, valores) {
         if (typeof expr === 'number') return expr;
-        return calcular(substituir(expr, caps, true));
+        return calcular(substituir(substituirCampos(expr, valores, true), caps, true));
     }
 
     function regexDe(q) {
@@ -72,13 +82,14 @@
      * Cada regra: { quando: {coluna?, regex, flags?}, gera: [{ativo, qtd?, operacao?}], parar? }.
      * Sem `coluna`, a regex testa todas as colunas juntas (separadas por espaço). Retorna itens somados.
      */
-    function interpretar(bloco, linhas) {
+    function interpretar(bloco, linhas, valores) {
         const soma = new Map(); const ordem = [];
         const agrupar = bloco.agrupar !== false;
         const itens = [];
         (linhas || []).forEach((linha, idx) => {
             const textoTudo = Object.keys(linha || {}).map(k => linha[k]).join(' ');
             for (const regra of (bloco.regras || [])) {
+                if (regra.se && !avaliarCondicao(regra.se, valores)) continue;   // regra só vale se a condição dos campos for verdadeira
                 const q = regra.quando || {};
                 const re = regexDe(q);
                 if (!re) continue;
@@ -87,8 +98,8 @@
                 if (!m) continue;
                 const caps = Array.prototype.slice.call(m, 0, MAX_CAP);
                 (regra.gera || []).forEach(g => {
-                    const ativo = substituir(g.ativo, caps, false).trim();
-                    const qtd = g.qtd === undefined ? 1 : avaliarExpressao(g.qtd, caps);
+                    const ativo = substituir(substituirCampos(g.ativo, valores, false), caps, false).trim();
+                    const qtd = g.qtd === undefined ? 1 : avaliarExpressao(g.qtd, caps, valores);
                     if (!ativo || qtd === null || qtd <= 0) return;
                     const operacao = g.operacao || 'I';
                     if (!agrupar) { itens.push({ ativo, qtd, operacao, linha: idx }); return; }
@@ -134,10 +145,17 @@
         });
     }
 
-    /** visivel_se: { campo, op: igual|diferente|vazio|preenchido|em, valor } sobre os valores dos campos. */
-    function visivel(bloco, valores) {
-        const c = bloco && bloco.visivel_se;
+    const num = v => { const x = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isNaN(x) ? null : x; };
+
+    /**
+     * Condição: folha { campo, op, valor } (op: igual, diferente, vazio, preenchido, em, contem, maior, menor, maior_igual, menor_igual)
+     * ou composta { todos: [...] } (E) / { algum: [...] } (OU) / { nao: cond }. Sem condição = verdadeira.
+     */
+    function avaliarCondicao(c, valores) {
         if (!c) return true;
+        if (Array.isArray(c.todos)) return c.todos.every(x => avaliarCondicao(x, valores));
+        if (Array.isArray(c.algum)) return c.algum.some(x => avaliarCondicao(x, valores));
+        if (c.nao) return !avaliarCondicao(c.nao, valores);
         const v = String((valores || {})[c.campo] == null ? '' : valores[c.campo]).trim();
         switch (c.op) {
             case 'igual': return v === String(c.valor);
@@ -145,9 +163,18 @@
             case 'vazio': return v === '';
             case 'preenchido': return v !== '';
             case 'em': return Array.isArray(c.valor) && c.valor.map(String).includes(v);
+            case 'contem': return v.toLowerCase().indexOf(String(c.valor).toLowerCase()) >= 0;
+            case 'maior': case 'menor': case 'maior_igual': case 'menor_igual': {
+                const a = num(v), b = num(c.valor);
+                if (a === null || b === null) return false;
+                return c.op === 'maior' ? a > b : c.op === 'menor' ? a < b : c.op === 'maior_igual' ? a >= b : a <= b;
+            }
             default: return true;
         }
     }
+
+    /** visivel_se de um bloco (mesma linguagem de condições). */
+    function visivel(bloco, valores) { return avaliarCondicao(bloco && bloco.visivel_se, valores); }
 
     /** Linhas de uma grade a partir de uma matriz colada (parseColagem de grade_tabela.js): coluna i → colunas[i].id. */
     function linhasDaMatriz(colunas, matriz) {
@@ -168,7 +195,7 @@
         return modelo(bloco.modelo, base);
     }
 
-    const api = { calcular, avaliarExpressao, interpretar, modelo, visivel, linhasDaMatriz, gerarTexto, substituir };
+    const api = { calcular, avaliarExpressao, interpretar, modelo, visivel, avaliarCondicao, linhasDaMatriz, gerarTexto, substituir, substituirCampos };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.ModalMontavel = api;
 })(typeof window !== 'undefined' ? window : globalThis);
