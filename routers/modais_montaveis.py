@@ -183,10 +183,23 @@ def _bloco(b, i, ids_por_tipo, erros):
                 if c.get("id") in vistos:
                     erros.append(f"{p}.colunas: id '{c.get('id')}' repetido.")
                 vistos.add(c.get("id"))
+        col = b.get("colagem")
+        if col is not None:
+            if not isinstance(col, dict) or col.get("modo", "colunas") not in {"colunas", "linha", "dividir"}:
+                erros.append(f"{p}.colagem: 'modo' precisa ser colunas, linha ou dividir.")
+            else:
+                if col.get("separador") is not None and (not isinstance(col["separador"], str) or len(col["separador"]) > 10):
+                    erros.append(f"{p}.colagem.separador: texto de até 10 caracteres.")
+                if col.get("pular_cabecalho") is not None and not isinstance(col["pular_cabecalho"], bool):
+                    erros.append(f"{p}.colagem.pular_cabecalho: verdadeiro ou falso.")
+        if b.get("carregar_de") is not None and b["carregar_de"] not in DESTINOS:
+            erros.append(f"{p}.carregar_de: use {sorted(DESTINOS)}.")
         lm = b.get("linhas_min", 5)
         if not isinstance(lm, int) or isinstance(lm, bool) or not 1 <= lm <= 50:
             erros.append(f"{p}.linhas_min: de 1 a 50.")
     elif t == "interpretar":
+        if b.get("normalizar") not in (None, "maiusculo", "minusculo"):
+            erros.append(f"{p}.normalizar: maiusculo ou minusculo.")
         regras = b.get("regras")
         if not isinstance(regras, list) or not 1 <= len(regras) <= MAX_REGRAS:
             erros.append(f"{p}.regras: de 1 a {MAX_REGRAS}.")
@@ -198,6 +211,8 @@ def _bloco(b, i, ids_por_tipo, erros):
                 continue
             _condicao(r.get("se"), q, erros, nome="se")
             _regex(r["quando"].get("regex"), f"{q}.quando.regex", erros)
+            if r["quando"].get("global") is not None and not isinstance(r["quando"]["global"], bool):
+                erros.append(f"{q}.quando.global: verdadeiro ou falso.")
             if r["quando"].get("flags") is not None and (not isinstance(r["quando"]["flags"], str) or not re.fullmatch(r"[gimsu]{0,5}", r["quando"]["flags"])):
                 erros.append(f"{q}.quando.flags: só letras gimsu.")
             gera = r.get("gera")

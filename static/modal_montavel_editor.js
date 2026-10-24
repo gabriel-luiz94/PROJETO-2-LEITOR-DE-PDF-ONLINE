@@ -173,6 +173,13 @@
                         el('div', { style: 'flex:1;' }, [campoTexto(c, 'id', 'id', { recarregar: true })]), el('div', { style: 'flex:1;' }, [campoTexto(c, 'rotulo', 'título')]),
                         mini('✕', () => { b.colunas.splice(i, 1); redesenhar(); }, 'align-self:flex-end;color:#f85149;')])));
                     f.appendChild(mini('+ Coluna', () => { b.colunas.push({ id: idUnico('col', b.colunas.map(c => c.id)), rotulo: 'COLUNA' }); redesenhar(); }));
+                    const col = b.colagem || (b.colagem = { modo: 'colunas' });
+                    f.appendChild(el('div', { style: 'display:grid;grid-template-columns:1.4fr 1fr 1fr 1.2fr;gap:8px;align-items:end;margin-top:8px;' }, [
+                        campoLista(col, 'modo', 'Ao colar', [['colunas', 'Colunas do Excel (Tab)'], ['linha', 'Linha inteira na 1ª coluna'], ['dividir', 'Dividir a linha por um separador']], { recarregar: true }),
+                        col.modo === 'dividir' ? campoTexto(col, 'separador', 'Separador (ex.: ; ou ,)') : el('div'),
+                        (() => { const c = el('input', { type: 'checkbox' }); c.checked = !!col.pular_cabecalho; c.addEventListener('change', () => { col.pular_cabecalho = c.checked; });
+                            return el('label', { style: 'display:flex;gap:5px;align-items:center;font-size:.75rem;' }, [c, 'Ignorar a 1ª linha colada']); })(),
+                        campoLista(b, 'carregar_de', 'Botão "Carregar da tabela"', [['outros', 'Tabela Outros'], ['cabos', 'Tabela Cabos']], { vazio: '(sem botão)' })]));
                     break;
                 }
                 case 'tabela_interna': {
@@ -189,6 +196,7 @@
                 case 'interpretar': {
                     f.appendChild(el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px;' }, [campoTexto(b, 'id', 'Identificador', { recarregar: true }),
                         campoLista(b, 'fonte', 'Ler a grade', idsDe('grade'), { vazio: '— escolha —', recarregar: true })]));
+                    f.appendChild(campoLista(b, 'normalizar', 'Letras do ativo gerado', [['maiusculo', 'MAIÚSCULAS'], ['minusculo', 'minúsculas']], { vazio: '(como escrito na regra)' }));
                     const grade = m.blocos.find(x => x.tipo === 'grade' && x.id === b.fonte);
                     const colunas = grade ? grade.colunas.map(c => [c.id, c.rotulo]) : [];
                     b.regras.forEach((r, ri) => {
@@ -201,6 +209,9 @@
                         const parar = el('input', { type: 'checkbox' }); parar.checked = r.parar !== false;
                         parar.addEventListener('change', () => { if (parar.checked) delete r.parar; else r.parar = false; });
                         cx.appendChild(el('label', { style: 'display:flex;gap:6px;align-items:center;font-size:.75rem;margin-top:4px;' }, [parar, 'Parar nesta regra (não testar as seguintes)']));
+                        const glob = el('input', { type: 'checkbox' }); glob.checked = !!r.quando.global;
+                        glob.addEventListener('change', () => { if (glob.checked) r.quando.global = true; else delete r.quando.global; });
+                        cx.appendChild(el('label', { style: 'display:flex;gap:6px;align-items:center;font-size:.75rem;margin-top:2px;' }, [glob, 'Todas as ocorrências na linha (ex.: "P1, P2 e P3" gera 3 itens)']));
                         cx.appendChild(condicao(r, 'se', 'Aplicar esta regra só se (campos do modal)…'));
                         cx.appendChild(rotulo('Então gera (use [campo] na quantidade ou no ativo)'));
                         r.gera.forEach((g, gi) => cx.appendChild(el('div', { style: 'display:grid;grid-template-columns:2fr 1.4fr 0.8fr auto;gap:6px;align-items:end;margin-bottom:3px;' }, [

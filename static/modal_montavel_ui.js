@@ -109,9 +109,9 @@
                 const b = x.bloco;
                 x.raiz.style.display = MM.visivel(b, valores) ? '' : 'none';
                 if (b.tipo === 'interpretar') {
-                    const itens = MM.interpretar(b, grades[b.fonte] || [], valores);
-                    resultados[b.id] = itens;
-                    x.atualizar(itens);
+                    const d = MM.diagnosticar(b, grades[b.fonte] || [], valores);
+                    resultados[b.id] = d.itens;
+                    x.atualizar(d.itens, d.naoCasadas);
                 } else if (b.tipo === 'saida_texto') x.atualizar(MM.gerarTexto(b, valores, tabelas, b.fonte ? grades[b.fonte] : null));
             });
         }
@@ -130,9 +130,11 @@
                         inp.addEventListener('input', () => { linha[c.id] = inp.value; recalcular(); });
                         inp.addEventListener('paste', e => {
                             const t = (e.clipboardData || raiz.clipboardData).getData('text');
-                            if (!t || !(/[\n\t]/.test(t.replace(/\n$/, '')))) return;      // 1 valor só: colar normal
+                            const especial = b.colagem && b.colagem.modo && b.colagem.modo !== 'colunas';
+                            if (!t || (!especial && !(/[\n\t]/.test(t.replace(/\n$/, ''))))) return;      // 1 valor só: colar normal
                             e.preventDefault();
-                            const m = G ? G.parseColagem(t, 1000).linhas : t.split(/\r?\n/).filter(Boolean).map(l => l.split('\t'));
+                            const m0 = G ? G.parseColagem(t, 1000).linhas : t.split(/\r?\n/).filter(Boolean).map(l => l.split('\t'));
+                            const m = MM.ajustarColagem(b, m0);
                             m.forEach((cel, k) => {
                                 while (i + k >= dados.length) dados.push(Object.fromEntries(b.colunas.map(cc => [cc.id, ''])));
                                 cel.forEach((v, kk) => { if (b.colunas[ci + kk]) dados[i + k][b.colunas[ci + kk].id] = String(v).trim(); });
@@ -146,7 +148,15 @@
                 });
             }
             desenhar();
-            const rodape = el('div', { style: 'display:flex;gap:8px;margin-top:6px;' }, [
+            const carregarDe = b.carregar_de ? el('button', { class: 'btn-secondary', text: 'Carregar da tabela ' + (b.carregar_de === 'cabos' ? 'Cabos' : 'Outros'), style: css, onclick: () => {
+                if (!estado.host || !estado.host.ler) return;
+                const linhasTab = estado.host.ler(b.carregar_de);
+                dados.length = 0;
+                linhasTab.forEach(r => dados.push(Object.fromEntries(b.colunas.map(c => [c.id, r[c.id] == null ? '' : String(r[c.id])]))));
+                if (!dados.length) dados.push(Object.fromEntries(b.colunas.map(c => [c.id, ''])));
+                desenhar(); recalcular(); toast(linhasTab.length + ' linha(s) carregadas.');
+            } }) : null;
+            const rodape = el('div', { style: 'display:flex;gap:8px;margin-top:6px;' }, [carregarDe,
                 el('button', { class: 'btn-secondary', text: '+ Linha', style: css, onclick: () => { dados.push(Object.fromEntries(b.colunas.map(c => [c.id, '']))); desenhar(); } }),
                 el('button', { class: 'btn-secondary', text: 'Limpar', style: css, onclick: () => { dados.forEach(l => Object.keys(l).forEach(k => { l[k] = ''; })); desenhar(); recalcular(); } })]);
             return { raiz: el('div', { style: 'margin:10px 0;overflow-x:auto;' }, [tabela, rodape]) };
@@ -177,14 +187,17 @@
                 }
                 case 'interpretar': {
                     const corpo = el('tbody'), resumo = el('div', { style: 'font-size:.75rem;color:#8b949e;margin-top:4px;' });
+                    const avisos = el('div', { class: 'mm-nao-interpretadas', style: 'font-size:.75rem;color:#f0883e;margin-top:4px;white-space:pre-wrap;' });
                     const t = el('table', { style: 'width:100%;font-size:.82rem;border-collapse:collapse;' }, [
                         el('thead', {}, [el('tr', {}, ['OP', 'ATIVO', 'QTD'].map(c => el('th', { text: c, style: 'text-align:left;padding:3px 6px;color:#8b949e;' })))]), corpo]);
                     return { raiz: el('div', { style: 'margin:10px 0;border:1px solid #21262d;border-radius:6px;padding:8px;' }, [
-                        el('div', { text: 'Resultado (ativos e quantidades)', style: 'font-size:.75rem;font-weight:600;color:#c9d1d9;margin-bottom:4px;' }), t, resumo]),
-                        atualizar: itens => {
+                        el('div', { text: 'Resultado (ativos e quantidades)', style: 'font-size:.75rem;font-weight:600;color:#c9d1d9;margin-bottom:4px;' }), t, resumo, avisos]),
+                        atualizar: (itens, nao) => {
                             corpo.innerHTML = '';
                             itens.forEach(x => corpo.appendChild(el('tr', {}, [x.operacao, x.ativo, String(x.qtd)].map(v => el('td', { text: v, style: 'padding:3px 6px;border-top:1px solid #21262d;' })))));
                             resumo.textContent = itens.length ? itens.length + ' item(ns).' : 'Nada interpretado ainda.';
+                            const n = nao || [];
+                            avisos.textContent = n.length ? n.length + ' linha(s) não reconhecida(s) por nenhuma regra:\n' + n.slice(0, 8).map(x => '  #' + (x.linha + 1) + ' ' + x.texto).join('\n') + (n.length > 8 ? '\n  …' : '') : '';
                         } };
                 }
                 case 'destino': {

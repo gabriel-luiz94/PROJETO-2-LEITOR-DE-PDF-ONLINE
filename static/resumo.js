@@ -4785,6 +4785,11 @@ document.addEventListener('DOMContentLoaded', () => {
        Cabos: o ativo repetido `qtd` vezes (mesmo formato do gerador de Cabos).
     ═══════════════════════════════════════ */
     window.ModalMontavelHost = {
+        /** Linhas atuais da tabela como objetos { operacao, ativo, entidade } (para blocos grade com `carregar_de`). */
+        ler(destino) {
+            const dados = destino === 'cabos' ? tableStates.cabos.data : tableStates.outros.data;
+            return dados.map(r => ({ operacao: r.operacao || '', ativo: r.ativo || '', entidade: r.entidade || '' }));
+        },
         adicionar(destino, itens, nomeModal) {
             if (!itens || !itens.length) return;
             pushHistory();

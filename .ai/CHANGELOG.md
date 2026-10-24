@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-24 — TASK-077 (etapa 4): colagem e interpretação dos modais montáveis
+
+**Tipo:** Backend + Frontend · `routers/modais_montaveis.py`, `static/modal_montavel_*.js`, `static/resumo.js`
+
+Grade com modos de colagem (colunas, linha inteira, dividir por separador, ignorar cabeçalho) e botão "Carregar da tabela Outros/Cabos" (modais de processamento). Regras com "todas as ocorrências", normalização de maiúsculas e aviso das linhas que nenhuma regra reconheceu. Sem mudança de banco.
+
+---
+
 ## 2026-10-24 — TASK-077 (etapa 3): condicionais dos modais montáveis
 
 **Tipo:** Backend + Frontend · `routers/modais_montaveis.py`, `static/modal_montavel_engine.js`, `static/modal_montavel_editor.js`, `static/modal_montavel_ui.js`

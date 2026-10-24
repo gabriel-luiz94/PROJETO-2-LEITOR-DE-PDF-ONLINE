@@ -267,3 +267,55 @@ def test_validador_regra_com_se_e_campo_na_qtd():
 def test_expressao_segura_aceita_campo():
     assert mm.expressao_segura("{1}*[fator]") and mm.expressao_segura("[a]+[b-2]/2")
     assert not mm.expressao_segura("[a b]") and not mm.expressao_segura("[a]**2")
+
+
+# ── E4: colagem, ocorrências, normalização, linhas não reconhecidas, carregar da tabela ──
+@node
+def test_ajustar_colagem_modos():
+    f = lambda col, m: js("M.ajustarColagem({colagem: e.c}, e.m)", c=col, m=m)
+    assert f({"modo": "colunas"}, [["a", "b"]]) == [["a", "b"]]
+    assert f({"modo": "linha"}, [["a", "b c"], ["d"]]) == [["a b c"], ["d"]]
+    assert f({"modo": "dividir", "separador": ";"}, [["x; y ;z"]]) == [["x", "y", "z"]]
+    assert f({"modo": "dividir"}, [["x;y"]]) == [["x", "y"]]                       # separador padrão
+    assert f({"modo": "colunas", "pular_cabecalho": True}, [["H1", "H2"], ["a", "b"]]) == [["a", "b"]]
+    assert js("M.ajustarColagem({}, [['a']])") == [["a"]]
+
+
+@node
+def test_regra_global_gera_um_item_por_ocorrencia():
+    b = {"regras": [{"quando": {"regex": "P(\\d+)", "global": True}, "gera": [{"ativo": "P{1}"}]}]}
+    assert [x["ativo"] for x in js("M.interpretar(e.b, e.l, {})", b=b, l=[{"t": "P1, P2 e P3"}])] == ["P1", "P2", "P3"]
+    sem = {"regras": [{"quando": {"regex": "P(\\d+)"}, "gera": [{"ativo": "P{1}"}]}]}
+    assert [x["ativo"] for x in js("M.interpretar(e.b, e.l, {})", b=sem, l=[{"t": "P1, P2 e P3"}])] == ["P1"]
+    vazio = {"regras": [{"quando": {"regex": "x*", "global": True}, "gera": [{"ativo": "A"}]}]}
+    assert js("M.interpretar(e.b, e.l, {})", b=vazio, l=[{"t": "abc"}])           # regex que casa vazio não trava
+
+
+@node
+def test_normalizar_e_nao_reconhecidas():
+    b = {"normalizar": "maiusculo", "regras": [{"quando": {"regex": "mac"}, "gera": [{"ativo": "mac-1"}]}]}
+    d = js("M.diagnosticar(e.b, e.l, {})", b=b, l=[{"t": "MAC"}, {"t": "zzz"}, {"t": "   "}])
+    assert [x["ativo"] for x in d["itens"]] == ["MAC-1"]
+    assert d["naoCasadas"] == [{"linha": 1, "texto": "zzz"}]                         # linha em branco não conta
+    assert js("M.interpretar({normalizar:'minusculo',regras:[{quando:{regex:'A'},gera:[{ativo:'XyZ'}]}]}, [{t:'a'}], {})")[0]["ativo"] == "xyz"
+
+
+def test_validador_e4():
+    import copy
+    m = copy.deepcopy(RAMAIS)
+    m["blocos"][1]["colagem"] = {"modo": "dividir", "separador": ";", "pular_cabecalho": True}
+    m["blocos"][1]["carregar_de"] = "outros"
+    m["blocos"][2]["normalizar"] = "maiusculo"
+    m["blocos"][2]["regras"][0]["quando"]["global"] = True
+    assert mm.validar(_com(m)) == []
+    for caminho, valor, trecho in [(("blocos", 1, "colagem"), {"modo": "x"}, "colagem"), (("blocos", 1, "carregar_de"), "tudo", "carregar_de"),
+                                   (("blocos", 2, "normalizar"), "capitalizar", "normalizar")]:
+        r = copy.deepcopy(m); alvo = r
+        for c in caminho[:-1]:
+            alvo = alvo[c]
+        alvo[caminho[-1]] = valor
+        assert any(trecho in e for e in mm.validar(_com(r))), caminho
+    r = copy.deepcopy(m); r["blocos"][2]["regras"][0]["quando"]["global"] = "sim"
+    assert any("global" in e for e in mm.validar(_com(r)))
+    r = copy.deepcopy(m); r["blocos"][1]["colagem"]["separador"] = "x" * 11
+    assert any("separador" in e for e in mm.validar(_com(r)))

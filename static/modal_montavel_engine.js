@@ -82,35 +82,65 @@
      * Cada regra: { quando: {coluna?, regex, flags?}, gera: [{ativo, qtd?, operacao?}], parar? }.
      * Sem `coluna`, a regex testa todas as colunas juntas (separadas por espaço). Retorna itens somados.
      */
-    function interpretar(bloco, linhas, valores) {
+    function executar(bloco, linhas, valores) {
         const soma = new Map(); const ordem = [];
         const agrupar = bloco.agrupar !== false;
-        const itens = [];
+        const itens = [], naoCasadas = [];
+        const caixa = t => bloco.normalizar === 'maiusculo' ? t.toUpperCase() : bloco.normalizar === 'minusculo' ? t.toLowerCase() : t;
         (linhas || []).forEach((linha, idx) => {
             const textoTudo = Object.keys(linha || {}).map(k => linha[k]).join(' ');
+            let casou = false;
             for (const regra of (bloco.regras || [])) {
                 if (regra.se && !avaliarCondicao(regra.se, valores)) continue;   // regra só vale se a condição dos campos for verdadeira
                 const q = regra.quando || {};
                 const re = regexDe(q);
                 if (!re) continue;
                 const alvo = q.coluna ? String((linha || {})[q.coluna] == null ? '' : linha[q.coluna]) : textoTudo;
-                const m = re.exec(alvo);
-                if (!m) continue;
-                const caps = Array.prototype.slice.call(m, 0, MAX_CAP);
-                (regra.gera || []).forEach(g => {
-                    const ativo = substituir(substituirCampos(g.ativo, valores, false), caps, false).trim();
-                    const qtd = g.qtd === undefined ? 1 : avaliarExpressao(g.qtd, caps, valores);
-                    if (!ativo || qtd === null || qtd <= 0) return;
-                    const operacao = g.operacao || 'I';
-                    if (!agrupar) { itens.push({ ativo, qtd, operacao, linha: idx }); return; }
-                    const k = operacao + '\u0000' + ativo;
-                    if (!soma.has(k)) { soma.set(k, { ativo, qtd: 0, operacao }); ordem.push(k); }
-                    soma.get(k).qtd += qtd;
+                let ocorrencias;
+                if (q.global) {                                       // todas as ocorrências na linha ("P1, P2 e P3")
+                    const rg = new RegExp(re.source, re.flags.indexOf('g') >= 0 ? re.flags : re.flags + 'g');
+                    ocorrencias = []; let mm, guarda = 0;
+                    while ((mm = rg.exec(alvo)) !== null && guarda++ < 200) { ocorrencias.push(mm); if (mm[0] === '') rg.lastIndex++; }
+                } else { const m = re.exec(alvo); ocorrencias = m ? [m] : []; }
+                if (!ocorrencias.length) continue;
+                casou = true;
+                ocorrencias.forEach(m => {
+                    const caps = Array.prototype.slice.call(m, 0, MAX_CAP);
+                    (regra.gera || []).forEach(g => {
+                        const ativo = caixa(substituir(substituirCampos(g.ativo, valores, false), caps, false).trim());
+                        const qtd = g.qtd === undefined ? 1 : avaliarExpressao(g.qtd, caps, valores);
+                        if (!ativo || qtd === null || qtd <= 0) return;
+                        const operacao = g.operacao || 'I';
+                        if (!agrupar) { itens.push({ ativo, qtd, operacao, linha: idx }); return; }
+                        const k = operacao + '\u0000' + ativo;
+                        if (!soma.has(k)) { soma.set(k, { ativo, qtd: 0, operacao }); ordem.push(k); }
+                        soma.get(k).qtd += qtd;
+                    });
                 });
                 if (regra.parar !== false) break;   // por padrão a primeira regra que casa vale (como as regras do leitor)
             }
+            if (!casou && textoTudo.trim() !== '') naoCasadas.push({ linha: idx, texto: textoTudo.trim() });
         });
-        return agrupar ? ordem.map(k => soma.get(k)) : itens;
+        return { itens: agrupar ? ordem.map(k => soma.get(k)) : itens, naoCasadas };
+    }
+    function interpretar(bloco, linhas, valores) { return executar(bloco, linhas, valores).itens; }
+    /** Mesmo que interpretar, mas também devolve as linhas não vazias que nenhuma regra reconheceu. */
+    function diagnosticar(bloco, linhas, valores) { return executar(bloco, linhas, valores); }
+
+    /**
+     * Ajusta a matriz colada (TSV) ao modo da grade: bloco.colagem = { modo: 'colunas'|'linha'|'dividir', separador, pular_cabecalho }.
+     * 'linha': a linha inteira vai para a 1ª coluna; 'dividir': a linha inteira é dividida pelo separador (padrão ';') nas colunas.
+     */
+    function ajustarColagem(bloco, matriz) {
+        const c = bloco.colagem || {};
+        let m = (matriz || []).map(l => l.slice());
+        if (c.pular_cabecalho) m = m.slice(1);
+        if (c.modo === 'linha') return m.map(l => [l.join(' ').trim()]);
+        if (c.modo === 'dividir') {
+            const sep = c.separador == null || c.separador === '' ? ';' : c.separador;
+            return m.map(l => l.join(' ').split(sep).map(x => x.trim()));
+        }
+        return m;
     }
 
     /** Acha o valor de `nome` em: valores da linha, valores dos campos. */
@@ -195,7 +225,7 @@
         return modelo(bloco.modelo, base);
     }
 
-    const api = { calcular, avaliarExpressao, interpretar, modelo, visivel, avaliarCondicao, linhasDaMatriz, gerarTexto, substituir, substituirCampos };
+    const api = { calcular, avaliarExpressao, interpretar, diagnosticar, ajustarColagem, modelo, visivel, avaliarCondicao, linhasDaMatriz, gerarTexto, substituir, substituirCampos };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.ModalMontavel = api;
 })(typeof window !== 'undefined' ? window : globalThis);
