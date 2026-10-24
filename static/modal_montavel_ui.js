@@ -80,11 +80,13 @@
     }
 
     /* ───────────── modal ───────────── */
+    const pilha = [];
     function janela(titulo, largura) {
         const fundo = el('div', { class: 'mm-janela', style: 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;' });
         const caixa = el('div', { style: 'background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:10px;padding:16px 18px;max-width:' + (largura || 900) + 'px;width:95%;max-height:90vh;overflow:auto;font-family:Inter,sans-serif;' });
-        const fechar = () => { fundo.remove(); doc.removeEventListener('keydown', tecla, true); };
-        const tecla = e => { if (e.key === 'Escape') { e.stopPropagation(); fechar(); } };
+        const fechar = () => { fundo.remove(); doc.removeEventListener('keydown', tecla, true); const k = pilha.indexOf(fundo); if (k >= 0) pilha.splice(k, 1); };
+        const tecla = e => { if (e.key === 'Escape' && pilha[pilha.length - 1] === fundo) { e.stopPropagation(); fechar(); } };   // Esc fecha só a janela de cima
+        pilha.push(fundo);
         caixa.appendChild(el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;' }, [
             el('h3', { text: titulo, style: 'margin:0;font-size:1rem;' }), el('button', { class: 'btn-secondary', text: '×', style: 'padding:2px 9px;', onclick: fechar })]));
         fundo.appendChild(caixa); doc.body.appendChild(fundo); doc.addEventListener('keydown', tecla, true);
@@ -105,14 +107,16 @@
         });
 
         function recalcular() {
+            const vals = MM.calcularCampos(modal.blocos, valores);      // campos + blocos "calculo" (planilha)
             blocosEls.forEach(x => {
                 const b = x.bloco;
-                x.raiz.style.display = MM.visivel(b, valores) ? '' : 'none';
+                x.raiz.style.display = MM.visivel(b, vals) ? '' : 'none';
                 if (b.tipo === 'interpretar') {
-                    const itens = MM.interpretar(b, grades[b.fonte] || []);
-                    resultados[b.id] = itens;
-                    x.atualizar(itens);
-                } else if (b.tipo === 'saida_texto') x.atualizar(MM.gerarTexto(b, valores, tabelas, b.fonte ? grades[b.fonte] : null));
+                    const d = MM.diagnosticar(b, grades[b.fonte] || [], vals);
+                    resultados[b.id] = d.itens;
+                    x.atualizar(d.itens, d.naoCasadas);
+                } else if (b.tipo === 'saida_texto') x.atualizar(MM.gerarTexto(b, vals, tabelas, b.fonte ? grades[b.fonte] : null));
+                else if (b.tipo === 'calculo') x.atualizar(vals[b.id] === '' || vals[b.id] == null ? '—' : MM.formatar(vals[b.id]));
             });
         }
 
@@ -130,9 +134,11 @@
                         inp.addEventListener('input', () => { linha[c.id] = inp.value; recalcular(); });
                         inp.addEventListener('paste', e => {
                             const t = (e.clipboardData || raiz.clipboardData).getData('text');
-                            if (!t || !(/[\n\t]/.test(t.replace(/\n$/, '')))) return;      // 1 valor só: colar normal
+                            const especial = b.colagem && b.colagem.modo && b.colagem.modo !== 'colunas';
+                            if (!t || (!especial && !(/[\n\t]/.test(t.replace(/\n$/, ''))))) return;      // 1 valor só: colar normal
                             e.preventDefault();
-                            const m = G ? G.parseColagem(t, 1000).linhas : t.split(/\r?\n/).filter(Boolean).map(l => l.split('\t'));
+                            const m0 = G ? G.parseColagem(t, 1000).linhas : t.split(/\r?\n/).filter(Boolean).map(l => l.split('\t'));
+                            const m = MM.ajustarColagem(b, m0);
                             m.forEach((cel, k) => {
                                 while (i + k >= dados.length) dados.push(Object.fromEntries(b.colunas.map(cc => [cc.id, ''])));
                                 cel.forEach((v, kk) => { if (b.colunas[ci + kk]) dados[i + k][b.colunas[ci + kk].id] = String(v).trim(); });
@@ -146,7 +152,15 @@
                 });
             }
             desenhar();
-            const rodape = el('div', { style: 'display:flex;gap:8px;margin-top:6px;' }, [
+            const carregarDe = b.carregar_de ? el('button', { class: 'btn-secondary', text: 'Carregar da tabela ' + (b.carregar_de === 'cabos' ? 'Cabos' : 'Outros'), style: css, onclick: () => {
+                if (!estado.host || !estado.host.ler) return;
+                const linhasTab = estado.host.ler(b.carregar_de);
+                dados.length = 0;
+                linhasTab.forEach(r => dados.push(Object.fromEntries(b.colunas.map(c => [c.id, r[c.id] == null ? '' : String(r[c.id])]))));
+                if (!dados.length) dados.push(Object.fromEntries(b.colunas.map(c => [c.id, ''])));
+                desenhar(); recalcular(); toast(linhasTab.length + ' linha(s) carregadas.');
+            } }) : null;
+            const rodape = el('div', { style: 'display:flex;gap:8px;margin-top:6px;' }, [carregarDe,
                 el('button', { class: 'btn-secondary', text: '+ Linha', style: css, onclick: () => { dados.push(Object.fromEntries(b.colunas.map(c => [c.id, '']))); desenhar(); } }),
                 el('button', { class: 'btn-secondary', text: 'Limpar', style: css, onclick: () => { dados.forEach(l => Object.keys(l).forEach(k => { l[k] = ''; })); desenhar(); recalcular(); } })]);
             return { raiz: el('div', { style: 'margin:10px 0;overflow-x:auto;' }, [tabela, rodape]) };
@@ -177,15 +191,22 @@
                 }
                 case 'interpretar': {
                     const corpo = el('tbody'), resumo = el('div', { style: 'font-size:.75rem;color:#8b949e;margin-top:4px;' });
+                    const avisos = el('div', { class: 'mm-nao-interpretadas', style: 'font-size:.75rem;color:#f0883e;margin-top:4px;white-space:pre-wrap;' });
                     const t = el('table', { style: 'width:100%;font-size:.82rem;border-collapse:collapse;' }, [
                         el('thead', {}, [el('tr', {}, ['OP', 'ATIVO', 'QTD'].map(c => el('th', { text: c, style: 'text-align:left;padding:3px 6px;color:#8b949e;' })))]), corpo]);
                     return { raiz: el('div', { style: 'margin:10px 0;border:1px solid #21262d;border-radius:6px;padding:8px;' }, [
-                        el('div', { text: 'Resultado (ativos e quantidades)', style: 'font-size:.75rem;font-weight:600;color:#c9d1d9;margin-bottom:4px;' }), t, resumo]),
-                        atualizar: itens => {
+                        el('div', { text: 'Resultado (ativos e quantidades)', style: 'font-size:.75rem;font-weight:600;color:#c9d1d9;margin-bottom:4px;' }), t, resumo, avisos]),
+                        atualizar: (itens, nao) => {
                             corpo.innerHTML = '';
                             itens.forEach(x => corpo.appendChild(el('tr', {}, [x.operacao, x.ativo, String(x.qtd)].map(v => el('td', { text: v, style: 'padding:3px 6px;border-top:1px solid #21262d;' })))));
                             resumo.textContent = itens.length ? itens.length + ' item(ns).' : 'Nada interpretado ainda.';
+                            const n = nao || [];
+                            avisos.textContent = n.length ? n.length + ' linha(s) não reconhecida(s) por nenhuma regra:\n' + n.slice(0, 8).map(x => '  #' + (x.linha + 1) + ' ' + x.texto).join('\n') + (n.length > 8 ? '\n  …' : '') : '';
                         } };
+                }
+                case 'calculo': {
+                    const valor = el('span', { style: 'font-weight:600;color:#58a6ff;' });
+                    return { raiz: el('div', { style: 'margin:8px 0;font-size:.85rem;' }, [el('span', { text: (b.rotulo || b.id) + ': ', style: 'color:#8b949e;' }), valor]), atualizar: t => { valor.textContent = t; } };
                 }
                 case 'destino': {
                     const s = el('select', { style: estiloInput }, (b.opcoes || ['outros', 'cabos']).map(o => el('option', { value: o, text: o === 'outros' ? 'Tabela Outros' : 'Tabela Cabos' })));
@@ -235,6 +256,66 @@
             dados.modais = novaLista; toast(msg); await recarregar(); desenharLista(); editor.innerHTML = '';
             return null;
         }
+        const AR = raiz.ModalMontavelArquivo;
+        const arquivoImport = el('input', { type: 'file', accept: '.json,application/json', style: 'display:none;' });
+        j.caixa.appendChild(arquivoImport);
+        arquivoImport.addEventListener('change', async () => {
+            const f = arquivoImport.files[0]; arquivoImport.value = '';
+            if (!f) return;
+            let importados;
+            try { importados = AR.ler(await f.text()); } catch (e) { toast(e.message); return; }
+            const v = await fetch('/api/modais-montaveis/validar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projeto_codigo: projetoAtual(), dados: { versao: 1, modais: importados } }) });
+            const vj = await v.json().catch(() => ({}));
+            if (!v.ok || (vj.erros && vj.erros.length)) { dialogoImportacao(f.name, null, vj.erros || ['Falha ao validar (HTTP ' + v.status + ').']); return; }
+            dialogoImportacao(f.name, importados, null);
+        });
+        function dialogoImportacao(nomeArquivo, importados, erros) {
+            const w = janela('Importar modais — ' + nomeArquivo, 640);
+            if (erros) {
+                w.caixa.appendChild(el('div', { text: 'O arquivo tem problemas e nada foi gravado:', style: 'font-size:.82rem;margin-bottom:6px;' }));
+                w.caixa.appendChild(el('div', { text: erros.slice(0, 15).join('\n'), style: 'color:#f85149;font-size:.78rem;white-space:pre-wrap;' }));
+                return;
+            }
+            const lin = (t, l) => l.length ? el('div', { text: t + ' (' + l.length + '): ' + l.join(', '), style: 'font-size:.8rem;margin:3px 0;' }) : null;
+            const ac = AR.resumir(dados.modais, importados, 'acrescentar'), su = AR.resumir(dados.modais, importados, 'substituir');
+            w.caixa.appendChild(el('div', { text: importados.length + ' modal(is) no arquivo. Nada é gravado até você escolher.', style: 'font-size:.82rem;margin-bottom:6px;' }));
+            [lin('Novos', ac.novos), lin('Já existem (serão atualizados em "Acrescentar")', ac.atualizados), lin('Seriam removidos em "Substituir tudo"', su.removidos)].forEach(x => x && w.caixa.appendChild(x));
+            const aplicar = async (r, msg) => {
+                const e = await persistir(r.resultado, msg);
+                if (e) { toast(e[0]); return; }
+                w.fechar();
+            };
+            w.caixa.appendChild(el('div', { style: 'display:flex;gap:8px;margin-top:12px;' }, [
+                el('button', { class: 'btn-primary', text: 'Acrescentar / atualizar', onclick: () => aplicar(ac, 'Modais importados.') }),
+                el('button', { class: 'btn-secondary', text: 'Substituir tudo', style: 'color:#f85149;', onclick: () => aplicar(su, 'Modais substituídos.') }),
+                el('button', { class: 'btn-secondary', text: 'Cancelar', onclick: w.fechar })]));
+        }
+        function exportar() {
+            const blob = new Blob([JSON.stringify(AR.exportar(projetoAtual(), dados.modais), null, 2)], { type: 'application/json' });
+            const a = el('a', { href: URL.createObjectURL(blob), download: 'modais_' + projetoAtual() + '.json' });
+            doc.body.appendChild(a); a.click(); a.remove();
+            toast('Arquivo exportado.');
+        }
+        async function historico() {
+            const r = await fetch('/api/modais-montaveis/historico?projeto_codigo=' + encodeURIComponent(projetoAtual()));
+            const j = await r.json().catch(() => ({ versoes: [] }));
+            const w = janela('Histórico de versões — projeto ' + projetoAtual(), 700);
+            if (!j.versoes || !j.versoes.length) { w.caixa.appendChild(el('div', { text: 'Ainda não há versões anteriores.', style: 'font-size:.82rem;color:#8b949e;' })); return; }
+            w.caixa.appendChild(el('div', { text: 'Restaurar grava a versão escolhida e guarda a atual no histórico (nada se perde).', style: 'font-size:.78rem;color:#8b949e;margin-bottom:6px;' }));
+            j.versoes.forEach(v => w.caixa.appendChild(el('div', { style: 'display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #21262d;' }, [
+                el('div', { style: 'flex:1;font-size:.8rem;' }, [el('b', { text: (v.em || '').replace('T', ' ').slice(0, 19) }), el('span', { text: ' — ' + (v.por || '?'), style: 'color:#8b949e;' }),
+                    el('div', { text: (v.nomes || []).join(', ') || '(sem modais)', style: 'color:#8b949e;font-size:.74rem;' })]),
+                el('button', { class: 'btn-secondary', text: 'Restaurar', style: css, onclick: async () => {
+                    if (!raiz.confirm('Restaurar esta versão?')) return;
+                    const rr = await fetch('/api/modais-montaveis/reverter', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ projeto_codigo: projetoAtual(), indice: v.indice }) });
+                    if (!rr.ok) { toast('Não foi possível restaurar (HTTP ' + rr.status + ').'); return; }
+                    const nova = await rr.json(); dados.modais = (nova.dados && nova.dados.modais) || [];
+                    toast('Versão restaurada.'); await recarregar(); desenharLista(); editor.innerHTML = ''; w.fechar();
+                } })])));
+        }
+
         function desenharLista() {
             lista.innerHTML = '';
             (dados.modais || []).forEach(m => lista.appendChild(el('div', { style: 'display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #21262d;' }, [
@@ -248,7 +329,11 @@
             lista.appendChild(el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;' }, [
                 el('button', { class: 'btn-primary', text: '+ Novo em branco', style: css, onclick: () => editar(null, EXEMPLOS.branco) }),
                 el('button', { class: 'btn-secondary', text: '+ Exemplo: Ramais colados', style: css, onclick: () => editar(null, EXEMPLOS.ramais) }),
-                el('button', { class: 'btn-secondary', text: '+ Exemplo: Títulos de contrato', style: css, onclick: () => editar(null, EXEMPLOS.titulos) })]));
+                el('button', { class: 'btn-secondary', text: '+ Exemplo: Títulos de contrato', style: css, onclick: () => editar(null, EXEMPLOS.titulos) }),
+                el('span', { style: 'flex:1;' }),
+                el('button', { class: 'btn-secondary', text: 'Exportar JSON', style: css, title: 'Baixa todos os modais deste projeto', onclick: exportar }),
+                el('button', { class: 'btn-secondary', text: 'Importar JSON', style: css, title: 'Carrega modais de um arquivo .json (mostra o resumo antes de gravar)', onclick: () => arquivoImport.click() }),
+                el('button', { class: 'btn-secondary', text: 'Histórico', style: css, title: 'Versões anteriores (as últimas 20) para restaurar', onclick: historico })]));
         }
         function editar(existente, modelo) {
             const inicial = existente || modelo;

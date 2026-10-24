@@ -6,7 +6,7 @@
 (function (raiz) {
     'use strict';
 
-    const TIPOS_BLOCO = [['texto', 'Texto'], ['campo', 'Campo de entrada'], ['grade', 'Grade (colar linhas)'], ['tabela_interna', 'Planilha interna'],
+    const TIPOS_BLOCO = [['texto', 'Texto'], ['campo', 'Campo de entrada'], ['calculo', 'Cálculo (planilha)'], ['grade', 'Grade (colar linhas)'], ['tabela_interna', 'Planilha interna'],
         ['interpretar', 'Interpretar (regras)'], ['destino', 'Destino (Outros/Cabos)'], ['acao_adicionar', 'Botão Adicionar ativos'], ['saida_texto', 'Texto para copiar']];
     const TIPOS_MODAL = [['montagem', 'Montagem'], ['colagem', 'Colagem'], ['interpretativo', 'Interpretativo'], ['processamento', 'Processamento'], ['gerador_texto', 'Gerador de texto']];
     const ENTRADAS = [['texto', 'Texto'], ['numero', 'Número'], ['select', 'Lista'], ['radio', 'Opções']];
@@ -27,6 +27,7 @@
         switch (tipo) {
             case 'texto': return { tipo, texto: 'Texto explicativo.' };
             case 'campo': return { tipo, id: idUnico('campo', usados), rotulo: 'Campo', entrada: 'texto' };
+            case 'calculo': return { tipo, id: idUnico('calculo', usados), rotulo: 'Resultado', expressao: '1+1' };
             case 'grade': return { tipo, id: idUnico('grade', usados), linhas_min: 5, colunas: [{ id: 'texto', rotulo: 'TEXTO' }] };
             case 'tabela_interna': return { tipo, id: idUnico('planilha', usados), colunas: ['codigo', 'titulo'], linhas: [] };
             case 'interpretar': return { tipo, id: idUnico('resultado', usados), fonte: grades.length ? grades[0].id : '', regras: [novaRegra()] };
@@ -36,6 +37,7 @@
             default: return null;
         }
     }
+    function condicaoNova(campo) { return { campo: campo || '', op: 'igual', valor: '' }; }
     function novaRegra() { return { quando: { regex: 'ABC' }, gera: [{ ativo: 'ATIVO', qtd: 1, operacao: 'I' }] }; }
 
     /** Move o item i para cima (d=-1) ou para baixo (d=1); devolve novo array (ou o mesmo se não der). */
@@ -99,28 +101,56 @@
                 campoTexto(m, 'id', 'Identificador (sem espaços)')]));
         }
 
-        function condicao(b) {
-            const campos = idsDe('campo');
-            const box = el('details', { style: 'margin-top:8px;' }, [el('summary', { text: 'Condição de visibilidade' + (b.visivel_se ? ' (ativa)' : ''), style: 'cursor:pointer;font-size:.72rem;color:#8b949e;' })]);
+        /* Editor de condição em árvore: folha (campo/op/valor), grupo E/OU e NÃO. Mexe no objeto de `obj[chave]`. */
+        const OPS = OPS_COND.concat([['contem', 'contém o texto'], ['maior', 'é maior que (número)'], ['menor', 'é menor que (número)'], ['maior_igual', 'é maior ou igual a'], ['menor_igual', 'é menor ou igual a']]);
+        function condicao(obj, chave, titulo) {
+            const campos = idsDe('campo').concat(idsDe('calculo'));
+            const box = el('details', { style: 'margin-top:8px;' }, [el('summary', { text: titulo + (obj[chave] ? ' (ativa)' : ''), style: 'cursor:pointer;font-size:.72rem;color:#8b949e;' })]);
             if (!campos.length) { box.appendChild(el('div', { text: 'Crie um bloco "Campo de entrada" para usar condições.', style: 'font-size:.72rem;color:#8b949e;margin-top:4px;' })); return box; }
-            const c = b.visivel_se || { campo: campos[0][0], op: 'igual', valor: '' };
-            const ativa = el('input', { type: 'checkbox' }); ativa.checked = !!b.visivel_se;
-            const area = el('div');
-            const sync = () => { if (ativa.checked) b.visivel_se = c; else delete b.visivel_se; };
+            const holder = { c: obj[chave] || condicaoNova(campos[0][0]) };
+            const ativa = el('input', { type: 'checkbox' }); ativa.checked = !!obj[chave];
+            const area = el('div', { style: 'margin-top:6px;' });
+            const sync = () => { if (ativa.checked) obj[chave] = holder.c; else delete obj[chave]; };
             ativa.addEventListener('change', sync);
-            const val = el('input', { type: 'text', style: IN + 'width:100%;' });
-            const ehLista = () => c.op === 'em';
-            val.value = Array.isArray(c.valor) ? c.valor.join(', ') : (c.valor == null ? '' : c.valor);
-            val.addEventListener('input', () => { c.valor = ehLista() ? val.value.split(',').map(x => x.trim()).filter(Boolean) : val.value; });
-            area.appendChild(campoLista(c, 'campo', 'Mostrar quando o campo', campos));
-            area.appendChild(el('div', {}, [rotulo('Condição'), (() => {
-                const s = el('select', { style: IN + 'width:100%;' }, OPS_COND.map(o => el('option', { value: o[0], text: o[1] }))); s.value = c.op;
-                s.addEventListener('change', () => { c.op = s.value; c.valor = ehLista() ? val.value.split(',').map(x => x.trim()).filter(Boolean) : val.value; });
-                return s;
-            })()]));
-            area.appendChild(el('div', {}, [rotulo('Valor (para "em": separe por vírgula)'), val]));
+            function no(node, trocar, nivel) {
+                const caixa = el('div', { style: 'border-left:2px solid #30363d;padding:4px 0 4px 8px;margin:4px 0;' });
+                const tipoNo = node.nao ? 'nao' : node.todos ? 'todos' : node.algum ? 'algum' : 'folha';
+                if (tipoNo === 'nao') {
+                    caixa.appendChild(el('div', { style: 'display:flex;gap:6px;align-items:center;' }, [el('b', { text: 'NÃO', style: 'font-size:.72rem;color:#f0883e;' }),
+                        mini('tirar NÃO', () => { trocar(node.nao); sync(); redesenhar(); })]));
+                    caixa.appendChild(no(node.nao, novo => { node.nao = novo; sync(); }, nivel + 1));
+                } else if (tipoNo === 'folha') {
+                    const lin = el('div', { style: 'display:grid;grid-template-columns:1fr 1.3fr 1fr auto auto;gap:6px;align-items:end;' });
+                    const sc = el('select', { style: IN }, campos.map(c => el('option', { value: c[0], text: c[1] }))); sc.value = node.campo;
+                    sc.addEventListener('change', () => { node.campo = sc.value; sync(); });
+                    const so = el('select', { style: IN }, OPS.map(o => el('option', { value: o[0], text: o[1] }))); so.value = node.op;
+                    const val = el('input', { type: 'text', style: IN + 'width:100%;', placeholder: node.op === 'em' ? 'a, b, c' : 'valor' });
+                    const setVal = () => { if (['maior', 'menor', 'maior_igual', 'menor_igual'].includes(node.op)) node.valor = val.value === '' ? 0 : Number(val.value) || 0; else if (node.op === 'em') node.valor = val.value.split(',').map(x => x.trim()).filter(Boolean); else node.valor = val.value; };
+                    val.value = Array.isArray(node.valor) ? node.valor.join(', ') : (node.valor == null ? '' : node.valor);
+                    val.addEventListener('input', () => { setVal(); sync(); });
+                    so.addEventListener('change', () => { node.op = so.value; setVal(); val.style.display = ['vazio', 'preenchido'].includes(node.op) ? 'none' : ''; sync(); });
+                    val.style.display = ['vazio', 'preenchido'].includes(node.op) ? 'none' : '';
+                    lin.appendChild(sc); lin.appendChild(so); lin.appendChild(val);
+                    lin.appendChild(mini('NÃO', () => { trocar({ nao: node }); sync(); redesenhar(); }));
+                    lin.appendChild(mini('✕', () => { trocar(null); sync(); redesenhar(); }, 'color:#f85149;'));
+                    caixa.appendChild(lin);
+                } else {
+                    const lista = node[tipoNo];
+                    const sel = el('select', { style: IN }, [el('option', { value: 'todos', text: 'TODAS verdadeiras (E)' }), el('option', { value: 'algum', text: 'ALGUMA verdadeira (OU)' })]); sel.value = tipoNo;
+                    sel.addEventListener('change', () => { const nv = {}; nv[sel.value] = lista; trocar(nv); sync(); redesenhar(); });
+                    caixa.appendChild(el('div', { style: 'display:flex;gap:6px;align-items:center;' }, [sel, mini('NÃO', () => { trocar({ nao: node }); sync(); redesenhar(); }),
+                        nivel > 0 ? mini('✕ grupo', () => { trocar(null); sync(); redesenhar(); }, 'color:#f85149;') : null]));
+                    lista.forEach((f, i) => caixa.appendChild(no(f, novo => { if (novo === null) lista.splice(i, 1); else lista[i] = novo; if (!lista.length) lista.push(condicaoNova(campos[0][0])); }, nivel + 1)));
+                    caixa.appendChild(el('div', { style: 'display:flex;gap:6px;margin-top:4px;' }, [mini('+ condição', () => { lista.push(condicaoNova(campos[0][0])); sync(); redesenhar(); }),
+                        nivel < 3 ? mini('+ grupo', () => { lista.push({ algum: [condicaoNova(campos[0][0])] }); sync(); redesenhar(); }) : null]));
+                }
+                return caixa;
+            }
+            function redesenhar() { area.innerHTML = ''; area.appendChild(no(holder.c, novo => { holder.c = novo || condicaoNova(campos[0][0]); }, 0)); }
+            redesenhar();
             box.appendChild(el('label', { style: 'display:flex;gap:6px;align-items:center;font-size:.78rem;margin-top:4px;' }, [ativa, 'Usar condição']));
             box.appendChild(area);
+            // 'redesenhar' do formulário inteiro é outro; este só refaz a árvore
             return box;
         }
 
@@ -137,6 +167,11 @@
                         f.appendChild(rotulo('Opções (uma por linha)')); f.appendChild(ta);
                     }
                     break;
+                case 'calculo':
+                    f.appendChild(el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px;' }, [campoTexto(b, 'id', 'Identificador', { recarregar: true }), campoTexto(b, 'rotulo', 'Rótulo')]));
+                    f.appendChild(campoTexto(b, 'expressao', 'Expressão — ex.: [fator]*2   ou   SE([regiao]="SUL"; 10; 5)', { multi: 2 }));
+                    f.appendChild(el('div', { style: 'font-size:.7rem;color:#8b949e;margin-top:3px;line-height:1.4;', text: 'Use [campo] ou [outro_calculo] (definido antes), números, "texto", + - * /, = <> < > <= >=. Funções (separe com ;): SE, E, OU, NAO, MAX, MIN, ABS, ARRED, SOMA, CONCAT, MAIUSCULO, MINUSCULO. O resultado pode ser usado como [id] em condições, quantidades, ativos e modelos.' }));
+                    break;
                 case 'grade': {
                     f.appendChild(el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px;' }, [campoTexto(b, 'id', 'Identificador', { recarregar: true }), campoTexto(b, 'linhas_min', 'Linhas iniciais', { numero: true, tipo: 'number' })]));
                     f.appendChild(rotulo('Colunas (na ordem em que o Excel cola)'));
@@ -144,6 +179,13 @@
                         el('div', { style: 'flex:1;' }, [campoTexto(c, 'id', 'id', { recarregar: true })]), el('div', { style: 'flex:1;' }, [campoTexto(c, 'rotulo', 'título')]),
                         mini('✕', () => { b.colunas.splice(i, 1); redesenhar(); }, 'align-self:flex-end;color:#f85149;')])));
                     f.appendChild(mini('+ Coluna', () => { b.colunas.push({ id: idUnico('col', b.colunas.map(c => c.id)), rotulo: 'COLUNA' }); redesenhar(); }));
+                    const col = b.colagem || (b.colagem = { modo: 'colunas' });
+                    f.appendChild(el('div', { style: 'display:grid;grid-template-columns:1.4fr 1fr 1fr 1.2fr;gap:8px;align-items:end;margin-top:8px;' }, [
+                        campoLista(col, 'modo', 'Ao colar', [['colunas', 'Colunas do Excel (Tab)'], ['linha', 'Linha inteira na 1ª coluna'], ['dividir', 'Dividir a linha por um separador']], { recarregar: true }),
+                        col.modo === 'dividir' ? campoTexto(col, 'separador', 'Separador (ex.: ; ou ,)') : el('div'),
+                        (() => { const c = el('input', { type: 'checkbox' }); c.checked = !!col.pular_cabecalho; c.addEventListener('change', () => { col.pular_cabecalho = c.checked; });
+                            return el('label', { style: 'display:flex;gap:5px;align-items:center;font-size:.75rem;' }, [c, 'Ignorar a 1ª linha colada']); })(),
+                        campoLista(b, 'carregar_de', 'Botão "Carregar da tabela"', [['outros', 'Tabela Outros'], ['cabos', 'Tabela Cabos']], { vazio: '(sem botão)' })]));
                     break;
                 }
                 case 'tabela_interna': {
@@ -160,6 +202,7 @@
                 case 'interpretar': {
                     f.appendChild(el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px;' }, [campoTexto(b, 'id', 'Identificador', { recarregar: true }),
                         campoLista(b, 'fonte', 'Ler a grade', idsDe('grade'), { vazio: '— escolha —', recarregar: true })]));
+                    f.appendChild(campoLista(b, 'normalizar', 'Letras do ativo gerado', [['maiusculo', 'MAIÚSCULAS'], ['minusculo', 'minúsculas']], { vazio: '(como escrito na regra)' }));
                     const grade = m.blocos.find(x => x.tipo === 'grade' && x.id === b.fonte);
                     const colunas = grade ? grade.colunas.map(c => [c.id, c.rotulo]) : [];
                     b.regras.forEach((r, ri) => {
@@ -172,7 +215,11 @@
                         const parar = el('input', { type: 'checkbox' }); parar.checked = r.parar !== false;
                         parar.addEventListener('change', () => { if (parar.checked) delete r.parar; else r.parar = false; });
                         cx.appendChild(el('label', { style: 'display:flex;gap:6px;align-items:center;font-size:.75rem;margin-top:4px;' }, [parar, 'Parar nesta regra (não testar as seguintes)']));
-                        cx.appendChild(rotulo('Então gera'));
+                        const glob = el('input', { type: 'checkbox' }); glob.checked = !!r.quando.global;
+                        glob.addEventListener('change', () => { if (glob.checked) r.quando.global = true; else delete r.quando.global; });
+                        cx.appendChild(el('label', { style: 'display:flex;gap:6px;align-items:center;font-size:.75rem;margin-top:2px;' }, [glob, 'Todas as ocorrências na linha (ex.: "P1, P2 e P3" gera 3 itens)']));
+                        cx.appendChild(condicao(r, 'se', 'Aplicar esta regra só se (campos do modal)…'));
+                        cx.appendChild(rotulo('Então gera (quantidade aceita expressões: {1}*[fator], SE(…); ativo aceita [campo])'));
                         r.gera.forEach((g, gi) => cx.appendChild(el('div', { style: 'display:grid;grid-template-columns:2fr 1.4fr 0.8fr auto;gap:6px;align-items:end;margin-bottom:3px;' }, [
                             campoTexto(g, 'ativo', 'ativo (ex.: MAC ou P{1})'), campoTexto(g, 'qtd', 'quantidade (ex.: {1}*20)'),
                             campoLista(g, 'operacao', 'operação', ['I', '*I', 'R', '*R', 'M', '*M'].map(x => [x, x])), mini('✕', () => { r.gera.splice(gi, 1); redesenhar(); }, 'color:#f85149;')])));
@@ -195,11 +242,11 @@
                 case 'saida_texto':
                     f.appendChild(el('div', { style: 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;' }, [campoTexto(b, 'id', 'Identificador', { recarregar: true }), campoTexto(b, 'rotulo', 'Título'),
                         campoLista(b, 'fonte', 'Repetir para cada linha da grade', idsDe('grade'), { vazio: '(uma vez só)' })]));
-                    f.appendChild(campoTexto(b, 'modelo', 'Modelo — {{coluna}}, {{campo}}, {{buscar(planilha, colunaChave, valor, colunaRetorno)}}', { multi: 3 }));
+                    f.appendChild(campoTexto(b, 'modelo', 'Modelo — {{coluna}}, {{campo}}, {{buscar(planilha, colunaChave, valor, colunaRetorno)}}, {{= [qtd]*2 }}', { multi: 3 }));
                     break;
                 default: break;
             }
-            f.appendChild(condicao(b));
+            f.appendChild(condicao(b, 'visivel_se', 'Mostrar este bloco só se…'));
             return f;
         }
 
@@ -223,7 +270,7 @@
         return { obter: () => JSON.parse(JSON.stringify(m)) };
     }
 
-    const api = { criar, blocoNovo, novaRegra, mover, idUnico, linhasParaTsv, tsvParaLinhas, TIPOS_BLOCO, TIPOS_MODAL };
+    const api = { criar, blocoNovo, novaRegra, condicaoNova, mover, idUnico, linhasParaTsv, tsvParaLinhas, TIPOS_BLOCO, TIPOS_MODAL };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.ModalMontavelEditor = api;
 })(typeof window !== 'undefined' ? window : globalThis);

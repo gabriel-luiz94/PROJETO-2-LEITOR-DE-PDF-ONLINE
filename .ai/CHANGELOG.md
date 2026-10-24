@@ -815,6 +815,38 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-24 — TASK-077 (etapa 6): histórico e importar/exportar dos modais montáveis
+
+**Tipo:** Backend + Frontend · `routers/modais_montaveis.py`, `static/modal_montavel_arquivo.js` (novo), `static/modal_montavel_ui.js`, `app.py`, `static/resumo.html`
+
+O gerenciador (＋) ganhou **Exportar JSON**, **Importar JSON** (resumo de novos/atualizados/removidos e escolha entre Acrescentar e Substituir tudo antes de gravar) e **Histórico** (últimas 20 versões com data e autor; restaurar guarda a versão atual). Só admin. Sem SQL novo (usa `atalhos_modais`).
+
+---
+
+## 2026-10-24 — TASK-077 (etapa 5): expressões estilo planilha nos modais montáveis
+
+**Tipo:** Backend + Frontend · `routers/modais_montaveis.py`, `static/modal_montavel_engine.js`, `modal_montavel_editor.js`, `modal_montavel_ui.js`
+
+Novo bloco **Cálculo** e linguagem de expressões (SE, E, OU, NAO, MAX, MIN, ABS, ARRED, SOMA, CONCAT, MAIUSCULO, MINUSCULO; comparações; texto e números) usada na quantidade das regras, nos cálculos e em `{{= … }}` nos modelos. Parser próprio, sem eval, validado no servidor. Definições antigas continuam válidas.
+
+---
+
+## 2026-10-24 — TASK-077 (etapa 4): colagem e interpretação dos modais montáveis
+
+**Tipo:** Backend + Frontend · `routers/modais_montaveis.py`, `static/modal_montavel_*.js`, `static/resumo.js`
+
+Grade com modos de colagem (colunas, linha inteira, dividir por separador, ignorar cabeçalho) e botão "Carregar da tabela Outros/Cabos" (modais de processamento). Regras com "todas as ocorrências", normalização de maiúsculas e aviso das linhas que nenhuma regra reconheceu. Sem mudança de banco.
+
+---
+
+## 2026-10-24 — TASK-077 (etapa 3): condicionais dos modais montáveis
+
+**Tipo:** Backend + Frontend · `routers/modais_montaveis.py`, `static/modal_montavel_engine.js`, `static/modal_montavel_editor.js`, `static/modal_montavel_ui.js`
+
+Condições compostas (E / OU / NÃO, até 4 níveis) com operadores `contem`, `maior`, `menor`, `maior_igual`, `menor_igual`; regras de interpretação com `se` (só valem quando a condição dos campos é verdadeira); e `[campo]` na quantidade (`{1}*[fator]`) e no ativo (`P{1}-[regiao]`). O editor visual ganhou a árvore de condições. Definições antigas continuam válidas. Sem mudança de banco.
+
+---
+
 ## 2026-10-24 — TASK-077 (etapa 2): editor visual dos modais montáveis
 
 **Tipo:** Frontend · `static/modal_montavel_editor.js` (novo), `static/modal_montavel_ui.js`, `static/resumo.html`, `app.py`

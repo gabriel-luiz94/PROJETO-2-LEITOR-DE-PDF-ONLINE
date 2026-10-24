@@ -146,7 +146,7 @@ def test_validador_recusa_o_perigoso_e_o_quebrado():
 def test_expressao_segura():
     for ok in [3, 2.5, "{1}*20", "(1+{2})/2", "-4"]:
         assert mm.expressao_segura(ok), ok
-    for ruim in [True, "", "1+", "2**3", "abs(1)", "a+1", "1;2", None, "x" * 200]:
+    for ruim in [True, "", "1+", "2**3", "exec(1)", "a+1", "1;2", None, "x" * 200]:
         assert not mm.expressao_segura(ruim), ruim
 
 
@@ -182,3 +182,256 @@ def test_api_so_admin_grava_e_valida(client):
     r = client.put("/api/modais-montaveis", json=ruim, headers=hdr("admin"))
     assert r.status_code == 400 and r.json()["detail"]["erros"]
     assert client.get("/api/modais-montaveis?projeto_codigo=229", headers=hdr("admin")).json()["dados"]["modais"] == []
+
+
+# ── E3: condições compostas, regras condicionais e [campo] nas quantidades ──
+@node
+def test_condicao_composta_e_ou_nao():
+    c = {"todos": [{"campo": "a", "op": "igual", "valor": "1"}, {"algum": [{"campo": "b", "op": "preenchido"}, {"campo": "c", "op": "maior", "valor": 5}]}]}
+    assert js("M.avaliarCondicao(e.c, e.v)", c=c, v={"a": "1", "b": "", "c": "7"}) is True
+    assert js("M.avaliarCondicao(e.c, e.v)", c=c, v={"a": "1", "b": "", "c": "3"}) is False
+    assert js("M.avaliarCondicao(e.c, e.v)", c=c, v={"a": "2", "b": "x", "c": "9"}) is False
+    assert js("M.avaliarCondicao({nao: e.c}, e.v)", c=c, v={"a": "2"}) is True
+    assert js("M.avaliarCondicao(null, {})") is True
+
+
+@node
+def test_operadores_numericos_e_contem():
+    f = lambda op, valor, v: js("M.avaliarCondicao({campo:'x',op:e.op,valor:e.val}, {x:e.v})", op=op, val=valor, v=v)
+    assert f("maior", 5, "5,5") is True and f("maior", 5, "5") is False
+    assert f("maior_igual", 5, "5") is True and f("menor", 5, "4.9") is True and f("menor_igual", 5, "6") is False
+    assert f("maior", 5, "abc") is False and f("menor", 5, "") is False          # não numérico nunca satisfaz
+    assert f("contem", "mac", "Mufla MAC 3") is True and f("contem", "zz", "abc") is False
+
+
+@node
+def test_visivel_usa_a_mesma_linguagem():
+    b = {"visivel_se": {"todos": [{"campo": "a", "op": "igual", "valor": "1"}, {"nao": {"campo": "b", "op": "vazio"}}]}}
+    assert js("M.visivel(e.b, {a:'1', b:'x'})", b=b) is True and js("M.visivel(e.b, {a:'1', b:''})", b=b) is False
+
+
+@node
+def test_campo_na_quantidade_e_no_ativo():
+    assert js("M.avaliarExpressao('{1}*[fator]', ['x','3'], {fator:'2,5'})") == 7.5
+    assert js("M.avaliarExpressao('[fator]+1', [], {fator:'abc'})") == 1        # não numérico = 0
+    assert js("M.avaliarExpressao('[nao_existe]*2', [], {})") == 0              # campo desconhecido = vazio = 0 (o servidor recusa o id)
+    b = {"regras": [{"quando": {"regex": "(\\d+)"}, "gera": [{"ativo": "P{1}-[regiao]", "qtd": "[fator]"}]}]}
+    r = js("M.interpretar(e.b, e.l, e.v)", b=b, l=[{"t": "poste 12"}], v={"regiao": "SUL", "fator": "3"})
+    assert r == [{"ativo": "P12-SUL", "qtd": 3, "operacao": "I"}]
+
+
+@node
+def test_regra_com_se_so_vale_quando_a_condicao_dos_campos_e_verdadeira():
+    b = {"regras": [{"se": {"campo": "corr", "op": "igual", "valor": "sim"}, "quando": {"regex": "RS"}, "gera": [{"ativo": "COM_CORROSAO"}]},
+                    {"quando": {"regex": "RS"}, "gera": [{"ativo": "NORMAL"}]}]}
+    sim = js("M.interpretar(e.b, e.l, {corr:'sim'})", b=b, l=[{"t": "RS"}])
+    nao = js("M.interpretar(e.b, e.l, {corr:'nao'})", b=b, l=[{"t": "RS"}])
+    assert [x["ativo"] for x in sim] == ["COM_CORROSAO"] and [x["ativo"] for x in nao] == ["NORMAL"]
+
+
+def test_validador_condicoes_compostas_e_referencias():
+    import copy
+    base = copy.deepcopy(TITULOS)
+    base["blocos"][1]["visivel_se"] = {"todos": [{"campo": "regiao", "op": "igual", "valor": "SUL"}, {"nao": {"campo": "regiao", "op": "vazio"}}]}
+    assert mm.validar(_com(base)) == []
+    base["blocos"][1]["visivel_se"] = {"algum": [{"campo": "fantasma", "op": "vazio"}]}
+    assert any("fantasma" in e for e in mm.validar(_com(base)))
+    base["blocos"][1]["visivel_se"] = {"algum": []}
+    assert any("algum" in e for e in mm.validar(_com(base)))
+    base["blocos"][1]["visivel_se"] = {"campo": "regiao", "op": "maior", "valor": "abc"}
+    assert any("número" in e for e in mm.validar(_com(base)))
+    fundo = {"campo": "regiao", "op": "vazio"}
+    for _ in range(6):
+        fundo = {"nao": fundo}
+    base["blocos"][1]["visivel_se"] = fundo
+    assert any("aninhada" in e for e in mm.validar(_com(base)))
+
+
+def test_validador_regra_com_se_e_campo_na_qtd():
+    import copy
+    m = copy.deepcopy(RAMAIS)
+    m["blocos"].insert(0, {"tipo": "campo", "id": "fator", "rotulo": "Fator", "entrada": "numero"})
+    m["blocos"][3]["regras"][0]["gera"][0]["qtd"] = "{1}*[fator]"
+    m["blocos"][3]["regras"][0]["se"] = {"campo": "fator", "op": "maior", "valor": 0}
+    assert mm.validar(_com(m)) == []
+    m["blocos"][3]["regras"][0]["gera"][0]["qtd"] = "{1}*[inexistente]"
+    assert any("inexistente" in e for e in mm.validar(_com(m)))
+    m["blocos"][3]["regras"][0]["gera"][0]["qtd"] = "{1}"
+    m["blocos"][3]["regras"][0]["se"] = {"campo": "nada", "op": "vazio"}
+    assert any("se.campo" in e for e in mm.validar(_com(m)))
+    m["blocos"][3]["regras"][0]["se"] = None
+    m["blocos"][3]["regras"][0]["gera"][0]["ativo"] = "P[fantasma]"
+    assert any("fantasma" in e for e in mm.validar(_com(m)))
+
+
+def test_expressao_segura_aceita_campo():
+    assert mm.expressao_segura("{1}*[fator]") and mm.expressao_segura("[a]+[b-2]/2")
+    assert not mm.expressao_segura("[a b]") and not mm.expressao_segura("[a]**2")
+
+
+# ── E4: colagem, ocorrências, normalização, linhas não reconhecidas, carregar da tabela ──
+@node
+def test_ajustar_colagem_modos():
+    f = lambda col, m: js("M.ajustarColagem({colagem: e.c}, e.m)", c=col, m=m)
+    assert f({"modo": "colunas"}, [["a", "b"]]) == [["a", "b"]]
+    assert f({"modo": "linha"}, [["a", "b c"], ["d"]]) == [["a b c"], ["d"]]
+    assert f({"modo": "dividir", "separador": ";"}, [["x; y ;z"]]) == [["x", "y", "z"]]
+    assert f({"modo": "dividir"}, [["x;y"]]) == [["x", "y"]]                       # separador padrão
+    assert f({"modo": "colunas", "pular_cabecalho": True}, [["H1", "H2"], ["a", "b"]]) == [["a", "b"]]
+    assert js("M.ajustarColagem({}, [['a']])") == [["a"]]
+
+
+@node
+def test_regra_global_gera_um_item_por_ocorrencia():
+    b = {"regras": [{"quando": {"regex": "P(\\d+)", "global": True}, "gera": [{"ativo": "P{1}"}]}]}
+    assert [x["ativo"] for x in js("M.interpretar(e.b, e.l, {})", b=b, l=[{"t": "P1, P2 e P3"}])] == ["P1", "P2", "P3"]
+    sem = {"regras": [{"quando": {"regex": "P(\\d+)"}, "gera": [{"ativo": "P{1}"}]}]}
+    assert [x["ativo"] for x in js("M.interpretar(e.b, e.l, {})", b=sem, l=[{"t": "P1, P2 e P3"}])] == ["P1"]
+    vazio = {"regras": [{"quando": {"regex": "x*", "global": True}, "gera": [{"ativo": "A"}]}]}
+    assert js("M.interpretar(e.b, e.l, {})", b=vazio, l=[{"t": "abc"}])           # regex que casa vazio não trava
+
+
+@node
+def test_normalizar_e_nao_reconhecidas():
+    b = {"normalizar": "maiusculo", "regras": [{"quando": {"regex": "mac"}, "gera": [{"ativo": "mac-1"}]}]}
+    d = js("M.diagnosticar(e.b, e.l, {})", b=b, l=[{"t": "MAC"}, {"t": "zzz"}, {"t": "   "}])
+    assert [x["ativo"] for x in d["itens"]] == ["MAC-1"]
+    assert d["naoCasadas"] == [{"linha": 1, "texto": "zzz"}]                         # linha em branco não conta
+    assert js("M.interpretar({normalizar:'minusculo',regras:[{quando:{regex:'A'},gera:[{ativo:'XyZ'}]}]}, [{t:'a'}], {})")[0]["ativo"] == "xyz"
+
+
+def test_validador_e4():
+    import copy
+    m = copy.deepcopy(RAMAIS)
+    m["blocos"][1]["colagem"] = {"modo": "dividir", "separador": ";", "pular_cabecalho": True}
+    m["blocos"][1]["carregar_de"] = "outros"
+    m["blocos"][2]["normalizar"] = "maiusculo"
+    m["blocos"][2]["regras"][0]["quando"]["global"] = True
+    assert mm.validar(_com(m)) == []
+    for caminho, valor, trecho in [(("blocos", 1, "colagem"), {"modo": "x"}, "colagem"), (("blocos", 1, "carregar_de"), "tudo", "carregar_de"),
+                                   (("blocos", 2, "normalizar"), "capitalizar", "normalizar")]:
+        r = copy.deepcopy(m); alvo = r
+        for c in caminho[:-1]:
+            alvo = alvo[c]
+        alvo[caminho[-1]] = valor
+        assert any(trecho in e for e in mm.validar(_com(r))), caminho
+    r = copy.deepcopy(m); r["blocos"][2]["regras"][0]["quando"]["global"] = "sim"
+    assert any("global" in e for e in mm.validar(_com(r)))
+    r = copy.deepcopy(m); r["blocos"][1]["colagem"]["separador"] = "x" * 11
+    assert any("separador" in e for e in mm.validar(_com(r)))
+
+
+# ── E5: expressões estilo planilha e blocos de cálculo ──
+@node
+def test_funcoes_de_planilha():
+    f = lambda expr, v=None, caps=None: js("M.avaliar(e.x, e.v, e.c)", x=expr, v=v or {}, c=caps or [])
+    assert f("SE([a]>5;10;2)", {"a": "7"}) == 10 and f("SE([a]>5;10;2)", {"a": "3"}) == 2
+    assert f("ARRED(10/3;2)") == 3.33 and f("ARRED(2.5)") == 3
+    assert f("MAX(1;[a];3)", {"a": "9"}) == 9 and f("MIN(4;2;8)") == 2 and f("ABS(-3)") == 3 and f("SOMA(1;2;3)") == 6
+    assert f("E([a]>1;[a]<5)", {"a": "3"}) is True and f("OU([a]=1;[a]=2)", {"a": "3"}) is False and f("NAO([a]=1)", {"a": "2"}) is True
+    assert f('CONCAT(MAIUSCULO("ab");"-";[n])', {"n": "3"}) == "AB-3" and f('MINUSCULO("XyZ")') == "xyz"
+    assert f('[r]="sul"', {"r": " SUL "}) is True and f('[r]<>"norte"', {"r": "SUL"}) is True        # texto compara sem caixa/espaços
+    assert f("[a]=2", {"a": "2,0"}) is True                                                          # número com vírgula
+    assert f("{1}*2", caps=["x", "4"]) == 8
+    assert f("1+[vazio]") == 1 and f("-[a]", {"a": "2"}) == -2
+
+
+@node
+def test_expressoes_invalidas_viram_nulo_e_nao_executam_nada():
+    for ruim in ["2**3", "1/0", "SE(1;2)", "FOO(1)", "1;2", "alert(1)", "(1+2", "", "1 2", 'CONCAT("a"'] + ["1" + "+1" * 200]:
+        assert js("M.avaliar(e.x, {}, [])", x=ruim) is None, ruim
+    assert js("M.avaliar('SE(1;2;1/0)', {}, [])") == 2          # só o ramo escolhido é avaliado
+
+
+@node
+def test_calcular_campos_em_ordem_e_modelo_com_expressao():
+    blocos = [{"tipo": "calculo", "id": "dobro", "expressao": "[a]*2"}, {"tipo": "calculo", "id": "msg", "expressao": 'SE([dobro]>5;"alto";"baixo")'},
+              {"tipo": "calculo", "id": "ruim", "expressao": "1/0"}]
+    v = js("M.calcularCampos(e.b, e.v)", b=blocos, v={"a": "4"})
+    assert v["dobro"] == 8 and v["msg"] == "alto" and v["ruim"] == "" and v["a"] == "4"
+    assert js("M.modelo('{{codigo}}: {{= [qtd]*[dobro] }} {{= CONCAT(\"#\";[codigo]) }}', {linha:{codigo:'MAC',qtd:'3'}, valores:{dobro:8}})") == "MAC: 24 #MAC"
+    assert js("M.modelo('x{{= 1/0 }}y', {})") == "xy"
+
+
+@node
+def test_expressao_como_quantidade_na_interpretacao():
+    b = {"regras": [{"quando": {"regex": "RS (\\d+)"}, "gera": [{"ativo": "MAC", "qtd": 'SE([zona]="A";{1}*20;{1}*10)'}]}]}
+    assert js("M.interpretar(e.b, e.l, e.v)", b=b, l=[{"t": "RS 2"}], v={"zona": "A"})[0]["qtd"] == 40
+    assert js("M.interpretar(e.b, e.l, e.v)", b=b, l=[{"t": "RS 2"}], v={"zona": "B"})[0]["qtd"] == 20
+
+
+def test_validador_calculo_e_expressoes():
+    import copy
+    m = copy.deepcopy(TITULOS)
+    m["blocos"].insert(1, {"tipo": "calculo", "id": "total", "rotulo": "Total", "expressao": 'SE([regiao]="SUL";10;5)'})
+    m["blocos"][3]["visivel_se"] = {"campo": "total", "op": "maior", "valor": 6}                     # condição pode usar cálculo
+    assert mm.validar(_com(m)) == []
+    r = copy.deepcopy(m); r["blocos"][1]["expressao"] = "[inexistente]*2"
+    assert any("ANTES" in e for e in mm.validar(_com(r)))
+    r = copy.deepcopy(m); r["blocos"][1]["expressao"] = "SE(1;2)"
+    assert any("expressao" in e and "argumento" in e for e in mm.validar(_com(r)))
+    r = copy.deepcopy(m); r["blocos"][1]["expressao"] = "[total]+1"
+    assert any("ANTES" in e for e in mm.validar(_com(r)))                                           # não pode citar a si mesmo
+    r = copy.deepcopy(m); r["blocos"][-1]["modelo"] = "{{= [qtd]*[total] }} {{= [fantasma] }}"
+    erros = mm.validar(_com(r))
+    assert any("fantasma" in e for e in erros) and not any("'qtd'" in e or "[qtd]" in e for e in erros)
+    r = copy.deepcopy(m); r["blocos"][-1]["modelo"] = "{{= 1/ }}"
+    assert any("saida_texto" in e for e in mm.validar(_com(r)))
+    r = copy.deepcopy(m); r["blocos"][2]["visivel_se"] = {"campo": "fantasma", "op": "vazio"}
+    assert any("fantasma" in e for e in mm.validar(_com(r)))
+
+
+def test_analisar_expressao_refs_e_limites():
+    assert mm.analisar_expressao("[a]+SE([b]>{1};[c];2)") == {"refs": {"a", "b", "c"}, "caps": {1}}
+    for ruim in ["", "x" * 301, "(" * 25 + "1" + ")" * 25]:
+        with pytest.raises(mm.ErroExpressao):
+            mm.analisar_expressao(ruim)
+
+
+# ── E6: histórico de versões ──
+def _put(client, dados, role="admin", projeto="229"):
+    return client.put("/api/modais-montaveis", json={"projeto_codigo": projeto, "dados": dados}, headers=hdr(role))
+
+
+def _v(*modais):
+    return {"versao": 1, "modais": list(modais)}
+
+
+def test_historico_guarda_a_versao_anterior_e_restaura(client):
+    import copy
+    assert _put(client, _v(RAMAIS)).status_code == 200
+    assert client.get("/api/modais-montaveis/historico?projeto_codigo=229", headers=hdr("admin")).json() == {"versoes": []}     # 1ª gravação: nada antes
+    assert _put(client, _v(RAMAIS, TITULOS)).status_code == 200
+    h = client.get("/api/modais-montaveis/historico?projeto_codigo=229", headers=hdr("admin")).json()["versoes"]
+    assert len(h) == 1 and h[0]["nomes"] == ["Ramais colados"] and h[0]["por"] == "u@x.com" and h[0]["em"]
+    r = client.post("/api/modais-montaveis/reverter", json={"projeto_codigo": "229", "indice": 0}, headers=hdr("admin"))
+    assert r.status_code == 200 and [m["id"] for m in r.json()["dados"]["modais"]] == ["ramais"]
+    atual = client.get("/api/modais-montaveis?projeto_codigo=229", headers=hdr("operador")).json()["dados"]
+    assert [m["id"] for m in atual["modais"]] == ["ramais"]
+    h2 = client.get("/api/modais-montaveis/historico?projeto_codigo=229", headers=hdr("admin")).json()["versoes"]
+    assert len(h2) == 2 and h2[0]["nomes"] == ["Ramais colados", "Títulos de contrato"]           # a versão que estava valendo foi guardada
+
+
+def test_historico_limita_a_20_e_isola_por_projeto(client):
+    import copy
+    for i in range(23):
+        m = copy.deepcopy(RAMAIS); m["nome"] = f"V{i}"
+        assert _put(client, _v(m)).status_code == 200
+    h = client.get("/api/modais-montaveis/historico?projeto_codigo=229", headers=hdr("admin")).json()["versoes"]
+    assert len(h) == 20 and h[0]["nomes"] == ["V21"] and h[-1]["nomes"] == ["V2"]
+    assert client.get("/api/modais-montaveis/historico?projeto_codigo=027", headers=hdr("admin")).json() == {"versoes": []}
+
+
+def test_reverter_e_historico_so_admin_e_indice_invalido(client):
+    _put(client, _v(RAMAIS)); _put(client, _v(TITULOS))
+    assert client.get("/api/modais-montaveis/historico?projeto_codigo=229", headers=hdr("operador")).status_code == 403
+    assert client.post("/api/modais-montaveis/reverter", json={"projeto_codigo": "229", "indice": 0}, headers=hdr("operador")).status_code == 403
+    assert client.post("/api/modais-montaveis/reverter", json={"projeto_codigo": "229", "indice": 5}, headers=hdr("admin")).status_code == 404
+    assert client.post("/api/modais-montaveis/reverter", json={"projeto_codigo": "229", "indice": -1}, headers=hdr("admin")).status_code == 404
+
+
+def test_gravacao_recusada_nao_mexe_no_historico(client):
+    _put(client, _v(RAMAIS))
+    assert _put(client, {"versao": 1, "modais": [{"id": "x"}]}).status_code == 400
+    assert client.get("/api/modais-montaveis/historico?projeto_codigo=229", headers=hdr("admin")).json() == {"versoes": []}
+    assert [m["id"] for m in client.get("/api/modais-montaveis?projeto_codigo=229", headers=hdr("admin")).json()["dados"]["modais"]] == ["ramais"]

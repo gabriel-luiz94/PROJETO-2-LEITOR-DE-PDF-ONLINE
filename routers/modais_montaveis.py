@@ -9,11 +9,11 @@ Formato: {"versao": 1, "modais": [{"id", "nome", "tipo", "blocos": [...]}]}
 Blocos: texto, campo, grade, interpretar, tabela_interna, saida_texto, destino, acao_adicionar (ver validar_modal).
 Nada aqui executa código: regex são compiladas só para validar, expressões passam por uma lista branca aritmética.
 """
-import ast
 import json
 import re
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from config import logger
@@ -25,14 +25,18 @@ router = APIRouter(prefix="/api/modais-montaveis", tags=["modais-montaveis"])
 
 CHAVE = "montaveis"
 TIPOS_MODAL = {"montagem", "colagem", "interpretativo", "processamento", "gerador_texto"}
-TIPOS_BLOCO = {"texto", "campo", "grade", "interpretar", "tabela_interna", "saida_texto", "destino", "acao_adicionar"}
+TIPOS_BLOCO = {"texto", "campo", "calculo", "grade", "interpretar", "tabela_interna", "saida_texto", "destino", "acao_adicionar"}
 ENTRADAS = {"texto", "numero", "select", "radio"}
-OPERACOES_CONDICAO = {"igual", "diferente", "vazio", "preenchido", "em"}
+OPERACOES_CONDICAO = {"igual", "diferente", "vazio", "preenchido", "em", "contem", "maior", "menor", "maior_igual", "menor_igual"}
+OPS_NUMERICAS = {"maior", "menor", "maior_igual", "menor_igual"}
+PROFUNDIDADE_CONDICAO = 4
+MAX_FILHOS_CONDICAO = 10
 OPERACOES_LINHA = {"I", "*I", "R", "*R", "M", "*M"}
 DESTINOS = {"outros", "cabos"}
 MAX_MODAIS, MAX_BLOCOS, MAX_REGRAS, MAX_GERA, MAX_COLUNAS, MAX_LINHAS_INTERNAS = 30, 40, 100, 20, 20, 500
 _RE_ID = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 _RE_CHAR_EXPR = re.compile(r"^[0-9+\-*/().\s]+$")
+_RE_REF_CAMPO = re.compile(r"\[([A-Za-z0-9_-]+)\]")
 
 
 class ModaisPayload(BaseModel):
@@ -54,27 +58,144 @@ def _id(v, rotulo, erros):
         erros.append(f"{rotulo}: id inválido (letras, números, _ e -, até 40).")
 
 
+FUNCOES = {"SE": (3, 3), "E": (1, 20), "OU": (1, 20), "NAO": (1, 1), "MAX": (1, 20), "MIN": (1, 20), "ABS": (1, 1),
+           "ARRED": (1, 2), "SOMA": (1, 20), "CONCAT": (1, 20), "MAIUSCULO": (1, 1), "MINUSCULO": (1, 1)}
+MAX_EXPR, MAX_PROF = 300, 20
+_RE_TOKEN = re.compile(r"""\s+|(?P<num>\d+(?:\.\d+)?|\.\d+)|"(?P<str>(?:[^"]|"")*)"|\[(?P<ref>[A-Za-z0-9_-]+)\]|\{(?P<cap>\d+)\}|(?P<id>[A-Za-zÀ-ÿ_]+)|(?P<op><=|>=|<>|[-+*/()=<>;])""")
+
+
+class ErroExpressao(ValueError):
+    pass
+
+
+def _tokens(src: str):
+    t, i = [], 0
+    while i < len(src):
+        m = _RE_TOKEN.match(src, i)
+        if not m:
+            raise ErroExpressao(f"caractere inesperado: {src[i]!r}")
+        i = m.end()
+        if m.group("num") is not None:
+            t.append(("num", m.group("num")))
+        elif m.group("str") is not None:
+            t.append(("str", m.group("str")))
+        elif m.group("ref") is not None:
+            t.append(("ref", m.group("ref")))
+        elif m.group("cap") is not None:
+            t.append(("cap", int(m.group("cap"))))
+        elif m.group("id") is not None:
+            t.append(("id", m.group("id").upper().replace("Ã", "A")))
+        elif m.group("op") is not None:
+            t.append(("op", m.group("op")))
+    return t
+
+
+def analisar_expressao(src):
+    """Confere a sintaxe de uma expressão (mesma gramática de static/modal_montavel_engine.js). Retorna {refs: set, caps: set}
+    ou lança ErroExpressao. Só números, "texto", [campo], {n}, + - * /, comparações e as funções de FUNCOES."""
+    if not isinstance(src, str) or not src.strip() or len(src) > MAX_EXPR:
+        raise ErroExpressao(f"expressão vazia ou maior que {MAX_EXPR} caracteres")
+    t = _tokens(src)
+    refs, caps, i = set(), set(), 0
+
+    def op(v):
+        return i < len(t) and t[i] == ("op", v)
+
+    def primario(p):
+        nonlocal i
+        if p > MAX_PROF:
+            raise ErroExpressao("aninhamento demais")
+        if i >= len(t):
+            raise ErroExpressao("expressão incompleta")
+        k, v = t[i]
+        i += 1
+        if k in ("num", "str"):
+            return
+        if k == "ref":
+            refs.add(v)
+            return
+        if k == "cap":
+            caps.add(v)
+            return
+        if k == "op" and v == "(":
+            comp(p + 1)
+            if not op(")"):
+                raise ErroExpressao("falta )")
+            i += 1
+            return
+        if k == "id":
+            if v not in FUNCOES or not op("("):
+                raise ErroExpressao(f"função desconhecida: {v}")
+            i += 1
+            n = 0
+            if not op(")"):
+                comp(p + 1)
+                n = 1
+                while op(";"):
+                    i += 1
+                    comp(p + 1)
+                    n += 1
+            if not op(")"):
+                raise ErroExpressao(f"falta ) em {v}")
+            i += 1
+            lo, hi = FUNCOES[v]
+            if not lo <= n <= hi:
+                raise ErroExpressao(f"{v} com {n} argumento(s)")
+            return
+        raise ErroExpressao("símbolo inesperado")
+
+    def unario(p):
+        nonlocal i
+        if op("-") or op("+"):
+            i += 1
+            return unario(p + 1)
+        return primario(p)
+
+    def produto(p):
+        nonlocal i
+        unario(p)
+        while op("*") or op("/"):
+            i += 1
+            unario(p)
+
+    def soma(p):
+        nonlocal i
+        produto(p)
+        while op("+") or op("-"):
+            i += 1
+            produto(p)
+
+    def comp(p):
+        nonlocal i
+        soma(p)
+        if i < len(t) and t[i][0] == "op" and t[i][1] in ("=", "<>", "<", ">", "<=", ">="):
+            i += 1
+            soma(p)
+
+    comp(0)
+    if i != len(t):
+        raise ErroExpressao("sobrou texto no fim")
+    return {"refs": refs, "caps": caps}
+
+
 def expressao_segura(expr) -> bool:
-    """Número, ou texto só com dígitos, + - * / ( ) e {n} (capturas). Confere a sintaxe trocando {n} por 1."""
+    """Número, ou expressão válida da gramática acima (usada na quantidade)."""
     if isinstance(expr, bool):
         return False
     if isinstance(expr, (int, float)):
         return True
-    if not isinstance(expr, str) or not expr.strip() or len(expr) > 100:
-        return False
-    s = re.sub(r"\{\d+\}", "1", expr)
-    if not _RE_CHAR_EXPR.match(s):
-        return False
     try:
-        arvore = ast.parse(s.strip(), mode="eval")
-    except SyntaxError:
+        analisar_expressao(expr)
+        return True
+    except ErroExpressao:
         return False
-    for no in ast.walk(arvore):
-        if not isinstance(no, (ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant, ast.Add, ast.Sub, ast.Mult, ast.Div, ast.USub, ast.UAdd)):
-            return False
-        if isinstance(no, ast.Constant) and not isinstance(no.value, (int, float)):
-            return False
-    return True
+
+
+def refs_da_expressao(expr) -> set:
+    try:
+        return analisar_expressao(expr)["refs"] if isinstance(expr, str) else set()
+    except ErroExpressao:
+        return set()
 
 
 def _regex(v, rotulo, erros):
@@ -87,16 +208,56 @@ def _regex(v, rotulo, erros):
         erros.append(f"{rotulo}: regex inválida ({e}).")
 
 
-def _condicao(c, rotulo, erros):
+def _condicao(c, rotulo, erros, nome="visivel_se", nivel=0):
+    """Condição: folha {campo, op, valor} ou composta {todos:[...]} / {algum:[...]} / {nao: cond} (até 4 níveis)."""
     if c is None:
         return
-    if not isinstance(c, dict) or c.get("op") not in OPERACOES_CONDICAO or not isinstance(c.get("campo"), str):
-        erros.append(f"{rotulo}: 'visivel_se' precisa de campo e op ({sorted(OPERACOES_CONDICAO)}).")
+    if nivel > PROFUNDIDADE_CONDICAO:
+        erros.append(f"{rotulo}: '{nome}' muito aninhada (máximo {PROFUNDIDADE_CONDICAO} níveis).")
         return
-    if c["op"] in ("igual", "diferente") and not isinstance(c.get("valor"), (str, int, float)):
-        erros.append(f"{rotulo}: 'visivel_se.valor' obrigatório.")
+    if not isinstance(c, dict):
+        erros.append(f"{rotulo}: '{nome}' precisa ser um objeto.")
+        return
+    for chave in ("todos", "algum"):
+        if chave in c:
+            filhos = c[chave]
+            if not isinstance(filhos, list) or not 1 <= len(filhos) <= MAX_FILHOS_CONDICAO:
+                erros.append(f"{rotulo}: '{nome}.{chave}' precisa ser uma lista de 1 a {MAX_FILHOS_CONDICAO} condições.")
+                return
+            for f in filhos:
+                _condicao(f, rotulo, erros, nome, nivel + 1)
+            return
+    if "nao" in c:
+        _condicao(c["nao"], rotulo, erros, nome, nivel + 1) if isinstance(c["nao"], dict) else erros.append(f"{rotulo}: '{nome}.nao' precisa ser uma condição.")
+        return
+    if c.get("op") not in OPERACOES_CONDICAO or not isinstance(c.get("campo"), str):
+        erros.append(f"{rotulo}: '{nome}' precisa de campo e op ({sorted(OPERACOES_CONDICAO)}), ou todos/algum/nao.")
+        return
+    if c["op"] in ("igual", "diferente", "contem") and not isinstance(c.get("valor"), (str, int, float)):
+        erros.append(f"{rotulo}: '{nome}.valor' obrigatório.")
+    if c["op"] in OPS_NUMERICAS and (isinstance(c.get("valor"), bool) or not isinstance(c.get("valor"), (int, float))):
+        erros.append(f"{rotulo}: '{nome}.valor' precisa ser um número para '{c['op']}'.")
     if c["op"] == "em" and not isinstance(c.get("valor"), list):
-        erros.append(f"{rotulo}: 'visivel_se.valor' precisa ser uma lista para 'em'.")
+        erros.append(f"{rotulo}: '{nome}.valor' precisa ser uma lista para 'em'.")
+
+
+def campos_da_condicao(c, acc=None):
+    """Todos os ids de campo citados numa condição (folhas dentro de todos/algum/nao)."""
+    acc = set() if acc is None else acc
+    if isinstance(c, dict):
+        if isinstance(c.get("campo"), str):
+            acc.add(c["campo"])
+        for chave in ("todos", "algum"):
+            if isinstance(c.get(chave), list):
+                for f in c[chave]:
+                    campos_da_condicao(f, acc)
+        if "nao" in c:
+            campos_da_condicao(c["nao"], acc)
+    return acc
+
+
+def campos_da_expressao(texto) -> set:
+    return set(_RE_REF_CAMPO.findall(texto)) if isinstance(texto, str) else set()
 
 
 def _bloco(b, i, ids_por_tipo, erros):
@@ -124,6 +285,12 @@ def _bloco(b, i, ids_por_tipo, erros):
             op = b.get("opcoes")
             if not isinstance(op, list) or not op or len(op) > 100 or not all(isinstance(x, str) and 0 < len(x) <= 80 for x in op):
                 erros.append(f"{p}.opcoes: lista de 1 a 100 textos.")
+    elif t == "calculo":
+        _texto(b.get("rotulo"), 80, f"{p}.rotulo", erros, obrigatorio=False)
+        try:
+            analisar_expressao(b.get("expressao"))
+        except ErroExpressao as e:
+            erros.append(f"{p}.expressao: {e}.")
     elif t == "grade":
         cols = b.get("colunas")
         if not isinstance(cols, list) or not 1 <= len(cols) <= MAX_COLUNAS:
@@ -139,10 +306,23 @@ def _bloco(b, i, ids_por_tipo, erros):
                 if c.get("id") in vistos:
                     erros.append(f"{p}.colunas: id '{c.get('id')}' repetido.")
                 vistos.add(c.get("id"))
+        col = b.get("colagem")
+        if col is not None:
+            if not isinstance(col, dict) or col.get("modo", "colunas") not in {"colunas", "linha", "dividir"}:
+                erros.append(f"{p}.colagem: 'modo' precisa ser colunas, linha ou dividir.")
+            else:
+                if col.get("separador") is not None and (not isinstance(col["separador"], str) or len(col["separador"]) > 10):
+                    erros.append(f"{p}.colagem.separador: texto de até 10 caracteres.")
+                if col.get("pular_cabecalho") is not None and not isinstance(col["pular_cabecalho"], bool):
+                    erros.append(f"{p}.colagem.pular_cabecalho: verdadeiro ou falso.")
+        if b.get("carregar_de") is not None and b["carregar_de"] not in DESTINOS:
+            erros.append(f"{p}.carregar_de: use {sorted(DESTINOS)}.")
         lm = b.get("linhas_min", 5)
         if not isinstance(lm, int) or isinstance(lm, bool) or not 1 <= lm <= 50:
             erros.append(f"{p}.linhas_min: de 1 a 50.")
     elif t == "interpretar":
+        if b.get("normalizar") not in (None, "maiusculo", "minusculo"):
+            erros.append(f"{p}.normalizar: maiusculo ou minusculo.")
         regras = b.get("regras")
         if not isinstance(regras, list) or not 1 <= len(regras) <= MAX_REGRAS:
             erros.append(f"{p}.regras: de 1 a {MAX_REGRAS}.")
@@ -152,7 +332,10 @@ def _bloco(b, i, ids_por_tipo, erros):
             if not isinstance(r, dict) or not isinstance(r.get("quando"), dict):
                 erros.append(f"{q}: precisa de 'quando' e 'gera'.")
                 continue
+            _condicao(r.get("se"), q, erros, nome="se")
             _regex(r["quando"].get("regex"), f"{q}.quando.regex", erros)
+            if r["quando"].get("global") is not None and not isinstance(r["quando"]["global"], bool):
+                erros.append(f"{q}.quando.global: verdadeiro ou falso.")
             if r["quando"].get("flags") is not None and (not isinstance(r["quando"]["flags"], str) or not re.fullmatch(r"[gimsu]{0,5}", r["quando"]["flags"])):
                 erros.append(f"{q}.quando.flags: só letras gimsu.")
             gera = r.get("gera")
@@ -165,7 +348,7 @@ def _bloco(b, i, ids_por_tipo, erros):
                     continue
                 _texto(g.get("ativo"), 120, f"{q}.gera.ativo", erros)
                 if "qtd" in g and not expressao_segura(g["qtd"]):
-                    erros.append(f"{q}.gera.qtd: só números, + - * / ( ) e {{n}} (ex.: {{1}}*20).")
+                    erros.append(f"{q}.gera.qtd: só números, + - * / ( ), {{n}} (captura) e [campo] (ex.: {{1}}*[fator]).")
                 if g.get("operacao") is not None and g["operacao"] not in OPERACOES_LINHA:
                     erros.append(f"{q}.gera.operacao: uma de {sorted(OPERACOES_LINHA)}.")
     elif t == "tabela_interna":
@@ -211,6 +394,7 @@ def validar_modal(m, idx=0) -> list:
     for i, b in enumerate(blocos):
         _bloco(b, i, ids, erros)
     # referências entre blocos
+    definidos = set()
     for i, b in enumerate(blocos):
         if not isinstance(b, dict):
             continue
@@ -225,9 +409,36 @@ def validar_modal(m, idx=0) -> list:
             d = b.get("destino")
             if d not in DESTINOS and d not in ids.get("destino", set()):
                 erros.append(f"{q} (acao_adicionar): 'destino' é 'outros', 'cabos' ou o id de um bloco 'destino'.")
-        c = b.get("visivel_se")
-        if isinstance(c, dict) and c.get("campo") not in ids.get("campo", set()):
-            erros.append(f"{q}: 'visivel_se.campo' precisa ser o id de um campo deste modal.")
+        campos = ids.get("campo", set()) | ids.get("calculo", set())
+        if b.get("tipo") == "calculo" and isinstance(b.get("expressao"), str):
+            for ref in sorted(refs_da_expressao(b["expressao"]) - definidos):
+                erros.append(f"{q} (calculo): [{ref}] precisa ser um campo ou um cálculo definido ANTES deste bloco.")
+        if b.get("tipo") in ("campo", "calculo") and isinstance(b.get("id"), str):
+            definidos.add(b["id"])
+        if b.get("tipo") == "saida_texto" and isinstance(b.get("modelo"), str):
+            grade = next((x for x in blocos if isinstance(x, dict) and x.get("tipo") == "grade" and x.get("id") == b.get("fonte")), None)
+            permitidos = campos | ({c.get("id") for c in grade.get("colunas", []) if isinstance(c, dict)} if grade else set())
+            for expr in re.findall(r"\{\{\s*=([^{}]*)\}\}", b["modelo"]):
+                try:
+                    r = analisar_expressao(expr)
+                except ErroExpressao as e:
+                    erros.append(f"{q} (saida_texto): {{{{= {expr.strip()} }}}}: {e}.")
+                    continue
+                for ref in sorted(r["refs"] - permitidos):
+                    erros.append(f"{q} (saida_texto): [{ref}] não é um campo, cálculo ou coluna da grade.")
+        for ref in sorted(campos_da_condicao(b.get("visivel_se")) - campos):
+            erros.append(f"{q}: 'visivel_se.campo' precisa ser o id de um campo deste modal (recebido: {ref}).")
+        if b.get("tipo") == "interpretar":
+            for k, r in enumerate(b.get("regras") or []):
+                if not isinstance(r, dict):
+                    continue
+                for ref in sorted(campos_da_condicao(r.get("se")) - campos):
+                    erros.append(f"{q}, regra #{k + 1}: 'se.campo' precisa ser o id de um campo deste modal (recebido: {ref}).")
+                for g in r.get("gera") or []:
+                    if not isinstance(g, dict):
+                        continue
+                    for ref in sorted((campos_da_expressao(g.get("qtd")) | campos_da_expressao(g.get("ativo"))) - campos):
+                        erros.append(f"{q}, regra #{k + 1}: [{ref}] não é o id de um campo deste modal.")
     return erros
 
 
@@ -250,18 +461,22 @@ def _vazio():
     return {"versao": 1, "modais": []}
 
 
-def _ler(projeto: str) -> dict:
+CHAVE_HIST = "montaveis_hist"
+MAX_HISTORICO = 20
+
+
+def _ler_chave(projeto: str, chave: str, vazio):
     supabase = get_supabase()
     if supabase:
         try:
-            res = supabase.table("atalhos_modais").select("dados_json").eq("projeto_codigo", projeto).eq("modal", CHAVE).execute()
+            res = supabase.table("atalhos_modais").select("dados_json").eq("projeto_codigo", projeto).eq("modal", chave).execute()
             if res.data:
                 return json.loads(res.data[0]["dados_json"])
         except Exception as e:
-            logger.warning(f"Falha ao buscar modais montáveis no Supabase: {e}")
+            logger.warning(f"Falha ao buscar {chave} no Supabase: {e}")
     conn = get_connection()
     try:
-        row = conn.execute("SELECT dados_json FROM atalhos_modais WHERE projeto_codigo = ? AND modal = ?", (projeto, CHAVE)).fetchone()
+        row = conn.execute("SELECT dados_json FROM atalhos_modais WHERE projeto_codigo = ? AND modal = ?", (projeto, chave)).fetchone()
     finally:
         conn.close()
     if row:
@@ -269,7 +484,48 @@ def _ler(projeto: str) -> dict:
             return json.loads(row[0])
         except Exception:
             pass
-    return _vazio()
+    return vazio
+
+
+def _ler(projeto: str) -> dict:
+    return _ler_chave(projeto, CHAVE, _vazio())
+
+
+def _escrever_chave(projeto: str, chave: str, valor: str, obrigatorio_nuvem: bool):
+    conn = get_connection()
+    try:
+        conn.execute("INSERT OR REPLACE INTO atalhos_modais (projeto_codigo, modal, dados_json) VALUES (?, ?, ?)", (projeto, chave, valor))
+        conn.commit()
+    finally:
+        conn.close()
+    supabase = get_supabase()
+    if supabase:
+        try:
+            supabase.table("atalhos_modais").upsert({"projeto_codigo": projeto, "modal": chave, "dados_json": valor}, on_conflict="projeto_codigo,modal").execute()
+        except Exception as e:
+            logger.warning(f"Erro ao salvar {chave} no Supabase: {e}")
+            if obrigatorio_nuvem:
+                raise HTTPException(status_code=500, detail=f"Modais salvos localmente, mas falharam ao sincronizar com a nuvem (Supabase): {e}")
+
+
+def _gravar_interno(projeto: str, dados: dict, email: str | None):
+    """Guarda a versão ATUAL no histórico (até 20) e grava a nova. O histórico é best-effort na nuvem."""
+    atual = _ler(projeto)
+    if atual.get("modais"):
+        hist = _ler_chave(projeto, CHAVE_HIST, {"versoes": []})
+        versoes = [{"em": datetime.now(timezone.utc).isoformat(timespec="seconds"), "por": email or "", "dados": atual}] + list(hist.get("versoes", []))
+        _escrever_chave(projeto, CHAVE_HIST, json.dumps({"versoes": versoes[:MAX_HISTORICO]}, ensure_ascii=False), obrigatorio_nuvem=False)
+    _escrever_chave(projeto, CHAVE, json.dumps(dados, ensure_ascii=False), obrigatorio_nuvem=True)
+
+
+def _email(request: Request):
+    u = getattr(request.state, "user", None) or {}
+    return u.get("email") or u.get("user_id")
+
+
+class ReverterPayload(BaseModel):
+    projeto_codigo: str
+    indice: int
 
 
 @router.get("")
@@ -283,24 +539,29 @@ def validar_rota(payload: ModaisPayload):
 
 
 @router.put("", dependencies=[Depends(require_role("admin"))])
-def gravar(payload: ModaisPayload):
+def gravar(payload: ModaisPayload, request: Request):
     erros = validar(payload.dados)
     if erros:
         raise HTTPException(status_code=400, detail={"erros": erros[:30]})
-    valor = json.dumps(payload.dados, ensure_ascii=False)
-    conn = get_connection()
-    try:
-        conn.execute("INSERT OR REPLACE INTO atalhos_modais (projeto_codigo, modal, dados_json) VALUES (?, ?, ?)",
-                     (payload.projeto_codigo, CHAVE, valor))
-        conn.commit()
-    finally:
-        conn.close()
-    supabase = get_supabase()
-    if supabase:
-        try:
-            supabase.table("atalhos_modais").upsert({"projeto_codigo": payload.projeto_codigo, "modal": CHAVE, "dados_json": valor},
-                                                    on_conflict="projeto_codigo,modal").execute()
-        except Exception as e:
-            logger.warning(f"Erro ao salvar modais montáveis no Supabase: {e}")
-            raise HTTPException(status_code=500, detail=f"Modais salvos localmente, mas falharam ao sincronizar com a nuvem (Supabase): {e}")
+    _gravar_interno(payload.projeto_codigo, payload.dados, _email(request))
     return {"status": "success", "dados": payload.dados}
+
+
+@router.get("/historico", dependencies=[Depends(require_role("admin"))])
+def historico(projeto_codigo: str = "DEFAULT"):
+    versoes = _ler_chave(projeto_codigo, CHAVE_HIST, {"versoes": []}).get("versoes", [])
+    return {"versoes": [{"indice": i, "em": v.get("em"), "por": v.get("por"),
+                         "nomes": [m.get("nome") for m in (v.get("dados") or {}).get("modais", []) if isinstance(m, dict)]} for i, v in enumerate(versoes)]}
+
+
+@router.post("/reverter", dependencies=[Depends(require_role("admin"))])
+def reverter(payload: ReverterPayload, request: Request):
+    versoes = _ler_chave(payload.projeto_codigo, CHAVE_HIST, {"versoes": []}).get("versoes", [])
+    if not 0 <= payload.indice < len(versoes):
+        raise HTTPException(status_code=404, detail="Versão do histórico não encontrada.")
+    dados = versoes[payload.indice].get("dados") or _vazio()
+    erros = validar(dados)
+    if erros:
+        raise HTTPException(status_code=400, detail={"erros": erros[:30]})
+    _gravar_interno(payload.projeto_codigo, dados, _email(request))
+    return {"status": "success", "dados": dados}
