@@ -604,7 +604,7 @@
                 <h1 class="report-title">Resumo do <span class="highlight">Orçamento</span></h1>
                 <div style="display:flex; align-items:center; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
                     <label style="font-size: 0.75rem; color: #8b949e; margin-right: 6px;">Projeto:</label>
-                    <select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;" onchange="const o=this.options[this.selectedIndex]; const cod=o?.dataset.codigo||''; localStorage.setItem('projeto_selecionado', this.value); localStorage.setItem('projeto_selecionado_codigo', cod); carregarRegras(); carregarRegrasLeitorResumo(cod); carregarRegrasVinculacaoResumo(cod); if (window.carregarContextosAjustes) carregarContextosAjustes(cod);"></select>
+                    <select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;" onchange="const o=this.options[this.selectedIndex]; const cod=o?.dataset.codigo||''; localStorage.setItem('projeto_selecionado', this.value); localStorage.setItem('projeto_selecionado_codigo', cod); carregarRegras(); carregarRegrasLeitorResumo(cod); carregarRegrasVinculacaoResumo(cod); if (window.ModalMontavelUI) ModalMontavelUI.recarregar(); if (window.carregarContextosAjustes) carregarContextosAjustes(cod);"></select>
                     <button id="btn-novo-projeto" class="btn-primary" onclick="abrirModalNovoProjeto()" style="display: none; padding: 2px 8px; font-size: 0.75rem; margin-left: 8px; border-radius: 4px;" title="Cadastrar Novo Projeto">+ Novo</button>
                 </div>
                 <!-- TASK-040: indicador de conectividade com a nuvem (Supabase) -->
@@ -731,6 +731,7 @@
                         <span id="badge-ramais" style="display:none; position:absolute; top:-6px; right:-6px; min-width:16px; height:16px; background-color:#f85149; border-radius:8px; box-shadow:0 0 0 2px #0d1117; color:white; font-size:10px; font-weight:bold; align-items:center; justify-content:center; padding:0 4px; box-sizing:border-box;"></span>
                     </button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Vincular cabos a estruturas/postes" onclick="abrirModalVinculacao()">VINCULAR CABOS</button>
+                    <span id="barra-modais-montaveis" style="display: contents;"></span>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">RETENSIONAMENTO</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">ADICIONAIS</button>
                     <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(227,179,65,0.4); color: #e3b341;" title="Função futura">LINHA VIVA</button>
@@ -1456,6 +1457,7 @@
                         if (window.carregarRegrasLeitorResumo) carregarRegrasLeitorResumo(codigoAtual);
                         if (window.carregarRegrasVinculacaoResumo) carregarRegrasVinculacaoResumo(codigoAtual);
                         if (window.carregarContextosAjustes) carregarContextosAjustes(codigoAtual);
+                        if (window.ModalMontavelUI) ModalMontavelUI.recarregar();
                     }
                 }
                 if (localStorage.getItem('is_admin') === 'true') {
@@ -1720,6 +1722,9 @@
     <script src="/static/grade_tabela.js"></script>
     <script src="/static/atalhos_modal.js"></script>
     <script src="/static/gerador_modal.js"></script>
+    <script src="/static/modal_montavel_engine.js"></script>
+    <script src="/static/modal_montavel_editor.js"></script>
+    <script src="/static/modal_montavel_ui.js"></script>
     <script src="/static/resumo.js?v=5.3"></script>
     <script src="/static/painel_regras.js"></script>
     <script src="/static/voz.js"></script>
