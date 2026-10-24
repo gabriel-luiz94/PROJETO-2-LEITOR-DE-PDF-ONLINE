@@ -407,7 +407,7 @@ Limpar e ordenar:
 
 O botão **＋** (só administrador) cria modais próprios do **projeto selecionado**; todos os usuários do projeto usam os botões que aparecem na barra, depois de CABOS, CONEXÕES, RAMAIS e VINCULAR CABOS.
 
-- **Criar/editar:** ＋ → "+ Novo em branco" ou um dos exemplos (**Ramais colados**, **Títulos de contrato**) → editar o JSON → **Salvar**. O servidor confere tudo (blocos, regex, expressões) e mostra os erros.
+- **Criar/editar:** ＋ → "+ Novo em branco" ou um dos exemplos (**Ramais colados**, **Títulos de contrato**) → monte na aba **Visual** (blocos com formulário; ▲▼ reordena, ✕ remove, "Adicionar bloco" no fim) ou na aba **JSON** (as duas ficam sincronizadas) → **Salvar**. O servidor confere tudo (blocos, regex, expressões) e mostra os erros.
 - **Blocos:** `texto`, `campo` (texto, número, lista, opções), `grade` (cole várias linhas do Excel na primeira célula), `tabela_interna` (planilha de consulta embutida), `interpretar` (regras: se o texto casa a regex → gera ativo + quantidade; a quantidade aceita `+ - * /` e capturas como `{1}*20`; a primeira regra que casa vale), `destino` (Outros ou Cabos), `acao_adicionar` (botão "Adicionar ativos") e `saida_texto` (modelo com `{{campo}}` e `{{buscar(tabela, colunaChave, valor, colunaRetorno)}}`, com botão **Copiar**).
 - **Condicional:** qualquer bloco aceita `visivel_se` (`{"campo": "regiao", "op": "igual", "valor": "SUL"}`; ops: igual, diferente, vazio, preenchido, em).
 - **Adicionar ativos:** em **Outros** entra uma linha `qtd-ativo` por item; em **Cabos** o ativo se repete `qtd` vezes. Ctrl+Z desfaz.

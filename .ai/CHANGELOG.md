@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-24 — TASK-077 (etapa 2): editor visual dos modais montáveis
+
+**Tipo:** Frontend · `static/modal_montavel_editor.js` (novo), `static/modal_montavel_ui.js`, `static/resumo.html`, `app.py`
+
+O gerenciador (＋) ganhou a aba **Visual**: monta o modal por blocos com formulários (campos, grade, planilha interna, regras de interpretação, destino, botão, texto para copiar e condição de visibilidade), com reordenar/remover e blocos novos já válidos. A aba **JSON** continua e as duas ficam sincronizadas. Sem mudança de API ou de banco.
+
+---
+
 ## 2026-10-24 — TASK-077 (etapa 1): modais montáveis por projeto
 
 **Tipo:** Backend + Frontend · `routers/modais_montaveis.py`, `static/modal_montavel_engine.js`, `static/modal_montavel_ui.js`, `static/resumo.html`, `static/resumo.js`, `app.py` · `.ai/tasks/TASK-077-24-10-2026.md`

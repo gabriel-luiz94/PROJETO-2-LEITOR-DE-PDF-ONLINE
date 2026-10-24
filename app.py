@@ -150,6 +150,10 @@ async def serve_gerador_modal_js():
 async def serve_modal_montavel_engine_js():
     return _serve_js("modal_montavel_engine.js")
 
+@app.get("/static/modal_montavel_editor.js")
+async def serve_modal_montavel_editor_js():
+    return _serve_js("modal_montavel_editor.js")
+
 @app.get("/static/modal_montavel_ui.js")
 async def serve_modal_montavel_ui_js():
     return _serve_js("modal_montavel_ui.js")

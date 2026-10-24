@@ -24,7 +24,7 @@
             { tipo: 'tabela_interna', id: 'precos', colunas: ['codigo', 'titulo', 'contrato'], linhas: [['MAC', 'Mufla AC', 'C-100'], ['TAM', 'Terminal AM', 'C-200']] },
             { tipo: 'saida_texto', id: 'txt', fonte: 'itens', rotulo: 'Texto para copiar',
               modelo: '{{codigo}} x{{qtd}} - {{buscar(precos, codigo, codigo, titulo)}} ({{buscar(precos, codigo, codigo, contrato)}}) {{regiao}} {{obs}}' }] },
-        branco: { id: 'novo_modal', nome: 'Novo modal', tipo: 'montagem', blocos: [{ tipo: 'texto', texto: 'Edite este JSON.' }] }
+        branco: { id: 'novo_modal', nome: 'Novo modal', tipo: 'montagem', blocos: [{ tipo: 'texto', texto: 'Descreva aqui o que este modal faz.' }] }
     };
 
     function el(tag, props, filhos) {
@@ -226,7 +226,7 @@
         const dados = await carregar();
         const j = janela('Modais montáveis — projeto ' + projetoAtual(), 900);
         const lista = el('div'), editor = el('div');
-        j.caixa.appendChild(el('p', { text: 'Cada modal é um JSON. Só administradores criam e editam; todos os usuários do projeto usam.', style: 'font-size:.78rem;color:#8b949e;margin:0 0 8px;' }));
+        j.caixa.appendChild(el('p', { text: 'Cada modal é montado em blocos (aba Visual) ou editado como JSON. Só administradores criam e editam; todos os usuários do projeto usam.', style: 'font-size:.78rem;color:#8b949e;margin:0 0 8px;' }));
         j.caixa.appendChild(lista); j.caixa.appendChild(editor);
 
         async function persistir(novaLista, msg) {
@@ -252,22 +252,45 @@
         }
         function editar(existente, modelo) {
             const inicial = existente || modelo;
+            const ED = raiz.ModalMontavelEditor;
+            let ed = null, modo = ED ? 'visual' : 'json';
             const ta = el('textarea', { rows: '18', spellcheck: 'false', style: estiloInput + 'width:100%;font-family:monospace;font-size:.78rem;' });
             ta.value = JSON.stringify(inicial, null, 2);
+            const visual = el('div', { class: 'mm-visual' });
             const erros = el('div', { style: 'color:#f85149;font-size:.78rem;margin-top:6px;white-space:pre-wrap;' });
+            const abaV = el('button', { type: 'button', class: 'btn-primary', text: 'Visual', style: css, onclick: () => mostrar('visual') });
+            const abaJ = el('button', { type: 'button', class: 'btn-secondary', text: 'JSON', style: css, onclick: () => mostrar('json') });
+            function lerJson() {
+                try { return JSON.parse(ta.value); } catch (e) { erros.textContent = 'JSON inválido: ' + e.message; return null; }
+            }
+            function mostrar(novoModo) {
+                erros.textContent = '';
+                if (novoModo === 'json' && modo === 'visual' && ed) ta.value = JSON.stringify(ed.obter(), null, 2);
+                if (novoModo === 'visual') {
+                    const m = modo === 'json' ? lerJson() : (ed ? ed.obter() : inicial);
+                    if (!m || typeof m !== 'object') return;
+                    visual.innerHTML = ''; ed = ED.criar(visual, m);
+                }
+                modo = novoModo;
+                visual.style.display = modo === 'visual' ? '' : 'none'; ta.style.display = modo === 'json' ? '' : 'none';
+                abaV.className = modo === 'visual' ? 'btn-primary' : 'btn-secondary'; abaJ.className = modo === 'json' ? 'btn-primary' : 'btn-secondary';
+            }
             editor.innerHTML = '';
-            editor.appendChild(el('div', { style: 'margin-top:12px;font-size:.8rem;font-weight:600;', text: existente ? 'Editando: ' + existente.nome : 'Novo modal' }));
-            editor.appendChild(ta); editor.appendChild(erros);
+            editor.appendChild(el('div', { style: 'margin-top:12px;display:flex;justify-content:space-between;align-items:center;' }, [
+                el('span', { style: 'font-size:.8rem;font-weight:600;', text: existente ? 'Editando: ' + existente.nome : 'Novo modal' }),
+                ED ? el('div', { style: 'display:flex;gap:4px;' }, [abaV, abaJ]) : null]));
+            editor.appendChild(visual); editor.appendChild(ta); editor.appendChild(erros);
             editor.appendChild(el('div', { style: 'display:flex;gap:8px;margin-top:8px;' }, [
                 el('button', { class: 'btn-primary', text: 'Salvar', onclick: async () => {
-                    let m;
-                    try { m = JSON.parse(ta.value); } catch (e) { erros.textContent = 'JSON inválido: ' + e.message; return; }
+                    const m = modo === 'visual' && ed ? ed.obter() : lerJson();
+                    if (!m) return;
                     let nova = (dados.modais || []).filter(x => !existente || x.id !== existente.id);
                     nova = nova.concat([m]);
                     const e = await persistir(nova, 'Modal salvo.');
-                    if (e) erros.textContent = e.join('\n');
+                    erros.textContent = e ? e.join('\n') : '';
                 } }),
                 el('button', { class: 'btn-secondary', text: 'Cancelar', onclick: () => { editor.innerHTML = ''; } })]));
+            mostrar(modo);
         }
         desenharLista();
     }
