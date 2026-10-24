@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-24 — TASK-077 (etapa 5): expressões estilo planilha nos modais montáveis
+
+**Tipo:** Backend + Frontend · `routers/modais_montaveis.py`, `static/modal_montavel_engine.js`, `modal_montavel_editor.js`, `modal_montavel_ui.js`
+
+Novo bloco **Cálculo** e linguagem de expressões (SE, E, OU, NAO, MAX, MIN, ABS, ARRED, SOMA, CONCAT, MAIUSCULO, MINUSCULO; comparações; texto e números) usada na quantidade das regras, nos cálculos e em `{{= … }}` nos modelos. Parser próprio, sem eval, validado no servidor. Definições antigas continuam válidas.
+
+---
+
 ## 2026-10-24 — TASK-077 (etapa 4): colagem e interpretação dos modais montáveis
 
 **Tipo:** Backend + Frontend · `routers/modais_montaveis.py`, `static/modal_montavel_*.js`, `static/resumo.js`

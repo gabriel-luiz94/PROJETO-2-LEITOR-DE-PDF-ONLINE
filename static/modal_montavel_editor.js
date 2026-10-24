@@ -6,7 +6,7 @@
 (function (raiz) {
     'use strict';
 
-    const TIPOS_BLOCO = [['texto', 'Texto'], ['campo', 'Campo de entrada'], ['grade', 'Grade (colar linhas)'], ['tabela_interna', 'Planilha interna'],
+    const TIPOS_BLOCO = [['texto', 'Texto'], ['campo', 'Campo de entrada'], ['calculo', 'Cálculo (planilha)'], ['grade', 'Grade (colar linhas)'], ['tabela_interna', 'Planilha interna'],
         ['interpretar', 'Interpretar (regras)'], ['destino', 'Destino (Outros/Cabos)'], ['acao_adicionar', 'Botão Adicionar ativos'], ['saida_texto', 'Texto para copiar']];
     const TIPOS_MODAL = [['montagem', 'Montagem'], ['colagem', 'Colagem'], ['interpretativo', 'Interpretativo'], ['processamento', 'Processamento'], ['gerador_texto', 'Gerador de texto']];
     const ENTRADAS = [['texto', 'Texto'], ['numero', 'Número'], ['select', 'Lista'], ['radio', 'Opções']];
@@ -27,6 +27,7 @@
         switch (tipo) {
             case 'texto': return { tipo, texto: 'Texto explicativo.' };
             case 'campo': return { tipo, id: idUnico('campo', usados), rotulo: 'Campo', entrada: 'texto' };
+            case 'calculo': return { tipo, id: idUnico('calculo', usados), rotulo: 'Resultado', expressao: '1+1' };
             case 'grade': return { tipo, id: idUnico('grade', usados), linhas_min: 5, colunas: [{ id: 'texto', rotulo: 'TEXTO' }] };
             case 'tabela_interna': return { tipo, id: idUnico('planilha', usados), colunas: ['codigo', 'titulo'], linhas: [] };
             case 'interpretar': return { tipo, id: idUnico('resultado', usados), fonte: grades.length ? grades[0].id : '', regras: [novaRegra()] };
@@ -103,7 +104,7 @@
         /* Editor de condição em árvore: folha (campo/op/valor), grupo E/OU e NÃO. Mexe no objeto de `obj[chave]`. */
         const OPS = OPS_COND.concat([['contem', 'contém o texto'], ['maior', 'é maior que (número)'], ['menor', 'é menor que (número)'], ['maior_igual', 'é maior ou igual a'], ['menor_igual', 'é menor ou igual a']]);
         function condicao(obj, chave, titulo) {
-            const campos = idsDe('campo');
+            const campos = idsDe('campo').concat(idsDe('calculo'));
             const box = el('details', { style: 'margin-top:8px;' }, [el('summary', { text: titulo + (obj[chave] ? ' (ativa)' : ''), style: 'cursor:pointer;font-size:.72rem;color:#8b949e;' })]);
             if (!campos.length) { box.appendChild(el('div', { text: 'Crie um bloco "Campo de entrada" para usar condições.', style: 'font-size:.72rem;color:#8b949e;margin-top:4px;' })); return box; }
             const holder = { c: obj[chave] || condicaoNova(campos[0][0]) };
@@ -166,6 +167,11 @@
                         f.appendChild(rotulo('Opções (uma por linha)')); f.appendChild(ta);
                     }
                     break;
+                case 'calculo':
+                    f.appendChild(el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px;' }, [campoTexto(b, 'id', 'Identificador', { recarregar: true }), campoTexto(b, 'rotulo', 'Rótulo')]));
+                    f.appendChild(campoTexto(b, 'expressao', 'Expressão — ex.: [fator]*2   ou   SE([regiao]="SUL"; 10; 5)', { multi: 2 }));
+                    f.appendChild(el('div', { style: 'font-size:.7rem;color:#8b949e;margin-top:3px;line-height:1.4;', text: 'Use [campo] ou [outro_calculo] (definido antes), números, "texto", + - * /, = <> < > <= >=. Funções (separe com ;): SE, E, OU, NAO, MAX, MIN, ABS, ARRED, SOMA, CONCAT, MAIUSCULO, MINUSCULO. O resultado pode ser usado como [id] em condições, quantidades, ativos e modelos.' }));
+                    break;
                 case 'grade': {
                     f.appendChild(el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px;' }, [campoTexto(b, 'id', 'Identificador', { recarregar: true }), campoTexto(b, 'linhas_min', 'Linhas iniciais', { numero: true, tipo: 'number' })]));
                     f.appendChild(rotulo('Colunas (na ordem em que o Excel cola)'));
@@ -213,7 +219,7 @@
                         glob.addEventListener('change', () => { if (glob.checked) r.quando.global = true; else delete r.quando.global; });
                         cx.appendChild(el('label', { style: 'display:flex;gap:6px;align-items:center;font-size:.75rem;margin-top:2px;' }, [glob, 'Todas as ocorrências na linha (ex.: "P1, P2 e P3" gera 3 itens)']));
                         cx.appendChild(condicao(r, 'se', 'Aplicar esta regra só se (campos do modal)…'));
-                        cx.appendChild(rotulo('Então gera (use [campo] na quantidade ou no ativo)'));
+                        cx.appendChild(rotulo('Então gera (quantidade aceita expressões: {1}*[fator], SE(…); ativo aceita [campo])'));
                         r.gera.forEach((g, gi) => cx.appendChild(el('div', { style: 'display:grid;grid-template-columns:2fr 1.4fr 0.8fr auto;gap:6px;align-items:end;margin-bottom:3px;' }, [
                             campoTexto(g, 'ativo', 'ativo (ex.: MAC ou P{1})'), campoTexto(g, 'qtd', 'quantidade (ex.: {1}*20)'),
                             campoLista(g, 'operacao', 'operação', ['I', '*I', 'R', '*R', 'M', '*M'].map(x => [x, x])), mini('✕', () => { r.gera.splice(gi, 1); redesenhar(); }, 'color:#f85149;')])));
@@ -236,7 +242,7 @@
                 case 'saida_texto':
                     f.appendChild(el('div', { style: 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;' }, [campoTexto(b, 'id', 'Identificador', { recarregar: true }), campoTexto(b, 'rotulo', 'Título'),
                         campoLista(b, 'fonte', 'Repetir para cada linha da grade', idsDe('grade'), { vazio: '(uma vez só)' })]));
-                    f.appendChild(campoTexto(b, 'modelo', 'Modelo — {{coluna}}, {{campo}}, {{buscar(planilha, colunaChave, valor, colunaRetorno)}}', { multi: 3 }));
+                    f.appendChild(campoTexto(b, 'modelo', 'Modelo — {{coluna}}, {{campo}}, {{buscar(planilha, colunaChave, valor, colunaRetorno)}}, {{= [qtd]*2 }}', { multi: 3 }));
                     break;
                 default: break;
             }

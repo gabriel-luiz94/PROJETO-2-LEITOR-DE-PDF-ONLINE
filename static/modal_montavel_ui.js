@@ -105,14 +105,16 @@
         });
 
         function recalcular() {
+            const vals = MM.calcularCampos(modal.blocos, valores);      // campos + blocos "calculo" (planilha)
             blocosEls.forEach(x => {
                 const b = x.bloco;
-                x.raiz.style.display = MM.visivel(b, valores) ? '' : 'none';
+                x.raiz.style.display = MM.visivel(b, vals) ? '' : 'none';
                 if (b.tipo === 'interpretar') {
-                    const d = MM.diagnosticar(b, grades[b.fonte] || [], valores);
+                    const d = MM.diagnosticar(b, grades[b.fonte] || [], vals);
                     resultados[b.id] = d.itens;
                     x.atualizar(d.itens, d.naoCasadas);
-                } else if (b.tipo === 'saida_texto') x.atualizar(MM.gerarTexto(b, valores, tabelas, b.fonte ? grades[b.fonte] : null));
+                } else if (b.tipo === 'saida_texto') x.atualizar(MM.gerarTexto(b, vals, tabelas, b.fonte ? grades[b.fonte] : null));
+                else if (b.tipo === 'calculo') x.atualizar(vals[b.id] === '' || vals[b.id] == null ? '—' : MM.formatar(vals[b.id]));
             });
         }
 
@@ -199,6 +201,10 @@
                             const n = nao || [];
                             avisos.textContent = n.length ? n.length + ' linha(s) não reconhecida(s) por nenhuma regra:\n' + n.slice(0, 8).map(x => '  #' + (x.linha + 1) + ' ' + x.texto).join('\n') + (n.length > 8 ? '\n  …' : '') : '';
                         } };
+                }
+                case 'calculo': {
+                    const valor = el('span', { style: 'font-weight:600;color:#58a6ff;' });
+                    return { raiz: el('div', { style: 'margin:8px 0;font-size:.85rem;' }, [el('span', { text: (b.rotulo || b.id) + ': ', style: 'color:#8b949e;' }), valor]), atualizar: t => { valor.textContent = t; } };
                 }
                 case 'destino': {
                     const s = el('select', { style: estiloInput }, (b.opcoes || ['outros', 'cabos']).map(o => el('option', { value: o, text: o === 'outros' ? 'Tabela Outros' : 'Tabela Cabos' })));

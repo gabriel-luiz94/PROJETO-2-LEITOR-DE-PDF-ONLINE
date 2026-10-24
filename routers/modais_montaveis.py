@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/modais-montaveis", tags=["modais-montaveis"])
 
 CHAVE = "montaveis"
 TIPOS_MODAL = {"montagem", "colagem", "interpretativo", "processamento", "gerador_texto"}
-TIPOS_BLOCO = {"texto", "campo", "grade", "interpretar", "tabela_interna", "saida_texto", "destino", "acao_adicionar"}
+TIPOS_BLOCO = {"texto", "campo", "calculo", "grade", "interpretar", "tabela_interna", "saida_texto", "destino", "acao_adicionar"}
 ENTRADAS = {"texto", "numero", "select", "radio"}
 OPERACOES_CONDICAO = {"igual", "diferente", "vazio", "preenchido", "em", "contem", "maior", "menor", "maior_igual", "menor_igual"}
 OPS_NUMERICAS = {"maior", "menor", "maior_igual", "menor_igual"}
@@ -58,27 +58,144 @@ def _id(v, rotulo, erros):
         erros.append(f"{rotulo}: id inválido (letras, números, _ e -, até 40).")
 
 
+FUNCOES = {"SE": (3, 3), "E": (1, 20), "OU": (1, 20), "NAO": (1, 1), "MAX": (1, 20), "MIN": (1, 20), "ABS": (1, 1),
+           "ARRED": (1, 2), "SOMA": (1, 20), "CONCAT": (1, 20), "MAIUSCULO": (1, 1), "MINUSCULO": (1, 1)}
+MAX_EXPR, MAX_PROF = 300, 20
+_RE_TOKEN = re.compile(r"""\s+|(?P<num>\d+(?:\.\d+)?|\.\d+)|"(?P<str>(?:[^"]|"")*)"|\[(?P<ref>[A-Za-z0-9_-]+)\]|\{(?P<cap>\d+)\}|(?P<id>[A-Za-zÀ-ÿ_]+)|(?P<op><=|>=|<>|[-+*/()=<>;])""")
+
+
+class ErroExpressao(ValueError):
+    pass
+
+
+def _tokens(src: str):
+    t, i = [], 0
+    while i < len(src):
+        m = _RE_TOKEN.match(src, i)
+        if not m:
+            raise ErroExpressao(f"caractere inesperado: {src[i]!r}")
+        i = m.end()
+        if m.group("num") is not None:
+            t.append(("num", m.group("num")))
+        elif m.group("str") is not None:
+            t.append(("str", m.group("str")))
+        elif m.group("ref") is not None:
+            t.append(("ref", m.group("ref")))
+        elif m.group("cap") is not None:
+            t.append(("cap", int(m.group("cap"))))
+        elif m.group("id") is not None:
+            t.append(("id", m.group("id").upper().replace("Ã", "A")))
+        elif m.group("op") is not None:
+            t.append(("op", m.group("op")))
+    return t
+
+
+def analisar_expressao(src):
+    """Confere a sintaxe de uma expressão (mesma gramática de static/modal_montavel_engine.js). Retorna {refs: set, caps: set}
+    ou lança ErroExpressao. Só números, "texto", [campo], {n}, + - * /, comparações e as funções de FUNCOES."""
+    if not isinstance(src, str) or not src.strip() or len(src) > MAX_EXPR:
+        raise ErroExpressao(f"expressão vazia ou maior que {MAX_EXPR} caracteres")
+    t = _tokens(src)
+    refs, caps, i = set(), set(), 0
+
+    def op(v):
+        return i < len(t) and t[i] == ("op", v)
+
+    def primario(p):
+        nonlocal i
+        if p > MAX_PROF:
+            raise ErroExpressao("aninhamento demais")
+        if i >= len(t):
+            raise ErroExpressao("expressão incompleta")
+        k, v = t[i]
+        i += 1
+        if k in ("num", "str"):
+            return
+        if k == "ref":
+            refs.add(v)
+            return
+        if k == "cap":
+            caps.add(v)
+            return
+        if k == "op" and v == "(":
+            comp(p + 1)
+            if not op(")"):
+                raise ErroExpressao("falta )")
+            i += 1
+            return
+        if k == "id":
+            if v not in FUNCOES or not op("("):
+                raise ErroExpressao(f"função desconhecida: {v}")
+            i += 1
+            n = 0
+            if not op(")"):
+                comp(p + 1)
+                n = 1
+                while op(";"):
+                    i += 1
+                    comp(p + 1)
+                    n += 1
+            if not op(")"):
+                raise ErroExpressao(f"falta ) em {v}")
+            i += 1
+            lo, hi = FUNCOES[v]
+            if not lo <= n <= hi:
+                raise ErroExpressao(f"{v} com {n} argumento(s)")
+            return
+        raise ErroExpressao("símbolo inesperado")
+
+    def unario(p):
+        nonlocal i
+        if op("-") or op("+"):
+            i += 1
+            return unario(p + 1)
+        return primario(p)
+
+    def produto(p):
+        nonlocal i
+        unario(p)
+        while op("*") or op("/"):
+            i += 1
+            unario(p)
+
+    def soma(p):
+        nonlocal i
+        produto(p)
+        while op("+") or op("-"):
+            i += 1
+            produto(p)
+
+    def comp(p):
+        nonlocal i
+        soma(p)
+        if i < len(t) and t[i][0] == "op" and t[i][1] in ("=", "<>", "<", ">", "<=", ">="):
+            i += 1
+            soma(p)
+
+    comp(0)
+    if i != len(t):
+        raise ErroExpressao("sobrou texto no fim")
+    return {"refs": refs, "caps": caps}
+
+
 def expressao_segura(expr) -> bool:
-    """Número, ou texto só com dígitos, + - * / ( ) e {n} (capturas). Confere a sintaxe trocando {n} por 1."""
+    """Número, ou expressão válida da gramática acima (usada na quantidade)."""
     if isinstance(expr, bool):
         return False
     if isinstance(expr, (int, float)):
         return True
-    if not isinstance(expr, str) or not expr.strip() or len(expr) > 100:
-        return False
-    s = _RE_REF_CAMPO.sub("1", re.sub(r"\{\d+\}", "1", expr))
-    if not _RE_CHAR_EXPR.match(s):
-        return False
     try:
-        arvore = ast.parse(s.strip(), mode="eval")
-    except SyntaxError:
+        analisar_expressao(expr)
+        return True
+    except ErroExpressao:
         return False
-    for no in ast.walk(arvore):
-        if not isinstance(no, (ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant, ast.Add, ast.Sub, ast.Mult, ast.Div, ast.USub, ast.UAdd)):
-            return False
-        if isinstance(no, ast.Constant) and not isinstance(no.value, (int, float)):
-            return False
-    return True
+
+
+def refs_da_expressao(expr) -> set:
+    try:
+        return analisar_expressao(expr)["refs"] if isinstance(expr, str) else set()
+    except ErroExpressao:
+        return set()
 
 
 def _regex(v, rotulo, erros):
@@ -168,6 +285,12 @@ def _bloco(b, i, ids_por_tipo, erros):
             op = b.get("opcoes")
             if not isinstance(op, list) or not op or len(op) > 100 or not all(isinstance(x, str) and 0 < len(x) <= 80 for x in op):
                 erros.append(f"{p}.opcoes: lista de 1 a 100 textos.")
+    elif t == "calculo":
+        _texto(b.get("rotulo"), 80, f"{p}.rotulo", erros, obrigatorio=False)
+        try:
+            analisar_expressao(b.get("expressao"))
+        except ErroExpressao as e:
+            erros.append(f"{p}.expressao: {e}.")
     elif t == "grade":
         cols = b.get("colunas")
         if not isinstance(cols, list) or not 1 <= len(cols) <= MAX_COLUNAS:
@@ -271,6 +394,7 @@ def validar_modal(m, idx=0) -> list:
     for i, b in enumerate(blocos):
         _bloco(b, i, ids, erros)
     # referências entre blocos
+    definidos = set()
     for i, b in enumerate(blocos):
         if not isinstance(b, dict):
             continue
@@ -285,7 +409,23 @@ def validar_modal(m, idx=0) -> list:
             d = b.get("destino")
             if d not in DESTINOS and d not in ids.get("destino", set()):
                 erros.append(f"{q} (acao_adicionar): 'destino' é 'outros', 'cabos' ou o id de um bloco 'destino'.")
-        campos = ids.get("campo", set())
+        campos = ids.get("campo", set()) | ids.get("calculo", set())
+        if b.get("tipo") == "calculo" and isinstance(b.get("expressao"), str):
+            for ref in sorted(refs_da_expressao(b["expressao"]) - definidos):
+                erros.append(f"{q} (calculo): [{ref}] precisa ser um campo ou um cálculo definido ANTES deste bloco.")
+        if b.get("tipo") in ("campo", "calculo") and isinstance(b.get("id"), str):
+            definidos.add(b["id"])
+        if b.get("tipo") == "saida_texto" and isinstance(b.get("modelo"), str):
+            grade = next((x for x in blocos if isinstance(x, dict) and x.get("tipo") == "grade" and x.get("id") == b.get("fonte")), None)
+            permitidos = campos | ({c.get("id") for c in grade.get("colunas", []) if isinstance(c, dict)} if grade else set())
+            for expr in re.findall(r"\{\{\s*=([^{}]*)\}\}", b["modelo"]):
+                try:
+                    r = analisar_expressao(expr)
+                except ErroExpressao as e:
+                    erros.append(f"{q} (saida_texto): {{{{= {expr.strip()} }}}}: {e}.")
+                    continue
+                for ref in sorted(r["refs"] - permitidos):
+                    erros.append(f"{q} (saida_texto): [{ref}] não é um campo, cálculo ou coluna da grade.")
         for ref in sorted(campos_da_condicao(b.get("visivel_se")) - campos):
             erros.append(f"{q}: 'visivel_se.campo' precisa ser o id de um campo deste modal (recebido: {ref}).")
         if b.get("tipo") == "interpretar":

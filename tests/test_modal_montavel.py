@@ -146,7 +146,7 @@ def test_validador_recusa_o_perigoso_e_o_quebrado():
 def test_expressao_segura():
     for ok in [3, 2.5, "{1}*20", "(1+{2})/2", "-4"]:
         assert mm.expressao_segura(ok), ok
-    for ruim in [True, "", "1+", "2**3", "abs(1)", "a+1", "1;2", None, "x" * 200]:
+    for ruim in [True, "", "1+", "2**3", "exec(1)", "a+1", "1;2", None, "x" * 200]:
         assert not mm.expressao_segura(ruim), ruim
 
 
@@ -214,7 +214,7 @@ def test_visivel_usa_a_mesma_linguagem():
 def test_campo_na_quantidade_e_no_ativo():
     assert js("M.avaliarExpressao('{1}*[fator]', ['x','3'], {fator:'2,5'})") == 7.5
     assert js("M.avaliarExpressao('[fator]+1', [], {fator:'abc'})") == 1        # não numérico = 0
-    assert js("M.avaliarExpressao('[nao_existe]*2', [], {})") is None
+    assert js("M.avaliarExpressao('[nao_existe]*2', [], {})") == 0              # campo desconhecido = vazio = 0 (o servidor recusa o id)
     b = {"regras": [{"quando": {"regex": "(\\d+)"}, "gera": [{"ativo": "P{1}-[regiao]", "qtd": "[fator]"}]}]}
     r = js("M.interpretar(e.b, e.l, e.v)", b=b, l=[{"t": "poste 12"}], v={"regiao": "SUL", "fator": "3"})
     assert r == [{"ativo": "P12-SUL", "qtd": 3, "operacao": "I"}]
@@ -319,3 +319,70 @@ def test_validador_e4():
     assert any("global" in e for e in mm.validar(_com(r)))
     r = copy.deepcopy(m); r["blocos"][1]["colagem"]["separador"] = "x" * 11
     assert any("separador" in e for e in mm.validar(_com(r)))
+
+
+# ── E5: expressões estilo planilha e blocos de cálculo ──
+@node
+def test_funcoes_de_planilha():
+    f = lambda expr, v=None, caps=None: js("M.avaliar(e.x, e.v, e.c)", x=expr, v=v or {}, c=caps or [])
+    assert f("SE([a]>5;10;2)", {"a": "7"}) == 10 and f("SE([a]>5;10;2)", {"a": "3"}) == 2
+    assert f("ARRED(10/3;2)") == 3.33 and f("ARRED(2.5)") == 3
+    assert f("MAX(1;[a];3)", {"a": "9"}) == 9 and f("MIN(4;2;8)") == 2 and f("ABS(-3)") == 3 and f("SOMA(1;2;3)") == 6
+    assert f("E([a]>1;[a]<5)", {"a": "3"}) is True and f("OU([a]=1;[a]=2)", {"a": "3"}) is False and f("NAO([a]=1)", {"a": "2"}) is True
+    assert f('CONCAT(MAIUSCULO("ab");"-";[n])', {"n": "3"}) == "AB-3" and f('MINUSCULO("XyZ")') == "xyz"
+    assert f('[r]="sul"', {"r": " SUL "}) is True and f('[r]<>"norte"', {"r": "SUL"}) is True        # texto compara sem caixa/espaços
+    assert f("[a]=2", {"a": "2,0"}) is True                                                          # número com vírgula
+    assert f("{1}*2", caps=["x", "4"]) == 8
+    assert f("1+[vazio]") == 1 and f("-[a]", {"a": "2"}) == -2
+
+
+@node
+def test_expressoes_invalidas_viram_nulo_e_nao_executam_nada():
+    for ruim in ["2**3", "1/0", "SE(1;2)", "FOO(1)", "1;2", "alert(1)", "(1+2", "", "1 2", 'CONCAT("a"'] + ["1" + "+1" * 200]:
+        assert js("M.avaliar(e.x, {}, [])", x=ruim) is None, ruim
+    assert js("M.avaliar('SE(1;2;1/0)', {}, [])") == 2          # só o ramo escolhido é avaliado
+
+
+@node
+def test_calcular_campos_em_ordem_e_modelo_com_expressao():
+    blocos = [{"tipo": "calculo", "id": "dobro", "expressao": "[a]*2"}, {"tipo": "calculo", "id": "msg", "expressao": 'SE([dobro]>5;"alto";"baixo")'},
+              {"tipo": "calculo", "id": "ruim", "expressao": "1/0"}]
+    v = js("M.calcularCampos(e.b, e.v)", b=blocos, v={"a": "4"})
+    assert v["dobro"] == 8 and v["msg"] == "alto" and v["ruim"] == "" and v["a"] == "4"
+    assert js("M.modelo('{{codigo}}: {{= [qtd]*[dobro] }} {{= CONCAT(\"#\";[codigo]) }}', {linha:{codigo:'MAC',qtd:'3'}, valores:{dobro:8}})") == "MAC: 24 #MAC"
+    assert js("M.modelo('x{{= 1/0 }}y', {})") == "xy"
+
+
+@node
+def test_expressao_como_quantidade_na_interpretacao():
+    b = {"regras": [{"quando": {"regex": "RS (\\d+)"}, "gera": [{"ativo": "MAC", "qtd": 'SE([zona]="A";{1}*20;{1}*10)'}]}]}
+    assert js("M.interpretar(e.b, e.l, e.v)", b=b, l=[{"t": "RS 2"}], v={"zona": "A"})[0]["qtd"] == 40
+    assert js("M.interpretar(e.b, e.l, e.v)", b=b, l=[{"t": "RS 2"}], v={"zona": "B"})[0]["qtd"] == 20
+
+
+def test_validador_calculo_e_expressoes():
+    import copy
+    m = copy.deepcopy(TITULOS)
+    m["blocos"].insert(1, {"tipo": "calculo", "id": "total", "rotulo": "Total", "expressao": 'SE([regiao]="SUL";10;5)'})
+    m["blocos"][3]["visivel_se"] = {"campo": "total", "op": "maior", "valor": 6}                     # condição pode usar cálculo
+    assert mm.validar(_com(m)) == []
+    r = copy.deepcopy(m); r["blocos"][1]["expressao"] = "[inexistente]*2"
+    assert any("ANTES" in e for e in mm.validar(_com(r)))
+    r = copy.deepcopy(m); r["blocos"][1]["expressao"] = "SE(1;2)"
+    assert any("expressao" in e and "argumento" in e for e in mm.validar(_com(r)))
+    r = copy.deepcopy(m); r["blocos"][1]["expressao"] = "[total]+1"
+    assert any("ANTES" in e for e in mm.validar(_com(r)))                                           # não pode citar a si mesmo
+    r = copy.deepcopy(m); r["blocos"][-1]["modelo"] = "{{= [qtd]*[total] }} {{= [fantasma] }}"
+    erros = mm.validar(_com(r))
+    assert any("fantasma" in e for e in erros) and not any("'qtd'" in e or "[qtd]" in e for e in erros)
+    r = copy.deepcopy(m); r["blocos"][-1]["modelo"] = "{{= 1/ }}"
+    assert any("saida_texto" in e for e in mm.validar(_com(r)))
+    r = copy.deepcopy(m); r["blocos"][2]["visivel_se"] = {"campo": "fantasma", "op": "vazio"}
+    assert any("fantasma" in e for e in mm.validar(_com(r)))
+
+
+def test_analisar_expressao_refs_e_limites():
+    assert mm.analisar_expressao("[a]+SE([b]>{1};[c];2)") == {"refs": {"a", "b", "c"}, "caps": {1}}
+    for ruim in ["", "x" * 301, "(" * 25 + "1" + ")" * 25]:
+        with pytest.raises(mm.ErroExpressao):
+            mm.analisar_expressao(ruim)
