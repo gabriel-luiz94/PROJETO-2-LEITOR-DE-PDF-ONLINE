@@ -386,3 +386,52 @@ def test_analisar_expressao_refs_e_limites():
     for ruim in ["", "x" * 301, "(" * 25 + "1" + ")" * 25]:
         with pytest.raises(mm.ErroExpressao):
             mm.analisar_expressao(ruim)
+
+
+# ── E6: histórico de versões ──
+def _put(client, dados, role="admin", projeto="229"):
+    return client.put("/api/modais-montaveis", json={"projeto_codigo": projeto, "dados": dados}, headers=hdr(role))
+
+
+def _v(*modais):
+    return {"versao": 1, "modais": list(modais)}
+
+
+def test_historico_guarda_a_versao_anterior_e_restaura(client):
+    import copy
+    assert _put(client, _v(RAMAIS)).status_code == 200
+    assert client.get("/api/modais-montaveis/historico?projeto_codigo=229", headers=hdr("admin")).json() == {"versoes": []}     # 1ª gravação: nada antes
+    assert _put(client, _v(RAMAIS, TITULOS)).status_code == 200
+    h = client.get("/api/modais-montaveis/historico?projeto_codigo=229", headers=hdr("admin")).json()["versoes"]
+    assert len(h) == 1 and h[0]["nomes"] == ["Ramais colados"] and h[0]["por"] == "u@x.com" and h[0]["em"]
+    r = client.post("/api/modais-montaveis/reverter", json={"projeto_codigo": "229", "indice": 0}, headers=hdr("admin"))
+    assert r.status_code == 200 and [m["id"] for m in r.json()["dados"]["modais"]] == ["ramais"]
+    atual = client.get("/api/modais-montaveis?projeto_codigo=229", headers=hdr("operador")).json()["dados"]
+    assert [m["id"] for m in atual["modais"]] == ["ramais"]
+    h2 = client.get("/api/modais-montaveis/historico?projeto_codigo=229", headers=hdr("admin")).json()["versoes"]
+    assert len(h2) == 2 and h2[0]["nomes"] == ["Ramais colados", "Títulos de contrato"]           # a versão que estava valendo foi guardada
+
+
+def test_historico_limita_a_20_e_isola_por_projeto(client):
+    import copy
+    for i in range(23):
+        m = copy.deepcopy(RAMAIS); m["nome"] = f"V{i}"
+        assert _put(client, _v(m)).status_code == 200
+    h = client.get("/api/modais-montaveis/historico?projeto_codigo=229", headers=hdr("admin")).json()["versoes"]
+    assert len(h) == 20 and h[0]["nomes"] == ["V21"] and h[-1]["nomes"] == ["V2"]
+    assert client.get("/api/modais-montaveis/historico?projeto_codigo=027", headers=hdr("admin")).json() == {"versoes": []}
+
+
+def test_reverter_e_historico_so_admin_e_indice_invalido(client):
+    _put(client, _v(RAMAIS)); _put(client, _v(TITULOS))
+    assert client.get("/api/modais-montaveis/historico?projeto_codigo=229", headers=hdr("operador")).status_code == 403
+    assert client.post("/api/modais-montaveis/reverter", json={"projeto_codigo": "229", "indice": 0}, headers=hdr("operador")).status_code == 403
+    assert client.post("/api/modais-montaveis/reverter", json={"projeto_codigo": "229", "indice": 5}, headers=hdr("admin")).status_code == 404
+    assert client.post("/api/modais-montaveis/reverter", json={"projeto_codigo": "229", "indice": -1}, headers=hdr("admin")).status_code == 404
+
+
+def test_gravacao_recusada_nao_mexe_no_historico(client):
+    _put(client, _v(RAMAIS))
+    assert _put(client, {"versao": 1, "modais": [{"id": "x"}]}).status_code == 400
+    assert client.get("/api/modais-montaveis/historico?projeto_codigo=229", headers=hdr("admin")).json() == {"versoes": []}
+    assert [m["id"] for m in client.get("/api/modais-montaveis?projeto_codigo=229", headers=hdr("admin")).json()["dados"]["modais"]] == ["ramais"]

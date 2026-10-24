@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-24 — TASK-077 (etapa 6): histórico e importar/exportar dos modais montáveis
+
+**Tipo:** Backend + Frontend · `routers/modais_montaveis.py`, `static/modal_montavel_arquivo.js` (novo), `static/modal_montavel_ui.js`, `app.py`, `static/resumo.html`
+
+O gerenciador (＋) ganhou **Exportar JSON**, **Importar JSON** (resumo de novos/atualizados/removidos e escolha entre Acrescentar e Substituir tudo antes de gravar) e **Histórico** (últimas 20 versões com data e autor; restaurar guarda a versão atual). Só admin. Sem SQL novo (usa `atalhos_modais`).
+
+---
+
 ## 2026-10-24 — TASK-077 (etapa 5): expressões estilo planilha nos modais montáveis
 
 **Tipo:** Backend + Frontend · `routers/modais_montaveis.py`, `static/modal_montavel_engine.js`, `modal_montavel_editor.js`, `modal_montavel_ui.js`

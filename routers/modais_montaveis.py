@@ -9,11 +9,11 @@ Formato: {"versao": 1, "modais": [{"id", "nome", "tipo", "blocos": [...]}]}
 Blocos: texto, campo, grade, interpretar, tabela_interna, saida_texto, destino, acao_adicionar (ver validar_modal).
 Nada aqui executa código: regex são compiladas só para validar, expressões passam por uma lista branca aritmética.
 """
-import ast
 import json
 import re
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from config import logger
@@ -461,18 +461,22 @@ def _vazio():
     return {"versao": 1, "modais": []}
 
 
-def _ler(projeto: str) -> dict:
+CHAVE_HIST = "montaveis_hist"
+MAX_HISTORICO = 20
+
+
+def _ler_chave(projeto: str, chave: str, vazio):
     supabase = get_supabase()
     if supabase:
         try:
-            res = supabase.table("atalhos_modais").select("dados_json").eq("projeto_codigo", projeto).eq("modal", CHAVE).execute()
+            res = supabase.table("atalhos_modais").select("dados_json").eq("projeto_codigo", projeto).eq("modal", chave).execute()
             if res.data:
                 return json.loads(res.data[0]["dados_json"])
         except Exception as e:
-            logger.warning(f"Falha ao buscar modais montáveis no Supabase: {e}")
+            logger.warning(f"Falha ao buscar {chave} no Supabase: {e}")
     conn = get_connection()
     try:
-        row = conn.execute("SELECT dados_json FROM atalhos_modais WHERE projeto_codigo = ? AND modal = ?", (projeto, CHAVE)).fetchone()
+        row = conn.execute("SELECT dados_json FROM atalhos_modais WHERE projeto_codigo = ? AND modal = ?", (projeto, chave)).fetchone()
     finally:
         conn.close()
     if row:
@@ -480,7 +484,48 @@ def _ler(projeto: str) -> dict:
             return json.loads(row[0])
         except Exception:
             pass
-    return _vazio()
+    return vazio
+
+
+def _ler(projeto: str) -> dict:
+    return _ler_chave(projeto, CHAVE, _vazio())
+
+
+def _escrever_chave(projeto: str, chave: str, valor: str, obrigatorio_nuvem: bool):
+    conn = get_connection()
+    try:
+        conn.execute("INSERT OR REPLACE INTO atalhos_modais (projeto_codigo, modal, dados_json) VALUES (?, ?, ?)", (projeto, chave, valor))
+        conn.commit()
+    finally:
+        conn.close()
+    supabase = get_supabase()
+    if supabase:
+        try:
+            supabase.table("atalhos_modais").upsert({"projeto_codigo": projeto, "modal": chave, "dados_json": valor}, on_conflict="projeto_codigo,modal").execute()
+        except Exception as e:
+            logger.warning(f"Erro ao salvar {chave} no Supabase: {e}")
+            if obrigatorio_nuvem:
+                raise HTTPException(status_code=500, detail=f"Modais salvos localmente, mas falharam ao sincronizar com a nuvem (Supabase): {e}")
+
+
+def _gravar_interno(projeto: str, dados: dict, email: str | None):
+    """Guarda a versão ATUAL no histórico (até 20) e grava a nova. O histórico é best-effort na nuvem."""
+    atual = _ler(projeto)
+    if atual.get("modais"):
+        hist = _ler_chave(projeto, CHAVE_HIST, {"versoes": []})
+        versoes = [{"em": datetime.now(timezone.utc).isoformat(timespec="seconds"), "por": email or "", "dados": atual}] + list(hist.get("versoes", []))
+        _escrever_chave(projeto, CHAVE_HIST, json.dumps({"versoes": versoes[:MAX_HISTORICO]}, ensure_ascii=False), obrigatorio_nuvem=False)
+    _escrever_chave(projeto, CHAVE, json.dumps(dados, ensure_ascii=False), obrigatorio_nuvem=True)
+
+
+def _email(request: Request):
+    u = getattr(request.state, "user", None) or {}
+    return u.get("email") or u.get("user_id")
+
+
+class ReverterPayload(BaseModel):
+    projeto_codigo: str
+    indice: int
 
 
 @router.get("")
@@ -494,24 +539,29 @@ def validar_rota(payload: ModaisPayload):
 
 
 @router.put("", dependencies=[Depends(require_role("admin"))])
-def gravar(payload: ModaisPayload):
+def gravar(payload: ModaisPayload, request: Request):
     erros = validar(payload.dados)
     if erros:
         raise HTTPException(status_code=400, detail={"erros": erros[:30]})
-    valor = json.dumps(payload.dados, ensure_ascii=False)
-    conn = get_connection()
-    try:
-        conn.execute("INSERT OR REPLACE INTO atalhos_modais (projeto_codigo, modal, dados_json) VALUES (?, ?, ?)",
-                     (payload.projeto_codigo, CHAVE, valor))
-        conn.commit()
-    finally:
-        conn.close()
-    supabase = get_supabase()
-    if supabase:
-        try:
-            supabase.table("atalhos_modais").upsert({"projeto_codigo": payload.projeto_codigo, "modal": CHAVE, "dados_json": valor},
-                                                    on_conflict="projeto_codigo,modal").execute()
-        except Exception as e:
-            logger.warning(f"Erro ao salvar modais montáveis no Supabase: {e}")
-            raise HTTPException(status_code=500, detail=f"Modais salvos localmente, mas falharam ao sincronizar com a nuvem (Supabase): {e}")
+    _gravar_interno(payload.projeto_codigo, payload.dados, _email(request))
     return {"status": "success", "dados": payload.dados}
+
+
+@router.get("/historico", dependencies=[Depends(require_role("admin"))])
+def historico(projeto_codigo: str = "DEFAULT"):
+    versoes = _ler_chave(projeto_codigo, CHAVE_HIST, {"versoes": []}).get("versoes", [])
+    return {"versoes": [{"indice": i, "em": v.get("em"), "por": v.get("por"),
+                         "nomes": [m.get("nome") for m in (v.get("dados") or {}).get("modais", []) if isinstance(m, dict)]} for i, v in enumerate(versoes)]}
+
+
+@router.post("/reverter", dependencies=[Depends(require_role("admin"))])
+def reverter(payload: ReverterPayload, request: Request):
+    versoes = _ler_chave(payload.projeto_codigo, CHAVE_HIST, {"versoes": []}).get("versoes", [])
+    if not 0 <= payload.indice < len(versoes):
+        raise HTTPException(status_code=404, detail="Versão do histórico não encontrada.")
+    dados = versoes[payload.indice].get("dados") or _vazio()
+    erros = validar(dados)
+    if erros:
+        raise HTTPException(status_code=400, detail={"erros": erros[:30]})
+    _gravar_interno(payload.projeto_codigo, dados, _email(request))
+    return {"status": "success", "dados": dados}

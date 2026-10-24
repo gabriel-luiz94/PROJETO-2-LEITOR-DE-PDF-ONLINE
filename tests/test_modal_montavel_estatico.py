@@ -15,7 +15,8 @@ def test_scripts_antes_do_resumo_e_container_na_barra():
     i_motor = HTML.index("/static/modal_montavel_engine.js")
     i_ui = HTML.index("/static/modal_montavel_ui.js")
     i_ed = HTML.index("/static/modal_montavel_editor.js")
-    assert HTML.index("/static/grade_tabela.js") < i_motor < i_ed < i_ui < HTML.index("/static/resumo.js")
+    i_ar = HTML.index("/static/modal_montavel_arquivo.js")
+    assert HTML.index("/static/grade_tabela.js") < i_motor < i_ed < i_ar < i_ui < HTML.index("/static/resumo.js")
     assert 'id="barra-modais-montaveis"' in HTML
     assert HTML.index("abrirModalVinculacao()") < HTML.index('id="barra-modais-montaveis"')
 
@@ -36,7 +37,7 @@ def test_ui_so_admin_ve_o_mais_e_nao_usa_eval():
     assert "innerHTML = '" not in UI.replace("innerHTML = ''", "")   # nunca injeta HTML vindo da definição
 
 
-@pytest.mark.parametrize("arq", ["modal_montavel_engine.js", "modal_montavel_editor.js", "modal_montavel_ui.js"])
+@pytest.mark.parametrize("arq", ["modal_montavel_engine.js", "modal_montavel_editor.js", "modal_montavel_arquivo.js", "modal_montavel_ui.js"])
 def test_js_servido_sem_cache(arq):
     import app as appmod
     r = TestClient(appmod.app).get("/static/" + arq)
