@@ -4779,6 +4779,41 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
 
+    /* ═══════════════════════════════════════
+       MODAIS MONTÁVEIS (TASK-077) — o motor/tela estão em modal_montavel_*.js; aqui só a escrita nas tabelas.
+       Itens = [{ativo, qtd, operacao}]. Outros: uma linha "qtd-ativo" por item (mesmo formato de Ramais/Conexões).
+       Cabos: o ativo repetido `qtd` vezes (mesmo formato do gerador de Cabos).
+    ═══════════════════════════════════════ */
+    window.ModalMontavelHost = {
+        adicionar(destino, itens, nomeModal) {
+            if (!itens || !itens.length) return;
+            pushHistory();
+            const origem = 'MODAL: ' + nomeModal;
+            if (destino === 'cabos') {
+                const antes = tableStates.cabos.data.length;
+                itens.forEach(it => {
+                    for (let i = 0; i < Math.max(1, Math.round(it.qtd)); i++) {
+                        tableStates.cabos.data.push({ entidade: 'CABO', operacao: it.operacao || 'I', ativo: it.ativo, texto: origem });
+                    }
+                });
+                for (let i = antes; i < tableStates.cabos.data.length; i++) recalcRowAndAbove(i);
+                renderTable('cabos');
+            } else {
+                itens.forEach(it => {
+                    tableStates.outros.data.push({ entidade: '0', operacao: it.operacao || 'I', ativo: it.qtd + '-' + it.ativo, texto: origem });
+                });
+                if (typeof recalcAllQtdAtivos === 'function') recalcAllQtdAtivos();
+                renderTable('outros');
+            }
+            buildAtivoSets();
+            buildDataLists();
+            if (typeof updateCounters === 'function') updateCounters();
+            if (typeof updateHistoryUI === 'function') updateHistoryUI();
+            showToast(itens.length + ' item(ns) adicionados em ' + (destino === 'cabos' ? 'Cabos' : 'Outros') + '.');
+        }
+    };
+    if (window.ModalMontavelUI) window.ModalMontavelUI.iniciar({ barra: document.getElementById('barra-modais-montaveis'), host: window.ModalMontavelHost });
+
     // Mostrar badge na aba RAMAIS caso existam itens
     if (window._ramaisData && window._ramaisData.length > 0) {
         const badge = document.getElementById('badge-ramais');

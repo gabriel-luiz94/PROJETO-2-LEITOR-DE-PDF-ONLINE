@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-24 — TASK-077 (etapa 1): modais montáveis por projeto
+
+**Tipo:** Backend + Frontend · `routers/modais_montaveis.py`, `static/modal_montavel_engine.js`, `static/modal_montavel_ui.js`, `static/resumo.html`, `static/resumo.js`, `app.py` · `.ai/tasks/TASK-077-24-10-2026.md`
+
+A barra de modais do Resumo ganhou o botão **＋** (só admin): cria modais definidos em JSON, por projeto. Blocos: texto, campo, grade (cola várias linhas do Excel), planilha interna, interpretação por regras (regex → ativo + quantidade, expressões aritméticas seguras, sem eval), destino (Outros/Cabos) com "Adicionar ativos", saída de texto com modelo `{{campo}}`/`{{buscar(...)}}` e Copiar, e condição `visivel_se`. Dois exemplos prontos (Ramais colados, Títulos de contrato). Guardado na tabela já existente `atalhos_modais` (sem SQL novo). Os modais atuais (Cabos, Postes, Conexões, Ramais, Vincular) não mudaram.
+
+---
+
 ## 2026-10-20 — TASK-076: 401 leva ao login
 
 **Tipo:** Frontend · `static/auth_fetch.js` · `.ai/tasks/TASK-076-20-10-2026.md`

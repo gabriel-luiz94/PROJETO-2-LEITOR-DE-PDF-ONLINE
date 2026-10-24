@@ -35,7 +35,7 @@ from middleware.nocache_middleware import NoCacheHtmlMiddleware
 from websocket_manager import manager
 
 # Routers
-from routers import manual, obras, regras, regras_leitor, regras_vinculacao, atalhos, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes, autonomo, aprendizado
+from routers import manual, obras, regras, regras_leitor, regras_vinculacao, atalhos, modais_montaveis, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes, autonomo, aprendizado
 
 
 app = FastAPI(
@@ -145,6 +145,14 @@ async def serve_atalhos_modal_js():
 @app.get("/static/gerador_modal.js")
 async def serve_gerador_modal_js():
     return _serve_js("gerador_modal.js")
+
+@app.get("/static/modal_montavel_engine.js")
+async def serve_modal_montavel_engine_js():
+    return _serve_js("modal_montavel_engine.js")
+
+@app.get("/static/modal_montavel_ui.js")
+async def serve_modal_montavel_ui_js():
+    return _serve_js("modal_montavel_ui.js")
 
 @app.get("/static/orcamento_sap.js")
 async def serve_orcamento_sap_js():
@@ -268,6 +276,7 @@ app.include_router(regras.router)
 app.include_router(regras_leitor.router)
 app.include_router(regras_vinculacao.router)
 app.include_router(atalhos.router)
+app.include_router(modais_montaveis.router)
 app.include_router(recs.router)
 app.include_router(projetos.router)
 app.include_router(orcamento.router)
