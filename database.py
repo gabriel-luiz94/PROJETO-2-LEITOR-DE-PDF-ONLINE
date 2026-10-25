@@ -17,6 +17,7 @@ from config import (
     VALIDACOES_SEED_DIR, REGRAS_DOMINIO_SEED_PATH, AJUSTES_SEED_PATH,
 )
 from services.prompts_validacao import ler_sementes
+from services.orcamento_lv import lv_tolerante
 
 
 def get_connection() -> sqlite3.Connection:
@@ -417,6 +418,7 @@ def init_db():
             fator_r REAL,
             filtro TEXT,
             origem TEXT,
+            lv TEXT DEFAULT 'A',
             updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
@@ -436,6 +438,10 @@ def init_db():
         cursor.execute("ALTER TABLE tabela_orcamento ADD COLUMN origem TEXT")
     except sqlite3.OperationalError:
         pass
+    try:
+        cursor.execute("ALTER TABLE tabela_orcamento ADD COLUMN lv TEXT DEFAULT 'A'")   # TASK-078: LV / LM / A
+    except sqlite3.OperationalError:
+        pass
 
     # Tabela Orçamento Mestre (Admin)
     cursor.execute('''
@@ -452,6 +458,7 @@ def init_db():
             fator_r REAL,
             filtro TEXT,
             origem TEXT,
+            lv TEXT DEFAULT 'A',
             updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
@@ -463,6 +470,13 @@ def init_db():
         cursor.execute("ALTER TABLE tabela_orcamento_master ADD COLUMN origem TEXT")
     except sqlite3.OperationalError:
         pass
+    try:
+        cursor.execute("ALTER TABLE tabela_orcamento_master ADD COLUMN lv TEXT DEFAULT 'A'")   # TASK-078
+    except sqlite3.OperationalError:
+        pass
+    # TASK-078: bancos antigos (e linhas sem valor) ficam todos com 'A' = vale para linha viva e morta (nada muda no cálculo).
+    for tabela_lv in ("tabela_orcamento", "tabela_orcamento_master"):
+        cursor.execute(f"UPDATE {tabela_lv} SET lv = 'A' WHERE lv IS NULL OR TRIM(lv) = ''")
 
     # Tabela de Sessão Local (Login offline)
     cursor.execute('''
@@ -620,8 +634,8 @@ def init_db():
                     except ValueError:
                         fator_r = 0.0
                     cursor.execute('''
-                        INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, lv)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         ativo,
                         row_upper.get("DESC ATIVO", ""),
@@ -632,7 +646,8 @@ def init_db():
                         row_upper.get("DESC CODIGO", ""),
                         fator_i,
                         fator_r,
-                        row_upper.get("FILTRO", "")
+                        row_upper.get("FILTRO", ""),
+                        lv_tolerante(row_upper.get("LV"))
                     ))
             conn.commit()
             cursor.execute("SELECT COUNT(*) FROM tabela_orcamento")

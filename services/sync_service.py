@@ -1,6 +1,7 @@
 """
 services/sync_service.py — Lógica de Sincronização Offline-First (Supabase <-> SQLite)
 """
+from services.orcamento_lv import lv_tolerante
 from services.supabase_client import get_supabase
 from services.offline_queue import process_queue
 from database import get_connection, get_row_connection
@@ -41,8 +42,8 @@ def sync_tabela_master():
         for row in master_rows:
             cursor.execute('''
                 INSERT INTO tabela_orcamento_master 
-                (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 row.get("ativo", ""),
                 row.get("desc_ativo", ""),
@@ -54,7 +55,8 @@ def sync_tabela_master():
                 row.get("fator_i", 0.0),
                 row.get("fator_r", 0.0),
                 row.get("filtro", ""),
-                row.get("origem", "")
+                row.get("origem", ""),
+                lv_tolerante(row.get("lv"))      # nuvem antiga (sem a coluna) → "A"
             ))
             
         cursor.execute("COMMIT")
@@ -163,12 +165,13 @@ def migrar_projetos_compartilhados() -> dict:
             for nova in divididas[1:]:
                 cursor.execute('''
                     INSERT INTO tabela_orcamento_master
-                    (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     nova.get("ativo"), nova.get("desc_ativo"), nova.get("componente"), nova.get("projeto"),
                     nova.get("mdo"), nova.get("codigo"), nova.get("desc_codigo"),
                     nova.get("fator_i"), nova.get("fator_r"), nova.get("filtro"), nova.get("origem"),
+                    lv_tolerante(nova.get("lv")),
                 ))
                 resultado["linhas_criadas_local"] += 1
             resultado["linhas_divididas_local"] += 1

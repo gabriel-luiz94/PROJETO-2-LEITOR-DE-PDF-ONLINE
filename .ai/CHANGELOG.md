@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-25 — TASK-078: linha viva x linha morta (coluna LV da base de orçamento)
+
+**Tipo:** Backend + Frontend + banco · `services/orcamento_lv.py` (novo), `services/orcamento_calc.py`, `database.py`, `routers/admin.py`, `routers/orcamento.py`, `services/sync_service.py`, `services/realtime_sync.py`, `static/orcamento.html`, `data/tabela_seed.csv`, `scripts/schema_supabase.sql`
+
+A base de orçamento ganhou a coluna **LV**: `LV` (só operações em linha viva, as que começam com `*`: `*I`, `*R`, `*M`), `LM` (só sem `*`) ou `A` (ambas). O cálculo só usa as linhas compatíveis com a operação de cada item (em todos os passos da busca e na expansão do componente); item que só existe com o outro tipo aparece em "não encontrados" com a dica. Todas as linhas existentes ficam `A` (o resultado de hoje não muda). CSV sem a coluna = `A`; valor inválido é recusado sem alterar a base. **Rodar `scripts/schema_supabase.sql` no Supabase.**
+
+---
+
 ## 2026-10-24 — TASK-077 (etapa 6): histórico e importar/exportar dos modais montáveis
 
 **Tipo:** Backend + Frontend · `routers/modais_montaveis.py`, `static/modal_montavel_arquivo.js` (novo), `static/modal_montavel_ui.js`, `app.py`, `static/resumo.html`

@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse, Response
 from database import get_connection, get_row_connection
 from models import SalvarOrcamentoRequest, OrcamentoRequest, DetalhesRequest
 from services.orcamento_calc import processar_calculo
+from services.orcamento_lv import normalizar_lv
 from services.exportar_xlsx import ErroExportacao, gerar_xlsx
 from services.sync_service import (
     get_merged_orcamento, sync_tabela_master, filtrar_linhas_por_categoria,
@@ -36,13 +37,9 @@ async def upload_orcamento(request: Request, file: UploadFile = File(...)):
         if not reader.fieldnames or len(reader.fieldnames) < 2:
             reader = csv.DictReader(io.StringIO(text), delimiter=",")
 
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # Limpar tabela atual
-        cursor.execute("DELETE FROM tabela_orcamento")
-
-        for row in reader:
+        # Lê e valida TUDO antes de apagar a tabela atual (TASK-078: LV inválido recusa o arquivo sem tocar na base)
+        linhas = []
+        for n, row in enumerate(reader, start=2):
             # Map by ignoring case
             row_upper = {k.strip().upper(): v for k, v in row.items() if k}
             ativo = row_upper.get("ATIVO", "")
@@ -60,21 +57,25 @@ async def upload_orcamento(request: Request, file: UploadFile = File(...)):
             except ValueError:
                 fator_r = 0.0
 
+            try:
+                lv = normalizar_lv(row_upper.get("LV"))
+            except ValueError as e:
+                return JSONResponse(status_code=400, content={"error": f"Linha {n} do arquivo: {e} Nada foi alterado."})
+
+            linhas.append((ativo, row_upper.get("DESC ATIVO", ""), row_upper.get("COMPONENTE", ""), row_upper.get("PROJETO", ""),
+                           row_upper.get("MDO", ""), row_upper.get("CODIGO", ""), row_upper.get("DESC CODIGO", ""),
+                           fator_i, fator_r, row_upper.get("FILTRO", ""), lv))
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Limpar tabela atual
+        cursor.execute("DELETE FROM tabela_orcamento")
+        for t in linhas:
             cursor.execute('''
-                INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                ativo,
-                row_upper.get("DESC ATIVO", ""),
-                row_upper.get("COMPONENTE", ""),
-                row_upper.get("PROJETO", ""),
-                row_upper.get("MDO", ""),
-                row_upper.get("CODIGO", ""),
-                row_upper.get("DESC CODIGO", ""),
-                fator_i,
-                fator_r,
-                row_upper.get("FILTRO", "")
-            ))
+                INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, lv)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', t)
 
         conn.commit()
         conn.close()
@@ -131,6 +132,13 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
+    # TASK-078: LV inválido recusa o salvamento inteiro (fora do `try` genérico, como a validação de projeto acima)
+    for i, row in enumerate(dados, start=1):
+        try:
+            row["lv"] = normalizar_lv(row.get("lv"))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Linha {i}: {e}")
+
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -165,8 +173,8 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
                 fator_r = 0.0
 
             cursor.execute('''
-                INSERT INTO tabela_orcamento (user_id, ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO tabela_orcamento (user_id, ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, lv)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 user_id,
                 ativo,
@@ -178,7 +186,8 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
                 row.get("desc_codigo", "").strip(),
                 fator_i,
                 fator_r,
-                row.get("filtro", "").strip()
+                row.get("filtro", "").strip(),
+                row["lv"]
             ))
 
         conn.commit()

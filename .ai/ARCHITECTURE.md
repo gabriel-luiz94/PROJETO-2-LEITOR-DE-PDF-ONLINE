@@ -417,6 +417,12 @@ Não achando por `ATIVO`, tenta `COMPONENTE` exato → `DESC_ATIVO` exato → `D
 `CÓDIGO` direto (fatores forçados a `1.0`). Falhando tudo, o ativo entra em `nao_encontrados`
 e a linha fica destacada em vermelho na Totalizadora.
 
+**Filtros por linha (TASK-078):** em TODOS os passos acima, na expansão do componente e no código direto, uma linha da base só
+conta se passar em (a) `origem` (CABOS/OUTROS) e (b) `lv` (`services/orcamento_lv.py`): `A` vale para qualquer operação; `LV` só para
+operações com `*` (`*I`, `*R`, `*M` = linha viva); `LM` só para operações sem `*`. Ativo que só existe com o outro tipo vai para
+`nao_encontrados` como `"ATIVO (só existe para linha morta|viva)"`. Base sem a coluna ou com `lv` vazio = `A` (resultado idêntico ao anterior,
+provado por `tests/referencia_orcamento_calc_antes_lv.py`).
+
 ### 8.8 Soma por código — RN-09
 ```
 ENTRADA   3 itens resolvidos para o código 1015 (MAO-DE-OBRA):
