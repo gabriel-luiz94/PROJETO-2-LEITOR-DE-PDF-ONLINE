@@ -4,6 +4,9 @@ services/orcamento_calc.py — Lógica de cálculo do orçamento.
 import re
 
 
+from services.orcamento_lv import operacao_viva, passa_lv
+
+
 def extrair_ativo_cabo(item: dict):
     """Interpreta uma linha de CABOS ("ATIVO FASE COMPRIMENTO"). Devolve o dict de ativo ou None.
 
@@ -187,56 +190,62 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
         if desc:
             desc_ativo_index.setdefault(desc, []).append(row)
 
+    def _buscar(nome_ativo, aceita):
+        """Cascata de busca (ativo → componente → desc exata → desc parcial → código). Retorna ("linhas", [rows]) | ("codigo", row) | None."""
+        linhas = [r for r in orcamento_dict.get(nome_ativo, []) if aceita(r)]
+        if not linhas and nome_ativo in componente_dict:                      # Passo 2: COMPONENTE exato
+            linhas = [r for r in componente_dict[nome_ativo] if aceita(r)]
+        if not linhas and nome_ativo in desc_ativo_index:                     # Passo 3: DESC_ATIVO exato
+            linhas = [r for r in desc_ativo_index[nome_ativo] if aceita(r)]
+        if not linhas:                                                        # Passo 4: busca parcial em DESC_ATIVO
+            matches = [rows for desc, rows in desc_ativo_index.items() if nome_ativo in desc]
+            if matches:
+                linhas = [r for r in matches[0] if aceita(r)]
+        if linhas:
+            return ("linhas", linhas)
+        if nome_ativo in codigo_lookup and aceita(codigo_lookup[nome_ativo]):  # Passo 5: CÓDIGO direto
+            return ("codigo", codigo_lookup[nome_ativo])
+        return None
+
     for av in ativos_qtd:
         nome_ativo = av["ativo"]
         origem_req = av.get("origem", "").upper()
+        operacao_req = av["operacao"]
 
         def _matches_origem(row):
             row_origem = (row.get("origem") or "").strip().upper()
             return not row_origem or row_origem == origem_req
 
-        linhas_ativo = [r for r in orcamento_dict.get(nome_ativo, []) if _matches_origem(r)]
+        def _aceita(row):                       # origem + linha viva/morta (TASK-078)
+            return _matches_origem(row) and passa_lv(row.get("lv"), operacao_req)
 
-        if not linhas_ativo:
-            # ── Passo 2: busca por COMPONENTE exato ─────────────────────────
-            if nome_ativo in componente_dict:
-                linhas_ativo = [r for r in componente_dict[nome_ativo] if _matches_origem(r)]
-
-        if not linhas_ativo:
-            # ── Passo 3: busca por DESC_ATIVO exato ─────────────────────────
-            if nome_ativo in desc_ativo_index:
-                linhas_ativo = [r for r in desc_ativo_index[nome_ativo] if _matches_origem(r)]
-
-        if not linhas_ativo:
-            # ── Passo 4: busca parcial em DESC_ATIVO (nome_ativo contido na desc) ─
-            matches = [rows for desc, rows in desc_ativo_index.items() if nome_ativo in desc]
-            if matches:
-                linhas_ativo = [r for r in matches[0] if _matches_origem(r)]
-
-        if not linhas_ativo:
-            # ── Passo 5: busca como CÓDIGO direto ───────────────────────────
-            if nome_ativo in codigo_lookup and _matches_origem(codigo_lookup[nome_ativo]):
-                row_clone = dict(codigo_lookup[nome_ativo])
-                row_clone["fator_i"] = 1.0
-                row_clone["fator_r"] = 1.0
-                componentes_qtd.append({
-                    "qtd":      av["qtd"],
-                    "operacao": av["operacao"],
-                    "row":      row_clone,
-                })
+        achado = _buscar(nome_ativo, _aceita)
+        if achado is None:
+            sem_lv = _buscar(nome_ativo, _matches_origem)
+            if sem_lv is not None:
+                # existe na base, mas só com o outro tipo de linha: dica para quem corrige o orçamento
+                nao_encontrados.append(f"{nome_ativo} (só existe para linha {'morta' if operacao_viva(operacao_req) else 'viva'})")
             else:
                 nao_encontrados.append(nome_ativo)
             continue
 
+        if achado[0] == "codigo":
+            row_clone = dict(achado[1])
+            row_clone["fator_i"] = 1.0
+            row_clone["fator_r"] = 1.0
+            componentes_qtd.append({"qtd": av["qtd"], "operacao": av["operacao"], "row": row_clone})
+            continue
+
+        linhas_ativo = achado[1]
         # Pega o COMPONENTE do primeiro match do ativo
         componente = linhas_ativo[0].get("componente", "").strip().upper()
         if not componente:
             continue
 
-        # Agora busca TODOS os códigos desse componente filtrados pela origem
+        # Agora busca TODOS os códigos desse componente filtrados pela origem e pelo tipo de linha
         # Para cada código, garante que a row escolhida tem mdo preenchido (se existir)
-        linhas_componente = [r for r in componente_dict.get(componente, []) if _matches_origem(r)]
-        
+        linhas_componente = [r for r in componente_dict.get(componente, []) if _aceita(r)]
+
         # Agrupa linhas por codigo, priorizando as que têm mdo não-vazio
         melhor_row_por_codigo = {}
         for row in linhas_componente:

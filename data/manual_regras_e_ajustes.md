@@ -416,3 +416,14 @@ O botão **＋** (só administrador) cria modais próprios do **projeto selecion
 - **Adicionar ativos:** em **Outros** entra uma linha `qtd-ativo` por item; em **Cabos** o ativo se repete `qtd` vezes. Ctrl+Z desfaz.
 - **Exportar / Importar / Histórico (admin):** no ＋ há **Exportar JSON** (todos os modais do projeto), **Importar JSON** (mostra quantos são novos, quais já existem e quais seriam removidos; só grava ao escolher **Acrescentar/atualizar** ou **Substituir tudo**) e **Histórico** (as últimas 20 versões, com data e autor; **Restaurar** volta àquela versão e guarda a atual). Use o arquivo para levar modais de um projeto para outro.
 - Os modais fixos (Cabos, Postes, Conexões, Ramais, Vincular) não mudam. Nada precisa ser rodado no Supabase.
+
+## Linha viva x linha morta (coluna LV da base de orçamento)
+
+Na tela da base de orçamento há a coluna **LV** com três valores: **LV** (a linha só vale para serviços em **linha viva**), **LM** (só para **linha morta**) e **A** (vale para os dois; é o padrão e o valor de todas as linhas antigas).
+
+- **Linha viva** é a operação com `*` antes: `*I` (instalar em linha viva), `*R`, `*M`. Sem `*` é linha morta.
+- No cálculo, uma linha **LV** só entra para operações com `*`, uma **LM** só para operações sem `*`, e **A** entra nas duas. Isso vale na busca do ativo e também ao trazer todos os códigos do componente.
+- Se um ativo só existe com o outro tipo (ex.: `*I` num ativo que só tem linhas LM), ele aparece em **não encontrados** com a dica "só existe para linha morta/viva".
+- No CSV, a coluna se chama `LV`; arquivo sem ela = tudo `A`; valor diferente de LV/LM/A é recusado (a mensagem diz a linha) e nada é alterado.
+- Depois de atualizar, o administrador roda o `schema_supabase.sql` no Supabase (cria a coluna) — nada muda no orçamento até alguém marcar LV ou LM.
+

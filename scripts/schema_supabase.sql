@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS public.tabela_orcamento_master (
     fator_r NUMERIC,
     filtro TEXT,
     origem TEXT,
+    lv TEXT DEFAULT 'A',
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -100,6 +101,11 @@ ALTER TABLE public.usuarios_nuvem ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'op
 -- lógica de cálculo, então não há valor de backfill "errado" a evitar aqui
 -- (diferente do caso de `role` acima).
 ALTER TABLE public.tabela_orcamento_master ADD COLUMN IF NOT EXISTS origem TEXT;
+
+-- TASK-078: linha viva x linha morta. `lv` = 'LV' (só operações com `*`: *I, *R, *M), 'LM' (só sem `*`) ou 'A' (ambas).
+-- Linhas existentes (e sem valor) ficam 'A' = nada muda no cálculo até alguém marcar LV/LM.
+ALTER TABLE public.tabela_orcamento_master ADD COLUMN IF NOT EXISTS lv TEXT DEFAULT 'A';
+UPDATE public.tabela_orcamento_master SET lv = 'A' WHERE lv IS NULL OR btrim(lv) = '';
 
 -- Projetos criados antes desta revisão não têm a tabela `regras_conversao`. Ela guarda a tabela
 -- de regras que traduz as entradas CABOS/OUTROS para a totalizadora (botão "Salvar na Nuvem" em
