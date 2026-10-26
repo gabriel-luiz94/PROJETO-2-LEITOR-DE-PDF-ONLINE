@@ -6,7 +6,7 @@ import re
 
 from services.orcamento_lv import operacao_viva, passa_lv
 from services.ativo_parametros import (
-    analisar_celula_base, linha_vale, montar_assinaturas, nome_base, resolver_pedido,
+    analisar_celula_base, linha_vale, montar_assinaturas, nome_base, resolver_pedido, restricoes_do_grupo,
 )
 
 
@@ -134,7 +134,7 @@ def _preparar_parametros(orcamento_rows, req_proj):
         return orcamento_rows, assinaturas, {}
 
     def _chave(a):
-        return a["base"] + "#" + ",".join(f"{p['nome']}={p['valor']}" for p in sorted(a["params"], key=lambda p: p["nome"]))
+        return a["base"] + "#" + ",".join(f"{p['nome']}{p['op']}{p['valor']}" for p in sorted(a["params"], key=lambda p: p["nome"]))
 
     linhas, grupos = [], {}
     for r in orcamento_rows:
@@ -151,7 +151,7 @@ def _preparar_parametros(orcamento_rows, req_proj):
         else:
             novo["ativo"] = _chave(a)
             if r in validas:
-                grupos.setdefault(a["base"], {})[novo["ativo"]] = {p["nome"]: p["valor"] for p in a["params"]}
+                grupos.setdefault(a["base"], {})[novo["ativo"]] = restricoes_do_grupo(a)
         linhas.append(novo)
     return linhas, assinaturas, grupos
 

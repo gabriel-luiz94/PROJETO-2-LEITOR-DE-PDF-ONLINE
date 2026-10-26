@@ -265,3 +265,112 @@ def test_ligacoes_do_front():
     assert "mostrarAvisosBase(data)" in base
     res = open(os.path.join(config.STATIC_DIR, "resultado_orcamento.html"), encoding="utf-8").read()
     assert "data.avisos" in res and "alertaCalculo(" in res
+
+
+# ═══════════════ TASK-080: operadores (%, |, !=) e COMPONENTE automático ═══════════════
+CSV80 = "\n".join([CAB,
+    "N1=N1(cabo=XLPE, poste=DT);ESTRUTURA N1;;PERNAMBUCO;MATERIAL;OUTROS;c1;COMUM 1;1;0;;A",
+    ";;;PERNAMBUCO;MAO-DE-OBRA;OUTROS;SDEMU;INSTALAR;1;1;;LM",
+    ";;;PERNAMBUCO;MAO-DE-OBRA;OUTROS;SDEVU;INSTALAR LV;1;1;;LV",
+    "N1(cabo=XLPE);N1 XLPE;;PERNAMBUCO;MATERIAL;OUTROS;x1;ISOL XLPE;3;0;;A",
+    ";;;PERNAMBUCO;MATERIAL;OUTROS;x2;FIO XLPE;6;0;;A",
+    "N1(cabo=ALUM|COBRE);N1 NU;;PERNAMBUCO;MATERIAL;OUTROS;n1;PINO;3;0;;A",
+    "N1(cabo=ALUM);N1 ALUM;;PERNAMBUCO;MATERIAL;OUTROS;a1;ISOL ALUM;3;0;;A",
+    "N1(cabo=COBRE);N1 COBRE;;PERNAMBUCO;MATERIAL;OUTROS;b1;ISOL COBRE;3;0;;A",
+    "N1(poste=D%);FERR D;;PERNAMBUCO;MATERIAL;OUTROS;pd1;FERRAGEM D;1;0;;A",
+    "N1(poste=C%);FERR C;;PERNAMBUCO;MATERIAL;OUTROS;pc1;FERRAGEM C;1;0;;A",
+    "N1(cabo!=XLPE, poste=D%);NU EM D;;PERNAMBUCO;MATERIAL;OUTROS;nd1;ITEM NU EM D;1;0;;A"]) + "\n"
+
+GRUPOS80 = {
+    "N1(XLPE,DT)": {"c1", "SDEMU", "x1", "x2", "pd1"},
+    "N1(ALUM,DT)": {"c1", "SDEMU", "n1", "a1", "pd1", "nd1"},
+    "N1(ALUM,D12)": {"c1", "SDEMU", "n1", "a1", "pd1", "nd1"},
+    "N1(COBRE,CC)": {"c1", "SDEMU", "n1", "b1", "pc1"},
+    "N1(XLPE,CC)": {"c1", "SDEMU", "x1", "x2", "pc1"},
+}
+
+
+def test_operadores_com_componente_gerado_pela_importacao(client):
+    r = subir(client, CSV80)
+    assert r.status_code == 200, r.text
+    assert r.json()["componentes_gerados"] == 11 and "avisos" not in r.json()
+    con = database.get_connection()
+    try:
+        comps = dict(con.execute("SELECT codigo, componente FROM tabela_orcamento_master").fetchall())
+    finally:
+        con.close()
+    assert comps["c1"] == "N1" and comps["SDEVU"] == "N1" and comps["x2"] == "N1.CABO=XLPE" and comps["n1"] == "N1.CABO=ALUM|COBRE"
+    assert comps["nd1"] == "N1.CABO!=XLPE,POSTE=D%" and comps["pd1"] == "N1.POSTE=D%"
+    for texto, esperados in GRUPOS80.items():
+        res = client.post("/api/orcamento/calcular", json={"cabos": [], "outros": [{"entidade": "0", "operacao": "I", "ativo": "1-" + texto}], "projeto": "PERNAMBUCO"}, headers=adm())
+        assert res.status_code == 200, res.text
+        assert {x["codigo"] for x in res.json()["resultado"]} == esperados, texto
+        assert res.json()["nao_encontrados"] == []
+
+
+def test_exceto_curinga_e_valor_fora_do_cadastro(client):
+    assert subir(client, CSV80).status_code == 200
+    f = lambda t, op="I": client.post("/api/orcamento/calcular", json={"cabos": [], "outros": [{"entidade": "0", "operacao": op, "ativo": "1-" + t}], "projeto": "PERNAMBUCO"}, headers=adm()).json()
+    r = f("N1(ALUM,XX)")
+    assert r["resultado"] == [] and "POSTE=XX" in r["nao_encontrados"][0] and "D%" in r["nao_encontrados"][0]
+    assert {x["codigo"] for x in f("N1(ALUM,DT)", "*I")["resultado"]} == (GRUPOS80["N1(ALUM,DT)"] - {"SDEMU"}) | {"SDEVU"}      # linha viva troca SDEMU por SDEVU
+    assert "avisos" not in f("N1")
+
+
+def test_importar_de_novo_gera_os_mesmos_nomes_e_respeita_componente_digitado(client):
+    assert subir(client, CSV80).status_code == 200
+    con = database.get_connection()
+    antes = con.execute("SELECT codigo, componente FROM tabela_orcamento_master ORDER BY id").fetchall()
+    con.close()
+    assert subir(client, CSV80).status_code == 200
+    con = database.get_connection()
+    depois = con.execute("SELECT codigo, componente FROM tabela_orcamento_master ORDER BY id").fetchall()
+    con.close()
+    assert antes == depois
+    manual = CSV80.replace("N1(cabo=XLPE);N1 XLPE;;", "N1(cabo=XLPE);N1 XLPE;MEU.XLPE;").replace(";;;PERNAMBUCO;MATERIAL;OUTROS;x2;", ";;;PERNAMBUCO;MATERIAL;OUTROS;x2;")
+    assert subir(client, manual).status_code == 200
+    con = database.get_connection()
+    comps = dict(con.execute("SELECT codigo, componente FROM tabela_orcamento_master").fetchall())
+    con.close()
+    assert comps["x1"] == "MEU.XLPE" and comps["x2"] == "MEU.XLPE"           # explícito mantido; a linha seguinte herda
+
+
+def test_componente_automatico_em_todos_os_caminhos_de_gravacao(client):
+    linhas = [{"ativo": "N1=N1(cabo=XLPE)", "codigo": "c1", "projeto": "", "lv": "A"}, {"ativo": "", "codigo": "c2", "projeto": "", "lv": "A"},
+              {"ativo": "N1(cabo=XLPE)", "codigo": "x1", "projeto": "", "lv": "A"}]
+    r = client.post("/api/admin/sync-master-all", json={"dados": linhas}, headers=adm())
+    assert r.status_code == 200 and r.json()["componentes_gerados"] == 3
+    con = database.get_connection()
+    assert [x[0] for x in con.execute("SELECT componente FROM tabela_orcamento_master ORDER BY id")] == ["N1", "N1", "N1.CABO=XLPE"]
+    con.close()
+    r = client.post("/api/orcamento/salvar", json={"dados": linhas}, headers=adm())
+    assert r.status_code == 200 and r.json()["componentes_gerados"] == 3
+    con = database.get_connection()
+    assert sorted(x[0] for x in con.execute("SELECT componente FROM tabela_orcamento WHERE codigo IN ('c1','c2','x1')")) == ["N1", "N1", "N1.CABO=XLPE"]
+    con.close()
+    ok = CSV80.encode("utf-8-sig")
+    r = client.post("/api/orcamento/upload", files={"file": ("b.csv", ok, "text/csv")}, headers=adm())
+    assert r.status_code == 200 and r.json()["componentes_gerados"] == 11
+    r = client.post("/api/admin/add-row", json={"ativo": "N1(poste=C%)", "codigo": "k1"}, headers=adm())
+    assert r.status_code == 200
+    con = database.get_connection()
+    assert con.execute("SELECT componente FROM tabela_orcamento_master WHERE codigo='k1'").fetchone()[0] == "N1.POSTE=C%"
+    con.close()
+
+
+def test_conflito_de_componente_digitado_continua_recusado_e_avisos_conservadores(client):
+    ruim = CSV80.replace("N1(poste=C%);FERR C;;", "N1(poste=C%);FERR C;N1.CABO=XLPE;")      # reusa o componente de outro grupo
+    r = subir(client, ruim)
+    assert r.status_code == 400 and "COMPONENTE N1.CABO=XLPE" in r.json()["detail"]
+    dup = CSV80 + "N1(poste=%T);;;PERNAMBUCO;MATERIAL;OUTROS;pd1;REPETIDO;1;0;;A\n"
+    r = subir(client, dup)
+    assert r.status_code == 200 and any("PD1" in a and "soma duas vezes" in a for a in r.json()["avisos"])
+
+
+def test_modo_autonomo_espelha_os_operadores():
+    from services.autonomo import totalizadora as tt
+    base = [{"ativo": a, "componente": "", "codigo": c, "projeto": "PERNAMBUCO", "desc_ativo": "D"} for a, c in
+            [("N1=N1(cabo=XLPE, poste=DT)", "c1"), ("N1(cabo=ALUM|COBRE)", "n1"), ("N1(poste=D%)", "p1")]]
+    tot = tt.montar_totalizadora([], [{"entidade": "0", "operacao": "I", "ativo": "2-N1 1-N1(ALUM,D12) 1-N1(ALUM,XX)"}], [], base, "PERNAMBUCO")
+    assert [r["ativo"] for r in tot] == ["N1(XLPE,DT)", "N1(ALUM,D12)", "N1(ALUM,XX)"]
+    assert tot[2]["naoEncontrado"] and "POSTE=XX" in tot[2]["desc"] and not tot[1]["naoEncontrado"]

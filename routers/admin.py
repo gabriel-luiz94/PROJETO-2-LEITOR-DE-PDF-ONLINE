@@ -18,7 +18,7 @@ from middleware.auth_middleware import get_current_user_from_state
 from config import logger
 from models import SalvarOrcamentoRequest
 from services.orcamento_lv import normalizar_lv
-from services.ativo_parametros import analisar_celula_base, validar_base, resumo_erros
+from services.ativo_parametros import preencher_componentes, validar_base, resumo_erros
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -330,8 +330,11 @@ def add_master_row(req: MasterRowCreate, request: Request):
         lv = normalizar_lv(req.lv)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    componente_final = req.componente.strip()
     if "(" in req.ativo or "=" in req.ativo:           # TASK-079: só a sintaxe (a consistência com o resto da base é conferida nas importações)
-        val_ativo = validar_base([{"ativo": req.ativo, "componente": req.componente, "codigo": req.codigo, "projeto": req.projeto, "lv": lv}])
+        linha_nova, _ = preencher_componentes([{"ativo": req.ativo, "componente": req.componente, "codigo": req.codigo, "projeto": req.projeto, "lv": lv}])
+        componente_final = linha_nova[0]["componente"].strip()          # TASK-080: início de grupo sem COMPONENTE ganha o nome automático
+        val_ativo = validar_base(linha_nova)
         if val_ativo["erros"]:
             raise HTTPException(status_code=400, detail=resumo_erros(val_ativo["erros"]))
 
@@ -344,7 +347,7 @@ def add_master_row(req: MasterRowCreate, request: Request):
     ''', (
         req.ativo.strip(),
         req.desc_ativo.strip(),
-        req.componente.strip(),
+        componente_final,
         req.projeto.strip(),
         req.mdo.strip(),
         req.codigo.strip(),
@@ -365,7 +368,7 @@ def add_master_row(req: MasterRowCreate, request: Request):
             supabase.table("tabela_orcamento_master").insert({
                 "ativo": req.ativo.strip(),
                 "desc_ativo": req.desc_ativo.strip(),
-                "componente": req.componente.strip(),
+                "componente": componente_final,
                 "projeto": req.projeto.strip(),
                 "mdo": req.mdo.strip(),
                 "codigo": req.codigo.strip(),
@@ -445,6 +448,7 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...), proj
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=str(e))
 
+        rows_to_insert, n_comp = preencher_componentes(rows_to_insert)     # TASK-080: COMPONENTE em branco dos grupos
         val_param = validar_base(rows_to_insert)          # TASK-079: ativos com parâmetros
         if val_param["erros"]:
             raise HTTPException(status_code=400, detail=resumo_erros(val_param["erros"]) + " Nada foi alterado.")
@@ -490,6 +494,8 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...), proj
         _audit(admin, "UPLOAD_MASTER_CSV", "tabela_orcamento_master", None,
                f"total_rows={len(rows_to_insert)}, projeto={projeto or 'TODOS'}")
         resposta = {"status": "ok", "msg": f"Tabela Master atualizada com {len(rows_to_insert)} linhas."}
+        if n_comp:
+            resposta["componentes_gerados"] = n_comp
         if val_param["avisos"]:
             resposta["avisos"] = val_param["avisos"]
         return resposta
@@ -522,6 +528,7 @@ def sync_master_all(req: SalvarOrcamentoRequest, request: Request):
             row["lv"] = normalizar_lv(row.get("lv"))
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Linha {i}: {e}")
+    dados, n_comp = preencher_componentes(dados)       # TASK-080: COMPONENTE em branco dos grupos
     val_param = validar_base(dados)                   # TASK-079: ativos com parâmetros
     if val_param["erros"]:
         raise HTTPException(status_code=400, detail=resumo_erros(val_param["erros"]))
@@ -600,6 +607,8 @@ def sync_master_all(req: SalvarOrcamentoRequest, request: Request):
     _audit(admin, "SYNC_MASTER_ALL", "tabela_orcamento_master", None,
            f"total_rows={len(rows_to_insert)}, projeto={req.projeto or 'TODOS'}")
     resposta = {"status": "ok", "msg": f"Tabela Master na nuvem atualizada com {len(rows_to_insert)} linhas."}
+    if n_comp:
+        resposta["componentes_gerados"] = n_comp
     if val_param["avisos"]:
         resposta["avisos"] = val_param["avisos"]
     return resposta

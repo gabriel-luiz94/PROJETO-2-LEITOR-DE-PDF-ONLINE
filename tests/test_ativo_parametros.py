@@ -33,8 +33,8 @@ def node(codigo, entrada):
 def test_analisar_formas():
     a = ap.analisar_celula_base("N1=N1(cabo=XLPE, poste=DT)")
     assert (a["tipo"], a["base"], a["erro"]) == ("declaracao", "N1", None)
-    assert a["params"] == [{"nome": "CABO", "valor": "XLPE"}, {"nome": "POSTE", "valor": "DT"}]
-    assert ap.analisar_celula_base("N1=N1(cabo, poste)")["params"] == [{"nome": "CABO", "valor": None}, {"nome": "POSTE", "valor": None}]
+    assert a["params"] == [{"nome": "CABO", "op": "=", "valor": "XLPE", "alts": ["XLPE"]}, {"nome": "POSTE", "op": "=", "valor": "DT", "alts": ["DT"]}]
+    assert ap.analisar_celula_base("N1=N1(cabo, poste)")["params"] == [{"nome": "CABO", "op": "=", "valor": None, "alts": []}, {"nome": "POSTE", "op": "=", "valor": None, "alts": []}]
     assert ap.analisar_celula_base("N1(cabo=XLPE)")["tipo"] == "grupo"
     assert ap.analisar_celula_base("DT9/150") == {"texto": "DT9/150", "base": "DT9/150", "tipo": "simples", "params": [], "erro": None}
     for ruim in ["N1(XL-PE)", "N1()", "N1(cabo=)", "N1(", "N1=X1(a=b)", "N1=N1", "N1(a=1,a=2)", ""]:
@@ -83,7 +83,7 @@ def test_resolver_sem_padrao_incompleto():
     assert ok["texto"] == "N1(ALUM,DT)" and ok["faltando"] == []
 
 
-def test_linha_vale():
+def test_linha_vale_igualdade_simples():
     assert ap.linha_vale({}, {"CABO": "XLPE"}) and ap.linha_vale({"CABO": "XLPE"}, {"CABO": "XLPE", "POSTE": "DT"})
     assert not ap.linha_vale({"CABO": "ALUM"}, {"CABO": "XLPE"}) and not ap.linha_vale({"POSTE": "DT"}, {"CABO": "XLPE"})
     assert ap.linha_vale({"CABO": "XLPE", "POSTE": "CC"}, {"CABO": "XLPE", "POSTE": "CC"})
@@ -175,3 +175,126 @@ def test_validar_base_aviso_de_codigo_repetido_em_grupos_que_valem_juntos():
 def test_validar_base_escopo_por_projeto():
     outra = [dict(l, projeto="RONDONIA") for l in cadastro_ok()]
     assert ap.validar_base(cadastro_ok() + outra) == {"erros": [], "avisos": []}                 # mesma declaração em projetos diferentes
+
+
+# ═══════════════ TASK-080: operadores nos grupos, componente automático ═══════════════
+BASE80 = ["N1=N1(cabo=XLPE, poste=DT)", "N1", "N1(cabo=XLPE)", "N1(cabo=ALUM|COBRE)", "N1(cabo=ALUM)", "N1(cabo=COBRE)", "N1(poste=D%)", "N1(poste=C%)",
+          "N1(cabo!=XLPE, poste=D%)"]
+TEXTOS80 = TEXTOS + ["N1(ALUM,D12)", "N1(COBRE,CC)", "N1(XLPE,CC)", "N1(ALUM,XX)", "N1(poste=D%)", "N1(cabo!=XLPE)", "N1(A|B)", "N1(ALUM,D12,Z)", "N1(poste=cc, cabo=cobre)"]
+CELULAS80 = CELULAS + ["N1(poste=D%)", "N1(cabo=ALUM|COBRE)", "N1(cabo!=XLPE, poste=D%)", "N1(cabo!=ALUM|COBRE)", "N1(poste=%CC%)", "N1(poste=%)", "N1(cabo=A||B)",
+                       "N1(cabo=A B)", "N1=N1(cabo=ALUM|COBRE)", "N1=N1(cabo=D%)", "N1=N1(cabo!=X)", "N1(cabo!=)", "N1(!=X)", "N1(poste=D%,poste=C%)", "N1(cabo=X%Y%Z)"]
+
+
+def test_analisar_operadores_so_na_base():
+    a = ap.analisar_celula_base("N1(poste=D%, cabo!=ALUM|COBRE)")
+    assert a["erro"] is None
+    assert a["params"] == [{"nome": "POSTE", "op": "=", "valor": "D%", "alts": ["D%"]}, {"nome": "CABO", "op": "!=", "valor": "ALUM|COBRE", "alts": ["ALUM", "COBRE"]}]
+    for pedido in ["N1(D%)", "N1(poste=D%)", "N1(A|B)", "N1(cabo!=X)"]:
+        assert "só valem nos grupos da base" in ap.analisar_ativo(pedido)["erro"], pedido
+    for decl in ["N1=N1(cabo=ALUM|COBRE)", "N1=N1(cabo=D%)", "N1=N1(cabo!=X)"]:
+        assert ap.analisar_celula_base(decl)["erro"], decl
+    for ruim in ["N1(cabo=A||B)", "N1(cabo!=)", "N1(!=X)", "N1(poste=D%,poste=C%)"]:
+        assert ap.analisar_celula_base(ruim)["erro"], ruim
+    assert ap.analisar_celula_base("N1(poste=%CC%)")["erro"] is None and ap.analisar_celula_base("N1(poste=%)")["erro"] is None
+
+
+def test_casar_padrao_e_restricao():
+    assert [ap.casar_padrao(p, v) for p, v in [("D%", "DT"), ("D%", "D"), ("D%", "XD"), ("%T", "DT"), ("%CC%", "ACCD"), ("D%T", "DAAT"), ("d%", "dt"),
+                                              ("A%B", "A_B"), ("A.B", "AXB"), ("D%", "")]] == [True, True, False, True, True, True, True, True, False, False]
+    r = {"op": "!=", "alts": ["ALUM", "COBRE"]}
+    assert ap.restricao_vale(r, "XLPE") and not ap.restricao_vale(r, "alum") and ap.restricao_vale({"op": "=", "alts": ["A", "B%"]}, "BX")
+    assert ap.restricao_vale("DT", "dt") and not ap.restricao_vale("DT", "DC")
+
+
+def test_linha_vale_com_restricoes():
+    g = ap.restricoes_do_grupo(ap.analisar_celula_base("N1(poste=D%, cabo!=XLPE)"))
+    assert ap.linha_vale(g, {"CABO": "ALUM", "POSTE": "D12"}) and not ap.linha_vale(g, {"CABO": "XLPE", "POSTE": "D12"})
+    assert not ap.linha_vale(g, {"CABO": "ALUM", "POSTE": "C1"}) and not ap.linha_vale(g, {"CABO": "ALUM"})
+    assert ap.restricoes_do_grupo(ap.analisar_celula_base("N1")) == {} and ap.linha_vale({}, {})
+
+
+def test_assinatura_com_operadores_e_valores_aceitos():
+    s = ap.montar_assinaturas(BASE80)["N1"]
+    assert s["nomes"] == ["CABO", "POSTE"] and s["padroes"] == {"CABO": "XLPE", "POSTE": "DT"}
+    assert s["valores"] == {"CABO": ["XLPE", "ALUM", "COBRE"], "POSTE": ["DT"]} and s["mascaras"] == {"POSTE": ["D%", "C%"]}
+    assert s["fechados"] == ["CABO", "POSTE"]
+    sig = {"N1": s}
+    f = lambda t: ap.resolver_pedido(t, sig)
+    assert f("N1(ALUM,D12)")["texto"] == "N1(ALUM,D12)" and not f("N1(ALUM,D12)")["erros"]       # D12 casa D%
+    assert f("N1(COBRE,CC)")["erros"] == [] and f("N1(ALUM,XX)")["erros"] and "D%" in f("N1(ALUM,XX)")["erros"][0]
+    so_exceto = ap.montar_assinaturas(["N1(cabo!=XLPE)"])
+    assert so_exceto["N1"]["fechados"] == [] and ap.resolver_pedido("N1(QUALQUER)", so_exceto)["erros"] == []      # só "!=": não limita o valor
+
+
+def test_compatibilidade_de_restricoes():
+    c = lambda a, b: ap._compativeis(a, b)
+    eq = lambda *alts: {"op": "=", "alts": list(alts)}
+    ne = lambda *alts: {"op": "!=", "alts": list(alts)}
+    assert c(eq("DT"), eq("D%")) and not c(eq("DT"), eq("C%")) and c(eq("D%"), eq("%T")) and not c(eq("A"), eq("B"))
+    assert c(eq("A", "B"), eq("B")) and c(ne("X"), ne("Y")) and c(eq("A"), ne("B")) and not c(eq("A"), ne("A")) and not c(eq("A", "B"), ne("A", "B"))
+    assert c(eq("D%"), ne("DT")) and c(eq("A", "B"), ne("A"))
+    assert not c(eq("D%"), eq("C%")) and not c(eq("%T"), eq("%C")) and c(eq("D%"), eq("%T")) and c(eq("D%"), eq("DT%")) and not c(eq("DT%"), eq("DC%"))
+
+
+# ── componente automático ──
+def Lc(ativo="", comp="", cod="", proj="PERNAMBUCO", lv="A"):
+    return {"ativo": ativo, "componente": comp, "codigo": cod, "projeto": proj, "lv": lv}
+
+
+def test_preencher_componentes_e_heranca():
+    linhas = [Lc("N1=N1(cabo=XLPE, poste=DT)", "", "c1"), Lc("", "", "c2"), Lc("", "", "c3"),
+              Lc("N1(cabo=XLPE)", "", "x1"), Lc("", "", "x2"),
+              Lc("N1(cabo=ALUM|COBRE)", "", "n1"), Lc("N1(poste=D%, cabo!=XLPE)", "", "pd1"), Lc("", "", "pd2"),
+              Lc("N1(cabo=ALUM)", "N1.MANUAL", "a1"), Lc("", "", "a2"),
+              Lc("P50", "", "p1"), Lc("", "", "p2")]
+    novas, n = ap.preencher_componentes(linhas)
+    assert [l["componente"] for l in novas] == ["N1", "N1", "N1", "N1.CABO=XLPE", "N1.CABO=XLPE", "N1.CABO=ALUM|COBRE", "N1.POSTE=D%,CABO!=XLPE",
+                                                "N1.POSTE=D%,CABO!=XLPE", "N1.MANUAL", "N1.MANUAL", "", ""]
+    assert n == 9 and linhas[0]["componente"] == ""                                              # não altera a lista original
+    novas2, n2 = ap.preencher_componentes(novas)                                                # idempotente
+    assert n2 == 0 and novas2 == novas
+
+
+def test_preencher_componentes_nao_mexe_em_ativo_sem_parametros_nem_cruza_projetos():
+    sem = [Lc("P50", "", "p1"), Lc("", "", "p2"), Lc("DT9/150", "", "d1")]
+    assert ap.preencher_componentes(sem) == (sem, 0)
+    linhas = [Lc("N1(cabo=XLPE)", "", "x1", proj="RONDONIA"), Lc("N1", "", "c1", proj="PERNAMBUCO"), Lc("", "", "x2", proj="RONDONIA")]
+    novas, n = ap.preencher_componentes(linhas)
+    assert [l["componente"] for l in novas] == ["N1.CABO=XLPE", "", "N1.CABO=XLPE"] and n == 2         # N1 comum de outro projeto: base sem parâmetros lá
+    so_decl = [Lc("N1=N1(cabo=XLPE)", "", ""), Lc("N1(cabo=XLPE)", "", "x1"), Lc("", "", "x2")]
+    novas, n = ap.preencher_componentes(so_decl)
+    assert [l["componente"] for l in novas] == ["", "N1.CABO=XLPE", "N1.CABO=XLPE"]                 # linha só de declaração não ganha componente
+    assert ap.validar_base(novas) == {"erros": [], "avisos": []}
+
+
+def test_validar_base_com_operadores():
+    linhas = [Lc("N1=N1(cabo=XLPE, poste=DT)", "N1", "c1"), Lc("N1(cabo=XLPE)", "N1.X", "x1"), Lc("N1(poste=D%)", "N1.D", "d1"), Lc("N1(cabo!=XLPE)", "N1.NX", "n1")]
+    assert ap.validar_base(linhas) == {"erros": [], "avisos": []}
+    sem_padrao_valido = [Lc("N1=N1(cabo=ZZ%)", "N1", "c1")]
+    assert ap.validar_base(sem_padrao_valido)["erros"]                                           # padrão com curinga: erro de sintaxe
+    padrao_sem_grupo = [Lc("N1=N1(cabo=ALUM)", "N1", "c1"), Lc("N1(cabo=XLPE)", "N1.X", "x1")]
+    assert any("padrão CABO=ALUM" in e for e in ap.validar_base(padrao_sem_grupo)["erros"])
+    padrao_por_curinga = [Lc("N1=N1(poste=DT)", "N1", "c1"), Lc("N1(poste=D%)", "N1.D", "d1")]
+    assert ap.validar_base(padrao_por_curinga)["erros"] == []                                    # o padrão DT é aceito pelo grupo D%
+    aviso = [Lc("N1(poste=D%)", "N1.D", "k1"), Lc("N1(poste=%T)", "N1.T", "k1")]
+    assert len(ap.validar_base(aviso)["avisos"]) == 1                                            # D% e %T podem valer juntos
+    nenhum = [Lc("N1(poste=D%)", "N1.D", "k1"), Lc("N1(poste=C%)", "N1.C", "k1"), Lc("N1(cabo=A)", "N1.A", "k2"), Lc("N1(cabo!=A)", "N1.NA", "k2")]
+    assert ap.validar_base(nenhum)["avisos"] == []
+
+
+@pytestmark_node
+def test_paridade_operadores_e_pedidos():
+    for celulas in (BASE80, CELULAS80):
+        assert node("A.montarAssinaturas(e)", celulas) == ap.montar_assinaturas(celulas)
+    sig = ap.montar_assinaturas(BASE80)
+    assert node("e.t.map(x=>A.resolverPedido(x, e.s))", {"t": TEXTOS80, "s": sig}) == [ap.resolver_pedido(t, sig) for t in TEXTOS80]
+    assert node("e.map(t=>[A.analisarAtivo(t), A.analisarCelulaBase(t), A.analisarAtivo(t, true)])", TEXTOS80 + CELULAS80) == \
+        [[ap.analisar_ativo(t), ap.analisar_celula_base(t), ap.analisar_ativo(t, True)] for t in TEXTOS80 + CELULAS80]
+    pares = [["D%", "DT"], ["D%", "D"], ["%T", "DT"], ["%CC%", "ACCD"], ["a.b", "AXB"], ["A%B", "A_B"], ["D%", ""], ["X", "x"], ["A+%", "A+Z"]]
+    assert node("e.map(p=>A.casarPadrao(p[0], p[1]))", pares) == [ap.casar_padrao(a, b) for a, b in pares]
+    restr = [[{"op": "!=", "alts": ["ALUM", "COBRE"]}, "XLPE"], [{"op": "=", "alts": ["A", "B%"]}, "BX"], ["DT", "dt"]]
+    assert node("e.map(p=>A.restricaoVale(p[0], p[1]))", restr) == [ap.restricao_vale(a, b) for a, b in restr]
+    gr = ap.restricoes_do_grupo(ap.analisar_celula_base("N1(poste=D%, cabo!=XLPE)"))
+    assert node("A.restricoesDoGrupo(A.analisarCelulaBase('N1(poste=D%, cabo!=XLPE)'))", None) == gr
+    ped = [{"CABO": "ALUM", "POSTE": "D12"}, {"CABO": "XLPE", "POSTE": "D12"}, {"CABO": "ALUM"}]
+    assert node("e.p.map(x=>A.linhaVale(e.g, x))", {"p": ped, "g": gr}) == [ap.linha_vale(gr, x) for x in ped]

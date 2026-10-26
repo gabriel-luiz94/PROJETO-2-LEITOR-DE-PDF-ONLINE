@@ -151,3 +151,20 @@ def test_totalizadora_normaliza_e_descreve_pelo_nome_base():
 def test_vinculo_e_classificacao_ignoram_os_parametros():
     from services.autonomo import vinculacao as vc
     assert vc.codigo_estrutura("1-N1(XLPE,DT)") == "N1" and vc.codigo_estrutura("1-U4") == "U4" and vc.tipo_estrutura("1-N1(XLPE,DT)") == "1"
+
+
+# ── TASK-080: operadores (%, |, !=) nos grupos — espelho em Python igual ao JS real ──
+BASE_OPERADORES = [_linha("N1=N1(cabo=XLPE, poste=DT)", "N1", "c1", desc="ESTRUTURA N1"), _linha("N1(cabo=ALUM|COBRE)", "N1.NU", "n1"),
+                   _linha("N1(poste=D%)", "N1.D", "p1"), _linha("N1(cabo!=XLPE, poste=C%)", "N1.NC", "q1"), _linha("N1(cabo=XLPE)", "N1.X", "x1")]
+OUTROS_OPERADORES = ["3-N1", "2-N1(ALUM,D12)", "1-N1(COBRE,CC)", "1-N1(XLPE,XX)", "1-N1(ALUM,DT) 2-N1(poste=C1,cabo=ALUM)", "1-N1(A|B)", "1-N1(ALUM,D%)", "2-N1(xlpe)"]
+
+
+@pytest.mark.parametrize("semente", range(1, 5))
+def test_totalizadora_com_operadores_igual_ao_js(semente):
+    rnd = random.Random(2000 + semente)
+    for _ in range(8):
+        outros = [{"entidade": "0", "operacao": rnd.choice(["I", "*I"]), "ativo": " ".join(rnd.sample(OUTROS_OPERADORES, rnd.randint(1, 3)))} for _ in range(rnd.randint(1, 3))]
+        proj = rnd.choice(["PERNAMBUCO", ""])
+        js = o.totalizadora_e_payload([], outros, [], BASE_OPERADORES, proj)
+        tot = tt.montar_totalizadora([], outros, [], BASE_OPERADORES, proj)
+        assert tt.normalizar_para_json(tot) == js["totalizadora"], (outros, proj)
