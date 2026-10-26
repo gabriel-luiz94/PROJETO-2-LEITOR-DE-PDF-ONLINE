@@ -79,6 +79,18 @@
         return neg ? -v : v;
     }
 
+    /** Acrescenta POSTE=<poste> ao pedido quando a assinatura tem o parâmetro e o pedido não o informou (N1 ou N1(A)). */
+    function comPoste(ativo, poste, assinaturas) {
+        const i = ativo.indexOf('('), base = i !== -1 ? ativo.slice(0, i) : ativo, sig = assinaturas[base];
+        if (!sig || !sig.nomes.includes('POSTE')) return ativo;
+        if (i === -1) return `${ativo}(POSTE=${poste})`;
+        if (!ativo.endsWith(')')) return ativo;
+        const itens = ativo.slice(i + 1, -1).split(',').map(x => x.trim()).filter(x => x);
+        if (itens.some(x => x.toUpperCase().startsWith('POSTE='))) return ativo;
+        if (!itens.some(x => x.includes('=')) && itens.length > sig.nomes.indexOf('POSTE')) return ativo;
+        return `${ativo.slice(0, -1)},POSTE=${poste})`;
+    }
+
     function interpretarLinha(texto, operacao, classico, ctx) {
         const t = txt(texto).trim(), op = txt(operacao).trim().toUpperCase();
         const r = { formato: 'antigo', itens: [], erros: [] };
@@ -122,10 +134,7 @@
         let posteAtual = null;
         for (const it of itens) {
             if (ehPoste(it.ativo)) posteAtual = posteParaCompacto(it.ativo);
-            else if (posteAtual && it.ativo.indexOf('(') === -1) {
-                const sig = assinaturas[it.ativo];
-                if (sig && sig.nomes.includes('POSTE')) it.ativo = `${it.ativo}(POSTE=${posteAtual})`;
-            }
+            else if (posteAtual) it.ativo = comPoste(it.ativo, posteAtual, assinaturas);
         }
         if (op === 'M' || op === '*M') {
             itens = itens.filter(i => !ehPoste(AP.nomeBase(i.ativo))).map(i => Object.assign({}, i, { operacao: op === 'M' ? 'I' : '*I' }));

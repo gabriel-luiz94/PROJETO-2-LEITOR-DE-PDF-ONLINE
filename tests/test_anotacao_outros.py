@@ -157,7 +157,7 @@ BASE_T = [{"ativo": "DT11/600, 11600D", "desc_ativo": "POSTE 11/600", "component
           {"ativo": "N3=N3(poste=11600D)", "desc_ativo": "N3", "componente": "N3", "projeto": "P1", "codigo": "n3", "desc_codigo": "d"},
           {"ativo": "N3(poste=11600D)", "desc_ativo": "", "componente": "N3.11600D", "projeto": "P1", "codigo": "n3e", "desc_codigo": "d"},
           {"ativo": "T3", "desc_ativo": "T3", "componente": "T3", "projeto": "P1", "codigo": "t3", "desc_codigo": "d"}]
-LINHAS_T = ["11600D, 2 N3, T3", "2 11600D, N3", "0,5 T3, N3", "11600D,N3", "11600D, 1-N3", "2-N3 1-T3", "DT11/600 1-N3", "11600D, *2 N3", "9999X, N3", "N3, T3"]
+LINHAS_T = ["11600D, 2 N3, T3", "2 11600D, N3", "0,5 T3, N3", "11600D,N3", "11600D, 1-N3", "2-N3 1-T3", "DT11/600 1-N3", "11600D, *2 N3", "9999X, N3", "N3, T3", "11600D, N3(A)", "11600D, N3(A,11600D)"]
 
 
 @pytest.mark.skipif(not NODE, reason="node indisponível")
@@ -212,3 +212,12 @@ def test_arquivos_publicados():
 
 def test_base_de_exemplo_e_valida():
     assert ap.validar_base([dict(l) for l in BASE])["erros"] == []
+
+
+def test_poste_tambem_em_pedido_com_parenteses():
+    ctx = ao.contexto_da_base([L("N1=N1(cabo=A, poste=11300D)", "N1", "x")], "PERNAMBUCO")
+    f = lambda t: itens(t, ctx=ctx)[0][-1][0]
+    assert f("7150FV, N1(P)") == "N1(P,POSTE=7150FV)"
+    assert f("7150FV, N1(cabo=P)") == "N1(CABO=P,POSTE=7150FV)"
+    assert f("7150FV, N1(P,11300D)") == "N1(P,11300D)"                  # já informou o poste: respeita
+    assert f("7150FV, N1(poste=11300D)") == "N1(POSTE=11300D)"
