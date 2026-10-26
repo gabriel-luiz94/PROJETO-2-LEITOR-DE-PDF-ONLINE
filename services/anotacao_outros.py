@@ -126,6 +126,25 @@ def _qtd(txt):
     return -v if neg else v
 
 
+def _com_poste(ativo, poste, assinaturas):
+    """Acrescenta POSTE=<poste> ao pedido quando a assinatura tem o parâmetro e o pedido não o informou (``N1`` ou ``N1(A)``)."""
+    i = ativo.find("(")
+    base = ativo[:i] if i != -1 else ativo
+    sig = assinaturas.get(base)
+    if not sig or "POSTE" not in sig["nomes"]:
+        return ativo
+    if i == -1:
+        return f"{ativo}(POSTE={poste})"
+    if not ativo.endswith(")"):
+        return ativo
+    itens = [x.strip() for x in ativo[i + 1:-1].split(",") if x.strip()]
+    if any(x.upper().startswith("POSTE=") for x in itens):
+        return ativo
+    if not any("=" in x for x in itens) and len(itens) > sig["nomes"].index("POSTE"):
+        return ativo                                                  # pedido posicional que já traz o poste
+    return f"{ativo[:-1]},POSTE={poste})"
+
+
 def interpretar_linha(texto, operacao, classico, ctx=None) -> dict:
     """Traduz uma linha de Outros. Retorna {"formato": "compacto"|"antigo", "itens": [{"ativo","qtd","operacao"}], "erros": [{"cod","msg"}]}.
 
@@ -189,10 +208,8 @@ def interpretar_linha(texto, operacao, classico, ctx=None) -> dict:
     for it in itens:
         if eh_poste(it["ativo"]):
             poste_atual = poste_para_compacto(it["ativo"])
-        elif poste_atual and "(" not in it["ativo"]:
-            sig = assinaturas.get(it["ativo"])
-            if sig and "POSTE" in sig["nomes"]:
-                it["ativo"] = f"{it['ativo']}(POSTE={poste_atual})"
+        elif poste_atual:
+            it["ativo"] = _com_poste(it["ativo"], poste_atual, assinaturas)
     # operação M/*M: poste ignorado, demais itens I/*I
     if op in ("M", "*M"):
         itens = [dict(i, operacao="I" if op == "M" else "*I") for i in itens if not eh_poste(nome_base(i["ativo"]))]
