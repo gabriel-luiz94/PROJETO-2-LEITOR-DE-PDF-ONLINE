@@ -425,7 +425,8 @@ operações com `*` (`*I`, `*R`, `*M` = linha viva); `LM` só para operações s
 **Ativos com parâmetros (TASK-079):** `N1(XLPE,DT)` é nome-base `N1` + parâmetros. A base declara `N1=N1(cabo=XLPE, poste=DT)` (1ª linha do ativo) e
 os grupos `N1(cabo=XLPE)`… (cada grupo com o seu COMPONENTE); `_preparar_parametros` troca cada grupo por uma chave própria no índice e o
 pedido seleciona o grupo comum + os grupos cujos parâmetros ele satisfaz (`services/ativo_parametros.py`, espelhado em
-`static/ativo_parametros.js`). Os demais passos (origem, LV, soma por código) não mudam. Base sem a coluna ou com `lv` vazio = `A` (resultado idêntico ao anterior,
+`static/ativo_parametros.js`). Os demais passos (origem, LV, soma por código) não mudam.
+TASK-080: os grupos aceitam restrições `=`/`!=` com lista (`|`) e curinga (`%`) — `{op, alts}` por parâmetro; o pedido segue concreto. `preencher_componentes` gera o COMPONENTE dos grupos na gravação da base. Base sem a coluna ou com `lv` vazio = `A` (resultado idêntico ao anterior,
 provado por `tests/referencia_orcamento_calc_antes_lv.py`).
 
 ### 8.8 Soma por código — RN-09

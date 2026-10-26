@@ -10,7 +10,7 @@ from database import get_connection, get_row_connection
 from models import SalvarOrcamentoRequest, OrcamentoRequest, DetalhesRequest
 from services.orcamento_calc import processar_calculo
 from services.orcamento_lv import normalizar_lv
-from services.ativo_parametros import validar_base, resumo_erros
+from services.ativo_parametros import preencher_componentes, validar_base, resumo_erros
 from services.exportar_xlsx import ErroExportacao, gerar_xlsx
 from services.sync_service import (
     get_merged_orcamento, sync_tabela_master, filtrar_linhas_por_categoria,
@@ -68,7 +68,9 @@ async def upload_orcamento(request: Request, file: UploadFile = File(...)):
                            fator_i, fator_r, row_upper.get("FILTRO", ""), lv))
 
         # TASK-079: ativos com parâmetros (N1=N1(cabo=XLPE), N1(cabo=ALUM)…) — recusa cadastro inconsistente antes de apagar
-        val = validar_base([{"ativo": t[0], "componente": t[2], "projeto": t[3], "codigo": t[5], "lv": t[10]} for t in linhas])
+        reg, n_comp = preencher_componentes([{"ativo": t[0], "componente": t[2], "projeto": t[3], "codigo": t[5], "lv": t[10]} for t in linhas])   # TASK-080
+        linhas = [t[:2] + (r["componente"],) + t[3:] for t, r in zip(linhas, reg)]
+        val = validar_base(reg)
         if val["erros"]:
             return JSONResponse(status_code=400, content={"error": f"{resumo_erros(val['erros'])} Nada foi alterado."})
 
@@ -86,6 +88,8 @@ async def upload_orcamento(request: Request, file: UploadFile = File(...)):
         conn.commit()
         conn.close()
         resposta = {"status": "ok", "message": "Tabela carregada com sucesso."}
+        if n_comp:
+            resposta["componentes_gerados"] = n_comp
         if val["avisos"]:
             resposta["avisos"] = val["avisos"]
         return resposta
@@ -148,6 +152,7 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Linha {i}: {e}")
 
+    dados, n_comp = preencher_componentes(dados)       # TASK-080: COMPONENTE em branco dos grupos
     val = validar_base(dados)                         # TASK-079: ativos com parâmetros
     if val["erros"]:
         raise HTTPException(status_code=400, detail=resumo_erros(val["erros"]))
@@ -206,6 +211,8 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
         conn.commit()
         conn.close()
         resposta = {"status": "ok", "message": "Tabela atualizada com sucesso."}
+        if n_comp:
+            resposta["componentes_gerados"] = n_comp
         if val["avisos"]:
             resposta["avisos"] = val["avisos"]
         return resposta

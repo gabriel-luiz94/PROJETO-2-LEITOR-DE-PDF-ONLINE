@@ -465,6 +465,14 @@
             }
         }
 
+        /** TASK-080: o servidor preencheu o COMPONENTE em branco dos grupos → recarrega a tabela para mostrar os nomes. */
+        function aposGravarComComponentes(data) {
+            if (data && data.componentes_gerados) {
+                showToast(`${data.componentes_gerados} COMPONENTE(S) preenchido(s) automaticamente.`);
+                carregarDados();
+            }
+        }
+
         function showToast(msg) {
             toast.textContent = msg;
             toast.classList.add('visible');
@@ -798,6 +806,7 @@
                 const data = await res.json();
                 if (res.ok) {
                     showToast("Base de orçamento atualizada com sucesso!");
+                    aposGravarComComponentes(data);
                     mostrarAvisosBase(data);
                 } else {
                     const msg = data.detail || "Erro ao salvar.";
@@ -886,6 +895,7 @@
                 if (res.ok) {
                     showToast(data.msg || "Nuvem atualizada com sucesso!");
                     alert(data.msg || "Nuvem atualizada com sucesso!");
+                    aposGravarComComponentes(data);
                     mostrarAvisosBase(data);
                 } else {
                     const msg = data.detail || "Erro ao sincronizar.";

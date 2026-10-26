@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-26 — TASK-080: operadores nos parâmetros dos ativos e COMPONENTE automático
+
+**Tipo:** Backend + Frontend · `services/ativo_parametros.py`, `static/ativo_parametros.js`, `services/orcamento_calc.py`, `routers/admin.py`, `routers/orcamento.py`, `static/orcamento.html`
+
+Os grupos de ativos com parâmetros aceitam curinga `%` (`N1(poste=D%)`), lista `|` (`N1(cabo=ALUM|COBRE)`) e exceto `!=` (`N1(cabo!=XLPE, poste=D%)`); o pedido segue com valores concretos (`N1(ALUM,D12)`). O `COMPONENTE` em branco dos grupos é preenchido automaticamente na importação/salvamento (`N1`, `N1.CABO=XLPE`, `N1.POSTE=D%`…), com herança para as linhas seguintes e sem alterar o que já foi digitado. Aviso de sobreposição de códigos mais preciso. Sem mudança no Supabase.
+
+---
+
 ## 2026-10-26 — TASK-079: ativos com parâmetros por categoria (ex.: N1(XLPE,DT))
 
 **Tipo:** Backend + Frontend · `services/ativo_parametros.py` e `static/ativo_parametros.js` (novos), `services/orcamento_calc.py`, `services/regras_dominio.py`, `services/validacao_planilhas.py`, `routers/admin.py`, `routers/orcamento.py`, `routers/validacao_regras.py`, `static/resumo.js`, `static/resumo.html`, `static/orcamento.html`, `static/resultado_orcamento.html`, `app.py`
