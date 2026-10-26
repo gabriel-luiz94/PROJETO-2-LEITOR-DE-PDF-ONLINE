@@ -7,6 +7,7 @@ Paridade provada em tests/test_autonomo_totalizadora.py executando o JS real. Fi
 (meio para cima, não o arredondamento do Python), `\\s`/`trim`, `\\d` ASCII, `$` só no fim, número→texto do JS.
 Limite conhecido: as regex digitadas nas regras de conversão são avaliadas pelo `re` do Python (dialeto quase igual ao do JS).
 """
+from services.ativo_parametros import analisar_celula_base, assinaturas_do_projeto, dividir_tokens, nome_base, resolver_pedido
 import math
 import re
 from decimal import Decimal
@@ -94,12 +95,16 @@ def _normaliza(x):
 
 # ── Totalizadora ────────────────────────────────────────────────────────────
 def _buscar_descricao(base, ativo_nome, projeto_nome):
+    # TASK-079: compara pelo nome-base (N1(XLPE,DT) e N1(cabo=ALUM) → N1) e prefere a linha sem parâmetros (comum/declaração)
     ativo = _trim(ativo_nome).upper()
     proj = (projeto_nome or "").upper()
-    for r in base:
-        if ((r.get("ativo") or "").upper() == ativo or (r.get("codigo") or "").upper() == ativo) and \
-                ((r.get("projeto") or "").strip().upper() == proj or (r.get("projeto") or "").strip() == ""):
-            return (r.get("desc_ativo") or r.get("componente") or r.get("desc_codigo") or ""), False
+    nb = nome_base(ativo)
+    candidatas = [r for r in base
+                  if ((((r.get("ativo") or "") != "" and nome_base(r.get("ativo")) == nb) or (r.get("codigo") or "").upper() == ativo)
+                      and ((r.get("projeto") or "").strip().upper() == proj or (r.get("projeto") or "").strip() == ""))]
+    linha = next((r for r in candidatas if analisar_celula_base(r.get("ativo") or "")["tipo"] != "grupo"), candidatas[0] if candidatas else None)
+    if linha is not None:
+        return (linha.get("desc_ativo") or linha.get("componente") or linha.get("desc_codigo") or ""), False
     return "", True
 
 
@@ -164,12 +169,13 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
         for _ in range(iteracoes):
             brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": item.get("operacao") or "I", "ativo": base_ativo,
                            "qtd": q, "desc": desc, "naoEncontrado": nao, "origem": "CABOS"})
+    assinaturas_param = assinaturas_do_projeto(base, projeto_nome)
     for item in outros:
         if not item:
             continue
         base_id = contador
         contador += 1
-        for p in _RE_ESPACOS.split(item.get("ativo") or ""):
+        for p in dividir_tokens(item.get("ativo") or ""):
             if not _trim(p):
                 continue
             q, nome = 1.0, _trim(p)
@@ -182,7 +188,12 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
                 if negativo:
                     q = -q
                 nome = _trim(m.group(2))
+            ped = resolver_pedido(nome, assinaturas_param)          # TASK-079: normaliza N1 → N1(XLPE,DT); variante inválida fica em vermelho
+            if ped["com_assinatura"] or "(" in nome:
+                nome = nome.upper() if ped["erros"] else ped["texto"]
             desc, nao = _buscar_descricao(base, nome, projeto_nome)
+            if ped["erros"]:
+                desc, nao = "; ".join(ped["erros"]), True
             brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": item.get("operacao") or "I", "ativo": nome,
                            "qtd": q, "desc": desc, "naoEncontrado": nao, "origem": "OUTROS"})
     brutos.extend(itens_vinculo or [])
@@ -194,7 +205,8 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
             r_origem = (regra.get("origem") or "").strip().upper()
             r_op = (regra.get("op_de") or "").strip().upper()
             r_ativo = (regra.get("ativo_de") or "").strip().upper()
-            if not (_confere(r_origem, item["origem"]) and _confere(r_op, item["operacao"]) and _confere(r_ativo, item["ativo"])):
+            casa_ativo = _confere(r_ativo, item["ativo"]) or ("(" in item["ativo"] and _confere(r_ativo, nome_base(item["ativo"])))   # TASK-079
+            if not (_confere(r_origem, item["origem"]) and _confere(r_op, item["operacao"]) and casa_ativo):
                 continue
             achou = True
             if regra.get("acao") in ("SUBST", "SUBSTITUIÇÃO", "SUBSTITUICAO"):

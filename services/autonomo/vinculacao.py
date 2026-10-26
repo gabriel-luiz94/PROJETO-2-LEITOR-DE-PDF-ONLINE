@@ -37,7 +37,8 @@ def codigo_estrutura(ativo_estrutura):
     """Código da estrutura sem o prefixo de quantidade de Outros (ex.: "U4" de "1-U4")."""
     texto = (ativo_estrutura or "").strip()
     sem_qtd = _RE_QTD_PREFIXO.match(texto)
-    return sem_qtd.group(1) if sem_qtd else texto
+    codigo = sem_qtd.group(1) if sem_qtd else texto
+    return codigo[:codigo.index("(")].strip() if "(" in codigo else codigo       # TASK-079: N1(XLPE,DT) → N1
 
 
 def tipo_estrutura(ativo_estrutura):

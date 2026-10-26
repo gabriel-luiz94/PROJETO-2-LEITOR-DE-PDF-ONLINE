@@ -187,13 +187,17 @@ def validar_base(cabos_payload: list, outros_payload: list, projeto, base_rows: 
         ("outros", outros_payload or [], extrair_ativos_outros,
          lambda itens: processar_calculo([], itens, projeto, base_rows)),
     ):
-        nao_encontrados = set(chamar(linhas)["nao_encontrados"])
+        nao_encontrados = list(chamar(linhas)["nao_encontrados"])
         if not nao_encontrados:
             continue
+
+        def _nao_achado(nome):
+            # a mensagem pode trazer a dica entre parênteses ("CAA2 (só existe para linha morta)", "N1(XLIPE) (CABO=… não cadastrado)")
+            return any(n == nome or n.startswith(nome + " (") for n in nao_encontrados)
         for i, linha in enumerate(linhas):
             linha_id = linha.get("id") or f"{tabela.upper()}-{i}"
             for av in extrair(linha):
-                if av["ativo"] in nao_encontrados:
+                if _nao_achado(av["ativo"]):
                     achados.append(_achado(
                         linha_id, tabela, "C1-BASE", "aviso",
                         f"Ativo '{av['ativo']}' não encontrado na base técnica"

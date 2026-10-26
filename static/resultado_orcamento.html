@@ -1295,11 +1295,19 @@
                 if (res.ok) {
                     tbody.innerHTML = '';
                     
+                    // Mensagens vêm do servidor (inclusive trechos da base): sempre como texto, nunca como HTML.
+                    const alertaCalculo = (titulo, itens, cor) => {
+                        const box = document.createElement('div');
+                        box.style = "background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-default); color: var(--text-secondary); padding: 10px 14px; border-radius: 5px; font-size: 0.8rem; margin-bottom: 10px;";
+                        const t = document.createElement('strong'); t.style.color = cor || 'var(--text-primary)'; t.textContent = titulo + ' ';
+                        box.appendChild(t); box.appendChild(document.createTextNode(itens.join(' • ')));
+                        document.querySelector('.table-section-card').insertAdjacentElement('beforebegin', box);
+                    };
                     if (data.nao_encontrados && data.nao_encontrados.length > 0) {
-                        const notFoundAlert = document.createElement('div');
-                        notFoundAlert.style = "background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-default); color: var(--text-secondary); padding: 10px 14px; border-radius: 5px; font-size: 0.8rem; margin-bottom: 10px;";
-                        notFoundAlert.innerHTML = `<strong style="color:var(--text-primary);">Atenção:</strong> Itens não encontrados na base técnica: ${data.nao_encontrados.join(', ')}`;
-                        document.querySelector('.table-section-card').insertAdjacentElement('beforebegin', notFoundAlert);
+                        alertaCalculo('Atenção: itens não encontrados na base técnica:', data.nao_encontrados);
+                    }
+                    if (data.avisos && data.avisos.length > 0) {
+                        alertaCalculo('Aviso (variantes dos ativos):', data.avisos, '#d29922');
                     }
 
                     if (data.resultado && data.resultado.length > 0) {

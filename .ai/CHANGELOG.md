@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-26 — TASK-079: ativos com parâmetros por categoria (ex.: N1(XLPE,DT))
+
+**Tipo:** Backend + Frontend · `services/ativo_parametros.py` e `static/ativo_parametros.js` (novos), `services/orcamento_calc.py`, `services/regras_dominio.py`, `services/validacao_planilhas.py`, `routers/admin.py`, `routers/orcamento.py`, `routers/validacao_regras.py`, `static/resumo.js`, `static/resumo.html`, `static/orcamento.html`, `static/resultado_orcamento.html`, `app.py`
+
+A base de orçamento aceita variantes por categoria no nome do ativo: declaração `N1=N1(cabo=XLPE, poste=DT)` (nomes, ordem e padrões; `N1=N1(cabo, poste)` = sem padrão), grupos `N1(cabo=XLPE)`, `N1(poste=DT)`, `N1(cabo=COBRE, poste=CC)` e o grupo comum `N1`. Em Outros/Totalizadora o pedido usa só os valores (`3-N1(XLPE,DT)`; `3-N1` completa pelo padrão). O cálculo junta o grupo comum e os grupos que valem; erro de variante vai para "não encontrados" com a lista e pedido incompleto gera **avisos**. A importação recusa cadastro inconsistente e avisa sobreposição de códigos. Base sem parâmetros: resultado idêntico ao anterior. Sem SQL novo no Supabase.
+
+---
+
 ## 2026-10-25 — TASK-078: linha viva x linha morta (coluna LV da base de orçamento)
 
 **Tipo:** Backend + Frontend + banco · `services/orcamento_lv.py` (novo), `services/orcamento_calc.py`, `database.py`, `routers/admin.py`, `routers/orcamento.py`, `services/sync_service.py`, `services/realtime_sync.py`, `static/orcamento.html`, `data/tabela_seed.csv`, `scripts/schema_supabase.sql`

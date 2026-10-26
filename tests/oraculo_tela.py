@@ -13,6 +13,7 @@ import config
 
 NODE = shutil.which("node")
 MOTOR = os.path.join(config.STATIC_DIR, "regras_leitor_engine.js")
+ATIVO_PARAMETROS = os.path.join(config.STATIC_DIR, "ativo_parametros.js")
 RESUMO = os.path.join(config.STATIC_DIR, "resumo.js")
 
 
@@ -45,6 +46,7 @@ const entrada = JSON.parse(fs.readFileSync(0, 'utf8'));
 globalThis.window = { __regrasLeitorProcessamento: entrada.proc || [], __regrasLeitorClassificacao: entrada.cls || [] };
 const Motor = require(%(motor)s);
 globalThis.RegrasLeitorEngine = Motor;
+globalThis.AtivoParametros = require(%(ativo_parametros)s);
 let extractedDataCache = entrada.exportados || [];
 const tableStates = { cabos: { data: [] }, outros: { data: [] } };
 """
@@ -53,7 +55,7 @@ const tableStates = { cabos: { data: [] }, outros: { data: [] } };
 def _rodar(corpo, entrada):
     if not NODE:
         raise RuntimeError("node indisponível")
-    codigo = _PRE % {"motor": json.dumps(MOTOR)} + corpo
+    codigo = _PRE % {"motor": json.dumps(MOTOR), "ativo_parametros": json.dumps(ATIVO_PARAMETROS)} + corpo
     r = subprocess.run([NODE, "-e", codigo], input=json.dumps(entrada), capture_output=True, text=True, timeout=120)
     if r.returncode != 0:
         raise RuntimeError(r.stderr)

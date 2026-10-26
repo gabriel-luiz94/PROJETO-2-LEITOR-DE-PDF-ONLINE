@@ -38,6 +38,7 @@ import fnmatch
 import re
 from functools import lru_cache
 
+from services.ativo_parametros import nome_base
 from services.orcamento_calc import extrair_ativos_outros
 from services.validacao_planilhas import OPERACOES_VALIDAS, _para_float, _tokens_cabo_tabela
 
@@ -74,16 +75,23 @@ def _lista(v):
 
 
 def _casa(nome, sel, grupos, pilha=()):
+    """O nome do ativo casa com o seletor? TASK-079: um ativo com parâmetros ("N1(XLPE,DT)") casa pelo texto completo OU pelo nome-base ("N1")."""
+    if "(" in nome:
+        return _casa_nome(nome, sel, grupos, pilha) or _casa_nome(nome_base(nome), sel, grupos, pilha)
+    return _casa_nome(nome, sel, grupos, pilha)
+
+
+def _casa_nome(nome, sel, grupos, pilha=()):
     """O nome do ativo (já em maiúsculas) casa com o seletor?"""
     if isinstance(sel, list):
-        return any(_casa(nome, s, grupos, pilha) for s in sel)
+        return any(_casa_nome(nome, s, grupos, pilha) for s in sel)
     if isinstance(sel, str):
         s = sel.strip()
         if s.startswith("@"):
             g = s[1:].upper()
             if g in pilha:
                 return False  # ciclo (a validação já recusa; aqui só evita recursão infinita)
-            return any(_casa(nome, m, grupos, pilha + (g,)) for m in _lista((grupos or {}).get(g, [])))
+            return any(_casa_nome(nome, m, grupos, pilha + (g,)) for m in _lista((grupos or {}).get(g, [])))
         s = s.upper()
         if any(c in s for c in "*?["):
             return fnmatch.fnmatchcase(nome, s)
@@ -92,7 +100,7 @@ def _casa(nome, sel, grupos, pilha=()):
         if "regex" in sel:
             return bool(_re(sel["regex"]).search(nome))
         if "e" in sel:
-            return all(_casa(nome, s, grupos, pilha) for s in sel["e"])
+            return all(_casa_nome(nome, s, grupos, pilha) for s in sel["e"])
     return False
 
 

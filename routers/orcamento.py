@@ -10,6 +10,7 @@ from database import get_connection, get_row_connection
 from models import SalvarOrcamentoRequest, OrcamentoRequest, DetalhesRequest
 from services.orcamento_calc import processar_calculo
 from services.orcamento_lv import normalizar_lv
+from services.ativo_parametros import validar_base, resumo_erros
 from services.exportar_xlsx import ErroExportacao, gerar_xlsx
 from services.sync_service import (
     get_merged_orcamento, sync_tabela_master, filtrar_linhas_por_categoria,
@@ -66,6 +67,11 @@ async def upload_orcamento(request: Request, file: UploadFile = File(...)):
                            row_upper.get("MDO", ""), row_upper.get("CODIGO", ""), row_upper.get("DESC CODIGO", ""),
                            fator_i, fator_r, row_upper.get("FILTRO", ""), lv))
 
+        # TASK-079: ativos com parâmetros (N1=N1(cabo=XLPE), N1(cabo=ALUM)…) — recusa cadastro inconsistente antes de apagar
+        val = validar_base([{"ativo": t[0], "componente": t[2], "projeto": t[3], "codigo": t[5], "lv": t[10]} for t in linhas])
+        if val["erros"]:
+            return JSONResponse(status_code=400, content={"error": f"{resumo_erros(val['erros'])} Nada foi alterado."})
+
         conn = get_connection()
         cursor = conn.cursor()
 
@@ -79,7 +85,10 @@ async def upload_orcamento(request: Request, file: UploadFile = File(...)):
 
         conn.commit()
         conn.close()
-        return {"status": "ok", "message": "Tabela carregada com sucesso."}
+        resposta = {"status": "ok", "message": "Tabela carregada com sucesso."}
+        if val["avisos"]:
+            resposta["avisos"] = val["avisos"]
+        return resposta
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": str(e)})
 
@@ -139,6 +148,10 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Linha {i}: {e}")
 
+    val = validar_base(dados)                         # TASK-079: ativos com parâmetros
+    if val["erros"]:
+        raise HTTPException(status_code=400, detail=resumo_erros(val["erros"]))
+
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -192,7 +205,10 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
 
         conn.commit()
         conn.close()
-        return {"status": "ok", "message": "Tabela atualizada com sucesso."}
+        resposta = {"status": "ok", "message": "Tabela atualizada com sucesso."}
+        if val["avisos"]:
+            resposta["avisos"] = val["avisos"]
+        return resposta
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": str(e)})
 

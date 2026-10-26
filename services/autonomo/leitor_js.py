@@ -14,6 +14,7 @@ O canal é um SOCKET (e não stdin/stdout) porque no `.exe` `--windowed` o stdin
 
 Itens de entrada = os da extração: {pagina, texto, cor, layer}. A "vizinhança" das regras enxerga a lista inteira, como na tela.
 """
+import re
 import json
 import os
 import queue
@@ -161,6 +162,7 @@ class LeitorJS:
         """Equivalente de autoClassifyEntidade (resumo.js): só o texto do ativo, operação neutra 'I'."""
         if not ativo:
             return "0"
+        ativo = re.sub(r"\([^()]*\)", "", str(ativo))          # TASK-079: N1(XLPE,DT) classifica como N1 (igual ao autoClassifyEntidade)
         r = self._chamar("classificar", {"operacao": "I", "ativo": ativo, "cor": "", "layer": "", "texto": ativo, "cls": regras_cls or []})
         return r["entidade"]
 
