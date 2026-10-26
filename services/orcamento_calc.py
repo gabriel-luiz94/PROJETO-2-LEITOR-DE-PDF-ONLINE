@@ -5,6 +5,9 @@ import re
 
 
 from services.orcamento_lv import operacao_viva, passa_lv
+from services.ativo_parametros import (
+    analisar_celula_base, linha_vale, montar_assinaturas, nome_base, resolver_pedido,
+)
 
 
 def extrair_ativo_cabo(item: dict):
@@ -65,10 +68,21 @@ def extrair_ativo_cabo(item: dict):
 
 
 def tokenizar_outros(ativo_raw: str) -> list:
-    """Quebra o texto de uma linha de OUTROS em tokens alternados [qtd, ativo, qtd, ativo, ...]."""
+    """Quebra o texto de uma linha de OUTROS em tokens alternados [qtd, ativo, qtd, ativo, ...].
+
+    TASK-079: o que está entre parênteses ("N1(XLPE,DT)", "N1(poste=CC, cabo=COBRE)") é protegido — nenhum "-", "*" ou espaço
+    de dentro dele é tratado como separador/sinal.
+    """
     txt = (ativo_raw or "").strip()
     if not txt:
         return []
+    protegidos = []
+
+    def _guarda(m):
+        protegidos.append(m.group(0))
+        return f"\x00{len(protegidos) - 1}\x00"
+
+    txt = re.sub(r"\([^()]*\)", _guarda, txt)
     # Se inicia com DT ou CV sem quantidade, adiciona "1-"
     if re.match(r'^(DT|CV)', txt, re.IGNORECASE) and not re.match(r'^\d', txt):
         txt = "1-" + txt
@@ -76,7 +90,7 @@ def tokenizar_outros(ativo_raw: str) -> list:
     txt = txt.replace("-", " ")
     # "*" → "-" (representa negativo / linha viva)
     txt = txt.replace("*", "-")
-    return txt.split()
+    return [re.sub(r"\x00(\d+)\x00", lambda m: protegidos[int(m.group(1))], tok) for tok in txt.split()]
 
 
 def extrair_ativos_outros(item: dict) -> list:
@@ -100,9 +114,54 @@ def extrair_ativos_outros(item: dict) -> list:
     return resultado
 
 
+def _linha_vale_no_projeto(row, req_proj) -> bool:
+    row_proj = (row.get("projeto") or "").strip().upper()
+    if not row_proj:
+        return True
+    return not req_proj or req_proj in [p.strip() for p in row_proj.split("/")]
+
+
+def _preparar_parametros(orcamento_rows, req_proj):
+    """TASK-079: ativos com parâmetros na base. Devolve (linhas, assinaturas, grupos).
+
+    Cada GRUPO (``N1(cabo=XLPE)``) vira uma chave própria ``N1#CABO=XLPE`` no índice por ativo; a linha de declaração
+    (``N1=N1(…)``) vira o grupo comum ``N1`` (se tiver código/componente) ou some (se for só declaração). Base sem parâmetros
+    passa intacta. ``grupos`` = {base: {chave: {NOME: VALOR}}} só com as linhas válidas para o projeto do pedido.
+    """
+    validas = [r for r in orcamento_rows if _linha_vale_no_projeto(r, req_proj)]
+    assinaturas = montar_assinaturas([r.get("ativo") or "" for r in validas])
+    if not assinaturas and not any("(" in (r.get("ativo") or "") for r in orcamento_rows):
+        return orcamento_rows, assinaturas, {}
+
+    def _chave(a):
+        return a["base"] + "#" + ",".join(f"{p['nome']}={p['valor']}" for p in sorted(a["params"], key=lambda p: p["nome"]))
+
+    linhas, grupos = [], {}
+    for r in orcamento_rows:
+        cel = (r.get("ativo") or "").strip()
+        a = analisar_celula_base(cel) if cel and ("(" in cel or "=" in cel) else None
+        if a is None or a["erro"]:
+            linhas.append(r)
+            continue
+        novo = dict(r)
+        if a["tipo"] == "declaracao":
+            if not ((r.get("codigo") or "").strip() or (r.get("componente") or "").strip()):
+                continue                                   # linha só de declaração: nunca entra no cálculo
+            novo["ativo"] = a["base"]                      # a declaração é a 1ª linha do grupo comum
+        else:
+            novo["ativo"] = _chave(a)
+            if r in validas:
+                grupos.setdefault(a["base"], {})[novo["ativo"]] = {p["nome"]: p["valor"] for p in a["params"]}
+        linhas.append(novo)
+    return linhas, assinaturas, grupos
+
+
 def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcamento_rows: list) -> dict:
-    # ── 1. Índice ATIVO → linhas do orçamento (O(1) lookup com Fallback de Projeto) ──
     req_proj = (req_projeto or "").strip().upper()
+    orcamento_rows, assinaturas, grupos_param = _preparar_parametros(orcamento_rows, req_proj)
+    avisos = []
+
+    # ── 1. Índice ATIVO → linhas do orçamento (O(1) lookup com Fallback de Projeto) ──
     
     raw_by_ativo = {}
     for r in orcamento_rows:
@@ -207,8 +266,8 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             return ("codigo", codigo_lookup[nome_ativo])
         return None
 
-    for av in ativos_qtd:
-        nome_ativo = av["ativo"]
+    def _processar_um(nome_ativo, av, rotulo):
+        """Resolve UMA chave do índice (cascata completa). Retorna (achou, dica_de_linha_viva_morta|None)."""
         origem_req = av.get("origem", "").upper()
         operacao_req = av["operacao"]
 
@@ -221,26 +280,23 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
 
         achado = _buscar(nome_ativo, _aceita)
         if achado is None:
-            sem_lv = _buscar(nome_ativo, _matches_origem)
-            if sem_lv is not None:
+            if _buscar(nome_ativo, _matches_origem) is not None:
                 # existe na base, mas só com o outro tipo de linha: dica para quem corrige o orçamento
-                nao_encontrados.append(f"{nome_ativo} (só existe para linha {'morta' if operacao_viva(operacao_req) else 'viva'})")
-            else:
-                nao_encontrados.append(nome_ativo)
-            continue
+                return False, f"só existe para linha {'morta' if operacao_viva(operacao_req) else 'viva'}"
+            return False, None
 
         if achado[0] == "codigo":
             row_clone = dict(achado[1])
             row_clone["fator_i"] = 1.0
             row_clone["fator_r"] = 1.0
             componentes_qtd.append({"qtd": av["qtd"], "operacao": av["operacao"], "row": row_clone})
-            continue
+            return True, None
 
         linhas_ativo = achado[1]
         # Pega o COMPONENTE do primeiro match do ativo
         componente = linhas_ativo[0].get("componente", "").strip().upper()
         if not componente:
-            continue
+            return True, None
 
         # Agora busca TODOS os códigos desse componente filtrados pela origem e pelo tipo de linha
         # Para cada código, garante que a row escolhida tem mdo preenchido (se existir)
@@ -263,6 +319,38 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
                 "operacao": av["operacao"],
                 "row":      row,
             })
+        return True, None
+
+    for av in ativos_qtd:
+        nome_ativo = av["ativo"]
+        base = nome_base(nome_ativo)
+
+        if base in assinaturas or "(" in nome_ativo:
+            # TASK-079: ativo com parâmetros → grupo comum + grupos que valem para os parâmetros pedidos
+            pedido = resolver_pedido(nome_ativo, assinaturas)
+            if pedido["erros"]:
+                nao_encontrados.append(f"{nome_ativo} ({'; '.join(pedido['erros'])})")
+                continue
+            if pedido["faltando"]:
+                sig = assinaturas[base]
+                avisos.append(
+                    f"{pedido['texto']}: faltou informar " + "; ".join(f"{n} ({', '.join(sig['valores'].get(n, []))})" for n in pedido["faltando"])
+                    + f" — calculado só o que não depende disso. Ex.: {base}({','.join(sig['padroes'].get(n) or sig['valores'].get(n, ['?'])[0] for n in sig['nomes'])})."
+                )
+            chaves = [base] if orcamento_dict.get(base) else []
+            chaves += [k for k, params in grupos_param.get(base, {}).items() if linha_vale(params, pedido["params"])]
+            achou, dica = False, None
+            for chave in chaves:
+                ok, d = _processar_um(chave, av, pedido["texto"])
+                achou = achou or ok
+                dica = dica or d
+            if not achou:
+                nao_encontrados.append(f"{nome_ativo} ({dica or 'variante não cadastrada'})")
+            continue
+
+        achou, dica = _processar_um(nome_ativo, av, nome_ativo)
+        if not achou:
+            nao_encontrados.append(f"{nome_ativo} ({dica})" if dica else nome_ativo)
 
     # ── 4. Soma I e Soma R por CÓDIGO (equivalente ao SOMASE do Excel) ───────
     codigos = {}
@@ -313,4 +401,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
     # Ordenar: MDO explícito (MAO-DE-OBRA = 1 < MATERIAL = 2), Operação A-Z (I < R), Descrição A-Z
     resultado.sort(key=lambda x: (get_mdo_rank(x["mdo"]), x["operacao"], x["desc_codigo"].upper()))
 
-    return {"resultado": resultado, "nao_encontrados": list(set(nao_encontrados))}
+    saida = {"resultado": resultado, "nao_encontrados": list(set(nao_encontrados))}
+    if avisos:
+        saida["avisos"] = list(dict.fromkeys(avisos))
+    return saida

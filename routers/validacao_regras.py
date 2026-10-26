@@ -247,7 +247,8 @@ def ativos_para_autocomplete():
     rows = conn.execute("SELECT DISTINCT ativo FROM tabela_orcamento_master WHERE ativo IS NOT NULL AND ativo != '' "
                         "ORDER BY ativo LIMIT 3000").fetchall()
     conn.close()
-    return {"ativos": [r[0] for r in rows]}
+    from services.ativo_parametros import nome_base
+    return {"ativos": sorted({nome_base(r[0]) for r in rows if nome_base(r[0])})}      # TASK-079: variantes aparecem pelo nome-base
 
 
 @router.get("")

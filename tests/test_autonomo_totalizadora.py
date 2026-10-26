@@ -110,3 +110,44 @@ def test_arredondamentos_e_fator_zero_iguais_ao_js(arr, fator):
 def test_quantidade_zero_nao_vai_para_o_orcamento():
     tot = tt.montar_totalizadora([], [{"entidade": "ESTRUTURA", "operacao": "I", "ativo": "2-U4 1-CFU"}], [regra("NORMAL", 0)], [], "P1")
     assert all(r["qtd"] == 0 for r in tot) and tt.payload_calculo(tot) == {"cabos": [], "outros": []}
+
+
+# ── TASK-079: ativos com parâmetros (N1(XLPE,DT)) — o espelho em Python continua igual ao JS real ──
+def _linha(ativo, comp, cod, proj="PERNAMBUCO", desc="D"):
+    return {"ativo": ativo, "desc_ativo": desc if ativo else "", "componente": comp, "projeto": proj, "codigo": cod, "desc_codigo": "d"}
+
+
+BASE_PARAM = [_linha("N1=N1(cabo=XLPE, poste=DT)", "N1", "c1", desc="ESTRUTURA N1"), _linha("", "N1", "c2"),
+              _linha("N1(cabo=XLPE)", "N1.XLPE", "x1", desc="N1 XLPE"), _linha("N1(cabo=ALUM)", "N1.ALUM", "a1"),
+              _linha("N1(poste=DT)", "N1.DT", "d1"), _linha("N1(poste=CC)", "N1.CC", "k1"), _linha("P50", "P", "p1", proj="", desc="POSTE 50")]
+OUTROS_PARAM = ["3-N1", "2-N1(ALUM, CC)", "1-N1(XLIPE)", "1-N1(poste=CC,cabo=ALUM)", "2-N1(XLPE) 1-P50", "*1-N1(alum,dt) 4-P50(X)", "N1(ALUM,CC,XX)", "5-N1()", "2-N1(A B)", "1-n1(xlpe,dt)"]
+REGRAS_PARAM = [[], [{"origem": "OUTROS", "op_de": "", "ativo_de": "N1", "acao": "ADICAO", "op_para": "", "ativo_para": "ESCORA", "fator": 2, "arredondamento": "NORMAL", "val_min": "", "val_max": ""}],
+                [{"origem": "OUTROS", "op_de": "", "ativo_de": "N1%", "acao": "SUBST", "op_para": "", "ativo_para": "N1X", "fator": 1, "arredondamento": "NORMAL", "val_min": "", "val_max": ""}]]
+
+
+@pytest.mark.parametrize("semente", range(1, 7))
+def test_totalizadora_com_parametros_igual_ao_js(semente):
+    rnd = random.Random(1000 + semente)
+    visto = 0
+    for _ in range(10):
+        outros = [{"entidade": "0", "operacao": rnd.choice(["I", "*I", "R"]), "ativo": " ".join(rnd.sample(OUTROS_PARAM, rnd.randint(1, 3)))} for _ in range(rnd.randint(1, 4))]
+        regras = rnd.choice(REGRAS_PARAM)
+        proj = rnd.choice(["PERNAMBUCO", "pernambuco", "", "OUTRO"])
+        js = o.totalizadora_e_payload([], outros, regras, BASE_PARAM, proj)
+        tot = tt.montar_totalizadora([], outros, regras, BASE_PARAM, proj)
+        assert tt.normalizar_para_json(tot) == js["totalizadora"], (outros, regras, proj)
+        assert tt.payload_calculo(tot) == js["payload"]
+        visto += sum(1 for r in tot if "(" in r["ativo"])
+    assert visto > 5
+
+
+def test_totalizadora_normaliza_e_descreve_pelo_nome_base():
+    tot = tt.montar_totalizadora([], [{"entidade": "0", "operacao": "I", "ativo": "3-N1 2-N1(ALUM, CC) 1-N1(XLIPE)"}], [], BASE_PARAM, "PERNAMBUCO")
+    assert [r["ativo"] for r in tot] == ["N1(XLPE,DT)", "N1(ALUM,CC)", "N1(XLIPE)"]
+    assert tot[0]["desc"] == "ESTRUTURA N1" and not tot[0]["naoEncontrado"]
+    assert tot[2]["naoEncontrado"] and "XLIPE" in tot[2]["desc"]
+
+
+def test_vinculo_e_classificacao_ignoram_os_parametros():
+    from services.autonomo import vinculacao as vc
+    assert vc.codigo_estrutura("1-N1(XLPE,DT)") == "N1" and vc.codigo_estrutura("1-U4") == "U4" and vc.tipo_estrutura("1-N1(XLPE,DT)") == "1"

@@ -427,3 +427,15 @@ Na tela da base de orçamento há a coluna **LV** com três valores: **LV** (a l
 - No CSV, a coluna se chama `LV`; arquivo sem ela = tudo `A`; valor diferente de LV/LM/A é recusado (a mensagem diz a linha) e nada é alterado.
 - Depois de atualizar, o administrador roda o `schema_supabase.sql` no Supabase (cria a coluna) — nada muda no orçamento até alguém marcar LV ou LM.
 
+## Ativos com variantes (parâmetros) na base de orçamento
+
+Quando um ativo muda de itens conforme uma categoria (tipo de cabo, tipo de poste…), cadastre **uma variante por grupo de linhas**, na própria tabela base:
+
+- **Declaração** (1ª linha do ativo): `N1=N1(cabo=XLPE, poste=DT)` — define os parâmetros, a **ordem** e os **valores padrão** (`N1` sozinho vale `N1(XLPE,DT)`). Sem padrão: `N1=N1(cabo, poste)`. Sem declaração nenhuma, a ordem é a da primeira aparição e não há padrão.
+- **Grupos:** `N1(cabo=XLPE)` vale para cabo XLPE e qualquer poste; `N1(poste=DT)` para qualquer cabo; `N1(cabo=COBRE, poste=CC)` só para a combinação; `N1` sem parâmetros é o grupo **comum** (vale sempre). Cada grupo tem o seu **COMPONENTE** (ex.: `N1`, `N1.XLPE`, `N1.DT`) — o mesmo componente em grupos diferentes é recusado.
+- **Em Outros/Totalizadora** escreva `3-N1(XLPE,DT)` (só os valores, na ordem cadastrada) ou `3-N1(poste=CC, cabo=COBRE)` (com nomes). `3-N1` completa pelo padrão. Valores usam letras, números, `_` e `.` (sem hífen) e não diferenciam maiúsculas.
+- **Sem padrão** e pedido incompleto (`N1`, `N1(ALUM)`): calcula o que não depende do que falta e mostra um **aviso** com os valores aceitos. Valor inexistente (`N1(XLIPE)`) aparece em "não encontrados" com a lista de variantes cadastradas.
+- Ao importar a base o sistema **recusa** cadastro inconsistente (declaração repetida ou fora da 1ª linha, parâmetro fora da declaração, componente repetido entre grupos, caractere inválido) e **avisa** quando o mesmo código está em grupos que valem juntos (a quantidade soma duas vezes).
+- Combina com a coluna **LV** (linha viva/morta) e com a soma por código (o mesmo código em grupos exclusivos soma normalmente).
+- Nada a rodar no Supabase.
+

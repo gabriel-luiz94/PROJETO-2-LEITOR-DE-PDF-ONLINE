@@ -458,6 +458,13 @@
         const fileInput = document.getElementById('file-upload');
         const toast = document.getElementById('toast');
 
+        /** TASK-079: avisos do servidor sobre ativos com parâmetros (ex.: o mesmo código em grupos que valem juntos). */
+        function mostrarAvisosBase(data) {
+            if (data && Array.isArray(data.avisos) && data.avisos.length) {
+                alert('Base salva, mas confira:\n\n• ' + data.avisos.slice(0, 10).join('\n• ') + (data.avisos.length > 10 ? '\n… e mais ' + (data.avisos.length - 10) : ''));
+            }
+        }
+
         function showToast(msg) {
             toast.textContent = msg;
             toast.classList.add('visible');
@@ -644,6 +651,7 @@
                     showToast(escopo ? `Tabela Mestre atualizada para o projeto ${escopo}!` : "Tabela Mestre atualizada para TODOS!");
                     await fetch('/api/health/sync-master', {method: 'POST'});
                     carregarDados();
+                    mostrarAvisosBase(data);
                 } else {
                     const msg = data.detail || "Erro ao fazer upload Master.";
                     showToast(msg);
@@ -790,6 +798,7 @@
                 const data = await res.json();
                 if (res.ok) {
                     showToast("Base de orçamento atualizada com sucesso!");
+                    mostrarAvisosBase(data);
                 } else {
                     const msg = data.detail || "Erro ao salvar.";
                     showToast(msg);
@@ -877,6 +886,7 @@
                 if (res.ok) {
                     showToast(data.msg || "Nuvem atualizada com sucesso!");
                     alert(data.msg || "Nuvem atualizada com sucesso!");
+                    mostrarAvisosBase(data);
                 } else {
                     const msg = data.detail || "Erro ao sincronizar.";
                     showToast(msg);

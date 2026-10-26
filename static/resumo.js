@@ -1733,7 +1733,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // TASK-036: o ativo de uma linha Outros é "<qtd>-<código>" (ex.: "1-U4"), nunca o código puro.
         const texto = (ativoEstrutura || '').trim();
         const semQtd = texto.match(/^[*-]?[0-9]+(?:[.,][0-9]+)?[Xx-](.+)$/);
-        return semQtd ? semQtd[1] : texto;
+        const codigo = semQtd ? semQtd[1] : texto;
+        return codigo.indexOf('(') >= 0 ? codigo.slice(0, codigo.indexOf('(')).trim() : codigo;   // TASK-079: N1(XLPE,DT) → N1
     }
 
     function _tipoEstruturaVinculo(ativoEstrutura) {
@@ -2014,6 +2015,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // verificava aqui (ver .ai/tasks/TASK-006-25-09-2026.md).
     function autoClassifyEntidade(ativoTexto) {
         if (!ativoTexto) return '0';
+        ativoTexto = String(ativoTexto).replace(/\([^()]*\)/g, '');     // TASK-079: N1(XLPE,DT) classifica como N1
         const resultado = RegrasLeitorEngine.classificar(
             'I', ativoTexto, '', '', ativoTexto,
             window.__regrasLeitorClassificacao || []
@@ -5573,10 +5575,12 @@ window.syncTotalizadora = async function(forceUpdate = true) {
         const ativoUpper = (ativoNome || '').trim().toUpperCase();
         const projName = (localStorage.getItem('projeto_selecionado') || '').toUpperCase();
         
-        const row = orcamentoBaseData.find(r => 
-            ((r.ativo || '').toUpperCase() === ativoUpper || (r.codigo || '').toUpperCase() === ativoUpper) &&
-            ((r.projeto || '').trim().toUpperCase() === projName || (r.projeto || '').trim() === '')
-        );
+        // TASK-079: compara pelo nome-base (N1(XLPE,DT) e N1(cabo=ALUM) → N1); prefere a linha sem parâmetros (comum/declaração)
+        const nb = AtivoParametros.nomeBase(ativoUpper);
+        const doProjeto = r => (r.projeto || '').trim().toUpperCase() === projName || (r.projeto || '').trim() === '';
+        const candidatas = orcamentoBaseData.filter(r =>
+            ((r.ativo || '') !== '' && AtivoParametros.nomeBase(r.ativo) === nb || (r.codigo || '').toUpperCase() === ativoUpper) && doProjeto(r));
+        const row = candidatas.find(r => AtivoParametros.analisarCelulaBase(r.ativo || '').tipo !== 'grupo') || candidatas[0];
         if (row) {
             return { desc: row.desc_ativo || row.componente || row.desc_codigo || '', naoEncontrado: false };
         }
@@ -5647,11 +5651,13 @@ window.syncTotalizadora = async function(forceUpdate = true) {
     }
 
     // Processar Outros
+    // TASK-079: ativos com parâmetros — o texto entre parênteses não é quebrado e o pedido é normalizado (N1 → N1(XLPE,DT) pelo padrão)
+    const assinaturasParam = AtivoParametros.assinaturasDoProjeto(orcamentoBaseData, localStorage.getItem('projeto_selecionado') || '');
     tableStates.outros.data.forEach(item => {
         if (!item) return;
         const currentBaseId = baseIdCounter++;
         
-        const parts = item.ativo.split(/\s+/);
+        const parts = AtivoParametros.dividirTokens(item.ativo);
 
         parts.forEach(p => {
             if (!p.trim()) return;
@@ -5670,7 +5676,10 @@ window.syncTotalizadora = async function(forceUpdate = true) {
                 aName = m[2].trim();
             }
             
+            const ped = AtivoParametros.resolverPedido(aName, assinaturasParam);
+            if (ped.com_assinatura || aName.indexOf('(') >= 0) aName = ped.erros.length ? aName.toUpperCase() : ped.texto;
             let resDesc = buscarDescricao(aName);
+            if (ped.erros.length) resDesc = { desc: ped.erros.join('; '), naoEncontrado: true };
 
             rawItems.push({
                 baseId: `TOT-${currentBaseId}`,
@@ -5746,7 +5755,8 @@ window.syncTotalizadora = async function(forceUpdate = true) {
             let applies = true;
             if (!checkMatch(ruleOrigem, item.origem)) applies = false;
             if (!checkMatch(ruleOp, item.operacao)) applies = false;
-            if (!checkMatch(ruleAtivo, item.ativo)) applies = false;
+            // TASK-079: a regra casa o texto completo (N1(XLPE,DT)) OU o nome-base (N1)
+            if (!checkMatch(ruleAtivo, item.ativo) && !(item.ativo.indexOf('(') >= 0 && checkMatch(ruleAtivo, AtivoParametros.nomeBase(item.ativo)))) applies = false;
 
             if (applies) {
                 matchEncontrado = true;
