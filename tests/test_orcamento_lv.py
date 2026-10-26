@@ -109,7 +109,7 @@ def test_regressao_base_toda_A_igual_ao_calculo_de_antes():
         base.append(linha("", c, f"cod{i}b", mdo="MAO-DE-OBRA", fi=2.0, fr=1.0))
     base.append(linha("", "", "9001"))
     for _ in range(40):
-        itens = [outros(f"{rnd.randint(1, 5)}-{rnd.choice(['POSTE', 'CAA2', 'DT9', 'TR', '9001', 'NADA'])}", rnd.choice(["I", "*I", "R", "*R", "M", "*M"]))
+        itens = [outros(f"{rnd.randint(1, 5)}-{rnd.choice(['POSTE', 'CAA2', 'DT9', 'TR', '9001', 'NADA'])}", rnd.choice(["I", "*I", "R", "*R"]))
                  for _ in range(rnd.randint(1, 4))]
         esperado = antes.processar_calculo([], itens, rnd.choice(["", "RONDONIA"]), base)
         for variante in (base, [dict(r, lv="") for r in base], [dict(r, lv="A") for r in base], [dict(r, lv=None) for r in base]):

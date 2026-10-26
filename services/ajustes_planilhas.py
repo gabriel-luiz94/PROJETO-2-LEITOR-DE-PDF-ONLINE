@@ -70,6 +70,7 @@ GARANTIAS
 import copy
 import re
 
+from services.anotacao_outros import eh_compacta
 from services.orcamento_calc import extrair_ativos_outros
 from services.regras_dominio import (_casa, _cond, _frase_sel, _frase_situacao, _Linha, _n, _numero_ok,
                                      _regex_ok, _validar_cond, _validar_sel, validar_grupos)
@@ -635,6 +636,9 @@ def _aplicar_edicao(est, idx, a):
             if not texto.strip():
                 continue
             if filtro is not None and row["operacao"].strip().upper() not in filtro:
+                continue
+            if tabela == "outros" and eh_compacta(texto):          # TASK-081: ajustes não editam a notação compacta (1ª entrega)
+                est.descartar(idx, row["id"], "linha em notação compacta (vírgulas) não é editada por ajustes")
                 continue
             if not _quando(a.get("quando"), tabela, texto, est.grupos):
                 continue

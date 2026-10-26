@@ -10,8 +10,30 @@
     const norm = t => String(t == null ? '' : t).replace(/\s+/g, '').toUpperCase();
     const cont = (s, c) => s.split(c).length - 1;
 
+    /** Vírgulas FORA de parênteses. */
+    function virgulasDeTopo(texto) {
+        const pos = []; let prof = 0;
+        for (let i = 0; i < texto.length; i++) {
+            const ch = texto[i];
+            if (ch === '(') prof++;
+            else if (ch === ')' && prof > 0) prof--;
+            else if (ch === ',' && prof === 0) pos.push(i);
+        }
+        return pos;
+    }
+
+    /** "DT11/300, 11300D" → ["DT11/300", ["11300D"]] (TASK-081). A vírgula dentro de parênteses continua separando parâmetros. */
+    function separarApelidos(texto) {
+        const t = String(texto == null ? '' : texto), cortes = virgulasDeTopo(t);
+        if (!cortes.length) return [t.trim(), []];
+        const partes = []; let ini = 0;
+        for (const c of cortes) { partes.push(t.slice(ini, c)); ini = c + 1; }
+        partes.push(t.slice(ini));
+        return [partes[0].trim(), partes.slice(1).map(p => p.trim().toUpperCase())];
+    }
+
     function nomeBase(texto) {
-        let t = String(texto == null ? '' : texto).trim();
+        let t = separarApelidos(texto)[0];
         const i = t.indexOf('('), e = t.indexOf('=');
         if (e !== -1 && (i === -1 || e < i)) t = t.slice(0, e);
         else if (i !== -1) t = t.slice(0, i);
@@ -53,7 +75,7 @@
 
     function analisarAtivo(texto, modoBase) {
         const original = String(texto == null ? '' : texto).trim();
-        const r = { texto: original, base: '', tipo: 'simples', params: [], erro: null };
+        const r = { texto: original, base: '', tipo: 'simples', params: [], erro: null, apelidos: [] };
         if (!original) { r.erro = 'ativo vazio'; return r; }
         const i = original.indexOf('('), e = original.indexOf('=');
         if (e !== -1 && (i === -1 || e < i)) {
@@ -92,7 +114,7 @@
         const e = original.indexOf('='), i = original.indexOf('(');
         if (e === -1 || (i !== -1 && e > i)) return analisarAtivo(original, true);
         const esq = original.slice(0, e).trim().toUpperCase(), dir = original.slice(e + 1).trim();
-        const r = { texto: original, base: esq, tipo: 'declaracao', params: [], erro: null };
+        const r = { texto: original, base: esq, tipo: 'declaracao', params: [], erro: null, apelidos: [] };
         const j = dir.indexOf('(');
         if (j === -1 || !dir.endsWith(')') || cont(dir, '(') !== 1 || cont(dir, ')') !== 1) { r.erro = 'declaração precisa ter parâmetros: N1=N1(cabo=XLPE, poste=DT)'; return r; }
         if (dir.slice(0, j).trim().toUpperCase() !== esq) { r.erro = `declaração com nomes diferentes (${esq} = ${dir.slice(0, j).trim().toUpperCase()})`; return r; }
@@ -111,9 +133,24 @@
         return r;
     }
 
+    const RE_APELIDO = /^[A-Z0-9_./]+$/;
+
+    /** Célula ATIVO da base; o 1º nome é o oficial e os demais são apelidos (só em ativo sem parâmetros na célula). */
     function analisarCelulaBase(texto) {
-        const t = String(texto == null ? '' : texto), e = t.indexOf('='), i = t.indexOf('(');
-        return (e !== -1 && (i === -1 || e < i)) ? analisarDeclaracao(t) : analisarAtivo(t, true);
+        const t = String(texto == null ? '' : texto);
+        const [principal, apelidos] = separarApelidos(t);
+        const e = principal.indexOf('='), i = principal.indexOf('(');
+        const a = (e !== -1 && (i === -1 || e < i)) ? analisarDeclaracao(principal) : analisarAtivo(principal, true);
+        if (apelidos.length) {
+            a.texto = t.trim();
+            if (a.erro === null && a.tipo !== 'simples') a.erro = 'apelido só vale em ativo sem parâmetros na célula';
+            for (const ap of apelidos) {
+                if (!ap) a.erro = a.erro || 'apelido vazio';
+                else if (!RE_APELIDO.test(ap)) a.erro = a.erro || `apelido '${ap}' inválido (use letras, números, _, . e /)`;
+            }
+            a.apelidos = apelidos.filter(x => x);
+        }
+        return a;
     }
 
     function restricoesDoGrupo(analise) {
@@ -226,7 +263,21 @@
         return montarAssinaturas(validas.map(l => l.ativo || ''));
     }
 
-    const api = { nomeBase, analisarAtivo, analisarDeclaracao, analisarCelulaBase, restricoesDoGrupo, casarPadrao, restricaoVale, montarAssinaturas, resolverPedido, linhaVale, dividirTokens, assinaturasDoProjeto };
+    /** {APELIDO: NOME_OFICIAL} das linhas da base válidas para o projeto. */
+    function apelidosDoProjeto(linhas, projeto) {
+        const p = String(projeto || '').trim().toUpperCase(), saida = {};
+        for (const l of linhas || []) {
+            const lp = String(l.projeto || '').trim().toUpperCase();
+            if (lp && p && !lp.split('/').map(x => x.trim()).includes(p)) continue;
+            const cel = l.ativo || '';
+            if (cel.indexOf(',') === -1) continue;
+            const a = analisarCelulaBase(cel);
+            if (!a.erro) for (const ap of a.apelidos) if (!(ap in saida)) saida[ap] = a.base;
+        }
+        return saida;
+    }
+
+    const api = { separarApelidos, apelidosDoProjeto, nomeBase, analisarAtivo, analisarDeclaracao, analisarCelulaBase, restricoesDoGrupo, casarPadrao, restricaoVale, montarAssinaturas, resolverPedido, linhaVale, dividirTokens, assinaturasDoProjeto };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.AtivoParametros = api;
 })(typeof window !== 'undefined' ? window : globalThis);

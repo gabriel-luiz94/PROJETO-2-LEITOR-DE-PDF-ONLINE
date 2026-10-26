@@ -5,6 +5,7 @@ import re
 
 
 from services.orcamento_lv import operacao_viva, passa_lv
+from services.anotacao_outros import contexto_da_base, interpretar_linha
 from services.ativo_parametros import (
     analisar_celula_base, linha_vale, montar_assinaturas, nome_base, resolver_pedido, restricoes_do_grupo,
 )
@@ -93,14 +94,13 @@ def tokenizar_outros(ativo_raw: str) -> list:
     return [re.sub(r"\x00(\d+)\x00", lambda m: protegidos[int(m.group(1))], tok) for tok in txt.split()]
 
 
-def extrair_ativos_outros(item: dict) -> list:
-    """Interpreta uma linha de OUTROS ("[qtd]-[ativo] [qtd]-[ativo] ..."). Devolve lista de ativos.
+def _classico_outros(texto: str) -> list:
+    """Formato ANTIGO de uma linha de OUTROS ("[qtd]-[ativo] [qtd]-[ativo] ..."): [{"ativo", "qtd"}].
 
     Tolerante por desenho: quantidade não numérica vira 1.0 e um token sobrando no fim é descartado.
     """
-    operacao = item.get("operacao", "").strip().upper()
     # Posições pares = quantidades, posições ímpares = ativos
-    tokens = tokenizar_outros(item.get("ativo", ""))
+    tokens = tokenizar_outros(texto)
     resultado = []
     i = 0
     while i + 1 < len(tokens):
@@ -108,10 +108,21 @@ def extrair_ativos_outros(item: dict) -> list:
             qtd = float(tokens[i].replace(",", "."))
         except ValueError:
             qtd = 1.0
-        nome_str = tokens[i + 1].upper()
-        resultado.append({"ativo": nome_str, "qtd": qtd, "operacao": operacao, "origem": "OUTROS"})
+        resultado.append({"ativo": tokens[i + 1].upper(), "qtd": qtd})
         i += 2
     return resultado
+
+
+def extrair_ativos_outros(item: dict, ctx: dict = None) -> list:
+    """Interpreta uma linha de OUTROS e devolve a lista de ativos {ativo, qtd, operacao, origem}.
+
+    TASK-081: aceita o formato ANTIGO (``2-N3 1-T3``) e o COMPACTO (``11600D, 2 N3, T3``) — nunca misturados —, resolve apelidos e notação
+    compacta de poste, preenche o parâmetro ``poste`` das estruturas e aplica a regra do M/*M (poste ignorado, demais itens I/*I).
+    ``ctx`` (opcional) = contexto_da_base(...). Linha com erro de formato devolve só o que se entende sem ambiguidade (nada).
+    """
+    operacao = item.get("operacao", "").strip().upper()
+    r = interpretar_linha(item.get("ativo", ""), operacao, _classico_outros, ctx)
+    return [{"ativo": i["ativo"], "qtd": i["qtd"], "operacao": i["operacao"], "origem": "OUTROS"} for i in r["itens"]]
 
 
 def _linha_vale_no_projeto(row, req_proj) -> bool:
@@ -130,7 +141,7 @@ def _preparar_parametros(orcamento_rows, req_proj):
     """
     validas = [r for r in orcamento_rows if _linha_vale_no_projeto(r, req_proj)]
     assinaturas = montar_assinaturas([r.get("ativo") or "" for r in validas])
-    if not assinaturas and not any("(" in (r.get("ativo") or "") for r in orcamento_rows):
+    if not assinaturas and not any("(" in (r.get("ativo") or "") or "," in (r.get("ativo") or "") for r in orcamento_rows):
         return orcamento_rows, assinaturas, {}
 
     def _chave(a):
@@ -139,11 +150,15 @@ def _preparar_parametros(orcamento_rows, req_proj):
     linhas, grupos = [], {}
     for r in orcamento_rows:
         cel = (r.get("ativo") or "").strip()
-        a = analisar_celula_base(cel) if cel and ("(" in cel or "=" in cel) else None
+        a = analisar_celula_base(cel) if cel and ("(" in cel or "=" in cel or "," in cel) else None
         if a is None or a["erro"]:
             linhas.append(r)
             continue
         novo = dict(r)
+        if a["tipo"] == "simples":                         # TASK-081: "DT11/300, 11300D" → o nome oficial é o 1º
+            novo["ativo"] = a["base"]
+            linhas.append(novo)
+            continue
         if a["tipo"] == "declaracao":
             if not ((r.get("codigo") or "").strip() or (r.get("componente") or "").strip()):
                 continue                                   # linha só de declaração: nunca entra no cálculo
@@ -158,6 +173,7 @@ def _preparar_parametros(orcamento_rows, req_proj):
 
 def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcamento_rows: list) -> dict:
     req_proj = (req_projeto or "").strip().upper()
+    ctx_outros = contexto_da_base(orcamento_rows, req_proj)          # TASK-081: apelidos, postes e assinaturas (antes de normalizar a base)
     orcamento_rows, assinaturas, grupos_param = _preparar_parametros(orcamento_rows, req_proj)
     avisos = []
 
@@ -206,7 +222,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
 
     # 2b. OUTROS: texto separado por espaços no modelo "[qtd]-[ativo] [qtd]-[ativo] ..."
     for item in req_outros:
-        ativos_qtd.extend(extrair_ativos_outros(item))
+        ativos_qtd.extend(extrair_ativos_outros(item, ctx_outros))
 
     # ── 3. Cross-reference: Ativo → 1º match → Componente → todos os Códigos ─
     

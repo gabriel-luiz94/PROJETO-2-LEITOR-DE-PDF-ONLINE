@@ -441,3 +441,14 @@ Quando um ativo muda de itens conforme uma categoria (tipo de cabo, tipo de post
 - Combina com a coluna **LV** (linha viva/morta) e com a soma por código (o mesmo código em grupos exclusivos soma normalmente).
 - Nada a rodar no Supabase.
 
+## Notação compacta na tabela Outros (11600D, 2 N3, T3)
+
+Além do formato antigo (`1-DT11/600 2-N3 1-T3`), a tabela Outros aceita a lista com **vírgula + espaço**:
+
+- `11600D, 2 N3, T3` — cada item é `[quantidade] ativo` (sem quantidade vale 1; `0,5 N3` usa vírgula decimal; `*2 N3` é negativo).
+- Postes: `D` = DT, `R` = RC, `F` = CV, `FV` = FV (`11300D` = `DT11/300`, `7150FV` = `FV7/150`).
+- **Apelidos**: na coluna ATIVO da base escreva `DT11/300, 11300D`; `11300D` passa a valer como esse ativo em qualquer formato.
+- Uma linha **não mistura** os dois formatos. `11600D,N3` (vírgula sem espaço) é erro: use vírgula + espaço.
+- Se a estrutura tem o parâmetro `poste` na base (`N3=N3(poste=11600D)`, grupos `N3(poste=%D)`), ela usa o **poste mais próximo à esquerda** na linha; sem poste à esquerda vale o padrão. O valor do parâmetro `poste` é sempre a forma compacta (`11600D`).
+- **Operação M / *M**: o poste da linha é ignorado (só serve para o parâmetro) e todos os demais itens contam como `I` / `*I`. Vale para os dois formatos.
+- Os Ajustes de planilhas não editam linhas em notação compacta.

@@ -1570,11 +1570,12 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function calcularResumoRede() {
         const resumo = { postes: 0, redeMedia: 0, redeBaixa: 0, equipamentos: 0 };
+        const ctxOutros = _ctxOutros();
 
         tableStates.outros.data.forEach(row => {
             if ((row.operacao || '').toUpperCase() !== 'I') return;
-            extrairParesQtdAtivoOutros(row.ativo).forEach(({ ativo, qtd }) => {
-                if (/^(DT|CV)/i.test(ativo)) {
+            AnotacaoOutros.interpretarLinha(row.ativo, 'I', extrairParesQtdAtivoOutros, ctxOutros).itens.forEach(({ ativo, qtd }) => {
+                if (/^(DT|RC|CV|FV)/i.test(ativo)) {
                     resumo.postes += qtd;
                 } else if (/^(TR|CFU|CFA)/i.test(ativo)) {
                     resumo.equipamentos += qtd;
@@ -1732,6 +1733,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function _codigoEstruturaVinculo(ativoEstrutura) {
         // TASK-036: o ativo de uma linha Outros é "<qtd>-<código>" (ex.: "1-U4"), nunca o código puro.
         const texto = (ativoEstrutura || '').trim();
+        if (AnotacaoOutros.ehCompacta(texto)) return AnotacaoOutros.codigoEstrutura(texto, _classicoTotalizadora, _ctxOutros());   // TASK-081
         const semQtd = texto.match(/^[*-]?[0-9]+(?:[.,][0-9]+)?[Xx-](.+)$/);
         const codigo = semQtd ? semQtd[1] : texto;
         return codigo.indexOf('(') >= 0 ? codigo.slice(0, codigo.indexOf('(')).trim() : codigo;   // TASK-079: N1(XLPE,DT) → N1
@@ -2007,6 +2009,32 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ═══════════════════════════════════════
        CLASSIFICAÇÃO AUTOMÁTICA DE ENTIDADE
     ═══════════════════════════════════════ */
+    /** TASK-081: contexto da base (apelidos, postes, assinaturas) para traduzir a notação compacta de Outros. */
+    function _ctxOutros() {
+        let base = [];
+        try { base = orcamentoBaseData || []; } catch (e) { /* a base ainda não foi declarada (a tela está carregando) */ }
+        return AnotacaoOutros.contextoDaBase(base, (typeof localStorage !== 'undefined' ? localStorage.getItem('projeto_selecionado') : '') || '');
+    }
+
+    /** Leitor do formato ANTIGO usado pela Totalizadora: token a token, "qtd-ativo" (o "*" na frente da quantidade é negativo). */
+    function _classicoTotalizadora(texto) {
+        const saida = [];
+        AtivoParametros.dividirTokens(texto).forEach(p => {
+            if (!p.trim()) return;
+            let q = 1, aName = p.trim();
+            const m = p.match(/^([\*\-]?\d+(?:[.,]\d+)?)[Xx\-](.+)$/i);
+            if (m) {
+                let qStr = m[1], neg = false;
+                if (qStr.startsWith('*') || qStr.startsWith('-')) { neg = true; qStr = qStr.substring(1); }
+                q = parseFloat(qStr.replace(',', '.'));
+                if (neg) q = -q;
+                aName = m[2].trim();
+            }
+            saida.push({ ativo: aName.toUpperCase(), qtd: q });
+        });
+        return saida;
+    }
+
     // autoClassifyEntidade foi religada ao motor de regras do leitor (TASK-006), reusando a
     // mesma Tabela de Classificacao da aba Leitor. Operacao fixa em 'I' (neutro) porque esta
     // funcao so recebe o texto do ativo, sem operacao real conhecida -- nenhuma regra de
@@ -2015,6 +2043,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // verificava aqui (ver .ai/tasks/TASK-006-25-09-2026.md).
     function autoClassifyEntidade(ativoTexto) {
         if (!ativoTexto) return '0';
+        if (AnotacaoOutros.ehCompacta(ativoTexto)) ativoTexto = AnotacaoOutros.textoEquivalente(String(ativoTexto), _classicoTotalizadora, _ctxOutros());     // TASK-081: compacto → antigo (linha antiga fica como está)
         ativoTexto = String(ativoTexto).replace(/\([^()]*\)/g, '');     // TASK-079: N1(XLPE,DT) classifica como N1
         const resultado = RegrasLeitorEngine.classificar(
             'I', ativoTexto, '', '', ativoTexto,
@@ -5653,29 +5682,24 @@ window.syncTotalizadora = async function(forceUpdate = true) {
     // Processar Outros
     // TASK-079: ativos com parâmetros — o texto entre parênteses não é quebrado e o pedido é normalizado (N1 → N1(XLPE,DT) pelo padrão)
     const assinaturasParam = AtivoParametros.assinaturasDoProjeto(orcamentoBaseData, localStorage.getItem('projeto_selecionado') || '');
+    const ctxOutros = _ctxOutros();
     tableStates.outros.data.forEach(item => {
         if (!item) return;
         const currentBaseId = baseIdCounter++;
         
-        const parts = AtivoParametros.dividirTokens(item.ativo);
+        // TASK-081: notação compacta/apelidos/regra do M traduzidos aqui; o que o usuário digitou não muda
+        const interp = AnotacaoOutros.interpretarLinha(item.ativo, item.operacao || 'I', _classicoTotalizadora, ctxOutros);
+        if (interp.erros.length) {
+            rawItems.push({
+                baseId: `TOT-${currentBaseId}`, obs: item.entidade, operacao: item.operacao || 'I', ativo: String(item.ativo || '').toUpperCase(), qtd: 1,
+                desc: interp.erros.map(e => e.msg).join('; '), naoEncontrado: true, origem: 'OUTROS'
+            });
+            return;
+        }
 
-        parts.forEach(p => {
-            if (!p.trim()) return;
-            let q = 1;
-            let aName = p.trim();
-            const m = p.match(/^([\*\-]?\d+(?:[.,]\d+)?)[Xx\-](.+)$/i);
-            if (m) {
-                let qStr = m[1];
-                let isNegative = false;
-                if (qStr.startsWith('*') || qStr.startsWith('-')) {
-                    isNegative = true;
-                    qStr = qStr.substring(1);
-                }
-                q = parseFloat(qStr.replace(',', '.'));
-                if (isNegative) q = -q;
-                aName = m[2].trim();
-            }
-            
+        interp.itens.forEach(it => {
+            let aName = it.ativo;
+            const q = it.qtd;
             const ped = AtivoParametros.resolverPedido(aName, assinaturasParam);
             if (ped.com_assinatura || aName.indexOf('(') >= 0) aName = ped.erros.length ? aName.toUpperCase() : ped.texto;
             let resDesc = buscarDescricao(aName);
@@ -5684,7 +5708,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
             rawItems.push({
                 baseId: `TOT-${currentBaseId}`,
                 obs: item.entidade,
-                operacao: item.operacao || 'I',
+                operacao: it.operacao || 'I',
                 ativo: aName,
                 qtd: q,
                 desc: resDesc.desc,

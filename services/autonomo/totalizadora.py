@@ -7,6 +7,7 @@ Paridade provada em tests/test_autonomo_totalizadora.py executando o JS real. Fi
 (meio para cima, não o arredondamento do Python), `\\s`/`trim`, `\\d` ASCII, `$` só no fim, número→texto do JS.
 Limite conhecido: as regex digitadas nas regras de conversão são avaliadas pelo `re` do Python (dialeto quase igual ao do JS).
 """
+from services.anotacao_outros import contexto_da_base, interpretar_linha
 from services.ativo_parametros import analisar_celula_base, assinaturas_do_projeto, dividir_tokens, nome_base, resolver_pedido
 import math
 import re
@@ -127,6 +128,26 @@ def _confere(padrao, alvo) -> bool:
         return False
 
 
+def classico_totalizadora(texto: str) -> list:
+    """Formato ANTIGO de Outros como a Totalizadora lê: token a token, "qtd-ativo" (espelho de _classicoTotalizadora em resumo.js)."""
+    saida = []
+    for p in dividir_tokens(texto or ""):
+        if not _trim(p):
+            continue
+        q, nome = 1.0, _trim(p)
+        m = _RE_OUTROS.match(p)
+        if m:
+            q_str, negativo = m.group(1), False
+            if q_str.startswith("*") or q_str.startswith("-"):
+                negativo, q_str = True, q_str[1:]
+            q = js_parse_float(q_str.replace(",", "."))
+            if negativo:
+                q = -q
+            nome = _trim(m.group(2))
+        saida.append({"ativo": nome.upper(), "qtd": q})
+    return saida
+
+
 def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento: list, projeto_nome: str, itens_vinculo: list = None) -> list:
     """Linhas {id, obs, operacao, ativo, qtd, desc, naoEncontrado, origem}. `qtd` pode ser float('nan') (como o NaN do JS).
     `itens_vinculo` (TASK-036): pseudo-itens origem "VINCULO" (ver `services/autonomo/vinculacao.py`), que nunca aparecem
@@ -170,31 +191,28 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
             brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": item.get("operacao") or "I", "ativo": base_ativo,
                            "qtd": q, "desc": desc, "naoEncontrado": nao, "origem": "CABOS"})
     assinaturas_param = assinaturas_do_projeto(base, projeto_nome)
+    ctx_outros = contexto_da_base(base, projeto_nome)
     for item in outros:
         if not item:
             continue
         base_id = contador
         contador += 1
-        for p in dividir_tokens(item.get("ativo") or ""):
-            if not _trim(p):
-                continue
-            q, nome = 1.0, _trim(p)
-            m = _RE_OUTROS.match(p)
-            if m:
-                q_str, negativo = m.group(1), False
-                if q_str.startswith("*") or q_str.startswith("-"):
-                    negativo, q_str = True, q_str[1:]
-                q = js_parse_float(q_str.replace(",", "."))
-                if negativo:
-                    q = -q
-                nome = _trim(m.group(2))
+        # TASK-081: notação compacta/apelidos/regra do M traduzidos aqui (o texto do usuário não muda)
+        interp = interpretar_linha(item.get("ativo") or "", item.get("operacao") or "I", classico_totalizadora, ctx_outros)
+        if interp["erros"]:
+            brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": item.get("operacao") or "I",
+                           "ativo": str(item.get("ativo") or "").upper(), "qtd": 1.0, "desc": "; ".join(e["msg"] for e in interp["erros"]),
+                           "naoEncontrado": True, "origem": "OUTROS"})
+            continue
+        for it in interp["itens"]:
+            nome, q = it["ativo"], it["qtd"]
             ped = resolver_pedido(nome, assinaturas_param)          # TASK-079: normaliza N1 → N1(XLPE,DT); variante inválida fica em vermelho
             if ped["com_assinatura"] or "(" in nome:
                 nome = nome.upper() if ped["erros"] else ped["texto"]
             desc, nao = _buscar_descricao(base, nome, projeto_nome)
             if ped["erros"]:
                 desc, nao = "; ".join(ped["erros"]), True
-            brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": item.get("operacao") or "I", "ativo": nome,
+            brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": it["operacao"] or "I", "ativo": nome,
                            "qtd": q, "desc": desc, "naoEncontrado": nao, "origem": "OUTROS"})
     brutos.extend(itens_vinculo or [])
 

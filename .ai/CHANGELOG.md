@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-27 — TASK-081: notação compacta na tabela Outros e apelidos de ativo
+
+**Tipo:** Backend + Frontend · `services/anotacao_outros.py` e `static/anotacao_outros.js` (novos), `services/ativo_parametros.py`, `static/ativo_parametros.js`, `services/orcamento_calc.py`, `services/validacao_planilhas.py`, `services/ajustes_planilhas.py`, `services/autonomo/totalizadora.py`, `services/autonomo/leitor_js.py`, `routers/validacao.py`, `static/resumo.js`, `static/resumo.html`, `app.py`
+
+Outros aceita linhas como `11600D, 2 N3, T3` (itens separados por vírgula + espaço; `quantidade ativo`; vírgula sem espaço é decimal). Poste compacto: `D`=DT, `R`=RC, `F`=CV, `FV` (`11300D` = `DT11/300`). Apelidos entram na célula ATIVO da base (`DT11/300, 11300D`) e valem em qualquer item, nos dois formatos. A tradução para o formato antigo é implícita (a célula mantém o que foi digitado); uma linha não mistura formatos (erro `C1-OUT-MISTURA`; vírgula sem espaço fora de decimal = `C1-OUT-VIRGULA`). Estruturas com o parâmetro `poste` recebem o poste mais próximo à esquerda (`N3(11600D)`). **Mudança de comportamento:** na operação `M`/`*M` o poste é ignorado e os demais itens viram `I`/`*I` em TODAS as linhas de Outros (antes entravam na soma de R). Contadores do resumo passam a contar RC e FV como postes. Linhas compactas não são editadas pelos ajustes. Sem SQL novo.
+
+---
+
 ## 2026-10-26 — TASK-080: operadores nos parâmetros dos ativos e COMPONENTE automático
 
 **Tipo:** Backend + Frontend · `services/ativo_parametros.py`, `static/ativo_parametros.js`, `services/orcamento_calc.py`, `routers/admin.py`, `routers/orcamento.py`, `static/orcamento.html`
