@@ -31,9 +31,36 @@ def _norm(txt) -> str:
     return re.sub(r"\s+", "", str(txt if txt is not None else "")).upper()
 
 
+def _virgulas_de_topo(texto):
+    """Posições das vírgulas FORA de parênteses."""
+    prof, pos = 0, []
+    for i, ch in enumerate(texto):
+        if ch == "(":
+            prof += 1
+        elif ch == ")" and prof > 0:
+            prof -= 1
+        elif ch == "," and prof == 0:
+            pos.append(i)
+    return pos
+
+
+def separar_apelidos(texto):
+    """"DT11/300, 11300D" → ("DT11/300", ["11300D"]). A vírgula DENTRO de parênteses continua separando parâmetros."""
+    t = str(texto if texto is not None else "")
+    cortes = _virgulas_de_topo(t)
+    if not cortes:
+        return t.strip(), []
+    partes, ini = [], 0
+    for c in cortes:
+        partes.append(t[ini:c])
+        ini = c + 1
+    partes.append(t[ini:])
+    return partes[0].strip(), [p.strip().upper() for p in partes[1:]]
+
+
 def nome_base(texto) -> str:
-    """"N1(XLPE,DT)" / "N1=N1(cabo=XLPE)" / "N1" → "N1" (maiúsculas, sem parâmetros)."""
-    t = str(texto if texto is not None else "").strip()
+    """"N1(XLPE,DT)" / "N1=N1(cabo=XLPE)" / "DT11/300, 11300D" / "N1" → nome oficial em maiúsculas, sem parâmetros nem apelidos."""
+    t, _ = separar_apelidos(texto)
     i = t.find("(")
     e = t.find("=")
     if e != -1 and (i == -1 or e < i):
@@ -95,7 +122,7 @@ def analisar_ativo(texto, modo_base=False) -> dict:
     "simples" = sem parênteses; "grupo" = com parênteses; "declaracao" = ``N1=N1(...)``. Um item sem "=" é posicional
     (nome None). No pedido só valem valores concretos; operadores (%, |, !=) só nos grupos da base."""
     original = str(texto if texto is not None else "").strip()
-    r = {"texto": original, "base": "", "tipo": "simples", "params": [], "erro": None}
+    r = {"texto": original, "base": "", "tipo": "simples", "params": [], "erro": None, "apelidos": []}
     if not original:
         r["erro"] = "ativo vazio"
         return r
@@ -157,7 +184,7 @@ def analisar_declaracao(texto) -> dict:
     if e == -1 or (i != -1 and e > i):
         return analisar_ativo(original, True)
     esq, dir_ = original[:e].strip().upper(), original[e + 1:].strip()
-    r = {"texto": original, "base": esq, "tipo": "declaracao", "params": [], "erro": None}
+    r = {"texto": original, "base": esq, "tipo": "declaracao", "params": [], "erro": None, "apelidos": []}
     j = dir_.find("(")
     if j == -1 or not dir_.endswith(")") or dir_.count("(") != 1 or dir_.count(")") != 1:
         r["erro"] = "declaração precisa ter parâmetros: N1=N1(cabo=XLPE, poste=DT)"
@@ -187,14 +214,28 @@ def analisar_declaracao(texto) -> dict:
     return r
 
 
+_RE_APELIDO = re.compile(r"^[A-Z0-9_./]+$")
+
+
 def analisar_celula_base(texto) -> dict:
-    """Interpreta a célula ATIVO da base (declaração com nomes, grupos com operadores)."""
+    """Interpreta a célula ATIVO da base (declaração com nomes, grupos com operadores e, TASK-081, apelidos: ``DT11/300, 11300D``).
+    O primeiro nome é o oficial; os demais são apelidos e só valem em ativo SEM parâmetros na célula."""
     t = str(texto if texto is not None else "")
-    e = t.find("=")
-    i = t.find("(")
-    if e != -1 and (i == -1 or e < i):
-        return analisar_declaracao(t)
-    return analisar_ativo(t, True)
+    principal, apelidos = separar_apelidos(t)
+    e = principal.find("=")
+    i = principal.find("(")
+    a = analisar_declaracao(principal) if (e != -1 and (i == -1 or e < i)) else analisar_ativo(principal, True)
+    if apelidos:
+        a["texto"] = t.strip()
+        if a["erro"] is None and a["tipo"] != "simples":
+            a["erro"] = "apelido só vale em ativo sem parâmetros na célula"
+        for ap in apelidos:
+            if not ap:
+                a["erro"] = a["erro"] or "apelido vazio"
+            elif not _RE_APELIDO.match(ap):
+                a["erro"] = a["erro"] or f"apelido '{ap}' inválido (use letras, números, _, . e /)"
+        a["apelidos"] = [x for x in apelidos if x]
+    return a
 
 
 def restricoes_do_grupo(analise) -> dict:
@@ -343,6 +384,24 @@ def assinaturas_do_projeto(linhas, projeto) -> dict:
     return montar_assinaturas([l.get("ativo") or "" for l in validas])
 
 
+def apelidos_do_projeto(linhas, projeto) -> dict:
+    """{APELIDO: NOME_OFICIAL} das linhas da base válidas para o projeto (genéricas + as do projeto)."""
+    p = str(projeto or "").strip().upper()
+    saida = {}
+    for l in linhas or []:
+        lp = str(l.get("projeto") or "").strip().upper()
+        if lp and p and p not in [x.strip() for x in lp.split("/")]:
+            continue
+        cel = l.get("ativo") or ""
+        if "," not in cel:
+            continue
+        a = analisar_celula_base(cel)
+        if not a["erro"]:
+            for ap in a["apelidos"]:
+                saida.setdefault(ap, a["base"])
+    return saida
+
+
 def resumo_erros(erros, limite=8) -> str:
     """Junta as primeiras mensagens de erro para uma resposta HTTP (as demais viram "… e mais N")."""
     msg = " | ".join(erros[:limite])
@@ -452,6 +511,20 @@ def validar_base(linhas) -> dict:
             erros.append(f"Linha {n}: ativo '{cel}': na base os parâmetros levam nome (cabo=XLPE).")
             continue
         analises.append((n, linha, a))
+
+    nomes_oficiais = {}                                               # (escopo, nome oficial) → linha
+    for n, linha, a in analises:
+        nomes_oficiais.setdefault((_escopo(linha), a["base"]), n)
+    donos = {}                                                        # (escopo, apelido) → (oficial, linha)
+    for n, linha, a in analises:
+        for ap in a["apelidos"]:
+            chave = (_escopo(linha), ap)
+            if ap in [x[1] for x in nomes_oficiais if x[0] == _escopo(linha)]:
+                erros.append(f"Linha {n}: apelido '{ap}' já é o nome de outro ativo.")
+            elif chave in donos and donos[chave][0] != a["base"]:
+                erros.append(f"Linha {n}: apelido '{ap}' já pertence ao ativo {donos[chave][0]} (linha {donos[chave][1]}).")
+            else:
+                donos.setdefault(chave, (a["base"], n))
 
     parametrizadas = {}                                               # (escopo, base) → [(n, linha, analise)] das linhas com parâmetros
     for n, linha, a in analises:

@@ -36,7 +36,7 @@ def test_analisar_formas():
     assert a["params"] == [{"nome": "CABO", "op": "=", "valor": "XLPE", "alts": ["XLPE"]}, {"nome": "POSTE", "op": "=", "valor": "DT", "alts": ["DT"]}]
     assert ap.analisar_celula_base("N1=N1(cabo, poste)")["params"] == [{"nome": "CABO", "op": "=", "valor": None, "alts": []}, {"nome": "POSTE", "op": "=", "valor": None, "alts": []}]
     assert ap.analisar_celula_base("N1(cabo=XLPE)")["tipo"] == "grupo"
-    assert ap.analisar_celula_base("DT9/150") == {"texto": "DT9/150", "base": "DT9/150", "tipo": "simples", "params": [], "erro": None}
+    assert ap.analisar_celula_base("DT9/150") == {"texto": "DT9/150", "base": "DT9/150", "tipo": "simples", "params": [], "erro": None, "apelidos": []}
     for ruim in ["N1(XL-PE)", "N1()", "N1(cabo=)", "N1(", "N1=X1(a=b)", "N1=N1", "N1(a=1,a=2)", ""]:
         assert ap.analisar_celula_base(ruim)["erro"], ruim
 

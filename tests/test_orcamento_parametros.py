@@ -256,7 +256,8 @@ def test_ligacoes_do_front():
     html = open(os.path.join(config.STATIC_DIR, "resumo.html"), encoding="utf-8").read()
     js = open(os.path.join(config.STATIC_DIR, "resumo.js"), encoding="utf-8").read()
     assert html.index("/static/ativo_parametros.js") < html.index("/static/resumo.js")
-    for trecho in ["AtivoParametros.dividirTokens(item.ativo)", "AtivoParametros.resolverPedido(aName, assinaturasParam)",
+    assert html.index("/static/anotacao_outros.js") < html.index("/static/resumo.js")
+    for trecho in ["AnotacaoOutros.interpretarLinha(item.ativo, item.operacao || 'I', _classicoTotalizadora, ctxOutros)", "AtivoParametros.resolverPedido(aName, assinaturasParam)",
                    "AtivoParametros.nomeBase(ativoUpper)", "checkMatch(ruleAtivo, AtivoParametros.nomeBase(item.ativo))", "replace(/\\([^()]*\\)/g, '')"]:
         assert trecho in js, trecho
     r = TestClient(__import__("app").app).get("/static/ativo_parametros.js")

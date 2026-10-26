@@ -22,13 +22,13 @@ router = APIRouter(prefix="/api/validacao", tags=["validacao"])
 @router.post("/planilhas")
 def validar(req: ValidacaoPlanilhasRequest, request: Request):
     # Não registrar o conteúdo das planilhas em log (RULES Regra 11).
-    achados = validar_planilhas(req.cabos, req.outros)
+    user = getattr(request.state, "user", None)
+    base_rows = get_merged_orcamento(user["user_id"] if user else None) if (req.payload_calculo is not None or req.projeto) else None
+    achados = validar_planilhas(req.cabos, req.outros, base_rows, req.projeto)     # TASK-081: apelidos/postes da base
     if req.incluir_dominio:
         regras, grupos, _ = regras_efetivas(req.projeto_codigo or "DEFAULT")
         achados += avaliar(regras, req.cabos, req.outros, grupos)
     if req.payload_calculo is not None:
-        user = getattr(request.state, "user", None)
-        base_rows = get_merged_orcamento(user["user_id"] if user else None)
         achados += validar_base(
             req.payload_calculo.cabos, req.payload_calculo.outros, req.projeto, base_rows
         )

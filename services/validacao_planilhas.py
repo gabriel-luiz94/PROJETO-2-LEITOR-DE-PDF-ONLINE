@@ -9,8 +9,10 @@ checagens expõem esses casos antes do cálculo.
 """
 import re
 
+from services.anotacao_outros import contexto_da_base, interpretar_linha
 from services.orcamento_calc import (
     extrair_ativo_cabo,
+    _classico_outros,
     extrair_ativos_outros,
     processar_calculo,
     tokenizar_outros,
@@ -114,7 +116,7 @@ def _validar_linha_cabo(linha, linha_id, achados):
         ))
 
 
-def _validar_linha_outros(linha, linha_id, achados):
+def _validar_linha_outros(linha, linha_id, achados, ctx=None):
     ativo = (linha.get("ativo") or "").strip()
     if not ativo:
         return
@@ -127,6 +129,14 @@ def _validar_linha_outros(linha, linha_id, achados):
             linha_id, "outros", "C1-OUT-CABO", "erro",
             f"'{ativo}' termina em metros (formato de cabo). Outros usa <qtd>-<ativo>.",
         ))
+        return
+
+    # TASK-081: formato compacto ("11600D, 2 N3, T3") ou vírgula mal usada — a leitura do formato antigo abaixo não se aplica
+    interp = interpretar_linha(ativo, "", _classico_outros, ctx)
+    if interp["formato"] == "compacto" or interp["erros"]:
+        for e in interp["erros"]:
+            achados.append(_achado(linha_id, "outros", f"C1-OUT-{e['cod']}", "erro", e["msg"]))
+        _avisos_itens(interp["itens"], linha_id, achados)
         return
 
     tokens = tokenizar_outros(ativo)
@@ -143,7 +153,10 @@ def _validar_linha_outros(linha, linha_id, achados):
                 f"Quantidade '{tokens[i]}' não numérica antes de '{tokens[i + 1]}': o cálculo assumiria 1.",
             ))
 
-    itens = extrair_ativos_outros({"ativo": ativo, "operacao": ""})
+    _avisos_itens(extrair_ativos_outros({"ativo": ativo, "operacao": ""}, ctx), linha_id, achados)
+
+
+def _avisos_itens(itens, linha_id, achados):
     vistos = {}
     for item in itens:
         vistos[item["ativo"]] = vistos.get(item["ativo"], 0) + 1
@@ -160,17 +173,18 @@ def _validar_linha_outros(linha, linha_id, achados):
             ))
 
 
-def validar_planilhas(cabos: list, outros: list) -> list:
+def validar_planilhas(cabos: list, outros: list, base_rows: list = None, projeto=None) -> list:
     """Camada 1 sobre as tabelas Cabos e Outros como aparecem na tela.
 
     Cada linha: {"id": opcional, "ativo": str, "operacao": str}. Sem `id`, usa CABOS-<i>/OUTROS-<i>
     (índice de 0, o mesmo do contexto enviado ao chat).
     """
     achados = []
+    ctx = contexto_da_base(base_rows, projeto) if base_rows else None      # TASK-081: apelidos e postes da base (opcional)
     for i, linha in enumerate(cabos or []):
         _validar_linha_cabo(linha, linha.get("id") or f"CABOS-{i}", achados)
     for i, linha in enumerate(outros or []):
-        _validar_linha_outros(linha, linha.get("id") or f"OUTROS-{i}", achados)
+        _validar_linha_outros(linha, linha.get("id") or f"OUTROS-{i}", achados, ctx)
     return achados
 
 

@@ -138,6 +138,11 @@ async def serve_ler_projeto_js():
 async def serve_ativo_parametros_js():
     return _serve_js("ativo_parametros.js")
 
+
+@app.get("/static/anotacao_outros.js")
+async def serve_anotacao_outros_js():
+    return _serve_js("anotacao_outros.js")
+
 @app.get("/static/grade_tabela.js")
 async def serve_grade_tabela_js():
     return _serve_js("grade_tabela.js")
