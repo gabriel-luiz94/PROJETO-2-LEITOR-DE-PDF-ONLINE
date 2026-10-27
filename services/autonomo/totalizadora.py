@@ -212,10 +212,10 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
     ctx_outros = contexto_da_base(base, projeto_nome)
     parametros_vinculo = {}
     if cfg_vinculo is not None:                  # TASK-084: parâmetro `cabo` que cada estrutura recebe do(s) cabo(s) vinculado(s)
-        from services.autonomo.vinculacao import codigo_estrutura
+        from services.autonomo.vinculacao import codigo_estrutura, codigos_estrutura
         from services.autonomo.montagem import prefixo_cabo
         from services.vinculacao_regras import parametros_por_linha
-        parametros_vinculo = parametros_por_linha(cabos, outros, cfg_vinculo, prefixo_cabo, codigo_estrutura)
+        parametros_vinculo = parametros_por_linha(cabos, outros, cfg_vinculo, prefixo_cabo, codigo_estrutura, codigos_estrutura)
     for idx_outros, item in enumerate(outros):
         if not item:
             continue

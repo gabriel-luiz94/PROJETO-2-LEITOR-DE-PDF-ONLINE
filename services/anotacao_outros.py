@@ -264,6 +264,12 @@ def contexto_da_base(linhas, projeto) -> dict:
     return {"apelidos": apelidos_do_projeto(linhas, projeto), "nomes": nomes, "postes": postes, "assinaturas": assinaturas_do_projeto(linhas, projeto)}
 
 
+def codigos_estruturas(texto, classico, ctx=None) -> list:
+    """Nomes de TODOS os itens que não são poste, na ordem da linha (TASK-094: `9400D, N1, N4` → ["N1", "N4"]); vazio se só houver poste."""
+    r = interpretar_linha(texto, "", classico, ctx)
+    return [nome_base(i["ativo"]) for i in r["itens"] if not eh_poste(nome_base(i["ativo"]))]
+
+
 def codigo_estrutura(texto, classico, ctx=None) -> str:
     """Nome do primeiro item que NÃO é poste (a estrutura da linha, para o vínculo); vazio se não houver."""
     r = interpretar_linha(texto, "", classico, ctx)

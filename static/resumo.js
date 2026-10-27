@@ -574,9 +574,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function _reajustarVinculosAposRemoverOutros(idxRemovido) {
         tableStates.cabos.data.forEach(cabo => {
             if (!Array.isArray(cabo.vinculoEstruturas)) return;
+            const VR = window.VinculacaoRegras;       // TASK-094: o id da unidade é linha (+ posição/100); só a linha muda
             cabo.vinculoEstruturas = cabo.vinculoEstruturas
-                .filter(i => i !== idxRemovido)
-                .map(i => i > idxRemovido ? i - 1 : i);
+                .filter(i => VR.linhaDe(i) !== idxRemovido)
+                .map(i => VR.linhaDe(i) > idxRemovido ? VR.idUnidade(VR.linhaDe(i) - 1, VR.slotDe(i)) : i);
         });
     }
 
@@ -887,7 +888,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tableStates[tipo].data = ordem.map(i => dados[i]);
         if (tipo === 'outros') {
             tableStates.cabos.data.forEach(c => {
-                if (Array.isArray(c.vinculoEstruturas)) c.vinculoEstruturas = c.vinculoEstruturas.map(i => (mapa[i] !== undefined ? mapa[i] : i));
+                if (Array.isArray(c.vinculoEstruturas)) c.vinculoEstruturas = c.vinculoEstruturas.map(i => { const l = window.VinculacaoRegras.linhaDe(i); return mapa[l] !== undefined ? window.VinculacaoRegras.idUnidade(mapa[l], window.VinculacaoRegras.slotDe(i)) : i; });
             });
         }
         ordemAtual[tipo] = criterios.map(c => Object.assign({}, c));
@@ -1687,6 +1688,7 @@ document.addEventListener('DOMContentLoaded', () => {
         projeto: () => localStorage.getItem('projeto_selecionado_codigo') || 'DEFAULT',
         prefixoCabo: _prefixoCaboVinculo,
         codigoEstrutura: _codigoEstruturaVinculo,
+        codigosEstrutura: _codigosEstruturaVinculo,            // TASK-094: todas as estruturas da linha (9400D, N1, N4 → N1, N4)
         postesDaLinha(ativo) {
             const r = AnotacaoOutros.interpretarLinha(ativo || '', 'I', _classicoTotalizadora, _ctxOutros());
             return r.itens.map(i => AtivoParametros.nomeBase(i.ativo)).filter(n => AnotacaoOutros.ehPoste(n)).map(n => AnotacaoOutros.posteParaCompacto(n));
@@ -1720,7 +1722,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // TASK-084: usa a Tabela de Cabos + Tabela de Estruturas do projeto (a mesma lógica do modal e do modo autônomo)
         const cfg = window.__vinculacaoConfig;
         if (!cfg || typeof VinculacaoRegras === 'undefined') return [];
-        return VinculacaoRegras.achados(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo);
+        return VinculacaoRegras.achados(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
     }
 
     /* ═══════════════════════════════════════
@@ -1760,6 +1762,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (poste) c._poste = poste;
         if (Array.isArray(obj.vinculoEstruturas)) c.vinculoEstruturas = obj.vinculoEstruturas.slice();
         if (obj.vinculoOrigem) c.vinculoOrigem = obj.vinculoOrigem;                                       // TASK-084: manual | script
+        if (obj.cabosFicticiosSlots && Object.keys(obj.cabosFicticiosSlots).length) c.cabosFicticiosSlots = JSON.parse(JSON.stringify(obj.cabosFicticiosSlots));   // TASK-094: fictícios das demais estruturas da linha
         if (Array.isArray(obj.cabosFicticios) && obj.cabosFicticios.length) c.cabosFicticios = obj.cabosFicticios.slice();   // TASK-084: cabos fictícios da estrutura
         return c;
     }
@@ -1824,6 +1827,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return { prefixo, comprimento };
     }
 
+    /** TASK-094: códigos de TODAS as estruturas da linha, sem o poste (`9400D, N1, N4` → [N1, N4]); só poste → []. */
+    function _codigosEstruturaVinculo(ativoEstrutura) {
+        return AnotacaoOutros.codigosEstruturas((ativoEstrutura || '').trim(), _classicoTotalizadora, _ctxOutros());
+    }
+
     function _codigoEstruturaVinculo(ativoEstrutura) {
         // TASK-081/084: o código da estrutura é o do primeiro item da linha que NÃO é poste (9200D, N1 → N1; 1-U4 → U4); linha só com poste → o próprio poste.
         const texto = (ativoEstrutura || '').trim();
@@ -1844,7 +1852,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function _parametrosVinculoPorLinha() {
         const cfg = window.__vinculacaoConfig;
         if (!cfg || typeof VinculacaoRegras === 'undefined') return {};
-        return VinculacaoRegras.parametrosPorLinha(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo);
+        return VinculacaoRegras.parametrosPorLinha(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
     }
 
     // autoClassifyEntidade foi religada ao motor de regras do leitor (TASK-006), reusando a
@@ -5565,13 +5573,14 @@ window.syncTotalizadora = async function(forceUpdate = true) {
         const prefixoCabo = info ? info.prefixo : null;
         if (!prefixoCabo) return;
         cabo.vinculoEstruturas.forEach(idxEstrutura => {
-            const estrutura = tableStates.outros.data[idxEstrutura];
+            const estrutura = tableStates.outros.data[VinculacaoRegras.linhaDe(idxEstrutura)];        // TASK-094: unidade = linha (+ posição/100)
             if (!estrutura || !estrutura.ativo) return;
+            const codigosLinha = _codigosEstruturaVinculo(estrutura.ativo), codigoUnidade = codigosLinha[VinculacaoRegras.slotDe(idxEstrutura)] || _codigoEstruturaVinculo(estrutura.ativo);
             rawItems.push({
                 baseId: `TOT-VINC-${idxCabo}-${idxEstrutura}`,
                 obs: 'VINCULO',
                 operacao: cabo.operacao || 'I',
-                ativo: `${prefixoCabo}_${_codigoEstruturaVinculo(estrutura.ativo).toUpperCase()}`,
+                ativo: `${prefixoCabo}_${codigoUnidade.toUpperCase()}`,
                 qtd: 1,
                 desc: '',
                 naoEncontrado: false,

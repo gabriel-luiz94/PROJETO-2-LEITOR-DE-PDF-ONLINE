@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-10-27 — TASK-094: várias estruturas por linha de Outros, em blocos por poste
+
+**Tipo:** feature · `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/vinculacao_ui.js`, `static/resumo.js`, `static/anotacao_outros.js`, `services/anotacao_outros.py`, `services/autonomo/*`
+
+`9400D, N1, N4` agora é um poste e DUAS estruturas vinculáveis. Id da unidade = linha (1ª) ou linha + k/100; vínculos antigos continuam válidos. O modal mostra uma linha por poste com as estruturas lado a lado.
+
+---
+
 ## 2026-10-27 — TASK-092/093: texto original do cabo e estrutura com fictício opcional
 
 **Tipo:** feature · `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/vinculacao_ui.js`, `static/resumo.js`/`.html`, `services/autonomo/montagem.py`, `data/vinculacao_pernambuco_seed.json`

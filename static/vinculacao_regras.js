@@ -132,17 +132,59 @@
     }
 
     const ehCaboValido = row => !!row && !!trim(row.ativo);
-    function estruturasDisponiveis(outros) {
+    const ehLinhaEstrutura = row => !!row && (row.entidade === 'ESTRUTURA' || row.entidade === 'POSTE');
+
+    // TASK-094: uma linha de Outros pode ter VÁRIAS estruturas (`9400D, N1, N4` = poste + N1 + N4); cada uma é uma "unidade" vinculável.
+    // Identidade da unidade: o índice da linha para a 1ª estrutura (compatível com tudo que já foi salvo) e linha + posição/100 para as seguintes (12 → 12.01 → 12.02).
+    const idUnidade = (ie, k) => (k ? Number((ie + k / 100).toFixed(2)) : ie);
+    const linhaDe = id => Math.floor(id + 1e-9);
+    const slotDe = id => Math.round((id - linhaDe(id)) * 100);
+    /** Cabos fictícios da unidade: `cabosFicticios` é da 1ª; as demais ficam em `cabosFicticiosSlots[k]`. */
+    const ficticiosDe = (row, k) => (k ? ((row && row.cabosFicticiosSlots && row.cabosFicticiosSlots[k]) || []) : ((row && row.cabosFicticios) || []));
+    /** Códigos das estruturas da linha (sem poste). `codigosFn(ativo)` -> lista; sem ele (ou lista vazia) vale o código único de `codigoFn` (linha só com poste). */
+    function codigosDaLinha(row, codigoFn, codigosFn) {
+        const l = codigosFn ? (codigosFn(row.ativo) || []).filter(Boolean) : [];
+        return l.length ? l : [codigoFn(row.ativo, row)];
+    }
+
+    function estruturasDisponiveis(outros, codigoFn, codigosFn) {
         const r = [];
-        outros.forEach((row, i) => { if (row && (row.entidade === 'ESTRUTURA' || row.entidade === 'POSTE')) r.push(i); });
+        outros.forEach((row, i) => {
+            if (!ehLinhaEstrutura(row)) return;
+            if (!codigosFn) { r.push(i); return; }
+            codigosDaLinha(row, codigoFn || (() => ''), codigosFn).forEach((_, k) => r.push(idUnidade(i, k)));
+        });
         return r;
     }
 
-    function analisar(cabos, outros, cfg, prefixoFn, codigoFn) {
+    /** Lista "virtual" de Outros com uma entrada por unidade (as demais linhas passam como estão) e os cabos com os vínculos traduzidos para ela. */
+    function expandir(cabos, outros, codigoFn, codigosFn) {
+        const virt = [], idDe = [], jDe = {};
+        outros.forEach((row, ie) => {
+            if (!ehLinhaEstrutura(row)) { idDe.push(ie); virt.push(row); return; }
+            const cods = codigosDaLinha(row, codigoFn, codigosFn);
+            cods.forEach((cod, k) => {
+                const id = idUnidade(ie, k);
+                jDe[id] = virt.length; idDe.push(id);
+                virt.push(Object.assign({}, row, { cabosFicticios: ficticiosDe(row, k), _codigoUnidade: cod, _linha: ie, _rotulo: cods.length > 1 ? `${row.ativo} [${cod}]` : row.ativo }));
+            });
+        });
+        const cabosV = cabos.map(c => (c && Array.isArray(c.vinculoEstruturas) ? Object.assign({}, c, { vinculoEstruturas: c.vinculoEstruturas.map(id => (jDe[id] !== undefined ? jDe[id] : -1)) }) : c));
+        return { virt, idDe, jDe, cabosV, codigoV: (ativo, row) => (row && row._codigoUnidade !== undefined ? row._codigoUnidade : codigoFn(ativo, row)) };
+    }
+
+    function analisar(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn) {
+        const x = expandir(cabos, outros, codigoFn, codigosFn);
+        const a = analisarBase(x.cabosV, x.virt, cfg, prefixoFn, x.codigoV), estruturas = {};
+        Object.keys(a.estruturas).forEach(j => { estruturas[x.idDe[Number(j)]] = a.estruturas[j]; });
+        return { estruturas, cabos: a.cabos, links: a.links.map(l => Object.assign({}, l, { estrutura: x.idDe[l.estrutura] })) };
+    }
+
+    function analisarBase(cabos, outros, cfg, prefixoFn, codigoFn) {
         cfg = normalizarConfig(cfg);
         const ests = estruturasDisponiveis(outros), infoC = {}, infoE = {}, ocup = {};
         cabos.forEach((c, ic) => { if (ehCaboValido(c)) infoC[ic] = infoCabo(prefixoFn(c.ativo) || '', c.operacao, cfg, extraCabo(c)); });
-        ests.forEach(ie => { infoE[ie] = infoEstrutura(codigoFn(outros[ie].ativo), cfg); ocup[ie] = []; });
+        ests.forEach(ie => { infoE[ie] = infoEstrutura(codigoFn(outros[ie].ativo, outros[ie]), cfg); ocup[ie] = []; });
         cabos.forEach((c, ic) => {
             if (!(ic in infoC)) return;
             (c.vinculoEstruturas || []).forEach(ie => { if (ie in ocup) ocup[ie].push(ic); });
@@ -192,24 +234,24 @@
         return { estruturas: resE, cabos: resC, links };
     }
 
-    function parametrosPorLinha(cabos, outros, cfg, prefixoFn, codigoFn) {
-        const a = analisar(cabos, outros, cfg, prefixoFn, codigoFn), saida = {};
-        Object.keys(a.estruturas).forEach(k => {
-            const r = a.estruturas[k];
-            if (r.valor_cabo && r.parametro) saida[k] = { [r.parametro]: r.valor_cabo };
+    function parametrosPorLinha(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn) {
+        const a = analisar(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn), saida = {};
+        Object.keys(a.estruturas).sort((x, y) => x - y).forEach(k => {
+            const r = a.estruturas[k], linha = linhaDe(Number(k));
+            if (r.valor_cabo && r.parametro && !(linha in saida)) saida[linha] = { [r.parametro]: r.valor_cabo };       // várias estruturas na linha: vale a 1ª que tem valor
         });
         return saida;
     }
 
-    function achados(cabos, outros, cfg, prefixoFn, codigoFn) {
+    function achados(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn) {
         cfg = normalizarConfig(cfg);
-        const a = analisar(cabos, outros, cfg, prefixoFn, codigoFn), saida = [];
+        const a = analisar(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn), saida = [];
         const existeM = cabos.some(c => ehCaboValido(c) && opBase(c.operacao) === 'M');
         const existeRetca = outros.some(r => r && /\bRETCA\b/i.test(r.ativo || ''));
         const excecaoZero = existeM || existeRetca;
-        const add = (ie, mensagem, explicacao) => saida.push({ linha_id: `OUTROS-${ie}`, tabela: 'outros', regra_id: 'VINCULO-ESTRUTURA', severidade: 'aviso', mensagem, explicacao });
-        Object.keys(a.estruturas).forEach(k => {
-            const ie = Number(k), r = a.estruturas[k], nome = outros[ie].ativo;
+        const add = (ie, mensagem, explicacao) => saida.push({ linha_id: `OUTROS-${linhaDe(ie)}`, tabela: 'outros', regra_id: 'VINCULO-ESTRUTURA', severidade: 'aviso', mensagem, explicacao });
+        Object.keys(a.estruturas).sort((x, y) => x - y).forEach(k => {
+            const ie = Number(k), r = a.estruturas[k], linhaO = outros[linhaDe(ie)], nome = codigosFn && (codigosFn(linhaO.ativo) || []).filter(Boolean).length > 1 ? `${linhaO.ativo} [${r.codigo}]` : linhaO.ativo;
             if (r.regra === null) return;
             if (r.tem === 0) {
                 if (!excecaoZero) add(ie, `Estrutura "${nome}" sem nenhum cabo vinculado.`, `${r.codigo} exige ${r.precisa || 1} cabo(s); nenhum encontrado, e não há cabo M nem RETCA no projeto para justificar.`);
@@ -259,11 +301,19 @@
     const temXY = r => r._x !== undefined && r._x !== null && r._y !== undefined && r._y !== null;
     const dist = (a, b) => { const dx = a._x - b._x, dy = a._y - b._y; return Math.sqrt(dx * dx + dy * dy); };
 
-    function executarScript(script, cabos, outros, cfg, prefixoFn, codigoFn, aplicar) {
+    function executarScript(script, cabos, outros, cfg, prefixoFn, codigoFn, aplicar, codigosFn) {
+        const x = expandir(cabos, outros, codigoFn, codigosFn);
+        const r = executarScriptBase(script, x.cabosV, x.virt, cfg, prefixoFn, x.codigoV, false);
+        r.vinculos.forEach(v => { v.estruturas = v.estruturas.map(j => x.idDe[j]); });
+        if (aplicar) r.vinculos.forEach(v => { cabos[v.cabo].vinculoEstruturas = v.estruturas.slice(); cabos[v.cabo].vinculoOrigem = 'script'; });
+        return r;
+    }
+
+    function executarScriptBase(script, cabos, outros, cfg, prefixoFn, codigoFn, aplicar) {
         cfg = normalizarConfig(cfg);
         const modoConf = CONFLITOS_SCRIPT.includes(script.conflitos) ? script.conflitos : 'avisar';
         const ests = estruturasDisponiveis(outros), infoE = {}, infoC = {}, ligados = {}, fict = {};
-        ests.forEach(ie => { infoE[ie] = infoEstrutura(codigoFn(outros[ie].ativo), cfg); fict[ie] = (outros[ie].cabosFicticios || []).map(x => trim(x).toUpperCase()).filter(Boolean); });
+        ests.forEach(ie => { infoE[ie] = infoEstrutura(codigoFn(outros[ie].ativo, outros[ie]), cfg); fict[ie] = (outros[ie].cabosFicticios || []).map(x => trim(x).toUpperCase()).filter(Boolean); });
         cabos.forEach((c, ic) => { if (ehCaboValido(c)) { infoC[ic] = infoCabo(prefixoFn(c.ativo) || '', c.operacao, cfg, extraCabo(c)); ligados[ic] = (c.vinculoEstruturas || []).slice(); } });
         const chavesC = Object.keys(infoC).map(Number).sort((a, b) => a - b);
         const saida = { vinculos: [], conflitos: [], sem_candidato: [], passos: [], parou: false };
@@ -320,6 +370,7 @@
                 for (const ie of candidatas) {
                     if (escolhidas.length >= need) break;
                     const [ok, motivo] = pode(ic, ie);
+                    if (ok && outros[ie]._linha !== undefined && escolhidas.some(e2 => outros[e2]._linha === outros[ie]._linha)) continue;      // TASK-094: 2 estruturas do mesmo poste não valem como as 2 pontas
                     if (ok) { escolhidas.push(ie); ligados[ic].push(ie); } else recusas.push(motivo);
                 }
                 const completo = need > 0 && escolhidas.length === need;
@@ -373,7 +424,7 @@
         return erros;
     }
 
-    const api = { derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -295,19 +295,97 @@ def _eh_cabo_valido(row):
     return bool(row) and bool(_trim(row.get("ativo")))
 
 
-def estruturas_disponiveis(outros):
-    return [i for i, r in enumerate(outros) if r and r.get("entidade") in ("ESTRUTURA", "POSTE")]
+def _eh_linha_estrutura(r):
+    return bool(r) and r.get("entidade") in ("ESTRUTURA", "POSTE")
 
 
-def analisar(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
-    """Estado de cada cabo e de cada estrutura. `prefixo_fn(ativo)` = código do cabo principal; `codigo_fn(ativo)` = código da estrutura da linha."""
+# TASK-094: uma linha de Outros pode ter VÁRIAS estruturas (`9400D, N1, N4` = poste + N1 + N4); cada uma é uma "unidade" vinculável.
+# Identidade da unidade: o índice da linha para a 1ª estrutura (compatível com tudo que já foi salvo) e linha + posição/100 para as seguintes (12 → 12.01 → 12.02).
+def id_unidade(ie, k):
+    return round(ie + k / 100, 2) if k else ie
+
+
+def linha_de(id_):
+    return int(id_ + 1e-9)
+
+
+def slot_de(id_):
+    return round((id_ - linha_de(id_)) * 100)
+
+
+def ficticios_de(row, k):
+    """Cabos fictícios da unidade: `cabosFicticios` é da 1ª; as demais ficam em `cabosFicticiosSlots[k]`."""
+    if not row:
+        return []
+    return list((row.get("cabosFicticiosSlots") or {}).get(str(k), [])) if k else list(row.get("cabosFicticios") or [])
+
+
+def _codigos_da_linha(row, codigo_fn, codigos_fn):
+    """Códigos das estruturas da linha (sem poste). Sem `codigos_fn` (ou lista vazia) vale o código único de `codigo_fn` (linha só com poste)."""
+    lista = [c for c in (codigos_fn(row.get("ativo")) or []) if c] if codigos_fn else []
+    return lista or [codigo_fn(row.get("ativo"), row)]
+
+
+def estruturas_disponiveis(outros, codigo_fn=None, codigos_fn=None):
+    r = []
+    for i, row in enumerate(outros):
+        if not _eh_linha_estrutura(row):
+            continue
+        if not codigos_fn:
+            r.append(i)
+            continue
+        r.extend(id_unidade(i, k) for k, _ in enumerate(_codigos_da_linha(row, codigo_fn or (lambda a, row=None: ""), codigos_fn)))
+    return r
+
+
+def _expandir(cabos, outros, codigo_fn, codigos_fn):
+    """Lista "virtual" de Outros com uma entrada por unidade (as demais linhas passam como estão) e os cabos com os vínculos traduzidos para ela."""
+    virt, id_de, j_de = [], [], {}
+    for ie, row in enumerate(outros):
+        if not _eh_linha_estrutura(row):
+            id_de.append(ie)
+            virt.append(row)
+            continue
+        cods = _codigos_da_linha(row, codigo_fn, codigos_fn)
+        for k, cod in enumerate(cods):
+            id_ = id_unidade(ie, k)
+            j_de[id_] = len(virt)
+            id_de.append(id_)
+            virt.append({**row, "cabosFicticios": ficticios_de(row, k), "_codigoUnidade": cod, "_linha": ie})
+    cabos_v = [({**c, "vinculoEstruturas": [j_de.get(i, -1) for i in c["vinculoEstruturas"]]} if c and isinstance(c.get("vinculoEstruturas"), list) else c) for c in cabos]
+
+    def codigo_v(ativo, row=None):
+        return row["_codigoUnidade"] if row is not None and "_codigoUnidade" in row else codigo_fn(ativo, row)
+    return virt, id_de, cabos_v, codigo_v
+
+
+def analisar(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> dict:
+    """Estado de cada cabo e de cada estrutura (cada estrutura da linha é uma unidade; chave = id da unidade). `prefixo_fn(ativo)` = código do cabo principal;
+    `codigo_fn(ativo)` = código da estrutura da linha; `codigos_fn(ativo)` (opcional) = lista com o código de CADA estrutura da linha."""
+    virt, id_de, cabos_v, codigo_v = _expandir(cabos, outros, _com_linha(codigo_fn), codigos_fn)
+    a = _analisar_base(cabos_v, virt, cfg, prefixo_fn, codigo_v)
+    return {"estruturas": {id_de[j]: r for j, r in a["estruturas"].items()}, "cabos": a["cabos"],
+            "links": [{**l, "estrutura": id_de[l["estrutura"]]} for l in a["links"]]}
+
+
+def _com_linha(codigo_fn):
+    """Aceita `codigo_fn(ativo)` (só o texto) ou `codigo_fn(ativo, row)`."""
+    def f(ativo, row=None):
+        try:
+            return codigo_fn(ativo, row)
+        except TypeError:
+            return codigo_fn(ativo)
+    return f
+
+
+def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
     cfg = normalizar_config(cfg)
     ests = estruturas_disponiveis(outros)
     info_c = {}
     for ic, c in enumerate(cabos):
         if _eh_cabo_valido(c):
             info_c[ic] = info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg, extra_cabo(c))
-    info_e = {ie: info_estrutura(codigo_fn(outros[ie].get("ativo")), cfg) for ie in ests}
+    info_e = {ie: info_estrutura(codigo_fn(outros[ie].get("ativo"), outros[ie]), cfg) for ie in ests}
     ocup = {ie: [] for ie in ests}                    # [(idx_cabo)]
     for ic, c in enumerate(cabos):
         if ic not in info_c:
@@ -382,29 +460,31 @@ def analisar(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
     return {"estruturas": res_e, "cabos": res_c, "links": links}
 
 
-def parametros_por_linha(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
+def parametros_por_linha(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> dict:
     """{indice_em_outros: {"CABO": "C"}} — o parâmetro que a estrutura recebe do(s) cabo(s) vinculado(s) (só onde há valor)."""
-    a = analisar(cabos, outros, cfg, prefixo_fn, codigo_fn)
+    a = analisar(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn)
     saida = {}
-    for ie, r in a["estruturas"].items():
-        if r["valor_cabo"] and r["parametro"]:
-            saida[ie] = {r["parametro"]: r["valor_cabo"]}
+    for ie, r in sorted(a["estruturas"].items()):
+        linha = linha_de(ie)
+        if r["valor_cabo"] and r["parametro"] and linha not in saida:       # várias estruturas na linha: vale a 1ª que tem valor
+            saida[linha] = {r["parametro"]: r["valor_cabo"]}
     return saida
 
 
-def achados(cabos, outros, cfg, prefixo_fn, codigo_fn) -> list:
+def achados(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> list:
     """Avisos de validação (formato de services/validacao_planilhas.py), severidade "aviso"."""
     cfg = normalizar_config(cfg)
-    a = analisar(cabos, outros, cfg, prefixo_fn, codigo_fn)
+    a = analisar(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn)
     existe_m = any(_eh_cabo_valido(c) and op_base(c.get("operacao")) == "M" for c in cabos)
     existe_retca = any(r and re.search(r"\bRETCA\b", r.get("ativo") or "", re.I | re.A) for r in outros)
     excecao_zero = existe_m or existe_retca
     saida = []
 
     def add(ie, msg, expl):
-        saida.append({"linha_id": f"OUTROS-{ie}", "tabela": "outros", "regra_id": "VINCULO-ESTRUTURA", "severidade": "aviso", "mensagem": msg, "explicacao": expl})
-    for ie, r in a["estruturas"].items():
-        nome = outros[ie].get("ativo")
+        saida.append({"linha_id": f"OUTROS-{linha_de(ie)}", "tabela": "outros", "regra_id": "VINCULO-ESTRUTURA", "severidade": "aviso", "mensagem": msg, "explicacao": expl})
+    for ie, r in sorted(a["estruturas"].items()):
+        linha_o = outros[linha_de(ie)]
+        nome = f"{linha_o.get('ativo')} [{r['codigo']}]" if codigos_fn and len([c for c in (codigos_fn(linha_o.get("ativo")) or []) if c]) > 1 else linha_o.get("ativo")
         if r["regra"] is None:
             continue
         if r["tem"] == 0:
@@ -482,13 +562,25 @@ def _tem_xy(r):
     return r.get("_x") is not None and r.get("_y") is not None
 
 
-def executar_script(script, cabos, outros, cfg, prefixo_fn, codigo_fn, aplicar=False) -> dict:
+def executar_script(script, cabos, outros, cfg, prefixo_fn, codigo_fn, aplicar=False, codigos_fn=None) -> dict:
     """Roda o script e devolve o que ele vincularia (`aplicar=False`) ou já grava `vinculoEstruturas`/`vinculoOrigem` nos cabos (`aplicar=True`).
     Nunca sobrescreve vínculo existente, a menos que o passo diga `"substituir": true`."""
+    virt, id_de, cabos_v, codigo_v = _expandir(cabos, outros, _com_linha(codigo_fn), codigos_fn)
+    r = _executar_script_base(script, cabos_v, virt, cfg, prefixo_fn, codigo_v)
+    for v in r["vinculos"]:
+        v["estruturas"] = [id_de[j] for j in v["estruturas"]]
+    if aplicar:
+        for v in r["vinculos"]:
+            cabos[v["cabo"]]["vinculoEstruturas"] = list(v["estruturas"])
+            cabos[v["cabo"]]["vinculoOrigem"] = "script"
+    return r
+
+
+def _executar_script_base(script, cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
     cfg = normalizar_config(cfg)
     modo_conf = script.get("conflitos") if script.get("conflitos") in CONFLITOS_SCRIPT else "avisar"
     ests = estruturas_disponiveis(outros)
-    info_e = {ie: info_estrutura(codigo_fn(outros[ie].get("ativo")), cfg) for ie in ests}
+    info_e = {ie: info_estrutura(codigo_fn(outros[ie].get("ativo"), outros[ie]), cfg) for ie in ests}
     info_c = {ic: info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg, extra_cabo(c)) for ic, c in enumerate(cabos) if _eh_cabo_valido(c)}
     ligados = {ic: list(cabos[ic].get("vinculoEstruturas") or []) for ic in info_c}       # estado de trabalho
     fict = {ie: [_trim(x).upper() for x in (outros[ie].get("cabosFicticios") or []) if _trim(x)] for ie in ests}
@@ -557,6 +649,8 @@ def executar_script(script, cabos, outros, cfg, prefixo_fn, codigo_fn, aplicar=F
                 if len(escolhidas) >= need:
                     break
                 ok, motivo = pode(ic, ie)
+                if ok and outros[ie].get("_linha") is not None and any(outros[e2].get("_linha") == outros[ie].get("_linha") for e2 in escolhidas):
+                    continue                                   # TASK-094: 2 estruturas do mesmo poste não valem como as 2 pontas
                 if ok:
                     escolhidas.append(ie)
                     ligados[ic].append(ie)
@@ -579,9 +673,4 @@ def executar_script(script, cabos, outros, cfg, prefixo_fn, codigo_fn, aplicar=F
         saida["passos"].append(r)
         if saida["parou"]:
             break
-    if aplicar:
-        vinculados = {v["cabo"]: v["estruturas"] for v in saida["vinculos"]}
-        for ic, lista in vinculados.items():
-            cabos[ic]["vinculoEstruturas"] = list(lista)
-            cabos[ic]["vinculoOrigem"] = "script"
     return saida

@@ -13,9 +13,10 @@ Fidelidade ao JavaScript: `\\d` só ASCII (`tipo_estrutura`), mesmo motivo já d
 """
 import re
 
-from services.anotacao_outros import codigo_estrutura as _codigo_anotacao
+from services.anotacao_outros import codigo_estrutura as _codigo_anotacao, codigos_estruturas as _codigos_anotacao
 from services.autonomo.montagem import prefixo_cabo
 from services.autonomo.totalizadora import classico_totalizadora
+from services.vinculacao_regras import linha_de, slot_de
 
 _RE_PRIMEIRO_DIGITO = re.compile(r"[0-9]")
 _RE_RETCA = re.compile(r"\bRETCA\b", re.I)
@@ -45,6 +46,11 @@ def codigo_estrutura(ativo_estrutura):
     sem_qtd = _RE_QTD_PREFIXO.match(texto)
     codigo = sem_qtd.group(1) if sem_qtd else texto
     return codigo[:codigo.index("(")].strip() if "(" in codigo else codigo       # TASK-079: N1(XLPE,DT) → N1
+
+
+def codigos_estrutura(ativo_estrutura):
+    """Códigos de TODAS as estruturas da linha (TASK-094: ``9400D, N1, N4`` → [N1, N4]); só poste → []."""
+    return _codigos_anotacao((ativo_estrutura or "").strip(), classico_totalizadora, None)
 
 
 def tipo_estrutura(ativo_estrutura):
@@ -198,15 +204,19 @@ def itens_vinculo_para_totalizadora(cabos, outros):
         if not prefixo:
             continue
         for idx_estrutura in cabo["vinculoEstruturas"]:
-            if not (0 <= idx_estrutura < len(outros)):
+            linha = linha_de(idx_estrutura)                         # TASK-094: id da unidade = linha (+ posição/100 se não for a 1ª estrutura da linha)
+            if not (0 <= linha < len(outros)):
                 continue
-            estrutura = outros[idx_estrutura]
+            estrutura = outros[linha]
             if not estrutura or not estrutura.get("ativo"):
                 continue
+            codigos = codigos_estrutura(estrutura["ativo"])
+            slot = slot_de(idx_estrutura)
+            codigo = codigos[slot] if slot < len(codigos) else codigo_estrutura(estrutura["ativo"])
             itens.append({
                 "baseId": f"TOT-VINC-{idx_cabo}-{idx_estrutura}", "obs": "VINCULO",
                 "operacao": cabo.get("operacao") or "I",
-                "ativo": f"{prefixo}_{codigo_estrutura(estrutura['ativo']).upper()}",
+                "ativo": f"{prefixo}_{codigo.upper()}",
                 "qtd": 1.0, "desc": "", "naoEncontrado": False, "origem": "VINCULO",
             })
     return itens

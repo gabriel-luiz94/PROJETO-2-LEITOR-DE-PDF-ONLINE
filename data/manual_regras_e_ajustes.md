@@ -496,3 +496,8 @@ Ao extrair um DXF, o programa lê sozinho (sem criar linhas na tabela) as linhas
 - Na tabela de Cabos aparecem **Fases**, **Tensão** e **Nível** lidos do texto original (`3xA35P(7,94)-13,8kV 45 m` → 3 · 13,8kV · MT). Sem `Nx` conta 1 fase; MT = tensão acima de 1 kV; sem kV = BT. Dá para editar à mão e ocultar as colunas ("Ocultar Fases/Nível").
 - Na **Tabela de Cabos** (modal de vínculo) uma regra pode filtrar por **Fases**, **Nível** e **Padrão no texto** (regex no texto original). A primeira regra ativa que casa tudo vale.
 - Na **Tabela de Estruturas**: `Mín`/`Máx` definem a faixa de cabos e `Reais` quantos podem ser reais; o excedente entra só como **cabo fictício** (botão direito na estrutura). Exemplo SI3: Mín 1, Máx 2, Reais 1 — um cabo real completa a estrutura; o segundo, se houver, é fictício e não vincula o cabo.
+
+
+## Várias estruturas na mesma linha (TASK-094)
+
+Uma linha de Outros como `9400D, N1, N4` tem um poste e duas estruturas; no modal de vínculo cada uma é um bloco (N1, N4) na mesma linha do poste e recebe seus próprios cabos e cabos fictícios. Poste sem estrutura não aparece (a menos que já tenha cabo ligado); estrutura sem poste aparece sem o card do poste. Vínculos feitos antes continuam valendo (a 1ª estrutura mantém o mesmo identificador). O vínculo automático por script não usa duas estruturas do mesmo poste como as duas pontas de um cabo.
