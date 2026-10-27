@@ -572,7 +572,7 @@ def achados(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> list:
 
 
 # ── script de vinculação automática (TASK-084, entrega 2) ───────────────────────────────────────────
-MODOS_SCRIPT = ("proximidade", "sequencia")
+MODOS_SCRIPT = ("proximidade", "sequencia", "aleatorio")
 CONFLITOS_SCRIPT = ("avisar", "ignorar", "parar")
 
 
@@ -599,6 +599,11 @@ def validar_script(script) -> list:
         pontas = p.get("pontas")
         if pontas is not None and (not isinstance(pontas, int) or isinstance(pontas, bool) or pontas < 1):
             erros.append(f"{pre}: 'pontas' precisa ser um inteiro >= 1.")
+        if p.get("semente") is not None and (not isinstance(p["semente"], int) or isinstance(p["semente"], bool)):
+            erros.append(f"{pre}: 'semente' precisa ser um inteiro.")
+        for k in ("completar", "puro", "aceitar_parcial", "substituir"):
+            if p.get(k) is not None and not isinstance(p[k], bool):
+                erros.append(f"{pre}: '{k}' precisa ser true ou false.")
         cs = p.get("cabos")
         if cs is not None:
             if not isinstance(cs, dict):
@@ -646,6 +651,27 @@ def executar_script(script, cabos, outros, cfg, prefixo_fn, codigo_fn, aplicar=F
     return r
 
 
+# TASK-099: passo "aleatorio" (reserva do vínculo por coordenadas). Sorteio REPRODUZÍVEL: mesma semente + mesmos dados = mesmo resultado (mulberry32, igual ao JS).
+def _mulberry32(a):
+    estado = [a & 0xFFFFFFFF]
+
+    def rnd():
+        estado[0] = (estado[0] + 0x6D2B79F5) & 0xFFFFFFFF
+        a_ = estado[0]
+        t = ((a_ ^ (a_ >> 15)) * (1 | a_)) & 0xFFFFFFFF
+        t = ((t + (((t ^ (t >> 7)) * (61 | t)) & 0xFFFFFFFF)) & 0xFFFFFFFF) ^ t
+        return ((t ^ (t >> 14)) & 0xFFFFFFFF) / 4294967296
+    return rnd
+
+
+def _embaralhar(lista, rnd):
+    l = list(lista)
+    for i in range(len(l) - 1, 0, -1):
+        j = int(rnd() * (i + 1))
+        l[i], l[j] = l[j], l[i]
+    return l
+
+
 def _executar_script_base(script, cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
     cfg = normalizar_config(cfg)
     modo_conf = script.get("conflitos") if script.get("conflitos") in CONFLITOS_SCRIPT else "avisar"
@@ -683,8 +709,11 @@ def _executar_script_base(script, cabos, outros, cfg, prefixo_fn, codigo_fn) -> 
             if not casa(fc.get("ativo"), c["codigo"]):
                 continue
             if (ligados[ic] or estruturas_ficticias_de(cabos[ic])) and not passo.get("substituir"):
-                r["ja_tinham"] += 1
-                continue
+                # `completar`: o cabo que ficou com menos pontas do que precisa (ex.: parcial de um passo anterior) volta a ser alvo e só ganha o que falta
+                falta_ = (passo["pontas"] if isinstance(passo.get("pontas"), int) else c["pontas"]) - len(estruturas_ficticias_de(cabos[ic])) - len(ligados[ic])
+                if not (passo.get("completar") and falta_ > 0):
+                    r["ja_tinham"] += 1
+                    continue
             alvo.append(ic)
         r["alvo"] = len(alvo)
         fe = passo.get("estruturas", "aceitas")
@@ -704,9 +733,18 @@ def _executar_script_base(script, cabos, outros, cfg, prefixo_fn, codigo_fn) -> 
             antes = list(ligados[ic])
             if passo.get("substituir"):
                 ligados[ic] = []
+            base = list(ligados[ic])
+            falta = max(0, need - len(base))                  # só ganha o que falta (base vazia, exceto em `completar`)
             escolhidas, recusas = [], []
             if passo.get("modo") == "sequencia":
                 candidatas = cand_global[pos:pos + need]
+            elif passo.get("modo") == "aleatorio":
+                # sorteio entre as estruturas aceitas; por padrão as com MENOS cabos primeiro (sorteio entre as vazias antes das ocupadas); `puro: true` = sorteio simples
+                semente = passo["semente"] if isinstance(passo.get("semente"), int) and not isinstance(passo.get("semente"), bool) else 1
+                rnd = _mulberry32(semente * 1000003 + ic * 7919 + ip * 104729)
+                candidatas = _embaralhar([ie for ie in cand_global if ie not in base], rnd)
+                if not passo.get("puro"):
+                    candidatas = [x[0] for x in sorted(((ie, k, len(ocupantes_de(ie))) for k, ie in enumerate(candidatas)), key=lambda x: (x[2], x[1]))]
             else:
                 if not _tem_xy(cabos[ic]):
                     r["sem_candidato"] += 1
@@ -716,19 +754,21 @@ def _executar_script_base(script, cabos, outros, cfg, prefixo_fn, codigo_fn) -> 
                 candidatas = sorted((ie for ie in cand_global if _tem_xy(outros[ie]) and (raio is None or _dist(cabos[ic], outros[ie]) <= raio)),
                                     key=lambda ie: (_dist(cabos[ic], outros[ie]), ie))
             for ie in candidatas:
-                if len(escolhidas) >= need:
+                if len(escolhidas) >= falta:
                     break
+                if ie in base:
+                    continue
                 ok, motivo = pode(ic, ie)
-                if ok and outros[ie].get("_linha") is not None and any(outros[e2].get("_linha") == outros[ie].get("_linha") for e2 in escolhidas):
+                if ok and outros[ie].get("_linha") is not None and any(outros[e2].get("_linha") == outros[ie].get("_linha") for e2 in base + escolhidas):
                     continue                                   # TASK-094: 2 estruturas do mesmo poste não valem como as 2 pontas
                 if ok:
                     escolhidas.append(ie)
                     ligados[ic].append(ie)
                 else:
                     recusas.append(motivo)
-            completo = need > 0 and len(escolhidas) == need
+            completo = need > 0 and len(base) + len(escolhidas) == need
             if completo or (escolhidas and passo.get("aceitar_parcial")):
-                saida["vinculos"].append({"passo": ip, "cabo": ic, "estruturas": list(escolhidas), "completo": completo})
+                saida["vinculos"].append({"passo": ip, "cabo": ic, "estruturas": base + escolhidas, "completo": completo})
                 r["completos" if completo else "parciais"] += 1
             else:
                 ligados[ic] = antes

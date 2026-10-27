@@ -524,3 +524,8 @@ Na notação compacta o **único delimitador é vírgula + espaço**: `9400D, CE
 ## Tensão do cabo com ponto ou vírgula (TASK-098)
 
 O Leitor de Pernambuco e a notação do cabo aceitam a tensão com vírgula ou ponto (`13,8kV` ou `13.8KV`), em maiúsculas ou minúsculas. Se as regras do projeto 081 já tiverem sido editadas à mão, troque `(?:,\d+)?\s*KV` por `(?:[.,]\d+)?\s*KV` nas duas regras de cabo (ou restaure o ponto de partida).
+
+
+## Vínculo por coordenadas com reserva por sorteio (TASK-099)
+
+Na aba **Script** do vínculo, o botão **Novo (coordenadas + sorteio)** cria um script com os passos por coordenadas (M na amarração mais próxima, I entre as 2 estruturas mais próximas, multiplex em sequência) e, no fim, dois passos de **reserva**: cabos que as coordenadas não resolveram (sem coordenada, fora do raio ou parciais) são ligados por **sorteio** entre as estruturas que as tabelas aceitam. O sorteio é reproduzível (campo `semente`; mudar a semente muda o sorteio) e prefere estruturas ainda vazias (`"puro": true` desliga). `"completar": true` faz o passo só acrescentar o que falta aos cabos parciais, mantendo o que as coordenadas já ligaram. Confira sempre na **Pré-visualização**: o que vem do sorteio não tem base geométrica.
