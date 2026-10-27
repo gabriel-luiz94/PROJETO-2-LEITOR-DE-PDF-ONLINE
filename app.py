@@ -90,6 +90,10 @@ def _serve_js(filename: str):
 async def serve_resumo_js():
     return _serve_js("resumo.js")
 
+@app.get("/static/base_grade.js")
+async def serve_base_grade_js():
+    return _serve_js("base_grade.js")
+
 @app.get("/static/script.js")
 async def serve_script_js():
     return _serve_js("script.js")

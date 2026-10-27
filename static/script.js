@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const columnFilterSelections = { 
         0: new Set(), 1: new Set(), 2: new Set(), 
-        3: new Set(), 4: new Set(), 5: new Set() 
+        3: new Set(), 4: new Set(), 5: new Set(), 6: new Set()      // TASK-089: 3 = Layer
     };
 
     // Close dropdowns when clicking outside — apply filter on close
@@ -444,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTable(data) {
         tableBody.innerHTML = '';
-        if (!data || data.length === 0) { tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Vazio.</td></tr>'; return; }
+        if (!data || data.length === 0) { tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Vazio.</td></tr>'; return; }
         data.forEach((item, index) => {
             const tr = document.createElement('tr');
             tr.dataset.index = index;
@@ -460,6 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </td>
                 <td><div class="color-badge"><div class="color-swatch" style="background-color: ${displayColor};"></div><span>${displayColor.toUpperCase()}</span></div></td>
+                <td class="cel-layer" title="${escapeHtml(item.layer || '')}">${escapeHtml(item.layer || '')}</td>
                 <td class="col-user"><input class="user-input" type="text" value="${uf.entidade}" data-field="entidade" data-row="${index}"></td>
                 <td class="col-user"><input class="user-input" type="text" value="${uf.operacao}" data-field="operacao" data-row="${index}"></td>
                 <td class="col-user"><input class="user-input" type="text" value="${uf.ativo}" data-field="ativo" data-row="${index}"></td>
@@ -485,7 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const rowIdx = this.dataset.row; const field = this.dataset.field;
                     if (!userFields[rowIdx]) userFields[rowIdx] = { entidade:'', operacao:'', ativo:'' };
                     userFields[rowIdx][field] = this.value;
-                    refreshUserFilter(field === 'entidade' ? 3 : field === 'operacao' ? 4 : 5);
+                    refreshUserFilter(field === 'entidade' ? 4 : field === 'operacao' ? 5 : 6);
                 });
             });
 
@@ -499,7 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
         populateFilters(data);
-        refreshUserFilter(3); refreshUserFilter(4); refreshUserFilter(5);
+        refreshUserFilter(4); refreshUserFilter(5); refreshUserFilter(6);
         
         // Garante que o botão apareça após extrair
         const procBtn = document.getElementById('processarResumo');
@@ -612,14 +613,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function populateFilters(data) {
-        ['pagina', 'texto', 'cor'].forEach((key, i) => {
+        ['pagina', 'texto', 'cor', 'layer'].forEach((key, i) => {
             const unique = [...new Set(data.map(item => String(item[key] || "")))].sort();
             createFilterDropdown(filterContainers[i], unique, i);
         });
     }
 
     function refreshUserFilter(colIdx) {
-        const fieldMap = { 3: 'entidade', 4: 'operacao', 5: 'ativo' };
+        const fieldMap = { 4: 'entidade', 5: 'operacao', 6: 'ativo' };
         const field = fieldMap[colIdx];
         const vals = [...new Set(Object.values(userFields).map(f => f[field] || ""))].sort();
         createFilterDropdown(document.querySelector(`.filter-container[data-col="${colIdx}"]`), vals, colIdx);
@@ -629,7 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const trs = tableBody.querySelectorAll('tr');
         const container = document.querySelector('.table-container');
         const currentScroll = container ? container.scrollTop : 0;
-        const columns = ['pagina', 'texto', 'cor', 'entidade', 'operacao', 'ativo'];
+        const columns = ['pagina', 'texto', 'cor', 'layer', 'entidade', 'operacao', 'ativo'];
 
         trs.forEach(tr => {
             const idx = tr.dataset.index;
@@ -641,11 +642,11 @@ document.addEventListener('DOMContentLoaded', () => {
             let isVisible = !deletedRows.has(String(idx));
             
             if (isVisible) {
-                for (let i = 0; i < 6; i++) {
+                for (let i = 0; i < 7; i++) {
                     const sel = columnFilterSelections[i];
                     if (sel.size > 0) {
                         let val;
-                        if (i < 3) {
+                        if (i < 4) {
                             val = item[columns[i]];
                         } else {
                             val = uf[columns[i]] || "";
@@ -934,7 +935,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         let textToCopy = "";
-        const keys = ['pagina', 'texto', 'cor', 'entidade', 'operacao', 'ativo'];
+        const keys = ['pagina', 'texto', 'cor', 'layer', 'entidade', 'operacao', 'ativo'];
         const trs = tableBody.querySelectorAll('tr');
         trs.forEach(tr => {
             if (tr.style.display !== 'none' && !tr.classList.contains('row-deleted')) {
@@ -944,7 +945,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     let rowData = [];
                     selectedColsIndex.forEach(colI => {
                         let val;
-                        if (colI < 3) {
+                        if (colI < 4) {
                             val = item[keys[colI]] || "";
                             if (colI === 2) val = (val === '#0' || val === '0') ? '#000000' : val;
                         } else { val = uf[keys[colI]] || ""; }
@@ -1012,7 +1013,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const item = extractedDataCache[idx], uf = userFields[idx] || {};
                     let row = [];
                     for (let c = cMin; c <= cMax; c++) {
-                        let v = [item.pagina, item.texto, item.cor, uf.entidade, uf.operacao, uf.ativo][c];
+                        let v = [item.pagina, item.texto, item.cor, item.layer, uf.entidade, uf.operacao, uf.ativo][c];
                         row.push(String(v || "").replace(/\n/g, ' '));
                     }
                     txt += row.join('\t') + "\n";

@@ -332,14 +332,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 view.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirSeletor(); } });
                 tdEnt.appendChild(view);
                 tdEnt.appendChild(lockEnt);
-                if (paramsVinc[idx]) {                                   // TASK-084: valor que a estrutura recebe do cabo vinculado (só informativo)
-                    const chip = document.createElement('span');
-                    chip.className = 'ent-vinc';
-                    chip.textContent = Object.keys(paramsVinc[idx]).map(k => `${k.toLowerCase()}=${paramsVinc[idx][k]}`).join(' ');
-                    chip.title = 'Preenchido pelo vínculo cabo ⇄ estrutura (VINCULAR CABOS). Um valor digitado no ativo vale mais.';
-                    chip.style.cssText = 'display:inline-block;margin-left:5px;font-size:.62rem;font-weight:700;color:#d29922;background:rgba(210,153,34,.15);border-radius:4px;padding:0 5px;';
-                    tdEnt.appendChild(chip);
-                }
                 tr.appendChild(tdEnt);
             }
 
@@ -372,6 +364,9 @@ document.addEventListener('DOMContentLoaded', () => {
             inpAt.value = row.ativo;
             inpAt.autocomplete = 'off';
             inpAt.setAttribute('list', '');  // desabilita datalist nativo, usamos o nosso
+            if (type === 'outros' && paramsVinc[idx]) {                // TASK-084/088: valor que a estrutura recebe do cabo vinculado — só aparece ao passar o mouse
+                inpAt.title = Object.keys(paramsVinc[idx]).map(k => `${k.toLowerCase()}=${paramsVinc[idx][k]}`).join(' ') + ' (preenchido pelo vínculo cabo ⇄ estrutura; um valor digitado no ativo vale mais)';
+            }
             let prevAtivo = row.ativo;
 
             inpAt.addEventListener('input', () => {
@@ -388,7 +383,9 @@ document.addEventListener('DOMContentLoaded', () => {
             inpAt.addEventListener('keydown', e => {
                 if (e.key === 'Delete' && inpAt.value.trim() === '') {
                     e.preventDefault();
+                    e.stopPropagation();          // TASK-087: o tratador global da grade (Delete = limpar a seleção) também limparia a linha de cima
                     deleteRow(type, idx);
+                    setTimeout(() => irParaCelula(type, idx - 1, 1, -1), 0);       // o foco volta para o Ativo da linha de cima
                     return;
                 }
                 const consumed = handleAcKeydown(e, inpAt, type);
@@ -539,6 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ═══════════════════════════════════════ */
     function deleteRow(type, idx) {
         pushHistory();  // snapshot ANTES da exclusão
+        limparGrade();  // TASK-087: a seleção apontava para posições que mudaram
         tableStates[type].data.splice(idx, 1);
         // TASK-032: ao remover uma linha de Outros, os vínculos cabo<->estrutura são baseados em
         // índice — reajusta as referências pra não apontarem para a linha errada depois do shift.
@@ -569,6 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const newRow = { entidade: '0', operacao: op, ativo: '' };
         if (afterIdx === -1) tableStates[type].data.push(newRow);
         else tableStates[type].data.splice(afterIdx + 1, 0, newRow);
+        limparGrade();  // TASK-087: a seleção antiga (linha de cima) não pode sobreviver ao foco na linha nova
         renderTable(type);
         // Foca no input Ativo da nova linha
         const body = document.getElementById(tableStates[type].bodyId);
@@ -928,24 +927,41 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('keydown', e => { if (e.key === 'Escape') fechar(); });
     })();
 
-    // Coluna Entidade de Outros: ocultar/mostrar (só visual; a preferência fica neste navegador)
+    // TASK-088: a coluna Entidade de Outros começa OCULTA (a classificação continua; só não aparece). Menu "Exibir" reativa a coluna e classifica/agrupa por entidade.
     (function ligarOcultarEntidade() {
         const btn = document.getElementById('btn-toggle-entidade'), tabela = document.getElementById('table-outros');
         if (!btn || !tabela) return;
-        const OLHO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-        const OLHO_RISCADO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
         const aplicar = (oculto, persistir) => {
             tabela.classList.toggle('sem-entidade', oculto);
-            btn.innerHTML = oculto ? OLHO_RISCADO : OLHO;
-            btn.title = oculto ? 'Mostrar a coluna Entidade' : 'Ocultar a coluna Entidade';
+            btn.textContent = 'Exibir ▾';
+            btn.title = 'Exibir: mostrar a coluna Entidade, classificar ou agrupar por entidade';
             if (oculto && filterSelections.outros.entidade.size) { filterSelections.outros.entidade.clear(); refreshAllFilters('outros'); applyFilters('outros'); }   // filtro invisível não pode ficar ativo
             if (agrupamento.outros) renderTable('outros');          // a largura dos separadores depende das colunas visíveis
             if (persistir) { try { localStorage.setItem('resumo_ocultar_entidade', oculto ? '1' : '0'); } catch (e) { /* sem localStorage: vale só nesta sessão */ } }
         };
-        let inicial = false;
-        try { inicial = localStorage.getItem('resumo_ocultar_entidade') === '1'; } catch (e) { /* ignora */ }
+        let inicial = true;                                           // padrão: oculta; quem reativou (preferência '0') continua vendo
+        try { inicial = localStorage.getItem('resumo_ocultar_entidade') !== '0'; } catch (e) { /* ignora */ }
         aplicar(inicial, false);
-        btn.addEventListener('click', () => aplicar(!tabela.classList.contains('sem-entidade'), true));
+        const menu = document.createElement('div');
+        menu.id = 'menu-exibir-outros'; menu.className = '';
+        menu.style.cssText = 'position:fixed;z-index:9000;display:none;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:5px;min-width:230px;box-shadow:0 8px 24px rgba(0,0,0,.5);font-size:.8rem;';
+        document.body.appendChild(menu);
+        const fechar = () => { menu.style.display = 'none'; };
+        const item = (txt, acao) => { const d = document.createElement('div'); d.textContent = txt; d.style.cssText = 'padding:6px 10px;border-radius:5px;cursor:pointer;color:#c9d1d9;'; d.onmouseenter = () => { d.style.background = '#21262d'; }; d.onmouseleave = () => { d.style.background = ''; }; d.addEventListener('click', () => { fechar(); acao(); }); menu.appendChild(d); };
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            menu.innerHTML = '';
+            const oculto = tabela.classList.contains('sem-entidade');
+            item(oculto ? 'Mostrar a coluna Entidade' : 'Ocultar a coluna Entidade', () => aplicar(!oculto, true));
+            item('Classificar por Entidade (A→Z)', () => ordenarTabela('outros', [{ campo: 'entidade', dir: 'asc' }]));
+            item('Classificar por Entidade (Z→A)', () => ordenarTabela('outros', [{ campo: 'entidade', dir: 'desc' }]));
+            item('Agrupar por Entidade', () => { agrupamento.outros = 'entidade'; ordenarTabela('outros', [{ campo: 'entidade', dir: 'asc' }]); });
+            if (agrupamento.outros) item('Limpar agrupamento', () => { agrupamento.outros = null; renderTable('outros'); });
+            const r = btn.getBoundingClientRect();
+            menu.style.left = Math.min(r.left, window.innerWidth - 250) + 'px'; menu.style.top = (r.bottom + 4) + 'px'; menu.style.display = 'block';
+        });
+        document.addEventListener('click', e => { if (!menu.contains(e.target)) fechar(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') fechar(); });
     })();
 
     /* ═══════════════════════════════════════

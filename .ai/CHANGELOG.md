@@ -8,6 +8,19 @@
 
 ---
 
+## 2026-10-27 — TASK-085…090: seis ajustes de usabilidade
+
+**Tipo:** ajustes de UI · `static/resultado_orcamento.html`, `static/resumo.js`, `static/index.html`, `static/script.js`, `static/orcamento.html`, `static/base_grade.js` (novo, rota sem cache em `app.py`)
+
+- 085: visão SAP com minimizar/trocar posição ODI×ODD e ajuste de coluna ao conteúdo.
+- 086: linhas manuais em branco (sem `NOVO_COD` no REC).
+- 087: Delete na tabela Outros apaga a linha certa (stopPropagation + limparGrade).
+- 088: Entidade oculta na tabela Outros (menu Exibir); chip `cabo=C` virou tooltip no Ativo.
+- 089: coluna Layer visível no Leitor.
+- 090: Base de Orçamento estilo Excel, inserção acima/abaixo da selecionada, duplicar/excluir várias.
+
+---
+
 ## 2026-10-08 — TASK-055: suporte real a OpenAI e Claude como provedor de IA, Haiku como padrão
 
 **Tipo:** feature (integração de IA) · `services/validacao_ia.py`, `routers/validacao.py`,

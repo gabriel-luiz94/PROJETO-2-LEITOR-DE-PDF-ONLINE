@@ -709,6 +709,18 @@
         .seg-visao button { background: var(--btn-neutral-bg); color: var(--text-secondary); border: none; padding: 5px 12px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; cursor: pointer; }
         .seg-visao button + button { border-left: 1px solid var(--border-default); }
         .seg-visao button.ativo { background: var(--btn-primary-bg); color: var(--btn-primary-text); }
+
+        /* TASK-085: visão SAP — layout, minimizar e largura de coluna ao conteúdo (duplo clique na borda do título, como no Excel) */
+        .sap-barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 10px; font-size: 0.78rem; color: var(--text-secondary); }
+        .sap-grid.pilha { grid-template-columns: 1fr; }
+        .sap-grid.inverter .sap-card.odi { order: 2; }
+        .sap-grid.inverter .sap-card.odd { order: 1; }
+        .sap-grid.tem-minimizado { grid-template-columns: 1fr; }
+        .sap-card.minimizado .table-scroll-wrapper { display: none; }
+        .sap-card .btn-min { background: transparent; border: 1px solid var(--border-default); color: var(--text-secondary); border-radius: 4px; cursor: pointer; width: 24px; height: 24px; font-size: 0.8rem; line-height: 1; }
+        .sap-card .btn-min:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+        .budget-data-table thead tr:first-child th { position: relative; }
+        .budget-data-table thead tr:first-child th::after { content: ''; position: absolute; right: 0; top: 0; width: 7px; height: 100%; cursor: col-resize; }
         .sap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
         @media (max-width: 1100px) { .sap-grid { grid-template-columns: 1fr; } }
         .sap-card { background-color: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 6px; overflow: hidden; }
@@ -855,12 +867,14 @@
 
                 <div class="toolbar-divider"></div>
 
-                <button class="btn-action" onclick="adicionarLinhaManual()" title="Adicionar nova linha vazia na tabela">
+                <button class="btn-action" onclick="adicionarLinhaManual()" title="Adicionar uma linha em branco (preencha o código; linha sem código não vai para o REC)">
                     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
                         <path d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2z"/>
                     </svg>
                     Nova Linha
                 </button>
+
+                <button class="btn-action" onclick="ajustarColunasRec()" title="Ajusta a largura de cada coluna ao conteúdo (ou dê duplo clique na borda do título da coluna)">↔ Ajustar colunas</button>
 
                 <button class="btn-action btn-danger" onclick="limparTabela()" title="Limpar todos os itens da tabela">
                     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
@@ -987,7 +1001,16 @@
         </main>
 
         <!-- Visão SAP: duas tabelas, ODI (instalando) e ODD (removendo). É só uma projeção da tabela REC acima. -->
-        <section id="visao-sap-wrap" class="sap-only"><div class="sap-grid" id="sap-grid"></div></section>
+        <section id="visao-sap-wrap" class="sap-only">
+            <div class="sap-barra">
+                <span>Layout:</span>
+                <span class="seg-visao"><button type="button" id="sap-lay-lado" class="ativo" title="ODI e ODD lado a lado">Lado a lado</button><button type="button" id="sap-lay-pilha" title="ODI e ODD um acima do outro">Empilhado</button></span>
+                <button type="button" class="btn-action" id="sap-inverter" title="Troca a posição: ODI/ODD (ou ODD/ODI)">⇅ Inverter ordem</button>
+                <button type="button" class="btn-action" id="sap-ajustar" title="Ajusta a largura de cada coluna ao conteúdo (ou dê duplo clique na borda do título da coluna)">↔ Ajustar colunas</button>
+                <button type="button" class="btn-action" id="sap-restaurar" title="Volta às larguras originais">Restaurar larguras</button>
+            </div>
+            <div class="sap-grid" id="sap-grid"></div>
+        </section>
     </div>
 
     <!-- Modal RECs Salvos -->
@@ -1142,6 +1165,7 @@
                 const filtro = tr.cells[6] ? tr.cells[6].innerText.trim() : '';
                 const qtd = parseFloat(qtdStr) || 0;
                 
+                if (codigo.toUpperCase() === 'NOVO_COD' && /^Nova Descri/i.test(desc)) return;       // TASK-086: linha-modelo antiga nunca vai adiante
                 if (codigo || desc) {
                     data.push({ 
                         operacao: op, 
@@ -1264,10 +1288,15 @@
             return Object.values(map);
         }
 
+        // TASK-086: a linha nova nasce EM BRANCO (antes vinha com "NOVO_COD / Nova Descrição" e ia parar no REC se ninguém editasse).
+        // Linha sem código e sem descrição nunca entra em getRowsData, no REC, no Excel nem no "Copiar".
         function adicionarLinhaManual(operacao) {
             let data = getRowsData();
-            data.push({ operacao: operacao === 'R' ? 'R' : 'I', mdo: 'MATERIAL', codigo: 'NOVO_COD', desc_codigo: 'Nova Descrição', total: 1.00 });
+            data.push({ operacao: operacao === 'R' ? 'R' : 'I', mdo: 'MATERIAL', codigo: '', desc_codigo: '', total: 1.00 });
             renderRowsData(data);
+            const nova = Array.from(tbody.querySelectorAll('tr')).find(tr => tr.cells.length >= 6 && !tr.classList.contains('fantasma') && !tr.cells[2].innerText.trim() && !tr.cells[3].innerText.trim());
+            if (nova) { nova.scrollIntoView({ block: 'center' }); nova.cells[2].focus(); }
+            log('Linha em branco adicionada: preencha o código (linha sem código não vai para o REC).');
         }
 
         async function montarOrcamento() {
@@ -1867,12 +1896,12 @@
                 card.dataset.tipo = tipo;
                 card.innerHTML = `
                     <div class="sap-card-head">
-                        <h3><span class="sap-nome">${nome}</span><small>${sub}</small><span class="page-badge-counter" id="sap-count-${tipo}">0</span></h3>
+                        <h3><button type="button" class="btn-min" data-acao="min" title="Minimizar / expandir ${nome}">▾</button><span class="sap-nome">${nome}</span><small>${sub}</small><span class="page-badge-counter" id="sap-count-${tipo}">0</span></h3>
                         <div class="acoes">
                             <button class="btn-limpar-marcas" data-acao="limpar-marcas" title="Tira a cor das células já copiadas desta tabela">Limpar marcações</button>
                             <button class="btn-action" data-acao="copiar-sel" style="display:none;" title="Copiar as células selecionadas (Ctrl+C)">Copiar seleção</button>
                             <button class="btn-action" data-acao="copiar" title="Copiar a ${nome}: TIPO MDO, CÓDIGO, QUANTIDADE e CENTRO (sem a descrição; texto tabulado, sem cabeçalho)">Copiar</button>
-                            <button class="btn-action" data-acao="linha" title="Nova linha em ${nome}">+ Linha</button>
+                            <button class="btn-action" data-acao="linha" title="Nova linha EM BRANCO em ${nome} (não confundir com o ＋ azul da linha-fantasma, que traz o item da referência)">+ Linha em branco</button>
                         </div>
                     </div>
                     <div class="table-scroll-wrapper">
@@ -1910,6 +1939,11 @@
                 card.querySelector('[data-acao="copiar-sel"]').addEventListener('click', () => copiarSelecaoSap(tipo));
                 card.querySelector('[data-acao="limpar-marcas"]').addEventListener('click', () => limparMarcasSap(tipo));
                 card.querySelector('[data-acao="linha"]').addEventListener('click', () => adicionarLinhaManual(tipo === 'odd' ? 'R' : 'I'));
+                card.querySelector('[data-acao="min"]').addEventListener('click', e => {      // TASK-085: minimizar/expandir (não é lembrado ao reabrir)
+                    const min = card.classList.toggle('minimizado');
+                    e.currentTarget.textContent = min ? '▸' : '▾';
+                    grid.classList.toggle('tem-minimizado', !!grid.querySelector('.sap-card.minimizado'));
+                });
                 // edição: grava na linha REC correspondente (sem redesenhar, para não perder o cursor)
                 tb.addEventListener('input', e => {
                     const td = e.target.closest ? e.target.closest('td[data-campo]') : null;
@@ -2174,6 +2208,60 @@
             }
         }
 
+        /* TASK-085 — larguras de coluna ao conteúdo (como o duplo clique na borda do título no Excel) e layout da visão SAP */
+        let _canvasMedida = null;
+        function larguraDoTexto(txt, el) {
+            if (!_canvasMedida) _canvasMedida = document.createElement('canvas');
+            const ctx = _canvasMedida.getContext('2d'), cs = getComputedStyle(el);
+            ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+            return ctx.measureText(String(txt)).width;
+        }
+        function ajustarColunas(tabela, soIdx) {
+            const ths = Array.from(tabela.querySelectorAll('thead tr:first-child th')), linhas = Array.from(tabela.tBodies[0].rows);
+            ths.forEach((th, i) => {
+                if (soIdx !== undefined && soIdx !== null && i !== soIdx) return;
+                if (th.offsetWidth === 0) return;                                           // coluna oculta (ex.: REFERÊNCIA fora do modo comparação)
+                const cab = th.innerText.replace(/[↕▲▼]/g, '').trim();
+                let max = larguraDoTexto(cab.toUpperCase(), th) * 1.08 + 44;                // título + seta de ordenar + respiro
+                linhas.forEach(tr => {
+                    if (tr.cells.length <= i || tr.style.display === 'none') return;
+                    const td = tr.cells[i], campo = td.querySelector('input,select');
+                    const txt = campo ? campo.value : td.innerText;
+                    if (txt) max = Math.max(max, larguraDoTexto(txt.trim(), td) + 28);
+                });
+                const w = Math.round(Math.min(Math.max(max, 48), 560));
+                th.style.width = th.style.minWidth = th.style.maxWidth = w + 'px';
+            });
+            tabela.style.tableLayout = 'fixed';
+            tabela.style.width = ths.reduce((a, th) => a + (th.offsetWidth ? parseFloat(th.style.width) || th.offsetWidth : 0), 0) + 'px';
+        }
+        function restaurarColunas(tabela) {
+            tabela.querySelectorAll('thead th').forEach(th => { th.style.width = th.style.minWidth = th.style.maxWidth = ''; });
+            tabela.style.tableLayout = ''; tabela.style.width = '';
+        }
+        window.ajustarColunasRec = () => ajustarColunas(document.querySelector('#resultado-orcamento-tbody').closest('table'));
+        // duplo clique na borda direita do título: ajusta SÓ aquela coluna; o clique simples nessa borda não ordena
+        document.addEventListener('click', e => {
+            const th = e.target.closest ? e.target.closest('.budget-data-table thead tr:first-child th') : null;
+            if (th && e.clientX >= th.getBoundingClientRect().right - 8) { e.stopPropagation(); e.preventDefault(); }
+        }, true);
+        document.addEventListener('dblclick', e => {
+            const th = e.target.closest ? e.target.closest('.budget-data-table thead tr:first-child th') : null;
+            if (!th || e.clientX < th.getBoundingClientRect().right - 8) return;
+            const tabela = th.closest('table'), idx = Array.from(th.parentElement.children).indexOf(th);
+            ajustarColunas(tabela, idx);
+        });
+        (function ligarBarraSap() {
+            const grid = document.getElementById('sap-grid');
+            const lado = document.getElementById('sap-lay-lado'), pilha = document.getElementById('sap-lay-pilha');
+            const layout = modo => { grid.classList.toggle('pilha', modo === 'pilha'); lado.classList.toggle('ativo', modo !== 'pilha'); pilha.classList.toggle('ativo', modo === 'pilha'); };   // padrão: lado a lado; a escolha não é lembrada
+            lado.addEventListener('click', () => layout('lado'));
+            pilha.addEventListener('click', () => layout('pilha'));
+            document.getElementById('sap-inverter').addEventListener('click', () => grid.classList.toggle('inverter'));
+            document.getElementById('sap-ajustar').addEventListener('click', () => document.querySelectorAll('#sap-grid .sap-table').forEach(t => ajustarColunas(t)));
+            document.getElementById('sap-restaurar').addEventListener('click', () => document.querySelectorAll('#sap-grid .sap-table').forEach(restaurarColunas));
+        })();
+
         function definirVisao(modo) {
             if (modo !== 'rec' && modo !== 'sap') modo = 'rec';
             const antes = modoVisao;
@@ -2238,7 +2326,7 @@
                 tr.innerHTML = `<td style="text-align:center;"><span class="badge-op ${f.operacao === 'R' ? 'badge-r' : 'badge-i'}">${f.operacao}</span></td>
                     <td>${escHtml(f.mdo)}</td><td class="cell-mono">${escHtml(f.codigo)}</td><td>${escHtml(f.desc || 'Descrição indisponível')}</td>
                     <td class="col-ref cell-qty">${fmtQtd(f.qtd)}</td><td class="cell-qty">0,00</td><td></td>
-                    <td style="text-align:center;"><button class="btn-add-fantasma" data-chave="${escHtml(f.chave)}" title="Adicionar ao atual com a quantidade da referência">＋</button></td>`;
+                    <td style="text-align:center;"><button class="btn-add-fantasma" data-chave="${escHtml(f.chave)}" title="Adicionar da referência: traz este item para o atual com a quantidade da referência">＋ ref.</button></td>`;
                 return tr;
             },
             objeto(tr) { const t = Array.from(tr.cells).map(c => c.innerText.trim()); return { mdo: t[1], operacao: t[0], desc: t[3], t }; },
@@ -2261,7 +2349,7 @@
                 tr.innerHTML = `<td class="sap-mdo" data-campo="mdo">${SAP.rotuloMdo(f.mdo)}</td><td class="cell-mono" data-campo="codigo">${escHtml(f.codigo)}</td>
                     <td class="col-ref cell-qty" data-campo="ref">${fmtQtd(f.qtd)}</td><td class="cell-qty" data-campo="qtd">0,00</td>
                     <td class="cell-mono sap-centro" data-campo="centro">${SAP.centroDe(f.mdo)}</td><td data-campo="desc">${escHtml(f.desc || 'Descrição indisponível')}</td><td data-campo="filtro"></td>
-                    <td style="text-align:center;"><button class="btn-add-fantasma" data-chave="${escHtml(f.chave)}" title="Adicionar ao atual com a quantidade da referência">＋</button></td>`;
+                    <td style="text-align:center;"><button class="btn-add-fantasma" data-chave="${escHtml(f.chave)}" title="Adicionar da referência: traz este item para o atual com a quantidade da referência">＋ ref.</button></td>`;
                 return tr;
             },
             objeto(tr) { const l = linhaSapDoDom(tr); return Object.assign(l, { operacao: tipo === 'odd' ? 'R' : 'I' }); },
