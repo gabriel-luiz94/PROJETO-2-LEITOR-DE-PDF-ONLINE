@@ -51,6 +51,11 @@ def test_soltos_numero_e_potencia():
     assert itens("C 3x1x95(95)+20kV 60 m") == ([("C3X1X95(95)", 1, 60.0, False)], "20", [])
 
 
+def test_tensao_em_qualquer_caixa_e_ignorada():
+    for t in ["3xC35-13,8kV 45 m", "3xC35-13,8KV 45 m", "3xC35-13,8kv 45m", "3xC35 - 13,8 kV 45"]:
+        assert itens(t)[0] == [("C35", 3, 45.0, False)], t
+
+
 def test_formato_antigo_nao_e_notacao():
     for t in ["CAA2 ABC 35 m", "CAA2 3 45", "M3X16 20 m", "CAA 2 ABC 35", "P50", "CU 25 AB 10 m"]:
         assert not ac.eh_notacao(t), t
@@ -155,10 +160,10 @@ def test_leitor_pernambuco_postes_cabos_e_operacoes():
     r = _leitor_pe(itens_)
     got = [(x["operacao"], x["entidade"], x["ativo"]) for x in r]
     assert got[:5] == [("I", "POSTE", "11300D"), ("R", "POSTE", "7150FV"), ("M", "POSTE", "10300R"), ("I", "POSTE", "9300F"), ("R", "POSTE", "12400D")]
-    assert got[5] == ("I", "CABO", "3xA35P(7,94) 45 m") and got[6][0] == "0"
+    assert got[5] == ("I", "CABO", "3xA35P(7,94)-13,8kV 45 m") and got[6][0] == "0"
     assert got[7] == ("I", "CABO", "3xC16(16) 30 m")
-    assert got[8] == ("R", "CABO", "1xS1/0 12,5 m") and got[9][0] == "0"
-    assert got[10] == ("I", "CABO", "C3x1x95(95) 60 m")
+    assert got[8] == ("R", "CABO", "1xS1/0-7,9kV 12,5 m") and got[9][0] == "0"
+    assert got[10] == ("I", "CABO", "C3x1x95(95)+20kV 60 m")
     assert got[12] == ("I", "CABO", "RAMA25 20 m") and got[14] == ("I", "CABO", "(S04) 8 m") and got[16] == ("I", "CABO", "16 9 m") and got[18] == ("I", "CABO", "3xW2,25 15 m")
     # o que o Leitor entrega vira a lista certa na tabela Cabos
     assert [i[:2] for i in itens(got[5][2])[0]] == [("A35P", 3), ("CAZ7,94", 1)]

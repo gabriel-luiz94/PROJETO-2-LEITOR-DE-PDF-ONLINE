@@ -34,14 +34,6 @@
  },
  {
   "fase": 2,
-  "ordem": 10,
-  "descricao": "Tensão do cabo é ignorada (-7,9kV, -13,8kV, +20kV)",
-  "modo": "SUBSTITUIR",
-  "ativo_regex": "\\s*[-+]\\s*\\d+(?:,\\d+)?\\s*KV",
-  "ativo_template": ""
- },
- {
-  "fase": 2,
   "ordem": 20,
   "descricao": "Cabo que começa com C vira um único código (C 3x1x95 -> C3x1x95)",
   "modo": "SUBSTITUIR",
