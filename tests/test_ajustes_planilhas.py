@@ -559,7 +559,7 @@ def test_operacao_nova_invalida_pela_camada_1_e_barrada_na_validacao_e_linha_ja_
 
 
 def test_linha_nova_invalida_e_descartada():
-    r = rodar([acao("adicionar_linha", valores={"operacao": "I", "ativo": "ABC"})], [o("1-A")])     # 'ABC' = token sem par
+    r = rodar([acao("adicionar_linha", valores={"operacao": "I", "ativo": "1-A ABC"})], [o("1-A")])     # 'ABC' = token sem par (a linha tem "qtd-ativo": formato antigo)
     assert textos(r) == ["1-A"] and "C1-OUT-ORFAO" in r["descartadas"][0]["motivo"]
 
 

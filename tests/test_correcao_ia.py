@@ -67,7 +67,7 @@ def test_tolera_cerca_de_codigo():
     (c(depois="  dt11/300   1-cfuu "), "não muda"),        # só espaço e caixa diferentes
     (c(depois="DT11/300 1-CFUU"), "não muda"),
     (c(depois="3-IP RECAL"), "ainda reprova"),             # token sem par (C1-OUT-ORFAO)
-    (c(depois="x-CFU"), "ainda reprova"),                  # quantidade não numérica
+    (c(depois="1-A x-CFU"), "ainda reprova"),              # quantidade não numérica
     (c(depois="CAA 2 35 m"), "ainda reprova"),             # formato de cabo em Outros
 ])
 def test_proposta_descartada_com_motivo(item, trecho):

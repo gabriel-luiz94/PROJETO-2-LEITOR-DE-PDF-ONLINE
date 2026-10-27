@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-10-27 — TASK-097: Outros com ativo de nome composto (CE3 PR)
+
+**Tipo:** regra de negócio · `static/anotacao_outros.js` ⇄ `services/anotacao_outros.py`
+
+Na notação compacta o único delimitador é ", "; `CE3 PR` é um item. Linha sozinha sem `qtd-ativo` é compacta (um item só).
+
+---
+
 ## 2026-10-27 — TASK-096: parâmetros repetidos na estrutura (N4 com dois cabos)
 
 **Tipo:** regra de negócio · `static/ativo_parametros.js` ⇄ `services/ativo_parametros.py`, `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/anotacao_outros.js` ⇄ `services/anotacao_outros.py`, `static/vinculacao_ui.js`, `static/resumo.js`, `services/autonomo/totalizadora.py`, `data/vinculacao_pernambuco_seed.json`

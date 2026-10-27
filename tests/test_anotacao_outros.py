@@ -73,9 +73,9 @@ def test_formato_antigo_continua_igual():
 def test_erros_de_formato():
     assert itens("11600D,N1")[1][0]["cod"] == "VIRGULA"
     assert itens("11600D, 1-N3")[1][0]["cod"] == "MISTURA"
-    assert itens("11600D, 2 3 N3")[1][0]["cod"] == "FORMATO"
+    assert itens("11600D, 2 3 N3") == ([("DT11/600", 1.0, "I"), ("3 N3", 2.0, "I")], [])        # o único delimitador é ", ": "3 N3" é o nome (com espaço)
     assert itens("11600D, ")[1] != [] or itens("11600D, ")[0]          # vírgula no fim = item vazio
-    assert itens("11600D, x N3")[1][0]["cod"] == "FORMATO"
+    assert itens("11600D, x N3") == ([("DT11/600", 1.0, "I"), ("X N3", 1.0, "I")], [])
 
 
 # ── apelidos e regra do poste/M ──
@@ -156,8 +156,9 @@ def test_validacao_camada1():
 BASE_T = [{"ativo": "DT11/600, 11600D", "desc_ativo": "POSTE 11/600", "componente": "DT11/600", "projeto": "P1", "codigo": "p600", "desc_codigo": "d"},
           {"ativo": "N3=N3(poste=11600D)", "desc_ativo": "N3", "componente": "N3", "projeto": "P1", "codigo": "n3", "desc_codigo": "d"},
           {"ativo": "N3(poste=11600D)", "desc_ativo": "", "componente": "N3.11600D", "projeto": "P1", "codigo": "n3e", "desc_codigo": "d"},
-          {"ativo": "T3", "desc_ativo": "T3", "componente": "T3", "projeto": "P1", "codigo": "t3", "desc_codigo": "d"}]
-LINHAS_T = ["11600D, 2 N3, T3", "2 11600D, N3", "0,5 T3, N3", "11600D,N3", "11600D, 1-N3", "2-N3 1-T3", "DT11/600 1-N3", "11600D, *2 N3", "9999X, N3", "N3, T3", "11600D, N3(A)", "11600D, N3(A,11600D)", "11600D", "9300F", "7150FV"]
+          {"ativo": "T3", "desc_ativo": "T3", "componente": "T3", "projeto": "P1", "codigo": "t3", "desc_codigo": "d"},
+          {"ativo": "CE3 PR", "desc_ativo": "CE3 PR", "componente": "CE3 PR", "projeto": "P1", "codigo": "ce3pr", "desc_codigo": "d"}]
+LINHAS_T = ["CE3 PR", "2 CE3 PR", "11600D, CE3 PR, T3", "11600D, 2 CE3 PR", "11600D, 2 N3, T3", "2 11600D, N3", "0,5 T3, N3", "11600D,N3", "11600D, 1-N3", "2-N3 1-T3", "DT11/600 1-N3", "11600D, *2 N3", "9999X, N3", "N3, T3", "11600D, N3(A)", "11600D, N3(A,11600D)", "11600D", "9300F", "7150FV"]
 
 
 @pytest.mark.skipif(not NODE, reason="node indisponível")
@@ -194,7 +195,7 @@ def _classico_py(texto):
 
 @pytest.mark.skipif(not NODE, reason="node indisponível")
 def test_paridade_python_js_do_modulo():
-    casos = [[t, op] for t in LINHAS_T + ["7150FV, N3", "10300R, T3, 12400D, N3", "11600D, N3(poste=11600D)", "", "  "] for op in ("I", "*I", "M", "*M")]
+    casos = [[t, op] for t in LINHAS_T + ["7150FV, N3", "10300R, T3, 12400D, N3", "11600D, N3(poste=11600D)", "", "  ", "CE3 PR", "9400D, CE3 PR, N1", "9400D, 2 CE3 PR", "2 CE3 PR", "1-N1 2-CE3", "N1 N2"] for op in ("I", "*I", "M", "*M")]
     cod = _JS % {"ap": json.dumps(os.path.join(config.STATIC_DIR, "ativo_parametros.js")), "ao": json.dumps(os.path.join(config.STATIC_DIR, "anotacao_outros.js"))}
     r = subprocess.run([NODE, "-e", cod], input=json.dumps({"casos": casos, "base": BASE_T, "projeto": "P1"}), capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, r.stderr
@@ -221,3 +222,20 @@ def test_poste_tambem_em_pedido_com_parenteses():
     assert f("7150FV, N1(cabo=P)") == "N1(CABO=P,POSTE=7150FV)"
     assert f("7150FV, N1(P,11300D)") == "N1(P,11300D)"                  # já informou o poste: respeita
     assert f("7150FV, N1(poste=11300D)") == "N1(POSTE=11300D)"
+
+
+# ── TASK-097: o único delimitador é ", " — ativo com espaço no nome é UM item ──
+def test_nome_com_espaco_e_um_item_so():
+    assert itens("9400D, CE3 PR")[0] == [("DT9/400", 1.0, "I"), ("CE3 PR", 1.0, "I")]
+    assert itens("9400D, 2 CE3 PR, N1")[0] == [("DT9/400", 1.0, "I"), ("CE3 PR", 2.0, "I"), ("N1", 1.0, "I")]         # "2" é a quantidade; o resto é o nome
+    assert itens("CE3 PR, N1")[0] == [("CE3 PR", 1.0, "I"), ("N1", 1.0, "I")]
+
+
+def test_linha_sozinha_sem_quantidade_com_hifen_e_compacta():
+    r = ao.interpretar_linha("CE3 PR", "I", cl, None)
+    assert r["formato"] == "compacto" and [(i["ativo"], i["qtd"]) for i in r["itens"]] == [("CE3 PR", 1.0)]
+    assert itens("2 CE3 PR")[0] == [("CE3 PR", 2.0, "I")]
+    assert itens("N1")[0] == [("N1", 1.0, "I")]
+    # com "qtd-ativo" em algum token continua o formato antigo (itens separados por espaço)
+    r = ao.interpretar_linha("1-N1 2-CE3", "I", cl, None)
+    assert r["formato"] == "antigo" and [(i["ativo"], i["qtd"]) for i in r["itens"]] == [("N1", 1.0), ("CE3", 2.0)]

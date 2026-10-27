@@ -514,3 +514,8 @@ Uma linha de Outros como `9400D, N1, N4` tem um poste e duas estruturas; no moda
 - Na **Base de Orçamento** o mesmo parâmetro pode aparecer mais de uma vez: declaração `N4=N4(cabo, cabo)` e grupos como `N4(cabo=%A35P%, cabo=%C16%)`. A **ordem não importa**. Valores podem ter `/` (`S1/0`).
 - Na **Tabela de Estruturas** (modal de vínculo) a coluna **Parâmetros (vários)** diz de onde vem cada valor: `cabo=ativo, cabo=ativo` (código do cabo, sem 3x e sem tensão), ou `tipocabo=valor_cabo` (tipo da regra do cabo). A 1ª ocorrência recebe o 1º cabo vinculado e a 2ª o 2º; cabos iguais repetem o valor. Com só um cabo, só o primeiro é preenchido e a estrutura fica pendente.
 - Em uma linha `9400D, N1, N4` cada estrutura recebe só os parâmetros dela. Pernambuco: N4, B4-MT, CE4 e U4 já vêm configuradas no ponto de partida (configurações já salvas precisam ser ajustadas na tabela).
+
+
+## Ativo com espaço no nome na tabela Outros (TASK-097)
+
+Na notação compacta o **único delimitador é vírgula + espaço**: `9400D, CE3 PR, N1` tem três itens e `CE3 PR` vai inteiro para a Totalizadora. Quantidade vem antes, separada por espaço (`2 CE3 PR` = 2 unidades de "CE3 PR"). Uma linha sem vírgula e sem nenhum `qtd-ativo` (como `1-N1`) também é compacta: `CE3 PR` sozinho é um item só. Se algum item tiver o formato antigo (`1-N1 2-U4`), a linha segue o formato antigo e os itens se separam por espaço.

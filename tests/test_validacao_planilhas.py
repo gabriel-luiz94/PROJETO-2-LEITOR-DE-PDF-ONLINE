@@ -68,7 +68,7 @@ def test_outros_token_orfao_seria_descartado():
 
 
 def test_outros_quantidade_nao_numerica():
-    assert regras(outro("x-CFU")) == ["C1-OUT-NUM"]
+    assert regras(outro("1-A x-CFU")) == ["C1-OUT-NUM"]            # "x-CFU" sozinho é um nome (compacto); com um "qtd-ativo" na linha vale o formato antigo
 
 
 def test_outros_no_formato_de_cabo():
@@ -97,14 +97,14 @@ def test_operacao_invalida(op):
 def test_ids_padrao_seguem_o_contexto_do_chat_e_id_explicito_prevalece():
     achados = validar_planilhas(
         [{"ativo": "P50", "operacao": "I"}, {"id": "CABOS-9", "ativo": "3-CFU", "operacao": "I"}],
-        [{"ativo": "1-P50", "operacao": "I"}, {"ativo": "x-CFU", "operacao": "I"}],
+        [{"ativo": "1-P50", "operacao": "I"}, {"ativo": "1-A x-CFU", "operacao": "I"}],
     )
     assert sorted(a["linha_id"] for a in achados) == ["CABOS-9", "OUTROS-1"]
 
 
 # ── Paridade com o parser do cálculo ─────────────────────────────────────────
 @pytest.mark.parametrize("ativo", [
-    "DT11/300 1-CFU 1-EF3H", "3-IP RECAL", "*1-TERRA3", "cv11/300 2-P50", "a-b", "1,5-P50", "3-IP 2-RECAL",
+    "DT11/300 1-CFU 1-EF3H", "3-IP RECAL", "*1-TERRA3", "cv11/300 2-P50", "1,5-P50", "3-IP 2-RECAL",
 ])
 def test_tokenizacao_e_a_mesma_do_calculo(ativo):
     tokens = tokenizar_outros(ativo)

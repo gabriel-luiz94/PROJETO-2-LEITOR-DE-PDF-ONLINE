@@ -1036,3 +1036,4 @@ sessão. Alterações: `services/pdf_service.py` (coordenadas `_x`/`_y`), `confi
 - [x] **TASK-094** (pedido de 2026-10-27): Estruturas por poste em blocos lado a lado (várias estruturas por linha de Outros). CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-094-27-10-2026.md`.
 - [x] **TASK-095** (pedido de 2026-10-27): Vínculo só com operação I/M (*I/*M) e estruturas fictícias no cabo. CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-095-27-10-2026.md`.
 - [x] **TASK-096** (pedido de 2026-10-27): Estrutura com parâmetros repetidos (N4 com dois `cabo`) preenchidos pelos cabos vinculados. CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-096-27-10-2026.md`.
+- [x] **TASK-097** (pedido de 2026-10-27): Outros: delimitador só ", "; ativo com espaço (CE3 PR) é um item. CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-097-27-10-2026.md`.
