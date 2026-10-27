@@ -117,7 +117,7 @@ def test_resumo_confia_no_que_o_leitor_ja_definiu_e_refaz_o_resto():
     lt = LeitorFalso(passo1, {1: r("POSTE", "I", "DT11/300"), 2: r("RAMAIS", "R", "RS")})
     t = mt.montar_tabelas(itens, [], [], lt)
     assert lt.chamadas == [("extracao", None), ("resumo", [1, 2])]
-    assert t["cabos"] == [{"entidade": "CABO", "operacao": "I", "ativo": "CAA2 ABC 10 m", "qtdAtivos": 3}]
+    assert t["cabos"] == [{"entidade": "CABO", "operacao": "I", "ativo": "CAA2 ABC 10 m", "textoOriginal": "A", "qtdAtivos": 3}]
     assert t["outros"] == [{"entidade": "POSTE", "operacao": "I", "ativo": "DT11/300"}, {"entidade": "ESTRUTURA", "operacao": "M", "ativo": "1-U4"}]
     assert t["ramais"] == [{"entidade": "RAMAIS", "texto": "C", "pagina": 1}]
 

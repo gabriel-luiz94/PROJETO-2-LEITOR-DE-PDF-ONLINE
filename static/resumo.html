@@ -253,6 +253,11 @@
         .sort-ind { color: #58a6ff; font-size: 0.68rem; margin-left: 3px; letter-spacing: 0; }
         .btn-ghost-mini { background: none; border: none; color: #6e7681; cursor: pointer; padding: 0 3px; margin-left: 6px; opacity: 0.55; display: inline-flex; align-items: center; vertical-align: middle; }
         .btn-ghost-mini:hover { opacity: 1; color: #c9d1d9; }
+        #table-cabos.sem-cabo-extra .col-cabo-extra { display: none; }
+        .resumo-table th.col-fases { width: 54px; text-align: center; } .resumo-table th.col-tensao { width: 78px; } .resumo-table th.col-nivel { width: 62px; text-align: center; }
+        #table-cabos .inp-cabo-extra { width: 100%; background: transparent; border: none; color: inherit; font: inherit; font-size: 0.78rem; padding: 6px 4px; text-align: center; box-sizing: border-box; }
+        #table-cabos .inp-cabo-extra:focus { outline: 2px solid #388bfd; outline-offset: -2px; background: rgba(56,139,253,0.08); }
+        #table-cabos .inp-cabo-extra.derivado { color: #8b949e; }
         #table-outros.sem-entidade th.col-entidade, #table-outros.sem-entidade td.cel-ent { display: none; }
         #table-outros .sel-entidade { border: none; border-radius: 0; background: transparent; padding: 6px 4px; font-size: 0.78rem; }
         #table-outros .sel-entidade:focus { outline: 2px solid #388bfd; outline-offset: -2px; background: rgba(56,139,253,0.08); }
@@ -1108,6 +1113,7 @@
                     <h2 class="section-title">
                         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                         Tabela de Cabos <span class="badge-count" id="count-cabos">0</span>
+                        <button class="btn-ghost-mini" id="btn-toggle-cabo-extra" title="Ocultar as colunas Fases / Tensão / Nível" aria-label="Ocultar ou mostrar as colunas Fases, Tensão e Nível"></button>
                     </h2>
                     <div class="section-actions">
                         <button class="btn-add-row" id="btn-add-cabos" title="Adicionar linha">
@@ -1140,6 +1146,9 @@
                                     <div class="th-label th-sort" data-tipo="cabos" data-campo="ativo" title="Clique para classificar; clique de novo inverte. Shift+clique: 2º critério. Botão direito: agrupar.">Ativo<span class="sort-ind"></span></div>
                                     <div class="r-filter-container" id="rfc-cabos-ativo"></div>
                                 </th>
+                                <th class="col-cabo-extra col-fases" title="Número de fases (do 3x do texto; sem Nx = 1)">Fases</th>
+                                <th class="col-cabo-extra col-tensao" title="Tensão do texto (ex.: 13,8kV)">Tensão</th>
+                                <th class="col-cabo-extra col-nivel" title="MT = tensão acima de 1 kV; BT = sem tensão">Nível</th>
                                 <th class="col-qtd-ativos">
                                     <div class="th-label th-sort" data-tipo="cabos" data-campo="qtdAtivos" title="Clique para classificar; clique de novo inverte. Shift+clique: 2º critério. Botão direito: agrupar.">Qtd Ativos<span class="sort-ind"></span></div>
                                 </th>

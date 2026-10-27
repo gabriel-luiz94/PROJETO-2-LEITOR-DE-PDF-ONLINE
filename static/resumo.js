@@ -446,6 +446,31 @@ document.addEventListener('DOMContentLoaded', () => {
             tdAt.dataset.col = '1';
             tr.appendChild(tdAt);
 
+            /* ── Fases / Tensão / Nível (só Cabos — TASK-092): vêm do texto original; o que for digitado vale mais ── */
+            if (type === 'cabos') {
+                const VRg = window.VinculacaoRegras, ex = VRg ? VRg.extraCabo(row) : { fases: 1, tensao: '', nivel: 'BT' };
+                [['fases', ex.fases, 'text', '3'], ['tensao', ex.tensao, 'text', '13,8kV'], ['nivel', ex.nivel, 'select', '']].forEach(([campo, valor, tp]) => {
+                    const td = document.createElement('td');
+                    td.className = 'col-cabo-extra';
+                    const inp = tp === 'select' ? document.createElement('select') : document.createElement('input');
+                    inp.className = 'inp-cabo-extra' + (row[campo] === undefined || row[campo] === '' ? ' derivado' : '');
+                    inp.dataset.field = campo;
+                    if (tp === 'select') { ['MT', 'BT'].forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; if (v === String(valor)) o.selected = true; inp.appendChild(o); }); }
+                    else { inp.type = 'text'; inp.value = valor === '' || valor == null ? '' : String(valor); inp.autocomplete = 'off'; }
+                    inp.title = row[campo] === undefined || row[campo] === '' ? 'Derivado do texto original (editável)' : 'Definido à mão';
+                    inp.addEventListener('change', () => {
+                        pushHistory();
+                        const v = inp.value.trim();
+                        if (v === '') delete row[campo]; else row[campo] = campo === 'tensao' ? v : (campo === 'nivel' ? v.toUpperCase() : v);
+                        inp.classList.toggle('derivado', row[campo] === undefined);
+                        atualizarResumoRedeUI();
+                    });
+                    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && tp !== 'select') { e.preventDefault(); inp.blur(); } });
+                    td.appendChild(inp);
+                    tr.appendChild(td);
+                });
+            }
+
             /* ── Qtd Ativos (apenas para cabos) ── */
             if (type === 'cabos') {
                 const tdQtd = document.createElement('td');
@@ -513,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     sep.className = 'grupo-sep';
                     sep.dataset.grupoCampo = campoGrupo;
                     const tdSep = document.createElement('td');
-                    tdSep.colSpan = (type === 'outros' && document.getElementById('table-outros').classList.contains('sem-entidade')) ? 4 : 5;
+                    tdSep.colSpan = type === 'cabos' ? (document.getElementById('table-cabos').classList.contains('sem-cabo-extra') ? 5 : 8) : (document.getElementById('table-outros').classList.contains('sem-entidade') ? 4 : 5);   // TASK-092: Fases/Tensão/Nível
                     tdSep.textContent = `▸ ${campoGrupo.toUpperCase()}: ${chave}  (${n})`;
                     sep.appendChild(tdSep);
                     frag.appendChild(sep);
@@ -925,6 +950,22 @@ document.addEventListener('DOMContentLoaded', () => {
             menu.classList.add('visible');
         });
         document.addEventListener('keydown', e => { if (e.key === 'Escape') fechar(); });
+    })();
+
+    // TASK-092: Fases/Tensão/Nível dos Cabos aparecem por padrão e podem ser ocultadas (preferência lembrada)
+    (function ligarOcultarCaboExtra() {
+        const btn = document.getElementById('btn-toggle-cabo-extra'), tabela = document.getElementById('table-cabos');
+        if (!btn || !tabela) return;
+        const aplicar = (oculto, persistir) => {
+            tabela.classList.toggle('sem-cabo-extra', oculto);
+            btn.textContent = oculto ? 'Mostrar Fases/Nível' : 'Ocultar Fases/Nível';
+            btn.title = oculto ? 'Mostrar as colunas Fases / Tensão / Nível' : 'Ocultar as colunas Fases / Tensão / Nível';
+            if (persistir) { try { localStorage.setItem('resumo_ocultar_cabo_extra', oculto ? '1' : '0'); } catch (e) { /* vale só nesta sessão */ } }
+        };
+        let inicial = false;
+        try { inicial = localStorage.getItem('resumo_ocultar_cabo_extra') === '1'; } catch (e) { /* ignora */ }
+        aplicar(inicial, false);
+        btn.addEventListener('click', () => aplicar(!tabela.classList.contains('sem-cabo-extra'), true));
     })();
 
     // TASK-088: a coluna Entidade de Outros começa OCULTA (a classificação continua; só não aparece). Menu "Exibir" reativa a coluna e classifica/agrupa por entidade.
@@ -1701,6 +1742,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function deepClone(obj) {
         const c = { entidade: obj.entidade || '0', operacao: obj.operacao || 'M', ativo: obj.ativo || '' };
         if (obj.qtdAtivos !== undefined) c.qtdAtivos = obj.qtdAtivos;
+        // TASK-092: texto original do cabo ("3xA35P(7,94)-13,8kV 45 m") e Fases/Tensão/Nível editados — as regras de vínculo usam
+        const txtOrig = obj.textoOriginal || (obj._raw && obj.entidade === 'CABO' ? obj._raw.texto : '');
+        if (txtOrig) c.textoOriginal = txtOrig;
+        ['fases', 'tensao', 'nivel'].forEach(k => { if (obj[k] !== undefined && obj[k] !== '') c[k] = obj[k]; });
         if (obj.entidadeManual) c.entidadeManual = true;   // TASK-065: classificação definida à mão não é recalculada
         // TASK-032: coordenada de origem (presente em obj._raw na primeira montagem da linha, e
         // em obj diretamente depois) e vínculo cabo<->estrutura — preservados através de

@@ -146,6 +146,20 @@
    "se_diferem": "BLOQUEAR",
    "obs": "2 multiplex iguais",
    "ativa": true
+  },
+  {
+   "padrao": "^SI3$",
+   "qtd_min": 1,
+   "qtd_max": 2,
+   "max_reais": 1,
+   "lados": "LIVRE",
+   "amarracao": true,
+   "aceita_i": true,
+   "cabos": "",
+   "parametro": "cabo",
+   "se_diferem": "MAIOR",
+   "obs": "1 cabo real + 1 opcional que só entra como fictício (não vincula o cabo)",
+   "ativa": true
   }
  ],
  "ordem_maior": [

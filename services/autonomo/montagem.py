@@ -136,6 +136,9 @@ def _item_exportado(item: dict, r: dict) -> dict:
          "entidade": r["entidade"], "operacao": r["operacao"], "ativo": r["ativo"]}
     if item.get("_x") is not None and item.get("_y") is not None:
         d["_x"], d["_y"] = item["_x"], item["_y"]
+    for k in ("_geo", "_geoTipo", "_poste"):                     # TASK-091: rede/poste associados no DXF
+        if item.get(k):
+            d[k] = item[k]
     return d
 
 
@@ -172,6 +175,12 @@ def _montar(itens, regras_proc, regras_cls, leitor):
         raw = r.get("_raw") or {}
         if raw.get("_x") is not None and raw.get("_y") is not None:
             d["_x"], d["_y"] = raw["_x"], raw["_y"]
+        if d["entidade"] == "CABO" and raw.get("texto"):
+            d["textoOriginal"] = raw["texto"]                     # TASK-092: as regras de vínculo leem fases/tensão/nível daqui (como deepClone na tela)
+        if raw.get("_geo"):
+            d["_geo"], d["_geoTipo"] = raw["_geo"], raw.get("_geoTipo")
+        if raw.get("_poste"):
+            d["_poste"] = raw["_poste"]
         return d
 
     cabos = [linha(r) for r in processados if r["entidade"] == "CABO"]

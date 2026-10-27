@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-10-27 — TASK-092/093: texto original do cabo e estrutura com fictício opcional
+
+**Tipo:** feature · `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/vinculacao_ui.js`, `static/resumo.js`/`.html`, `services/autonomo/montagem.py`, `data/vinculacao_pernambuco_seed.json`
+
+- 092: o cabo guarda `textoOriginal`; colunas Fases/Tensão/Nível (derivadas, editáveis, ocultáveis) e filtros `fases`/`nivel`/`padrao_texto` nas regras da Tabela de Cabos.
+- 093: regra de estrutura com `qtd_min`/`qtd_max`/`max_reais` (SI3 = 1 real + 1 fictício opcional).
+
+---
+
 ## 2026-10-27 — TASK-091: mapa do vínculo com rede MT/BT e postes (DXF)
 
 **Tipo:** feature · `services/dxf_geometria.py` (novo), `services/dxf_service.py`, `routers/upload.py`, `static/vinculacao_ui.js`, `static/script.js`, `static/ler_projeto.js`, `static/resumo.js`
