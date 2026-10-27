@@ -234,3 +234,23 @@ def test_poste_com_itens_no_pdf_nao_junta_nada():
     itens_ = [{"texto": "9200D, N1", "cor": "#000000", "layer": "", "_x": 1, "_y": 5}, {"texto": "N2", "cor": "#000000", "layer": "", "_x": 1, "_y": 9}]
     got = [(x["operacao"], x["entidade"], x["ativo"]) for x in _leitor_pe(itens_)]
     assert got[0] == ("I", "POSTE", "9200D, N1")
+
+
+def test_regras_antigas_do_081_sao_atualizadas_e_editadas_nao(tmp_path, monkeypatch):
+    import subprocess as sp
+    from routers import regras_leitor as rl
+    monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "t.db"))
+    database.init_db()
+    try:
+        antigo = json.loads(sp.check_output(["git", "show", "3ec6adf:data/regras_leitor_processamento_pernambuco_seed.json"], stderr=sp.DEVNULL))
+    except Exception:
+        pytest.skip("histórico do git indisponível")
+    con = sqlite3.connect(tmp_path / "t.db")
+    con.execute("UPDATE regras_leitor_processamento SET regras_json = ? WHERE projeto_codigo = '081'", (json.dumps(antigo, ensure_ascii=False),)); con.commit(); con.close()
+    novas = rl._get_regras("processamento", "081")
+    assert any(r.get("fase") == 3 and r.get("ordem") == 4 for r in novas) and len(novas) == 13
+    con = sqlite3.connect(tmp_path / "t.db")
+    assert len(json.loads(con.execute("SELECT regras_json FROM regras_leitor_processamento WHERE projeto_codigo = '081'").fetchone()[0])) == 13
+    editado = [dict(r) for r in antigo]; editado[0]["ordem"] = 11
+    con.execute("UPDATE regras_leitor_processamento SET regras_json = ? WHERE projeto_codigo = '081'", (json.dumps(editado, ensure_ascii=False),)); con.commit(); con.close()
+    assert rl._get_regras("processamento", "081") == editado          # regras editadas pelo admin ficam como estão
