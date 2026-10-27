@@ -89,8 +89,8 @@ def _valida_regra_processamento(regra: dict, idx: int, erros: list):
             erros.append(f"{prefixo}: 'vizinhanca' precisa ser um objeto ({{regex, janela, mesma_pagina}}).")
         else:
             _compila_regex(vizinhanca.get("regex"), f"{prefixo}.vizinhanca.regex", erros)
-            if vizinhanca.get("direcao") not in (None, "", "ANTES_E_DEPOIS", "DEPOIS"):
-                erros.append(f"{prefixo}: 'vizinhanca.direcao' precisa ser ANTES_E_DEPOIS ou DEPOIS.")
+            if vizinhanca.get("direcao") not in (None, "", "ANTES_E_DEPOIS", "DEPOIS", "ANTES"):
+                erros.append(f"{prefixo}: 'vizinhanca.direcao' precisa ser ANTES_E_DEPOIS, DEPOIS ou ANTES.")
             janela = vizinhanca.get("janela")
             if janela is not None and not isinstance(janela, (int, float)):
                 erros.append(f"{prefixo}: 'vizinhanca.janela' precisa ser numérico.")

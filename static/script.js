@@ -1528,7 +1528,10 @@ function _formHtmlRegraProcessamento(r) {
                     <div style="flex:1; display:flex; align-items:flex-end; padding-bottom:10px;">
                         <label style="display:flex; align-items:center; gap:5px; font-size:0.8rem;">
                             <input type="checkbox" id="rle-viz-mesma-pagina" ${!r.vizinhanca || r.vizinhanca.mesma_pagina !== false ? 'checked' : ''}> Só mesma página
-                            <br><input type="checkbox" id="rle-viz-depois" ${r.vizinhanca && r.vizinhanca.direcao === 'DEPOIS' ? 'checked' : ''}> Só os itens seguintes (ex.: comprimento na linha de baixo)
+                            <br>Direção: <select id="rle-viz-direcao"><option value="">antes e depois</option><option value="DEPOIS" ${r.vizinhanca && r.vizinhanca.direcao === 'DEPOIS' ? 'selected' : ''}>só os seguintes</option><option value="ANTES" ${r.vizinhanca && r.vizinhanca.direcao === 'ANTES' ? 'selected' : ''}>só os anteriores</option></select>
+                            <br><input type="checkbox" id="rle-viz-mtext" ${r.vizinhanca && r.vizinhanca.mesmo_mtext ? 'checked' : ''}> Só linhas do mesmo MTEXT (DXF), consecutivas
+                            <br><input type="checkbox" id="rle-viz-juntar" ${r.vizinhanca && r.vizinhanca.juntar ? 'checked' : ''}> Juntar todas ({vizinhancas})
+                            <br><input type="checkbox" id="rle-viz-obrig" ${r.vizinhanca && r.vizinhanca.obrigatoria ? 'checked' : ''}> Obrigatória (sem vizinha a regra não casa)
                         </label>
                     </div>
                 </div>
@@ -1608,7 +1611,7 @@ function _atualizarCamposModoRegraLeitor() {
     if (hintEl) {
         hintEl.textContent = modo === 'SUBSTITUIR'
             ? 'Sintaxe nativa do JS String.replace: use $1, $2... para os grupos capturados pelo Ativo (regex).'
-            : 'Placeholders: {1}, {2}... (grupos capturados), {TEXTO_LIMPO}, {vizinhanca}, {TEXTO_SEM_ULTIMOS5}.';
+            : 'Placeholders: {1}, {2}... (grupos capturados), {TEXTO_LIMPO}, {vizinhanca}, {vizinhancas}, {TEXTO_SEM_ULTIMOS5}.';
     }
 }
 
@@ -1681,7 +1684,11 @@ function _lerFormularioRegraProcessamento() {
             janela: parseInt(document.getElementById('rle-viz-janela').value, 10) || 10,
             mesma_pagina: document.getElementById('rle-viz-mesma-pagina').checked
         };
-        if (document.getElementById('rle-viz-depois').checked) regra.vizinhanca.direcao = 'DEPOIS';
+        const dir = document.getElementById('rle-viz-direcao').value;
+        if (dir) regra.vizinhanca.direcao = dir;
+        if (document.getElementById('rle-viz-mtext').checked) regra.vizinhanca.mesmo_mtext = true;
+        if (document.getElementById('rle-viz-juntar').checked) regra.vizinhanca.juntar = true;
+        if (document.getElementById('rle-viz-obrig').checked) regra.vizinhanca.obrigatoria = true;
     }
     if (!regra.cor_em.length) delete regra.cor_em;
     if (!regra.cor_nao_em.length) delete regra.cor_nao_em;

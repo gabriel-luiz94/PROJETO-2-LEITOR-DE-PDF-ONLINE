@@ -73,6 +73,11 @@
         return hexEm.some(function (x) { return norm(x) === h; });
     }
 
+    // TASK-082: dois itens são do MESMO MTEXT quando têm a mesma posição de inserção, layer e página (os parágrafos de um MTEXT saem lado a lado).
+    function _mesmoMtext(a, b) {
+        return !!a && !!b && a._x !== undefined && a._x === b._x && a._y === b._y && (a.layer || '') === (b.layer || '') && a.pagina === b.pagina;
+    }
+
     function layerCasa(layerEm, layerReal) {
         if (!layerEm || layerEm.length === 0) return true;
         const lr = (layerReal || '').trim().toUpperCase();
@@ -99,7 +104,7 @@
         try { return new RegExp(source, flags); } catch (e) { return null; }
     }
 
-    function _aplicarTemplateDefinir(template, match, textoLimpo, vizinhancaValor, textoBruto) {
+    function _aplicarTemplateDefinir(template, match, textoLimpo, vizinhancaValor, textoBruto, vizinhancasJuntas) {
         if (template === null || template === undefined) return null;
         let out = template;
         if (match) {
@@ -108,6 +113,7 @@
             }
         }
         out = out.split('{TEXTO_LIMPO}').join(textoLimpo || '');
+        out = out.split('{vizinhancas}').join(vizinhancasJuntas || '');
         out = out.split('{vizinhanca}').join(vizinhancaValor !== null && vizinhancaValor !== undefined ? vizinhancaValor : '');
         if (out.indexOf('{TEXTO_SEM_ULTIMOS5}') !== -1) {
             // Espelha script.js: arrumeRaw = col2.trim().replace(/\s+/g,' '); substring(0, len-5)
@@ -140,7 +146,30 @@
                 casou = true;
 
                 let vizValor = null;
-                if (r.vizinhanca && r.vizinhanca.regex) {
+                let vizJuntas = '';
+                const vz = r.vizinhanca;
+                if (vz && vz.regex && vz.mesmo_mtext) {
+                    // TASK-082: só itens do mesmo MTEXT, vizinhos CONSECUTIVOS (até `janela`), para a frente (padrão) ou para trás ("ANTES").
+                    const re = _safeRegex(vz.regex, 'i');
+                    const todos = item.allItems || [];
+                    const eu = todos[item.index];
+                    const passo = vz.direcao === 'ANTES' ? -1 : 1;
+                    const achados = [];
+                    for (let k = 1; re && k <= (vz.janela || 2); k++) {
+                        const viz = todos[item.index + passo * k];
+                        if (!viz || !viz.texto || !_mesmoMtext(eu, viz)) break;
+                        const m = viz.texto.match(re);
+                        if (!m) { if (vz.juntar) break; continue; }
+                        achados.push(m[1] !== undefined ? m[1] : m[0]);
+                        if (!vz.juntar) break;
+                    }
+                    if (vz.obrigatoria && !achados.length) continue;
+                    if (passo === -1) achados.reverse();
+                    vizValor = achados.length ? achados[0] : null;
+                    vizJuntas = achados.length ? ', ' + achados.join(', ') : '';
+                    ativoResultante = (vz.juntar || vizValor !== null)
+                        ? _aplicarTemplateDefinir(r.ativo_template, match, textoLimpo, vizValor, item.texto, vizJuntas) : null;
+                } else if (r.vizinhanca && r.vizinhanca.regex) {
                     const janela = r.vizinhanca.janela || 10;
                     // TASK-082: direcao "DEPOIS" procura só nos itens seguintes (ex.: comprimento na linha de baixo do cabo)
                     const start = r.vizinhanca.direcao === 'DEPOIS' ? Math.min(item.index + 1, (item.allItems || []).length) : Math.max(0, item.index - janela);

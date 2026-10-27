@@ -1,8 +1,8 @@
 [
  {
   "ordem": 10,
-  "descricao": "Poste compacto",
-  "ativo_regex": "^\\d{4,6}(?:FV|D|R|F)$",
+  "descricao": "Poste compacto, sozinho ou com itens (11300D, 9200D, N1)",
+  "ativo_regex": "^\\d{4,6}(?:FV|D|R|F)(?:,\\s*.+)?$",
   "entidade": "POSTE",
   "parar": true
  },

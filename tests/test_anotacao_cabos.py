@@ -205,3 +205,32 @@ def test_seed_pernambuco_081_e_regras_validas(tmp_path, monkeypatch):
     database.init_db()                      # o seed não sobrescreve o que o admin editou
     con = sqlite3.connect(tmp_path / "t.db")
     assert con.execute("SELECT regras_json FROM regras_leitor_classificacao WHERE projeto_codigo = '081'").fetchone()[0] == "[]"
+
+
+def X(texto, x, y, layer="01_INSTALANDO"):
+    return {"texto": texto, "cor": "#000000", "layer": layer, "_x": x, "_y": y}
+
+
+@pytest.mark.skipif(not NODE, reason="node indisponível")
+def test_poste_com_itens_e_linhas_do_mesmo_mtext():
+    itens_ = [X("9200D, N1", 10, 100), X("N2", 10, 100), X("T3", 10, 100), X("EXTRA", 10, 100),      # cabeça + 3 linhas do mesmo MTEXT (limite = 2)
+              X("11300D", 20, 90),                                                                  # poste sozinho
+              X("7150FV", 30, 80), X("N3", 30, 80), X("10300R", 30, 80), X("N4", 30, 80),           # dois postes no mesmo MTEXT
+              X("9300D", 50, 60), X("N6", 51, 60)]                                                  # linha de baixo em OUTRO MTEXT
+    got = [(x["operacao"], x["entidade"], x["ativo"]) for x in _leitor_pe(itens_)]
+    assert got[0] == ("I", "POSTE", "9200D, N1, N2, T3")
+    assert got[1][0] == "0" and got[2][0] == "0"                    # linhas já juntadas ao poste: ignoradas
+    assert got[3] == ("I", "0", "")                                 # 3ª linha: fora do limite, segue sozinha (sem entidade, a tela descarta)
+    assert got[4] == ("I", "POSTE", "11300D")
+    assert got[5] == ("I", "POSTE", "7150FV, N3") and got[6][0] == "0"
+    assert got[7] == ("I", "POSTE", "10300R, N4") and got[8][0] == "0"
+    assert got[9] == ("I", "POSTE", "9300D") and got[10] == ("I", "0", "")
+    assert [i["ativo"] for i in __import__("services.anotacao_outros", fromlist=["x"]).interpretar_linha("9200D, N1, N2, T3", "I", lambda t: [], None)["itens"]] == ["DT9/200", "N1", "N2", "T3"]
+
+
+@pytest.mark.skipif(not NODE, reason="node indisponível")
+def test_poste_com_itens_no_pdf_nao_junta_nada():
+    # PDF não tem "MTEXT": cada texto tem a sua posição, então nada é juntado nem ignorado por vizinhança
+    itens_ = [{"texto": "9200D, N1", "cor": "#000000", "layer": "", "_x": 1, "_y": 5}, {"texto": "N2", "cor": "#000000", "layer": "", "_x": 1, "_y": 9}]
+    got = [(x["operacao"], x["entidade"], x["ativo"]) for x in _leitor_pe(itens_)]
+    assert got[0] == ("I", "POSTE", "9200D, N1")

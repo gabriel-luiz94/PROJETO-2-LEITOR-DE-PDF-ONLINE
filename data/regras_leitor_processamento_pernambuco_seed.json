@@ -2,11 +2,19 @@
  {
   "fase": 1,
   "ordem": 10,
-  "descricao": "Poste compacto (11300D = DT11/300; D, R, F, FV)",
+  "descricao": "Poste compacto (11300D = DT11/300; D, R, F, FV), sozinho ou com itens (9200D, N1); linhas seguintes do mesmo MTEXT (até 2) entram na mesma linha",
   "modo": "DEFINIR",
-  "texto_regex": "^(\\d{4,6}(?:FV|D|R|F))$",
-  "ativo_template": "{1}",
-  "parar": true
+  "texto_regex": "^(\\d{4,6}(?:FV|D|R|F)(?:,\\s*.+)?)$",
+  "ativo_template": "{1}{vizinhancas}",
+  "parar": true,
+  "vizinhanca": {
+   "regex": "^(?!\\d{4,6}(?:FV|D|R|F)(?:,|$))(.+)$",
+   "janela": 2,
+   "mesma_pagina": true,
+   "direcao": "DEPOIS",
+   "mesmo_mtext": true,
+   "juntar": true
+  }
  },
  {
   "fase": 1,
@@ -39,6 +47,23 @@
   "modo": "SUBSTITUIR",
   "ativo_regex": "^C\\s+(?=\\d[xX])",
   "ativo_template": "C"
+ },
+ {
+  "fase": 3,
+  "ordem": 4,
+  "descricao": "Linhas de baixo do mesmo MTEXT de um poste (até 2) já foram juntadas ao poste: ignorar",
+  "modo": "DEFINIR",
+  "texto_regex": "^(?!\\d{4,6}(?:FV|D|R|F)(?:,|$)).+$",
+  "vizinhanca": {
+   "regex": "^(\\d{4,6}(?:FV|D|R|F)(?:,\\s*.+)?)$",
+   "janela": 2,
+   "mesma_pagina": true,
+   "direcao": "ANTES",
+   "mesmo_mtext": true,
+   "obrigatoria": true
+  },
+  "operacao": "0",
+  "parar": true
  },
  {
   "fase": 3,
