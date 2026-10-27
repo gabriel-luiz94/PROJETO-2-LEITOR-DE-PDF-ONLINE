@@ -291,12 +291,22 @@ def _codigo_cabo(row, prefixo_fn):
     return prefixo_fn(row.get("ativo")) or ""
 
 
+# TASK-095: só entram no vínculo linhas de operação I, M e as variantes *I e *M. R e *R (retirada/recolocação) ficam de fora — nem listadas, nem contadas.
+def participa_vinculo(row) -> bool:
+    return _trim((row or {}).get("operacao")).upper() not in ("R", "*R")
+
+
+def estruturas_ficticias_de(row) -> list:
+    """Estruturas fictícias do CABO (só o código): preenchem pontas do cabo, sem linha em Outros; entram na Totalizadora como `CABO_ESTRUTURA`."""
+    return [_trim(x).upper() for x in ((row or {}).get("estruturasFicticias") or []) if _trim(x)]
+
+
 def _eh_cabo_valido(row):
-    return bool(row) and bool(_trim(row.get("ativo")))
+    return bool(row) and bool(_trim(row.get("ativo"))) and participa_vinculo(row)
 
 
 def _eh_linha_estrutura(r):
-    return bool(r) and r.get("entidade") in ("ESTRUTURA", "POSTE")
+    return bool(r) and r.get("entidade") in ("ESTRUTURA", "POSTE") and participa_vinculo(r)
 
 
 # TASK-094: uma linha de Outros pode ter VÁRIAS estruturas (`9400D, N1, N4` = poste + N1 + N4); cada uma é uma "unidade" vinculável.
@@ -444,19 +454,23 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
     res_c = {}
     for ic, c in info_c.items():
         mine = [ie for ie in (cabos[ic].get("vinculoEstruturas") or []) if ie in ocup]
-        invalido = any((ic, ie) in bad_links for ie in mine)
+        fict_e = estruturas_ficticias_de(cabos[ic]) if c["vincula"] else []
+        erros_f = [m for ok, m in (pode_vincular(c, info_estrutura(cod, cfg)) for cod in fict_e) if not ok]
+        invalido = any((ic, ie) in bad_links for ie in mine) or bool(erros_f)
         precisa = c["pontas"] if c["vincula"] else 0
+        tem = len(mine) + len(fict_e)
         if invalido:
             estado = "rd"
         elif not c["vincula"]:
             estado = "gr"
-        elif not mine:
+        elif not tem:
             estado = "k"
-        elif len(mine) < precisa:
+        elif tem < precisa:
             estado = "pu"
         else:
             estado = "gr"
-        res_c[ic] = {"estado": estado, "tem": len(mine), "precisa": precisa, "codigo": c["codigo"], "valor_cabo": c["valor_cabo"], "vincula": c["vincula"]}
+        res_c[ic] = {"estado": estado, "tem": tem, "precisa": precisa, "codigo": c["codigo"], "valor_cabo": c["valor_cabo"], "vincula": c["vincula"],
+                     "ficticias": len(fict_e), "erros": erros_f}
     return {"estruturas": res_e, "cabos": res_c, "links": links}
 
 
@@ -612,7 +626,7 @@ def _executar_script_base(script, cabos, outros, cfg, prefixo_fn, codigo_fn) -> 
                 continue
             if not casa(fc.get("ativo"), c["codigo"]):
                 continue
-            if ligados[ic] and not passo.get("substituir"):
+            if (ligados[ic] or estruturas_ficticias_de(cabos[ic])) and not passo.get("substituir"):
                 r["ja_tinham"] += 1
                 continue
             alvo.append(ic)
@@ -630,7 +644,7 @@ def _executar_script_base(script, cabos, outros, cfg, prefixo_fn, codigo_fn) -> 
         raio = passo.get("raio_m")
         for pos, ic in enumerate(alvo):
             c = info_c[ic]
-            need = passo.get("pontas") if isinstance(passo.get("pontas"), int) else c["pontas"]
+            need = max(0, (passo.get("pontas") if isinstance(passo.get("pontas"), int) else c["pontas"]) - (0 if passo.get("substituir") else len(estruturas_ficticias_de(cabos[ic]))))
             antes = list(ligados[ic])
             if passo.get("substituir"):
                 ligados[ic] = []

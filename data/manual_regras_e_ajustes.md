@@ -501,3 +501,9 @@ Ao extrair um DXF, o programa lê sozinho (sem criar linhas na tabela) as linhas
 ## Várias estruturas na mesma linha (TASK-094)
 
 Uma linha de Outros como `9400D, N1, N4` tem um poste e duas estruturas; no modal de vínculo cada uma é um bloco (N1, N4) na mesma linha do poste e recebe seus próprios cabos e cabos fictícios. Poste sem estrutura não aparece (a menos que já tenha cabo ligado); estrutura sem poste aparece sem o card do poste. Vínculos feitos antes continuam valendo (a 1ª estrutura mantém o mesmo identificador). O vínculo automático por script não usa duas estruturas do mesmo poste como as duas pontas de um cabo.
+
+
+## Operação no vínculo e estrutura fictícia no cabo (TASK-095)
+
+- Só entram no vínculo cabos e estruturas de operação **I, M, \*I e \*M**. Linhas **R** e **\*R** não aparecem no modal de vínculo, não contam como cabo/estrutura e não geram itens `CABO_ESTRUTURA` na Totalizadora.
+- No modal, **botão direito no cabo → Estrutura fictícia**: escolhe uma estrutura (ou digita o código) para ocupar uma ponta do cabo sem existir uma linha em Outros. A estrutura precisa ser aceita pelas regras do cabo; ela segue para a Totalizadora como `CABO_ESTRUTURA`.

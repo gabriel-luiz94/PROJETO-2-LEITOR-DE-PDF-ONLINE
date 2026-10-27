@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-10-27 — TASK-095: vínculo só com I/M e estruturas fictícias no cabo
+
+**Tipo:** regra de negócio · `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/vinculacao_ui.js`, `static/resumo.js`, `services/autonomo/vinculacao.py`
+
+Cabos e estruturas com operação R/*R saem do vínculo (análise, modal, script, Totalizadora). O cabo ganha `estruturasFicticias` (ocupam pontas, validadas pelas regras, viram `CABO_ESTRUTURA` na Totalizadora).
+
+---
+
 ## 2026-10-27 — TASK-094: várias estruturas por linha de Outros, em blocos por poste
 
 **Tipo:** feature · `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/vinculacao_ui.js`, `static/resumo.js`, `static/anotacao_outros.js`, `services/anotacao_outros.py`, `services/autonomo/*`

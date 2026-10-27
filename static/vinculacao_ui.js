@@ -186,7 +186,7 @@
         if (ja) { c.vinculoEstruturas = c.vinculoEstruturas.filter(x => x !== ie); toast('Vínculo removido (Ctrl+Z desfaz).'); render(); return; }
         const info = infoCabo(ic);
         if (!info.vincula) { toast(`O cabo ${info.codigo} não vincula (acompanha o cabo principal).`); return; }
-        if ((c.vinculoEstruturas || []).length >= info.pontas) { toast(`O cabo ${info.codigo} já tem as ${info.pontas} ponta(s); remova uma antes.`); return; }
+        if ((c.vinculoEstruturas || []).length + VR.estruturasFicticiasDe(c).length >= info.pontas) { toast(`O cabo ${info.codigo} já tem as ${info.pontas} ponta(s); remova uma antes.`); return; }
         const [ok, motivo] = podeLigar(ic, ie);
         if (!ok) { toast('✖ ' + motivo); return; }
         c.vinculoEstruturas = (c.vinculoEstruturas || []).concat([ie]);
@@ -234,9 +234,29 @@
         abrirMenu(e, itens);
     }
 
+    // TASK-095: estrutura fictícia do CABO (só o código): ocupa uma ponta do cabo, sem linha em Outros, e segue para a Totalizadora como CABO_ESTRUTURA
+    function candidatosEstruturasFicticias(ic) {
+        const info = infoCabo(ic), codigos = [], vistos = new Set();
+        const add = x => { x = trim(x).toUpperCase(); if (x && !vistos.has(x)) { vistos.add(x); codigos.push(x); } };
+        VR.estruturasDisponiveis(outros(), host.codigoEstrutura, host.codigosEstrutura).forEach(ie => add(codigoDe(ie)));
+        st.cfg.estruturas.forEach(r => { if (typeof r.padrao === 'string' && !/[\\^$()\[\]|+*?{}]/.test(r.padrao)) r.padrao.split(',').forEach(add); });
+        return codigos.map(cod => { const [ok, motivo] = VR.podeVincular(info, VR.infoEstrutura(cod, st.cfg)); return { cod, ok, motivo }; }).sort((a, b) => (b.ok - a.ok));
+    }
     function menuCabo(e, ic) {
-        const c = cabos()[ic];
-        abrirMenu(e, [{ hd: 'Cabo ' + (c.ativo || '') }, { t: 'Desvincular este cabo', fn: () => { host.antes(); c.vinculoEstruturas = []; render(); } }]);
+        const c = cabos()[ic], info = infoCabo(ic), fict = VR.estruturasFicticiasDe(c), cheio = (c.vinculoEstruturas || []).length + fict.length >= info.pontas;
+        const itens = [{ hd: 'Cabo ' + (c.ativo || '') }, { t: 'Desvincular este cabo', fn: () => { host.antes(); c.vinculoEstruturas = []; render(); } }, '-', { hd: 'Estrutura fictícia' }];
+        const add = cod => { host.antes(); c.estruturasFicticias = fict.concat([cod.toUpperCase()]); render(); };
+        if (cheio) itens.push({ t: `O cabo já tem as ${info.pontas} ponta(s)`, off: true });
+        else {
+            const cands = candidatosEstruturasFicticias(ic), aceitas = cands.filter(x => x.ok);
+            if (!aceitas.length) itens.push({ t: 'Nenhuma estrutura aceita por este cabo', off: true });
+            aceitas.slice(0, 8).forEach(x => itens.push({ t: '➕ ' + x.cod, fn: () => add(x.cod) }));
+            itens.push({ t: '✎ Outro código…', fn: () => { const cod = raiz.prompt('Código da estrutura fictícia (ex.: N1):'); if (!cod) return; const [ok, motivo] = VR.podeVincular(info, VR.infoEstrutura(cod, st.cfg)); if (ok) add(cod); else toast('✖ ' + motivo); } });
+            const rec = cands.filter(x => !x.ok && x.motivo);
+            if (rec.length) itens.push({ t: `(${rec.length} código(s) não aceito(s): ${rec.slice(0, 3).map(x => x.cod).join(', ')}…)`, off: true, title: rec.slice(0, 5).map(x => x.cod + ': ' + x.motivo).join('\n') });
+        }
+        fict.forEach((cod, k) => itens.push({ t: `✖ Remover estrutura fictícia ${cod}`, fn: () => { host.antes(); const l = fict.slice(); l.splice(k, 1); if (l.length) c.estruturasFicticias = l; else delete c.estruturasFicticias; render(); } }));
+        abrirMenu(e, itens);
     }
 
     const CORES = { k: '', pu: ' pu', gr: ' gr', rd: ' rd' };
@@ -247,7 +267,7 @@
         const filtros = [['todos', 'Todos'], ['pendentes', 'Só pendentes'], ['conflitos', 'Só conflitos']];
         corpo.appendChild(el('div', { style: 'display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap' },
             filtros.map(([id, nome]) => el('span', { class: 'vz-chip btn' + (st.filtro === id ? ' on' : ''), text: nome, onclick: () => { st.filtro = id; render(); } }))
-                .concat([el('span', { style: 'margin-left:auto;color:#8b949e', text: 'Clique no cabo e na estrutura (ou o contrário) · botão direito: cabo fictício · clique na linha: desfazer' })])));
+                .concat([el('span', { style: 'margin-left:auto;color:#8b949e', text: 'Clique no cabo e na estrutura (ou o contrário) · botão direito na estrutura: cabo fictício · no cabo: estrutura fictícia · clique na linha: desfazer' })])));
         if (!tem || !ests.length) {
             corpo.appendChild(el('div', { style: 'color:#8b949e;padding:20px', text: !tem ? 'Nenhum cabo na tabela.' : 'Nenhuma estrutura/poste na tabela Outros ainda.' }));
             return;
@@ -266,7 +286,7 @@
             const op = trim(c.operacao).toUpperCase(), opc = op.indexOf('M') >= 0 ? ' m' : (op.indexOf('R') >= 0 ? ' r' : '');
             const card = el('div', { class: cls + (dim ? ' vz-dim' : ''), 'data-c': ic, title: tip || (c.ativo || ''), onclick: () => clicar('c', ic), oncontextmenu: e => menuCabo(e, ic) }, [
                 el('span', { class: 'vz-op' + opc, text: op || 'I' }),
-                el('div', {}, [el('div', { class: 't', text: c.ativo || '' }), el('div', { class: 's', text: `${r.codigo}${r.valor_cabo ? ' · cabo=' + r.valor_cabo : ''} · ${r.tem}/${r.precisa} ponta(s)` })]),
+                el('div', {}, [el('div', { class: 't', text: c.ativo || '' }), el('div', { class: 's', text: `${r.codigo}${r.valor_cabo ? ' · cabo=' + r.valor_cabo : ''} · ${r.tem}/${r.precisa} ponta(s)${r.ficticias ? ' · ' + r.ficticias + ' estrutura fictícia' : ''}` })]),
                 el('div', { class: 'r', style: { gr: 'color:#3fb950', pu: 'color:#a371f7', rd: 'color:#f85149', k: 'color:#8b949e' }[r.estado], text: r.vincula ? TXT_C[r.estado] : 'não vincula' })]);
             colC.appendChild(card);
         });
