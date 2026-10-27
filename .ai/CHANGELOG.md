@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-27 — TASK-082: poste com itens e linhas do mesmo MTEXT
+
+**Tipo:** Frontend (motor do Leitor) + seed · `static/regras_leitor_engine.js`, `static/script.js`, `routers/regras_leitor.py`, `data/regras_leitor_*_pernambuco_seed.json`
+
+Pernambuco: `9200D` e `9200D, N1` são POSTE; no DXF, até 2 linhas de baixo do mesmo MTEXT são juntadas ao poste (`9200D, N1, N2`) e ignoradas. O motor ganhou opções opcionais de vizinhança (`mesmo_mtext`, `juntar`, `obrigatoria`, `direcao: "ANTES"`, placeholder `{vizinhancas}`) — regras antigas não mudam. Quem já tem as regras do 081 salvas precisa atualizá-las no editor.
+
+---
+
 ## 2026-10-27 — TASK-082/083: regras do Leitor de Pernambuco e notação do LABEL na tabela Cabos
 
 **Tipo:** Backend + Frontend · `services/anotacao_cabos.py` e `static/anotacao_cabos.js` (novos), `static/regras_leitor_engine.js`, `static/script.js`, `routers/regras_leitor.py`, `database.py`, `config.py`, `data/regras_leitor_*_pernambuco_seed.json` (novos), `static/resumo.js`, `static/resumo.html`, `services/autonomo/montagem.py`, `services/autonomo/totalizadora.py`, `services/validacao_planilhas.py`, `services/regras_dominio.py`, `services/anotacao_outros.py`, `static/anotacao_outros.js`, `app.py`

@@ -463,4 +463,5 @@ Além do formato antigo (`1-DT11/600 2-N3 1-T3`), a tabela Outros aceita a lista
   - `(S04)` e `[C16]` sozinhos são cabos de neutro; `16` sozinho = `C16`; `RAMA25`, `PB35`… = 1 fase; `C 3x1x95(95)` é um único código de ativo.
   - O nome do cabo vale como escrito (ex.: `S1/0`): ele precisa existir na base de orçamento.
 - No editor de regras do Leitor há agora **Cor exata** (hex) e, na vizinhança, **Só os itens seguintes**.
+- **Poste com itens:** `9200D` e `9200D, N1` são lidos como poste. No DXF, se o texto tem várias linhas (mesmo MTEXT), até **2 linhas de baixo** entram na mesma linha (`9200D, N1` + `N2` → `9200D, N1, N2`) e a de baixo não vira linha própria; uma 3ª linha segue sozinha. No editor há "Só linhas do mesmo MTEXT", "Juntar todas", "Obrigatória" e direção "só os anteriores".
 
