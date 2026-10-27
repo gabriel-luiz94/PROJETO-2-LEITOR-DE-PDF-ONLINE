@@ -254,3 +254,13 @@ def test_regras_antigas_do_081_sao_atualizadas_e_editadas_nao(tmp_path, monkeypa
     editado = [dict(r) for r in antigo]; editado[0]["ordem"] = 11
     con.execute("UPDATE regras_leitor_processamento SET regras_json = ? WHERE projeto_codigo = '081'", (json.dumps(editado, ensure_ascii=False),)); con.commit(); con.close()
     assert rl._get_regras("processamento", "081") == editado          # regras editadas pelo admin ficam como estão
+
+
+def test_todo_js_da_pasta_static_e_servido_sem_cache():
+    """O motor do Leitor ficava em cache no navegador (StaticFiles) e quebrava as regras novas: todo .js de static/ tem rota sem cache."""
+    from fastapi.testclient import TestClient
+    cli = TestClient(__import__("app").app)
+    for f in sorted(os.listdir(config.STATIC_DIR)):
+        if f.endswith(".js"):
+            r = cli.get(f"/static/{f}")
+            assert r.status_code == 200 and "no-cache" in r.headers.get("cache-control", "").lower(), f
