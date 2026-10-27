@@ -457,8 +457,8 @@ Além do formato antigo (`1-DT11/600 2-N3 1-T3`), a tabela Outros aceita a lista
 
 - **Operação:** pela **layer** do DXF (`01_INSTALANDO` = I, `01_REMOVER` = R, `01_REAPLICANDO` = M). Quando não há layer (PDF), vale a **cor exata**: `#000000` = instalar, `#000001` = remover. Textos de ruas, KML e outras cores são ignorados.
 - **Poste:** `11300D`, `7150FV`, `10300R`, `9300F` entram como poste, do jeito que estão escritos (a base reconhece `11300D` = `DT11/300`).
-- **Cabo:** o LABEL do projeto, com o comprimento na mesma linha ou na de baixo (`45 m`, `45m`, `45M`): vira `3xA35P(7,94) 45 m`. Na tabela **Cabos** você também pode digitar assim:
-  - `3x` = 3 fases (sem prefixo = 1); a **tensão** (`-13,8kV`, `+20kV`) é ignorada.
+- **Cabo:** o LABEL do projeto, com o comprimento na mesma linha ou na de baixo (`45 m`, `45m`, `45M`): vira `3xA35P(7,94)-13,8kV 45 m` (o texto fica como está escrito, com a tensão). Na tabela **Cabos** você também pode digitar assim:
+  - `3x` = 3 fases (sem prefixo = 1); a **tensão** (`-13,8kV`, `-13,8KV`, `+20kV`…) continua escrita na tabela, mas é ignorada na Totalizadora.
   - **Neutro** `(…)`: `3xA35P(7,94)` = 3 `A35P` + 1 `CAZ7,94`; `3xC16(16)` = 3 `C16` + 1 `C16`; `3xS50P(35)` = 3 `S50P` + 1 `S35P`. O neutro entra na soma de metros do resumo.
   - `(S04)` e `[C16]` sozinhos são cabos de neutro; `16` sozinho = `C16`; `RAMA25`, `PB35`… = 1 fase; `C 3x1x95(95)` é um único código de ativo.
   - O nome do cabo vale como escrito (ex.: `S1/0`): ele precisa existir na base de orçamento.
