@@ -124,6 +124,12 @@ def validar_config(cfg) -> list:
                 q = r.get("qtd_cabos")
                 if q is not None and (not isinstance(q, int) or isinstance(q, bool) or q < 1):
                     erros.append(f"{p}: 'qtd_cabos' precisa ser um inteiro >= 1.")
+                pr = r.get("parametros")
+                if pr is not None and pr != "":
+                    np_ = normalizar_parametros(pr)
+                    brutos = len(pr) if isinstance(pr, list) else len(str(pr).split(","))
+                    if not np_ or len(np_) != brutos or any(not re.fullmatch(r"[A-Z0-9_.]+", x["nome"]) or x["fonte"] not in FONTES_PARAMETRO for x in np_):
+                        erros.append(f"{p}: 'parametros' precisa ser uma lista como \"cabo=ativo, cabo=ativo, tipocabo=valor_cabo\" (fonte: ativo ou valor_cabo).")
                 if r.get("lados") not in (None, "IGUAIS", "LIVRE"):
                     erros.append(f"{p}: 'lados' precisa ser IGUAIS ou LIVRE.")
                 if r.get("se_diferem") not in (None,) + SE_DIFEREM:
@@ -222,10 +228,31 @@ def info_cabo(codigo, operacao, cfg, extra=None) -> dict:
             "fases": extra["fases"] if extra else None, "nivel": extra["nivel"] if extra else None}
 
 
+# TASK-096: parâmetros da estrutura com FONTE por cabo vinculado: "cabo=ativo, cabo=ativo, tipocabo=valor_cabo" (ativo = código do cabo sem 3x/tensão; valor_cabo = tipo da regra do cabo).
+# O mesmo nome pode se repetir: a n-ésima ocorrência de um nome recebe o n-ésimo cabo (a ordem dos cabos não importa para o orçamento).
+FONTES_PARAMETRO = ("ativo", "valor_cabo")
+
+
+def normalizar_parametros(v):
+    if v is None or v == "":
+        return None
+    itens = v if isinstance(v, list) else str(v).split(",")
+    lista = []
+    for x in itens:
+        if isinstance(x, dict):
+            nome, fonte = _trim(x.get("nome")).upper(), _trim(x.get("fonte")).lower() or "ativo"
+        else:
+            n, _, f = str(x).partition("=")
+            nome, fonte = _trim(n).upper(), _trim(f).lower() or "ativo"
+        if nome:
+            lista.append({"nome": nome, "fonte": fonte})
+    return lista or None
+
+
 def info_estrutura(codigo, cfg) -> dict:
     cod = _trim(codigo).upper()
     i, r = _primeira(cfg["estruturas"], "padrao", cod) if cod else (None, None)
-    d = {"codigo": cod, "regra": i, "qtd": None, "qtd_min": None, "max_reais": None, "lados": "LIVRE", "amarracao": False, "aceita_i": True, "cabos": None, "parametro": "CABO", "se_diferem": "MAIOR"}
+    d = {"codigo": cod, "regra": i, "qtd": None, "qtd_min": None, "max_reais": None, "parametros": None, "lados": "LIVRE", "amarracao": False, "aceita_i": True, "cabos": None, "parametro": "CABO", "se_diferem": "MAIOR"}
     if r is not None:
         # TASK-093: qtd_cabos fixo (min = max) OU faixa qtd_min..qtd_max; max_reais = quantos podem ser cabos REAIS (o excedente só entra como fictício)
         d["qtd"] = r["qtd_max"] if isinstance(r.get("qtd_max"), int) else (r.get("qtd_cabos") if isinstance(r.get("qtd_cabos"), int) else None)
@@ -236,6 +263,9 @@ def info_estrutura(codigo, cfg) -> dict:
         d["aceita_i"] = r.get("aceita_i") is not False
         d["cabos"] = r.get("cabos")
         d["parametro"] = (_trim(r.get("parametro")) or "cabo").upper() if r.get("parametro") != "" else ""
+        d["parametros"] = normalizar_parametros(r.get("parametros"))
+        if d["parametros"]:
+            d["parametro"] = ""                                  # a lista substitui o parâmetro único
         d["se_diferem"] = r.get("se_diferem") if r.get("se_diferem") in SE_DIFEREM else "MAIOR"
     return d
 
@@ -449,8 +479,19 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
             estado = "pu"
         else:
             estado = "gr"
+        parametros = None
+        if e["parametros"]:                                      # TASK-096: um valor por cabo vinculado (reais e fictícios), na ordem dos ocupantes
+            cont = {}
+            for p in e["parametros"]:
+                k = cont.get(p["nome"], 0)
+                cont[p["nome"]] = k + 1
+                o = ocupantes[k] if k < len(ocupantes) else None
+                v = (o["info"]["valor_cabo"] if p["fonte"] == "valor_cabo" else o["info"]["codigo"]) if o else None
+                if v:
+                    parametros = parametros or {}
+                    parametros.setdefault(p["nome"], []).append(v)
         res_e[ie] = {"estado": estado, "tem": tem, "precisa": e["qtd_min"], "maximo": e["qtd"], "valor_cabo": valor, "erros": erros, "avisos": avisos, "codigo": e["codigo"],
-                     "regra": e["regra"], "ficticios": len(fict), "parametro": e["parametro"]}
+                     "regra": e["regra"], "ficticios": len(fict), "parametro": e["parametro"], "parametros": parametros}
     res_c = {}
     for ic, c in info_c.items():
         mine = [ie for ie in (cabos[ic].get("vinculoEstruturas") or []) if ie in ocup]
@@ -482,6 +523,21 @@ def parametros_por_linha(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=N
         linha = linha_de(ie)
         if r["valor_cabo"] and r["parametro"] and linha not in saida:       # várias estruturas na linha: vale a 1ª que tem valor
             saida[linha] = {r["parametro"]: r["valor_cabo"]}
+        elif r["parametros"] and linha not in saida:
+            saida[linha] = {k: list(v) for k, v in r["parametros"].items()}
+    return saida
+
+
+def parametros_por_estrutura(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> dict:
+    """TASK-096: {linha: {CODIGO_DA_ESTRUTURA: {NOME: valor | [valores]}}} — cada estrutura da linha recebe SÓ os parâmetros dela (N1 e N4 do mesmo poste não se misturam)."""
+    a = analisar(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn)
+    saida = {}
+    for ie, r in sorted(a["estruturas"].items()):
+        params = r["parametros"] or ({r["parametro"]: r["valor_cabo"]} if r["valor_cabo"] and r["parametro"] else None)
+        if not params:
+            continue
+        por_codigo = saida.setdefault(linha_de(ie), {})
+        por_codigo.setdefault(r["codigo"], params)
     return saida
 
 

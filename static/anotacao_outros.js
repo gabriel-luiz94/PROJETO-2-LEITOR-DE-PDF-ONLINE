@@ -80,14 +80,15 @@
     }
 
     /** Acrescenta NOME=valor ao pedido quando a assinatura tem o parâmetro e o pedido não o informou (N1 ou N1(A)). */
-    function comParam(ativo, nome, valor, assinaturas) {
-        const i = ativo.indexOf('('), base = i !== -1 ? ativo.slice(0, i) : ativo, sig = assinaturas[base];
-        if (!sig || !sig.nomes.includes(nome)) return ativo;
+    function comParam(ativo, nome, valor, assinaturas, k) {
+        k = k || 0;       // TASK-096: a repetição do parâmetro (0 = o 1º `cabo`, 1 = o 2º `cabo`…)
+        const i = ativo.indexOf('('), base = i !== -1 ? ativo.slice(0, i) : ativo, sig = assinaturas[base], alvo = k ? `${nome}#${k + 1}` : nome;
+        if (!sig || !sig.nomes.includes(alvo)) return ativo;
         if (i === -1) return `${ativo}(${nome}=${valor})`;
         if (!ativo.endsWith(')')) return ativo;
         const itens = ativo.slice(i + 1, -1).split(',').map(x => x.trim()).filter(x => x);
-        if (itens.some(x => x.toUpperCase().startsWith(nome + '='))) return ativo;
-        if (!itens.some(x => x.includes('=')) && itens.length > sig.nomes.indexOf(nome)) return ativo;
+        if (itens.filter(x => x.toUpperCase().startsWith(nome + '=')).length > k) return ativo;
+        if (!itens.some(x => x.includes('=')) && itens.length > sig.nomes.indexOf(alvo)) return ativo;
         return `${ativo.slice(0, -1)},${nome}=${valor})`;
     }
 
@@ -140,12 +141,13 @@
         }
         if (r.erros.length) return r;
         const assinaturas = (ctx && ctx.assinaturas) || {};
-        const parametrosLinha = (ctx && ctx.parametros_linha) || {};
+        const parametrosLinha = (ctx && ctx.parametros_linha) || {}, parametrosEstrutura = (ctx && ctx.parametros_estrutura) || {};      // TASK-096: por estrutura da linha (N1 e N4 não se misturam)
         let posteAtual = null;
         for (const it of itens) {
             if (ehPoste(it.ativo)) posteAtual = posteParaCompacto(it.ativo);
             else {
-                Object.keys(parametrosLinha).forEach(nome => { it.ativo = comParam(it.ativo, nome, parametrosLinha[nome], assinaturas); });   // TASK-084
+                const parametrosDoItem = parametrosEstrutura[AP.nomeBase(it.ativo)] || parametrosLinha;
+                Object.keys(parametrosDoItem).forEach(nome => { [].concat(parametrosDoItem[nome]).forEach((v, k) => { it.ativo = comParam(it.ativo, nome, v, assinaturas, k); }); });   // TASK-084; TASK-096: lista = um valor por repetição do parâmetro
                 if (posteAtual) it.ativo = comParam(it.ativo, 'POSTE', posteAtual, assinaturas);
             }
         }

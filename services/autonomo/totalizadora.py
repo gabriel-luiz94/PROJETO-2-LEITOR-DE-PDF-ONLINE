@@ -214,15 +214,15 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
     if cfg_vinculo is not None:                  # TASK-084: parâmetro `cabo` que cada estrutura recebe do(s) cabo(s) vinculado(s)
         from services.autonomo.vinculacao import codigo_estrutura, codigos_estrutura
         from services.autonomo.montagem import prefixo_cabo
-        from services.vinculacao_regras import parametros_por_linha
-        parametros_vinculo = parametros_por_linha(cabos, outros, cfg_vinculo, prefixo_cabo, codigo_estrutura, codigos_estrutura)
+        from services.vinculacao_regras import parametros_por_estrutura
+        parametros_vinculo = parametros_por_estrutura(cabos, outros, cfg_vinculo, prefixo_cabo, codigo_estrutura, codigos_estrutura)
     for idx_outros, item in enumerate(outros):
         if not item:
             continue
         base_id = contador
         contador += 1
         # TASK-081: notação compacta/apelidos/regra do M traduzidos aqui (o texto do usuário não muda)
-        ctx_linha = dict(ctx_outros, parametros_linha=parametros_vinculo[idx_outros]) if idx_outros in parametros_vinculo else ctx_outros
+        ctx_linha = dict(ctx_outros, parametros_estrutura=parametros_vinculo[idx_outros]) if idx_outros in parametros_vinculo else ctx_outros
         interp = interpretar_linha(item.get("ativo") or "", item.get("operacao") or "I", classico_totalizadora, ctx_linha)
         if interp["erros"]:
             brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": item.get("operacao") or "I",

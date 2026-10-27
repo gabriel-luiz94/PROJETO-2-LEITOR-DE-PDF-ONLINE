@@ -31,7 +31,7 @@ def test_sintaxe_dos_arquivos(arq):
 def test_resumo_liga_o_host_e_a_totalizadora_ao_vinculo():
     js = _ler("resumo.js")
     for trecho in ["window.VinculacaoHost = {", "window.VinculacaoUI.abrir(window.VinculacaoHost)", "window.abrirModalConectores", "_parametrosVinculoPorLinha()",
-                   "parametros_linha: parametrosVinculo[idxOutros]", "obj.cabosFicticios", "obj.vinculoOrigem", "/api/vinculacao-config?projeto_codigo=", "VinculacaoRegras.achados("]:
+                   "parametros_estrutura: parametrosVinculo[idxOutros]", "obj.cabosFicticios", "obj.vinculoOrigem", "/api/vinculacao-config?projeto_codigo=", "VinculacaoRegras.achados("]:
         assert trecho in js, trecho
     ui = _ler("vinculacao_ui.js")
     for metodo in ["host.cabos()", "host.outros()", "host.antes()", "host.desfazer()", "host.projeto()", "host.prefixoCabo", "host.codigoEstrutura", "host.postesDaLinha", "host.linhaSoPoste"]:

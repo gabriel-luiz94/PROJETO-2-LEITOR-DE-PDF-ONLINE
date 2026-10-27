@@ -365,7 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
             inpAt.autocomplete = 'off';
             inpAt.setAttribute('list', '');  // desabilita datalist nativo, usamos o nosso
             if (type === 'outros' && paramsVinc[idx]) {                // TASK-084/088: valor que a estrutura recebe do cabo vinculado — só aparece ao passar o mouse
-                inpAt.title = Object.keys(paramsVinc[idx]).map(k => `${k.toLowerCase()}=${paramsVinc[idx][k]}`).join(' ') + ' (preenchido pelo vínculo cabo ⇄ estrutura; um valor digitado no ativo vale mais)';
+                inpAt.title = Object.keys(paramsVinc[idx]).map(cod => Object.keys(paramsVinc[idx][cod]).map(k => [].concat(paramsVinc[idx][cod][k]).map(v => `${k.toLowerCase()}=${v}`).join(' ')).join(' ')).join(' ') + ' (preenchido pelo vínculo cabo ⇄ estrutura; um valor digitado no ativo vale mais)';
             }
             let prevAtivo = row.ativo;
 
@@ -1849,11 +1849,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return info ? info.prefixo : null;
     }
 
-    /** TASK-084: {índice em Outros: {CABO: "C"}} — o parâmetro que cada estrutura recebe do(s) cabo(s) vinculado(s) (tabelas de cabos/estruturas do projeto). */
+    /** TASK-084/096: {índice em Outros: {CODIGO_DA_ESTRUTURA: {CABO: "C" | ["A35P", "C16"]}}} — os parâmetros que cada estrutura da linha recebe do(s) cabo(s) vinculado(s) (tabelas de cabos/estruturas do projeto). */
     function _parametrosVinculoPorLinha() {
         const cfg = window.__vinculacaoConfig;
         if (!cfg || typeof VinculacaoRegras === 'undefined') return {};
-        return VinculacaoRegras.parametrosPorLinha(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
+        return VinculacaoRegras.parametrosPorEstrutura(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
     }
 
     // autoClassifyEntidade foi religada ao motor de regras do leitor (TASK-006), reusando a
@@ -5534,7 +5534,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
         const currentBaseId = baseIdCounter++;
         
         // TASK-081: notação compacta/apelidos/regra do M traduzidos aqui; o que o usuário digitou não muda
-        const ctxLinha = parametrosVinculo[idxOutros] ? Object.assign({}, ctxOutros, { parametros_linha: parametrosVinculo[idxOutros] }) : ctxOutros;
+        const ctxLinha = parametrosVinculo[idxOutros] ? Object.assign({}, ctxOutros, { parametros_estrutura: parametrosVinculo[idxOutros] }) : ctxOutros;
         const interp = AnotacaoOutros.interpretarLinha(item.ativo, item.operacao || 'I', _classicoTotalizadora, ctxLinha);
         if (interp.erros.length) {
             rawItems.push({

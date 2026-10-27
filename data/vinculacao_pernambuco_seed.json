@@ -13,7 +13,7 @@
     "I": 2,
     "M": 1
    },
-   "estruturas": "^[NUBT][1-4]",
+   "estruturas": "^(CE|[NUBT])[1-4]",
    "obs": "BT e MT em cobre",
    "ativa": true
   },
@@ -29,7 +29,7 @@
     "I": 2,
     "M": 1
    },
-   "estruturas": "^[NT][1-4]",
+   "estruturas": "^(CE|[NT])[1-4]",
    "obs": "o neutro CAZ acompanha o cabo (não vincula)",
    "ativa": true
   },
@@ -45,7 +45,7 @@
     "I": 2,
     "M": 1
    },
-   "estruturas": "^[NUT][1-4]",
+   "estruturas": "^(CE|[NUT])[1-4]",
    "obs": "",
    "ativa": true
   },
@@ -159,6 +159,19 @@
    "parametro": "cabo",
    "se_diferem": "MAIOR",
    "obs": "1 cabo real + 1 opcional que só entra como fictício (não vincula o cabo)",
+   "ativa": true
+  },
+  {
+   "padrao": "^(N4|B4-MT|CE4|U4)$",
+   "qtd_cabos": 2,
+   "lados": "LIVRE",
+   "amarracao": true,
+   "aceita_i": true,
+   "cabos": "",
+   "parametro": "",
+   "parametros": "cabo=ativo, cabo=ativo",
+   "se_diferem": "MAIOR",
+   "obs": "2 cabos (iguais ou não): cada um preenche um parâmetro cabo com o ativo completo do cabo (sem 3x e sem tensão)",
    "ativa": true
   }
  ],
