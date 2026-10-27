@@ -397,6 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             console.log("Dados extraídos com sucesso:", result.data.length, "itens");
             extractedDataCache = result.data;
+            try { if (result.geometria) localStorage.setItem('mapa_geometria_fundo', JSON.stringify(result.geometria)); else localStorage.removeItem('mapa_geometria_fundo'); } catch (e) { /* sem espaço: o mapa só fica sem a rede ao fundo */ }   // TASK-091: rede/postes ao fundo do mapa (não aparecem na tabela)
             renderTable(extractedDataCache);
             resultsSection.classList.remove('hidden');
             
@@ -722,6 +723,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     linha._x = item._x;
                     linha._y = item._y;
                 }
+                // TASK-091: linha da rede (cabo) e poste (estrutura) associados no servidor; só viajam, não aparecem na tabela
+                if (item._geo) { linha._geo = item._geo; linha._geoTipo = item._geoTipo; }
+                if (item._poste) linha._poste = item._poste;
                 exportData.push(linha);
                 if (engineFields[idx]) {
                     const en = engineFields[idx];

@@ -484,3 +484,8 @@ Botão **VINCULAR CABOS** do Resumo:
 - **Outros:** Delete numa linha vazia apaga essa linha e o foco sobe para a anterior. A coluna Entidade fica oculta; use "Exibir ▾" para mostrá-la, ordenar ou agrupar por entidade. Parâmetros do vínculo (`cabo=C`) aparecem como dica ao passar o mouse no Ativo.
 - **Leitor:** a tabela de extração mostra a coluna Layer (depois de Cor).
 - **Base de Orçamento:** seleção estilo Excel (arraste/Shift/Ctrl+A, Ctrl+C, Delete), "+ Linha acima/abaixo" da linha selecionada (sem seleção, no fim), Duplicar, Excluir selecionadas, "↔ Ajustar colunas" e menu do botão direito. Tudo só vale após "Salvar Alterações".
+
+
+## Mapa com a rede e os postes do DXF (Pernambuco)
+
+Ao extrair um DXF, o programa lê sozinho (sem criar linhas na tabela) as linhas da layer REDE_MT (cor vermelha) e REDE_BT (cor verde) e os blocos com "poste" no nome. A **cor decide** MT/BT e a **layer confirma**. A anotação do cabo é ligada à linha mais próxima (até 4× a altura do texto) ou, se houver uma linha-guia saindo do texto, à linha onde a guia termina; a estrutura é ligada ao poste mais próximo. Na aba **Mapa** do vínculo o cabo aparece como a linha da rede, a estrutura como o poste, e as coordenadas surgem ao clicar. Dá para ligar/desligar a rede ao fundo. Arquivos extraídos antes dessa mudança precisam ser extraídos de novo.

@@ -464,22 +464,36 @@
     // ── ABA: MAPA ──
     function abaMapa(corpo, a) {
         const pts = [];
-        cabos().forEach((c, ic) => { if (VR.ehCaboValido(c) && c._x != null && c._y != null) pts.push({ t: 'c', i: ic, x: c._x, y: c._y }); });
-        VR.estruturasDisponiveis(outros()).forEach(ie => { const o = outros()[ie]; if (o._x != null && o._y != null) pts.push({ t: 'e', i: ie, x: o._x, y: o._y }); });
+        // TASK-091: cabo = linha da rede (REDE_MT/BT) associada à anotação; estrutura = poste associado. Sem associação, cai no ponto da anotação.
+        const meio = g => { let tot = 0; const seg = []; for (let i = 0; i < g.length - 1; i++) { const d = Math.hypot(g[i + 1][0] - g[i][0], g[i + 1][1] - g[i][1]); seg.push(d); tot += d; } let alvo = tot / 2; for (let i = 0; i < seg.length; i++) { if (alvo <= seg[i] || i === seg.length - 1) { const f = seg[i] ? Math.min(1, alvo / seg[i]) : 0; return [g[i][0] + (g[i + 1][0] - g[i][0]) * f, g[i][1] + (g[i + 1][1] - g[i][1]) * f]; } alvo -= seg[i]; } return g[0]; };
+        cabos().forEach((c, ic) => { if (!VR.ehCaboValido(c)) return; if (Array.isArray(c._geo) && c._geo.length > 1) { const m = meio(c._geo); pts.push({ t: 'c', i: ic, x: m[0], y: m[1], geo: c._geo, tipo: c._geoTipo }); } else if (c._x != null && c._y != null) pts.push({ t: 'c', i: ic, x: c._x, y: c._y }); });
+        VR.estruturasDisponiveis(outros()).forEach(ie => { const o = outros()[ie]; if (Array.isArray(o._poste)) pts.push({ t: 'e', i: ie, x: o._poste[0], y: o._poste[1], poste: true }); else if (o._x != null && o._y != null) pts.push({ t: 'e', i: ie, x: o._x, y: o._y }); });
+        let fundo = null; try { fundo = JSON.parse(raiz.localStorage.getItem('mapa_geometria_fundo') || 'null'); } catch (e) { fundo = null; }
+        if (st.fundo === undefined) st.fundo = true;
         const semXY = cabos().filter(c => VR.ehCaboValido(c) && (c._x == null || c._y == null)).length + VR.estruturasDisponiveis(outros()).filter(ie => outros()[ie]._x == null || outros()[ie]._y == null).length;
-        corpo.appendChild(el('div', { class: 'vz-nota', html: `<b>Mapa pelas coordenadas do desenho (DXF).</b> Quadrado = cabo, círculo = estrutura; cores como no painel. Clique para selecionar (vale também na aba Vínculo). Roda do mouse = zoom · arrastar = mover.${semXY ? ` <span class="vz-av">${semXY} item(ns) sem coordenada (PDF ou digitados) não aparecem.</span>` : ''}` }));
+        corpo.appendChild(el('div', { class: 'vz-nota', html: `<b>Mapa pelas coordenadas do desenho (DXF).</b> Cabo = linha da rede (vermelha MT / verde BT) ou quadrado quando não achei a linha; estrutura = círculo no poste. Cores de estado como no painel. Clique para selecionar (vale também na aba Vínculo). Roda do mouse = zoom · arrastar = mover.${semXY ? ` <span class="vz-av">${semXY} item(ns) sem coordenada (PDF ou digitados) não aparecem.</span>` : ''}` }));
+        if (fundo && ((fundo.redes || []).length || (fundo.postes || []).length)) corpo.appendChild(el('label', { class: 'vz-nota', style: 'display:block;cursor:pointer' }, [el('input', { type: 'checkbox', ...(st.fundo ? { checked: 'checked' } : {}), onchange: e => { st.fundo = e.target.checked; render(); } }), ' Mostrar a rede e os postes ao fundo (esmaecidos)']));
         if (!pts.length) { corpo.appendChild(el('div', { style: 'color:#8b949e;padding:20px', text: 'Nenhum item com coordenada.' })); return; }
-        const xs = pts.map(p => p.x), ys = pts.map(p => p.y), minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+        const xs = [], ys = [];
+        pts.forEach(p => { xs.push(p.x); ys.push(p.y); if (p.geo) p.geo.forEach(q => { xs.push(q[0]); ys.push(q[1]); }); });
+        const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
         const W = 1200, H = 600, pad = 40, sx = (W - 2 * pad) / Math.max(maxX - minX, 1e-9), sy = (H - 2 * pad) / Math.max(maxY - minY, 1e-9), k = Math.min(sx, sy);
         const px = p => pad + (p.x - minX) * k, py = p => H - pad - (p.y - minY) * k;     // Y do desenho cresce para cima
         const cor = e => ({ k: '#6e7681', pu: '#a371f7', gr: '#3fb950', rd: '#f85149' }[e]);
         let s = '';
+        const pt = (x, y) => `${(pad + (x - minX) * k).toFixed(1)},${(H - pad - (y - minY) * k).toFixed(1)}`;
+        if (fundo && st.fundo) {
+            (fundo.redes || []).forEach(r => { s += `<polyline points="${r.p.map(q => pt(q[0], q[1])).join(' ')}" fill="none" stroke="${r.t === 'MT' ? '#f85149' : '#3fb950'}" stroke-opacity="0.22" stroke-width="1"/>`; });
+            (fundo.postes || []).forEach(q => { s += `<circle cx="${pad + (q[0] - minX) * k}" cy="${H - pad - (q[1] - minY) * k}" r="1.6" fill="#8b949e" fill-opacity="0.45"/>`; });
+        }
         const ponto = {}; pts.forEach(p => { ponto[p.t + p.i] = p; });
         a.links.forEach(l => { const c = ponto['c' + l.cabo], e = ponto['e' + l.estrutura]; if (c && e) s += `<line x1="${px(c)}" y1="${py(c)}" x2="${px(e)}" y2="${py(e)}" stroke="${l.ok ? '#3fb950' : '#f85149'}" stroke-width="1.8" ${l.ok ? '' : 'stroke-dasharray="5 4"'}/>`; });
         pts.forEach(p => {
             const sel = st.sel && st.sel.t === p.t && st.sel.i === p.i, est = (p.t === 'c' ? a.cabos : a.estruturas)[p.i].estado, c = cor(est);
             const rot = p.t === 'c' ? (cabos()[p.i].ativo || '') : (a.estruturas[p.i].codigo || '');
-            s += `<g data-t="${p.t}" data-i="${p.i}" style="cursor:pointer">${p.t === 'c' ? `<rect x="${px(p) - 6}" y="${py(p) - 6}" width="12" height="12" fill="${c}33" stroke="${c}" stroke-width="2"/>` : `<circle cx="${px(p)}" cy="${py(p)}" r="7" fill="${c}33" stroke="${c}" stroke-width="2"/>`}${sel ? `<circle cx="${px(p)}" cy="${py(p)}" r="12" fill="none" stroke="#58a6ff" stroke-width="2"/>` : ''}<text x="${px(p) + 10}" y="${py(p) - 8}" fill="#8b949e" font-size="10">${esc(String(rot).slice(0, 22))}</text><title>${esc(rot)}</title></g>`;
+            const corRede = p.tipo === 'MT' ? '#f85149' : '#3fb950';
+            const linha = p.geo ? `<polyline points="${p.geo.map(q => pt(q[0], q[1])).join(' ')}" fill="none" stroke="transparent" stroke-width="14"/><polyline points="${p.geo.map(q => pt(q[0], q[1])).join(' ')}" fill="none" stroke="${corRede}" stroke-width="${sel ? 4.5 : 3}" stroke-linejoin="round"/><polyline points="${p.geo.map(q => pt(q[0], q[1])).join(' ')}" fill="none" stroke="${c}" stroke-width="1.2" stroke-dasharray="1 5" stroke-linecap="round"/>` : '';
+            s += `<g data-t="${p.t}" data-i="${p.i}" style="cursor:pointer">${linha}${p.t === 'c' && p.geo ? '' : p.t === 'c' ? `<rect x="${px(p) - 6}" y="${py(p) - 6}" width="12" height="12" fill="${c}33" stroke="${c}" stroke-width="2"/>` : `<circle cx="${px(p)}" cy="${py(p)}" r="7" fill="${c}33" stroke="${c}" stroke-width="2"/>`}${sel ? `<circle cx="${px(p)}" cy="${py(p)}" r="12" fill="none" stroke="#58a6ff" stroke-width="2"/>` : ''}<text x="${px(p) + 10}" y="${py(p) - 8}" fill="#8b949e" font-size="10">${esc(String(rot).slice(0, 22))}</text><title>${esc(rot)}</title></g>`;
         });
         const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'vz-mapa'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = s;
         let vb = [0, 0, W, H], arrasto = null;
@@ -490,6 +504,12 @@
         raiz.addEventListener('mouseup', () => { setTimeout(() => { arrasto = null; }, 0); });
         svg.addEventListener('click', e => { const g = e.target.closest('g[data-t]'); if (!g || (arrasto && arrasto.mov)) return; const t = g.getAttribute('data-t'), i = Number(g.getAttribute('data-i')); if (st.sel && st.sel.t !== t) { const ic = t === 'c' ? i : st.sel.i, ie = t === 'e' ? i : st.sel.i; ligar(ic, ie); } else { st.sel = (st.sel && st.sel.t === t && st.sel.i === i) ? null : { t, i }; render(); } });
         corpo.appendChild(el('div', { class: 'vz-scroll', style: 'overflow:hidden' }, [svg]));
+        // coordenadas do item selecionado (só aqui no mapa, como pedido)
+        const f2 = n => Number(n).toFixed(2), sp = st.sel && pts.find(p => p.t === st.sel.t && p.i === st.sel.i);
+        corpo.appendChild(el('div', { class: 'vz-nota', style: 'margin-top:6px;word-break:break-all', html: !sp ? 'Clique num cabo ou estrutura para ver as coordenadas.'
+            : sp.t === 'c' && sp.geo ? `<b>${esc(cabos()[sp.i].ativo || '')}</b> — rede ${sp.tipo || ''} · ${sp.geo.length} ponto(s): ${esc(sp.geo.map(q => `(${f2(q[0])}; ${f2(q[1])})`).join(' → '))}`
+            : sp.t === 'e' && sp.poste ? `<b>${esc(a.estruturas[sp.i].codigo || '')}</b> — poste em (${f2(sp.x)}; ${f2(sp.y)})`
+            : `<b>${esc(sp.t === 'c' ? (cabos()[sp.i].ativo || '') : (a.estruturas[sp.i].codigo || ''))}</b> — ${sp.t === 'c' ? 'linha da rede' : 'poste'} não encontrado; usando o ponto da anotação (${f2(sp.x)}; ${f2(sp.y)})` }));
     }
 
     raiz.VinculacaoUI = { abrir, fechar };

@@ -1030,3 +1030,4 @@ sessão. Alterações: `services/pdf_service.py` (coordenadas `_x`/`_y`), `confi
 `routers/regras_vinculacao.py`, `app.py`, `scripts/schema_supabase.sql`, `static/resumo.html`,
 `static/resumo.js`. Ver `.ai/tasks/TASK-032-02-10-2026.md`, `TASK-033-02-10-2026.md`,
 `TASK-034-02-10-2026.md`.
+- [x] **TASK-091** (pedido de 2026-10-27): Mapa do vínculo com a geometria real (REDE_MT/BT e postes do DXF). CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-091-27-10-2026.md`.

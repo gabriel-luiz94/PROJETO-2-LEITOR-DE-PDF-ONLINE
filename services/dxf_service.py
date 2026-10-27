@@ -221,7 +221,7 @@ def _process_entity(entity, doc, base_color=None, block_name=None) -> list[dict]
     return rows
 
 
-def extract_dxf_content(doc) -> list[dict]:
+def extract_dxf_content(doc, com_geometria: bool = False):
     """
     Extrai todo o conteúdo textual do model space, blocos e atributos,
     incluindo a identificação dos nomes dos blocos.
@@ -269,4 +269,15 @@ def extract_dxf_content(doc) -> list[dict]:
     # em pdf_service.py) — antes eram descartados aqui depois de servir só para a ordenação.
     all_rows.sort(key=lambda r: (-r["_y"], r["_x"]))
 
-    return all_rows
+    # TASK-091: rede (REDE_MT/REDE_BT), postes e guias lidos de forma implícita — não viram linhas, só enriquecem os textos
+    # (_geo/_geoTipo/_poste) e, a pedido, voltam como `geometria` de fundo para o mapa. Falha aqui nunca derruba a extração.
+    geometria = None
+    try:
+        from services.dxf_geometria import coletar_geometria, associar_textos, geometria_de_fundo
+        geo = coletar_geometria(doc)
+        associar_textos(all_rows, geo)
+        geometria = geometria_de_fundo(geo)
+    except Exception as e:
+        logger.warning(f"Geometria do DXF ignorada: {e}")
+
+    return (all_rows, geometria) if com_geometria else all_rows

@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-10-27 — TASK-091: mapa do vínculo com rede MT/BT e postes (DXF)
+
+**Tipo:** feature · `services/dxf_geometria.py` (novo), `services/dxf_service.py`, `routers/upload.py`, `static/vinculacao_ui.js`, `static/script.js`, `static/ler_projeto.js`, `static/resumo.js`
+
+Leitura implícita (não vira linha na tabela) de LINE/POLYLINE em REDE_MT (vermelha)/REDE_BT (verde) — cor decide, layer confirma —, blocos com "poste" no nome e guias. Cada texto ganha `_geo/_geoTipo/_poste` por proximidade (4× a altura, seguindo a guia). O mapa mostra cabo = linha da rede, estrutura = poste, rede ao fundo opcional. Exige reextrair o DXF.
+
+---
+
 ## 2026-10-27 — TASK-085…090: seis ajustes de usabilidade
 
 **Tipo:** ajustes de UI · `static/resultado_orcamento.html`, `static/resumo.js`, `static/index.html`, `static/script.js`, `static/orcamento.html`, `static/base_grade.js` (novo, rota sem cache em `app.py`)

@@ -1709,6 +1709,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const y = obj._y !== undefined ? obj._y : (obj._raw && obj._raw._y);
         if (x !== undefined) c._x = x;
         if (y !== undefined) c._y = y;
+        // TASK-091: linha da rede (cabo) e poste (estrutura) para o mapa do vínculo
+        const geo = obj._geo || (obj._raw && obj._raw._geo), poste = obj._poste || (obj._raw && obj._raw._poste);
+        if (geo) { c._geo = geo; c._geoTipo = obj._geoTipo || (obj._raw && obj._raw._geoTipo); }
+        if (poste) c._poste = poste;
         if (Array.isArray(obj.vinculoEstruturas)) c.vinculoEstruturas = obj.vinculoEstruturas.slice();
         if (obj.vinculoOrigem) c.vinculoOrigem = obj.vinculoOrigem;                                       // TASK-084: manual | script
         if (Array.isArray(obj.cabosFicticios) && obj.cabosFicticios.length) c.cabosFicticios = obj.cabosFicticios.slice();   // TASK-084: cabos fictícios da estrutura
