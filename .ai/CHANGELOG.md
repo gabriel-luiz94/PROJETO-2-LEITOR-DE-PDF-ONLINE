@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-27 — TASK-084: modal de vinculação em abas e parâmetro `cabo` pelo vínculo
+
+**Tipo:** Backend + Frontend · `services/vinculacao_regras.py`, `static/vinculacao_regras.js`, `static/vinculacao_ui.js` (novos), `routers/vinculacao_config.py` (novo), `data/vinculacao_pernambuco_seed.json`, `static/resumo.js`, `static/resumo.html`, `static/anotacao_outros.js`, `services/anotacao_outros.py`, `services/autonomo/{pipeline,totalizadora,vinculacao,leitor_js}.py`, `database.py`, `config.py`, `app.py`, `scripts/schema_supabase.sql`
+
+O botão **VINCULAR CABOS** abre um modal com cinco abas: **Vínculo** (cabos × estruturas com linhas; preto = sem vínculo, roxo = parcial, verde = completo, vermelho = inválido; o quadrado fica só na estrutura e o poste é só contexto; clicar cabo → estrutura ou o contrário; botão direito na estrutura = **cabo fictício**), **Tabela de Cabos** e **Tabela de Estruturas** (o que cada lado aceita, quantas pontas, lados iguais, amarração, valor do parâmetro `cabo`), **Script** (JSON de vínculo automático por proximidade/sequência, com pré-visualização) e **Mapa**. Estruturas com o parâmetro `cabo` sem valor digitado recebem o do cabo vinculado na Totalizadora (valor digitado vence; N2 usa o maior C > P > A; sem vínculo = padrão). As regras antigas (tipo/qtd/compatibilidade) são migradas para a Tabela de Estruturas; Pernambuco nasce com um ponto de partida. O modo autônomo usa as mesmas tabelas e o 1º script do projeto. Também: a linha compacta digitada (`9200D, N1`) passa a ser classificada pelo texto como escrito (POSTE em Pernambuco). **SQL novo:** tabela `vinculacao_config` em `scripts/schema_supabase.sql`.
+
+---
+
 ## 2026-10-27 — TASK-082: poste com itens e linhas do mesmo MTEXT
 
 **Tipo:** Frontend (motor do Leitor) + seed · `static/regras_leitor_engine.js`, `static/script.js`, `routers/regras_leitor.py`, `data/regras_leitor_*_pernambuco_seed.json`

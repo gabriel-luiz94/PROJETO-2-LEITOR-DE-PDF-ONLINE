@@ -164,12 +164,15 @@ class LeitorJS:
         """Equivalente de autoClassifyEntidade (resumo.js): só o texto do ativo, operação neutra 'I'."""
         if not ativo:
             return "0"
-        if eh_compacta(ativo):                                  # TASK-081: compacto → antigo só para classificar (linha antiga fica como está)
+        def _classificar(t):
+            return self._chamar("classificar", {"operacao": "I", "ativo": t, "cor": "", "layer": "", "texto": t, "cls": regras_cls or []})["entidade"]
+        original = re.sub(r"\([^()]*\)", "", str(ativo))          # TASK-079: N1(XLPE,DT) classifica como N1 (igual ao autoClassifyEntidade)
+        e = _classificar(original)
+        # TASK-081/082: linha compacta é classificada como foi escrita; se nenhuma regra a reconhece, tenta o formato antigo equivalente
+        if e == "0" and eh_compacta(ativo):
             from services.autonomo.totalizadora import classico_totalizadora
-            ativo = texto_equivalente(str(ativo), classico_totalizadora)
-        ativo = re.sub(r"\([^()]*\)", "", str(ativo))          # TASK-079: N1(XLPE,DT) classifica como N1 (igual ao autoClassifyEntidade)
-        r = self._chamar("classificar", {"operacao": "I", "ativo": ativo, "cor": "", "layer": "", "texto": ativo, "cls": regras_cls or []})
-        return r["entidade"]
+            e = _classificar(re.sub(r"\([^()]*\)", "", texto_equivalente(str(ativo), classico_totalizadora)))
+        return e
 
 
 _leitor = None

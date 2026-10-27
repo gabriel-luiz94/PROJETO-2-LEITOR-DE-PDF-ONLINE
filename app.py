@@ -35,7 +35,7 @@ from middleware.nocache_middleware import NoCacheHtmlMiddleware
 from websocket_manager import manager
 
 # Routers
-from routers import manual, obras, regras, regras_leitor, regras_vinculacao, atalhos, modais_montaveis, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes, autonomo, aprendizado
+from routers import manual, obras, regras, regras_leitor, regras_vinculacao, vinculacao_config, atalhos, modais_montaveis, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes, autonomo, aprendizado
 
 
 app = FastAPI(
@@ -143,6 +143,16 @@ async def serve_ativo_parametros_js():
 async def serve_regras_leitor_engine_js():
     # TASK-082: o motor e as regras andam juntos (regras novas com motor antigo em cache quebram a leitura), então o motor nunca fica em cache
     return _serve_js("regras_leitor_engine.js")
+
+
+@app.get("/static/vinculacao_regras.js")
+async def serve_vinculacao_regras_js():
+    return _serve_js("vinculacao_regras.js")
+
+
+@app.get("/static/vinculacao_ui.js")
+async def serve_vinculacao_ui_js():
+    return _serve_js("vinculacao_ui.js")
 
 
 @app.get("/static/anotacao_cabos.js")
@@ -303,6 +313,7 @@ app.include_router(obras.router)
 app.include_router(regras.router)
 app.include_router(regras_leitor.router)
 app.include_router(regras_vinculacao.router)
+app.include_router(vinculacao_config.router)
 app.include_router(atalhos.router)
 app.include_router(modais_montaveis.router)
 app.include_router(recs.router)

@@ -309,6 +309,16 @@ def init_db():
     ''')
     _seed_regras_vinculacao(cursor)
 
+    # TASK-084: Tabela de Cabos + Tabela de Estruturas + scripts da vinculação — uma linha por projeto com um JSON (sem linha = migra as regras
+    # antigas acima; Pernambuco ("081") nasce com o ponto de partida de data/vinculacao_pernambuco_seed.json, na leitura).
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS vinculacao_config (
+            projeto_codigo TEXT PRIMARY KEY,
+            config_json TEXT NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+
     # Atalhos e favoritos dos modais geradores (TASK-068) — um JSON por (projeto, modal). Escopo "Projeto" na nuvem;
     # o escopo "Computador" fica só no localStorage do navegador.
     cursor.execute('''

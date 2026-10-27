@@ -149,7 +149,7 @@ def classico_totalizadora(texto: str) -> list:
     return saida
 
 
-def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento: list, projeto_nome: str, itens_vinculo: list = None) -> list:
+def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento: list, projeto_nome: str, itens_vinculo: list = None, cfg_vinculo: dict = None) -> list:
     """Linhas {id, obs, operacao, ativo, qtd, desc, naoEncontrado, origem}. `qtd` pode ser float('nan') (como o NaN do JS).
     `itens_vinculo` (TASK-036): pseudo-itens origem "VINCULO" (ver `services/autonomo/vinculacao.py`), que nunca aparecem
     aqui sem regra de conversão correspondente — diferente de CABOS/OUTROS, que sempre mantêm o item original sem match."""
@@ -210,13 +210,20 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
                            "qtd": q, "desc": desc, "naoEncontrado": nao, "origem": "CABOS"})
     assinaturas_param = assinaturas_do_projeto(base, projeto_nome)
     ctx_outros = contexto_da_base(base, projeto_nome)
-    for item in outros:
+    parametros_vinculo = {}
+    if cfg_vinculo is not None:                  # TASK-084: parâmetro `cabo` que cada estrutura recebe do(s) cabo(s) vinculado(s)
+        from services.autonomo.vinculacao import codigo_estrutura
+        from services.autonomo.montagem import prefixo_cabo
+        from services.vinculacao_regras import parametros_por_linha
+        parametros_vinculo = parametros_por_linha(cabos, outros, cfg_vinculo, prefixo_cabo, codigo_estrutura)
+    for idx_outros, item in enumerate(outros):
         if not item:
             continue
         base_id = contador
         contador += 1
         # TASK-081: notação compacta/apelidos/regra do M traduzidos aqui (o texto do usuário não muda)
-        interp = interpretar_linha(item.get("ativo") or "", item.get("operacao") or "I", classico_totalizadora, ctx_outros)
+        ctx_linha = dict(ctx_outros, parametros_linha=parametros_vinculo[idx_outros]) if idx_outros in parametros_vinculo else ctx_outros
+        interp = interpretar_linha(item.get("ativo") or "", item.get("operacao") or "I", classico_totalizadora, ctx_linha)
         if interp["erros"]:
             brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": item.get("operacao") or "I",
                            "ativo": str(item.get("ativo") or "").upper(), "qtd": 1.0, "desc": "; ".join(e["msg"] for e in interp["erros"]),

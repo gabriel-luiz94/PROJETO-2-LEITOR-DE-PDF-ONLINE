@@ -13,7 +13,9 @@ Fidelidade ao JavaScript: `\\d` só ASCII (`tipo_estrutura`), mesmo motivo já d
 """
 import re
 
+from services.anotacao_outros import codigo_estrutura as _codigo_anotacao
 from services.autonomo.montagem import prefixo_cabo
+from services.autonomo.totalizadora import classico_totalizadora
 
 _RE_PRIMEIRO_DIGITO = re.compile(r"[0-9]")
 _RE_RETCA = re.compile(r"\bRETCA\b", re.I)
@@ -34,8 +36,12 @@ def qtd_estruturas_para_operacao(operacao):
 
 
 def codigo_estrutura(ativo_estrutura):
-    """Código da estrutura sem o prefixo de quantidade de Outros (ex.: "U4" de "1-U4")."""
+    """Código da estrutura da linha: o do primeiro item que NÃO é poste (``9200D, N1`` → N1; ``1-U4`` → U4); linha só com poste → o próprio poste
+    (TASK-081/084). Mesmo critério de ``_codigoEstruturaVinculo`` (resumo.js)."""
     texto = (ativo_estrutura or "").strip()
+    via_modulo = _codigo_anotacao(texto, classico_totalizadora, None)
+    if via_modulo:
+        return via_modulo
     sem_qtd = _RE_QTD_PREFIXO.match(texto)
     codigo = sem_qtd.group(1) if sem_qtd else texto
     return codigo[:codigo.index("(")].strip() if "(" in codigo else codigo       # TASK-079: N1(XLPE,DT) → N1

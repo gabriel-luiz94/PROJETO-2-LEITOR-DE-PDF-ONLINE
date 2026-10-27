@@ -267,6 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const body = document.getElementById(state.bodyId);
         body.innerHTML = '';
         const frag = document.createDocumentFragment();   // uma única inserção no DOM (tabelas grandes)
+        const paramsVinc = type === 'outros' ? _parametrosVinculoPorLinha() : {};     // TASK-084
 
         state.data.forEach((row, idx) => {
             const tr = document.createElement('tr');
@@ -331,6 +332,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 view.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirSeletor(); } });
                 tdEnt.appendChild(view);
                 tdEnt.appendChild(lockEnt);
+                if (paramsVinc[idx]) {                                   // TASK-084: valor que a estrutura recebe do cabo vinculado (só informativo)
+                    const chip = document.createElement('span');
+                    chip.className = 'ent-vinc';
+                    chip.textContent = Object.keys(paramsVinc[idx]).map(k => `${k.toLowerCase()}=${paramsVinc[idx][k]}`).join(' ');
+                    chip.title = 'Preenchido pelo vínculo cabo ⇄ estrutura (VINCULAR CABOS). Um valor digitado no ativo vale mais.';
+                    chip.style.cssText = 'display:inline-block;margin-left:5px;font-size:.62rem;font-weight:700;color:#d29922;background:rgba(210,153,34,.15);border-radius:4px;padding:0 5px;';
+                    tdEnt.appendChild(chip);
+                }
                 tr.appendChild(tdEnt);
             }
 
@@ -1538,37 +1547,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Extrai o prefixo do ativo e o comprimento (metros) de uma linha da tabela Cabos, no formato
-     * "ATIVO FASE COMPRIMENTO". Mesma normalização de calcularQtdAtivos() (linha ~903): funde
-     * prefixos partidos por espaço ("CAA 2" → "CAA2") antes de separar os tokens, senão o
-     * comprimento e a fase seriam lidos errado nesse formato. O comprimento retornado é o valor
-     * bruto (último token) — nunca multiplicado por qtdAtivos/fases (RULES.md Regra 8, confirmado
-     * pelo usuário em TASK-008-29-09-2026.md).
-     */
-    function extrairPrefixoEComprimentoCabo(ativoRaw) {
-        if (!ativoRaw || !ativoRaw.trim()) return null;
-        if (AnotacaoCabos.ehNotacao(ativoRaw)) {                                                  // TASK-083: código do cabo principal + comprimento
-            const pc = AnotacaoCabos.prefixoEComprimento(ativoRaw);
-            return pc ? { prefixo: pc[0], comprimento: pc[1] } : null;
-        }
-        const txt = ativoRaw.trim().toUpperCase();
-        const txtNorm = txt
-            .replace(/\//g, '')
-            .replace(/^CAA\s+(\d)/i, 'CAA$1')
-            .replace(/^CA\s+(\d)/i, 'CA$1')
-            .replace(/^CU\s+(\d)/i, 'CU$1')
-            .replace(/^CAZ\s+(\d)/i, 'CAZ$1')
-            .replace(/^P\s+(\d)/i, 'P$1');
-        const cleaned = txtNorm.replace(/\s+M\s*$/i, '').trim();
-        const tokens = cleaned.split(/\s+/).filter(Boolean);
-        if (tokens.length < 2) return null;  // sem comprimento identificável
-        const prefixo = tokens[0];
-        const comprimento = parseFloat(tokens[tokens.length - 1].replace(',', '.'));
-        if (isNaN(comprimento)) return null;
-        return { prefixo, comprimento };
-    }
-
-    /**
      * Calcula as 4 contagens da "Resumo da rede": postes, rede de média, rede de baixa e
      * equipamentos — todas considerando só linhas com operação "I" (instalando).
      */
@@ -1633,283 +1611,47 @@ document.addEventListener('DOMContentLoaded', () => {
         return String(u || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
     }
 
-    window.__regrasVinculacao = [];
+    window.__vinculacaoConfig = null;
     window.carregarRegrasVinculacaoResumo = async function (projetoCodigo) {
         if (!projetoCodigo) return;
-        try {
-            const res = await fetch(`/api/regras-vinculacao?projeto_codigo=${encodeURIComponent(projetoCodigo)}`);
-            const data = res.ok ? await res.json() : { regras: [] };
-            window.__regrasVinculacao = data.regras || [];
+        try {                                                                  // TASK-084: Tabela de Cabos + Tabela de Estruturas
+            const rc = await fetch(`/api/vinculacao-config?projeto_codigo=${encodeURIComponent(projetoCodigo)}`);
+            window.__vinculacaoConfig = rc.ok ? (await rc.json()).config : null;
         } catch (e) {
-            console.error('Erro ao carregar regras de vinculação:', e);
+            window.__vinculacaoConfig = null;
+            console.error('Erro ao carregar a configuração de vinculação:', e);
         }
     };
 
-    /* ── TASK-042: editor de regras_vinculacao (tipo/qtd/compatibilidade) dentro do modal ── */
-    window.toggleVincRegras = function () {
-        const content = document.getElementById('vinc-regras-content');
-        const icon = document.getElementById('vinc-regras-toggle-icon');
-        if (!content || !icon) return;
-        if (content.classList.contains('hidden')) {
-            content.classList.remove('hidden');
-            icon.textContent = '▲ Ocultar';
-            renderRegrasVinculacaoTable();
-        } else {
-            content.classList.add('hidden');
-            icon.textContent = '▼ Mostrar';
-        }
+    /** TASK-084: o que o modal de vinculação (vinculacao_ui.js) precisa saber/fazer na tela do Resumo. */
+    window.VinculacaoHost = {
+        cabos: () => tableStates.cabos.data,
+        outros: () => tableStates.outros.data,
+        projeto: () => localStorage.getItem('projeto_selecionado_codigo') || 'DEFAULT',
+        prefixoCabo: _prefixoCaboVinculo,
+        codigoEstrutura: _codigoEstruturaVinculo,
+        postesDaLinha(ativo) {
+            const r = AnotacaoOutros.interpretarLinha(ativo || '', 'I', _classicoTotalizadora, _ctxOutros());
+            return r.itens.map(i => AtivoParametros.nomeBase(i.ativo)).filter(n => AnotacaoOutros.ehPoste(n)).map(n => AnotacaoOutros.posteParaCompacto(n));
+        },
+        linhaSoPoste(ativo) { return !AnotacaoOutros.codigoEstrutura(ativo || '', _classicoTotalizadora, _ctxOutros()); },
+        antes() { pushHistory(); },
+        desfazer() { undo(); },
+        depois() { try { renderTable('outros'); atualizarResumoRedeUI(); if (typeof updateHistoryUI === 'function') updateHistoryUI(); } catch (e) { /* tela ainda carregando */ } }
     };
-
-    window.renderRegrasVinculacaoTable = function () {
-        const tbody = document.getElementById('body-vinc-regras');
-        if (!tbody) return;
-        const regras = window.__regrasVinculacao || [];
-        tbody.innerHTML = '';
-        regras.forEach((r, index) => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><input type="text" class="tot-input" maxlength="1" style="width:50px; text-align:center;" value="${_escapeHtmlVinculacao(r.tipo_estrutura || '')}" onchange="updateRegraVinculacaoRow(${index}, 'tipo_estrutura', this.value)"></td>
-                <td><input type="number" min="1" step="1" class="tot-input" style="width:80px;" value="${r.qtd_cabos != null ? r.qtd_cabos : ''}" onchange="updateRegraVinculacaoRow(${index}, 'qtd_cabos', this.value)"></td>
-                <td>
-                    <select class="tot-input" onchange="updateRegraVinculacaoRow(${index}, 'compatibilidade', this.value)">
-                        <option value="LIVRE" ${r.compatibilidade === 'LIVRE' ? 'selected' : ''}>LIVRE</option>
-                        <option value="MESMO_TIPO_FASE_OPERACAO" ${r.compatibilidade === 'MESMO_TIPO_FASE_OPERACAO' ? 'selected' : ''}>MESMO TIPO/FASE/OPERAÇÃO</option>
-                    </select>
-                </td>
-                <td><input type="text" class="tot-input" value="${_escapeHtmlVinculacao(r.descricao || '')}" onchange="updateRegraVinculacaoRow(${index}, 'descricao', this.value)"></td>
-                <td style="text-align:center;">
-                    <button class="btn-primary" style="background-color: transparent; border: none; color: #f85149; padding: 4px;" onclick="excluirRegraVinculacao(${index})" title="Excluir">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    };
-
-    window.updateRegraVinculacaoRow = function (index, field, value) {
-        const regras = window.__regrasVinculacao || [];
-        if (!regras[index]) return;
-        if (field === 'tipo_estrutura') {
-            value = (value || '').trim().replace(/[^0-9]/g, '').slice(0, 1);
-        } else if (field === 'qtd_cabos') {
-            value = parseInt(value, 10);
-            if (isNaN(value) || value < 1) value = 1;
-        }
-        regras[index][field] = value;
-    };
-
-    window.adicionarRegraVinculacao = function () {
-        if (!window.__regrasVinculacao) window.__regrasVinculacao = [];
-        window.__regrasVinculacao.push({ tipo_estrutura: '', qtd_cabos: 1, compatibilidade: 'LIVRE', descricao: '' });
-        renderRegrasVinculacaoTable();
-    };
-
-    window.excluirRegraVinculacao = function (index) {
-        if (!window.__regrasVinculacao) return;
-        window.__regrasVinculacao.splice(index, 1);
-        renderRegrasVinculacaoTable();
-    };
-
-    window.salvarRegrasVinculacaoNuvem = async function () {
-        const projCode = localStorage.getItem('projeto_selecionado_codigo') || 'DEFAULT';
-        try {
-            const res = await fetch('/api/regras-vinculacao', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projeto_codigo: projCode, regras: window.__regrasVinculacao || [] })
-            });
-            if (res.ok) {
-                showToast('✓ Regras de vinculação salvas!');
-            } else {
-                const data = await res.json().catch(() => ({}));
-                const erros = data && data.detail && data.detail.erros;
-                showToast(Array.isArray(erros) ? erros.join(' ') : ((data && data.detail) || 'Erro ao salvar regras de vinculação.'));
-            }
-        } catch (e) {
-            showToast('Erro de conexão ao salvar regras de vinculação.');
-        }
-    };
-
-    function _estruturasDisponiveisVinculo() {
-        return tableStates.outros.data
-            .map((r, i) => ({ r, i }))
-            .filter(x => x.r.entidade === 'ESTRUTURA' || x.r.entidade === 'POSTE');
-    }
-
-    function _qtdEstruturasParaOperacaoVinculo(operacao) {
-        const op = (operacao || '').toUpperCase();
-        return (op === 'M' || op === '*M') ? 1 : 2;
-    }
-
-    function _codigoEstruturaVinculo(ativoEstrutura) {
-        // TASK-036: o ativo de uma linha Outros é "<qtd>-<código>" (ex.: "1-U4"), nunca o código puro.
-        const texto = (ativoEstrutura || '').trim();
-        if (AnotacaoOutros.ehCompacta(texto)) return AnotacaoOutros.codigoEstrutura(texto, _classicoTotalizadora, _ctxOutros());   // TASK-081
-        const semQtd = texto.match(/^[*-]?[0-9]+(?:[.,][0-9]+)?[Xx-](.+)$/);
-        const codigo = semQtd ? semQtd[1] : texto;
-        return codigo.indexOf('(') >= 0 ? codigo.slice(0, codigo.indexOf('(')).trim() : codigo;   // TASK-079: N1(XLPE,DT) → N1
-    }
-
-    function _tipoEstruturaVinculo(ativoEstrutura) {
-        // Pegar o primeiro dígito da string toda pegava o dígito da QUANTIDADE, não o do tipo —
-        // isola o código (depois do prefixo de quantidade) antes de procurar o dígito do tipo.
-        const m = _codigoEstruturaVinculo(ativoEstrutura).match(/\d/);
-        return m ? m[0] : null;
-    }
-
-    function _regraVinculacaoParaTipo(tipo) {
-        const regras = window.__regrasVinculacao || [];
-        return regras.find(r => r.tipo_estrutura === tipo) || null;
-    }
-
-    function _prefixoCaboVinculo(ativo) {
-        const info = extrairPrefixoEComprimentoCabo(ativo);
-        return info ? info.prefixo : null;
-    }
 
     window.abrirModalVinculacao = function () {
+        if (window.VinculacaoUI) window.VinculacaoUI.abrir(window.VinculacaoHost);
+    };
+
+    /** Regras de conectores (cabo + estrutura vinculados → ativo): continuam no modal antigo, agora só com esta seção. */
+    window.abrirModalConectores = function () {
         const modal = document.getElementById('modal-vinculacao');
         if (!modal) return;
         modal.classList.remove('hidden');
-        const resultadoEl = document.getElementById('vinculacao-auto-resultado');
-        if (resultadoEl) resultadoEl.textContent = '';
-        _renderVinculacaoLista();
-    };
-
-    function _renderVinculacaoLista() {
-        const container = document.getElementById('vinculacao-lista');
-        if (!container) return;
-        const estruturas = _estruturasDisponiveisVinculo();
-
-        if (!tableStates.cabos.data.length) {
-            container.innerHTML = '<div style="color:#8b949e; padding:10px;">Nenhum cabo na tabela.</div>';
-            return;
-        }
-        if (!estruturas.length) {
-            container.innerHTML = '<div style="color:#8b949e; padding:10px;">Nenhuma estrutura/poste na tabela Outros ainda.</div>';
-            return;
-        }
-
-        let html = '';
-        tableStates.cabos.data.forEach((cabo, idxCabo) => {
-            const qtd = _qtdEstruturasParaOperacaoVinculo(cabo.operacao);
-            const vinculo = Array.isArray(cabo.vinculoEstruturas) ? cabo.vinculoEstruturas : [];
-            html += `<div style="display:flex; align-items:center; gap:10px; padding:8px 6px; border-bottom:1px solid #21262d;">
-                <div style="flex:1; min-width:0;">
-                    <div style="font-weight:600;">${_escapeHtmlVinculacao(cabo.ativo || '(sem ativo)')}</div>
-                    <div style="font-size:0.72rem; color:#8b949e;">operação ${_escapeHtmlVinculacao(cabo.operacao || '')} — exige ${qtd} estrutura(s)</div>
-                </div>
-                <div style="display:flex; gap:6px; flex-wrap:wrap;">`;
-            for (let slot = 0; slot < qtd; slot++) {
-                const valorAtual = vinculo[slot];
-                const valido = valorAtual !== undefined && estruturas.some(e => e.i === valorAtual);
-                html += `<select class="vinculacao-select" data-cabo="${idxCabo}" data-slot="${slot}" onchange="_atualizarVinculoSelect(this)" style="background:#0d1117; border:1px solid ${valorAtual !== undefined && !valido ? '#f85149' : '#30363d'}; border-radius:6px; color:white; padding:5px 7px; font-size:0.78rem; min-width:150px;">
-                    <option value="">— selecione —</option>`;
-                estruturas.forEach(e => {
-                    const sel = valido && valorAtual === e.i ? 'selected' : '';
-                    html += `<option value="${e.i}" ${sel}>${_escapeHtmlVinculacao(e.r.ativo || '(sem ativo)')}</option>`;
-                });
-                html += `</select>`;
-            }
-            html += `</div></div>`;
-        });
-        container.innerHTML = html;
-    }
-
-    window._atualizarVinculoSelect = function (selectEl) {
-        const idxCabo = parseInt(selectEl.dataset.cabo, 10);
-        const slot = parseInt(selectEl.dataset.slot, 10);
-        const valor = selectEl.value === '' ? undefined : parseInt(selectEl.value, 10);
-
-        const cabo = tableStates.cabos.data[idxCabo];
-        if (!cabo) return;
-        pushHistory();  // snapshot ANTES da mudança
-        const vinculo = Array.isArray(cabo.vinculoEstruturas) ? cabo.vinculoEstruturas.slice() : [];
-        while (vinculo.length <= slot) vinculo.push(undefined);
-        vinculo[slot] = valor;
-        cabo.vinculoEstruturas = vinculo.filter(v => v !== undefined);
-        _renderVinculacaoLista();
-    };
-
-    /**
-     * Vínculo automático por coordenada (opcional, TASK-032) — usa _x/_y (DXF sempre; PDF a
-     * partir desta tarefa) para casar cada cabo com as estruturas mais próximas, respeitando a
-     * quantidade/compatibilidade da regra do tipo de cada estrutura. Nunca sobrescreve um cabo
-     * que já tenha vínculo (manual ou de uma passada anterior), e nunca "adivinha" quando não há
-     * combinação válida — o cabo fica sem vínculo, destacado para correção manual.
-     */
-    window.tentarVincularAutomaticamente = function () {
-        const resultadoEl = document.getElementById('vinculacao-auto-resultado');
-        const estruturas = _estruturasDisponiveisVinculo();
-        if (!estruturas.length) {
-            if (resultadoEl) resultadoEl.textContent = 'Nenhuma estrutura/poste disponível para vincular.';
-            return;
-        }
-
-        // Ocupação atual (vínculos manuais/já existentes contam para a capacidade de cada estrutura).
-        const ocupacao = {};
-        estruturas.forEach(e => { ocupacao[e.i] = []; });
-        tableStates.cabos.data.forEach((cabo, idxCabo) => {
-            (cabo.vinculoEstruturas || []).forEach(idxEst => {
-                if (ocupacao[idxEst]) ocupacao[idxEst].push(idxCabo);
-            });
-        });
-
-        let vinculados = 0, jaTinham = 0, semCandidato = 0, semCoordenada = 0;
-
-        tableStates.cabos.data.forEach((cabo, idxCabo) => {
-            if (Array.isArray(cabo.vinculoEstruturas) && cabo.vinculoEstruturas.length > 0) {
-                jaTinham++;
-                return;
-            }
-            if (cabo._x === undefined || cabo._y === undefined) {
-                semCoordenada++;
-                return;
-            }
-
-            const qtdNecessaria = _qtdEstruturasParaOperacaoVinculo(cabo.operacao);
-            const prefixoCabo = _prefixoCaboVinculo(cabo.ativo);
-
-            const candidatas = estruturas
-                .filter(e => e.r._x !== undefined && e.r._y !== undefined)
-                .map(e => ({ r: e.r, i: e.i, dist: Math.hypot(e.r._x - cabo._x, e.r._y - cabo._y) }))
-                .sort((a, b) => a.dist - b.dist);
-
-            const escolhidas = [];
-            for (const cand of candidatas) {
-                const tipo = _tipoEstruturaVinculo(cand.r.ativo);
-                const regra = _regraVinculacaoParaTipo(tipo);
-                const capacidade = regra ? regra.qtd_cabos : qtdNecessaria;
-                const ocupados = ocupacao[cand.i] || [];
-                if (ocupados.length + 1 > capacidade) continue;
-
-                if (regra && regra.compatibilidade === 'MESMO_TIPO_FASE_OPERACAO' && ocupados.length > 0) {
-                    const outroCabo = tableStates.cabos.data[ocupados[0]];
-                    const prefixoOutro = _prefixoCaboVinculo(outroCabo.ativo);
-                    if (prefixoOutro !== prefixoCabo || (outroCabo.operacao || '').toUpperCase() !== (cabo.operacao || '').toUpperCase()) {
-                        continue;
-                    }
-                }
-                escolhidas.push(cand);
-                if (escolhidas.length === qtdNecessaria) break;
-            }
-
-            if (escolhidas.length === qtdNecessaria) {
-                cabo.vinculoEstruturas = escolhidas.map(e => e.i);
-                escolhidas.forEach(e => { ocupacao[e.i].push(idxCabo); });
-                vinculados++;
-            } else {
-                semCandidato++;
-            }
-        });
-
-        if (vinculados > 0) pushHistory();
-        _renderVinculacaoLista();
-        if (resultadoEl) {
-            resultadoEl.textContent = `${vinculados} cabo(s) vinculado(s) automaticamente · ${jaTinham} já tinham vínculo (preservado) · ` +
-                `${semCandidato + semCoordenada} ficaram sem vínculo (sem combinação confiável ou sem coordenada).`;
-        }
+        modal.style.zIndex = 9500;
+        const content = document.getElementById('vinc-conectores-content');
+        if (content && content.classList.contains('hidden') && window.toggleVincConectores) window.toggleVincConectores();
     };
 
     /**
@@ -1918,73 +1660,10 @@ document.addEventListener('DOMContentLoaded', () => {
      * modal de Validação — sem round-trip ao backend, já que o vínculo só existe no frontend.
      */
     function avaliarVinculacaoLocal() {
-        const achados = [];
-        const estruturas = _estruturasDisponiveisVinculo();
-        if (!estruturas.length) return achados;
-
-        const ocupacao = {};
-        estruturas.forEach(e => { ocupacao[e.i] = []; });
-        tableStates.cabos.data.forEach((cabo, idxCabo) => {
-            (cabo.vinculoEstruturas || []).forEach(idxEst => {
-                if (ocupacao[idxEst]) ocupacao[idxEst].push(idxCabo);
-            });
-        });
-
-        // Exceção (só para zero vínculos): existe cabo M/*M ou ativo RETCA em qualquer lugar do projeto?
-        const existeCaboMantendo = tableStates.cabos.data.some(c => {
-            const op = (c.operacao || '').toUpperCase();
-            return op === 'M' || op === '*M';
-        });
-        const existeRetca = tableStates.outros.data.some(r => /\bRETCA\b/i.test(r.ativo || ''));
-        const temExcecaoZero = existeCaboMantendo || existeRetca;
-
-        estruturas.forEach(e => {
-            const ocupados = ocupacao[e.i] || [];
-            const tipo = _tipoEstruturaVinculo(e.r.ativo);
-            const regra = _regraVinculacaoParaTipo(tipo);
-            if (!regra) return;  // sem regra cadastrada pro tipo: não dá pra avaliar
-
-            if (ocupados.length === 0) {
-                if (temExcecaoZero) return;
-                achados.push({
-                    linha_id: `OUTROS-${e.i}`, tabela: 'outros', regra_id: 'VINCULO-ESTRUTURA',
-                    severidade: 'aviso',
-                    mensagem: `Estrutura "${e.r.ativo}" sem nenhum cabo vinculado.`,
-                    explicacao: `Tipo ${tipo} exige ${regra.qtd_cabos} cabo(s) vinculado(s); nenhum encontrado, e não há cabo M/*M nem RETCA no projeto para justificar.`
-                });
-                return;
-            }
-
-            if (ocupados.length !== regra.qtd_cabos) {
-                achados.push({
-                    linha_id: `OUTROS-${e.i}`, tabela: 'outros', regra_id: 'VINCULO-ESTRUTURA',
-                    severidade: 'aviso',
-                    mensagem: `Estrutura "${e.r.ativo}" com ${ocupados.length} cabo(s) vinculado(s), esperado ${regra.qtd_cabos}.`,
-                    explicacao: `Tipo ${tipo} exige exatamente ${regra.qtd_cabos} cabo(s) vinculado(s).`
-                });
-                return;
-            }
-
-            if (regra.compatibilidade === 'MESMO_TIPO_FASE_OPERACAO' && ocupados.length > 1) {
-                const primeiro = tableStates.cabos.data[ocupados[0]];
-                const prefixoRef = _prefixoCaboVinculo(primeiro.ativo);
-                const opRef = (primeiro.operacao || '').toUpperCase();
-                const incompat = ocupados.slice(1).some(idx => {
-                    const c = tableStates.cabos.data[idx];
-                    return _prefixoCaboVinculo(c.ativo) !== prefixoRef || (c.operacao || '').toUpperCase() !== opRef;
-                });
-                if (incompat) {
-                    achados.push({
-                        linha_id: `OUTROS-${e.i}`, tabela: 'outros', regra_id: 'VINCULO-ESTRUTURA',
-                        severidade: 'aviso',
-                        mensagem: `Estrutura "${e.r.ativo}" com cabos vinculados incompatíveis entre si.`,
-                        explicacao: `Tipo ${tipo} exige que os cabos vinculados sejam do mesmo tipo, fase e operação.`
-                    });
-                }
-            }
-        });
-
-        return achados;
+        // TASK-084: usa a Tabela de Cabos + Tabela de Estruturas do projeto (a mesma lógica do modal e do modo autônomo)
+        const cfg = window.__vinculacaoConfig;
+        if (!cfg || typeof VinculacaoRegras === 'undefined') return [];
+        return VinculacaoRegras.achados(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo);
     }
 
     /* ═══════════════════════════════════════
@@ -2015,6 +1694,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (x !== undefined) c._x = x;
         if (y !== undefined) c._y = y;
         if (Array.isArray(obj.vinculoEstruturas)) c.vinculoEstruturas = obj.vinculoEstruturas.slice();
+        if (obj.vinculoOrigem) c.vinculoOrigem = obj.vinculoOrigem;                                       // TASK-084: manual | script
+        if (Array.isArray(obj.cabosFicticios) && obj.cabosFicticios.length) c.cabosFicticios = obj.cabosFicticios.slice();   // TASK-084: cabos fictícios da estrutura
         return c;
     }
 
@@ -2047,6 +1728,60 @@ document.addEventListener('DOMContentLoaded', () => {
         return saida;
     }
 
+    /**
+     * Extrai o prefixo do ativo e o comprimento (metros) de uma linha da tabela Cabos, no formato
+     * "ATIVO FASE COMPRIMENTO". Mesma normalização de calcularQtdAtivos() (linha ~903): funde
+     * prefixos partidos por espaço ("CAA 2" → "CAA2") antes de separar os tokens, senão o
+     * comprimento e a fase seriam lidos errado nesse formato. O comprimento retornado é o valor
+     * bruto (último token) — nunca multiplicado por qtdAtivos/fases (RULES.md Regra 8, confirmado
+     * pelo usuário em TASK-008-29-09-2026.md).
+     */
+    function extrairPrefixoEComprimentoCabo(ativoRaw) {
+        if (!ativoRaw || !ativoRaw.trim()) return null;
+        if (AnotacaoCabos.ehNotacao(ativoRaw)) {                                                  // TASK-083: código do cabo principal + comprimento
+            const pc = AnotacaoCabos.prefixoEComprimento(ativoRaw);
+            return pc ? { prefixo: pc[0], comprimento: pc[1] } : null;
+        }
+        const txt = ativoRaw.trim().toUpperCase();
+        const txtNorm = txt
+            .replace(/\//g, '')
+            .replace(/^CAA\s+(\d)/i, 'CAA$1')
+            .replace(/^CA\s+(\d)/i, 'CA$1')
+            .replace(/^CU\s+(\d)/i, 'CU$1')
+            .replace(/^CAZ\s+(\d)/i, 'CAZ$1')
+            .replace(/^P\s+(\d)/i, 'P$1');
+        const cleaned = txtNorm.replace(/\s+M\s*$/i, '').trim();
+        const tokens = cleaned.split(/\s+/).filter(Boolean);
+        if (tokens.length < 2) return null;  // sem comprimento identificável
+        const prefixo = tokens[0];
+        const comprimento = parseFloat(tokens[tokens.length - 1].replace(',', '.'));
+        if (isNaN(comprimento)) return null;
+        return { prefixo, comprimento };
+    }
+
+    function _codigoEstruturaVinculo(ativoEstrutura) {
+        // TASK-081/084: o código da estrutura é o do primeiro item da linha que NÃO é poste (9200D, N1 → N1; 1-U4 → U4); linha só com poste → o próprio poste.
+        const texto = (ativoEstrutura || '').trim();
+        const viaModulo = AnotacaoOutros.codigoEstrutura(texto, _classicoTotalizadora, _ctxOutros());
+        if (viaModulo) return viaModulo;
+        // TASK-036: o ativo de uma linha Outros é "<qtd>-<código>" (ex.: "1-U4"), nunca o código puro.
+        const semQtd = texto.match(/^[*-]?[0-9]+(?:[.,][0-9]+)?[Xx-](.+)$/);
+        const codigo = semQtd ? semQtd[1] : texto;
+        return codigo.indexOf('(') >= 0 ? codigo.slice(0, codigo.indexOf('(')).trim() : codigo;   // TASK-079: N1(XLPE,DT) → N1
+    }
+
+    function _prefixoCaboVinculo(ativo) {
+        const info = extrairPrefixoEComprimentoCabo(ativo);
+        return info ? info.prefixo : null;
+    }
+
+    /** TASK-084: {índice em Outros: {CABO: "C"}} — o parâmetro que cada estrutura recebe do(s) cabo(s) vinculado(s) (tabelas de cabos/estruturas do projeto). */
+    function _parametrosVinculoPorLinha() {
+        const cfg = window.__vinculacaoConfig;
+        if (!cfg || typeof VinculacaoRegras === 'undefined') return {};
+        return VinculacaoRegras.parametrosPorLinha(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo);
+    }
+
     // autoClassifyEntidade foi religada ao motor de regras do leitor (TASK-006), reusando a
     // mesma Tabela de Classificacao da aba Leitor. Operacao fixa em 'I' (neutro) porque esta
     // funcao so recebe o texto do ativo, sem operacao real conhecida -- nenhuma regra de
@@ -2055,13 +1790,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // verificava aqui (ver .ai/tasks/TASK-006-25-09-2026.md).
     function autoClassifyEntidade(ativoTexto) {
         if (!ativoTexto) return '0';
-        if (AnotacaoOutros.ehCompacta(ativoTexto)) ativoTexto = AnotacaoOutros.textoEquivalente(String(ativoTexto), _classicoTotalizadora, _ctxOutros());     // TASK-081: compacto → antigo (linha antiga fica como está)
-        ativoTexto = String(ativoTexto).replace(/\([^()]*\)/g, '');     // TASK-079: N1(XLPE,DT) classifica como N1
-        const resultado = RegrasLeitorEngine.classificar(
-            'I', ativoTexto, '', '', ativoTexto,
-            window.__regrasLeitorClassificacao || []
-        );
-        return resultado.entidade;
+        const classificar = t => RegrasLeitorEngine.classificar('I', t, '', '', t, window.__regrasLeitorClassificacao || []).entidade;
+        const original = String(ativoTexto).replace(/\([^()]*\)/g, '');             // TASK-079: N1(XLPE,DT) classifica como N1
+        const e = classificar(original);
+        // TASK-081/082: linha compacta ("9200D, N1") é classificada pelo texto como foi escrito (regras novas, ex.: Pernambuco); se nenhuma regra a reconhece,
+        // tenta o formato antigo equivalente ("1-DT9/200 1-N1"), como as regras dos outros projetos sempre leram.
+        if (e === '0' && AnotacaoOutros.ehCompacta(ativoTexto)) return classificar(AnotacaoOutros.textoEquivalente(String(ativoTexto), _classicoTotalizadora, _ctxOutros()).replace(/\([^()]*\)/g, ''));
+        return e;
     }
 
     /** TASK-065: depois de editar/colar o ativo de uma linha de Outros, a entidade acompanha (mesmo motor do Leitor).
@@ -5719,12 +5454,14 @@ window.syncTotalizadora = async function(forceUpdate = true) {
     // TASK-079: ativos com parâmetros — o texto entre parênteses não é quebrado e o pedido é normalizado (N1 → N1(XLPE,DT) pelo padrão)
     const assinaturasParam = AtivoParametros.assinaturasDoProjeto(orcamentoBaseData, localStorage.getItem('projeto_selecionado') || '');
     const ctxOutros = _ctxOutros();
-    tableStates.outros.data.forEach(item => {
+    const parametrosVinculo = _parametrosVinculoPorLinha();                 // TASK-084
+    tableStates.outros.data.forEach((item, idxOutros) => {
         if (!item) return;
         const currentBaseId = baseIdCounter++;
         
         // TASK-081: notação compacta/apelidos/regra do M traduzidos aqui; o que o usuário digitou não muda
-        const interp = AnotacaoOutros.interpretarLinha(item.ativo, item.operacao || 'I', _classicoTotalizadora, ctxOutros);
+        const ctxLinha = parametrosVinculo[idxOutros] ? Object.assign({}, ctxOutros, { parametros_linha: parametrosVinculo[idxOutros] }) : ctxOutros;
+        const interp = AnotacaoOutros.interpretarLinha(item.ativo, item.operacao || 'I', _classicoTotalizadora, ctxLinha);
         if (interp.erros.length) {
             rawItems.push({
                 baseId: `TOT-${currentBaseId}`, obs: item.entidade, operacao: item.operacao || 'I', ativo: String(item.ativo || '').toUpperCase(), qtd: 1,
