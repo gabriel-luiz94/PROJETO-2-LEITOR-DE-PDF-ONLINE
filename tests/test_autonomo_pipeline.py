@@ -422,7 +422,7 @@ def test_ajustes_demais_na_cadeia_viram_erro_claro(ambiente, leitor):
 
 def test_ajuste_descartado_pela_camada_1_marca_com_pendencias(ambiente, leitor):
     quebra = {"id": "AJ-QUEBRA", "nome": "quebra", "ativa": True, "regras": [],
-              "acoes": [{"acao": "substituir", "tabela": "outros", "de": "1-U4", "para": "U4"}]}   # deixaria o token sem quantidade
+              "acoes": [{"acao": "substituir", "tabela": "outros", "de": "1-U4", "para": "1-X U4"}]}   # deixaria o token U4 sem quantidade (a linha tem "qtd-ativo": formato antigo)
     ex, _ = rodar(ambiente, leitor, ["1-U4"], [quebra])
     assert ex["status"] == "com_pendencias" and ex["relatorio"]["ajustes"]["descartados"]
     snap = json.loads(_obra(ex["obra_id"])["dados_json"])

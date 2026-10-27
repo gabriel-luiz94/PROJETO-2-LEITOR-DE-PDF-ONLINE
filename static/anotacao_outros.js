@@ -14,6 +14,7 @@
     const RE_POSTE = /^(DT|RC|CV|FV)(\d+)\/(\d+)$/;
     const RE_QTD = /^\*?\d+(?:[.,]\d+)?$/;
     const RE_QTD_ANTIGA = /^\*?\d+(?:[.,]\d+)?[-xX][A-Za-z(].*$/;
+    const RE_QTD_CLASSICA = /^[*-]?\d+(?:[.,]\d+)?[Xx-].+$/;          // token do formato antigo (qtd-ativo): decide entre o formato antigo e o compacto numa linha sem vírgula+espaço
     const txt = t => String(t == null ? '' : t);
 
     function ehPoste(nome) { return RE_POSTE.test(txt(nome).trim().toUpperCase()); }
@@ -112,7 +113,8 @@
             // TASK-082: poste sozinho na linha ("11300D", como o Leitor de Pernambuco entrega) = 1 poste, sem quantidade
             r.formato = 'compacto';
             brutos = [{ ativo: t, qtd: 1 }];
-        } else if (vs.some(v => v[1] === 'separador')) {
+        } else if (vs.some(v => v[1] === 'separador') || !AP.dividirTokens(t).some(p => RE_QTD_CLASSICA.test(p))) {
+            // o ÚNICO delimitador é ", " (vírgula + espaço): um ativo com espaço no nome ("CE3 PR") é UM item. Linha sem vírgula e sem nenhum "qtd-ativo" também é compacta (um item só).
             r.formato = 'compacto';
             const partes = []; let ini = 0;
             for (const [c, tipo] of vs) if (tipo === 'separador') { partes.push(t.slice(ini, c)); ini = c + 1; }
@@ -120,12 +122,9 @@
             for (const parte of partes) {
                 const palavras = AP.dividirTokens(parte.trim());
                 if (!palavras.length) { r.erros.push({ cod: 'FORMATO', msg: `item vazio em '${t}'` }); continue; }
-                if (palavras.length > 2) { r.erros.push({ cod: 'FORMATO', msg: `item '${parte.trim()}' com palavras demais (use: quantidade ativo)` }); continue; }
                 let qtd, nome;
-                if (palavras.length === 2) {
-                    if (!RE_QTD.test(palavras[0])) { r.erros.push({ cod: 'FORMATO', msg: `quantidade '${palavras[0]}' inválida em '${parte.trim()}'` }); continue; }
-                    qtd = qtdDe(palavras[0]); nome = palavras[1];
-                } else { qtd = 1; nome = palavras[0]; }
+                if (palavras.length >= 2 && RE_QTD.test(palavras[0])) { qtd = qtdDe(palavras[0]); nome = palavras.slice(1).join(' '); }      // "2 CE3 PR" = quantidade 2 de "CE3 PR"
+                else { qtd = 1; nome = palavras.join(' '); }                                                                                   // "CE3 PR" = 1 de "CE3 PR"
                 if (RE_QTD_ANTIGA.test(nome)) { r.erros.push({ cod: 'MISTURA', msg: `'${nome}' usa a quantidade do formato antigo (qtd-ativo) numa linha em vírgulas; use 'quantidade ativo'` }); continue; }
                 brutos.push({ ativo: nome, qtd });
             }

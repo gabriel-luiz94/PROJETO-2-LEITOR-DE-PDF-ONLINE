@@ -32,6 +32,7 @@ _RE_COMPACTO = re.compile(r"^(\d+)(FV|D|R|F)$", re.I)
 _RE_POSTE = re.compile(r"^(DT|RC|CV|FV)(\d+)/(\d+)$")
 _RE_QTD = re.compile(r"^\*?\d+(?:[.,]\d+)?$")
 _RE_QTD_ANTIGA = re.compile(r"^\*?\d+(?:[.,]\d+)?[-xX][A-Za-z(].*$")
+_RE_QTD_CLASSICA = re.compile(r"^[*-]?\d+(?:[.,]\d+)?[Xx-].+$")          # token do formato antigo (qtd-ativo): decide entre o formato antigo e o compacto numa linha sem vírgula+espaço
 
 
 def eh_poste(nome) -> bool:
@@ -175,7 +176,8 @@ def interpretar_linha(texto, operacao, classico, ctx=None) -> dict:
         # TASK-082: poste sozinho na linha ("11300D", como o Leitor de Pernambuco entrega) = 1 poste, sem quantidade
         r["formato"] = "compacto"
         brutos = [{"ativo": txt, "qtd": 1.0}]
-    elif any(t == "separador" for _, t in virgulas):
+    elif any(t == "separador" for _, t in virgulas) or not any(_RE_QTD_CLASSICA.match(p) for p in dividir_tokens(txt)):
+        # o ÚNICO delimitador é ", " (vírgula + espaço): um ativo com espaço no nome ("CE3 PR") é UM item. Linha sem vírgula e sem nenhum "qtd-ativo" também é compacta (um item só).
         r["formato"] = "compacto"
         cortes = [i for i, t in virgulas if t == "separador"]
         partes, ini = [], 0
@@ -188,16 +190,10 @@ def interpretar_linha(texto, operacao, classico, ctx=None) -> dict:
             if not palavras:
                 r["erros"].append({"cod": "FORMATO", "msg": f"item vazio em '{txt}'"})
                 continue
-            if len(palavras) > 2:
-                r["erros"].append({"cod": "FORMATO", "msg": f"item '{parte.strip()}' com palavras demais (use: quantidade ativo)"})
-                continue
-            if len(palavras) == 2:
-                if not _RE_QTD.match(palavras[0]):
-                    r["erros"].append({"cod": "FORMATO", "msg": f"quantidade '{palavras[0]}' inválida em '{parte.strip()}'"})
-                    continue
-                qtd, nome = _qtd(palavras[0]), palavras[1]
+            if len(palavras) >= 2 and _RE_QTD.match(palavras[0]):
+                qtd, nome = _qtd(palavras[0]), " ".join(palavras[1:])      # "2 CE3 PR" = quantidade 2 de "CE3 PR"
             else:
-                qtd, nome = 1.0, palavras[0]
+                qtd, nome = 1.0, " ".join(palavras)                          # "CE3 PR" = 1 de "CE3 PR"
             if _RE_QTD_ANTIGA.match(nome):
                 r["erros"].append({"cod": "MISTURA", "msg": f"'{nome}' usa a quantidade do formato antigo (qtd-ativo) numa linha em vírgulas; use 'quantidade ativo'"})
                 continue
