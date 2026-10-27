@@ -475,3 +475,12 @@ Botão **VINCULAR CABOS** do Resumo:
 - **Mapa:** os mesmos itens pelas coordenadas do desenho (DXF).
 - **Supabase:** rode o `scripts/schema_supabase.sql` (tabela `vinculacao_config`) para as tabelas e scripts irem para a nuvem.
 
+
+
+## Ajustes de usabilidade (2026-10-27)
+
+- **Resultado (SAP):** barra com "lado a lado/empilhado" (ODI em cima), minimizar ODI/ODD e "↔ Ajustar colunas" (duplo clique na borda do título ajusta uma coluna).
+- **Linhas manuais** (REC/SAP) nascem em branco; nada de `NOVO_COD`.
+- **Outros:** Delete numa linha vazia apaga essa linha e o foco sobe para a anterior. A coluna Entidade fica oculta; use "Exibir ▾" para mostrá-la, ordenar ou agrupar por entidade. Parâmetros do vínculo (`cabo=C`) aparecem como dica ao passar o mouse no Ativo.
+- **Leitor:** a tabela de extração mostra a coluna Layer (depois de Cor).
+- **Base de Orçamento:** seleção estilo Excel (arraste/Shift/Ctrl+A, Ctrl+C, Delete), "+ Linha acima/abaixo" da linha selecionada (sem seleção, no fim), Duplicar, Excluir selecionadas, "↔ Ajustar colunas" e menu do botão direito. Tudo só vale após "Salvar Alterações".

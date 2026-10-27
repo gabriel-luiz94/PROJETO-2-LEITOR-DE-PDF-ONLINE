@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="/static/auth_fetch.js"></script>
+    <script src="/static/base_grade.js"></script>
     <link rel="stylesheet" href="/static/styles.css">
     <style>
         :root {
@@ -263,6 +264,10 @@
             box-sizing: border-box;
             outline: none;
         }
+        .base-data-table td.cel-sel { background: rgba(56,139,253,.22); outline: 1px solid rgba(56,139,253,.55); outline-offset: -1px; }
+        .base-data-table tr.linha-sel td:first-child { box-shadow: inset 3px 0 0 #388bfd; }
+        body.grade-arrastando { user-select: none; cursor: cell; }
+        .base-data-table.ajustada thead th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .cell-input:focus {
             background-color: var(--bg-canvas);
             border-color: var(--border-default);
@@ -377,9 +382,16 @@
                     <option value="">Selecione um projeto...</option>
                 </select>
 
-                <button class="btn-action" onclick="adicionarLinha()" title="Adiciona na sua tabela local">
-                    + Adicionar Linha
+                <button class="btn-action" onclick="adicionarLinha('acima')" title="Insere uma linha ACIMA da linha selecionada (sem seleção: no fim da tabela)">
+                    + Linha acima
                 </button>
+                <button class="btn-action" onclick="adicionarLinha('abaixo')" title="Insere uma linha ABAIXO da linha selecionada (sem seleção: no fim da tabela)">
+                    + Linha abaixo
+                </button>
+                <button class="btn-action" onclick="BaseGrade.duplicar()" title="Duplica a(s) linha(s) selecionada(s)">Duplicar</button>
+                <button class="btn-action" onclick="BaseGrade.excluirSelecionadas()" title="Remove da tela a(s) linha(s) selecionada(s) (vale após Salvar Alterações)">Excluir selecionadas</button>
+                <button class="btn-action" onclick="BaseGrade.ajustarColunas()" title="Ajusta a largura de cada coluna ao conteúdo (duplo clique na borda de um título ajusta só ela)">↔ Ajustar colunas</button>
+                <button class="btn-action" onclick="BaseGrade.restaurarColunas()" title="Volta às larguras originais">Restaurar larguras</button>
                 <button id="btn-admin-add" class="btn-action btn-master hidden" onclick="adicionarLinhaMaster()" title="Adiciona para TODOS os usuários (Nuvem)">
                     + Nova Linha Master
                 </button>
@@ -670,7 +682,7 @@
             }
         });
 
-        function adicionarLinha() {
+        function adicionarLinha(posicao) {
             if (visaoAtual === 'projeto' && !projetoAtual) {
                 alert("Selecione um projeto acima antes de adicionar uma linha.");
                 return;
@@ -691,7 +703,7 @@
                 ${lvHTML('A')}
                 <td style="text-align:center;"><button class="btn-del" onclick="this.closest('tr').remove()">Excluir</button></td>
             `;
-            tbody.insertBefore(tr, tbody.firstChild);
+            BaseGrade.inserirLinha(tr, posicao || 'abaixo');
         }
 
         function adicionarLinhaMaster() {
@@ -716,7 +728,7 @@
                 ${lvHTML('A')}
                 <td style="text-align:center;"><button class="btn-del" style="color:#dbe2ef;" onclick="salvarLinhaMaster(this)">Salvar Nuvem</button></td>
             `;
-            tbody.insertBefore(tr, tbody.firstChild);
+            BaseGrade.inserirLinha(tr, 'abaixo');
         }
 
         async function salvarLinhaMaster(btn) {
@@ -996,7 +1008,7 @@
                 const cols = rows[i].split('\t');
                 
                 if (!tr) {
-                    adicionarLinha();
+                    adicionarLinha('fim');
                     tr = tbody.lastElementChild;
                 }
                 
@@ -1011,6 +1023,7 @@
                 tr = tr.nextElementSibling;
             }
         });
+        BaseGrade.iniciar({ tbody });
     </script>
 </body>
 </html>
