@@ -131,8 +131,12 @@
         return [true, null];
     }
 
-    const ehCaboValido = row => !!row && !!trim(row.ativo);
-    const ehLinhaEstrutura = row => !!row && (row.entidade === 'ESTRUTURA' || row.entidade === 'POSTE');
+    // TASK-095: só entram no vínculo linhas de operação I, M e as variantes *I e *M. R e *R (retirada/recolocação) ficam de fora — nem listadas, nem contadas.
+    const participaVinculo = row => !['R', '*R'].includes(trim(row && row.operacao).toUpperCase());
+    const ehCaboValido = row => !!row && !!trim(row.ativo) && participaVinculo(row);
+    const ehLinhaEstrutura = row => !!row && (row.entidade === 'ESTRUTURA' || row.entidade === 'POSTE') && participaVinculo(row);
+    /** TASK-095: estruturas fictícias do CABO (só o código): preenchem pontas do cabo, sem linha em Outros; entram na Totalizadora como `CABO_ESTRUTURA`. */
+    const estruturasFicticiasDe = row => ((row && row.estruturasFicticias) || []).map(x => trim(x).toUpperCase()).filter(Boolean);
 
     // TASK-094: uma linha de Outros pode ter VÁRIAS estruturas (`9400D, N1, N4` = poste + N1 + N4); cada uma é uma "unidade" vinculável.
     // Identidade da unidade: o índice da linha para a 1ª estrutura (compatível com tudo que já foi salvo) e linha + posição/100 para as seguintes (12 → 12.01 → 12.02).
@@ -225,11 +229,13 @@
         Object.keys(infoC).forEach(k => {
             const ic = Number(k), c = infoC[ic];
             const mine = (cabos[ic].vinculoEstruturas || []).filter(ie => ie in ocup);
-            const invalido = mine.some(ie => bad.has(ic + '|' + ie));
-            const precisa = c.vincula ? c.pontas : 0;
+            const fictE = c.vincula ? estruturasFicticiasDe(cabos[ic]) : [], errosF = [];
+            fictE.forEach(cod => { const [ok, motivo] = podeVincular(c, infoEstrutura(cod, cfg)); if (!ok) errosF.push(motivo); });
+            const invalido = mine.some(ie => bad.has(ic + '|' + ie)) || errosF.length > 0;
+            const precisa = c.vincula ? c.pontas : 0, tem = mine.length + fictE.length;
             let estado;
-            if (invalido) estado = 'rd'; else if (!c.vincula) estado = 'gr'; else if (!mine.length) estado = 'k'; else if (mine.length < precisa) estado = 'pu'; else estado = 'gr';
-            resC[ic] = { estado, tem: mine.length, precisa, codigo: c.codigo, valor_cabo: c.valor_cabo, vincula: c.vincula };
+            if (invalido) estado = 'rd'; else if (!c.vincula) estado = 'gr'; else if (!tem) estado = 'k'; else if (tem < precisa) estado = 'pu'; else estado = 'gr';
+            resC[ic] = { estado, tem, precisa, codigo: c.codigo, valor_cabo: c.valor_cabo, vincula: c.vincula, ficticias: fictE.length, erros: errosF };
         });
         return { estruturas: resE, cabos: resC, links };
     }
@@ -340,7 +346,7 @@
                 if (!c.vincula) return;
                 if (ops.length && !ops.includes(c.op) && !opsBase.includes(c.op.replace(/\*/g, ''))) return;
                 if (!casa(fc.ativo, c.codigo)) return;
-                if (ligados[ic].length && !passo.substituir) { r.ja_tinham++; return; }
+                if ((ligados[ic].length || estruturasFicticiasDe(cabos[ic]).length) && !passo.substituir) { r.ja_tinham++; return; }
                 alvo.push(ic);
             });
             r.alvo = alvo.length;
@@ -354,7 +360,7 @@
             const candGlobal = ests.filter(estruturaOk), raio = passo.raio_m === undefined ? null : passo.raio_m;
             for (let pos = 0; pos < alvo.length; pos++) {
                 const ic = alvo[pos], c = infoC[ic];
-                const need = Number.isInteger(passo.pontas) ? passo.pontas : c.pontas;
+                const need = Math.max(0, (Number.isInteger(passo.pontas) ? passo.pontas : c.pontas) - (passo.substituir ? 0 : estruturasFicticiasDe(cabos[ic]).length));
                 const antes = ligados[ic].slice();
                 if (passo.substituir) ligados[ic] = [];
                 const escolhidas = [], recusas = [];
@@ -424,7 +430,7 @@
         return erros;
     }
 
-    const api = { idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);

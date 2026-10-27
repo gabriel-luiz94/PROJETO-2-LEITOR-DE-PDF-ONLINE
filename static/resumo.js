@@ -1762,6 +1762,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (poste) c._poste = poste;
         if (Array.isArray(obj.vinculoEstruturas)) c.vinculoEstruturas = obj.vinculoEstruturas.slice();
         if (obj.vinculoOrigem) c.vinculoOrigem = obj.vinculoOrigem;                                       // TASK-084: manual | script
+        if (Array.isArray(obj.estruturasFicticias) && obj.estruturasFicticias.length) c.estruturasFicticias = obj.estruturasFicticias.slice();   // TASK-095: estruturas fictícias do cabo
         if (obj.cabosFicticiosSlots && Object.keys(obj.cabosFicticiosSlots).length) c.cabosFicticiosSlots = JSON.parse(JSON.stringify(obj.cabosFicticiosSlots));   // TASK-094: fictícios das demais estruturas da linha
         if (Array.isArray(obj.cabosFicticios) && obj.cabosFicticios.length) c.cabosFicticios = obj.cabosFicticios.slice();   // TASK-084: cabos fictícios da estrutura
         return c;
@@ -5568,13 +5569,18 @@ window.syncTotalizadora = async function(forceUpdate = true) {
     // vínculo (TASK-032), origem "VINCULO", para as Regras de Conversão poderem casar contra ele
     // (ex.: ativo_de=CAA2_N4). Só existe aqui dentro — nunca aparece na Totalizadora sem match.
     tableStates.cabos.data.forEach((cabo, idxCabo) => {
-        if (!Array.isArray(cabo.vinculoEstruturas) || !cabo.vinculoEstruturas.length) return;
+        if (!VinculacaoRegras.participaVinculo(cabo)) return;                                          // TASK-095: cabo R/*R não entra no vínculo
+        const ficticiasCabo = VinculacaoRegras.estruturasFicticiasDe(cabo);
+        if ((!Array.isArray(cabo.vinculoEstruturas) || !cabo.vinculoEstruturas.length) && !ficticiasCabo.length) return;
         const info = extrairPrefixoEComprimentoCabo(cabo.ativo);
         const prefixoCabo = info ? info.prefixo : null;
         if (!prefixoCabo) return;
-        cabo.vinculoEstruturas.forEach(idxEstrutura => {
+        ficticiasCabo.forEach((cod, k) => rawItems.push({            // TASK-095: estrutura fictícia do cabo → CABO_ESTRUTURA
+            baseId: `TOT-VINC-${idxCabo}-F${k}`, obs: 'VINCULO', operacao: cabo.operacao || 'I', ativo: `${prefixoCabo}_${cod}`, qtd: 1, desc: '', naoEncontrado: false, origem: 'VINCULO'
+        }));
+        (cabo.vinculoEstruturas || []).forEach(idxEstrutura => {
             const estrutura = tableStates.outros.data[VinculacaoRegras.linhaDe(idxEstrutura)];        // TASK-094: unidade = linha (+ posição/100)
-            if (!estrutura || !estrutura.ativo) return;
+            if (!estrutura || !estrutura.ativo || !VinculacaoRegras.participaVinculo(estrutura)) return;
             const codigosLinha = _codigosEstruturaVinculo(estrutura.ativo), codigoUnidade = codigosLinha[VinculacaoRegras.slotDe(idxEstrutura)] || _codigoEstruturaVinculo(estrutura.ativo);
             rawItems.push({
                 baseId: `TOT-VINC-${idxCabo}-${idxEstrutura}`,

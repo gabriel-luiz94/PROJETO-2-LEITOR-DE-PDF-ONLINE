@@ -16,7 +16,7 @@ import re
 from services.anotacao_outros import codigo_estrutura as _codigo_anotacao, codigos_estruturas as _codigos_anotacao
 from services.autonomo.montagem import prefixo_cabo
 from services.autonomo.totalizadora import classico_totalizadora
-from services.vinculacao_regras import linha_de, slot_de
+from services.vinculacao_regras import estruturas_ficticias_de, linha_de, participa_vinculo, slot_de
 
 _RE_PRIMEIRO_DIGITO = re.compile(r"[0-9]")
 _RE_RETCA = re.compile(r"\bRETCA\b", re.I)
@@ -198,17 +198,23 @@ def itens_vinculo_para_totalizadora(cabos, outros):
     (TASK-034). Só existe aqui dentro: nunca grava nas tabelas Cabos/Outros."""
     itens = []
     for idx_cabo, cabo in enumerate(cabos):
-        if not cabo or not cabo.get("vinculoEstruturas"):
+        if not cabo or not participa_vinculo(cabo):                  # TASK-095: cabo R/*R não entra no vínculo
+            continue
+        ficticias = estruturas_ficticias_de(cabo)
+        if not cabo.get("vinculoEstruturas") and not ficticias:
             continue
         prefixo = prefixo_cabo(cabo.get("ativo"))
         if not prefixo:
             continue
-        for idx_estrutura in cabo["vinculoEstruturas"]:
+        for k, cod in enumerate(ficticias):                          # TASK-095: estrutura fictícia do cabo → CABO_ESTRUTURA
+            itens.append({"baseId": f"TOT-VINC-{idx_cabo}-F{k}", "obs": "VINCULO", "operacao": cabo.get("operacao") or "I", "ativo": f"{prefixo}_{cod}",
+                          "qtd": 1.0, "desc": "", "naoEncontrado": False, "origem": "VINCULO"})
+        for idx_estrutura in (cabo.get("vinculoEstruturas") or []):
             linha = linha_de(idx_estrutura)                         # TASK-094: id da unidade = linha (+ posição/100 se não for a 1ª estrutura da linha)
             if not (0 <= linha < len(outros)):
                 continue
             estrutura = outros[linha]
-            if not estrutura or not estrutura.get("ativo"):
+            if not estrutura or not estrutura.get("ativo") or not participa_vinculo(estrutura):
                 continue
             codigos = codigos_estrutura(estrutura["ativo"])
             slot = slot_de(idx_estrutura)
