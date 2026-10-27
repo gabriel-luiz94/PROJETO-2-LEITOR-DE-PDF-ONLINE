@@ -1,0 +1,138 @@
+[
+ {
+  "fase": 1,
+  "ordem": 10,
+  "descricao": "Poste compacto (11300D = DT11/300; D, R, F, FV)",
+  "modo": "DEFINIR",
+  "texto_regex": "^(\\d{4,6}(?:FV|D|R|F))$",
+  "ativo_template": "{1}",
+  "parar": true
+ },
+ {
+  "fase": 1,
+  "ordem": 20,
+  "descricao": "Cabo: label + comprimento na mesma linha",
+  "modo": "DEFINIR",
+  "texto_regex": "^(?!\\d+(?:[.,]\\d+)?\\s*m$)((?:\\([A-Z]\\w*\\)|\\[[A-Z]\\w*\\]|(?:C\\s*)?(?:\\d[xX]){0,2}[A-Z]{0,4}\\d[\\dA-Z/,.]*(?:\\([^)]*\\)|\\[[^\\]]*\\])?(?:\\s*[-+]\\s*\\d+(?:,\\d+)?\\s*KV)?|\\d{2,3}))\\s+(\\d+(?:[.,]\\d+)?)\\s*m$",
+  "ativo_template": "{1} {2} m",
+  "parar": true
+ },
+ {
+  "fase": 1,
+  "ordem": 30,
+  "descricao": "Cabo: label sozinho, comprimento na linha de baixo",
+  "modo": "DEFINIR",
+  "texto_regex": "^(?!\\d+(?:[.,]\\d+)?\\s*m$)((?:\\([A-Z]\\w*\\)|\\[[A-Z]\\w*\\]|(?:C\\s*)?(?:\\d[xX]){0,2}[A-Z]{0,4}\\d[\\dA-Z/,.]*(?:\\([^)]*\\)|\\[[^\\]]*\\])?(?:\\s*[-+]\\s*\\d+(?:,\\d+)?\\s*KV)?|\\d{2,3}))$",
+  "vizinhanca": {
+   "regex": "^(\\d+(?:[.,]\\d+)?)\\s*m$",
+   "janela": 2,
+   "mesma_pagina": true,
+   "direcao": "DEPOIS"
+  },
+  "ativo_template": "{1} {vizinhanca} m",
+  "parar": true
+ },
+ {
+  "fase": 2,
+  "ordem": 10,
+  "descricao": "Tensão do cabo é ignorada (-7,9kV, -13,8kV, +20kV)",
+  "modo": "SUBSTITUIR",
+  "ativo_regex": "\\s*[-+]\\s*\\d+(?:,\\d+)?\\s*KV",
+  "ativo_template": ""
+ },
+ {
+  "fase": 2,
+  "ordem": 20,
+  "descricao": "Cabo que começa com C vira um único código (C 3x1x95 -> C3x1x95)",
+  "modo": "SUBSTITUIR",
+  "ativo_regex": "^C\\s+(?=\\d[xX])",
+  "ativo_template": "C"
+ },
+ {
+  "fase": 3,
+  "ordem": 5,
+  "descricao": "Comprimento solto (já usado pelo cabo): ignorar",
+  "modo": "DEFINIR",
+  "texto_regex": "^\\d+(?:[.,]\\d+)?\\s*m$",
+  "operacao": "0",
+  "parar": true
+ },
+ {
+  "fase": 3,
+  "ordem": 10,
+  "descricao": "Layers de apoio (ruas, KML): ignorar",
+  "modo": "DEFINIR",
+  "layer_em": [
+   "TXT_KML",
+   "TXT_RUAS",
+   "KML_PONTOS",
+   "ARRUAMENTO",
+   "DEFPOINTS"
+  ],
+  "operacao": "0",
+  "parar": true
+ },
+ {
+  "fase": 3,
+  "ordem": 20,
+  "descricao": "Layer 01_INSTALANDO = instalar",
+  "modo": "DEFINIR",
+  "layer_em": [
+   "01_INSTALANDO"
+  ],
+  "operacao": "I",
+  "parar": true
+ },
+ {
+  "fase": 3,
+  "ordem": 21,
+  "descricao": "Layer 01_REMOVER = remover",
+  "modo": "DEFINIR",
+  "layer_em": [
+   "01_REMOVER"
+  ],
+  "operacao": "R",
+  "parar": true
+ },
+ {
+  "fase": 3,
+  "ordem": 22,
+  "descricao": "Layer 01_REAPLICANDO = reaplicar",
+  "modo": "DEFINIR",
+  "layer_em": [
+   "01_REAPLICANDO"
+  ],
+  "operacao": "M",
+  "parar": true
+ },
+ {
+  "fase": 3,
+  "ordem": 30,
+  "descricao": "Sem layer: cor exata #000000 = instalar",
+  "modo": "DEFINIR",
+  "cor_hex_em": [
+   "#000000"
+  ],
+  "operacao": "I",
+  "parar": true
+ },
+ {
+  "fase": 3,
+  "ordem": 31,
+  "descricao": "Sem layer: cor exata #000001 = remover",
+  "modo": "DEFINIR",
+  "cor_hex_em": [
+   "#000001"
+  ],
+  "operacao": "R",
+  "parar": true
+ },
+ {
+  "fase": 3,
+  "ordem": 90,
+  "descricao": "Qualquer outra cor/layer: ignorar",
+  "modo": "DEFINIR",
+  "operacao": "0",
+  "parar": true
+ }
+]

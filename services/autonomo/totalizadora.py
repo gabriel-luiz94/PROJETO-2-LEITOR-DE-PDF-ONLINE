@@ -7,6 +7,7 @@ Paridade provada em tests/test_autonomo_totalizadora.py executando o JS real. Fi
 (meio para cima, não o arredondamento do Python), `\\s`/`trim`, `\\d` ASCII, `$` só no fim, número→texto do JS.
 Limite conhecido: as regex digitadas nas regras de conversão são avaliadas pelo `re` do Python (dialeto quase igual ao do JS).
 """
+from services.anotacao_cabos import eh_notacao, interpretar as interpretar_cabo
 from services.anotacao_outros import contexto_da_base, interpretar_linha
 from services.ativo_parametros import analisar_celula_base, assinaturas_do_projeto, dividir_tokens, nome_base, resolver_pedido
 import math
@@ -160,6 +161,23 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
             continue
         base_id = contador
         contador += 1
+        if eh_notacao(item.get("ativo") or ""):                  # TASK-083: notação do LABEL → cabo (N vezes) + neutro à parte
+            nr = interpretar_cabo(item.get("ativo") or "")
+            if nr["erros"]:
+                brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": item.get("operacao") or "I",
+                               "ativo": str(item.get("ativo") or "").upper(), "qtd": 1.0, "desc": "; ".join(nr["erros"]), "naoEncontrado": True, "origem": "CABOS"})
+                continue
+            for it in nr["itens"]:
+                desc, nao = _buscar_descricao(base, it["ativo"], projeto_nome)
+                reps = it["fases"]
+                if not it["neutro"] and item.get("qtdAtivos"):
+                    pq = js_parse_float(item["qtdAtivos"])
+                    if not math.isnan(pq) and pq > 0:
+                        reps = math.floor(pq)
+                for _ in range(reps):
+                    brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": item.get("operacao") or "I", "ativo": it["ativo"],
+                                   "qtd": it["comprimento"], "desc": desc, "naoEncontrado": nao, "origem": "CABOS"})
+            continue
         q, at = 1.0, item.get("ativo") or ""
         m1 = _RE_M1.search(at)
         if m1:

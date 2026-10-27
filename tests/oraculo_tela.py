@@ -15,6 +15,7 @@ NODE = shutil.which("node")
 MOTOR = os.path.join(config.STATIC_DIR, "regras_leitor_engine.js")
 ATIVO_PARAMETROS = os.path.join(config.STATIC_DIR, "ativo_parametros.js")
 ANOTACAO_OUTROS = os.path.join(config.STATIC_DIR, "anotacao_outros.js")
+ANOTACAO_CABOS = os.path.join(config.STATIC_DIR, "anotacao_cabos.js")
 RESUMO = os.path.join(config.STATIC_DIR, "resumo.js")
 
 
@@ -49,6 +50,7 @@ const Motor = require(%(motor)s);
 globalThis.RegrasLeitorEngine = Motor;
 globalThis.AtivoParametros = require(%(ativo_parametros)s);
 globalThis.AnotacaoOutros = require(%(anotacao_outros)s);
+globalThis.AnotacaoCabos = require(%(anotacao_cabos)s);
 let extractedDataCache = entrada.exportados || [];
 const tableStates = { cabos: { data: [] }, outros: { data: [] } };
 """
@@ -57,7 +59,7 @@ const tableStates = { cabos: { data: [] }, outros: { data: [] } };
 def _rodar(corpo, entrada):
     if not NODE:
         raise RuntimeError("node indisponível")
-    codigo = _PRE % {"motor": json.dumps(MOTOR), "ativo_parametros": json.dumps(ATIVO_PARAMETROS), "anotacao_outros": json.dumps(ANOTACAO_OUTROS)} + corpo
+    codigo = _PRE % {"motor": json.dumps(MOTOR), "ativo_parametros": json.dumps(ATIVO_PARAMETROS), "anotacao_outros": json.dumps(ANOTACAO_OUTROS), "anotacao_cabos": json.dumps(ANOTACAO_CABOS)} + corpo
     r = subprocess.run([NODE, "-e", codigo], input=json.dumps(entrada), capture_output=True, text=True, timeout=120)
     if r.returncode != 0:
         raise RuntimeError(r.stderr)

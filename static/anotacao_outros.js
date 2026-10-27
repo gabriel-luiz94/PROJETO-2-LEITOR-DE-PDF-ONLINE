@@ -91,6 +91,11 @@
         return `${ativo.slice(0, -1)},POSTE=${poste})`;
     }
 
+    function resolveParaPoste(token, ctx) {
+        const [nome, erro] = resolverNome(token, ctx);
+        return erro === null && ehPoste(nome) && !/^\*?\d+(?:[.,]\d+)?[-xX]/.test(token);
+    }
+
     function interpretarLinha(texto, operacao, classico, ctx) {
         const t = txt(texto).trim(), op = txt(operacao).trim().toUpperCase();
         const r = { formato: 'antigo', itens: [], erros: [] };
@@ -102,7 +107,11 @@
             return r;
         }
         let brutos = [];
-        if (vs.some(v => v[1] === 'separador')) {
+        if (!vs.length && AP.dividirTokens(t).length === 1 && resolveParaPoste(t, ctx)) {
+            // TASK-082: poste sozinho na linha ("11300D", como o Leitor de Pernambuco entrega) = 1 poste, sem quantidade
+            r.formato = 'compacto';
+            brutos = [{ ativo: t, qtd: 1 }];
+        } else if (vs.some(v => v[1] === 'separador')) {
             r.formato = 'compacto';
             const partes = []; let ini = 0;
             for (const [c, tipo] of vs) if (tipo === 'separador') { partes.push(t.slice(ini, c)); ini = c + 1; }

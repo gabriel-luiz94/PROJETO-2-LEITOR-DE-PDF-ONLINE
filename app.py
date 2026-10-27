@@ -139,6 +139,11 @@ async def serve_ativo_parametros_js():
     return _serve_js("ativo_parametros.js")
 
 
+@app.get("/static/anotacao_cabos.js")
+async def serve_anotacao_cabos_js():
+    return _serve_js("anotacao_cabos.js")
+
+
 @app.get("/static/anotacao_outros.js")
 async def serve_anotacao_outros_js():
     return _serve_js("anotacao_outros.js")

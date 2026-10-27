@@ -39,6 +39,7 @@ import re
 from functools import lru_cache
 
 from services.ativo_parametros import nome_base
+from services.anotacao_cabos import eh_notacao, interpretar as interpretar_cabo
 from services.orcamento_calc import extrair_ativos_outros
 from services.validacao_planilhas import OPERACOES_VALIDAS, _para_float, _tokens_cabo_tabela
 
@@ -235,6 +236,11 @@ def _tabelas_expr(e):
 
 
 def _comprimento_bruto(cabo_ativo):
+    if eh_notacao(cabo_ativo):                  # TASK-083: cabo principal; o neutro entra na soma de metros
+        nr = interpretar_cabo(cabo_ativo)
+        if nr["erros"] or not nr["itens"]:
+            return "", 0.0
+        return nr["itens"][0]["ativo"], sum(i["comprimento"] or 0.0 for i in nr["itens"])
     tokens = _tokens_cabo_tabela(cabo_ativo)
     if len(tokens) < 2:
         return (tokens[0] if tokens else ""), 0.0

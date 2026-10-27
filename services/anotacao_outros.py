@@ -145,6 +145,12 @@ def _com_poste(ativo, poste, assinaturas):
     return f"{ativo[:-1]},POSTE={poste})"
 
 
+def _resolve_para_poste(token, ctx) -> bool:
+    """O token sozinho é um poste (compacto ou apelido de um poste da base)?"""
+    nome, erro = _resolver_nome(token, ctx)
+    return erro is None and eh_poste(nome) and not re.match(r"^\*?\d+(?:[.,]\d+)?[-xX]", token)
+
+
 def interpretar_linha(texto, operacao, classico, ctx=None) -> dict:
     """Traduz uma linha de Outros. Retorna {"formato": "compacto"|"antigo", "itens": [{"ativo","qtd","operacao"}], "erros": [{"cod","msg"}]}.
 
@@ -162,7 +168,11 @@ def interpretar_linha(texto, operacao, classico, ctx=None) -> dict:
         r["formato"] = "compacto" if any(t == "separador" for _, t in virgulas) else "antigo"
         return r
     brutos = []
-    if any(t == "separador" for _, t in virgulas):
+    if not virgulas and len(dividir_tokens(txt)) == 1 and _resolve_para_poste(txt, ctx):
+        # TASK-082: poste sozinho na linha ("11300D", como o Leitor de Pernambuco entrega) = 1 poste, sem quantidade
+        r["formato"] = "compacto"
+        brutos = [{"ativo": txt, "qtd": 1.0}]
+    elif any(t == "separador" for _, t in virgulas):
         r["formato"] = "compacto"
         cortes = [i for i, t in virgulas if t == "separador"]
         partes, ini = [], 0

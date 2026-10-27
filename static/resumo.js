@@ -1547,6 +1547,10 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function extrairPrefixoEComprimentoCabo(ativoRaw) {
         if (!ativoRaw || !ativoRaw.trim()) return null;
+        if (AnotacaoCabos.ehNotacao(ativoRaw)) {                                                  // TASK-083: código do cabo principal + comprimento
+            const pc = AnotacaoCabos.prefixoEComprimento(ativoRaw);
+            return pc ? { prefixo: pc[0], comprimento: pc[1] } : null;
+        }
         const txt = ativoRaw.trim().toUpperCase();
         const txtNorm = txt
             .replace(/\//g, '')
@@ -1585,6 +1589,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tableStates.cabos.data.forEach(row => {
             if ((row.operacao || '').toUpperCase() !== 'I') return;
+            if (AnotacaoCabos.ehNotacao(row.ativo)) {                                             // TASK-083: com tensão = média; sem = baixa; o neutro entra na soma
+                const nr = AnotacaoCabos.interpretar(row.ativo);
+                nr.itens.forEach(it => {
+                    if (it.comprimento === null) return;
+                    if (nr.tensao !== null) resumo.redeMedia += it.comprimento; else resumo.redeBaixa += it.comprimento;
+                });
+                return;
+            }
             const info = extrairPrefixoEComprimentoCabo(row.ativo);
             if (!info) return;
             if (/^(CAA|CAL|P)/i.test(info.prefixo)) {
@@ -2073,6 +2085,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function calcularQtdAtivos(ativoTexto, faseFromNext) {
         if (!ativoTexto || !ativoTexto.trim()) return 0;
+        if (AnotacaoCabos.ehNotacao(ativoTexto)) return AnotacaoCabos.fasesDaLinha(ativoTexto);   // TASK-083: 3xA35P... = 3 ativos
 
         let txt = ativoTexto.trim().toUpperCase();
 
@@ -2156,6 +2169,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function extrairFase(ativoTexto) {
         if (!ativoTexto || !ativoTexto.trim()) return null;
+        if (AnotacaoCabos.ehNotacao(ativoTexto)) return 'A'.repeat(AnotacaoCabos.fasesDaLinha(ativoTexto));   // TASK-083
 
         let txt = ativoTexto.trim().toUpperCase();
         const txtNorm = txt
@@ -2180,6 +2194,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function isStandaloneLine(ativoTexto) {
         if (!ativoTexto || !ativoTexto.trim()) return false;
+        if (AnotacaoCabos.ehNotacao(ativoTexto)) return false;                                    // TASK-083: a notação traz fase e comprimento
         let txt = ativoTexto.trim().toUpperCase();
         const txtNorm = txt
             .replace(/\//g, '')
@@ -5625,6 +5640,27 @@ window.syncTotalizadora = async function(forceUpdate = true) {
         const item = cabosData[idx];
         if (!item) continue;
         const currentBaseId = baseIdCounter++;
+        if (AnotacaoCabos.ehNotacao(item.ativo)) {                                                // TASK-083: notação do LABEL → cabo (N vezes) + neutro à parte
+            const nr = AnotacaoCabos.interpretar(item.ativo);
+            if (nr.erros.length) {
+                rawItems.push({ baseId: `TOT-${currentBaseId}`, obs: item.entidade, operacao: item.operacao || 'I', ativo: String(item.ativo).toUpperCase(),
+                    qtd: 1, desc: nr.erros.join('; '), naoEncontrado: true, origem: 'CABOS' });
+                continue;
+            }
+            nr.itens.forEach(it => {
+                const resNr = buscarDescricao(it.ativo);
+                let reps = it.fases;
+                if (!it.neutro && item.qtdAtivos) {
+                    const pq = parseFloat(item.qtdAtivos);
+                    if (!isNaN(pq) && pq > 0) reps = Math.floor(pq);
+                }
+                for (let i = 0; i < reps; i++) {
+                    rawItems.push({ baseId: `TOT-${currentBaseId}`, obs: item.entidade, operacao: item.operacao || 'I', ativo: it.ativo, qtd: it.comprimento,
+                        desc: resNr.desc, naoEncontrado: resNr.naoEncontrado, origem: 'CABOS' });
+                }
+            });
+            continue;
+        }
         let q = 1;
         let at = item.ativo;
         const m1 = item.ativo.match(/([\d\.,]+)\s*m\s*\|\s*(.*)/i);

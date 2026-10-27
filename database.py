@@ -13,6 +13,7 @@ import bcrypt
 from config import (
     DB_PATH, SEED_CSV_PATH, logger,
     REGRAS_LEITOR_PROCESSAMENTO_SEED_PATH, REGRAS_LEITOR_CLASSIFICACAO_SEED_PATH,
+    REGRAS_LEITOR_PROCESSAMENTO_PE_SEED_PATH, REGRAS_LEITOR_CLASSIFICACAO_PE_SEED_PATH,
     REGRAS_VINCULACAO_SEED_PATH,
     VALIDACOES_SEED_DIR, REGRAS_DOMINIO_SEED_PATH, AJUSTES_SEED_PATH,
 )
@@ -96,6 +97,22 @@ def _seed_regras_leitor(cursor: sqlite3.Cursor):
         )
     logger.info(f"Seed de regras do leitor concluído: {len(regras_proc)} regras de processamento, "
                 f"{len(regras_cls)} de classificação, para PARAIBA e RONDONIA.")
+    _seed_regras_leitor_pernambuco(cursor)
+
+
+def _seed_regras_leitor_pernambuco(cursor: sqlite3.Cursor):
+    """TASK-082: regras do leitor do projeto PERNAMBUCO (código "081"), do zero (postes compactos e cabos pelo LABEL).
+    Só para quem ainda não tem linha; depois disso o admin edita livremente."""
+    try:
+        with open(REGRAS_LEITOR_PROCESSAMENTO_PE_SEED_PATH, "r", encoding="utf-8") as f:
+            proc = json.load(f)
+        with open(REGRAS_LEITOR_CLASSIFICACAO_PE_SEED_PATH, "r", encoding="utf-8") as f:
+            cls = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logger.warning(f"Seed de regras do leitor de Pernambuco não encontrado/inválido: {e}")
+        return
+    cursor.execute("INSERT OR IGNORE INTO regras_leitor_processamento (projeto_codigo, regras_json) VALUES (?, ?)", ("081", json.dumps(proc, ensure_ascii=False)))
+    cursor.execute("INSERT OR IGNORE INTO regras_leitor_classificacao (projeto_codigo, regras_json) VALUES (?, ?)", ("081", json.dumps(cls, ensure_ascii=False)))
 
 
 def _seed_regras_vinculacao(cursor: sqlite3.Cursor):

@@ -815,6 +815,14 @@ O Resumo ganhou **Ler projeto**: escolhe (ou arrasta sobre o botão) um PDF/DXF/
 
 ---
 
+## 2026-10-27 — TASK-082/083: regras do Leitor de Pernambuco e notação do LABEL na tabela Cabos
+
+**Tipo:** Backend + Frontend · `services/anotacao_cabos.py` e `static/anotacao_cabos.js` (novos), `static/regras_leitor_engine.js`, `static/script.js`, `routers/regras_leitor.py`, `database.py`, `config.py`, `data/regras_leitor_*_pernambuco_seed.json` (novos), `static/resumo.js`, `static/resumo.html`, `services/autonomo/montagem.py`, `services/autonomo/totalizadora.py`, `services/validacao_planilhas.py`, `services/regras_dominio.py`, `services/anotacao_outros.py`, `static/anotacao_outros.js`, `app.py`
+
+Projeto **081 (Pernambuco)** nasce com regras do Leitor próprias: operação pela layer (`01_INSTALANDO`/`01_REMOVER`/`01_REAPLICANDO`) e, sem layer, pela cor exata (#000000 = instalar, #000001 = remover); postes compactos (`11300D`, D/R/F/FV) e cabos pelo LABEL com o comprimento na mesma linha ou na de baixo; ruído ignorado. O motor ganhou **duas condições opcionais** (regras antigas não mudam): `cor_hex_em`/`cor_hex_nao_em` e `vizinhanca.direcao: "DEPOIS"`; o editor de regras mostra os campos. A tabela **Cabos** aceita `3xA35P(7,94)-13,8kV 45 m` (fases = `Nx`, tensão ignorada, neutro à parte: `(7,94)` → `CAZ7,94`, `(16)` em `C16` → `C16`, `S50P(35)` → `S35P`; `(S04)`/`[C16]` soltos, `RAMA25`/`PB35`, `16` = `C16`, `C 3x1x95(95)` = código único); o neutro entra na soma de rede; a conversão é implícita (a célula não muda). Em Outros, poste sozinho (`11300D`) vale 1 poste. Sem SQL novo.
+
+---
+
 ## 2026-10-27 — TASK-081: notação compacta na tabela Outros e apelidos de ativo
 
 **Tipo:** Backend + Frontend · `services/anotacao_outros.py` e `static/anotacao_outros.js` (novos), `services/ativo_parametros.py`, `static/ativo_parametros.js`, `services/orcamento_calc.py`, `services/validacao_planilhas.py`, `services/ajustes_planilhas.py`, `services/autonomo/totalizadora.py`, `services/autonomo/leitor_js.py`, `routers/validacao.py`, `static/resumo.js`, `static/resumo.html`, `app.py`

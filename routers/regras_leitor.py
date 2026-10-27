@@ -37,7 +37,7 @@ class ReverterPayload(BaseModel):
 # ═══════════════════════════════════════════════════════════════════════════
 MODOS_VALIDOS = {"DEFINIR", "SUBSTITUIR", "SUBSTITUIR_TOTAL"}
 FASES_VALIDAS = {1, 2, 3}
-CAMPOS_LISTA = ("cor_em", "cor_nao_em", "layer_em")
+CAMPOS_LISTA = ("cor_em", "cor_nao_em", "layer_em", "cor_hex_em", "cor_hex_nao_em")
 
 
 def _compila_regex(valor, campo: str, erros: list):
@@ -89,6 +89,8 @@ def _valida_regra_processamento(regra: dict, idx: int, erros: list):
             erros.append(f"{prefixo}: 'vizinhanca' precisa ser um objeto ({{regex, janela, mesma_pagina}}).")
         else:
             _compila_regex(vizinhanca.get("regex"), f"{prefixo}.vizinhanca.regex", erros)
+            if vizinhanca.get("direcao") not in (None, "", "ANTES_E_DEPOIS", "DEPOIS"):
+                erros.append(f"{prefixo}: 'vizinhanca.direcao' precisa ser ANTES_E_DEPOIS ou DEPOIS.")
             janela = vizinhanca.get("janela")
             if janela is not None and not isinstance(janela, (int, float)):
                 erros.append(f"{prefixo}: 'vizinhanca.janela' precisa ser numérico.")
