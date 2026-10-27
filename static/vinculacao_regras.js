@@ -56,7 +56,7 @@
     function extraCabo(row) {
         const d = derivarCabo(row && row.textoOriginal), f = row && trim(row.fases) !== '' ? Number(trim(row.fases)) : d.fases;
         const n = row && trim(row.nivel) ? trim(row.nivel).toUpperCase() : d.nivel;
-        return { texto: trim(row && row.textoOriginal), fases: Number.isFinite(f) ? f : d.fases, tensao: row && trim(row.tensao) ? trim(row.tensao) : d.tensao, nivel: n };
+        return { texto: trim(row && row.textoOriginal), descricao: descricaoCabo((row && (row.textoOriginal || row.ativo)) || '', ''), fases: Number.isFinite(f) ? f : d.fases, tensao: row && trim(row.tensao) ? trim(row.tensao) : d.tensao, nivel: n };
     }
     /** `padrao_texto` é SEMPRE regex (busca em qualquer ponto do texto original, sem caixa); inválida não casa. */
     function regexBusca(p, texto) { try { return new RegExp(trim(p), 'i').test(trim(texto)); } catch (e) { return false; } }
@@ -81,19 +81,29 @@
         if (r && r.pontas && typeof r.pontas === 'object' && Number.isInteger(r.pontas[base])) pontas = r.pontas[base];
         return { codigo: cod, regra: i, valor_cabo: r ? (trim(r.valor_cabo).toUpperCase() || null) : null, pontas, vincula: !(r && r.vincula === false),
             estruturas: r ? (r.estruturas === undefined ? null : r.estruturas) : null, operacoes: r ? (r.operacoes === undefined ? null : r.operacoes) : null,
-            op: trim(operacao).toUpperCase(), base, fases: extra ? extra.fases : null, nivel: extra ? extra.nivel : null };
+            op: trim(operacao).toUpperCase(), base, fases: extra ? extra.fases : null, nivel: extra ? extra.nivel : null, descricao: extra && extra.descricao ? extra.descricao : cod };
     }
 
     // TASK-096: parâmetros da estrutura com FONTE por cabo vinculado: "cabo=ativo, cabo=ativo, tipocabo=valor_cabo" (ativo = código do cabo sem 3x/tensão; valor_cabo = tipo da regra do cabo).
     // O mesmo nome pode se repetir: a n-ésima ocorrência de um nome recebe o n-ésimo cabo (a ordem dos cabos não importa para o orçamento).
-    const FONTES_PARAMETRO = ['ativo', 'valor_cabo'];
+    // TASK-100: o NOME do parâmetro define o que ele recebe — `cabo` = a DESCRIÇÃO COMPLETA do cabo (sem o comprimento, ex.: 3xS04-7,97kV → 3XS04-7.97KV);
+    // `tipocabo` = o VALOR DE CABO da Tabela de Cabos (C, P, A…); outro nome = o código do cabo. `nome=fonte` força a fonte (descricao | valor_cabo | ativo).
+    const FONTES_PARAMETRO = ['ativo', 'valor_cabo', 'descricao'];
+    const fonteDoNome = nome => (nome === 'CABO' ? 'descricao' : (nome === 'TIPOCABO' ? 'valor_cabo' : 'ativo'));
+    const RE_COMPRIMENTO = /\s+\d+(?:[.,]\d+)?\s*m?\s*$/i;      // o 'm' é opcional (RAMA25 12)
+    /** Descrição completa do cabo, sem o comprimento, no formato aceito num parâmetro: maiúsculas, sem espaços, vírgula decimal → ponto, parênteses → "_". */
+    function descricaoCabo(texto, codigo) {
+        const d = trim(texto).replace(RE_COMPRIMENTO, '').replace(/\s+/g, '').toUpperCase().replace(/,/g, '.').replace(/[()[\]]/g, '_');
+        return d || trim(codigo).toUpperCase();
+    }
     function normalizarParametros(v) {
         if (v == null || v === '') return null;
         const itens = Array.isArray(v) ? v : String(v).split(',');
         const lista = itens.map(x => {
-            if (x && typeof x === 'object') return { nome: trim(x.nome).toUpperCase(), fonte: trim(x.fonte).toLowerCase() || 'ativo' };
+            if (x && typeof x === 'object') { const n = trim(x.nome).toUpperCase(); return { nome: n, fonte: trim(x.fonte).toLowerCase() || fonteDoNome(n) }; }
             const [n, f] = String(x).split('=');
-            return { nome: trim(n).toUpperCase(), fonte: trim(f).toLowerCase() || 'ativo' };
+            const nome = trim(n).toUpperCase();
+            return { nome, fonte: trim(f).toLowerCase() || fonteDoNome(nome) };
         }).filter(x => x.nome);
         return lista.length ? lista : null;
     }
@@ -244,7 +254,7 @@
                 const cont = {};
                 e.parametros.forEach(({ nome, fonte }) => {
                     const o = ocupantes[cont[nome] || 0]; cont[nome] = (cont[nome] || 0) + 1;
-                    const v = o ? (fonte === 'valor_cabo' ? o.info.valor_cabo : o.info.codigo) : null;
+                    const v = o ? (fonte === 'valor_cabo' ? o.info.valor_cabo : (fonte === 'descricao' ? o.info.descricao : o.info.codigo)) : null;
                     if (v) (parametros = parametros || {})[nome] = ((parametros || {})[nome] || []).concat([v]);
                 });
             }
@@ -486,7 +496,7 @@
                     if (Number.isInteger(r.qtd_min) && Number.isInteger(r.qtd_max) && r.qtd_min > r.qtd_max) erros.push(`${p}: 'qtd_min' não pode ser maior que 'qtd_max'.`);
                     if (r.parametros != null && r.parametros !== '') {
                         const np = normalizarParametros(r.parametros), brutos = Array.isArray(r.parametros) ? r.parametros.length : String(r.parametros).split(',').length;
-                        if (!np || np.length !== brutos || np.some(x => !/^[A-Z0-9_.]+$/.test(x.nome) || !FONTES_PARAMETRO.includes(x.fonte))) erros.push(`${p}: 'parametros' precisa ser uma lista como "cabo=ativo, cabo=ativo, tipocabo=valor_cabo" (fonte: ativo ou valor_cabo).`);
+                        if (!np || np.length !== brutos || np.some(x => !/^[A-Z0-9_.]+$/.test(x.nome) || !FONTES_PARAMETRO.includes(x.fonte))) erros.push(`${p}: 'parametros' precisa ser uma lista como "cabo=ativo, cabo=ativo, tipocabo=valor_cabo" (fonte: descricao, valor_cabo ou ativo).`);
                     }
                     if (r.lados != null && !['IGUAIS', 'LIVRE'].includes(r.lados)) erros.push(`${p}: 'lados' precisa ser IGUAIS ou LIVRE.`);
                     if (r.se_diferem != null && !SE_DIFEREM.includes(r.se_diferem)) erros.push(`${p}: 'se_diferem' precisa ser um de ${JSON.stringify(SE_DIFEREM)}.`);
@@ -501,7 +511,7 @@
         return erros;
     }
 
-    const api = { normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);

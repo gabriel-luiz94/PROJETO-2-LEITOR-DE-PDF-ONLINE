@@ -94,7 +94,7 @@
    "amarracao": false,
    "aceita_i": true,
    "cabos": "",
-   "parametro": "cabo",
+   "parametro": "tipocabo",
    "se_diferem": "BLOQUEAR",
    "obs": "2 cabos iguais",
    "ativa": true
@@ -106,7 +106,7 @@
    "amarracao": false,
    "aceita_i": true,
    "cabos": "",
-   "parametro": "cabo",
+   "parametro": "tipocabo",
    "se_diferem": "MAIOR",
    "obs": "lados podem ser diferentes (usa o maior: C > P > A)",
    "ativa": true
@@ -118,7 +118,7 @@
    "amarracao": true,
    "aceita_i": true,
    "cabos": "",
-   "parametro": "cabo",
+   "parametro": "tipocabo",
    "se_diferem": "MAIOR",
    "obs": "1 cabo, I ou M",
    "ativa": true
@@ -130,7 +130,7 @@
    "amarracao": true,
    "aceita_i": false,
    "cabos": "^(S|A|AA)\\d+",
-   "parametro": "cabo",
+   "parametro": "tipocabo",
    "se_diferem": "MAIOR",
    "obs": "amarração: só cabo M",
    "ativa": true
@@ -156,7 +156,7 @@
    "amarracao": true,
    "aceita_i": true,
    "cabos": "",
-   "parametro": "cabo",
+   "parametro": "tipocabo",
    "se_diferem": "MAIOR",
    "obs": "1 cabo real + 1 opcional que só entra como fictício (não vincula o cabo)",
    "ativa": true
@@ -169,9 +169,9 @@
    "aceita_i": true,
    "cabos": "",
    "parametro": "",
-   "parametros": "cabo=ativo, cabo=ativo",
+   "parametros": "cabo, cabo",
    "se_diferem": "MAIOR",
-   "obs": "2 cabos (iguais ou não): cada um preenche um parâmetro cabo com o ativo completo do cabo (sem 3x e sem tensão)",
+   "obs": "2 cabos (iguais ou não): cada um preenche um parâmetro cabo com a descrição completa do cabo (sem o comprimento, ex.: 3XS04-7.97KV)",
    "ativa": true
   }
  ],

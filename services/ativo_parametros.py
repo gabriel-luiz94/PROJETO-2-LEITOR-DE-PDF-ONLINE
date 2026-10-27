@@ -25,8 +25,14 @@ import re
 
 # TASK-096: valores aceitam também "/" (cabos como S1/0). O MESMO nome pode se repetir (N4(cabo, cabo) = dois cabos): a repetição k vira CABO#k por dentro e, na tela, de novo CABO.
 _RE_ID = re.compile(r"^[A-Z0-9_.]+$")
-_RE_VAL = re.compile(r"^[A-Z0-9_./]+$")
-_RE_ALT_BASE = re.compile(r"^[A-Z0-9_.%/]+$")
+_RE_VAL = re.compile(r"^[A-Z0-9_./-]+$")                 # TASK-100: "-" também (descrição do cabo: 3XS04-7.97KV)
+_RE_ALT_BASE = re.compile(r"^[A-Z0-9_.%/-]+$")
+_RE_DECIMAL_TENSAO = re.compile(r"(\d),(\d+)(?=kv)", re.I)
+
+
+def _decimal_de_tensao(c) -> str:
+    """7,97kV = 7.97kV dentro dos parênteses (a vírgula decimal da tensão não separa parâmetros)."""
+    return _RE_DECIMAL_TENSAO.sub(r"\1.\2", c)
 _RE_REPETIDO = re.compile(r"#\d+$")
 
 
@@ -162,7 +168,7 @@ def analisar_ativo(texto, modo_base=False) -> dict:
     if not original.endswith(")") or original.count("(") != 1 or original.count(")") != 1:
         r["erro"] = "parênteses mal formados"
         return r
-    corpo = original[i + 1:-1]
+    corpo = _decimal_de_tensao(original[i + 1:-1])
     if not corpo.strip():
         r["erro"] = "parênteses vazios"
         return r
@@ -204,7 +210,7 @@ def analisar_declaracao(texto) -> dict:
     if dir_[:j].strip().upper() != esq:
         r["erro"] = f"declaração com nomes diferentes ({esq} = {dir_[:j].strip().upper()})"
         return r
-    corpo = dir_[j + 1:-1]
+    corpo = _decimal_de_tensao(dir_[j + 1:-1])
     if not corpo.strip():
         r["erro"] = "parênteses vazios"
         return r
