@@ -529,3 +529,16 @@ O Leitor de Pernambuco e a notação do cabo aceitam a tensão com vírgula ou p
 ## Vínculo por coordenadas com reserva por sorteio (TASK-099)
 
 Na aba **Script** do vínculo, o botão **Novo (coordenadas + sorteio)** cria um script com os passos por coordenadas (M na amarração mais próxima, I entre as 2 estruturas mais próximas, multiplex em sequência) e, no fim, dois passos de **reserva**: cabos que as coordenadas não resolveram (sem coordenada, fora do raio ou parciais) são ligados por **sorteio** entre as estruturas que as tabelas aceitam. O sorteio é reproduzível (campo `semente`; mudar a semente muda o sorteio) e prefere estruturas ainda vazias (`"puro": true` desliga). `"completar": true` faz o passo só acrescentar o que falta aos cabos parciais, mantendo o que as coordenadas já ligaram. Confira sempre na **Pré-visualização**: o que vem do sorteio não tem base geométrica.
+
+
+## Cores por TIPO MDO no Resultado (TASK-100)
+
+No REC e na SAP, as linhas de **mão de obra (N / MAO-DE-OBRA)** têm fundo cinza escuro mais escuro e as de **material (M / MATERIAL)** têm cinza escuro mais claro. A cor acompanha o que você edita no TIPO MDO. No modo comparação valem as cores da comparação (verde/amarelo/vermelho/azul).
+
+
+## `cabo` e `tipocabo` nos parâmetros das estruturas (TASK-101)
+
+- **`cabo`** = a descrição completa do cabo, sem o comprimento: `3xS04-7,97kV 45 m` vira `3XS04-7.97KV` (maiúsculas, sem espaços, vírgula decimal → ponto, parênteses → `_`). Na base você pode usar curingas: `N4(cabo=%S04%, cabo=%C16%)`; a vírgula decimal da tensão pode ser escrita como `7,97KV`.
+- **`tipocabo`** = o valor da coluna **Valor de cabo** da Tabela de Cabos do modal de vínculo (C, P, A…).
+- Na Tabela de Estruturas: **Parâmetro** (um só) recebe o Valor de cabo — use `tipocabo`; **Parâmetros (vários)** aceita `cabo, cabo, tipocabo, tipocabo` (um valor por cabo vinculado).
+- **Estrutura caindo no padrão (ex.: A):** o Valor de cabo vem da PRIMEIRA linha ativa da Tabela de Cabos que casa o código do cabo. Cobre cadastrado depois de uma regra de alumínio que também casa (ex.: `S04` casa `^(S|AA|CAA)\d+`) vira A; sem nenhuma regra o valor fica vazio e vale o padrão da declaração na base. Teste o cabo na caixa "Testar um cabo" e ponha a linha de cobre antes.

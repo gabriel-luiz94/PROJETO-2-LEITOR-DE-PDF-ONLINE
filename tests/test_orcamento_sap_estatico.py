@@ -56,3 +56,15 @@ def test_sap_tem_selecao_copia_de_intervalo_e_marcacao_de_copiadas():
     for trecho in ('data-acao="copiar-sel"', 'data-acao="limpar-marcas"', "function copiarSelecaoSap", "function aplicarMarcasSap",
                    "td.sap-copiada::after", "SAP.COLUNAS_COPIA"):
         assert trecho in h, trecho
+
+
+def test_tipo_mdo_tem_cores_proprias_no_rec_e_na_sap():
+    """TASK-100: mão de obra (N) em cinza escuro mais escuro, material (M) em cinza escuro mais claro — nas duas visões; as cores do modo comparação prevalecem."""
+    h = _html()
+    assert 'tr[data-mdo="n"] > td' in h and 'tr[data-mdo="m"] > td' in h and "function ligarCoresMdo" in h
+    assert h.index('tr[data-mdo="m"] > td') < h.index("tr.cmp-igual td {")                      # mesma especificidade: a comparação vem depois e vence
+    import re
+    def luz(css):
+        c = re.search(css + r'\s*\{\s*background-color:\s*#([0-9a-f]{6})', h).group(1)
+        return sum(int(c[i:i + 2], 16) for i in (0, 2, 4))
+    assert luz(r'tr\[data-mdo="n"\] > td') < luz(r'tr\[data-mdo="m"\] > td')                    # N mais escuro que M

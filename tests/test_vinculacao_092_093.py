@@ -39,7 +39,7 @@ def test_regra_de_cabo_filtra_por_fases_nivel_e_texto():
     assert vr.info_cabo("S1/0", "I", cfg, vr.extra_cabo({"textoOriginal": "1xS1/0-7,9kV"}))["valor_cabo"] == "M79"
     assert vr.info_cabo("S1/0", "I", cfg, vr.extra_cabo({"textoOriginal": "1xS1/0"}))["regra"] is None
     # o que foi digitado na linha vale mais que o derivado do texto
-    assert vr.extra_cabo({"textoOriginal": "3xC16", "fases": "1", "nivel": "mt"}) == {"texto": "3xC16", "fases": 1, "tensao": "", "nivel": "MT"}
+    assert vr.extra_cabo({"textoOriginal": "3xC16", "fases": "1", "nivel": "mt"}) == {"texto": "3xC16", "descricao": "3XC16", "fases": 1, "tensao": "", "nivel": "MT"}
 
 
 def test_validar_config_filtros_novos():

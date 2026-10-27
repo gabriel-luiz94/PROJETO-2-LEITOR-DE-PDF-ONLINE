@@ -176,7 +176,7 @@ def test_upload_master_com_parametros_e_calculo_pela_rota(client):
 
 
 @pytest.mark.parametrize("linha_ruim, trecho", [
-    ("N1(cabo=XL-PE);;N1.Z;PERNAMBUCO;MATERIAL;OUTROS;z1;Z;1;0;;A", "inválido"),
+    ("N1(cabo=XL+PE);;N1.Z;PERNAMBUCO;MATERIAL;OUTROS;z1;Z;1;0;;A", "inválido"),
     ("N1(XLPE);;N1.Z;PERNAMBUCO;MATERIAL;OUTROS;z1;Z;1;0;;A", "levam nome"),
     ("N1(cabo=COBRE);;N1.XLPE;PERNAMBUCO;MATERIAL;OUTROS;z1;Z;1;0;;A", "COMPONENTE N1.XLPE"),
     ("N1(tubo=X);;N1.T;PERNAMBUCO;MATERIAL;OUTROS;z1;Z;1;0;;A", "não está na declaração"),
@@ -209,7 +209,7 @@ def test_salvar_sync_e_add_row_com_parametros(client):
     assert r.status_code == 400 and "COMPONENTE N1.X" in r.json()["detail"]
     assert client.post("/api/orcamento/salvar", json={"dados": ruim}, headers=adm()).status_code == 400
     assert client.post("/api/orcamento/salvar", json={"dados": dados}, headers=adm()).status_code == 200
-    assert client.post("/api/admin/add-row", json={"ativo": "N1(cabo=XL-PE)", "codigo": "k"}, headers=adm()).status_code == 400
+    assert client.post("/api/admin/add-row", json={"ativo": "N1(cabo=XL+PE)", "codigo": "k"}, headers=adm()).status_code == 400
     assert client.post("/api/admin/add-row", json={"ativo": "N1(cabo=ALUM)", "componente": "N1.A", "codigo": "k"}, headers=adm()).status_code == 200
 
 

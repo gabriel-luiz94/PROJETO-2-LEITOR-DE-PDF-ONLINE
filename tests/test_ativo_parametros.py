@@ -17,7 +17,7 @@ SEM_PADRAO = ["N1=N1(cabo, poste)", "N1(cabo=XLPE)", "N1(cabo=ALUM)", "N1(poste=
 SEM_DECL = ["N1(cabo=XLPE)", "N1(poste=DT)", "N1(cabo=ALUM)"]
 
 TEXTOS = ["N1", "n1", " N1 ( xlpe , dt ) ", "N1(XLPE,DT)", "N1(ALUM)", "N1(poste=CC, cabo=COBRE)", "N1(XLIPE)", "N1(ALUM,XX)", "N1(A,B,C)", "N1(cabo=ALUM,cabo=XLPE)",
-          "N1(cabo=XLPE,DT)", "N1(XLPE,poste=DT)", "N1()", "N1(,)", "N1(XL-PE)", "N1(cabo=)", "N1(=X)", "N1(XLPE", "N1)(", "P50(X)", "P50", "DT9/150", "N1=N1(a=b)",
+          "N1(cabo=XLPE,DT)", "N1(XLPE,poste=DT)", "N1()", "N1(,)", "N1(XL+PE)", "N1(cabo=)", "N1(=X)", "N1(XLPE", "N1)(", "P50(X)", "P50", "DT9/150", "N1=N1(a=b)",
           "N1=X1(a=b)", "N1=N1", "", "  ", "N1(cabo=XLPE)(poste=DT)", "N1(XLPE;DT)"]
 CELULAS = ["N1=N1(cabo=XLPE, poste=DT)", "N1=N1(cabo, poste)", "N1=N1(cabo=XLPE, poste)", "N1(cabo=XLPE)", "N1=N1(a, a)", "N1=N1()", "N1=X(a=b)", "N1(XLPE)", "P50", ""]
 
@@ -37,7 +37,7 @@ def test_analisar_formas():
     assert ap.analisar_celula_base("N1=N1(cabo, poste)")["params"] == [{"nome": "CABO", "op": "=", "valor": None, "alts": []}, {"nome": "POSTE", "op": "=", "valor": None, "alts": []}]
     assert ap.analisar_celula_base("N1(cabo=XLPE)")["tipo"] == "grupo"
     assert ap.analisar_celula_base("DT9/150") == {"texto": "DT9/150", "base": "DT9/150", "tipo": "simples", "params": [], "erro": None, "apelidos": []}
-    for ruim in ["N1(XL-PE)", "N1()", "N1(cabo=)", "N1(", "N1=X1(a=b)", "N1=N1", ""]:
+    for ruim in ["N1(XL+PE)", "N1()", "N1(cabo=)", "N1(", "N1=X1(a=b)", "N1=N1", ""]:
         assert ap.analisar_celula_base(ruim)["erro"], ruim
 
 
@@ -157,7 +157,7 @@ def test_validar_base_erros():
     assert "não está na declaração" in erros(base + [L("N1(tubo=X)", "N1.T", "t1")])
     assert "padrão" in erros([L("N1=N1(cabo=ZZZ, poste=DT)", "N1", "c1")] + base[1:])
     assert "levam nome" in erros(base + [L("N1(XLPE)", "N1.Z", "z1")])
-    assert "inválido" in erros(base + [L("N1(cabo=XL-PE)", "N1.Z", "z1")])
+    assert "inválido" in erros(base + [L("N1(cabo=XL+PE)", "N1.Z", "z1")])
     assert "COMPONENTE N1.XLPE é usado por grupos diferentes" in erros(base + [L("N1(cabo=COBRE)", "N1.XLPE", "z1")])
     assert "COMPONENTE N1 é usado" in erros(base + [L("N1(cabo=COBRE)", "N1", "z1")])
 

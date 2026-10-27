@@ -8,6 +8,22 @@
 
 ---
 
+## 2026-10-27 — TASK-101: `cabo` × `tipocabo` nos parâmetros da estrutura
+
+**Tipo:** regra de negócio · `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/ativo_parametros.js` ⇄ `services/ativo_parametros.py`, `static/vinculacao_ui.js`, `data/vinculacao_pernambuco_seed.json`
+
+`cabo` = descrição completa do cabo (sem o comprimento); `tipocabo` = VALOR DE CABO da Tabela de Cabos. Valores de parâmetro aceitam `-`. Causa do "padrão A": o código S04 casava a regra de alumínio.
+
+---
+
+## 2026-10-27 — TASK-100: cores por TIPO MDO no Resultado
+
+**Tipo:** UI · `static/resultado_orcamento.html`
+
+Mão de obra (N) em cinza escuro mais escuro e material (M) em cinza escuro mais claro, no REC e na SAP.
+
+---
+
 ## 2026-10-27 — TASK-099: vínculo por coordenadas com reserva por sorteio
 
 **Tipo:** feature · `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/vinculacao_ui.js`, `data/vinculacao_script_coordenadas_com_sorteio.json`

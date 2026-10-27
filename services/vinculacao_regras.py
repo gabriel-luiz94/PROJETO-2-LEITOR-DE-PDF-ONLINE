@@ -129,7 +129,7 @@ def validar_config(cfg) -> list:
                     np_ = normalizar_parametros(pr)
                     brutos = len(pr) if isinstance(pr, list) else len(str(pr).split(","))
                     if not np_ or len(np_) != brutos or any(not re.fullmatch(r"[A-Z0-9_.]+", x["nome"]) or x["fonte"] not in FONTES_PARAMETRO for x in np_):
-                        erros.append(f"{p}: 'parametros' precisa ser uma lista como \"cabo=ativo, cabo=ativo, tipocabo=valor_cabo\" (fonte: ativo ou valor_cabo).")
+                        erros.append(f"{p}: 'parametros' precisa ser uma lista como \"cabo=ativo, cabo=ativo, tipocabo=valor_cabo\" (fonte: descricao, valor_cabo ou ativo).")
                 if r.get("lados") not in (None, "IGUAIS", "LIVRE"):
                     erros.append(f"{p}: 'lados' precisa ser IGUAIS ou LIVRE.")
                 if r.get("se_diferem") not in (None,) + SE_DIFEREM:
@@ -174,7 +174,7 @@ def extra_cabo(row) -> dict:
         f = int(_trim(row.get("fases"))) if _trim(row.get("fases")) != "" else d["fases"]
     except ValueError:
         f = d["fases"]
-    return {"texto": _trim(row.get("textoOriginal")), "fases": f, "tensao": _trim(row.get("tensao")) or d["tensao"], "nivel": (_trim(row.get("nivel")).upper() or d["nivel"])}
+    return {"texto": _trim(row.get("textoOriginal")), "descricao": descricao_cabo(row.get("textoOriginal") or row.get("ativo") or ""), "fases": f, "tensao": _trim(row.get("tensao")) or d["tensao"], "nivel": (_trim(row.get("nivel")).upper() or d["nivel"])}
 
 
 def _regex_busca(p, texto) -> bool:
@@ -225,12 +225,27 @@ def info_cabo(codigo, operacao, cfg, extra=None) -> dict:
     return {"codigo": cod, "regra": i, "valor_cabo": (_trim(r.get("valor_cabo")).upper() or None) if r else None, "pontas": pontas,
             "vincula": not (r is not None and (r.get("vincula") is False)), "estruturas": (r.get("estruturas") if r else None),
             "operacoes": (r.get("operacoes") if r else None), "op": _trim(operacao).upper(), "base": base,
-            "fases": extra["fases"] if extra else None, "nivel": extra["nivel"] if extra else None}
+            "fases": extra["fases"] if extra else None, "nivel": extra["nivel"] if extra else None,
+            "descricao": extra["descricao"] if extra and extra.get("descricao") else cod}
 
 
 # TASK-096: parâmetros da estrutura com FONTE por cabo vinculado: "cabo=ativo, cabo=ativo, tipocabo=valor_cabo" (ativo = código do cabo sem 3x/tensão; valor_cabo = tipo da regra do cabo).
 # O mesmo nome pode se repetir: a n-ésima ocorrência de um nome recebe o n-ésimo cabo (a ordem dos cabos não importa para o orçamento).
-FONTES_PARAMETRO = ("ativo", "valor_cabo")
+# TASK-100: o NOME do parâmetro define o que ele recebe — `cabo` = a DESCRIÇÃO COMPLETA do cabo (sem o comprimento, ex.: 3xS04-7,97kV → 3XS04-7.97KV);
+# `tipocabo` = o VALOR DE CABO da Tabela de Cabos (C, P, A…); outro nome = o código do cabo. `nome=fonte` força a fonte (descricao | valor_cabo | ativo).
+FONTES_PARAMETRO = ("ativo", "valor_cabo", "descricao")
+_RE_COMPRIMENTO = re.compile(r"\s+\d+(?:[.,]\d+)?\s*m?\s*$", re.I)      # o "m" é opcional (RAMA25 12)
+
+
+def _fonte_do_nome(nome) -> str:
+    return "descricao" if nome == "CABO" else ("valor_cabo" if nome == "TIPOCABO" else "ativo")
+
+
+def descricao_cabo(texto, codigo="") -> str:
+    """Descrição completa do cabo, sem o comprimento, no formato aceito num parâmetro: maiúsculas, sem espaços, vírgula decimal → ponto, parênteses → "_"."""
+    d = re.sub(r"\s+", "", _RE_COMPRIMENTO.sub("", _trim(texto))).upper().replace(",", ".")
+    d = re.sub(r"[()\[\]]", "_", d)
+    return d or _trim(codigo).upper()
 
 
 def normalizar_parametros(v):
@@ -240,10 +255,12 @@ def normalizar_parametros(v):
     lista = []
     for x in itens:
         if isinstance(x, dict):
-            nome, fonte = _trim(x.get("nome")).upper(), _trim(x.get("fonte")).lower() or "ativo"
+            nome = _trim(x.get("nome")).upper()
+            fonte = _trim(x.get("fonte")).lower() or _fonte_do_nome(nome)
         else:
             n, _, f = str(x).partition("=")
-            nome, fonte = _trim(n).upper(), _trim(f).lower() or "ativo"
+            nome = _trim(n).upper()
+            fonte = _trim(f).lower() or _fonte_do_nome(nome)
         if nome:
             lista.append({"nome": nome, "fonte": fonte})
     return lista or None
@@ -486,7 +503,7 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
                 k = cont.get(p["nome"], 0)
                 cont[p["nome"]] = k + 1
                 o = ocupantes[k] if k < len(ocupantes) else None
-                v = (o["info"]["valor_cabo"] if p["fonte"] == "valor_cabo" else o["info"]["codigo"]) if o else None
+                v = (o["info"]["valor_cabo"] if p["fonte"] == "valor_cabo" else (o["info"]["descricao"] if p["fonte"] == "descricao" else o["info"]["codigo"])) if o else None
                 if v:
                     parametros = parametros or {}
                     parametros.setdefault(p["nome"], []).append(v)

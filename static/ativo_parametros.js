@@ -7,7 +7,8 @@
 (function (raiz) {
     'use strict';
     // TASK-096: valores aceitam também "/" (cabos como S1/0). O MESMO nome pode se repetir (N4(cabo, cabo) = dois cabos): a repetição k vira CABO#k por dentro e, na tela, de novo CABO.
-    const RE_ID = /^[A-Z0-9_.]+$/, RE_VAL = /^[A-Z0-9_./]+$/, RE_ALT_BASE = /^[A-Z0-9_.%/]+$/;
+    const RE_ID = /^[A-Z0-9_.]+$/, RE_VAL = /^[A-Z0-9_./-]+$/, RE_ALT_BASE = /^[A-Z0-9_.%/-]+$/;      // TASK-100: "-" também (descrição do cabo: 3XS04-7.97KV)
+    const decimalDeTensao = c => c.replace(/(\d),(\d+)(?=kv)/gi, '$1.$2');      // 7,97kV = 7.97kV dentro dos parênteses (a vírgula decimal da tensão não separa parâmetros)
     const nomeTela = n => String(n).replace(/#\d+$/, '');
     const nomeRepetido = (vistos, nome) => { vistos[nome] = (vistos[nome] || 0) + 1; return vistos[nome] > 1 ? `${nome}#${vistos[nome]}` : nome; };
     const familia = n => String(n).replace(/#\d+$/, '');
@@ -94,7 +95,7 @@
         if (i === -1) { r.base = original.toUpperCase(); return r; }
         r.base = original.slice(0, i).trim().toUpperCase(); r.tipo = 'grupo';
         if (!original.endsWith(')') || cont(original, '(') !== 1 || cont(original, ')') !== 1) { r.erro = 'parênteses mal formados'; return r; }
-        const corpo = original.slice(i + 1, -1);
+        const corpo = decimalDeTensao(original.slice(i + 1, -1));
         if (!corpo.trim()) { r.erro = 'parênteses vazios'; return r; }
         const vistos = {};
         for (let item of corpo.split(',')) {
@@ -119,7 +120,7 @@
         const j = dir.indexOf('(');
         if (j === -1 || !dir.endsWith(')') || cont(dir, '(') !== 1 || cont(dir, ')') !== 1) { r.erro = 'declaração precisa ter parâmetros: N1=N1(cabo=XLPE, poste=DT)'; return r; }
         if (dir.slice(0, j).trim().toUpperCase() !== esq) { r.erro = `declaração com nomes diferentes (${esq} = ${dir.slice(0, j).trim().toUpperCase()})`; return r; }
-        const corpo = dir.slice(j + 1, -1);
+        const corpo = decimalDeTensao(dir.slice(j + 1, -1));
         if (!corpo.trim()) { r.erro = 'parênteses vazios'; return r; }
         const vistos = {};
         for (let item of corpo.split(',')) {
