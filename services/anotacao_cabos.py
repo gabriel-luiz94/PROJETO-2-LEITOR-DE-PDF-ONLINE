@@ -23,7 +23,7 @@ _S = "[" + _WS + "]"
 _A = re.ASCII
 
 _RE_SEPARA = re.compile(r"^(.*[^" + _WS + r"])" + _S + r"+([0-9]+(?:[.,][0-9]+)?)" + _S + r"*[mM]?\Z", _A | re.S)
-_RE_TENSAO = re.compile(_S + r"*[-+]" + _S + r"*([0-9]+(?:,[0-9]+)?)" + _S + r"*KV" + _S + r"*\Z", _A | re.I)
+_RE_TENSAO = re.compile(_S + r"*[-+]" + _S + r"*([0-9]+(?:[.,][0-9]+)?)" + _S + r"*KV" + _S + r"*\Z", _A | re.I)
 _RE_SOLTO = re.compile(r"^[(\[]" + _S + r"*([A-Z][A-Za-z0-9_]*)" + _S + r"*[)\]]\Z", _A)
 _RE_POTENCIA = re.compile(r"^C" + _S + r"*[0-9][xX]", _A)
 _RE_CODIGO = re.compile(r"^(?:([0-9])[xX])?([A-Z]{0,4}[0-9][0-9A-Z/,.]*)(?:\(([^)]*)\))?\Z", _A)

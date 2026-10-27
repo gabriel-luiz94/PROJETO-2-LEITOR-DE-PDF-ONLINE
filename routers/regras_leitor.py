@@ -159,7 +159,7 @@ def validar_regras(tabela: str, regras) -> list:
 # TASK-082: versões ANTERIORES do seed de Pernambuco (081). Se as regras salvas forem idênticas a uma delas (ninguém editou), são trocadas pelo seed atual
 # ao serem lidas; regras editadas pelo admin nunca são tocadas.
 _SEEDS_PE_ANTIGOS = {
-    "processamento": {"bac6fd1b89180f69de1c6c3810901c861fc3fa4e81254a0df26503dc4ff52762", "d19e5bc3766d9fb636e280ef0322eb1aa7547fc5eb6a50a3c5009e978822ffb9"},
+    "processamento": {"bac6fd1b89180f69de1c6c3810901c861fc3fa4e81254a0df26503dc4ff52762", "d19e5bc3766d9fb636e280ef0322eb1aa7547fc5eb6a50a3c5009e978822ffb9", "61b1e6a0190cd624b09878757863079deaf30720cbabb760a75e0dcd7f1de80e"},
     "classificacao": {"57fb6f798e810ba373d059e285b6c122c76841cb6129b62de1f26ac986ca968e"},
 }
 

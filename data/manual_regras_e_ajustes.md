@@ -519,3 +519,8 @@ Uma linha de Outros como `9400D, N1, N4` tem um poste e duas estruturas; no moda
 ## Ativo com espaço no nome na tabela Outros (TASK-097)
 
 Na notação compacta o **único delimitador é vírgula + espaço**: `9400D, CE3 PR, N1` tem três itens e `CE3 PR` vai inteiro para a Totalizadora. Quantidade vem antes, separada por espaço (`2 CE3 PR` = 2 unidades de "CE3 PR"). Uma linha sem vírgula e sem nenhum `qtd-ativo` (como `1-N1`) também é compacta: `CE3 PR` sozinho é um item só. Se algum item tiver o formato antigo (`1-N1 2-U4`), a linha segue o formato antigo e os itens se separam por espaço.
+
+
+## Tensão do cabo com ponto ou vírgula (TASK-098)
+
+O Leitor de Pernambuco e a notação do cabo aceitam a tensão com vírgula ou ponto (`13,8kV` ou `13.8KV`), em maiúsculas ou minúsculas. Se as regras do projeto 081 já tiverem sido editadas à mão, troque `(?:,\d+)?\s*KV` por `(?:[.,]\d+)?\s*KV` nas duas regras de cabo (ou restaure o ponto de partida).
