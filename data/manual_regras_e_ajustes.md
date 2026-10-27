@@ -465,3 +465,13 @@ Além do formato antigo (`1-DT11/600 2-N3 1-T3`), a tabela Outros aceita a lista
 - No editor de regras do Leitor há agora **Cor exata** (hex) e, na vizinhança, **Só os itens seguintes**.
 - **Poste com itens:** `9200D` e `9200D, N1` são lidos como poste. No DXF, se o texto tem várias linhas (mesmo MTEXT), até **2 linhas de baixo** entram na mesma linha (`9200D, N1` + `N2` → `9200D, N1, N2`) e a de baixo não vira linha própria; uma 3ª linha segue sozinha. No editor há "Só linhas do mesmo MTEXT", "Juntar todas", "Obrigatória" e direção "só os anteriores".
 
+## Vincular cabos a estruturas (modal em abas)
+
+Botão **VINCULAR CABOS** do Resumo:
+- **Vínculo:** cabos à esquerda, estruturas à direita (a linha `9200D, N1` aparece como a estrutura **N1** com o poste ao lado, só como contexto). Clique no cabo e depois na estrutura (ou o contrário) para ligar; clique na linha para desfazer. Cores: preto = sem vínculo · roxo = parcial · verde = completo · vermelho = inválido. Ao selecionar um cabo, as estruturas que podem recebê-lo brilham e as outras esmaecem (o motivo aparece ao passar o mouse).
+- **Cabo fictício:** botão direito numa estrutura que ficou sem cabo → "Associar cabo fictício" (só aparecem os cabos que a estrutura aceita). Ele completa o vínculo e o parâmetro, mas não tem comprimento e não entra no orçamento.
+- **Tabela de Cabos** e **Tabela de Estruturas:** dizem o que cada tipo aceita (a primeira linha que casa vale). O valor de `cabo` (A, P, C…) vem do cabo vinculado e preenche o parâmetro da estrutura (`N1(cabo=…)`); se você digitar o valor na linha, o digitado vale. Estrutura de lados livres com cabos diferentes usa o maior (C > P > A) e avisa.
+- **Script:** JSON com passos (`proximidade` ou `sequencia`) para vincular automaticamente; use **Pré-visualizar** antes de **Aplicar**. Vínculo manual nunca é sobrescrito, a menos que o passo diga `"substituir": true`.
+- **Mapa:** os mesmos itens pelas coordenadas do desenho (DXF).
+- **Supabase:** rode o `scripts/schema_supabase.sql` (tabela `vinculacao_config`) para as tabelas e scripts irem para a nuvem.
+

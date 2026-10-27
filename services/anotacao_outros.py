@@ -126,23 +126,23 @@ def _qtd(txt):
     return -v if neg else v
 
 
-def _com_poste(ativo, poste, assinaturas):
-    """Acrescenta POSTE=<poste> ao pedido quando a assinatura tem o parâmetro e o pedido não o informou (``N1`` ou ``N1(A)``)."""
+def _com_param(ativo, nome, valor, assinaturas):
+    """Acrescenta ``NOME=valor`` ao pedido quando a assinatura tem o parâmetro e o pedido não o informou (``N1`` ou ``N1(A)``)."""
     i = ativo.find("(")
     base = ativo[:i] if i != -1 else ativo
     sig = assinaturas.get(base)
-    if not sig or "POSTE" not in sig["nomes"]:
+    if not sig or nome not in sig["nomes"]:
         return ativo
     if i == -1:
-        return f"{ativo}(POSTE={poste})"
+        return f"{ativo}({nome}={valor})"
     if not ativo.endswith(")"):
         return ativo
     itens = [x.strip() for x in ativo[i + 1:-1].split(",") if x.strip()]
-    if any(x.upper().startswith("POSTE=") for x in itens):
+    if any(x.upper().startswith(nome + "=") for x in itens):
         return ativo
-    if not any("=" in x for x in itens) and len(itens) > sig["nomes"].index("POSTE"):
-        return ativo                                                  # pedido posicional que já traz o poste
-    return f"{ativo[:-1]},POSTE={poste})"
+    if not any("=" in x for x in itens) and len(itens) > sig["nomes"].index(nome):
+        return ativo                                                  # pedido posicional que já traz o parâmetro
+    return f"{ativo[:-1]},{nome}={valor})"
 
 
 def _resolve_para_poste(token, ctx) -> bool:
@@ -155,7 +155,8 @@ def interpretar_linha(texto, operacao, classico, ctx=None) -> dict:
     """Traduz uma linha de Outros. Retorna {"formato": "compacto"|"antigo", "itens": [{"ativo","qtd","operacao"}], "erros": [{"cod","msg"}]}.
 
     ``classico(texto)`` interpreta o formato ANTIGO como o chamador já fazia (lista de {"ativo","qtd"}); ``ctx`` (opcional) =
-    {"apelidos": {...}, "nomes": set, "postes": set, "assinaturas": {...}} vindo da base do projeto (contexto_da_base)."""
+    {"apelidos": {...}, "nomes": set, "postes": set, "assinaturas": {...}} vindo da base do projeto (contexto_da_base); opcional
+    "parametros_linha": {"CABO": "C"} = parâmetros que o vínculo cabo<->estrutura entrega a ESTA linha (TASK-084)."""
     txt = str(texto if texto is not None else "").strip()
     op = str(operacao if operacao is not None else "").strip().upper()
     r = {"formato": "antigo", "itens": [], "erros": []}
@@ -214,12 +215,16 @@ def interpretar_linha(texto, operacao, classico, ctx=None) -> dict:
         return r
     # parâmetro poste: o poste mais próximo à esquerda
     assinaturas = (ctx or {}).get("assinaturas") or {}
+    parametros_linha = (ctx or {}).get("parametros_linha") or {}
     poste_atual = None
     for it in itens:
         if eh_poste(it["ativo"]):
             poste_atual = poste_para_compacto(it["ativo"])
-        elif poste_atual:
-            it["ativo"] = _com_poste(it["ativo"], poste_atual, assinaturas)
+        else:
+            for nome, valor in parametros_linha.items():          # TASK-084: parâmetro que a estrutura recebe do vínculo (ex.: CABO=C)
+                it["ativo"] = _com_param(it["ativo"], nome, valor, assinaturas)
+            if poste_atual:
+                it["ativo"] = _com_param(it["ativo"], "POSTE", poste_atual, assinaturas)
     # operação M/*M: poste ignorado, demais itens I/*I
     if op in ("M", "*M"):
         itens = [dict(i, operacao="I" if op == "M" else "*I") for i in itens if not eh_poste(nome_base(i["ativo"]))]

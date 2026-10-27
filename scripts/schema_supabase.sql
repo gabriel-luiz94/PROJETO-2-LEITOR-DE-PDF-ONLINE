@@ -185,6 +185,15 @@ CREATE TABLE IF NOT EXISTS public.regras_vinculacao (
 );
 ALTER TABLE public.regras_vinculacao DISABLE ROW LEVEL SECURITY;
 
+-- TASK-084: Tabela de Cabos + Tabela de Estruturas + scripts da vinculação cabo<->estrutura. Uma linha por projeto com um objeto JSON
+-- ({versao, cabos[], estruturas[], ordem_maior[], scripts[]}). Sem linha, o sistema migra regras_vinculacao (e Pernambuco nasce com um ponto de partida).
+CREATE TABLE IF NOT EXISTS public.vinculacao_config (
+    projeto_codigo TEXT PRIMARY KEY,
+    config_json TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.vinculacao_config DISABLE ROW LEVEL SECURITY;
+
 -- TASK-012: prompts de validação das planilhas (ADR-004, camada 3). Um texto (cabeçalho + corpo) por
 -- (projeto, prompt); "DEFAULT" vale para todo projeto sem versão própria. Histórico de versões para
 -- reverter pela UI (admin).

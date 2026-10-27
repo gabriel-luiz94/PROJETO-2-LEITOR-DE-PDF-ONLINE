@@ -1,0 +1,157 @@
+{
+ "versao": 2,
+ "cabos": [
+  {
+   "padrao": "^C\\d+$",
+   "grupo": "Cobre nu",
+   "valor_cabo": "C",
+   "operacoes": [
+    "I",
+    "M"
+   ],
+   "pontas": {
+    "I": 2,
+    "M": 1
+   },
+   "estruturas": "^[NUBT][1-4]",
+   "obs": "BT e MT em cobre",
+   "ativa": true
+  },
+  {
+   "padrao": "^(A|S)\\d+P$",
+   "grupo": "Alumínio protegido",
+   "valor_cabo": "P",
+   "operacoes": [
+    "I",
+    "M"
+   ],
+   "pontas": {
+    "I": 2,
+    "M": 1
+   },
+   "estruturas": "^[NT][1-4]",
+   "obs": "o neutro CAZ acompanha o cabo (não vincula)",
+   "ativa": true
+  },
+  {
+   "padrao": "^(S|AA|CAA)\\d+(/\\d+)?$",
+   "grupo": "Alumínio nu (CAA)",
+   "valor_cabo": "A",
+   "operacoes": [
+    "I",
+    "M"
+   ],
+   "pontas": {
+    "I": 2,
+    "M": 1
+   },
+   "estruturas": "^[NUT][1-4]",
+   "obs": "",
+   "ativa": true
+  },
+  {
+   "padrao": "^(RAMA|PB)\\d+$",
+   "grupo": "Multiplex BT",
+   "valor_cabo": "",
+   "operacoes": [
+    "I"
+   ],
+   "pontas": {
+    "I": 2
+   },
+   "estruturas": "^[BR][2-3]",
+   "obs": "só liga a estrutura de multiplex",
+   "ativa": true
+  },
+  {
+   "padrao": "^CAZ",
+   "grupo": "Neutro / CAZ",
+   "valor_cabo": "",
+   "vincula": false,
+   "obs": "acompanha o cabo principal",
+   "ativa": true
+  },
+  {
+   "padrao": "^C\\dX\\d+X",
+   "grupo": "Cabo de potência",
+   "valor_cabo": "",
+   "operacoes": [
+    "I"
+   ],
+   "pontas": {
+    "I": 2
+   },
+   "estruturas": "",
+   "obs": "ajustar as estruturas aceitas",
+   "ativa": true
+  }
+ ],
+ "estruturas": [
+  {
+   "padrao": "^N1$",
+   "qtd_cabos": 2,
+   "lados": "IGUAIS",
+   "amarracao": false,
+   "aceita_i": true,
+   "cabos": "",
+   "parametro": "cabo",
+   "se_diferem": "BLOQUEAR",
+   "obs": "2 cabos iguais",
+   "ativa": true
+  },
+  {
+   "padrao": "^N2$",
+   "qtd_cabos": 2,
+   "lados": "LIVRE",
+   "amarracao": false,
+   "aceita_i": true,
+   "cabos": "",
+   "parametro": "cabo",
+   "se_diferem": "MAIOR",
+   "obs": "lados podem ser diferentes (usa o maior: C > P > A)",
+   "ativa": true
+  },
+  {
+   "padrao": "^N3$",
+   "qtd_cabos": 1,
+   "lados": "LIVRE",
+   "amarracao": true,
+   "aceita_i": true,
+   "cabos": "",
+   "parametro": "cabo",
+   "se_diferem": "MAIOR",
+   "obs": "1 cabo, I ou M",
+   "ativa": true
+  },
+  {
+   "padrao": "^T3$",
+   "qtd_cabos": 1,
+   "lados": "LIVRE",
+   "amarracao": true,
+   "aceita_i": false,
+   "cabos": "^(S|A|AA)\\d+",
+   "parametro": "cabo",
+   "se_diferem": "MAIOR",
+   "obs": "amarração: só cabo M",
+   "ativa": true
+  },
+  {
+   "padrao": "^(B2|R2)$",
+   "qtd_cabos": 2,
+   "lados": "IGUAIS",
+   "amarracao": false,
+   "aceita_i": true,
+   "cabos": "^(RAMA|PB)\\d+$",
+   "parametro": "",
+   "se_diferem": "BLOQUEAR",
+   "obs": "2 multiplex iguais",
+   "ativa": true
+  }
+ ],
+ "ordem_maior": [
+  "C",
+  "P",
+  "A"
+ ],
+ "scripts": []
+}

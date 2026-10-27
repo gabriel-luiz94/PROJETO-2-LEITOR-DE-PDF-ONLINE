@@ -16,6 +16,7 @@ MOTOR = os.path.join(config.STATIC_DIR, "regras_leitor_engine.js")
 ATIVO_PARAMETROS = os.path.join(config.STATIC_DIR, "ativo_parametros.js")
 ANOTACAO_OUTROS = os.path.join(config.STATIC_DIR, "anotacao_outros.js")
 ANOTACAO_CABOS = os.path.join(config.STATIC_DIR, "anotacao_cabos.js")
+VINCULACAO_REGRAS = os.path.join(config.STATIC_DIR, "vinculacao_regras.js")
 RESUMO = os.path.join(config.STATIC_DIR, "resumo.js")
 
 
@@ -51,6 +52,7 @@ globalThis.RegrasLeitorEngine = Motor;
 globalThis.AtivoParametros = require(%(ativo_parametros)s);
 globalThis.AnotacaoOutros = require(%(anotacao_outros)s);
 globalThis.AnotacaoCabos = require(%(anotacao_cabos)s);
+globalThis.VinculacaoRegras = require(%(vinculacao_regras)s);
 let extractedDataCache = entrada.exportados || [];
 const tableStates = { cabos: { data: [] }, outros: { data: [] } };
 """
@@ -59,7 +61,7 @@ const tableStates = { cabos: { data: [] }, outros: { data: [] } };
 def _rodar(corpo, entrada):
     if not NODE:
         raise RuntimeError("node indisponível")
-    codigo = _PRE % {"motor": json.dumps(MOTOR), "ativo_parametros": json.dumps(ATIVO_PARAMETROS), "anotacao_outros": json.dumps(ANOTACAO_OUTROS), "anotacao_cabos": json.dumps(ANOTACAO_CABOS)} + corpo
+    codigo = _PRE % {"motor": json.dumps(MOTOR), "ativo_parametros": json.dumps(ATIVO_PARAMETROS), "anotacao_outros": json.dumps(ANOTACAO_OUTROS), "anotacao_cabos": json.dumps(ANOTACAO_CABOS), "vinculacao_regras": json.dumps(VINCULACAO_REGRAS)} + corpo
     r = subprocess.run([NODE, "-e", codigo], input=json.dumps(entrada), capture_output=True, text=True, timeout=120)
     if r.returncode != 0:
         raise RuntimeError(r.stderr)
@@ -125,7 +127,7 @@ console.log(JSON.stringify({ cabos: tableStates.cabos.data, outros: tableStates.
     return _rodar(corpo, {"cabos": cabos, "outros": outros, "operacoes": operacoes, "escolhidas": escolhidas, "cls": cls})
 
 
-def totalizadora_e_payload(cabos, outros, regras, base, projeto_nome):
+def totalizadora_e_payload(cabos, outros, regras, base, projeto_nome, cfg_vinculo=None):
     """syncTotalizadora + obterPayloadCalculo do JS real. Devolve {totalizadora, payload} (NaN do JS vira null no JSON)."""
     tr = _trechos()
     corpo = tr["funcoes"] + "\n" + """
@@ -135,14 +137,14 @@ const document = { getElementById: () => null, querySelector: () => ({ checked: 
 const confirm = () => true, showToast = () => {}, renderTotalizadora = () => {}, carregarRegras = () => {};
 const syncTotalizadora = (...a) => window.syncTotalizadora(...a);
 tableStates.regras = { data: entrada.regras }; tableStates.totalizadora = { data: [] };
-tableStates.cabos.data = entrada.cabos; tableStates.outros.data = entrada.outros;
+tableStates.cabos.data = entrada.cabos; tableStates.outros.data = entrada.outros; window.__vinculacaoConfig = entrada.cfg || null;
 """ + tr["sync_totalizadora"] + "\n" + tr["payload"] + """
 (async () => {
   const p = await obterPayloadCalculo();
   console.log(JSON.stringify({ totalizadora: tableStates.totalizadora.data, payload: p }));
 })();
 """
-    return _rodar(corpo, {"cabos": cabos, "outros": outros, "regras": regras, "base": base, "projeto": projeto_nome})
+    return _rodar(corpo, {"cabos": cabos, "outros": outros, "regras": regras, "base": base, "projeto": projeto_nome, "cfg": cfg_vinculo})
 
 
 def ramais_para_outros(textos, outros):

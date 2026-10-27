@@ -51,7 +51,8 @@ class Contexto:
     regras_dominio: list = field(default_factory=list)
     grupos: dict = field(default_factory=dict)
     receitas: list = field(default_factory=list)      # ajustes efetivos habilitados do projeto (ativa e não ocultos)
-    regras_vinculacao: list = field(default_factory=list)  # TASK-036
+    regras_vinculacao: list = field(default_factory=list)  # TASK-036 (regras antigas; migradas quando não há `vinculacao_cfg`)
+    vinculacao_cfg: dict = None                            # TASK-084: Tabela de Cabos + Tabela de Estruturas + scripts do projeto
     leitor: object = None
 
 
@@ -61,6 +62,7 @@ def carregar_contexto(projeto_codigo: str, user_id: str) -> Contexto:
     from routers.regras import get_regras_conversao
     from routers.regras_leitor import _get_regras
     from routers.regras_vinculacao import _get_regras as _get_regras_vinculacao
+    from routers.vinculacao_config import obter_config as _obter_vinculacao_cfg
     from routers.validacao_ajustes import ajustes_efetivos
     from routers.validacao_regras import regras_efetivas
     from services.sync_service import get_merged_orcamento
@@ -79,7 +81,37 @@ def carregar_contexto(projeto_codigo: str, user_id: str) -> Contexto:
                     regras_proc=_get_regras("processamento", projeto_codigo), regras_cls=_get_regras("classificacao", projeto_codigo),
                     regras_conversao=conversao, base_orcamento=get_merged_orcamento(user_id),
                     regras_dominio=regras_dominio, grupos=grupos, receitas=receitas,
-                    regras_vinculacao=_get_regras_vinculacao(projeto_codigo))
+                    regras_vinculacao=_get_regras_vinculacao(projeto_codigo), vinculacao_cfg=_obter_vinculacao_cfg(projeto_codigo))
+
+
+# ── vínculo cabo<->estrutura (TASK-036/084) ───────────────────────────────────────────────────────────
+SCRIPT_VINCULO_PADRAO = {"versao": 1, "conflitos": "ignorar", "passos": [{"nome": "Vínculo automático padrão", "modo": "proximidade"}]}
+
+
+def _cfg_vinculo(ctx) -> dict:
+    """Configuração efetiva: a do projeto (tabelas + scripts) ou, na falta dela, a migração das regras antigas."""
+    from services.vinculacao_regras import config_de_legado, normalizar_config
+    return normalizar_config(ctx.vinculacao_cfg) if ctx.vinculacao_cfg is not None else config_de_legado(ctx.regras_vinculacao)
+
+
+def _vincular(ctx, cabos, outros) -> dict:
+    """Roda o 1º script do projeto (ou o padrão: proximidade com as duas tabelas) sobre as tabelas FINAIS; só vincula cabo sem vínculo."""
+    from services.autonomo.montagem import prefixo_cabo
+    from services.autonomo.vinculacao import codigo_estrutura
+    from services.vinculacao_regras import executar_script, validar_script
+    cfg = _cfg_vinculo(ctx)
+    script = next((s["script"] for s in cfg["scripts"] if isinstance(s.get("script"), dict) and not validar_script(s["script"])), SCRIPT_VINCULO_PADRAO)
+    r = executar_script(script, cabos, outros, cfg, prefixo_cabo, codigo_estrutura, aplicar=True)
+    sem_coord = sum(1 for x in r["sem_candidato"] if x["motivo"] == "cabo sem coordenada")
+    return {"vinculados": len(r["vinculos"]), "ja_tinham": sum(p["ja_tinham"] for p in r["passos"]), "sem_candidato": len(r["sem_candidato"]) - sem_coord,
+            "sem_coordenada": sem_coord}
+
+
+def _achados_vinculo(ctx, cabos, outros) -> list:
+    from services.autonomo.montagem import prefixo_cabo
+    from services.autonomo.vinculacao import codigo_estrutura
+    from services.vinculacao_regras import achados
+    return achados(cabos, outros, _cfg_vinculo(ctx), prefixo_cabo, codigo_estrutura)
 
 
 # ── utilidades ──────────────────────────────────────────────────────────────
@@ -298,14 +330,14 @@ def _finalizar(exec_id: str, ctx: Contexto, pasta: str, reverter: bool = False) 
     with etapas("vincular") as e:
         # TASK-036: auto-link por coordenada sobre as tabelas FINAIS (depois do diff aplicado) — nunca antes, para não
         # correr o risco de `vinculoEstruturas` (índices em `outros`) ficar desalinhado por uma exclusão do ajuste.
-        e["detalhe"] = tentar_vincular_automaticamente(cabos, outros, ctx.regras_vinculacao)
+        e["detalhe"] = _vincular(ctx, cabos, outros)
     with etapas("validar_depois") as e:
-        achados_vinculo = avaliar_vinculacao(cabos, outros, ctx.regras_vinculacao)
+        achados_vinculo = _achados_vinculo(ctx, cabos, outros)
         depois = _validar(ctx, cabos, outros) + achados_vinculo
         e["detalhe"] = resumir(depois)
     with etapas("totalizadora") as e:
         itens_vinculo = itens_vinculo_para_totalizadora(cabos, outros)
-        tot_bruta = montar_totalizadora(cabos, outros, ctx.regras_conversao, ctx.base_orcamento, ctx.projeto_nome, itens_vinculo=itens_vinculo)
+        tot_bruta = montar_totalizadora(cabos, outros, ctx.regras_conversao, ctx.base_orcamento, ctx.projeto_nome, itens_vinculo=itens_vinculo, cfg_vinculo=_cfg_vinculo(ctx))
         payload = payload_calculo(tot_bruta)
         totalizadora = normalizar_para_json(tot_bruta)
         e["detalhe"] = {"linhas": len(totalizadora)}

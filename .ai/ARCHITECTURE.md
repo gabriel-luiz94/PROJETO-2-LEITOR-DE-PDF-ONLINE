@@ -433,6 +433,8 @@ TASK-081: o texto de Outros pode vir no formato antigo (`2-N3 1-T3`) ou compacto
 
 TASK-083: a linha de Cabos pode vir no formato antigo (`ATIVO FASE COMPRIMENTO`) ou na notação do LABEL (`3xA35P(7,94)-13,8kV 45 m`); `services/anotacao_cabos.py` (espelho `static/anotacao_cabos.js`) traduz de forma implícita para (cabo × fases + neutro à parte). O cálculo do backend não muda: a Totalizadora já entrega `ATIVO 1 COMPRIMENTO` por ativo.
 
+TASK-084: a vinculação cabo⇄estrutura tem duas tabelas por projeto (`vinculacao_config`: cabos, estruturas, ordem_maior, scripts). A lógica pura vive em `services/vinculacao_regras.py` (espelho `static/vinculacao_regras.js`): `analisar` dá o estado de cada cabo/estrutura e o valor do parâmetro `cabo`; a Totalizadora injeta esse valor na estrutura (`parametros_linha` em `interpretar_linha`) quando o pedido não o traz. O cabo fictício é só um código guardado na linha de Outros (`cabosFicticios`). O modal é `static/vinculacao_ui.js` (host = `window.VinculacaoHost` em `resumo.js`).
+
 ### 8.8 Soma por código — RN-09
 ```
 ENTRADA   3 itens resolvidos para o código 1015 (MAO-DE-OBRA):
