@@ -34,6 +34,8 @@
                 entidade: r.entidade, operacao: r.operacao, ativo: r.ativo
             };
             if (item._x !== undefined && item._y !== undefined) { linha._x = item._x; linha._y = item._y; }
+            if (item._geo) { linha._geo = item._geo; linha._geoTipo = item._geoTipo; }      // TASK-091
+            if (item._poste) linha._poste = item._poste;
             saida.push(linha);
             if (i % 500 === 499) await cedeVez();
         }
@@ -97,6 +99,7 @@
         const json = await resp.json();
         if (json.error) throw new Error(json.error);
         const itens = json.data || [];
+        try { if (json.geometria) localStorage.setItem('mapa_geometria_fundo', JSON.stringify(json.geometria)); else localStorage.removeItem('mapa_geometria_fundo'); } catch (e) { /* sem espaço: o mapa só fica sem a rede ao fundo */ }     // TASK-091: rede/postes ao fundo do mapa
         if (!itens.length) throw new Error('Não encontrei texto neste arquivo; nada foi alterado.');
         return itens;
     }

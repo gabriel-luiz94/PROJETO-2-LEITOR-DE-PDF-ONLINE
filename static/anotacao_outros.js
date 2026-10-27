@@ -179,13 +179,18 @@
         return { apelidos: AP.apelidosDoProjeto(linhas, projeto), nomes, postes, assinaturas: AP.assinaturasDoProjeto(linhas, projeto) };
     }
 
+    /** TASK-094: nomes de TODOS os itens que não são poste, na ordem da linha (`9400D, N1, N4` → N1, N4). */
+    function codigosEstruturas(texto, classico, ctx) {
+        return interpretarLinha(texto, '', classico, ctx).itens.map(i => AP.nomeBase(i.ativo)).filter(n => !ehPoste(n));
+    }
+
     function codigoEstrutura(texto, classico, ctx) {
         const r = interpretarLinha(texto, '', classico, ctx);
         for (const i of r.itens) if (!ehPoste(AP.nomeBase(i.ativo))) return AP.nomeBase(i.ativo);
         return '';
     }
 
-    const api = { ehPoste, posteParaCompacto, compactoParaPoste, ehCompacta, interpretarLinha, textoEquivalente, contextoDaBase, codigoEstrutura };
+    const api = { ehPoste, posteParaCompacto, compactoParaPoste, ehCompacta, interpretarLinha, textoEquivalente, contextoDaBase, codigoEstrutura, codigosEstruturas };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.AnotacaoOutros = api;
 })(typeof window !== 'undefined' ? window : globalThis);

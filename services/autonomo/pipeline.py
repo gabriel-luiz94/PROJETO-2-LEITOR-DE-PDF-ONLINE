@@ -97,11 +97,11 @@ def _cfg_vinculo(ctx) -> dict:
 def _vincular(ctx, cabos, outros) -> dict:
     """Roda o 1º script do projeto (ou o padrão: proximidade com as duas tabelas) sobre as tabelas FINAIS; só vincula cabo sem vínculo."""
     from services.autonomo.montagem import prefixo_cabo
-    from services.autonomo.vinculacao import codigo_estrutura
+    from services.autonomo.vinculacao import codigo_estrutura, codigos_estrutura
     from services.vinculacao_regras import executar_script, validar_script
     cfg = _cfg_vinculo(ctx)
     script = next((s["script"] for s in cfg["scripts"] if isinstance(s.get("script"), dict) and not validar_script(s["script"])), SCRIPT_VINCULO_PADRAO)
-    r = executar_script(script, cabos, outros, cfg, prefixo_cabo, codigo_estrutura, aplicar=True)
+    r = executar_script(script, cabos, outros, cfg, prefixo_cabo, codigo_estrutura, aplicar=True, codigos_fn=codigos_estrutura)
     sem_coord = sum(1 for x in r["sem_candidato"] if x["motivo"] == "cabo sem coordenada")
     return {"vinculados": len(r["vinculos"]), "ja_tinham": sum(p["ja_tinham"] for p in r["passos"]), "sem_candidato": len(r["sem_candidato"]) - sem_coord,
             "sem_coordenada": sem_coord}
@@ -109,9 +109,9 @@ def _vincular(ctx, cabos, outros) -> dict:
 
 def _achados_vinculo(ctx, cabos, outros) -> list:
     from services.autonomo.montagem import prefixo_cabo
-    from services.autonomo.vinculacao import codigo_estrutura
+    from services.autonomo.vinculacao import codigo_estrutura, codigos_estrutura
     from services.vinculacao_regras import achados
-    return achados(cabos, outros, _cfg_vinculo(ctx), prefixo_cabo, codigo_estrutura)
+    return achados(cabos, outros, _cfg_vinculo(ctx), prefixo_cabo, codigo_estrutura, codigos_estrutura)
 
 
 # ── utilidades ──────────────────────────────────────────────────────────────

@@ -103,7 +103,24 @@ def validar_config(cfg) -> list:
                 ops = r.get("operacoes")
                 if ops is not None and not isinstance(ops, list):
                     erros.append(f"{p}: 'operacoes' precisa ser uma lista.")
+                fs = r.get("fases")
+                if fs is not None and fs != "" and any(not re.fullmatch(r"[1-9]", _trim(x)) for x in (fs if isinstance(fs, list) else str(fs).split(","))):
+                    erros.append(f"{p}: 'fases' precisa ser números de 1 a 9 (ex.: \"3\" ou \"1,2\").")
+                if _trim(r.get("nivel")) and _trim(r.get("nivel")).upper() not in ("MT", "BT"):
+                    erros.append(f"{p}: 'nivel' precisa ser MT ou BT.")
+                pt = r.get("padrao_texto")
+                if isinstance(pt, str) and pt:
+                    try:
+                        re.compile(pt)
+                    except re.error as e:
+                        erros.append(f"{p}: 'padrao_texto' regex inválida ({e}).")
             else:
+                for k in ("qtd_min", "qtd_max", "max_reais"):
+                    v = r.get(k)
+                    if v is not None and (not isinstance(v, int) or isinstance(v, bool) or v < 1):
+                        erros.append(f"{p}: '{k}' precisa ser um inteiro >= 1.")
+                if isinstance(r.get("qtd_min"), int) and isinstance(r.get("qtd_max"), int) and r["qtd_min"] > r["qtd_max"]:
+                    erros.append(f"{p}: 'qtd_min' não pode ser maior que 'qtd_max'.")
                 q = r.get("qtd_cabos")
                 if q is not None and (not isinstance(q, int) or isinstance(q, bool) or q < 1):
                     erros.append(f"{p}: 'qtd_cabos' precisa ser um inteiro >= 1.")
@@ -131,25 +148,89 @@ def _primeira(tabela, campo_padrao, valor):
     return None, None
 
 
-def info_cabo(codigo, operacao, cfg) -> dict:
+# TASK-092: fases (1x/2x/3x), tensão (13,8kV) e nível (MT/BT) vêm do TEXTO ORIGINAL do cabo ("3xA35P(7,94)-13,8kV 45 m"); sem "Nx" = 1 fase; MT = tensão acima de 1 kV.
+_RE_FASES = re.compile(r"(?<![0-9A-Za-z])([1-9])\s*[xX]\s*(?=[A-Za-z])")
+_RE_TENSAO = re.compile(r"(\d+(?:[.,]\d+)?)\s*kV", re.I)
+
+
+def derivar_cabo(texto) -> dict:
+    t = _trim(texto)
+    mf, mt = _RE_FASES.search(t), _RE_TENSAO.search(t)
+    tensao = mt.group(1).replace(".", ",") + "kV" if mt else ""
+    return {"fases": int(mf.group(1)) if mf else 1, "tensao": tensao, "nivel": "MT" if mt and float(mt.group(1).replace(",", ".")) > 1 else "BT"}
+
+
+def extra_cabo(row) -> dict:
+    """Dados que as regras do cabo podem usar: o que está na linha (editável) ou, na falta, o derivado do texto original."""
+    row = row or {}
+    d = derivar_cabo(row.get("textoOriginal"))
+    try:
+        f = int(_trim(row.get("fases"))) if _trim(row.get("fases")) != "" else d["fases"]
+    except ValueError:
+        f = d["fases"]
+    return {"texto": _trim(row.get("textoOriginal")), "fases": f, "tensao": _trim(row.get("tensao")) or d["tensao"], "nivel": (_trim(row.get("nivel")).upper() or d["nivel"])}
+
+
+def _regex_busca(p, texto) -> bool:
+    """`padrao_texto` é SEMPRE regex (busca em qualquer ponto do texto original, sem caixa); inválida não casa."""
+    try:
+        return re.search(_trim(p), _trim(texto), re.I | re.A) is not None
+    except re.error:
+        return False
+
+
+def _regra_cabo_casa(r, cod, extra) -> bool:
+    if not casa(r.get("padrao"), cod):
+        return False
+    if not extra:
+        return True
+    fases = r.get("fases")
+    if fases is not None and fases != "":
+        lista = fases if isinstance(fases, list) else str(fases).split(",")
+        try:
+            if extra["fases"] not in [int(_trim(x)) for x in lista]:
+                return False
+        except ValueError:
+            return False
+    if _trim(r.get("nivel")) and _trim(r.get("nivel")).upper() != extra["nivel"]:
+        return False
+    if _trim(r.get("padrao_texto")) and not (extra["texto"] and _regex_busca(r.get("padrao_texto"), extra["texto"])):
+        return False
+    return True
+
+
+def _primeira_cabo(tabela, cod, extra):
+    for i, r in enumerate(tabela):
+        if r.get("ativa") is False:
+            continue
+        if _regra_cabo_casa(r, cod, extra):
+            return i, r
+    return None, None
+
+
+def info_cabo(codigo, operacao, cfg, extra=None) -> dict:
     """`codigo` = código do cabo principal (já sem 3x/tensão). Sem regra na tabela: aceita tudo, pontas 2 (I) / 1 (M)."""
     cod = _trim(codigo).upper()
-    i, r = _primeira(cfg["cabos"], "padrao", cod) if cod else (None, None)
+    i, r = _primeira_cabo(cfg["cabos"], cod, extra) if cod else (None, None)
     base = op_base(operacao)
     pontas = 1 if base == "M" else 2
     if r is not None and isinstance(r.get("pontas"), dict) and isinstance(r["pontas"].get(base), int):
         pontas = r["pontas"][base]
     return {"codigo": cod, "regra": i, "valor_cabo": (_trim(r.get("valor_cabo")).upper() or None) if r else None, "pontas": pontas,
             "vincula": not (r is not None and (r.get("vincula") is False)), "estruturas": (r.get("estruturas") if r else None),
-            "operacoes": (r.get("operacoes") if r else None), "op": _trim(operacao).upper(), "base": base}
+            "operacoes": (r.get("operacoes") if r else None), "op": _trim(operacao).upper(), "base": base,
+            "fases": extra["fases"] if extra else None, "nivel": extra["nivel"] if extra else None}
 
 
 def info_estrutura(codigo, cfg) -> dict:
     cod = _trim(codigo).upper()
     i, r = _primeira(cfg["estruturas"], "padrao", cod) if cod else (None, None)
-    d = {"codigo": cod, "regra": i, "qtd": None, "lados": "LIVRE", "amarracao": False, "aceita_i": True, "cabos": None, "parametro": "CABO", "se_diferem": "MAIOR"}
+    d = {"codigo": cod, "regra": i, "qtd": None, "qtd_min": None, "max_reais": None, "lados": "LIVRE", "amarracao": False, "aceita_i": True, "cabos": None, "parametro": "CABO", "se_diferem": "MAIOR"}
     if r is not None:
-        d["qtd"] = r.get("qtd_cabos") if isinstance(r.get("qtd_cabos"), int) else None
+        # TASK-093: qtd_cabos fixo (min = max) OU faixa qtd_min..qtd_max; max_reais = quantos podem ser cabos REAIS (o excedente só entra como fictício)
+        d["qtd"] = r["qtd_max"] if isinstance(r.get("qtd_max"), int) else (r.get("qtd_cabos") if isinstance(r.get("qtd_cabos"), int) else None)
+        d["qtd_min"] = r["qtd_min"] if isinstance(r.get("qtd_min"), int) else d["qtd"]
+        d["max_reais"] = r["max_reais"] if isinstance(r.get("max_reais"), int) else None
         d["lados"] = "IGUAIS" if r.get("lados") == "IGUAIS" else "LIVRE"
         d["amarracao"] = bool(r.get("amarracao", False))
         d["aceita_i"] = r.get("aceita_i") is not False
@@ -188,13 +269,15 @@ def _chave_lado(info_c, ficticio=False):
     return info_c["codigo"] if ficticio else f"{info_c['codigo']}|{info_c['op']}"
 
 
-def pode_com_ocupantes(c, e, ocupantes):
+def pode_com_ocupantes(c, e, ocupantes, ficticio=False):
     """Como `pode_vincular`, mais capacidade e "lados iguais" contra quem já está ligado. `ocupantes` = [{"info": info_cabo, "ficticio": bool}]."""
     ok, motivo = pode_vincular(c, e)
     if not ok:
         return ok, motivo
     if e["qtd"] is not None and len(ocupantes) + 1 > e["qtd"]:
         return False, f"a estrutura {e['codigo']} já tem os {e['qtd']} cabo(s) que aceita"
+    if not ficticio and e["max_reais"] is not None and len([o for o in ocupantes if not o.get("ficticio")]) + 1 > e["max_reais"]:
+        return False, f"a estrutura {e['codigo']} aceita só {e['max_reais']} cabo(s) real(is); o excedente deve ser fictício"
     if e["lados"] == "IGUAIS" and ocupantes:
         ref = ocupantes[0]
         mesmo = ref["info"]["codigo"] == c["codigo"] and (ref.get("ficticio") or ref["info"]["op"] == c["op"])
@@ -212,19 +295,97 @@ def _eh_cabo_valido(row):
     return bool(row) and bool(_trim(row.get("ativo")))
 
 
-def estruturas_disponiveis(outros):
-    return [i for i, r in enumerate(outros) if r and r.get("entidade") in ("ESTRUTURA", "POSTE")]
+def _eh_linha_estrutura(r):
+    return bool(r) and r.get("entidade") in ("ESTRUTURA", "POSTE")
 
 
-def analisar(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
-    """Estado de cada cabo e de cada estrutura. `prefixo_fn(ativo)` = código do cabo principal; `codigo_fn(ativo)` = código da estrutura da linha."""
+# TASK-094: uma linha de Outros pode ter VÁRIAS estruturas (`9400D, N1, N4` = poste + N1 + N4); cada uma é uma "unidade" vinculável.
+# Identidade da unidade: o índice da linha para a 1ª estrutura (compatível com tudo que já foi salvo) e linha + posição/100 para as seguintes (12 → 12.01 → 12.02).
+def id_unidade(ie, k):
+    return round(ie + k / 100, 2) if k else ie
+
+
+def linha_de(id_):
+    return int(id_ + 1e-9)
+
+
+def slot_de(id_):
+    return round((id_ - linha_de(id_)) * 100)
+
+
+def ficticios_de(row, k):
+    """Cabos fictícios da unidade: `cabosFicticios` é da 1ª; as demais ficam em `cabosFicticiosSlots[k]`."""
+    if not row:
+        return []
+    return list((row.get("cabosFicticiosSlots") or {}).get(str(k), [])) if k else list(row.get("cabosFicticios") or [])
+
+
+def _codigos_da_linha(row, codigo_fn, codigos_fn):
+    """Códigos das estruturas da linha (sem poste). Sem `codigos_fn` (ou lista vazia) vale o código único de `codigo_fn` (linha só com poste)."""
+    lista = [c for c in (codigos_fn(row.get("ativo")) or []) if c] if codigos_fn else []
+    return lista or [codigo_fn(row.get("ativo"), row)]
+
+
+def estruturas_disponiveis(outros, codigo_fn=None, codigos_fn=None):
+    r = []
+    for i, row in enumerate(outros):
+        if not _eh_linha_estrutura(row):
+            continue
+        if not codigos_fn:
+            r.append(i)
+            continue
+        r.extend(id_unidade(i, k) for k, _ in enumerate(_codigos_da_linha(row, codigo_fn or (lambda a, row=None: ""), codigos_fn)))
+    return r
+
+
+def _expandir(cabos, outros, codigo_fn, codigos_fn):
+    """Lista "virtual" de Outros com uma entrada por unidade (as demais linhas passam como estão) e os cabos com os vínculos traduzidos para ela."""
+    virt, id_de, j_de = [], [], {}
+    for ie, row in enumerate(outros):
+        if not _eh_linha_estrutura(row):
+            id_de.append(ie)
+            virt.append(row)
+            continue
+        cods = _codigos_da_linha(row, codigo_fn, codigos_fn)
+        for k, cod in enumerate(cods):
+            id_ = id_unidade(ie, k)
+            j_de[id_] = len(virt)
+            id_de.append(id_)
+            virt.append({**row, "cabosFicticios": ficticios_de(row, k), "_codigoUnidade": cod, "_linha": ie})
+    cabos_v = [({**c, "vinculoEstruturas": [j_de.get(i, -1) for i in c["vinculoEstruturas"]]} if c and isinstance(c.get("vinculoEstruturas"), list) else c) for c in cabos]
+
+    def codigo_v(ativo, row=None):
+        return row["_codigoUnidade"] if row is not None and "_codigoUnidade" in row else codigo_fn(ativo, row)
+    return virt, id_de, cabos_v, codigo_v
+
+
+def analisar(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> dict:
+    """Estado de cada cabo e de cada estrutura (cada estrutura da linha é uma unidade; chave = id da unidade). `prefixo_fn(ativo)` = código do cabo principal;
+    `codigo_fn(ativo)` = código da estrutura da linha; `codigos_fn(ativo)` (opcional) = lista com o código de CADA estrutura da linha."""
+    virt, id_de, cabos_v, codigo_v = _expandir(cabos, outros, _com_linha(codigo_fn), codigos_fn)
+    a = _analisar_base(cabos_v, virt, cfg, prefixo_fn, codigo_v)
+    return {"estruturas": {id_de[j]: r for j, r in a["estruturas"].items()}, "cabos": a["cabos"],
+            "links": [{**l, "estrutura": id_de[l["estrutura"]]} for l in a["links"]]}
+
+
+def _com_linha(codigo_fn):
+    """Aceita `codigo_fn(ativo)` (só o texto) ou `codigo_fn(ativo, row)`."""
+    def f(ativo, row=None):
+        try:
+            return codigo_fn(ativo, row)
+        except TypeError:
+            return codigo_fn(ativo)
+    return f
+
+
+def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
     cfg = normalizar_config(cfg)
     ests = estruturas_disponiveis(outros)
     info_c = {}
     for ic, c in enumerate(cabos):
         if _eh_cabo_valido(c):
-            info_c[ic] = info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg)
-    info_e = {ie: info_estrutura(codigo_fn(outros[ie].get("ativo")), cfg) for ie in ests}
+            info_c[ic] = info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg, extra_cabo(c))
+    info_e = {ie: info_estrutura(codigo_fn(outros[ie].get("ativo"), outros[ie]), cfg) for ie in ests}
     ocup = {ie: [] for ie in ests}                    # [(idx_cabo)]
     for ic, c in enumerate(cabos):
         if ic not in info_c:
@@ -249,7 +410,7 @@ def analisar(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
                 erros.append(motivo)
         for cod in fict:
             ic_f = info_cabo(cod, op_ficticio(e), cfg)
-            ok, motivo = pode_com_ocupantes(ic_f, e, ocupantes)
+            ok, motivo = pode_com_ocupantes(ic_f, e, ocupantes, True)
             ocupantes.append({"info": ic_f, "ficticio": True})
             if not ok:
                 erros.append(motivo)
@@ -274,11 +435,11 @@ def analisar(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
             estado = "rd"
         elif tem == 0:
             estado = "k"
-        elif e["qtd"] is not None and tem < e["qtd"]:
+        elif e["qtd_min"] is not None and tem < e["qtd_min"]:
             estado = "pu"
         else:
             estado = "gr"
-        res_e[ie] = {"estado": estado, "tem": tem, "precisa": e["qtd"], "valor_cabo": valor, "erros": erros, "avisos": avisos, "codigo": e["codigo"],
+        res_e[ie] = {"estado": estado, "tem": tem, "precisa": e["qtd_min"], "maximo": e["qtd"], "valor_cabo": valor, "erros": erros, "avisos": avisos, "codigo": e["codigo"],
                      "regra": e["regra"], "ficticios": len(fict), "parametro": e["parametro"]}
     res_c = {}
     for ic, c in info_c.items():
@@ -299,29 +460,31 @@ def analisar(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
     return {"estruturas": res_e, "cabos": res_c, "links": links}
 
 
-def parametros_por_linha(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
+def parametros_por_linha(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> dict:
     """{indice_em_outros: {"CABO": "C"}} — o parâmetro que a estrutura recebe do(s) cabo(s) vinculado(s) (só onde há valor)."""
-    a = analisar(cabos, outros, cfg, prefixo_fn, codigo_fn)
+    a = analisar(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn)
     saida = {}
-    for ie, r in a["estruturas"].items():
-        if r["valor_cabo"] and r["parametro"]:
-            saida[ie] = {r["parametro"]: r["valor_cabo"]}
+    for ie, r in sorted(a["estruturas"].items()):
+        linha = linha_de(ie)
+        if r["valor_cabo"] and r["parametro"] and linha not in saida:       # várias estruturas na linha: vale a 1ª que tem valor
+            saida[linha] = {r["parametro"]: r["valor_cabo"]}
     return saida
 
 
-def achados(cabos, outros, cfg, prefixo_fn, codigo_fn) -> list:
+def achados(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> list:
     """Avisos de validação (formato de services/validacao_planilhas.py), severidade "aviso"."""
     cfg = normalizar_config(cfg)
-    a = analisar(cabos, outros, cfg, prefixo_fn, codigo_fn)
+    a = analisar(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn)
     existe_m = any(_eh_cabo_valido(c) and op_base(c.get("operacao")) == "M" for c in cabos)
     existe_retca = any(r and re.search(r"\bRETCA\b", r.get("ativo") or "", re.I | re.A) for r in outros)
     excecao_zero = existe_m or existe_retca
     saida = []
 
     def add(ie, msg, expl):
-        saida.append({"linha_id": f"OUTROS-{ie}", "tabela": "outros", "regra_id": "VINCULO-ESTRUTURA", "severidade": "aviso", "mensagem": msg, "explicacao": expl})
-    for ie, r in a["estruturas"].items():
-        nome = outros[ie].get("ativo")
+        saida.append({"linha_id": f"OUTROS-{linha_de(ie)}", "tabela": "outros", "regra_id": "VINCULO-ESTRUTURA", "severidade": "aviso", "mensagem": msg, "explicacao": expl})
+    for ie, r in sorted(a["estruturas"].items()):
+        linha_o = outros[linha_de(ie)]
+        nome = f"{linha_o.get('ativo')} [{r['codigo']}]" if codigos_fn and len([c for c in (codigos_fn(linha_o.get("ativo")) or []) if c]) > 1 else linha_o.get("ativo")
         if r["regra"] is None:
             continue
         if r["tem"] == 0:
@@ -330,8 +493,9 @@ def achados(cabos, outros, cfg, prefixo_fn, codigo_fn) -> list:
             continue
         for msg in r["erros"]:
             add(ie, f"Estrutura \"{nome}\": vínculo inválido.", msg)
-        if not r["erros"] and r["precisa"] is not None and r["tem"] != r["precisa"]:
-            add(ie, f"Estrutura \"{nome}\" com {r['tem']} cabo(s) vinculado(s), esperado {r['precisa']}.", f"{r['codigo']} exige exatamente {r['precisa']} cabo(s) vinculado(s).")
+        if not r["erros"] and r["precisa"] is not None and (r["tem"] < r["precisa"] or (r["maximo"] is not None and r["tem"] > r["maximo"])):
+            faixa = f"{r['precisa']} a {r['maximo']}" if r["maximo"] is not None and r["maximo"] != r["precisa"] else f"{r['precisa']}"
+            add(ie, f"Estrutura \"{nome}\" com {r['tem']} cabo(s) vinculado(s), esperado {faixa}.", f"{r['codigo']} exige {'exatamente ' if faixa == str(r['precisa']) else ''}{faixa} cabo(s) vinculado(s).")
         for msg in r["avisos"]:
             add(ie, f"Estrutura \"{nome}\": {msg}.", "Os cabos vinculados têm valores diferentes para o parâmetro da estrutura.")
     return saida
@@ -398,14 +562,26 @@ def _tem_xy(r):
     return r.get("_x") is not None and r.get("_y") is not None
 
 
-def executar_script(script, cabos, outros, cfg, prefixo_fn, codigo_fn, aplicar=False) -> dict:
+def executar_script(script, cabos, outros, cfg, prefixo_fn, codigo_fn, aplicar=False, codigos_fn=None) -> dict:
     """Roda o script e devolve o que ele vincularia (`aplicar=False`) ou já grava `vinculoEstruturas`/`vinculoOrigem` nos cabos (`aplicar=True`).
     Nunca sobrescreve vínculo existente, a menos que o passo diga `"substituir": true`."""
+    virt, id_de, cabos_v, codigo_v = _expandir(cabos, outros, _com_linha(codigo_fn), codigos_fn)
+    r = _executar_script_base(script, cabos_v, virt, cfg, prefixo_fn, codigo_v)
+    for v in r["vinculos"]:
+        v["estruturas"] = [id_de[j] for j in v["estruturas"]]
+    if aplicar:
+        for v in r["vinculos"]:
+            cabos[v["cabo"]]["vinculoEstruturas"] = list(v["estruturas"])
+            cabos[v["cabo"]]["vinculoOrigem"] = "script"
+    return r
+
+
+def _executar_script_base(script, cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
     cfg = normalizar_config(cfg)
     modo_conf = script.get("conflitos") if script.get("conflitos") in CONFLITOS_SCRIPT else "avisar"
     ests = estruturas_disponiveis(outros)
-    info_e = {ie: info_estrutura(codigo_fn(outros[ie].get("ativo")), cfg) for ie in ests}
-    info_c = {ic: info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg) for ic, c in enumerate(cabos) if _eh_cabo_valido(c)}
+    info_e = {ie: info_estrutura(codigo_fn(outros[ie].get("ativo"), outros[ie]), cfg) for ie in ests}
+    info_c = {ic: info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg, extra_cabo(c)) for ic, c in enumerate(cabos) if _eh_cabo_valido(c)}
     ligados = {ic: list(cabos[ic].get("vinculoEstruturas") or []) for ic in info_c}       # estado de trabalho
     fict = {ie: [_trim(x).upper() for x in (outros[ie].get("cabosFicticios") or []) if _trim(x)] for ie in ests}
     saida = {"vinculos": [], "conflitos": [], "sem_candidato": [], "passos": [], "parou": False}
@@ -473,6 +649,8 @@ def executar_script(script, cabos, outros, cfg, prefixo_fn, codigo_fn, aplicar=F
                 if len(escolhidas) >= need:
                     break
                 ok, motivo = pode(ic, ie)
+                if ok and outros[ie].get("_linha") is not None and any(outros[e2].get("_linha") == outros[ie].get("_linha") for e2 in escolhidas):
+                    continue                                   # TASK-094: 2 estruturas do mesmo poste não valem como as 2 pontas
                 if ok:
                     escolhidas.append(ie)
                     ligados[ic].append(ie)
@@ -495,9 +673,4 @@ def executar_script(script, cabos, outros, cfg, prefixo_fn, codigo_fn, aplicar=F
         saida["passos"].append(r)
         if saida["parou"]:
             break
-    if aplicar:
-        vinculados = {v["cabo"]: v["estruturas"] for v in saida["vinculos"]}
-        for ic, lista in vinculados.items():
-            cabos[ic]["vinculoEstruturas"] = list(lista)
-            cabos[ic]["vinculoOrigem"] = "script"
     return saida

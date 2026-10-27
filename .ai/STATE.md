@@ -1030,3 +1030,7 @@ sessão. Alterações: `services/pdf_service.py` (coordenadas `_x`/`_y`), `confi
 `routers/regras_vinculacao.py`, `app.py`, `scripts/schema_supabase.sql`, `static/resumo.html`,
 `static/resumo.js`. Ver `.ai/tasks/TASK-032-02-10-2026.md`, `TASK-033-02-10-2026.md`,
 `TASK-034-02-10-2026.md`.
+- [x] **TASK-091** (pedido de 2026-10-27): Mapa do vínculo com a geometria real (REDE_MT/BT e postes do DXF). CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-091-27-10-2026.md`.
+- [x] **TASK-092** (pedido de 2026-10-27): Cabos: Fases/Tensão/Nível a partir do texto original + filtros nas regras. CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-092-27-10-2026.md`.
+- [x] **TASK-093** (pedido de 2026-10-27): Estruturas com 1 cabo real + 1 fictício opcional (SI3). CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-093-27-10-2026.md`.
+- [x] **TASK-094** (pedido de 2026-10-27): Estruturas por poste em blocos lado a lado (várias estruturas por linha de Outros). CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-094-27-10-2026.md`.

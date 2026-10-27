@@ -72,12 +72,12 @@ def _dxf_de_dwg(conteudo_dwg: bytes, nome_arquivo: str, header_key: str | None) 
     return dxf_bytes
 
 
-def _extrair_de_bytes_dxf(conteudo: bytes) -> list:
+def _extrair_de_bytes_dxf(conteudo: bytes):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".dxf") as tmp:
         tmp.write(conteudo)
         tmp_path = tmp.name
     try:
-        return extract_dxf_content(ezdxf.readfile(tmp_path))
+        return extract_dxf_content(ezdxf.readfile(tmp_path), com_geometria=True)     # (linhas, geometria de fundo do mapa)
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
@@ -93,9 +93,11 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
                 contents = _dxf_de_dwg(contents, file.filename, request.headers.get("X-CloudConvert-Key"))
             except ErroConversaoDwg as e:
                 return {"error": str(e), "data": []}
-            return {"data": _extrair_de_bytes_dxf(contents)}
+            linhas, geometria = _extrair_de_bytes_dxf(contents)
+            return {"data": linhas, "geometria": geometria}
         if nome.endswith(".dxf"):
-            return {"data": _extrair_de_bytes_dxf(contents)}
+            linhas, geometria = _extrair_de_bytes_dxf(contents)
+            return {"data": linhas, "geometria": geometria}
 
         # PDF
         doc = pymupdf.open(stream=contents, filetype="pdf")
@@ -123,10 +125,12 @@ async def extract_local(request: Request, path: str):
                 dxf_bytes = _dxf_de_dwg(conteudo, os.path.basename(path), request.headers.get("X-CloudConvert-Key"))
             except ErroConversaoDwg as e:
                 return {"error": str(e), "data": []}
-            return {"data": _extrair_de_bytes_dxf(dxf_bytes), "filename": os.path.basename(path)}
+            linhas, geometria = _extrair_de_bytes_dxf(dxf_bytes)
+            return {"data": linhas, "geometria": geometria, "filename": os.path.basename(path)}
         if caminho_min.endswith(".dxf"):
             doc = ezdxf.readfile(path)
-            return {"data": extract_dxf_content(doc), "filename": os.path.basename(path)}
+            linhas, geometria = extract_dxf_content(doc, com_geometria=True)
+            return {"data": linhas, "geometria": geometria, "filename": os.path.basename(path)}
         # PDF
         doc = pymupdf.open(path)
         return {"data": extract_pdf_content(doc), "filename": os.path.basename(path)}

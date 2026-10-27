@@ -8,6 +8,31 @@
 
 ---
 
+## 2026-10-27 — TASK-094: várias estruturas por linha de Outros, em blocos por poste
+
+**Tipo:** feature · `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/vinculacao_ui.js`, `static/resumo.js`, `static/anotacao_outros.js`, `services/anotacao_outros.py`, `services/autonomo/*`
+
+`9400D, N1, N4` agora é um poste e DUAS estruturas vinculáveis. Id da unidade = linha (1ª) ou linha + k/100; vínculos antigos continuam válidos. O modal mostra uma linha por poste com as estruturas lado a lado.
+
+---
+
+## 2026-10-27 — TASK-092/093: texto original do cabo e estrutura com fictício opcional
+
+**Tipo:** feature · `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/vinculacao_ui.js`, `static/resumo.js`/`.html`, `services/autonomo/montagem.py`, `data/vinculacao_pernambuco_seed.json`
+
+- 092: o cabo guarda `textoOriginal`; colunas Fases/Tensão/Nível (derivadas, editáveis, ocultáveis) e filtros `fases`/`nivel`/`padrao_texto` nas regras da Tabela de Cabos.
+- 093: regra de estrutura com `qtd_min`/`qtd_max`/`max_reais` (SI3 = 1 real + 1 fictício opcional).
+
+---
+
+## 2026-10-27 — TASK-091: mapa do vínculo com rede MT/BT e postes (DXF)
+
+**Tipo:** feature · `services/dxf_geometria.py` (novo), `services/dxf_service.py`, `routers/upload.py`, `static/vinculacao_ui.js`, `static/script.js`, `static/ler_projeto.js`, `static/resumo.js`
+
+Leitura implícita (não vira linha na tabela) de LINE/POLYLINE em REDE_MT (vermelha)/REDE_BT (verde) — cor decide, layer confirma —, blocos com "poste" no nome e guias. Cada texto ganha `_geo/_geoTipo/_poste` por proximidade (4× a altura, seguindo a guia). O mapa mostra cabo = linha da rede, estrutura = poste, rede ao fundo opcional. Exige reextrair o DXF.
+
+---
+
 ## 2026-10-27 — TASK-085…090: seis ajustes de usabilidade
 
 **Tipo:** ajustes de UI · `static/resultado_orcamento.html`, `static/resumo.js`, `static/index.html`, `static/script.js`, `static/orcamento.html`, `static/base_grade.js` (novo, rota sem cache em `app.py`)

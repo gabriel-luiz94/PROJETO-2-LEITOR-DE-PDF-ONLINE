@@ -484,3 +484,20 @@ Botão **VINCULAR CABOS** do Resumo:
 - **Outros:** Delete numa linha vazia apaga essa linha e o foco sobe para a anterior. A coluna Entidade fica oculta; use "Exibir ▾" para mostrá-la, ordenar ou agrupar por entidade. Parâmetros do vínculo (`cabo=C`) aparecem como dica ao passar o mouse no Ativo.
 - **Leitor:** a tabela de extração mostra a coluna Layer (depois de Cor).
 - **Base de Orçamento:** seleção estilo Excel (arraste/Shift/Ctrl+A, Ctrl+C, Delete), "+ Linha acima/abaixo" da linha selecionada (sem seleção, no fim), Duplicar, Excluir selecionadas, "↔ Ajustar colunas" e menu do botão direito. Tudo só vale após "Salvar Alterações".
+
+
+## Mapa com a rede e os postes do DXF (Pernambuco)
+
+Ao extrair um DXF, o programa lê sozinho (sem criar linhas na tabela) as linhas da layer REDE_MT (cor vermelha) e REDE_BT (cor verde) e os blocos com "poste" no nome. A **cor decide** MT/BT e a **layer confirma**. A anotação do cabo é ligada à linha mais próxima (até 4× a altura do texto) ou, se houver uma linha-guia saindo do texto, à linha onde a guia termina; a estrutura é ligada ao poste mais próximo. Na aba **Mapa** do vínculo o cabo aparece como a linha da rede, a estrutura como o poste, e as coordenadas surgem ao clicar. Dá para ligar/desligar a rede ao fundo. Arquivos extraídos antes dessa mudança precisam ser extraídos de novo.
+
+
+## Cabos: Fases, Tensão e Nível (TASK-092) e estruturas com fictício opcional (TASK-093)
+
+- Na tabela de Cabos aparecem **Fases**, **Tensão** e **Nível** lidos do texto original (`3xA35P(7,94)-13,8kV 45 m` → 3 · 13,8kV · MT). Sem `Nx` conta 1 fase; MT = tensão acima de 1 kV; sem kV = BT. Dá para editar à mão e ocultar as colunas ("Ocultar Fases/Nível").
+- Na **Tabela de Cabos** (modal de vínculo) uma regra pode filtrar por **Fases**, **Nível** e **Padrão no texto** (regex no texto original). A primeira regra ativa que casa tudo vale.
+- Na **Tabela de Estruturas**: `Mín`/`Máx` definem a faixa de cabos e `Reais` quantos podem ser reais; o excedente entra só como **cabo fictício** (botão direito na estrutura). Exemplo SI3: Mín 1, Máx 2, Reais 1 — um cabo real completa a estrutura; o segundo, se houver, é fictício e não vincula o cabo.
+
+
+## Várias estruturas na mesma linha (TASK-094)
+
+Uma linha de Outros como `9400D, N1, N4` tem um poste e duas estruturas; no modal de vínculo cada uma é um bloco (N1, N4) na mesma linha do poste e recebe seus próprios cabos e cabos fictícios. Poste sem estrutura não aparece (a menos que já tenha cabo ligado); estrutura sem poste aparece sem o card do poste. Vínculos feitos antes continuam valendo (a 1ª estrutura mantém o mesmo identificador). O vínculo automático por script não usa duas estruturas do mesmo poste como as duas pontas de um cabo.
