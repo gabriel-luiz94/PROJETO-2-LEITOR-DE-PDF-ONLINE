@@ -1,0 +1,73 @@
+{
+  "versao": 1,
+  "conflitos": "avisar",
+  "passos": [
+    {
+      "nome": "Cabo M na amarração mais próxima",
+      "modo": "proximidade",
+      "raio_m": 8,
+      "cabos": {
+        "operacao": [
+          "M"
+        ]
+      },
+      "estruturas": {
+        "amarracao": true
+      },
+      "pontas": 1
+    },
+    {
+      "nome": "Cabo I entre as 2 estruturas mais próximas",
+      "modo": "proximidade",
+      "raio_m": 15,
+      "cabos": {
+        "operacao": [
+          "I",
+          "*I"
+        ]
+      },
+      "estruturas": "aceitas",
+      "pontas": 2,
+      "aceitar_parcial": true
+    },
+    {
+      "nome": "Multiplex BT na sequência",
+      "modo": "sequencia",
+      "cabos": {
+        "ativo": "^(RAMA|PB)\\d+$"
+      },
+      "estruturas": {
+        "ativo": "^(B2|R2)$"
+      }
+    },
+    {
+      "nome": "Reserva: cabo M sem coordenada ou fora do raio → sorteia uma amarração",
+      "modo": "aleatorio",
+      "semente": 1,
+      "cabos": {
+        "operacao": [
+          "M"
+        ]
+      },
+      "estruturas": {
+        "amarracao": true
+      },
+      "pontas": 1
+    },
+    {
+      "nome": "Reserva: cabo I sem coordenada, fora do raio ou parcial → completa as pontas por sorteio",
+      "modo": "aleatorio",
+      "semente": 1,
+      "completar": true,
+      "cabos": {
+        "operacao": [
+          "I",
+          "*I"
+        ]
+      },
+      "estruturas": "aceitas",
+      "pontas": 2,
+      "aceitar_parcial": true
+    }
+  ]
+}

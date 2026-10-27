@@ -52,7 +52,7 @@ def test_soltos_numero_e_potencia():
 
 
 def test_tensao_em_qualquer_caixa_e_ignorada():
-    for t in ["3xC35-13,8kV 45 m", "3xC35-13,8KV 45 m", "3xC35-13,8kv 45m", "3xC35 - 13,8 kV 45"]:
+    for t in ["3xC35-13,8kV 45 m", "3xC35-13,8KV 45 m", "3xC35-13,8kv 45m", "3xC35 - 13,8 kV 45", "3XC35-13.8KV 45 M", "3xC35-13.8kV 45m"]:      # vírgula OU ponto decimal na tensão
         assert itens(t)[0] == [("C35", 3, 45.0, False)], t
 
 
@@ -105,7 +105,7 @@ console.log(JSON.stringify(t.map(x => [A.ehNotacao(x), A.interpretar(x), A.fases
 @pytest.mark.skipif(not NODE, reason="node indisponível")
 def test_paridade_python_js_do_modulo():
     rnd = random.Random(83)
-    pecas = ["3x", "1X", "2x", "C ", "", "A35P", "C16", "S1/0", "RAMA25", "PB35", "W2,25", "(7,94)", "(16)", "(S04)", "[C16]", "-13,8kV", "+20kV", "-7,9kV",
+    pecas = ["3x", "1X", "2x", "C ", "", "A35P", "C16", "S1/0", "RAMA25", "PB35", "W2,25", "(7,94)", "(16)", "(S04)", "[C16]", "-13,8kV", "-13.8KV", "+20kV", "-7,9kV",
              " 45 m", " 45m", " 45M", " 12,5", " 8", "16", "x", "(", ")", " ﻿", " ", "  "]
     textos = LINHAS + ["".join(rnd.choice(pecas) for _ in range(rnd.randint(1, 5))) for _ in range(600)]
     r = subprocess.run([NODE, "-e", _JS % {"ac": json.dumps(os.path.join(config.STATIC_DIR, "anotacao_cabos.js"))}], input=json.dumps(textos),
@@ -264,3 +264,12 @@ def test_todo_js_da_pasta_static_e_servido_sem_cache():
         if f.endswith(".js"):
             r = cli.get(f"/static/{f}")
             assert r.status_code == 200 and "no-cache" in r.headers.get("cache-control", "").lower(), f
+
+
+@pytest.mark.skipif(not NODE, reason="node indisponível")
+def test_leitor_pernambuco_cabo_com_tensao_de_ponto_decimal():
+    """3XS1/0-13.8KV 35 M (ponto decimal, tudo em maiúsculas) é CABO, inteiro e em uma linha ou em duas."""
+    for itens_ in ([T("3XS1/0-13.8KV 35 M", layer="01_INSTALANDO")], [T("3XS1/0-13.8KV", layer="01_INSTALANDO"), T("35 M", layer="01_INSTALANDO")], [T("3XS1/0-13.8KV 35 M")]):
+        r = _leitor_pe(itens_)
+        assert r[0]["entidade"] == "CABO" and r[0]["operacao"] == "I" and r[0]["ativo"].upper() == "3XS1/0-13.8KV 35 M", r
+    assert itens("3XS1/0-13.8KV 35 M") == ([("S1/0", 3, 35.0, False)], "13.8", [])

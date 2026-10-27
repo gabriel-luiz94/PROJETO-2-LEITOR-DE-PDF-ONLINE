@@ -6,7 +6,7 @@
 (function (raiz) {
     'use strict';
     const RE_SEPARA = /^(.*\S)\s+(\d+(?:[.,]\d+)?)\s*[mM]?$/;
-    const RE_TENSAO = /\s*[-+]\s*(\d+(?:,\d+)?)\s*KV\s*$/i;
+    const RE_TENSAO = /\s*[-+]\s*(\d+(?:[.,]\d+)?)\s*KV\s*$/i;      // 13,8kV ou 13.8KV
     const RE_SOLTO = /^[(\[]\s*([A-Z]\w*)\s*[)\]]$/;
     const RE_POTENCIA = /^C\s*\d[xX]/;
     const RE_CODIGO = /^(?:(\d)[xX])?([A-Z]{0,4}\d[\dA-Z/,.]*)(?:\(([^)]*)\))?$/;

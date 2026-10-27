@@ -8,6 +8,22 @@
 
 ---
 
+## 2026-10-27 — TASK-099: vínculo por coordenadas com reserva por sorteio
+
+**Tipo:** feature · `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/vinculacao_ui.js`, `data/vinculacao_script_coordenadas_com_sorteio.json`
+
+Passo `aleatorio` (sorteio reproduzível por semente, respeitando as tabelas) e opção `completar` nos scripts de vínculo.
+
+---
+
+## 2026-10-27 — TASK-098: tensão com ponto decimal no cabo (13.8KV)
+
+**Tipo:** correção · `data/regras_leitor_processamento_pernambuco_seed.json`, `routers/regras_leitor.py`, `static/anotacao_cabos.js` ⇄ `services/anotacao_cabos.py`
+
+`3XS1/0-13.8KV 35 M` agora é CABO no Leitor de Pernambuco e na notação do cabo (vírgula ou ponto na tensão). Seed antigo intocado é atualizado sozinho.
+
+---
+
 ## 2026-10-27 — TASK-097: Outros com ativo de nome composto (CE3 PR)
 
 **Tipo:** regra de negócio · `static/anotacao_outros.js` ⇄ `services/anotacao_outros.py`

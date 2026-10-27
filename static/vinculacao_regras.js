@@ -310,7 +310,7 @@
     }
 
     // ── script de vinculação automática (TASK-084, entrega 2) ──────────────────────────────────────────
-    const MODOS_SCRIPT = ['proximidade', 'sequencia'], CONFLITOS_SCRIPT = ['avisar', 'ignorar', 'parar'];
+    const MODOS_SCRIPT = ['proximidade', 'sequencia', 'aleatorio'], CONFLITOS_SCRIPT = ['avisar', 'ignorar', 'parar'];
 
     function regexInvalida(v) {
         if (typeof v !== 'string' || !RE_REGEX.test(v)) return null;
@@ -328,6 +328,8 @@
             if (!MODOS_SCRIPT.includes(p.modo)) erros.push(`${pre}: 'modo' precisa ser um de ${JSON.stringify(MODOS_SCRIPT)}.`);
             if (p.raio_m != null && (typeof p.raio_m !== 'number' || !(p.raio_m > 0))) erros.push(`${pre}: 'raio_m' precisa ser um número > 0.`);
             if (p.pontas != null && (!Number.isInteger(p.pontas) || p.pontas < 1)) erros.push(`${pre}: 'pontas' precisa ser um inteiro >= 1.`);
+            if (p.semente != null && !Number.isInteger(p.semente)) erros.push(`${pre}: 'semente' precisa ser um inteiro.`);
+            ['completar', 'puro', 'aceitar_parcial', 'substituir'].forEach(k => { if (p[k] != null && typeof p[k] !== 'boolean') erros.push(`${pre}: '${k}' precisa ser true ou false.`); });
             if (p.cabos != null) {
                 if (typeof p.cabos !== 'object' || Array.isArray(p.cabos)) erros.push(`${pre}: 'cabos' precisa ser um objeto ({operacao, ativo}).`);
                 else {
@@ -341,6 +343,21 @@
             }
         });
         return erros;
+    }
+
+    // TASK-099: passo "aleatorio" (reserva do vínculo por coordenadas). Sorteio REPRODUZÍVEL: mesma semente + mesmos dados = mesmo resultado (mulberry32, igual em Python).
+    function mulberry32(a) {
+        return () => {
+            a = (a + 0x6D2B79F5) | 0;
+            let t = Math.imul(a ^ (a >>> 15), 1 | a);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+    function embaralhar(lista, rnd) {
+        const l = lista.slice();
+        for (let i = l.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [l[i], l[j]] = [l[j], l[i]]; }
+        return l;
     }
 
     const temXY = r => r._x !== undefined && r._x !== null && r._y !== undefined && r._y !== null;
@@ -385,7 +402,11 @@
                 if (!c.vincula) return;
                 if (ops.length && !ops.includes(c.op) && !opsBase.includes(c.op.replace(/\*/g, ''))) return;
                 if (!casa(fc.ativo, c.codigo)) return;
-                if ((ligados[ic].length || estruturasFicticiasDe(cabos[ic]).length) && !passo.substituir) { r.ja_tinham++; return; }
+                if ((ligados[ic].length || estruturasFicticiasDe(cabos[ic]).length) && !passo.substituir) {
+                    // `completar`: o cabo que ficou com menos pontas do que precisa (ex.: parcial de um passo anterior) volta a ser alvo e só ganha o que falta
+                    const falta = (Number.isInteger(passo.pontas) ? passo.pontas : c.pontas) - estruturasFicticiasDe(cabos[ic]).length - ligados[ic].length;
+                    if (!(passo.completar && falta > 0)) { r.ja_tinham++; return; }
+                }
                 alvo.push(ic);
             });
             r.alvo = alvo.length;
@@ -402,10 +423,16 @@
                 const need = Math.max(0, (Number.isInteger(passo.pontas) ? passo.pontas : c.pontas) - (passo.substituir ? 0 : estruturasFicticiasDe(cabos[ic]).length));
                 const antes = ligados[ic].slice();
                 if (passo.substituir) ligados[ic] = [];
+                const base = ligados[ic].slice(), falta = Math.max(0, need - base.length);          // só ganha o que falta (base vazia, exceto em `completar`)
                 const escolhidas = [], recusas = [];
                 let candidatas;
                 if (passo.modo === 'sequencia') candidatas = candGlobal.slice(pos, pos + need);
-                else {
+                else if (passo.modo === 'aleatorio') {
+                    // sorteio entre as estruturas aceitas; por padrão as com MENOS cabos primeiro (sorteio entre as vazias antes das ocupadas); `puro: true` = sorteio simples
+                    const rnd = mulberry32(((Number.isInteger(passo.semente) ? passo.semente : 1) * 1000003 + ic * 7919 + ip * 104729) >>> 0);
+                    candidatas = embaralhar(candGlobal.filter(ie => !base.includes(ie)), rnd);
+                    if (!passo.puro) candidatas = candidatas.map((ie, k) => [ie, k, ocupantesDe(ie).length]).sort((a, b) => (a[2] - b[2]) || (a[1] - b[1])).map(x => x[0]);
+                } else {
                     if (!temXY(cabos[ic])) {
                         r.sem_candidato++; saida.sem_candidato.push({ passo: ip, cabo: ic, motivo: 'cabo sem coordenada' }); ligados[ic] = antes; continue;
                     }
@@ -413,14 +440,15 @@
                         .sort((a, b) => (dist(cabos[ic], outros[a]) - dist(cabos[ic], outros[b])) || (a - b));
                 }
                 for (const ie of candidatas) {
-                    if (escolhidas.length >= need) break;
+                    if (escolhidas.length >= falta) break;
+                    if (base.includes(ie)) continue;
                     const [ok, motivo] = pode(ic, ie);
-                    if (ok && outros[ie]._linha !== undefined && escolhidas.some(e2 => outros[e2]._linha === outros[ie]._linha)) continue;      // TASK-094: 2 estruturas do mesmo poste não valem como as 2 pontas
+                    if (ok && outros[ie]._linha !== undefined && base.concat(escolhidas).some(e2 => outros[e2]._linha === outros[ie]._linha)) continue;      // TASK-094: 2 estruturas do mesmo poste não valem como as 2 pontas
                     if (ok) { escolhidas.push(ie); ligados[ic].push(ie); } else recusas.push(motivo);
                 }
-                const completo = need > 0 && escolhidas.length === need;
+                const completo = need > 0 && base.length + escolhidas.length === need;
                 if (completo || (escolhidas.length && passo.aceitar_parcial)) {
-                    saida.vinculos.push({ passo: ip, cabo: ic, estruturas: escolhidas.slice(), completo });
+                    saida.vinculos.push({ passo: ip, cabo: ic, estruturas: base.concat(escolhidas), completo });
                     if (completo) r.completos++; else r.parciais++;
                 } else {
                     ligados[ic] = antes;
