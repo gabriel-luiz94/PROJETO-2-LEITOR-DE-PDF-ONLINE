@@ -529,3 +529,8 @@ O Leitor de Pernambuco e a notação do cabo aceitam a tensão com vírgula ou p
 ## Vínculo por coordenadas com reserva por sorteio (TASK-099)
 
 Na aba **Script** do vínculo, o botão **Novo (coordenadas + sorteio)** cria um script com os passos por coordenadas (M na amarração mais próxima, I entre as 2 estruturas mais próximas, multiplex em sequência) e, no fim, dois passos de **reserva**: cabos que as coordenadas não resolveram (sem coordenada, fora do raio ou parciais) são ligados por **sorteio** entre as estruturas que as tabelas aceitam. O sorteio é reproduzível (campo `semente`; mudar a semente muda o sorteio) e prefere estruturas ainda vazias (`"puro": true` desliga). `"completar": true` faz o passo só acrescentar o que falta aos cabos parciais, mantendo o que as coordenadas já ligaram. Confira sempre na **Pré-visualização**: o que vem do sorteio não tem base geométrica.
+
+
+## Cores por TIPO MDO no Resultado (TASK-100)
+
+No REC e na SAP, as linhas de **mão de obra (N / MAO-DE-OBRA)** têm fundo cinza escuro mais escuro e as de **material (M / MATERIAL)** têm cinza escuro mais claro. A cor acompanha o que você edita no TIPO MDO. No modo comparação valem as cores da comparação (verde/amarelo/vermelho/azul).

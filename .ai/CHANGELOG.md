@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-10-27 — TASK-100: cores por TIPO MDO no Resultado
+
+**Tipo:** UI · `static/resultado_orcamento.html`
+
+Mão de obra (N) em cinza escuro mais escuro e material (M) em cinza escuro mais claro, no REC e na SAP.
+
+---
+
 ## 2026-10-27 — TASK-099: vínculo por coordenadas com reserva por sorteio
 
 **Tipo:** feature · `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/vinculacao_ui.js`, `data/vinculacao_script_coordenadas_com_sorteio.json`

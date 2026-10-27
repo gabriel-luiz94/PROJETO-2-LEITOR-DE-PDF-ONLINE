@@ -1039,3 +1039,4 @@ sessão. Alterações: `services/pdf_service.py` (coordenadas `_x`/`_y`), `confi
 - [x] **TASK-097** (pedido de 2026-10-27): Outros: delimitador só ", "; ativo com espaço (CE3 PR) é um item. CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-097-27-10-2026.md`.
 - [x] **TASK-098** (pedido de 2026-10-27): Leitor: cabo com tensão de ponto decimal (`3XS1/0-13.8KV 35 M`) não era reconhecido. CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-098-27-10-2026.md`.
 - [x] **TASK-099** (pedido de 2026-10-27): Script de vínculo por coordenadas com reserva por sorteio (modo `aleatorio`, `completar`). CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-099-27-10-2026.md`.
+- [x] **TASK-100** (pedido de 2026-10-27): Resultado: cor por TIPO MDO (N mais escuro, M mais claro) no REC e na SAP. CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-100-27-10-2026.md`.

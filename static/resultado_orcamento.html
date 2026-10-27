@@ -762,6 +762,10 @@
         .budget-data-table:not(.comparando) .col-ref { display: none; }
         .budget-data-table th.col-ref { text-align: right; width: 110px; }
         .budget-data-table td.col-ref { color: var(--text-secondary); }
+        /* TASK-100: TIPO MDO no REC e na SAP — mão de obra (N) em cinza escuro mais ESCURO, material (M) em cinza escuro mais CLARO. Antes das cores do modo comparação, que prevalecem. */
+        tr[data-mdo="n"] > td { background-color: #16181d; }
+        tr[data-mdo="m"] > td { background-color: #2b2f37; }
+        tr[data-mdo="n"] > td:first-child, tr[data-mdo="m"] > td:first-child { box-shadow: inset 3px 0 0 transparent; }
         tr.cmp-igual td { background: rgba(46, 160, 67, 0.13); }
         tr.cmp-diferente td { background: rgba(210, 153, 34, 0.18); }
         tr.cmp-so-atual td { background: rgba(248, 81, 73, 0.15); }
@@ -2458,6 +2462,21 @@
         });
 
         montarCartoesSap();
+        // TASK-100: pinta as linhas pelo TIPO MDO (N = mão de obra, M = material), no REC e na SAP; acompanha edição, inclusão, remoção e linhas-fantasma
+        (function ligarCoresMdo() {
+            const tipoDe = t => { const r = SAP.rotuloMdo(t); return r === 'M' ? 'm' : (r === 'N' ? 'n' : ''); };
+            const marcar = (tr, texto) => { const t = tipoDe(texto); if (t) { if (tr.dataset.mdo !== t) tr.dataset.mdo = t; } else if (tr.dataset.mdo) delete tr.dataset.mdo; };
+            const pintar = () => {
+                document.querySelectorAll('#resultado-orcamento-tbody > tr').forEach(tr => { if (tr.cells[1]) marcar(tr, tr.cells[1].textContent); });
+                document.querySelectorAll('.sap-table tbody tr').forEach(tr => { const c = tr.querySelector('td[data-campo="mdo"]'); if (c) marcar(tr, c.textContent); });
+            };
+            let agendado = false;
+            const agendar = () => { if (agendado) return; agendado = true; requestAnimationFrame(() => { agendado = false; pintar(); }); };
+            const obs = new MutationObserver(agendar), opcoes = { childList: true, characterData: true, subtree: true };
+            obs.observe(document.getElementById('resultado-orcamento-tbody'), opcoes);
+            document.querySelectorAll('.sap-table tbody').forEach(tb => obs.observe(tb, opcoes));
+            pintar();
+        })();
         document.getElementById('searchInput').addEventListener('input', () => { if (modoVisao === 'sap') aplicarFiltrosSap(); });   // colar/limpar com o mouse também filtra
         let visaoSalva = 'rec';
         try { visaoSalva = localStorage.getItem('orcamento_visao') === 'sap' ? 'sap' : 'rec'; } catch (e) { /* ignora */ }
