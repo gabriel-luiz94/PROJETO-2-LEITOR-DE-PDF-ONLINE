@@ -9,6 +9,7 @@ checagens expõem esses casos antes do cálculo.
 """
 import re
 
+from services.anotacao_cabos import eh_notacao, interpretar as interpretar_cabo
 from services.anotacao_outros import contexto_da_base, interpretar_linha
 from services.orcamento_calc import (
     extrair_ativo_cabo,
@@ -95,6 +96,14 @@ def _validar_linha_cabo(linha, linha_id, achados):
             linha_id, "cabos", "C1-CABO-PARTE", "erro",
             f"'{ativo}' está no formato <qtd>-<ativo> (Outros). Cabos usa [ATIVO] [FASE] [COMPRIMENTO] m.",
         ))
+        return
+
+    if eh_notacao(ativo):                      # TASK-083: notação do LABEL (3xA35P(7,94)-13,8kV 45 m)
+        nr = interpretar_cabo(ativo)
+        for msg in nr["erros"]:
+            achados.append(_achado(linha_id, "cabos", "C1-CABO-NOTACAO", "erro", msg))
+        if not nr["erros"] and nr["itens"] and nr["itens"][0]["comprimento"] is not None and nr["itens"][0]["comprimento"] <= 0:
+            achados.append(_achado(linha_id, "cabos", "C1-QTD-ZERO", "aviso", f"Comprimento zero em '{ativo}': a linha não entra no orçamento."))
         return
 
     tokens = _tokens_cabo_tabela(ativo)

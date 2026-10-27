@@ -431,6 +431,8 @@ provado por `tests/referencia_orcamento_calc_antes_lv.py`).
 
 TASK-081: o texto de Outros pode vir no formato antigo (`2-N3 1-T3`) ou compacto (`11600D, 2 N3, T3`), nunca misturados. `services/anotacao_outros.py` (espelho `static/anotacao_outros.js`) traduz de forma implícita: apelidos da base → nome oficial, poste compacto → `DT11/600`, parâmetro `poste` (forma compacta, ex.: `N3(11600D)`) pelo poste mais próximo à esquerda, e a regra do M/*M (poste ignorado, demais itens `I`/`*I`). O leitor do formato antigo é injetado por quem chama (`orcamento_calc._classico_outros`, `resumo.js _classicoTotalizadora`, `autonomo.totalizadora.classico_totalizadora`). A célula do usuário nunca é reescrita.
 
+TASK-083: a linha de Cabos pode vir no formato antigo (`ATIVO FASE COMPRIMENTO`) ou na notação do LABEL (`3xA35P(7,94)-13,8kV 45 m`); `services/anotacao_cabos.py` (espelho `static/anotacao_cabos.js`) traduz de forma implícita para (cabo × fases + neutro à parte). O cálculo do backend não muda: a Totalizadora já entrega `ATIVO 1 COMPRIMENTO` por ativo.
+
 ### 8.8 Soma por código — RN-09
 ```
 ENTRADA   3 itens resolvidos para o código 1015 (MAO-DE-OBRA):

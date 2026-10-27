@@ -1090,6 +1090,8 @@ function _escapeHtmlRegrasLeitor(u) {
 function _descreverRegraProcessamento(r) {
     const partes = [];
     if (r.cor_em && r.cor_em.length) partes.push(`cor: ${r.cor_em.join('/')}`);
+    if (r.cor_hex_em && r.cor_hex_em.length) partes.push(`cor exata: ${r.cor_hex_em.join('/')}`);
+    if (r.cor_hex_nao_em && r.cor_hex_nao_em.length) partes.push(`cor exata ≠ ${r.cor_hex_nao_em.join('/')}`);
     if (r.layer_em && r.layer_em.length) partes.push(`layer: ${r.layer_em.join('/')}`);
     if (r.texto_regex) partes.push(`texto ~ /${r.texto_regex}/`);
     if (r.ativo_regex) partes.push(`ativo ~ /${r.ativo_regex}/`);
@@ -1111,6 +1113,8 @@ function _descreverRegraClassificacao(r) {
     if (r.operacao_em && r.operacao_em.length) partes.push(`operação: ${r.operacao_em.join('/')}`);
     if (r.cor_em && r.cor_em.length) partes.push(`cor: ${r.cor_em.join('/')}`);
     if (r.cor_nao_em && r.cor_nao_em.length) partes.push(`cor ≠ ${r.cor_nao_em.join('/')}`);
+    if (r.cor_hex_em && r.cor_hex_em.length) partes.push(`cor exata: ${r.cor_hex_em.join('/')}`);
+    if (r.cor_hex_nao_em && r.cor_hex_nao_em.length) partes.push(`cor exata ≠ ${r.cor_hex_nao_em.join('/')}`);
     if (r.layer_em && r.layer_em.length) partes.push(`layer: ${r.layer_em.join('/')}`);
     if (r.ativo_regex) partes.push(`ativo ~ /${r.ativo_regex}/`);
     if (r.texto_regex) partes.push(`texto ~ /${r.texto_regex}/`);
@@ -1506,6 +1510,8 @@ function _formHtmlRegraProcessamento(r) {
         ${_campoHtml('Cor exigida (cor_em) — nenhuma marcada = qualquer cor', _checkboxesCorHtml('rle-cor-em', r.cor_em))}
         ${_campoHtml('Cor excluída (cor_nao_em)', _checkboxesCorHtml('rle-cor-nao-em', r.cor_nao_em))}
         ${_campoHtml('Layers (layer_em) — separados por vírgula, vazio = qualquer layer', `<input id="rle-layer-em" style="${RLE_INPUT_STYLE}" value="${esc((r.layer_em || []).join(', '))}">`)}
+        ${_campoHtml('Cor exata (cor_hex_em) — hex separados por vírgula, ex.: #000000, #000001', `<input id="rle-cor-hex-em" style="${RLE_INPUT_STYLE}" value="${esc((r.cor_hex_em || []).join(', '))}">`)}
+        ${_campoHtml('Cor exata excluída (cor_hex_nao_em)', `<input id="rle-cor-hex-nao-em" style="${RLE_INPUT_STYLE}" value="${esc((r.cor_hex_nao_em || []).join(', '))}">`)}
 
         <div id="rle-campo-texto-regex">
             ${_campoHtml('Texto (regex sobre o texto bruto)', `<input id="rle-texto-regex" style="${RLE_INPUT_STYLE}" value="${esc(r.texto_regex || '')}">`, 'Só usado no modo DEFINIR. Vazio = casa qualquer texto (útil para overrides incondicionais por cor/layer).')}
@@ -1522,6 +1528,7 @@ function _formHtmlRegraProcessamento(r) {
                     <div style="flex:1; display:flex; align-items:flex-end; padding-bottom:10px;">
                         <label style="display:flex; align-items:center; gap:5px; font-size:0.8rem;">
                             <input type="checkbox" id="rle-viz-mesma-pagina" ${!r.vizinhanca || r.vizinhanca.mesma_pagina !== false ? 'checked' : ''}> Só mesma página
+                            <br><input type="checkbox" id="rle-viz-depois" ${r.vizinhanca && r.vizinhanca.direcao === 'DEPOIS' ? 'checked' : ''}> Só os itens seguintes (ex.: comprimento na linha de baixo)
                         </label>
                     </div>
                 </div>
@@ -1566,6 +1573,8 @@ function _formHtmlRegraClassificacao(r) {
         ${_campoHtml('Cor exigida (cor_em) — nenhuma marcada = qualquer cor', _checkboxesCorHtml('rle-cor-em', r.cor_em))}
         ${_campoHtml('Cor excluída (cor_nao_em)', _checkboxesCorHtml('rle-cor-nao-em', r.cor_nao_em))}
         ${_campoHtml('Layers (layer_em) — separados por vírgula, vazio = qualquer layer', `<input id="rle-layer-em" style="${RLE_INPUT_STYLE}" value="${esc((r.layer_em || []).join(', '))}">`)}
+        ${_campoHtml('Cor exata (cor_hex_em) — hex separados por vírgula, ex.: #000000, #000001', `<input id="rle-cor-hex-em" style="${RLE_INPUT_STYLE}" value="${esc((r.cor_hex_em || []).join(', '))}">`)}
+        ${_campoHtml('Cor exata excluída (cor_hex_nao_em)', `<input id="rle-cor-hex-nao-em" style="${RLE_INPUT_STYLE}" value="${esc((r.cor_hex_nao_em || []).join(', '))}">`)}
         ${_campoHtml('Ativo (regex)', `<input id="rle-ativo-regex" style="${RLE_INPUT_STYLE}" value="${esc(r.ativo_regex || '')}">`)}
         ${_campoHtml('Texto bruto (regex)', `<input id="rle-texto-regex" style="${RLE_INPUT_STYLE}" value="${esc(r.texto_regex || '')}">`, 'Ex.: bloquear falso-positivo quando o texto bruto contém uma palavra específica.')}
         ${_campoHtml('Entidade (deixe vazio para não classificar, só controlar o fluxo)', `<input id="rle-entidade" style="${RLE_INPUT_STYLE}" value="${esc(r.entidade || '')}">`)}
@@ -1658,6 +1667,8 @@ function _lerFormularioRegraProcessamento() {
         cor_em: _lerCheckboxesCor('rle-cor-em'),
         cor_nao_em: _lerCheckboxesCor('rle-cor-nao-em'),
         layer_em: layerEmTxt ? layerEmTxt.split(',').map(s => s.trim()).filter(Boolean) : [],
+        cor_hex_em: _lerListaTexto('rle-cor-hex-em'),
+        cor_hex_nao_em: _lerListaTexto('rle-cor-hex-nao-em'),
         texto_regex: document.getElementById('rle-texto-regex').value.trim() || undefined,
         ativo_regex: document.getElementById('rle-ativo-regex').value.trim() || undefined,
         ativo_template: document.getElementById('rle-ativo-template').value,
@@ -1670,11 +1681,19 @@ function _lerFormularioRegraProcessamento() {
             janela: parseInt(document.getElementById('rle-viz-janela').value, 10) || 10,
             mesma_pagina: document.getElementById('rle-viz-mesma-pagina').checked
         };
+        if (document.getElementById('rle-viz-depois').checked) regra.vizinhanca.direcao = 'DEPOIS';
     }
     if (!regra.cor_em.length) delete regra.cor_em;
     if (!regra.cor_nao_em.length) delete regra.cor_nao_em;
     if (!regra.layer_em.length) delete regra.layer_em;
+    if (!regra.cor_hex_em.length) delete regra.cor_hex_em;
+    if (!regra.cor_hex_nao_em.length) delete regra.cor_hex_nao_em;
     return regra;
+}
+
+function _lerListaTexto(id) {
+    const t = document.getElementById(id).value.trim();
+    return t ? t.split(',').map(x => x.trim()).filter(Boolean) : [];
 }
 
 function _lerFormularioRegraClassificacao() {
@@ -1688,6 +1707,8 @@ function _lerFormularioRegraClassificacao() {
         cor_em: _lerCheckboxesCor('rle-cor-em'),
         cor_nao_em: _lerCheckboxesCor('rle-cor-nao-em'),
         layer_em: layerEmTxt ? layerEmTxt.split(',').map(s => s.trim()).filter(Boolean) : [],
+        cor_hex_em: _lerListaTexto('rle-cor-hex-em'),
+        cor_hex_nao_em: _lerListaTexto('rle-cor-hex-nao-em'),
         ativo_regex: document.getElementById('rle-ativo-regex').value.trim() || undefined,
         texto_regex: document.getElementById('rle-texto-regex').value.trim() || undefined,
         entidade: document.getElementById('rle-entidade').value.trim() || undefined,
@@ -1698,6 +1719,8 @@ function _lerFormularioRegraClassificacao() {
     if (!regra.cor_em.length) delete regra.cor_em;
     if (!regra.cor_nao_em.length) delete regra.cor_nao_em;
     if (!regra.layer_em.length) delete regra.layer_em;
+    if (!regra.cor_hex_em.length) delete regra.cor_hex_em;
+    if (!regra.cor_hex_nao_em.length) delete regra.cor_hex_nao_em;
     return regra;
 }
 

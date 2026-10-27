@@ -64,6 +64,15 @@
         });
     }
 
+    // TASK-082: cor EXATA (hex), para separar tons de preto que classificarCor trata como um só (#000000 instalar, #000001 remover).
+    function corHexCasa(hexEm, hexNaoEm, hex) {
+        const h = (hex || '#000000').toLowerCase();
+        const norm = function (l) { return String(l).trim().toLowerCase(); };
+        if (hexNaoEm && hexNaoEm.some(function (x) { return norm(x) === h; })) return false;
+        if (!hexEm || hexEm.length === 0) return true;
+        return hexEm.some(function (x) { return norm(x) === h; });
+    }
+
     function layerCasa(layerEm, layerReal) {
         if (!layerEm || layerEm.length === 0) return true;
         const lr = (layerReal || '').trim().toUpperCase();
@@ -113,6 +122,7 @@
     function _rodarFase(item, regrasFase, estado, textoLimpo) {
         for (const r of regrasFase) {
             if (!corCasa(r.cor_em, item.cor, r.cor_nao_em)) continue;
+            if (!corHexCasa(r.cor_hex_em, r.cor_hex_nao_em, item.cor)) continue;
             if (!layerCasa(r.layer_em, item.layer)) continue;
 
             const modo = r.modo || 'DEFINIR';
@@ -132,7 +142,8 @@
                 let vizValor = null;
                 if (r.vizinhanca && r.vizinhanca.regex) {
                     const janela = r.vizinhanca.janela || 10;
-                    const start = Math.max(0, item.index - janela);
+                    // TASK-082: direcao "DEPOIS" procura só nos itens seguintes (ex.: comprimento na linha de baixo do cabo)
+                    const start = r.vizinhanca.direcao === 'DEPOIS' ? Math.min(item.index + 1, (item.allItems || []).length) : Math.max(0, item.index - janela);
                     const end = Math.min((item.allItems || []).length - 1, item.index + janela);
                     const re = _safeRegex(r.vizinhanca.regex, 'i');
                     if (re) {
@@ -231,6 +242,7 @@
         for (const r of ordenadas) {
             if (r.operacao_em && r.operacao_em.length > 0 && r.operacao_em.indexOf(operacaoFinal) === -1) continue;
             if (!corCasa(r.cor_em, cor, r.cor_nao_em)) continue;
+            if (!corHexCasa(r.cor_hex_em, r.cor_hex_nao_em, cor)) continue;
             if (!layerCasa(r.layer_em, layer)) continue;
             if (r.ativo_regex) {
                 const re = _safeRegex(r.ativo_regex, 'i');
@@ -263,6 +275,7 @@
     const api = {
         classificarCor: classificarCor,
         corCasa: corCasa,
+        corHexCasa: corHexCasa,
         layerCasa: layerCasa,
         limparTexto: limparTexto,
         operacaoPelaCor: operacaoPelaCor,

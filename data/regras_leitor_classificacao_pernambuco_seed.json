@@ -1,0 +1,16 @@
+[
+ {
+  "ordem": 10,
+  "descricao": "Poste compacto",
+  "ativo_regex": "^\\d{4,6}(?:FV|D|R|F)$",
+  "entidade": "POSTE",
+  "parar": true
+ },
+ {
+  "ordem": 20,
+  "descricao": "Cabo (label + comprimento)",
+  "ativo_regex": "\\s\\d+(?:[.,]\\d+)?\\s*m$",
+  "entidade": "CABO",
+  "parar": true
+ }
+]

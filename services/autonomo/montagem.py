@@ -10,6 +10,8 @@ string e `length` em unidades UTF-16.
 """
 import re
 
+from services.anotacao_cabos import eh_notacao, fases_da_linha, prefixo_e_comprimento
+
 from services.autonomo.leitor_js import obter_leitor
 
 _WS = "\t\n\v\f\r                  　﻿"
@@ -41,6 +43,8 @@ def _tokens(ativo_texto: str) -> list:
 def calcular_qtd_ativos(ativo_texto, fase_da_proxima=None) -> int:
     if not ativo_texto or not _trim(ativo_texto):
         return 0
+    if eh_notacao(ativo_texto):                                  # TASK-083: 3xA35P... = 3 ativos
+        return fases_da_linha(ativo_texto)
     tokens = _tokens(ativo_texto)
     prefixo = tokens[0]
     if re.match(r"^M[0-9]", prefixo, re.I) or re.fullmatch(r"M", prefixo, re.I) or re.match(r"^CAZ", prefixo, re.I):
@@ -75,6 +79,8 @@ def calcular_qtd_ativos(ativo_texto, fase_da_proxima=None) -> int:
 def extrair_fase(ativo_texto):
     if not ativo_texto or not _trim(ativo_texto):
         return None
+    if eh_notacao(ativo_texto):                                  # TASK-083
+        return "A" * fases_da_linha(ativo_texto)
     tokens = _tokens(ativo_texto)
     if len(tokens) >= 3:
         return "".join(tokens[1:len(tokens) - 1])
@@ -83,6 +89,8 @@ def extrair_fase(ativo_texto):
 
 def linha_standalone(ativo_texto) -> bool:
     if not ativo_texto or not _trim(ativo_texto):
+        return False
+    if eh_notacao(ativo_texto):                                  # TASK-083: a notação traz fase e comprimento
         return False
     tokens = _tokens(ativo_texto)
     if len(tokens) == 1:
@@ -110,6 +118,9 @@ def prefixo_cabo(ativo_texto):
     vínculo cabo<->estrutura/poste (TASK-036). Mesma normalização de calcular_qtd_ativos/_tokens."""
     if not ativo_texto or not _trim(ativo_texto):
         return None
+    if eh_notacao(ativo_texto):                                  # TASK-083: código do cabo principal
+        pc = prefixo_e_comprimento(ativo_texto)
+        return pc[0] if pc else None
     tokens = _tokens(ativo_texto)
     if len(tokens) < 2:
         return None

@@ -157,7 +157,7 @@ BASE_T = [{"ativo": "DT11/600, 11600D", "desc_ativo": "POSTE 11/600", "component
           {"ativo": "N3=N3(poste=11600D)", "desc_ativo": "N3", "componente": "N3", "projeto": "P1", "codigo": "n3", "desc_codigo": "d"},
           {"ativo": "N3(poste=11600D)", "desc_ativo": "", "componente": "N3.11600D", "projeto": "P1", "codigo": "n3e", "desc_codigo": "d"},
           {"ativo": "T3", "desc_ativo": "T3", "componente": "T3", "projeto": "P1", "codigo": "t3", "desc_codigo": "d"}]
-LINHAS_T = ["11600D, 2 N3, T3", "2 11600D, N3", "0,5 T3, N3", "11600D,N3", "11600D, 1-N3", "2-N3 1-T3", "DT11/600 1-N3", "11600D, *2 N3", "9999X, N3", "N3, T3", "11600D, N3(A)", "11600D, N3(A,11600D)"]
+LINHAS_T = ["11600D, 2 N3, T3", "2 11600D, N3", "0,5 T3, N3", "11600D,N3", "11600D, 1-N3", "2-N3 1-T3", "DT11/600 1-N3", "11600D, *2 N3", "9999X, N3", "N3, T3", "11600D, N3(A)", "11600D, N3(A,11600D)", "11600D", "9300F", "7150FV"]
 
 
 @pytest.mark.skipif(not NODE, reason="node indisponível")
