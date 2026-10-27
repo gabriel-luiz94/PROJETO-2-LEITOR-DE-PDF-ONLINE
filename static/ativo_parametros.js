@@ -6,7 +6,11 @@
  */
 (function (raiz) {
     'use strict';
-    const RE_ID = /^[A-Z0-9_.]+$/, RE_ALT_BASE = /^[A-Z0-9_.%]+$/;
+    // TASK-096: valores aceitam também "/" (cabos como S1/0). O MESMO nome pode se repetir (N4(cabo, cabo) = dois cabos): a repetição k vira CABO#k por dentro e, na tela, de novo CABO.
+    const RE_ID = /^[A-Z0-9_.]+$/, RE_VAL = /^[A-Z0-9_./]+$/, RE_ALT_BASE = /^[A-Z0-9_.%/]+$/;
+    const nomeTela = n => String(n).replace(/#\d+$/, '');
+    const nomeRepetido = (vistos, nome) => { vistos[nome] = (vistos[nome] || 0) + 1; return vistos[nome] > 1 ? `${nome}#${vistos[nome]}` : nome; };
+    const familia = n => String(n).replace(/#\d+$/, '');
     const norm = t => String(t == null ? '' : t).replace(/\s+/g, '').toUpperCase();
     const cont = (s, c) => s.split(c).length - 1;
 
@@ -67,7 +71,7 @@
         if (nome !== null && !RE_ID.test(nome)) return [p, `'${nome}' inválido (use letras, números, _ e .)`];
         if (valor === null) return [p, null];
         const alts = modo === 'grupo' ? valor.split('|') : [valor];
-        const rx = modo === 'grupo' ? RE_ALT_BASE : RE_ID;
+        const rx = modo === 'grupo' ? RE_ALT_BASE : RE_VAL;
         for (const a of alts) if (!rx.test(a)) return [p, `'${a}' inválido (use letras, números, _ e .${modo === 'grupo' ? ' ; no grupo da base também % e |' : ''})`];
         p.alts = alts;
         return [p, null];
@@ -92,7 +96,7 @@
         if (!original.endsWith(')') || cont(original, '(') !== 1 || cont(original, ')') !== 1) { r.erro = 'parênteses mal formados'; return r; }
         const corpo = original.slice(i + 1, -1);
         if (!corpo.trim()) { r.erro = 'parênteses vazios'; return r; }
-        const vistos = new Set();
+        const vistos = {};
         for (let item of corpo.split(',')) {
             item = norm(item);
             if (!item) { r.erro = 'parâmetro vazio'; return r; }
@@ -100,10 +104,7 @@
             if (erro) { r.erro = erro; return r; }
             if (p.nome === '') { r.erro = 'nome do parâmetro vazio'; return r; }
             if (p.nome !== null && p.valor === '') { r.erro = `parâmetro ${p.nome} sem valor`; return r; }
-            if (p.nome !== null) {
-                if (vistos.has(p.nome)) { r.erro = `parâmetro ${p.nome} repetido`; return r; }
-                vistos.add(p.nome);
-            }
+            if (p.nome !== null) p.nome = nomeRepetido(vistos, p.nome);
             r.params.push(p);
         }
         return r;
@@ -120,14 +121,13 @@
         if (dir.slice(0, j).trim().toUpperCase() !== esq) { r.erro = `declaração com nomes diferentes (${esq} = ${dir.slice(0, j).trim().toUpperCase()})`; return r; }
         const corpo = dir.slice(j + 1, -1);
         if (!corpo.trim()) { r.erro = 'parênteses vazios'; return r; }
-        const vistos = new Set();
+        const vistos = {};
         for (let item of corpo.split(',')) {
             item = norm(item);
             if (!item) { r.erro = 'parâmetro vazio'; return r; }
             const [p, erro] = itemDe(item, 'declaracao');
             if (erro) { r.erro = erro; return r; }
-            if (vistos.has(p.nome)) { r.erro = `parâmetro ${p.nome} repetido`; return r; }
-            vistos.add(p.nome);
+            p.nome = nomeRepetido(vistos, p.nome);
             r.params.push(p);
         }
         return r;
@@ -211,9 +211,9 @@
         for (const p of a.params) {
             if (p.nome === null) {
                 while (pos < nomes.length && nomes[pos] in dados) pos++;
-                if (pos >= nomes.length) { r.erros.push(`parâmetros demais para ${a.base} (esperado: ${nomes.join(', ')})`); continue; }
+                if (pos >= nomes.length) { r.erros.push(`parâmetros demais para ${a.base} (esperado: ${nomes.map(nomeTela).join(', ')})`); continue; }
                 dados[nomes[pos]] = p.valor; pos++;
-            } else if (!nomes.includes(p.nome)) r.erros.push(`parâmetro ${p.nome} desconhecido em ${a.base} (existem: ${nomes.join(', ')})`);
+            } else if (!nomes.includes(p.nome)) r.erros.push(`parâmetro ${nomeTela(p.nome)} desconhecido em ${a.base} (existem: ${nomes.map(nomeTela).join(', ')})`);
             else if (p.nome in dados) r.erros.push(`parâmetro ${p.nome} repetido`);
             else dados[p.nome] = p.valor;
         }
@@ -221,21 +221,38 @@
         for (const n of nomes) {
             if (n in dados) {
                 if (sig.fechados.includes(n)) {
-                    const exatos = sig.valores[n] || [], mascaras = sig.mascaras[n] || [];
-                    if (!exatos.includes(dados[n]) && !mascaras.some(m => casarPadrao(m, dados[n]))) r.erros.push(`${n}=${dados[n]} não cadastrado em ${a.base} (existem: ${exatos.concat(mascaras).join(', ')})`);
+                    const uniao = obj => { const irmaos = nomes.filter(x => familia(x) === familia(n)); return irmaos.length > 1 ? [].concat(...irmaos.map(x => obj[x] || [])) : (obj[n] || []); };      // parâmetro repetido: vale o que qualquer irmão aceita (a ordem não importa)
+                    const exatos = uniao(sig.valores), mascaras = uniao(sig.mascaras);
+                    if (!exatos.includes(dados[n]) && !mascaras.some(m => casarPadrao(m, dados[n]))) r.erros.push(`${nomeTela(n)}=${dados[n]} não cadastrado em ${a.base} (existem: ${exatos.concat(mascaras).join(', ')})`);
                 }
             } else r.faltando.push(n);
         }
         for (const n of nomes) if (n in dados) r.params[n] = dados[n];
         if (!r.faltando.length) r.texto = `${a.base}(${nomes.map(n => dados[n]).join(',')})`;
-        else if (Object.keys(dados).length) r.texto = `${a.base}(${nomes.filter(n => n in dados).map(n => n + '=' + dados[n]).join(',')})`;
+        else if (Object.keys(dados).length) r.texto = `${a.base}(${nomes.filter(n => n in dados).map(n => nomeTela(n) + '=' + dados[n]).join(',')})`;
         return r;
     }
 
     /** O grupo vale para o pedido? Grupo comum ({}) sempre; cada parâmetro do grupo precisa existir no pedido e satisfazer a restrição. */
     function linhaVale(paramsLinha, paramsPedido) {
-        for (const nome of Object.keys(paramsLinha || {})) {
-            if (!(nome in (paramsPedido || {})) || !restricaoVale(paramsLinha[nome], paramsPedido[nome])) return false;
+        const fam = {};
+        for (const nome of Object.keys(paramsLinha || {})) (fam[familia(nome)] || (fam[familia(nome)] = [])).push(nome);
+        for (const f of Object.keys(fam)) {
+            const restr = fam[f].map(n => paramsLinha[n]);
+            const valores = Object.keys(paramsPedido || {}).filter(n => familia(n) === f).map(n => paramsPedido[n]);
+            if (valores.length < restr.length) return false;
+            // a ordem não importa: cada restrição do grupo precisa de um valor DIFERENTE do pedido (ex.: cabo=%A%, cabo=%C% x cabo=C16, cabo=A35P)
+            const usados = new Set(), cabe = i => {
+                if (i === restr.length) return true;
+                for (let j = 0; j < valores.length; j++) {
+                    if (usados.has(j) || !restricaoVale(restr[i], valores[j])) continue;
+                    usados.add(j);
+                    if (cabe(i + 1)) return true;
+                    usados.delete(j);
+                }
+                return false;
+            };
+            if (!cabe(0)) return false;
         }
         return true;
     }
@@ -277,7 +294,7 @@
         return saida;
     }
 
-    const api = { separarApelidos, apelidosDoProjeto, nomeBase, analisarAtivo, analisarDeclaracao, analisarCelulaBase, restricoesDoGrupo, casarPadrao, restricaoVale, montarAssinaturas, resolverPedido, linhaVale, dividirTokens, assinaturasDoProjeto };
+    const api = { nomeTela, separarApelidos, apelidosDoProjeto, nomeBase, analisarAtivo, analisarDeclaracao, analisarCelulaBase, restricoesDoGrupo, casarPadrao, restricaoVale, montarAssinaturas, resolverPedido, linhaVale, dividirTokens, assinaturasDoProjeto };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.AtivoParametros = api;
 })(typeof window !== 'undefined' ? window : globalThis);

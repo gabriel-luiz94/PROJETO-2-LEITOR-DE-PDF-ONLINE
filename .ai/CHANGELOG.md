@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-10-27 — TASK-096: parâmetros repetidos na estrutura (N4 com dois cabos)
+
+**Tipo:** regra de negócio · `static/ativo_parametros.js` ⇄ `services/ativo_parametros.py`, `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/anotacao_outros.js` ⇄ `services/anotacao_outros.py`, `static/vinculacao_ui.js`, `static/resumo.js`, `services/autonomo/totalizadora.py`, `data/vinculacao_pernambuco_seed.json`
+
+O mesmo nome de parâmetro pode se repetir (N4(cabo, cabo)); a estrutura recebe um valor por cabo vinculado (ativo do cabo ou tipo), por estrutura da linha. Valores aceitam `/`.
+
+---
+
 ## 2026-10-27 — TASK-095: vínculo só com I/M e estruturas fictícias no cabo
 
 **Tipo:** regra de negócio · `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/vinculacao_ui.js`, `static/resumo.js`, `services/autonomo/vinculacao.py`

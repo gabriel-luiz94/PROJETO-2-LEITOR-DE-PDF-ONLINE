@@ -126,21 +126,23 @@ def _qtd(txt):
     return -v if neg else v
 
 
-def _com_param(ativo, nome, valor, assinaturas):
-    """Acrescenta ``NOME=valor`` ao pedido quando a assinatura tem o parâmetro e o pedido não o informou (``N1`` ou ``N1(A)``)."""
+def _com_param(ativo, nome, valor, assinaturas, k=0):
+    """Acrescenta ``NOME=valor`` ao pedido quando a assinatura tem o parâmetro e o pedido não o informou (``N1`` ou ``N1(A)``).
+    ``k`` (TASK-096) = a repetição do parâmetro (0 = o 1º ``cabo``, 1 = o 2º ``cabo``…)."""
     i = ativo.find("(")
     base = ativo[:i] if i != -1 else ativo
     sig = assinaturas.get(base)
-    if not sig or nome not in sig["nomes"]:
+    alvo = nome if not k else f"{nome}#{k + 1}"
+    if not sig or alvo not in sig["nomes"]:
         return ativo
     if i == -1:
         return f"{ativo}({nome}={valor})"
     if not ativo.endswith(")"):
         return ativo
     itens = [x.strip() for x in ativo[i + 1:-1].split(",") if x.strip()]
-    if any(x.upper().startswith(nome + "=") for x in itens):
+    if sum(1 for x in itens if x.upper().startswith(nome + "=")) > k:
         return ativo
-    if not any("=" in x for x in itens) and len(itens) > sig["nomes"].index(nome):
+    if not any("=" in x for x in itens) and len(itens) > sig["nomes"].index(alvo):
         return ativo                                                  # pedido posicional que já traz o parâmetro
     return f"{ativo[:-1]},{nome}={valor})"
 
@@ -216,13 +218,15 @@ def interpretar_linha(texto, operacao, classico, ctx=None) -> dict:
     # parâmetro poste: o poste mais próximo à esquerda
     assinaturas = (ctx or {}).get("assinaturas") or {}
     parametros_linha = (ctx or {}).get("parametros_linha") or {}
+    parametros_estrutura = (ctx or {}).get("parametros_estrutura") or {}        # TASK-096: por estrutura da linha (N1 e N4 não se misturam)
     poste_atual = None
     for it in itens:
         if eh_poste(it["ativo"]):
             poste_atual = poste_para_compacto(it["ativo"])
         else:
-            for nome, valor in parametros_linha.items():          # TASK-084: parâmetro que a estrutura recebe do vínculo (ex.: CABO=C)
-                it["ativo"] = _com_param(it["ativo"], nome, valor, assinaturas)
+            for nome, valor in (parametros_estrutura.get(nome_base(it["ativo"])) or parametros_linha).items():          # TASK-084: parâmetro que a estrutura recebe do vínculo (ex.: CABO=C); TASK-096: lista = um valor por repetição
+                for k, v in enumerate(valor if isinstance(valor, list) else [valor]):
+                    it["ativo"] = _com_param(it["ativo"], nome, v, assinaturas, k)
             if poste_atual:
                 it["ativo"] = _com_param(it["ativo"], "POSTE", poste_atual, assinaturas)
     # operação M/*M: poste ignorado, demais itens I/*I

@@ -507,3 +507,10 @@ Uma linha de Outros como `9400D, N1, N4` tem um poste e duas estruturas; no moda
 
 - Só entram no vínculo cabos e estruturas de operação **I, M, \*I e \*M**. Linhas **R** e **\*R** não aparecem no modal de vínculo, não contam como cabo/estrutura e não geram itens `CABO_ESTRUTURA` na Totalizadora.
 - No modal, **botão direito no cabo → Estrutura fictícia**: escolhe uma estrutura (ou digita o código) para ocupar uma ponta do cabo sem existir uma linha em Outros. A estrutura precisa ser aceita pelas regras do cabo; ela segue para a Totalizadora como `CABO_ESTRUTURA`.
+
+
+## Estrutura com dois cabos nos parâmetros (TASK-096)
+
+- Na **Base de Orçamento** o mesmo parâmetro pode aparecer mais de uma vez: declaração `N4=N4(cabo, cabo)` e grupos como `N4(cabo=%A35P%, cabo=%C16%)`. A **ordem não importa**. Valores podem ter `/` (`S1/0`).
+- Na **Tabela de Estruturas** (modal de vínculo) a coluna **Parâmetros (vários)** diz de onde vem cada valor: `cabo=ativo, cabo=ativo` (código do cabo, sem 3x e sem tensão), ou `tipocabo=valor_cabo` (tipo da regra do cabo). A 1ª ocorrência recebe o 1º cabo vinculado e a 2ª o 2º; cabos iguais repetem o valor. Com só um cabo, só o primeiro é preenchido e a estrutura fica pendente.
+- Em uma linha `9400D, N1, N4` cada estrutura recebe só os parâmetros dela. Pernambuco: N4, B4-MT, CE4 e U4 já vêm configuradas no ponto de partida (configurações já salvas precisam ser ajustadas na tabela).

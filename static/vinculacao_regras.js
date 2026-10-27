@@ -84,10 +84,24 @@
             op: trim(operacao).toUpperCase(), base, fases: extra ? extra.fases : null, nivel: extra ? extra.nivel : null };
     }
 
+    // TASK-096: parâmetros da estrutura com FONTE por cabo vinculado: "cabo=ativo, cabo=ativo, tipocabo=valor_cabo" (ativo = código do cabo sem 3x/tensão; valor_cabo = tipo da regra do cabo).
+    // O mesmo nome pode se repetir: a n-ésima ocorrência de um nome recebe o n-ésimo cabo (a ordem dos cabos não importa para o orçamento).
+    const FONTES_PARAMETRO = ['ativo', 'valor_cabo'];
+    function normalizarParametros(v) {
+        if (v == null || v === '') return null;
+        const itens = Array.isArray(v) ? v : String(v).split(',');
+        const lista = itens.map(x => {
+            if (x && typeof x === 'object') return { nome: trim(x.nome).toUpperCase(), fonte: trim(x.fonte).toLowerCase() || 'ativo' };
+            const [n, f] = String(x).split('=');
+            return { nome: trim(n).toUpperCase(), fonte: trim(f).toLowerCase() || 'ativo' };
+        }).filter(x => x.nome);
+        return lista.length ? lista : null;
+    }
+
     function infoEstrutura(codigo, cfg) {
         const cod = trim(codigo).toUpperCase();
         const [i, r] = cod ? primeira(cfg.estruturas, 'padrao', cod) : [null, null];
-        const d = { codigo: cod, regra: i, qtd: null, qtd_min: null, max_reais: null, lados: 'LIVRE', amarracao: false, aceita_i: true, cabos: null, parametro: 'CABO', se_diferem: 'MAIOR' };
+        const d = { codigo: cod, regra: i, qtd: null, qtd_min: null, max_reais: null, parametros: null, lados: 'LIVRE', amarracao: false, aceita_i: true, cabos: null, parametro: 'CABO', se_diferem: 'MAIOR' };
         if (r) {
             // TASK-093: qtd_cabos fixo (min = max) OU faixa qtd_min..qtd_max; max_reais = quantos podem ser cabos REAIS (o excedente só entra como fictício, ex.: SI3 = 1 real + 1 fictício opcional)
             d.qtd = Number.isInteger(r.qtd_max) ? r.qtd_max : (Number.isInteger(r.qtd_cabos) ? r.qtd_cabos : null);
@@ -98,6 +112,8 @@
             d.aceita_i = r.aceita_i !== false;
             d.cabos = r.cabos === undefined ? null : r.cabos;
             d.parametro = r.parametro === '' ? '' : (trim(r.parametro) || 'cabo').toUpperCase();
+            d.parametros = normalizarParametros(r.parametros);
+            if (d.parametros) d.parametro = '';          // a lista substitui o parâmetro único
             d.se_diferem = SE_DIFEREM.includes(r.se_diferem) ? r.se_diferem : 'MAIOR';
         }
         return d;
@@ -223,7 +239,16 @@
             }
             let estado;
             if (erros.length) estado = 'rd'; else if (tem === 0) estado = 'k'; else if (e.qtd_min !== null && tem < e.qtd_min) estado = 'pu'; else estado = 'gr';
-            resE[ie] = { estado, tem, precisa: e.qtd_min, maximo: e.qtd, valor_cabo: valor, erros, avisos, codigo: e.codigo, regra: e.regra, ficticios: fict.length, parametro: e.parametro };
+            let parametros = null;
+            if (e.parametros) {          // TASK-096: um valor por cabo vinculado (reais e fictícios), na ordem dos ocupantes
+                const cont = {};
+                e.parametros.forEach(({ nome, fonte }) => {
+                    const o = ocupantes[cont[nome] || 0]; cont[nome] = (cont[nome] || 0) + 1;
+                    const v = o ? (fonte === 'valor_cabo' ? o.info.valor_cabo : o.info.codigo) : null;
+                    if (v) (parametros = parametros || {})[nome] = ((parametros || {})[nome] || []).concat([v]);
+                });
+            }
+            resE[ie] = { estado, tem, precisa: e.qtd_min, maximo: e.qtd, valor_cabo: valor, erros, avisos, codigo: e.codigo, regra: e.regra, ficticios: fict.length, parametro: e.parametro, parametros };
         });
         const resC = {};
         Object.keys(infoC).forEach(k => {
@@ -245,6 +270,20 @@
         Object.keys(a.estruturas).sort((x, y) => x - y).forEach(k => {
             const r = a.estruturas[k], linha = linhaDe(Number(k));
             if (r.valor_cabo && r.parametro && !(linha in saida)) saida[linha] = { [r.parametro]: r.valor_cabo };       // várias estruturas na linha: vale a 1ª que tem valor
+            else if (r.parametros && !(linha in saida)) saida[linha] = Object.assign({}, r.parametros);
+        });
+        return saida;
+    }
+
+    /** TASK-096: {linha: {CODIGO_DA_ESTRUTURA: {NOME: valor | [valores]}}} — cada estrutura da linha recebe SÓ os parâmetros dela (N1 e N4 do mesmo poste não se misturam). */
+    function parametrosPorEstrutura(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn) {
+        const a = analisar(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn), saida = {};
+        Object.keys(a.estruturas).sort((x, y) => x - y).forEach(k => {
+            const r = a.estruturas[k], linha = linhaDe(Number(k));
+            const params = r.parametros || (r.valor_cabo && r.parametro ? { [r.parametro]: r.valor_cabo } : null);
+            if (!params) return;
+            const porCodigo = saida[linha] || (saida[linha] = {});
+            if (!(r.codigo in porCodigo)) porCodigo[r.codigo] = params;
         });
         return saida;
     }
@@ -417,6 +456,10 @@
                     if (r.qtd_cabos != null && (!Number.isInteger(r.qtd_cabos) || r.qtd_cabos < 1)) erros.push(`${p}: 'qtd_cabos' precisa ser um inteiro >= 1.`);
                     ['qtd_min', 'qtd_max', 'max_reais'].forEach(k => { if (r[k] != null && (!Number.isInteger(r[k]) || r[k] < 1)) erros.push(`${p}: '${k}' precisa ser um inteiro >= 1.`); });
                     if (Number.isInteger(r.qtd_min) && Number.isInteger(r.qtd_max) && r.qtd_min > r.qtd_max) erros.push(`${p}: 'qtd_min' não pode ser maior que 'qtd_max'.`);
+                    if (r.parametros != null && r.parametros !== '') {
+                        const np = normalizarParametros(r.parametros), brutos = Array.isArray(r.parametros) ? r.parametros.length : String(r.parametros).split(',').length;
+                        if (!np || np.length !== brutos || np.some(x => !/^[A-Z0-9_.]+$/.test(x.nome) || !FONTES_PARAMETRO.includes(x.fonte))) erros.push(`${p}: 'parametros' precisa ser uma lista como "cabo=ativo, cabo=ativo, tipocabo=valor_cabo" (fonte: ativo ou valor_cabo).`);
+                    }
                     if (r.lados != null && !['IGUAIS', 'LIVRE'].includes(r.lados)) erros.push(`${p}: 'lados' precisa ser IGUAIS ou LIVRE.`);
                     if (r.se_diferem != null && !SE_DIFEREM.includes(r.se_diferem)) erros.push(`${p}: 'se_diferem' precisa ser um de ${JSON.stringify(SE_DIFEREM)}.`);
                 } else {
@@ -430,7 +473,7 @@
         return erros;
     }
 
-    const api = { participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);

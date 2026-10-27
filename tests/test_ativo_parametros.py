@@ -37,7 +37,7 @@ def test_analisar_formas():
     assert ap.analisar_celula_base("N1=N1(cabo, poste)")["params"] == [{"nome": "CABO", "op": "=", "valor": None, "alts": []}, {"nome": "POSTE", "op": "=", "valor": None, "alts": []}]
     assert ap.analisar_celula_base("N1(cabo=XLPE)")["tipo"] == "grupo"
     assert ap.analisar_celula_base("DT9/150") == {"texto": "DT9/150", "base": "DT9/150", "tipo": "simples", "params": [], "erro": None, "apelidos": []}
-    for ruim in ["N1(XL-PE)", "N1()", "N1(cabo=)", "N1(", "N1=X1(a=b)", "N1=N1", "N1(a=1,a=2)", ""]:
+    for ruim in ["N1(XL-PE)", "N1()", "N1(cabo=)", "N1(", "N1=X1(a=b)", "N1=N1", ""]:
         assert ap.analisar_celula_base(ruim)["erro"], ruim
 
 
@@ -182,7 +182,7 @@ BASE80 = ["N1=N1(cabo=XLPE, poste=DT)", "N1", "N1(cabo=XLPE)", "N1(cabo=ALUM|COB
           "N1(cabo!=XLPE, poste=D%)"]
 TEXTOS80 = TEXTOS + ["N1(ALUM,D12)", "N1(COBRE,CC)", "N1(XLPE,CC)", "N1(ALUM,XX)", "N1(poste=D%)", "N1(cabo!=XLPE)", "N1(A|B)", "N1(ALUM,D12,Z)", "N1(poste=cc, cabo=cobre)"]
 CELULAS80 = CELULAS + ["N1(poste=D%)", "N1(cabo=ALUM|COBRE)", "N1(cabo!=XLPE, poste=D%)", "N1(cabo!=ALUM|COBRE)", "N1(poste=%CC%)", "N1(poste=%)", "N1(cabo=A||B)",
-                       "N1(cabo=A B)", "N1=N1(cabo=ALUM|COBRE)", "N1=N1(cabo=D%)", "N1=N1(cabo!=X)", "N1(cabo!=)", "N1(!=X)", "N1(poste=D%,poste=C%)", "N1(cabo=X%Y%Z)"]
+                       "N1(cabo=A B)", "N1=N1(cabo=ALUM|COBRE)", "N1=N1(cabo=D%)", "N1=N1(cabo!=X)", "N1(cabo!=)", "N1(!=X)", "N1(cabo=X%Y%Z)"]
 
 
 def test_analisar_operadores_so_na_base():
@@ -193,7 +193,7 @@ def test_analisar_operadores_so_na_base():
         assert "só valem nos grupos da base" in ap.analisar_ativo(pedido)["erro"], pedido
     for decl in ["N1=N1(cabo=ALUM|COBRE)", "N1=N1(cabo=D%)", "N1=N1(cabo!=X)"]:
         assert ap.analisar_celula_base(decl)["erro"], decl
-    for ruim in ["N1(cabo=A||B)", "N1(cabo!=)", "N1(!=X)", "N1(poste=D%,poste=C%)"]:
+    for ruim in ["N1(cabo=A||B)", "N1(cabo!=)", "N1(!=X)"]:
         assert ap.analisar_celula_base(ruim)["erro"], ruim
     assert ap.analisar_celula_base("N1(poste=%CC%)")["erro"] is None and ap.analisar_celula_base("N1(poste=%)")["erro"] is None
 

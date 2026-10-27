@@ -23,8 +23,23 @@ Este arquivo tem a MESMA lógica de static/ativo_parametros.js (paridade testada
 """
 import re
 
+# TASK-096: valores aceitam também "/" (cabos como S1/0). O MESMO nome pode se repetir (N4(cabo, cabo) = dois cabos): a repetição k vira CABO#k por dentro e, na tela, de novo CABO.
 _RE_ID = re.compile(r"^[A-Z0-9_.]+$")
-_RE_ALT_BASE = re.compile(r"^[A-Z0-9_.%]+$")
+_RE_VAL = re.compile(r"^[A-Z0-9_./]+$")
+_RE_ALT_BASE = re.compile(r"^[A-Z0-9_.%/]+$")
+_RE_REPETIDO = re.compile(r"#\d+$")
+
+
+def nome_tela(n) -> str:
+    return _RE_REPETIDO.sub("", str(n))
+
+
+_familia = nome_tela
+
+
+def _nome_repetido(vistos, nome) -> str:
+    vistos[nome] = vistos.get(nome, 0) + 1
+    return f"{nome}#{vistos[nome]}" if vistos[nome] > 1 else nome
 
 
 def _norm(txt) -> str:
@@ -107,7 +122,7 @@ def _item(item, modo):
     if valor is None:
         return p, None
     alts = valor.split("|") if modo == "grupo" else [valor]
-    regex = _RE_ALT_BASE if modo == "grupo" else _RE_ID
+    regex = _RE_ALT_BASE if modo == "grupo" else _RE_VAL
     for a in alts:
         if not regex.match(a):
             return p, f"'{a}' inválido (use letras, números, _ e .{' ; no grupo da base também % e |' if modo == 'grupo' else ''})"
@@ -151,7 +166,7 @@ def analisar_ativo(texto, modo_base=False) -> dict:
     if not corpo.strip():
         r["erro"] = "parênteses vazios"
         return r
-    vistos = set()
+    vistos = {}
     for item in corpo.split(","):
         item = _norm(item)
         if not item:
@@ -168,10 +183,7 @@ def analisar_ativo(texto, modo_base=False) -> dict:
             r["erro"] = f"parâmetro {p['nome']} sem valor"
             return r
         if p["nome"] is not None:
-            if p["nome"] in vistos:
-                r["erro"] = f"parâmetro {p['nome']} repetido"
-                return r
-            vistos.add(p["nome"])
+            p["nome"] = _nome_repetido(vistos, p["nome"])
         r["params"].append(p)
     return r
 
@@ -196,7 +208,7 @@ def analisar_declaracao(texto) -> dict:
     if not corpo.strip():
         r["erro"] = "parênteses vazios"
         return r
-    vistos = set()
+    vistos = {}
     for item in corpo.split(","):
         item = _norm(item)
         if not item:
@@ -206,10 +218,7 @@ def analisar_declaracao(texto) -> dict:
         if erro:
             r["erro"] = erro
             return r
-        if p["nome"] in vistos:
-            r["erro"] = f"parâmetro {p['nome']} repetido"
-            return r
-        vistos.add(p["nome"])
+        p["nome"] = _nome_repetido(vistos, p["nome"])
         r["params"].append(p)
     return r
 
@@ -315,13 +324,13 @@ def resolver_pedido(texto, assinaturas) -> dict:
             while pos < len(nomes) and nomes[pos] in dados:
                 pos += 1
             if pos >= len(nomes):
-                r["erros"].append(f"parâmetros demais para {a['base']} (esperado: {', '.join(nomes)})")
+                r["erros"].append(f"parâmetros demais para {a['base']} (esperado: {', '.join(nome_tela(n) for n in nomes)})")
                 continue
             dados[nomes[pos]] = p["valor"]
             pos += 1
         else:
             if p["nome"] not in nomes:
-                r["erros"].append(f"parâmetro {p['nome']} desconhecido em {a['base']} (existem: {', '.join(nomes)})")
+                r["erros"].append(f"parâmetro {nome_tela(p['nome'])} desconhecido em {a['base']} (existem: {', '.join(nome_tela(n) for n in nomes)})")
             elif p["nome"] in dados:
                 r["erros"].append(f"parâmetro {p['nome']} repetido")
             else:
@@ -332,24 +341,47 @@ def resolver_pedido(texto, assinaturas) -> dict:
     for n in nomes:
         if n in dados:
             if n in sig["fechados"]:
-                exatos, mascaras = sig["valores"].get(n, []), sig["mascaras"].get(n, [])
+                irmaos = [x for x in nomes if _familia(x) == _familia(n)]          # parâmetro repetido: vale o que qualquer irmão aceita (a ordem não importa)
+                exatos = [v for x in irmaos for v in sig["valores"].get(x, [])] if len(irmaos) > 1 else sig["valores"].get(n, [])
+                mascaras = [v for x in irmaos for v in sig["mascaras"].get(x, [])] if len(irmaos) > 1 else sig["mascaras"].get(n, [])
                 if dados[n] not in exatos and not any(casar_padrao(m, dados[n]) for m in mascaras):
-                    r["erros"].append(f"{n}={dados[n]} não cadastrado em {a['base']} (existem: {', '.join(exatos + mascaras)})")
+                    r["erros"].append(f"{nome_tela(n)}={dados[n]} não cadastrado em {a['base']} (existem: {', '.join(exatos + mascaras)})")
         else:
             r["faltando"].append(n)
     r["params"] = {n: dados[n] for n in nomes if n in dados}
     if not r["faltando"]:
         r["texto"] = f"{a['base']}({','.join(dados[n] for n in nomes)})"
     elif dados:
-        r["texto"] = f"{a['base']}({','.join(n + '=' + dados[n] for n in nomes if n in dados)})"
+        r["texto"] = f"{a['base']}({','.join(nome_tela(n) + '=' + dados[n] for n in nomes if n in dados)})"
     return r
 
 
 def linha_vale(params_linha, params_pedido) -> bool:
     """O grupo da base vale para o pedido? Grupo comum ({}) sempre; cada parâmetro do grupo precisa existir no pedido e satisfazer a
     restrição (texto simples = igualdade; {"op","alts"} = lista/curinga/exceto)."""
-    for nome, restricao in (params_linha or {}).items():
-        if nome not in (params_pedido or {}) or not restricao_vale(restricao, params_pedido[nome]):
+    fam = {}
+    for nome in (params_linha or {}):
+        fam.setdefault(_familia(nome), []).append(nome)
+    for f, nomes in fam.items():
+        restr = [params_linha[n] for n in nomes]
+        valores = [v for n, v in (params_pedido or {}).items() if _familia(n) == f]
+        if len(valores) < len(restr):
+            return False
+        # a ordem não importa: cada restrição do grupo precisa de um valor DIFERENTE do pedido (ex.: cabo=%A%, cabo=%C% x cabo=C16, cabo=A35P)
+        usados = set()
+
+        def cabe(i):
+            if i == len(restr):
+                return True
+            for j, v in enumerate(valores):
+                if j in usados or not restricao_vale(restr[i], v):
+                    continue
+                usados.add(j)
+                if cabe(i + 1):
+                    return True
+                usados.discard(j)
+            return False
+        if not cabe(0):
             return False
     return True
 
