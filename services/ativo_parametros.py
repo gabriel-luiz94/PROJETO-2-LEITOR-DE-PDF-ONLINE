@@ -121,17 +121,19 @@ def _item(item, modo):
     else:
         nome, valor = None, item
     p = {"nome": nome, "op": op, "valor": valor, "alts": []}
-    if modo != "grupo" and (op == "!=" or (valor and ("|" in valor or "%" in valor))):
+    # TASK-102: a linha de DECLARAÇÃO também pode trazer condições (N1=N1(poste=%D, tipocabo=A)): ela vale como declaração E como o 1º grupo
+    com_condicao = modo in ("grupo", "declaracao")
+    if not com_condicao and (op == "!=" or (valor and ("|" in valor or "%" in valor))):
         return p, f"'{item}': %, | e != só valem nos grupos da base"
     if nome is not None and not _RE_ID.match(nome):
         return p, f"'{nome}' inválido (use letras, números, _ e .)"
     if valor is None:
         return p, None
-    alts = valor.split("|") if modo == "grupo" else [valor]
-    regex = _RE_ALT_BASE if modo == "grupo" else _RE_VAL
+    alts = valor.split("|") if com_condicao else [valor]
+    regex = _RE_ALT_BASE if com_condicao else _RE_VAL
     for a in alts:
         if not regex.match(a):
-            return p, f"'{a}' inválido (use letras, números, _ e .{' ; no grupo da base também % e |' if modo == 'grupo' else ''})"
+            return p, f"'{a}' inválido (use letras, números, _ e .{' ; no grupo da base também % e |' if com_condicao else ''})"
     p["alts"] = alts
     return p, None
 
@@ -226,10 +228,11 @@ def analisar_declaracao(texto) -> dict:
             return r
         p["nome"] = _nome_repetido(vistos, p["nome"])
         r["params"].append(p)
+    r["condicionada"] = any(p["op"] == "!=" or len(p["alts"]) > 1 or any("%" in a for a in p["alts"]) for p in r["params"])
     return r
 
 
-_RE_APELIDO = re.compile(r"^[A-Z0-9_./]+$")
+_RE_APELIDO = re.compile(r"^[A-Z0-9_./-]+$")      # TASK-102: "-" também (B1-MT)
 
 
 def analisar_celula_base(texto) -> dict:
@@ -242,22 +245,20 @@ def analisar_celula_base(texto) -> dict:
     a = analisar_declaracao(principal) if (e != -1 and (i == -1 or e < i)) else analisar_ativo(principal, True)
     if apelidos:
         a["texto"] = t.strip()
-        if a["erro"] is None and a["tipo"] != "simples":
-            a["erro"] = "apelido só vale em ativo sem parâmetros na célula"
         for ap in apelidos:
             if not ap:
                 a["erro"] = a["erro"] or "apelido vazio"
             elif not _RE_APELIDO.match(ap):
-                a["erro"] = a["erro"] or f"apelido '{ap}' inválido (use letras, números, _, . e /)"
+                a["erro"] = a["erro"] or f"apelido '{ap}' inválido (use letras, números, _, ., - e /)"
         a["apelidos"] = [x for x in apelidos if x]
     return a
 
 
 def restricoes_do_grupo(analise) -> dict:
     """{NOME: {"op", "alts"}} dos parâmetros nomeados de um grupo (declaração/simples → {})."""
-    if analise["tipo"] != "grupo":
-        return {}
-    return {p["nome"]: {"op": p["op"], "alts": list(p["alts"])} for p in analise["params"] if p["nome"]}
+    if analise["tipo"] != "grupo" and not (analise["tipo"] == "declaracao" and analise.get("condicionada")):
+        return {}                                                     # declaração condicionada = também um grupo
+    return {p["nome"]: {"op": p["op"], "alts": list(p["alts"])} for p in analise["params"] if p["nome"] and (analise["tipo"] == "grupo" or p["valor"] is not None)}
 
 
 def montar_assinaturas(celulas) -> dict:
@@ -277,12 +278,22 @@ def montar_assinaturas(celulas) -> dict:
             nomes = [p["nome"] for p in a["params"]]
             s["nomes"] = nomes + [n for n in s["nomes"] if n not in nomes]
             for p in a["params"]:
-                if p["valor"] is not None:
+                if p["valor"] is None:
+                    continue
+                if p["op"] == "=" and len(p["alts"]) == 1 and "%" not in p["alts"][0]:         # valor concreto: PADRÃO + valor cadastrado
                     s["padroes"][p["nome"]] = p["valor"]
                     lista = s["valores"].setdefault(p["nome"], [])
                     if p["valor"] not in lista:
                         lista.append(p["valor"])
                     if p["nome"] not in s["fechados"]:
+                        s["fechados"].append(p["nome"])
+                else:                                                                           # condição (%, |, !=): como num grupo, sem padrão
+                    for alt in p["alts"]:
+                        destino = s["mascaras"] if "%" in alt else s["valores"]
+                        lista = destino.setdefault(p["nome"], [])
+                        if alt not in lista:
+                            lista.append(alt)
+                    if p["op"] == "=" and p["nome"] not in s["fechados"]:
                         s["fechados"].append(p["nome"])
         else:
             for p in a["params"]:
@@ -459,7 +470,7 @@ def _comp(linha) -> str:
 
 def _nome_do_grupo(a) -> str:
     """Nome do COMPONENTE gerado: N1 (grupo comum) ou N1.CABO=XLPE / N1.CABO!=XLPE,POSTE=D% (na ordem em que foi escrito)."""
-    if a["tipo"] != "grupo":
+    if a["tipo"] != "grupo" and not (a["tipo"] == "declaracao" and a.get("condicionada")):
         return a["base"]
     return a["base"] + "." + ",".join(f"{p['nome']}{p['op']}{p['valor']}" for p in a["params"] if p["nome"])
 
@@ -524,7 +535,7 @@ def _compativeis(r1, r2) -> bool:
 
 
 def _chave_grupo(a):
-    return (a["base"], tuple(sorted((p["nome"], p["op"], p["valor"]) for p in a["params"] if p["nome"])) if a["tipo"] == "grupo" else ())
+    return (a["base"], tuple(sorted((p["nome"], p["op"], p["valor"]) for p in a["params"] if p["nome"])) if (a["tipo"] == "grupo" or (a["tipo"] == "declaracao" and a.get("condicionada"))) else ())
 
 
 def _rotulo_grupo(chave) -> str:
@@ -588,7 +599,7 @@ def validar_base(linhas) -> dict:
             for p in decl["params"]:
                 if p["valor"] is None:
                     continue
-                aceitam = [r[p["nome"]] for _, _, a in itens if a["tipo"] == "grupo" for r in [restricoes_do_grupo(a)] if p["nome"] in r]
+                aceitam = [r[p["nome"]] for _, _, a in itens if a["tipo"] == "grupo" or a.get("condicionada") for r in [restricoes_do_grupo(a)] if p["nome"] in r]
                 if not any(restricao_vale(r, p["valor"]) for r in aceitam):
                     erros.append(f"Linha {n_decl}: padrão {p['nome']}={p['valor']} de {base} não tem nenhum grupo cadastrado.")
 

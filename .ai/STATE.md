@@ -1041,3 +1041,4 @@ sessão. Alterações: `services/pdf_service.py` (coordenadas `_x`/`_y`), `confi
 - [x] **TASK-099** (pedido de 2026-10-27): Script de vínculo por coordenadas com reserva por sorteio (modo `aleatorio`, `completar`). CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-099-27-10-2026.md`.
 - [x] **TASK-100** (pedido de 2026-10-27): Resultado: cor por TIPO MDO (N mais escuro, M mais claro) no REC e na SAP. CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-100-27-10-2026.md`.
 - [x] **TASK-101** (pedido de 2026-10-27): Vínculo: `cabo` (descrição completa) × `tipocabo` (VALOR DE CABO); investigação do padrão A. CONCLUÍDA em 2026-10-27. Ver `.ai/tasks/TASK-101-27-10-2026.md`.
+- [x] **TASK-102** (pedido de 2026-10-28): Base de Orçamento aceita declaração com condições (`N1=N1(poste=%D,tipocabo=A)`), apelido junto da declaração (`B1-MT`) e `cabo2`. CONCLUÍDA em 2026-10-28. Ver `.ai/tasks/TASK-102-28-10-2026.md`.

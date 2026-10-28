@@ -132,7 +132,10 @@ def test_calculo_apelido_em_linha_antiga():
 def test_base_apelidos_validacao():
     a = ap.analisar_celula_base("DT11/300, 11300D")
     assert (a["base"], a["apelidos"], a["erro"]) == ("DT11/300", ["11300D"], None)
-    assert ap.analisar_celula_base("N1=N1(cabo=XLPE), X")["erro"] and ap.analisar_celula_base("N1(cabo=XLPE), X")["erro"]
+    for celula in ("N1=N1(cabo=XLPE), X", "N1(cabo=XLPE), X"):                                   # TASK-102: apelido também vale em ativo com parâmetros
+        r = ap.analisar_celula_base(celula)
+        assert r["erro"] is None and r["apelidos"] == ["X"] and r["base"] == "N1", celula
+    assert ap.analisar_celula_base("B1MT=B1MT(poste=%D,tipocabo=A), B1-MT")["apelidos"] == ["B1-MT"]       # hífen aceito no apelido
     assert ap.analisar_celula_base("DT9/150, a b")["erro"]
     assert ap.nome_base("DT11/300, 11300D") == "DT11/300"
     erros = ap.validar_base([{"ativo": "DT11/300, X1", "projeto": ""}, {"ativo": "DT9/150, X1", "projeto": ""}])["erros"]

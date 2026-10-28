@@ -68,12 +68,14 @@
         else if (modo === 'declaracao') { nome = item; valor = null; }
         else { nome = null; valor = item; }
         const p = { nome, op, valor, alts: [] };
-        if (modo !== 'grupo' && (op === '!=' || (valor && (valor.indexOf('|') !== -1 || valor.indexOf('%') !== -1)))) return [p, `'${item}': %, | e != só valem nos grupos da base`];
+        // TASK-102: a linha de DECLARAÇÃO também pode trazer condições (N1=N1(poste=%D, tipocabo=A)): ela vale como declaração E como o 1º grupo
+        const comCondicao = modo === 'grupo' || modo === 'declaracao';
+        if (!comCondicao && (op === '!=' || (valor && (valor.indexOf('|') !== -1 || valor.indexOf('%') !== -1)))) return [p, `'${item}': %, | e != só valem nos grupos da base`];
         if (nome !== null && !RE_ID.test(nome)) return [p, `'${nome}' inválido (use letras, números, _ e .)`];
         if (valor === null) return [p, null];
-        const alts = modo === 'grupo' ? valor.split('|') : [valor];
-        const rx = modo === 'grupo' ? RE_ALT_BASE : RE_VAL;
-        for (const a of alts) if (!rx.test(a)) return [p, `'${a}' inválido (use letras, números, _ e .${modo === 'grupo' ? ' ; no grupo da base também % e |' : ''})`];
+        const alts = comCondicao ? valor.split('|') : [valor];
+        const rx = comCondicao ? RE_ALT_BASE : RE_VAL;
+        for (const a of alts) if (!rx.test(a)) return [p, `'${a}' inválido (use letras, números, _ e .${comCondicao ? ' ; no grupo da base também % e |' : ''})`];
         p.alts = alts;
         return [p, null];
     }
@@ -131,10 +133,11 @@
             p.nome = nomeRepetido(vistos, p.nome);
             r.params.push(p);
         }
+        r.condicionada = r.params.some(p => p.op === '!=' || p.alts.length > 1 || p.alts.some(a => a.indexOf('%') !== -1));
         return r;
     }
 
-    const RE_APELIDO = /^[A-Z0-9_./]+$/;
+    const RE_APELIDO = /^[A-Z0-9_./-]+$/;      // TASK-102: "-" também (B1-MT)
 
     /** Célula ATIVO da base; o 1º nome é o oficial e os demais são apelidos (só em ativo sem parâmetros na célula). */
     function analisarCelulaBase(texto) {
@@ -144,10 +147,9 @@
         const a = (e !== -1 && (i === -1 || e < i)) ? analisarDeclaracao(principal) : analisarAtivo(principal, true);
         if (apelidos.length) {
             a.texto = t.trim();
-            if (a.erro === null && a.tipo !== 'simples') a.erro = 'apelido só vale em ativo sem parâmetros na célula';
             for (const ap of apelidos) {
                 if (!ap) a.erro = a.erro || 'apelido vazio';
-                else if (!RE_APELIDO.test(ap)) a.erro = a.erro || `apelido '${ap}' inválido (use letras, números, _, . e /)`;
+                else if (!RE_APELIDO.test(ap)) a.erro = a.erro || `apelido '${ap}' inválido (use letras, números, _, ., - e /)`;
             }
             a.apelidos = apelidos.filter(x => x);
         }
@@ -156,8 +158,8 @@
 
     function restricoesDoGrupo(analise) {
         const saida = {};
-        if (analise.tipo !== 'grupo') return saida;
-        for (const p of analise.params) if (p.nome) saida[p.nome] = { op: p.op, alts: p.alts.slice() };
+        if (analise.tipo !== 'grupo' && !(analise.tipo === 'declaracao' && analise.condicionada)) return saida;       // declaração condicionada = também um grupo
+        for (const p of analise.params) if (p.nome && (analise.tipo === 'grupo' || p.valor !== null)) saida[p.nome] = { op: p.op, alts: p.alts.slice() };
         return saida;
     }
 
@@ -173,11 +175,19 @@
                 const nomes = a.params.map(p => p.nome);
                 s.nomes = nomes.concat(s.nomes.filter(n => !nomes.includes(n)));
                 for (const p of a.params) {
-                    if (p.valor !== null) {
+                    if (p.valor === null) continue;
+                    if (p.op === '=' && p.alts.length === 1 && p.alts[0].indexOf('%') === -1) {          // valor concreto: PADRÃO + valor cadastrado
                         s.padroes[p.nome] = p.valor;
                         const lista = s.valores[p.nome] || (s.valores[p.nome] = []);
                         if (!lista.includes(p.valor)) lista.push(p.valor);
                         if (!s.fechados.includes(p.nome)) s.fechados.push(p.nome);
+                    } else {                                                                              // condição (%, |, !=): como num grupo, sem padrão
+                        for (const alt of p.alts) {
+                            const destino = alt.indexOf('%') !== -1 ? s.mascaras : s.valores;
+                            const lista = destino[p.nome] || (destino[p.nome] = []);
+                            if (!lista.includes(alt)) lista.push(alt);
+                        }
+                        if (p.op === '=' && !s.fechados.includes(p.nome)) s.fechados.push(p.nome);
                     }
                 }
             } else {

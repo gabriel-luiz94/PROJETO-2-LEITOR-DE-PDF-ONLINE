@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-10-28 — TASK-102: declaração com condições, apelido na declaração e cabo2
+
+**Tipo:** regra de negócio · `static/ativo_parametros.js` ⇄ `services/ativo_parametros.py`, `services/orcamento_calc.py`, `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `data/vinculacao_pernambuco_seed.json`
+
+A linha `N1=N1(poste=%D,tipocabo=A)` da Base de Orçamento passa a valer como declaração e 1º grupo; apelidos (`B1-MT`) podem acompanhar declaração/grupo; `cabo2` = descrição do 2º cabo.
+
+---
+
 ## 2026-10-27 — TASK-101: `cabo` × `tipocabo` nos parâmetros da estrutura
 
 **Tipo:** regra de negócio · `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `static/ativo_parametros.js` ⇄ `services/ativo_parametros.py`, `static/vinculacao_ui.js`, `data/vinculacao_pernambuco_seed.json`

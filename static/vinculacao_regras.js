@@ -89,7 +89,7 @@
     // TASK-100: o NOME do parâmetro define o que ele recebe — `cabo` = a DESCRIÇÃO COMPLETA do cabo (sem o comprimento, ex.: 3xS04-7,97kV → 3XS04-7.97KV);
     // `tipocabo` = o VALOR DE CABO da Tabela de Cabos (C, P, A…); outro nome = o código do cabo. `nome=fonte` força a fonte (descricao | valor_cabo | ativo).
     const FONTES_PARAMETRO = ['ativo', 'valor_cabo', 'descricao'];
-    const fonteDoNome = nome => (nome === 'CABO' ? 'descricao' : (nome === 'TIPOCABO' ? 'valor_cabo' : 'ativo'));
+    const fonteDoNome = nome => (/^CABO\d*$/.test(nome) ? 'descricao' : (/^TIPOCABO\d*$/.test(nome) ? 'valor_cabo' : 'ativo'));      // cabo, cabo2, cabo3… / tipocabo, tipocabo2…
     const RE_COMPRIMENTO = /\s+\d+(?:[.,]\d+)?\s*m?\s*$/i;      // o 'm' é opcional (RAMA25 12)
     /** Descrição completa do cabo, sem o comprimento, no formato aceito num parâmetro: maiúsculas, sem espaços, vírgula decimal → ponto, parênteses → "_". */
     function descricaoCabo(texto, codigo) {
@@ -251,10 +251,14 @@
             if (erros.length) estado = 'rd'; else if (tem === 0) estado = 'k'; else if (e.qtd_min !== null && tem < e.qtd_min) estado = 'pu'; else estado = 'gr';
             let parametros = null;
             if (e.parametros) {          // TASK-096: um valor por cabo vinculado (reais e fictícios), na ordem dos ocupantes
-                const cont = {};
+                const cont = {}, vezes = {};
+                e.parametros.forEach(p => { vezes[p.nome] = (vezes[p.nome] || 0) + 1; });
                 e.parametros.forEach(({ nome, fonte }) => {
-                    const o = ocupantes[cont[nome] || 0]; cont[nome] = (cont[nome] || 0) + 1;
-                    const v = o ? (fonte === 'valor_cabo' ? o.info.valor_cabo : (fonte === 'descricao' ? o.info.descricao : o.info.codigo)) : null;
+                    const sufixo = /^(?:CABO|TIPOCABO)(\d+)$/.exec(nome), pos = sufixo ? Number(sufixo[1]) - 1 : (cont[nome] || 0);      // cabo2 = o 2º cabo; cabo, cabo = 1º e 2º
+                    const o = ocupantes[pos]; cont[nome] = (cont[nome] || 0) + 1;
+                    // `tipocabo` escrito UMA vez numa estrutura com 2 cabos = o tipo consolidado (se_diferem: MAIOR C>P>A…), como no parâmetro único
+                    let v = o ? (fonte === 'valor_cabo' ? o.info.valor_cabo : (fonte === 'descricao' ? o.info.descricao : o.info.codigo)) : null;
+                    if (fonte === 'valor_cabo' && vezes[nome] === 1 && ocupantes.length > 1) v = valor;
                     if (v) (parametros = parametros || {})[nome] = ((parametros || {})[nome] || []).concat([v]);
                 });
             }
