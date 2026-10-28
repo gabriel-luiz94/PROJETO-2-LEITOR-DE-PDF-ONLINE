@@ -118,9 +118,10 @@
    "amarracao": true,
    "aceita_i": true,
    "cabos": "",
-   "parametro": "tipocabo",
+   "parametro": "",
+   "parametros": "tipocabo, cabo",
    "se_diferem": "MAIOR",
-   "obs": "1 cabo, I ou M",
+   "obs": "1 cabo, I ou M (tipocabo + cabo = descrição completa)",
    "ativa": true
   },
   {
@@ -162,16 +163,16 @@
    "ativa": true
   },
   {
-   "padrao": "^(N4|B4-MT|CE4|U4)$",
+   "padrao": "^(N4|B4-MT|B4MT|CE4|U4)$",
    "qtd_cabos": 2,
    "lados": "LIVRE",
    "amarracao": true,
    "aceita_i": true,
    "cabos": "",
    "parametro": "",
-   "parametros": "cabo, cabo",
+   "parametros": "tipocabo, cabo, cabo2",
    "se_diferem": "MAIOR",
-   "obs": "2 cabos (iguais ou não): cada um preenche um parâmetro cabo com a descrição completa do cabo (sem o comprimento, ex.: 3XS04-7.97KV)",
+   "obs": "2 cabos (iguais ou não): tipocabo = tipo consolidado dos cabos (maior: C > P > A); cabo e cabo2 = a descrição completa de cada cabo (sem o comprimento, ex.: 3XS04-7.97KV)",
    "ativa": true
   }
  ],

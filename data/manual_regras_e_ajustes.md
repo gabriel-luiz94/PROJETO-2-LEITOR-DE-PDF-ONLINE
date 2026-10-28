@@ -542,3 +542,8 @@ No REC e na SAP, as linhas de **mão de obra (N / MAO-DE-OBRA)** têm fundo cinz
 - **`tipocabo`** = o valor da coluna **Valor de cabo** da Tabela de Cabos do modal de vínculo (C, P, A…).
 - Na Tabela de Estruturas: **Parâmetro** (um só) recebe o Valor de cabo — use `tipocabo`; **Parâmetros (vários)** aceita `cabo, cabo, tipocabo, tipocabo` (um valor por cabo vinculado).
 - **Estrutura caindo no padrão (ex.: A):** o Valor de cabo vem da PRIMEIRA linha ativa da Tabela de Cabos que casa o código do cabo. Cobre cadastrado depois de uma regra de alumínio que também casa (ex.: `S04` casa `^(S|AA|CAA)\d+`) vira A; sem nenhuma regra o valor fica vazio e vale o padrão da declaração na base. Teste o cabo na caixa "Testar um cabo" e ponha a linha de cobre antes.
+
+
+## Declaração com condições na Base de Orçamento (TASK-102)
+
+A linha de declaração pode trazer condições e valer como o primeiro grupo: `N1=N1(poste=%D, tipocabo=A)` declara os parâmetros `poste` e `tipocabo`, define `A` como padrão do `tipocabo` e vale só para postes que terminam em D. Curingas (`%`), alternativas (`|`) e exceções (`!=`) na declaração são só condição, sem padrão. Declaração só com valores concretos (`N1=N1(cabo=XLPE, poste=DT)`) continua sendo o grupo comum, como antes. O apelido pode ficar na mesma célula: `B1MT=B1MT(poste=%D,tipocabo=A), B1-MT`. No vínculo: `cabo` = descrição do 1º cabo, `cabo2` = a do 2º, `tipocabo` = o tipo (o maior, se os cabos diferem).

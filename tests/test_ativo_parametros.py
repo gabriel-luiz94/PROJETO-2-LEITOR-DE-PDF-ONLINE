@@ -182,7 +182,7 @@ BASE80 = ["N1=N1(cabo=XLPE, poste=DT)", "N1", "N1(cabo=XLPE)", "N1(cabo=ALUM|COB
           "N1(cabo!=XLPE, poste=D%)"]
 TEXTOS80 = TEXTOS + ["N1(ALUM,D12)", "N1(COBRE,CC)", "N1(XLPE,CC)", "N1(ALUM,XX)", "N1(poste=D%)", "N1(cabo!=XLPE)", "N1(A|B)", "N1(ALUM,D12,Z)", "N1(poste=cc, cabo=cobre)"]
 CELULAS80 = CELULAS + ["N1(poste=D%)", "N1(cabo=ALUM|COBRE)", "N1(cabo!=XLPE, poste=D%)", "N1(cabo!=ALUM|COBRE)", "N1(poste=%CC%)", "N1(poste=%)", "N1(cabo=A||B)",
-                       "N1(cabo=A B)", "N1=N1(cabo=ALUM|COBRE)", "N1=N1(cabo=D%)", "N1=N1(cabo!=X)", "N1(cabo!=)", "N1(!=X)", "N1(cabo=X%Y%Z)"]
+                       "N1(cabo=A B)", "N1=N1(cabo=ALUM|COBRE)", "N1=N1(cabo=D%)", "N1=N1(cabo!=X)", "N1=N1(poste=%D,tipocabo=A)", "B1MT=B1MT(poste=%D,tipocabo=A), B1-MT", "N4=N4(poste=%D,cabo=%S04%,cabo2=%S04%)", "N1(cabo!=)", "N1(!=X)", "N1(cabo=X%Y%Z)"]
 
 
 def test_analisar_operadores_so_na_base():
@@ -191,8 +191,10 @@ def test_analisar_operadores_so_na_base():
     assert a["params"] == [{"nome": "POSTE", "op": "=", "valor": "D%", "alts": ["D%"]}, {"nome": "CABO", "op": "!=", "valor": "ALUM|COBRE", "alts": ["ALUM", "COBRE"]}]
     for pedido in ["N1(D%)", "N1(poste=D%)", "N1(A|B)", "N1(cabo!=X)"]:
         assert "só valem nos grupos da base" in ap.analisar_ativo(pedido)["erro"], pedido
-    for decl in ["N1=N1(cabo=ALUM|COBRE)", "N1=N1(cabo=D%)", "N1=N1(cabo!=X)"]:
-        assert ap.analisar_celula_base(decl)["erro"], decl
+    for decl in ["N1=N1(cabo=ALUM|COBRE)", "N1=N1(cabo=D%)", "N1=N1(cabo!=X)"]:      # TASK-102: a declaração também aceita condições (vale como declaração E como 1º grupo)
+        d = ap.analisar_celula_base(decl)
+        assert d["erro"] is None and d["condicionada"] is True, decl
+    assert ap.analisar_celula_base("N1=N1(cabo=XLPE, poste=DT)")["condicionada"] is False
     for ruim in ["N1(cabo=A||B)", "N1(cabo!=)", "N1(!=X)"]:
         assert ap.analisar_celula_base(ruim)["erro"], ruim
     assert ap.analisar_celula_base("N1(poste=%CC%)")["erro"] is None and ap.analisar_celula_base("N1(poste=%)")["erro"] is None
@@ -270,8 +272,7 @@ def test_preencher_componentes_nao_mexe_em_ativo_sem_parametros_nem_cruza_projet
 def test_validar_base_com_operadores():
     linhas = [Lc("N1=N1(cabo=XLPE, poste=DT)", "N1", "c1"), Lc("N1(cabo=XLPE)", "N1.X", "x1"), Lc("N1(poste=D%)", "N1.D", "d1"), Lc("N1(cabo!=XLPE)", "N1.NX", "n1")]
     assert ap.validar_base(linhas) == {"erros": [], "avisos": []}
-    sem_padrao_valido = [Lc("N1=N1(cabo=ZZ%)", "N1", "c1")]
-    assert ap.validar_base(sem_padrao_valido)["erros"]                                           # padrão com curinga: erro de sintaxe
+    assert ap.validar_base([Lc("N1=N1(cabo=ZZ%)", "N1", "c1")])["erros"] == []                    # TASK-102: curinga na declaração = condição do 1º grupo (sem padrão)
     padrao_sem_grupo = [Lc("N1=N1(cabo=ALUM)", "N1", "c1"), Lc("N1(cabo=XLPE)", "N1.X", "x1")]
     assert any("padrão CABO=ALUM" in e for e in ap.validar_base(padrao_sem_grupo)["erros"])
     padrao_por_curinga = [Lc("N1=N1(poste=DT)", "N1", "c1"), Lc("N1(poste=D%)", "N1.D", "d1")]
@@ -298,3 +299,32 @@ def test_paridade_operadores_e_pedidos():
     assert node("A.restricoesDoGrupo(A.analisarCelulaBase('N1(poste=D%, cabo!=XLPE)'))", None) == gr
     ped = [{"CABO": "ALUM", "POSTE": "D12"}, {"CABO": "XLPE", "POSTE": "D12"}, {"CABO": "ALUM"}]
     assert node("e.p.map(x=>A.linhaVale(e.g, x))", {"p": ped, "g": gr}) == [ap.linha_vale(gr, x) for x in ped]
+
+
+# ── TASK-102: declaração com condições + apelido + cabo2 ──
+def test_declaracao_condicionada_e_o_primeiro_grupo():
+    a = ap.analisar_celula_base("N1=N1(poste=%D,tipocabo=A)")
+    assert a["erro"] is None and a["tipo"] == "declaracao" and a["condicionada"] is True
+    assert ap.restricoes_do_grupo(a) == {"POSTE": {"op": "=", "alts": ["%D"]}, "TIPOCABO": {"op": "=", "alts": ["A"]}}
+    sig = ap.montar_assinaturas(["N1=N1(poste=%D,tipocabo=A)", "N1(poste=%T,tipocabo=C)"])["N1"]
+    assert sig["nomes"] == ["POSTE", "TIPOCABO"] and sig["padroes"] == {"TIPOCABO": "A"}            # o curinga não vira padrão; o valor concreto sim
+    assert "%D" in sig["mascaras"]["POSTE"] and ap.resolver_pedido("N1(poste=11300D,tipocabo=A)", {"N1": sig})["erros"] == []
+    assert ap.resolver_pedido("N1(poste=11300R,tipocabo=A)", {"N1": sig})["erros"] and ap.resolver_pedido("N1(poste=11300D,tipocabo=C)", {"N1": sig})["erros"] == []
+
+
+def test_apelido_junto_da_declaracao_e_com_hifen():
+    a = ap.analisar_celula_base("B1MT=B1MT(poste=%D,tipocabo=A), B1-MT")
+    assert a["erro"] is None and a["base"] == "B1MT" and a["apelidos"] == ["B1-MT"]
+    linhas = [{"ativo": "B1MT=B1MT(poste=%D,tipocabo=A), B1-MT", "componente": "B1MT", "codigo": "k1", "projeto": "PE"},
+              {"ativo": "B1MT(poste=%R,tipocabo=C)", "componente": "B1MT.R", "codigo": "k2", "projeto": "PE"}]
+    assert ap.validar_base(linhas)["erros"] == []
+    assert ap.apelidos_do_projeto(linhas, "PE") == {"B1-MT": "B1MT"}
+
+
+def test_base_do_usuario_com_declaracoes_condicionadas_e_valida():
+    linhas = [{"ativo": t, "componente": c, "codigo": k, "projeto": "PE"} for t, c, k in [
+        ("N1=N1(poste=%D,tipocabo=A)", "N1.A", "k1"), ("N1(poste=%R,tipocabo=A)", "N1.RA", "k2"),
+        ("N3=N3(poste=%D,tipocabo=A,cabo=%S04%)", "N3.A", "k3"),
+        ("N4=N4(poste=%D,tipocabo=A,cabo=%S04%,cabo2=%S04%)", "N4.A", "k4"),
+        ("B4MT=B4MT(poste=%D,tipocabo=A,cabo=%S04%,cabo2=%S04%), B4-MT", "B4MT.A", "k5")]]
+    assert ap.validar_base(linhas)["erros"] == []

@@ -238,7 +238,7 @@ _RE_COMPRIMENTO = re.compile(r"\s+\d+(?:[.,]\d+)?\s*m?\s*$", re.I)      # o "m" 
 
 
 def _fonte_do_nome(nome) -> str:
-    return "descricao" if nome == "CABO" else ("valor_cabo" if nome == "TIPOCABO" else "ativo")
+    return "descricao" if re.fullmatch(r"CABO\d*", nome) else ("valor_cabo" if re.fullmatch(r"TIPOCABO\d*", nome) else "ativo")      # cabo, cabo2, cabo3… / tipocabo, tipocabo2…
 
 
 def descricao_cabo(texto, codigo="") -> str:
@@ -499,11 +499,18 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
         parametros = None
         if e["parametros"]:                                      # TASK-096: um valor por cabo vinculado (reais e fictícios), na ordem dos ocupantes
             cont = {}
+            vezes = {}
             for p in e["parametros"]:
-                k = cont.get(p["nome"], 0)
-                cont[p["nome"]] = k + 1
-                o = ocupantes[k] if k < len(ocupantes) else None
+                vezes[p["nome"]] = vezes.get(p["nome"], 0) + 1
+            for p in e["parametros"]:
+                m_suf = re.fullmatch(r"(?:CABO|TIPOCABO)(\d+)", p["nome"])
+                k = int(m_suf.group(1)) - 1 if m_suf else cont.get(p["nome"], 0)           # cabo2 = o 2º cabo; cabo, cabo = 1º e 2º
+                cont[p["nome"]] = cont.get(p["nome"], 0) + 1
+                o = ocupantes[k] if 0 <= k < len(ocupantes) else None
+                # `tipocabo` escrito UMA vez numa estrutura com 2 cabos = o tipo consolidado (se_diferem: MAIOR C>P>A…), como no parâmetro único
                 v = (o["info"]["valor_cabo"] if p["fonte"] == "valor_cabo" else (o["info"]["descricao"] if p["fonte"] == "descricao" else o["info"]["codigo"])) if o else None
+                if p["fonte"] == "valor_cabo" and vezes[p["nome"]] == 1 and len(ocupantes) > 1:
+                    v = valor
                 if v:
                     parametros = parametros or {}
                     parametros.setdefault(p["nome"], []).append(v)

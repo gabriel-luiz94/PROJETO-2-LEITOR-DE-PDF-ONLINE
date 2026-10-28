@@ -69,7 +69,7 @@ def test_seed_pernambuco_usa_tipocabo_e_cabo():
     assert vr.validar_config(SEED) == []
     n1 = next(e for e in SEED["estruturas"] if e["padrao"] == "^N1$")
     n4 = next(e for e in SEED["estruturas"] if "N4" in e["padrao"])
-    assert n1["parametro"] == "tipocabo" and n4["parametros"] == "cabo, cabo"
+    assert n1["parametro"] == "tipocabo" and n4["parametros"] == "tipocabo, cabo, cabo2"
 
 
 @pytest.mark.skipif(not NODE, reason="node indisponível")
@@ -88,3 +88,31 @@ def test_paridade_js():
     assert s["r"] == ap.resolver_pedido("N1(tipocabo=C,cabo=3XS04-7.97KV)", sig)
     assert s["g"] == ap.analisar_celula_base("N1(tipocabo=A, cabo=%7,97KV%)")["params"]
     assert s["n"] == vr.normalizar_parametros("cabo, cabo, tipocabo=ativo, x=descricao")
+
+
+# ── TASK-102: cabo2 = o 2º cabo; tipocabo escrito uma vez = tipo consolidado ──
+CFG_N4 = {"cabos": [{"padrao": "^S0\\d+$", "valor_cabo": "C"}, {"padrao": "^A\\d+P$", "valor_cabo": "P"}, {"padrao": "^S\\d+/\\d+$", "valor_cabo": "A"}],
+          "estruturas": [{"padrao": "^N4$", "qtd_cabos": 2, "parametros": "tipocabo, cabo, cabo2"}], "ordem_maior": ["C", "P", "A"]}
+
+
+def test_cabo2_e_o_segundo_cabo_e_tipocabo_unico_e_o_maior():
+    a = analisa([cab("3xS04-7,97kV 45 m", "I", [0]), cab("3xA35P(7,94)-13,8kV 45 m", "I", [0])], [est("N4")], CFG_N4)
+    assert a["estruturas"][0]["parametros"] == {"TIPOCABO": ["C"], "CABO": ["3XS04-7.97KV"], "CABO2": ["3XA35P_7.94_-13.8KV"]}      # tipocabo = o maior (C > P > A)
+    a = analisa([cab("3xS04-7,97kV 45 m", "I", [0])], [est("N4")], CFG_N4)
+    assert a["estruturas"][0]["parametros"] == {"TIPOCABO": ["C"], "CABO": ["3XS04-7.97KV"]} and a["estruturas"][0]["estado"] == "pu"      # 1 de 2 cabos: só o primeiro; pendente
+    a = analisa([cab("3xS04-7,97kV 45 m", "I", [0]), cab("3xS04-7,97kV 45 m", "I", [0])], [est("N4")], CFG_N4)
+    assert a["estruturas"][0]["parametros"]["CABO"] == a["estruturas"][0]["parametros"]["CABO2"] == ["3XS04-7.97KV"]                  # iguais: repete
+
+
+@pytest.mark.skipif(not NODE, reason="node indisponível")
+def test_paridade_js_cabo2():
+    js = """
+    const VR = require(process.argv[1]); const p = t => (t || '').trim().split(' ')[0].toUpperCase().replace(/^\\d[xX]/, '').replace(/[(-].*$/, '');
+    const cfg = %s;
+    const cab = t => ({ entidade: 'CABO', operacao: 'I', ativo: t, textoOriginal: t, vinculoEstruturas: [0] });
+    const out = [{ entidade: 'ESTRUTURA', operacao: 'I', ativo: 'N4' }];
+    const r = c => VR.analisar(c, out, cfg, p, a => a, null).estruturas[0].parametros;
+    console.log(JSON.stringify([r([cab('3xS04-7,97kV 45 m'), cab('3xA35P(7,94)-13,8kV 45 m')]), r([cab('3xS04-7,97kV 45 m')])]));
+    """ % json.dumps(CFG_N4)
+    s = json.loads(subprocess.run([NODE, "-e", js, os.path.join(config.STATIC_DIR, "vinculacao_regras.js")], capture_output=True, text=True, check=True).stdout)
+    assert s[0] == {"TIPOCABO": ["C"], "CABO": ["3XS04-7.97KV"], "CABO2": ["3XA35P_7.94_-13.8KV"]} and s[1] == {"TIPOCABO": ["C"], "CABO": ["3XS04-7.97KV"]}

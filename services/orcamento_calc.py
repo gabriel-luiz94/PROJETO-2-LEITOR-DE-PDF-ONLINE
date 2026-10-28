@@ -162,6 +162,12 @@ def _preparar_parametros(orcamento_rows, req_proj):
         if a["tipo"] == "declaracao":
             if not ((r.get("codigo") or "").strip() or (r.get("componente") or "").strip()):
                 continue                                   # linha só de declaração: nunca entra no cálculo
+            if a.get("condicionada"):                      # TASK-102: declaração com condições (N1=N1(poste=%D, tipocabo=A)) = declaração E 1º grupo
+                novo["ativo"] = _chave(a)
+                if r in validas:
+                    grupos.setdefault(a["base"], {})[novo["ativo"]] = restricoes_do_grupo(a)
+                linhas.append(novo)
+                continue
             novo["ativo"] = a["base"]                      # a declaração é a 1ª linha do grupo comum
         else:
             novo["ativo"] = _chave(a)

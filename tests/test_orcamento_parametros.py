@@ -375,3 +375,26 @@ def test_modo_autonomo_espelha_os_operadores():
     tot = tt.montar_totalizadora([], [{"entidade": "0", "operacao": "I", "ativo": "2-N1 1-N1(ALUM,D12) 1-N1(ALUM,XX)"}], [], base, "PERNAMBUCO")
     assert [r["ativo"] for r in tot] == ["N1(XLPE,DT)", "N1(ALUM,D12)", "N1(ALUM,XX)"]
     assert tot[2]["naoEncontrado"] and "POSTE=XX" in tot[2]["desc"] and not tot[1]["naoEncontrado"]
+
+
+def csv_declaracoes_condicionadas():
+    """TASK-102: a base como o usuário monta — a linha de declaração já traz as condições (poste=%D, tipocabo=A) e o apelido (B1-MT)."""
+    return "\n".join([CAB,
+        "N1=N1(poste=%D,tipocabo=A);N1 DT ALUM;N1.DA;PE;MATERIAL;OUTROS;DA1;ISOLADOR ALUM;3;0;;A",
+        "N1(poste=%D,tipocabo=C);N1 DT COBRE;N1.DC;PE;MATERIAL;OUTROS;DC1;ISOLADOR COBRE;3;0;;A",
+        "N1(poste=%R,tipocabo=A);N1 RC ALUM;N1.RA;PE;MATERIAL;OUTROS;RA1;ISOLADOR RC;3;0;;A",
+        "N4=N4(poste=%D,tipocabo=A,cabo=%S04%,cabo2=%S04%);N4;N4.A;PE;MATERIAL;OUTROS;N4A;CRUZETA N4;1;0;;A",
+        "B1MT=B1MT(poste=%D,tipocabo=A), B1-MT;B1 MT;B1MT.A;PE;MATERIAL;OUTROS;B1A;FERRAGEM B1;1;0;;A"]) + "\n"
+
+
+def test_import_aceita_declaracao_com_condicoes_e_apelido_e_calcula(client):
+    r = subir(client, csv_declaracoes_condicionadas())
+    assert r.status_code == 200, r.text
+    def calc(ativo):
+        res = client.post("/api/orcamento/calcular", json={"cabos": [], "outros": [{"entidade": "0", "operacao": "I", "ativo": ativo}], "projeto": "PE"}, headers=adm())
+        assert res.status_code == 200, res.text
+        return {x["codigo"]: x["total"] for x in res.json()["resultado"]}, res.json()["nao_encontrados"]
+    assert calc("N1(11300D,A)") == ({"DA1": 3.0}, [])             # a declaração é o 1º grupo (poste %D e tipocabo A)
+    assert calc("N1(11300D,C)")[0] == {"DC1": 3.0}
+    assert calc("N1(10300R,A)")[0] == {"RA1": 3.0}
+    assert calc("B1-MT(11300D,A)")[0] == {"B1A": 1.0}              # o apelido B1-MT aponta para B1MT
