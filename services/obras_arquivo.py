@@ -5,6 +5,7 @@ Formato (versão 1):
     {"formato": "leitor-obra", "versao": 1, "exportado_em": "...", "tipo": "obra", "nome": "...", "projeto": "229",
      "dados": {"cabos": [...], "outros": [...], "totalizadora": [...]}}
 O arquivo leva SÓ os dados da obra: nada de regras de conversão (são do projeto), marcas internas (`autonomo`), ids, usuário ou e-mail.
+Cada linha de Cabos/Outros leva também o vínculo e a geometria (CAMPOS_VINCULO, TASK-103), validados campo a campo.
 Tudo que vem de um arquivo é tratado como não confiável: tamanho, quantidade de linhas, tipos e campos são validados e os campos
 desconhecidos são descartados. Não registrar o conteúdo das obras em log (RULES Regra 11).
 """
@@ -21,6 +22,39 @@ OPERACOES = ("", "I", "*I", "R", "*R", "M", "*M", "0")
 _RE_ENTIDADE = re.compile(r"^[A-Za-z0-9_]{1,30}$")
 
 CAMPOS_LINHA = {"entidade": str, "operacao": str, "ativo": str, "qtdAtivos": (int, float, str), "texto": str}
+LIMITE_LISTA = 200            # itens por lista de vínculo/geometria numa linha (o mapa simplifica a rede a 60 pontos)
+LIMITE_TEXTO_CAMPO = 500
+
+
+def _num(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _texto(v) -> bool:
+    return isinstance(v, str) and len(v) <= LIMITE_TEXTO_CAMPO
+
+
+def _lista_de(v, ok) -> bool:
+    return isinstance(v, list) and len(v) <= LIMITE_LISTA and all(ok(x) for x in v)
+
+
+def _ponto(v) -> bool:
+    return isinstance(v, list) and len(v) == 2 and all(_num(x) for x in v)
+
+
+def _slots(v) -> bool:
+    return (isinstance(v, dict) and len(v) <= LIMITE_LISTA
+            and all(isinstance(k, str) and k.isdigit() and _lista_de(x, _texto) for k, x in v.items()))
+
+
+# TASK-103: campos do vínculo e da geometria que a tela grava em cada linha (resumo.js deepClone) — sem eles a obra importada perdia os
+# vínculos cabo<->estrutura (e os parâmetros tipocabo/cabo que saem deles). O plugin do nanoCAD (plugin_nanocad/) gera esses campos.
+CAMPOS_VINCULO = {
+    "textoOriginal": _texto, "fases": lambda v: _texto(v) or (_num(v) and not isinstance(v, float)), "tensao": _texto, "nivel": _texto,
+    "entidadeManual": lambda v: isinstance(v, bool), "_x": _num, "_y": _num, "_geoTipo": _texto, "_geo": lambda v: _lista_de(v, _ponto),
+    "_poste": _ponto, "vinculoEstruturas": lambda v: _lista_de(v, _num), "vinculoOrigem": _texto,
+    "estruturasFicticias": lambda v: _lista_de(v, _texto), "cabosFicticios": lambda v: _lista_de(v, _texto), "cabosFicticiosSlots": _slots,
+}
 CAMPOS_TOTALIZADORA = {"id": str, "baseId": str, "obs": str, "operacao": str, "ativo": str, "qtd": (int, float, str, type(None)), "desc": str,
                        "naoEncontrado": bool, "origem": str}
 
@@ -59,7 +93,10 @@ def normalizar_dados(dados_json) -> dict:
         linhas = []
         for x in _lista(dados_json, chave):
             if isinstance(x, dict):
-                linhas.append({k: x[k] for k, tipo in campos.items() if k in x and _tipo_ok(x[k], tipo)})
+                linha = {k: x[k] for k, tipo in campos.items() if k in x and _tipo_ok(x[k], tipo)}
+                if campos is CAMPOS_LINHA:
+                    linha.update({k: x[k] for k, ok in CAMPOS_VINCULO.items() if k in x and ok(x[k])})
+                linhas.append(linha)
         saida[chave] = linhas
     return saida
 

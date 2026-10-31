@@ -35,7 +35,7 @@ from middleware.nocache_middleware import NoCacheHtmlMiddleware
 from websocket_manager import manager
 
 # Routers
-from routers import manual, obras, regras, regras_leitor, regras_vinculacao, vinculacao_config, atalhos, modais_montaveis, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes, autonomo, aprendizado
+from routers import manual, obras, regras, regras_leitor, regras_vinculacao, vinculacao_config, atalhos, modais_montaveis, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes, autonomo, aprendizado, plugin_cad
 
 
 app = FastAPI(
@@ -318,6 +318,7 @@ app.include_router(regras.router)
 app.include_router(regras_leitor.router)
 app.include_router(regras_vinculacao.router)
 app.include_router(vinculacao_config.router)
+app.include_router(plugin_cad.router)          # TASK-104: plugin do nanoCAD (regras, versão, conferência com a base)
 app.include_router(atalhos.router)
 app.include_router(modais_montaveis.router)
 app.include_router(recs.router)
