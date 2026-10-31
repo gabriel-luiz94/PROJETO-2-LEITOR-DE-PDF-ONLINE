@@ -15,7 +15,7 @@ namespace OrcamentoNanoCAD.UI
 
         private Sessao _s;
         private string _filtro;                    // null = todos
-        private readonly Label _titulo, _rodape;
+        private readonly Label _titulo, _rodape, _conexao;
         private readonly RadioButton _todos, _ok, _conf, _erro;
         private readonly FlowLayoutPanel _botoesLer, _botoesConstruir;
         private readonly ListView _lista;
@@ -34,6 +34,12 @@ namespace OrcamentoNanoCAD.UI
                 _aberto.Visible = true;
                 _aberto.Activate();
             }
+        }
+
+        /// <summary>Linha de situação da ligação com a aplicação (chamada pelo Sincronizador).</summary>
+        public static void AtualizarStatusConexao()
+        {
+            if (_aberto != null && !_aberto.IsDisposed) _aberto._conexao.Text = Sincronizador.Status;
         }
 
         public static void AtualizarSeAberto(Sessao s)
@@ -74,9 +80,14 @@ namespace OrcamentoNanoCAD.UI
             comuns.Controls.Add(Visual.Botao("🔗 Vínculos", (o, e) => Visual.Executar("ORC_VINCULOS")));
             comuns.Controls.Add(Visual.Botao("📦 Ativos", (o, e) => Visual.Executar("ORC_ATIVOS")));
             comuns.Controls.Add(Visual.Botao("Marcas", (o, e) => Visual.Executar("ORC_MARCAS")));
+            comuns.Controls.Add(Visual.Botao("🔗 Aplicação", (o, e) => Visual.Executar("ORC_CONECTAR")));
+            comuns.Controls.Add(Visual.Botao("⇅ Sincronizar", (o, e) => Visual.Executar("ORC_SINCRONIZAR")));
             topo.Controls.Add(_botoesLer);
             topo.Controls.Add(_botoesConstruir);
             topo.Controls.Add(comuns);
+            _conexao = Visual.Rotulo(Sincronizador.Status, Visual.Normal, Color.DimGray);
+            _conexao.MaximumSize = new Size(440, 0);
+            topo.Controls.Add(_conexao);
 
             _lista = Visual.Lista(Relatorios.ColunasConferencia);
             _lista.Click += (o, e) => { string n = Selecionado(); if (n != null) Visual.Executar("ORC_ZOOM " + n); };

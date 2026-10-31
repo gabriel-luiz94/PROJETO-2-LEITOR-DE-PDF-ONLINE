@@ -47,7 +47,7 @@ set "RES=%RES% /resource:%DATA%\regras_leitor_classificacao_pernambuco_seed.json
 set "RES=%RES% /resource:%DATA%\vinculacao_pernambuco_seed.json,regras.081.vinculacao.json"
 set "RES=%RES% /resource:%DATA%\regras_leitor_processamento_seed.json,regras.padrao.processamento.json"
 set "RES=%RES% /resource:%DATA%\regras_leitor_classificacao_seed.json,regras.padrao.classificacao.json"
-set "REFS=/r:"%NCAD%\hostmgd.dll" /r:"%NCAD%\hostdbmgd.dll" /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll"
+set "REFS=/r:"%NCAD%\hostmgd.dll" /r:"%NCAD%\hostdbmgd.dll" /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Security.dll"
 
 if not exist appload\nanoCAD5 mkdir appload\nanoCAD5
 set "SAIDA=appload\nanoCAD5\OrcamentoNanoCAD.dll"

@@ -68,7 +68,7 @@ vincula com quem, estado, o que vai para o arquivo) fica no núcleo e é testado
                "_x": 215, "_y": -278, "_geo": [[105,-305],[325,-275]], "_geoTipo": "MT", "vinculoEstruturas": [0, 1]}],
    "outros": [{"entidade": "POSTE", "operacao": "I", "ativo": "9400D, N1, N4", "textoOriginal": "…", "_x": …, "_y": …, "_poste": [325, -275]}],
    "totalizadora": []},
- "cad": {"versao": 1, "origem": "plugin-nanocad", "plugin": "0.1.0", "desenho": "…dwg", "regras": "Pernambuco (081) — Leitor",
+ "cad": {"versao": 1, "origem": "plugin-nanocad", "plugin": "0.2.0", "desenho": "…dwg", "regras": "Pernambuco (081) — Leitor",
          "modo": "ler", "salvo_em": "…", "altura_texto": 8,
          "postes": [{"numero": "P1", "handle": "…", "x": …, "y": …, "texto": "<handle>", "operacao": "I", "operacaoLida": "I",
                      "estruturas": [{"nome": "N1", "cabos": 1, "parametros": {"TIPOCABO": ["P"]}}], "estado": "CONFERIR", …}],
@@ -88,6 +88,23 @@ vincula com quem, estado, o que vai para o arquivo) fica no núcleo e é testado
 - Gravar: `ORC_SALVAR` → NOD `ORCAMENTO_LEITOR`/`OBRA` (Xrecord, pedaços de 250 caracteres, `DxfCode.Text`) + arquivo ao lado do DWG (UTF-8 sem BOM). Desenho sem arquivo: só no DWG, com aviso.
 - Abrir: `ORC_CONTINUAR`/tela inicial → DWG primeiro, senão o arquivo → `ObraArquivo.Ler` (recalcula parâmetros e conferência com as regras atuais).
 - Marcas (números e vínculos) são transitórias: não vão para o DWG nem para a obra.
+
+## 4b. Ligação com a aplicação (TASK-003, ADR-005)
+
+```
+nanoCAD (thread da tela)                         segundo plano (ThreadPool)              aplicação (FastAPI)
+Sincronizador.Tique (timer 1 s) ──────────────▶ ClienteAplicacao ──── HTTP + JWT ────▶ /api/plugin/versao   (impressões digitais)
+  ▲  aplica o resultado na obra                   (TransporteHttp)                       /api/plugin/regras   (leitor + vínculo)
+  └───────────────────────────────────────────── resultado pronto ◀──────────────────── /api/plugin/conferir (Totalizadora → cálculo)
+```
+- A cada intervalo (padrão 5 s): versão. `regras` mudou e a sessão usa regras da aplicação → baixa, guarda no cache e refaz
+  a obra a partir de `Sessao.UltimoDesenho` (sem tocar no DWG) + `ReaplicarAjustes`. `base`/`conversao`/`regras` mudou → reconfere.
+- Cada mudança na obra sobe `Sessao.Revisao`; a conferência vale para a revisão enviada (resposta de revisão velha é descartada).
+- `ConferenciaBase.Aplicar`: linha `cabos#i`/`outros#i` → elemento pela ordem de `ObraArquivo.ElementosDasLinhas`; ativos não
+  encontrados → `ForaDaBase` + `MensagensBase` → `Conferencia.Avaliar` (Conferir).
+- Erros: sem conexão → espera crescente (até 60 s) e segue com o que tem; 401 → para até `ORC_CONECTAR`.
+- Guardado em `%APPDATA%\OrcamentoNanoCAD`: `conexao.json` (endereço, e-mail, intervalo; tokens cifrados com DPAPI do usuário)
+  e `cache\<hash do endereço>\regras_<projeto>.json`.
 
 ## 5. Compilação (ADR-004)
 

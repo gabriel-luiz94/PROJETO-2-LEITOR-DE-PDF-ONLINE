@@ -64,6 +64,7 @@ namespace OrcamentoNanoCAD
         private static void Mudou(Sessao s, bool modificou)
         {
             if (modificou) s.Modificada = true;
+            s.Revisao++;                      // o Sincronizador confere de novo com a base da aplicação
             s.Atualizar();
         }
 
@@ -79,7 +80,7 @@ namespace OrcamentoNanoCAD
                 using (TelaInicio t = new TelaInicio(s, salva))
                 {
                     if (Application.ShowModalDialog(t) != DialogResult.OK || t.Escolha == Escolha.Nada) return;
-                    if (t.Regras != null) s.Regras = t.Regras;
+                    if (t.Regras != null) s.Regras = RegrasFrescas(t.Regras, t.Projeto);
                     if (t.Escolha == Escolha.Ler) Ler(s, false, t.Projeto);
                     else if (t.Escolha == Escolha.Construir) Construir(s, t.Projeto);
                     else if (t.Escolha == Escolha.Continuar) Continuar(s, salva);
@@ -87,10 +88,19 @@ namespace OrcamentoNanoCAD
             });
         }
 
+        /// <summary>Regras da aplicação escolhidas: baixa a versão atual (se conectado); sem conexão, fica a do cache.</summary>
+        private static RegrasProjeto RegrasFrescas(RegrasProjeto escolhidas, string projeto)
+        {
+            if (!escolhidas.DaAplicacao || !Conexao.Logado) return escolhidas;
+            try { return Conexao.BaixarRegras(string.IsNullOrEmpty(projeto) ? escolhidas.Codigo : projeto); }
+            catch (ErroAplicacao e) { Aplicacao.Msg("Usando as regras guardadas da aplicação (" + e.Message + ")."); return escolhidas; }
+        }
+
         private static void Ler(Sessao s, bool manterAjustes, string projeto)
         {
             Obra antiga = s.Obra;
             Desenho d = ExtratorDesenho.Ler(s.Doc, s.Regras);
+            s.UltimoDesenho = d;
             Obra nova = LeitorProjeto.Ler(d, s.Regras);
             nova.Projeto = !string.IsNullOrEmpty(projeto) ? projeto : (antiga != null && !string.IsNullOrEmpty(antiga.Projeto) ? antiga.Projeto : s.Regras.Codigo);
             if (manterAjustes && antiga != null) { Construtor.ReaplicarAjustes(nova, antiga, s.Regras); nova.SalvoEm = antiga.SalvoEm; }
@@ -113,7 +123,7 @@ namespace OrcamentoNanoCAD
         {
             if (salva == null) { Aplicacao.Msg("Não há obra salva neste desenho."); return; }
             Obra o = ObraArquivo.Ler(salva.Json, s.Regras);
-            RegrasProjeto r = Aplicacao.Regras.FirstOrDefault(x => x.Nome == o.NomeRegras);
+            RegrasProjeto r = Aplicacao.RegrasParaEscolher().FirstOrDefault(x => x.Nome == o.NomeRegras);
             if (r != null && r != s.Regras) { s.Regras = r; o = ObraArquivo.Ler(salva.Json, r); }
             s.Obra = o;
             s.Modificada = false;
@@ -511,6 +521,51 @@ namespace OrcamentoNanoCAD
             });
         }
 
+        // ── ligação com a aplicação ──
+        [CommandMethod("ORC_CONECTAR")]
+        public void CmdConectar()
+        {
+            Rodar("ORC_CONECTAR", s =>
+            {
+                using (TelaConexao t = new TelaConexao()) Application.ShowModalDialog(t);
+                Sincronizador.Agora();
+                UI.PainelObra.AtualizarStatusConexao();
+            });
+        }
+
+        [CommandMethod("ORC_SINCRONIZAR")]
+        public void CmdSincronizar()
+        {
+            Rodar("ORC_SINCRONIZAR", s =>
+            {
+                if (!Conexao.Logado) { Aplicacao.Msg("Sem ligação com a aplicação. Use ORC_CONECTAR."); return; }
+                string projeto = s.Obra != null && !string.IsNullOrEmpty(s.Obra.Projeto) ? s.Obra.Projeto : (s.Regras != null ? s.Regras.Codigo : "");
+                if (string.IsNullOrEmpty(projeto)) { Aplicacao.Msg("Informe o código do projeto (ORCAMENTO)."); return; }
+                try
+                {
+                    RegrasProjeto novas = Conexao.BaixarRegras(projeto);
+                    if (s.Obra != null) Sincronizador.TrocarRegras(s, novas); else s.Regras = novas;
+                    Aplicacao.Msg("Regras do projeto " + projeto + " baixadas da aplicação: " + novas.Processamento.Count + "+" + novas.Classificacao.Count
+                                  + " do leitor, " + novas.Vinculo.Cabos.Count + "+" + novas.Vinculo.Estruturas.Count + " de vínculo.");
+                    if (s.Obra != null)
+                    {
+                        ConferenciaBase c = Conexao.Cliente.Conferir(projeto, ObraArquivo.Dados(s.Obra));
+                        c.Aplicar(s.Obra, s.Regras, c.Versao.ProjetoNome);
+                        s.RevisaoConferida = s.Revisao;
+                        s.VersaoConferida = c.Versao;
+                        s.UltimaConferencia = DateTime.Now;
+                        s.ConferenciaPendencias = c.ComPendencia;
+                        Aplicacao.Msg(c.NaoEncontrados.Count == 0 ? "Base de orçamento: todos os ativos da obra estão cadastrados."
+                            : "Fora da base de orçamento (" + c.NaoEncontrados.Count + "): " + string.Join(", ", c.NaoEncontrados.Take(30).ToArray())
+                              + (c.NaoEncontrados.Count > 30 ? "…" : "") + ". Veja Conferir no painel.");
+                        s.Atualizar();
+                    }
+                }
+                catch (ErroAplicacao e) { Aplicacao.Msg("Não sincronizou: " + e.Message); }
+                Sincronizador.Agora();
+            });
+        }
+
         [CommandMethod("ORC_AJUDA")]
         public void CmdAjuda()
         {
@@ -518,7 +573,10 @@ namespace OrcamentoNanoCAD
                 + "  ORCAMENTO      início (Construir do zero / Ler projeto / Continuar obra salva)\n"
                 + "  ORC_LER  ORC_RELER  ORC_ATUALIZAR  ORC_CONTINUAR  ORC_CONSTRUIR\n"
                 + "  ORC_POSTE  ORC_VAO  ORC_VINCULAR  ORC_EDITAR  ORC_ZOOM\n"
-                + "  ORC_VINCULOS  ORC_ATIVOS  ORC_SALVAR  ORC_PAINEL  ORC_MARCAS  ORC_REGRAS");
+                + "  ORC_VINCULOS  ORC_ATIVOS  ORC_SALVAR  ORC_PAINEL  ORC_MARCAS  ORC_REGRAS\n"
+                + "  ORC_CONECTAR   ligar à aplicação (localhost/online): regras e base de orçamento ao vivo\n"
+                + "  ORC_SINCRONIZAR baixar agora as regras da aplicação e conferir a obra com a base\n"
+                + "  " + Sincronizador.Status);
         }
     }
 }

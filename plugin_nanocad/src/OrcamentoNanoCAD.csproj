@@ -18,10 +18,10 @@
     <PlatformTarget>x64</PlatformTarget>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Product>Orçamento — Leitor de Projetos (plugin nanoCAD)</Product>
     <Deterministic>true</Deterministic>
-    <NoWarn>CA1416</NoWarn>
+    <NoWarn>CA1416;SYSLIB0014</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Nucleo/*.cs" />
@@ -48,6 +48,7 @@
     <Reference Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(WinDesktopRef)/ref/net6.0/System.Drawing.Common.dll" Private="false" />
     <Reference Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(WinDesktopRef)/ref/net6.0/System.Drawing.dll" Private="false" />
     <Reference Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(WinDesktopRef)/ref/net6.0/WindowsBase.dll" Private="false" />
+    <Reference Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(WinDesktopRef)/ref/net6.0/System.Security.Cryptography.ProtectedData.dll" Private="false" />
     <Reference Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(WinDesktopRef)/ref/net6.0/PresentationCore.dll" Private="false" />
     <Reference Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(WinDesktopRef)/ref/net6.0/PresentationFramework.dll" Private="false" />
   </ItemGroup>

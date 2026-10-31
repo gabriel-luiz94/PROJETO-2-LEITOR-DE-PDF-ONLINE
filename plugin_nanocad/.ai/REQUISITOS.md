@@ -41,6 +41,17 @@
 | RQ-32 | Núcleo independente do CAD, testável fora dele | ✅ | `src/Nucleo/`, `tests/Nucleo.Testes` |
 | RQ-33 | Uma só fonte de regras (sem terceira cópia das REGRAS) | ✅ regras · ⚠️ motor portado | ADR-001 |
 
+## RQ — Ligação com a aplicação (TASK-003)
+
+| ID | Requisito | Situação | Onde |
+|---|---|---|---|
+| RQ-50 | Conectar à aplicação (localhost ou online) com login; senha não guardada, token renovado sozinho | ✅ núcleo · 🟡 CAD | `ClienteAplicacao`, `Conexao`, `TelaConexao`, `ORC_CONECTAR` |
+| RQ-51 | Usar as regras do leitor e de vínculo **gravadas na aplicação** (com cópia guardada para abrir sem ela) | ✅ · 🟡 CAD | `GET /api/plugin/regras`, `Conexao.RegrasEmCache` |
+| RQ-52 | Mudança na aplicação (regras, vínculo, conversão, base) **aparece no plugin em poucos segundos**, sem reler o DWG | ✅ · 🟡 CAD | `GET /api/plugin/versao`, `Sincronizador` (intervalo padrão 5 s) |
+| RQ-53 | Apontar **estruturas/cabos/postes não cadastrados na base de orçamento** (Conferir), pelo mesmo caminho do cálculo | ✅ · 🟡 CAD | `POST /api/plugin/conferir`, `ConferenciaBase.Aplicar` |
+| RQ-54 | Sem conexão: segue com o que tem e tenta de novo; sessão vencida pede login | ✅ · 🟡 CAD | `Sincronizador.Aplicar` |
+| RQ-55 | `ORC_SINCRONIZAR`: baixar agora e conferir, com a lista do que está fora da base | 🟡 | `Comandos.CmdSincronizar` |
+
 ## RQ — Cálculo (fora do CAD)
 
 | ID | Requisito | Situação |

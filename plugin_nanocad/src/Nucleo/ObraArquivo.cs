@@ -19,7 +19,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public const string Formato = "leitor-obra";
         public const int Versao = 1;
         public const int VersaoCad = 1;
-        public const string VersaoPlugin = "0.1.0";
+        public const string VersaoPlugin = "0.2.0";
         private const int MaxPontosGeo = 60;
 
         public static string NomeDoArquivo(string desenho)
@@ -71,6 +71,16 @@ namespace OrcamentoNanoCAD.Nucleo
         private static void Coordenadas(JObj l, Elemento e)
         {
             if (e.TextoX.HasValue && e.TextoY.HasValue) { l.Set("_x", R2(e.TextoX.Value)); l.Set("_y", R2(e.TextoY.Value)); }
+        }
+
+        /// <summary>Os elementos de cada linha de Cabos e de Outros, na ordem em que Dados() escreve (para casar respostas da aplicação).</summary>
+        public static void ElementosDasLinhas(Obra obra, out List<Elemento> cabos, out List<Elemento> outros)
+        {
+            cabos = new List<Elemento>();
+            outros = new List<Elemento>();
+            foreach (Poste p in obra.Postes) if (p.TemAnotacao) outros.Add(p);
+            foreach (Vao v in obra.Vaos) if (v.TemAnotacao) cabos.Add(v);
+            foreach (Avulso a in obra.Avulsos) (a.Entidade == "CABO" ? cabos : outros).Add(a);
         }
 
         public static JObj Dados(Obra obra)

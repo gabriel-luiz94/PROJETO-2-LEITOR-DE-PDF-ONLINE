@@ -124,6 +124,7 @@ namespace OrcamentoNanoCAD.Nucleo
                 el.Estado = Estados.Ok;
                 el.Mensagens.Clear();
                 foreach (string m in el.MensagensFixas) el.Marcar(Estados.Conferir, m);
+                foreach (string m in el.MensagensBase) el.Marcar(Estados.Conferir, m);
             }
             foreach (Poste p in obra.Postes)
             {

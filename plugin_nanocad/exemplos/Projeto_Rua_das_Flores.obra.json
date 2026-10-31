@@ -184,7 +184,7 @@
   "cad": {
     "versao": 1,
     "origem": "plugin-nanocad",
-    "plugin": "0.1.0",
+    "plugin": "0.2.0",
     "desenho": "C:\\Projetos\\Projeto_Rua_das_Flores.dwg",
     "regras": "Pernambuco (081) — Leitor",
     "modo": "ler",

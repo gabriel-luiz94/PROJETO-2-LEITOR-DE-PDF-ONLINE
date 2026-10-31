@@ -25,6 +25,8 @@ namespace OrcamentoNanoCAD
                     ed.WriteMessage("\nOrçamento (Leitor de Projetos) " + ObraArquivo.VersaoPlugin + " carregado. Comando: ORCAMENTO (ajuda: ORC_AJUDA).\n");
             }
             catch (System.Exception) { /* sem documento aberto: tudo bem */ }
+            try { Sincronizador.Iniciar(); }
+            catch (System.Exception e) { Msg("Ligação com a aplicação indisponível: " + e.Message); }
         }
 
         public void Terminate() { }
@@ -99,9 +101,13 @@ namespace OrcamentoNanoCAD
 
         public static void RecarregarRegras() { _regras = null; }
 
-        public static RegrasProjeto RegrasPorNome(string nome)
+        /// <summary>Regras para a tela inicial: as baixadas da aplicação (cache) primeiro, depois as embutidas / da pasta.</summary>
+        public static List<RegrasProjeto> RegrasParaEscolher()
         {
-            return Regras.FirstOrDefault(r => r.Nome == nome) ?? Regras.FirstOrDefault();
+            List<RegrasProjeto> l = new List<RegrasProjeto>();
+            if (Conexao.Logado) l.AddRange(Conexao.RegrasEmCache());
+            l.AddRange(Regras);
+            return l;
         }
 
         // ── sessão por desenho ──
@@ -129,6 +135,14 @@ namespace OrcamentoNanoCAD
         public bool Modificada;
         public bool MarcasVisiveis = true;
         public readonly Marcas Marcas = new Marcas();
+        public Desenho UltimoDesenho;          // o último DWG lido (para refazer a obra quando as regras da aplicação mudam)
+        // ligação com a aplicação (Sincronizador): cada mudança na obra sobe a revisão; a conferência com a base vale para uma revisão
+        public int Revisao;
+        public int RevisaoConferida = -1;
+        public VersaoAplicacao VersaoAplicacao;
+        public VersaoAplicacao VersaoConferida;
+        public DateTime? UltimaConferencia;
+        public int ConferenciaPendencias;
 
         public Sessao(Document doc)
         {

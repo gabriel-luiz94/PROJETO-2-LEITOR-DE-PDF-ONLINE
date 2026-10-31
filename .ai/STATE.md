@@ -161,6 +161,8 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 - [x] Importar/exportar obra (`services/obras_arquivo.py`) mantém o vínculo e a geometria das linhas (`CAMPOS_VINCULO`:
       `vinculoEstruturas`, `textoOriginal`, `_x/_y/_geo/_geoTipo/_poste`, fictícios, fases/tensão/nível) — antes eram descartados
 - [x] Teste de contrato `tests/test_plugin_nanocad_contrato.py` (exemplo gerado pelo plugin → API → vínculo igual ao da aplicação)
+- [x] API do plugin (TASK-104, `routers/plugin_cad.py`): `/api/plugin/versao`, `/api/plugin/regras`, `/api/plugin/conferir` — regras e base de orçamento
+      ao vivo no plugin; ativos fora da base apontados por linha (mesmo caminho do modo autônomo)
 - [ ] Modo autônomo achar o `.obra.json` e gravar o resultado na pasta do desenho (plugin RQ-40/41)
 
 ---
@@ -690,6 +692,9 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-10-31
+**Motivo:** TASK-104 — API do plugin nanoCAD (regras e base de orçamento ao vivo). Suíte: 1212 passed, 11 skipped.
+
+**Anterior — Data:** 2026-10-31
 **Motivo:** TASK-103 — subproduto plugin nanoCAD (`plugin_nanocad/`, com `.ai` próprio) e contrato do `.obra.json`:
 a importação de obra passou a manter os campos de vínculo/geometria das linhas. Suíte: 1207 passed, 11 skipped
 (sem `quickjs`/`pywebview`, que não compilam no Python 3.13 do ambiente).

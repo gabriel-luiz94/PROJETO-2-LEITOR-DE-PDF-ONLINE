@@ -110,8 +110,10 @@ namespace OrcamentoNanoCAD.Nucleo
                 LinhaTabela l = new LinhaTabela();
                 l.Chave = v.Numero;
                 string rotulo = v.Cabo != null && !string.IsNullOrEmpty(v.Cabo.Rotulo) ? v.Cabo.Rotulo : v.Ativo;
-                l.Celulas = new[] { v.Numero, rotulo, v.Cabo != null && v.Cabo.Erro != null ? v.Cabo.Erro : "—" };
-                l.Estado = v.Cabo != null && v.Cabo.Erro != null ? Estados.Conferir : Estados.Ok;
+                string obs = v.Cabo != null && v.Cabo.Erro != null ? v.Cabo.Erro : "—";
+                if (v.ForaDaBase.Count > 0) obs = (obs == "—" ? "" : obs + " · ") + ForaDaBase(v.ForaDaBase);
+                l.Celulas = new[] { v.Numero, rotulo, obs };
+                l.Estado = obs != "—" ? Estados.Conferir : Estados.Ok;
                 r.Add(l);
             }
             foreach (Poste p in obra.Postes)
@@ -122,8 +124,11 @@ namespace OrcamentoNanoCAD.Nucleo
                     bool pendente;
                     LinhaTabela l = new LinhaTabela();
                     l.Chave = p.Numero;
-                    l.Celulas = new[] { p.Numero + " · " + p.Lido.Estruturas[k].Nome, AtivoDaEstrutura(p, k, out pars, out pendente), pars };
-                    l.Estado = pendente ? Estados.Conferir : Estados.Ok;
+                    string ativo = AtivoDaEstrutura(p, k, out pars, out pendente);
+                    bool fora = p.ForaDaBase.Contains(p.Lido.Estruturas[k].Nome);
+                    if (fora) pars += " · não está na base";
+                    l.Celulas = new[] { p.Numero + " · " + p.Lido.Estruturas[k].Nome, ativo, pars };
+                    l.Estado = pendente || fora ? Estados.Conferir : Estados.Ok;
                     r.Add(l);
                 }
             }
@@ -133,12 +138,15 @@ namespace OrcamentoNanoCAD.Nucleo
                 LinhaTabela l = new LinhaTabela();
                 l.Chave = p.Numero;
                 string oficial = Anotacoes.PosteOficial(p.Lido.CodigoPoste);
-                l.Celulas = new[] { p.Numero + " · poste", oficial ?? p.Lido.CodigoPoste, oficial == null ? "poste fora da notação compacta" : "—" };
-                l.Estado = oficial == null ? Estados.Conferir : Estados.Ok;
+                bool fora = oficial != null && p.ForaDaBase.Contains(oficial);
+                l.Celulas = new[] { p.Numero + " · poste", oficial ?? p.Lido.CodigoPoste, oficial == null ? "poste fora da notação compacta" : fora ? "não está na base" : "—" };
+                l.Estado = oficial == null || fora ? Estados.Conferir : Estados.Ok;
                 r.Add(l);
             }
             return r;
         }
+
+        private static string ForaDaBase(List<string> l) { return "não está na base: " + string.Join(", ", l.ToArray()); }
 
         /// <summary>Texto do comando no rodapé: "15 elementos · 11 ok · 3 a conferir · 1 erro · regras: Pernambuco (081)".</summary>
         public static string Resumo(Obra obra)

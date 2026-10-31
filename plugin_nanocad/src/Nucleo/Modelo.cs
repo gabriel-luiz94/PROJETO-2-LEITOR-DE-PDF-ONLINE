@@ -84,6 +84,8 @@ namespace OrcamentoNanoCAD.Nucleo
         public string Estado = Estados.Ok;
         public List<string> Mensagens = new List<string>();
         public List<string> MensagensFixas = new List<string>();   // da leitura (não mudam na conferência)
+        public List<string> ForaDaBase = new List<string>();       // ativos desta linha que a aplicação não achou na Base de Orçamento
+        public List<string> MensagensBase = new List<string>();    // ... e as mensagens (vêm de /api/plugin/conferir)
 
         public bool TemAnotacao { get { return !string.IsNullOrEmpty(AtivoLido); } }
         public bool OperacaoAjustada { get { return Operacao != OperacaoLida; } }

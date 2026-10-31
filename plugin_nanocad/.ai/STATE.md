@@ -5,7 +5,7 @@
 
 ## Versão
 
-`0.1.0` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` (e `<Version>` do `.csproj`)
+`0.2.0` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` (e `<Version>` do `.csproj`)
 
 Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
@@ -42,12 +42,20 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 - [x] Trocar a layer da anotação ao mudar a operação (opção do pop-up; layer tirada das regras)
 - [x] Regras embutidas (081 e padrão) + pasta `regras\<codigo>\` ao lado da DLL
 
+### Ligação com a aplicação (TASK-003) — ✅ núcleo e API · 🟡 CAD
+- [x] `ORC_CONECTAR` (endereço, e-mail, senha → token; DPAPI), `ORC_SINCRONIZAR`, situação no painel e na tela inicial
+- [x] Regras do leitor/vínculo baixadas da aplicação ("Aplicação: PERNAMBUCO (081)"), com cache em `%APPDATA%\OrcamentoNanoCAD`
+- [x] Sincronização automática: versão consultada a cada 5 s (ajustável); regras mudaram → obra refeita do último desenho lido, ajustes mantidos
+- [x] Conferência com a base de orçamento (`/api/plugin/conferir`): ativo fora da base → Conferir ("não está na base", "fica fora do orçamento")
+- [x] Ponta a ponta conferido contra a aplicação rodando (uvicorn): login, versão, regras, conferência, renovação do token
+
 ### Aplicação (TASK-103 do projeto principal) — ✅
 - [x] `services/obras_arquivo.py`: importar/exportar mantém `vinculoEstruturas`, `textoOriginal`, `_x/_y/_geo/_geoTipo/_poste`, fictícios…
 - [x] `tests/test_plugin_nanocad_contrato.py`: importa o exemplo pela API e compara o vínculo/parâmetros com os da aplicação
 
 ## Pendente / próximas tarefas
 
+- [ ] Teste da ligação com a aplicação dentro do nanoCAD (TASK-003, passos na tarefa)
 - [ ] **Teste no nanoCAD 26** pelo usuário: APPLOAD, ORCAMENTO, ler um DWG real de Pernambuco, salvar, importar na aplicação (TASK-002)
 - [ ] **nanoCAD 5**: rodar `build_nanocad5.bat` e mandar os logs se falhar
 - [ ] Desenhos reais em `referencias/desenhos/` para calibrar raios/tolerâncias (hoje: 4×, 1,5×, 40× a altura típica)
@@ -62,17 +70,20 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 - O motor do leitor e parte do vínculo são **portes** (C#) do JS/Python da aplicação: mudança lá exige repetir aqui (`RULES.md` P3; o teste de paridade avisa).
 - `\d` no motor: a regex em C# roda em modo ECMAScript (só dígitos ASCII, como o JS).
 - Ponto de poste na rede: o bloco precisa estar a até 1,5 × altura típica da linha; postes desenhados longe da rede não cortam o vão.
+- Ligação com a aplicação: "ao vivo" = consulta a cada N segundos (padrão 5); no modo online cada consulta lê regras/base do Supabase.
+  Mudança no DESENHO continua pedindo Atualizar (o plugin não relê o DWG sozinho).
 - Sem o SDK/DLLs do nanoCAD 5, a camada do CAD do 5 não foi compilada aqui; se a API do 5 não tiver algo, o `.bat` tenta sem gráficos transitórios.
 
 ## Testes
 
 | Suíte | Comando | Resultado (31/10/2026) |
 |---|---|---|
-| Núcleo (xUnit, net8.0) | `dotnet test tests/Nucleo.Testes` | 24 ✅ |
+| Núcleo (xUnit, net8.0) | `dotnet test tests/Nucleo.Testes` | 31 ✅ (ponta a ponta com `APP_URL`/`APP_EMAIL`/`APP_SENHA`) |
 | Núcleo em .NET 4 / C# 5 | `dotnet build tests/Net40` | compila ✅ |
 | DLL nanoCAD 26 | `dotnet build src/OrcamentoNanoCAD.csproj -c Release` | compila ✅ (18 comandos, ExtensionApplication, 5 recursos de regras) |
 | Contrato com a aplicação | `pytest tests/test_plugin_nanocad_contrato.py` (raiz) | 5 ✅ |
+| API do plugin na aplicação | `pytest tests/test_plugin_cad_api.py` (raiz) | 5 ✅ |
 
 ## Última atualização
 
-2026-10-31 — TASK-001 (estrutura do subproduto, núcleo, camada nanoCAD, contrato).
+2026-10-31 — TASK-003 (ligação com a aplicação: regras e base ao vivo). Antes: TASK-001.

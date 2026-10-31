@@ -102,10 +102,15 @@ namespace OrcamentoNanoCAD.UI
             FlowLayoutPanel baixo = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new Padding(0, 10, 0, 0) };
             FlowLayoutPanel colRegras = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown };
             colRegras.Controls.Add(Visual.Rotulo("Regras do projeto", Visual.Secao));
-            _regras = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 240 };
-            foreach (RegrasProjeto r in Aplicacao.Regras) _regras.Items.Add(r);
-            _regras.SelectedItem = s.Regras ?? Aplicacao.Regras.FirstOrDefault();
+            _regras = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 280 };
+            PreencherRegras(s.Regras);
             colRegras.Controls.Add(_regras);
+            colRegras.Controls.Add(Visual.Botao("🔗 Aplicação…", (o, e) =>
+            {
+                using (TelaConexao tc = new TelaConexao()) tc.ShowDialog(this);
+                PreencherRegras(_regras.SelectedItem as RegrasProjeto);
+                _status.Text = Sincronizador.Status;
+            }));
             FlowLayoutPanel colProj = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown };
             colProj.Controls.Add(Visual.Rotulo("Projeto (código na aplicação)", Visual.Secao));
             _projeto = new TextBox { Width = 90, Text = s.Obra != null ? s.Obra.Projeto : (s.Regras != null ? s.Regras.Codigo : "") };
@@ -122,7 +127,23 @@ namespace OrcamentoNanoCAD.UI
             baixo.Controls.Add(colSalva);
             raiz.Controls.Add(baixo, 0, 1);
             raiz.SetColumnSpan(baixo, 2);
+            _status = Visual.Rotulo(Sincronizador.Status, Visual.Normal, Color.DimGray);
+            _status.MaximumSize = new Size(620, 0);
+            raiz.Controls.Add(_status, 0, 2);
+            raiz.SetColumnSpan(_status, 2);
             Controls.Add(raiz);
+        }
+
+        private readonly Label _status;
+
+        private void PreencherRegras(RegrasProjeto atual)
+        {
+            _regras.Items.Clear();
+            foreach (RegrasProjeto r in Aplicacao.RegrasParaEscolher()) _regras.Items.Add(r);
+            RegrasProjeto sel = null;
+            foreach (RegrasProjeto r in _regras.Items) if (atual != null && r.Nome == atual.Nome) sel = r;
+            if (sel == null && _regras.Items.Count > 0) sel = (RegrasProjeto)_regras.Items[0];
+            _regras.SelectedItem = sel;
         }
 
         private Control Opcao(string titulo, string descricao, Escolha escolha)
@@ -358,6 +379,78 @@ namespace OrcamentoNanoCAD.UI
             AlterarLayer = _mudaLayer && _layer.Checked;
             DialogResult = DialogResult.OK;
             Close();
+        }
+    }
+
+    // ── ligação com a aplicação ──
+    public class TelaConexao : Form
+    {
+        private readonly TextBox _url, _email, _senha;
+        private readonly NumericUpDown _intervalo;
+        private readonly CheckBox _auto;
+        private readonly Label _situacao;
+
+        public TelaConexao()
+        {
+            Text = "🔗 Ligação com a aplicação (Leitor de Projetos)";
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false; MinimizeBox = false;
+            StartPosition = FormStartPosition.CenterScreen;
+            AutoSize = true; AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            Font = Visual.Normal;
+            Padding = new Padding(12);
+            ConexaoAplicacao c = Conexao.Dados;
+            FlowLayoutPanel f = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false };
+            f.Controls.Add(Visual.Rotulo("Com a aplicação aberta, o plugin usa as regras do leitor e de vínculo GRAVADAS nela e confere a obra\n"
+                + "com a Base de Orçamento (o que não está cadastrado vira Conferir). Mudou lá, aparece aqui em poucos segundos.", Visual.Normal, Color.DimGray));
+            f.Controls.Add(Visual.Rotulo("Endereço (local: http://127.0.0.1:8000 · ou o endereço online)", Visual.Secao));
+            _url = new TextBox { Width = 420, Text = c.Url };
+            f.Controls.Add(_url);
+            f.Controls.Add(Visual.Rotulo("E-mail", Visual.Secao));
+            _email = new TextBox { Width = 420, Text = c.Email };
+            f.Controls.Add(_email);
+            f.Controls.Add(Visual.Rotulo("Senha (não é guardada; o acesso fica válido por até 30 dias)", Visual.Secao));
+            _senha = new TextBox { Width = 420, UseSystemPasswordChar = true };
+            f.Controls.Add(_senha);
+            FlowLayoutPanel l = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+            l.Controls.Add(Visual.Rotulo("Consultar a aplicação a cada", Visual.Normal));
+            _intervalo = new NumericUpDown { Minimum = 2, Maximum = 300, Value = Math.Max(2, Math.Min(300, c.IntervaloSegundos)), Width = 60 };
+            l.Controls.Add(_intervalo);
+            l.Controls.Add(Visual.Rotulo("s", Visual.Normal));
+            _auto = new CheckBox { Text = "atualizar sozinho", Checked = c.Automatico, AutoSize = true, Margin = new Padding(16, 4, 0, 0) };
+            l.Controls.Add(_auto);
+            f.Controls.Add(l);
+            _situacao = Visual.Rotulo(Conexao.Logado ? "Conectado como " + c.Email + " em " + c.Base : "Não conectado.", Visual.Normal, Conexao.Logado ? Visual.Ok : Color.DimGray);
+            _situacao.MaximumSize = new Size(440, 0);
+            f.Controls.Add(_situacao);
+            FlowLayoutPanel b = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+            Button entrar = Visual.Botao("Entrar", (o, e) => Entrar());
+            entrar.BackColor = Visual.Ok; entrar.ForeColor = Color.White;
+            b.Controls.Add(entrar);
+            b.Controls.Add(Visual.Botao("Salvar opções", (o, e) => { Conexao.Ajustar((int)_intervalo.Value, _auto.Checked); _situacao.Text = "Opções salvas."; }));
+            b.Controls.Add(Visual.Botao("Desconectar", (o, e) => { Conexao.Sair(); _situacao.Text = "Desconectado: o plugin volta às regras embutidas."; _situacao.ForeColor = Color.DimGray; }));
+            b.Controls.Add(Visual.Botao("Fechar", (o, e) => Close()));
+            f.Controls.Add(b);
+            Controls.Add(f);
+            AcceptButton = entrar;
+        }
+
+        private void Entrar()
+        {
+            Cursor = Cursors.WaitCursor;
+            try
+            {
+                Conexao.Entrar(_url.Text.Trim(), _email.Text.Trim(), _senha.Text, (int)_intervalo.Value, _auto.Checked);
+                _senha.Text = "";
+                _situacao.Text = "Conectado como " + Conexao.Dados.Email + " em " + Conexao.Dados.Base + ".";
+                _situacao.ForeColor = Visual.Ok;
+            }
+            catch (ErroAplicacao e)
+            {
+                _situacao.Text = e.Status == 401 ? "E-mail ou senha não conferem." : "Não conectou: " + e.Message;
+                _situacao.ForeColor = Visual.Erro;
+            }
+            finally { Cursor = Cursors.Default; }
         }
     }
 }

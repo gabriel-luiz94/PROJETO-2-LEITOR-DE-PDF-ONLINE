@@ -15,6 +15,8 @@ namespace OrcamentoNanoCAD.Nucleo
         public List<JObj> Processamento = new List<JObj>();
         public List<JObj> Classificacao = new List<JObj>();
         public RegrasVinculo Vinculo = new RegrasVinculo();
+        public string Versao;                   // impressão digital das regras na aplicação (só quando vêm dela)
+        public bool DaAplicacao;                // baixadas da aplicação (atualizam sozinhas quando ela muda)
 
         // geometria (mesmos números de services/dxf_geometria.py)
         public double RaioAlturas = 4;          // texto → rede/poste: até 4 × a altura do texto
@@ -42,6 +44,18 @@ namespace OrcamentoNanoCAD.Nucleo
             r.Processamento = ListaDeRegras(procJson);
             r.Classificacao = ListaDeRegras(clsJson);
             r.Vinculo = RegrasVinculo.De(string.IsNullOrEmpty(vincJson) ? null : Json.Ler(vincJson) as JObj);
+            return r;
+        }
+
+        public static RegrasProjeto MontarDeObjetos(string codigo, string nome, string origem, List<JObj> proc, List<JObj> cls, JObj vinc)
+        {
+            RegrasProjeto r = new RegrasProjeto();
+            r.Codigo = codigo;
+            r.Nome = nome;
+            r.Origem = origem;
+            r.Processamento = proc ?? new List<JObj>();
+            r.Classificacao = cls ?? new List<JObj>();
+            r.Vinculo = RegrasVinculo.De(vinc);
             return r;
         }
 

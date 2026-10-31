@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-31 — TASK-003: ligação com a aplicação (0.2.0)
+
+**Tipo:** feature · `src/Nucleo/ClienteAplicacao.cs`, `src/Plugin/Sincronizador.cs`, telas/comandos · aplicação: `routers/plugin_cad.py` (TASK-104 do principal)
+
+Com a aplicação aberta (localhost/online), o plugin usa as regras gravadas nela e confere a obra com a Base de Orçamento;
+mudanças lá aparecem em poucos segundos. Estrutura/cabo fora da base vira Conferir. Comandos `ORC_CONECTAR` e `ORC_SINCRONIZAR`.
+
+---
+
 ## 2026-10-31 — TASK-001: subproduto plugin nanoCAD (0.1.0)
 
 **Tipo:** novo subproduto · `plugin_nanocad/` · aplicação: `services/obras_arquivo.py` (TASK-103 do principal)

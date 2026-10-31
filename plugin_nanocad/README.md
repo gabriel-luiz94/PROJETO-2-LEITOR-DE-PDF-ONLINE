@@ -29,7 +29,16 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 | `ORC_EDITAR` | pop-up do vão/poste: entrada (lida do desenho), saída (para a obra), ajustes (operação, metros, estrutura do vínculo; troca opcional da layer do texto) |
 | `ORC_VINCULOS`, `ORC_ATIVOS` | tabela de vínculos · ativos com parâmetros (`N4(9400D, P, 3XA35P_7.94_-13.8KV, ?)`) |
 | `ORC_SALVAR` | grava a obra **no DWG** e em **`<desenho>.obra.json`** na pasta do desenho |
+| `ORC_CONECTAR`, `ORC_SINCRONIZAR` | ligar à aplicação aberta (localhost/online): regras e base de orçamento ao vivo · baixar e conferir agora |
 | `ORC_CONTINUAR`, `ORC_PAINEL`, `ORC_ZOOM`, `ORC_MARCAS`, `ORC_REGRAS`, `ORC_AJUDA` | abrir a obra salva · reabrir o painel · localizar · ligar/desligar números e vínculos na tela · recarregar regras · ajuda |
+
+### Ligado à aplicação (regras e base ao vivo)
+
+Com a aplicação aberta (`http://127.0.0.1:8000` ou o endereço online): `ORC_CONECTAR` → e-mail e senha → Entrar. Na tela
+inicial escolha as regras **"Aplicação: PERNAMBUCO (081)"**. O plugin consulta a aplicação a cada 5 s (ajustável): regras
+do leitor/vínculo mudaram → refaz a obra (mantendo os ajustes); base de orçamento mudou → confere de novo. Estrutura, cabo
+ou poste que **não está na base** vira *Conferir* no painel ("não está na base de orçamento"). Sem a aplicação, segue com a
+última cópia das regras (ou as embutidas). A senha não é guardada; o acesso vale até 30 dias.
 
 ### Regras
 

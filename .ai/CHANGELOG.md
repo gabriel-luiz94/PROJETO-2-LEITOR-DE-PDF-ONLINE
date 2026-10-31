@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-10-31 — TASK-104: API do plugin nanoCAD (regras e base ao vivo)
+
+**Tipo:** feature · `routers/plugin_cad.py`, `app.py`, `tests/test_plugin_cad_api.py` · plugin: `plugin_nanocad/` (TASK-003 do plugin)
+
+`/api/plugin/versao`, `/api/plugin/regras` e `/api/plugin/conferir`: o plugin usa as regras gravadas na aplicação, percebe mudanças em poucos segundos e
+recebe, por linha da obra, os ativos que não estão na Base de Orçamento (mesmo caminho do modo autônomo: Totalizadora → cálculo).
+
+---
+
 ## 2026-10-31 — TASK-103: subproduto plugin nanoCAD e vínculo preservado no `.obra.json`
 
 **Tipo:** novo subproduto + contrato · `plugin_nanocad/` (com `.ai` próprio), `services/obras_arquivo.py`, `tests/test_plugin_nanocad_contrato.py`
