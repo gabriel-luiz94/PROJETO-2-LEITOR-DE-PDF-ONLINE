@@ -28,6 +28,7 @@ Funciona tanto como aplicativo desktop nativo (via `pywebview`, empacotável em 
 * `static/`: interface HTML/CSS/JS servida pelo próprio FastAPI.
 * `data/`: seed da tabela de orçamento (`tabela_seed.csv`).
 * `scripts/`: scripts auxiliares (release, schema do Supabase).
+* `plugin_nanocad/`: subproduto — plugin C# para o nanoCAD que lê o desenho e gera o `.obra.json` (DLL pronta para o APPLOAD em `plugin_nanocad/appload/`; documentação própria em `plugin_nanocad/.ai/`).
 
 ## 🛠️ Como rodar localmente
 

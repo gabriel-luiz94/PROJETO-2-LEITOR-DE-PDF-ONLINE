@@ -1,0 +1,672 @@
+{
+  "formato": "leitor-obra",
+  "versao": 1,
+  "exportado_em": "2026-10-31T12:00:00+00:00",
+  "tipo": "obra",
+  "nome": "Projeto_Rua_das_Flores",
+  "projeto": "081",
+  "dados": {
+    "cabos": [
+      {
+        "entidade": "CABO",
+        "operacao": "I",
+        "ativo": "3xA35P(7,94)-13,8kV 45 m",
+        "textoOriginal": "3xA35P(7,94)-13,8kV 45 m",
+        "_x": 215,
+        "_y": -278,
+        "_geo": [
+          [105, -305],
+          [325, -275]
+        ],
+        "_geoTipo": "MT",
+        "vinculoEstruturas": [0, 1]
+      },
+      {
+        "entidade": "CABO",
+        "operacao": "I",
+        "ativo": "3xA35P(7,94)-13,8kV 45 m",
+        "textoOriginal": "3xA35P(7,94)-13,8kV 45 m",
+        "_x": 440,
+        "_y": -293,
+        "_geo": [
+          [325, -275],
+          [555, -335]
+        ],
+        "_geoTipo": "MT",
+        "vinculoEstruturas": [1, 2]
+      },
+      {
+        "entidade": "CABO",
+        "operacao": "I",
+        "ativo": "3xS04-7,97kV 38 m",
+        "textoOriginal": "3xS04-7,97kV 38 m",
+        "_x": 670,
+        "_y": -298,
+        "_geo": [
+          [555, -335],
+          [785, -285]
+        ],
+        "_geoTipo": "MT",
+        "vinculoEstruturas": [3]
+      },
+      {
+        "entidade": "CABO",
+        "operacao": "R",
+        "ativo": "3xA35P(7,94)-13,8kV 52 m",
+        "textoOriginal": "3xA35P(7,94)-13,8kV 52 m",
+        "_x": 310,
+        "_y": -400,
+        "_geo": [
+          [325, -275],
+          [325, -525]
+        ],
+        "_geoTipo": "MT"
+      },
+      {
+        "entidade": "CABO",
+        "operacao": "I",
+        "ativo": "3xC16(16) 30 m",
+        "textoOriginal": "3xC16(16) 30 m",
+        "_x": 445,
+        "_y": -538,
+        "_geo": [
+          [325, -525],
+          [565, -575]
+        ],
+        "_geoTipo": "BT",
+        "vinculoEstruturas": [4, 5]
+      },
+      {
+        "entidade": "CABO",
+        "operacao": "I",
+        "ativo": "3xC16(16) 28 m",
+        "textoOriginal": "3xC16(16) 28 m",
+        "_x": 685,
+        "_y": -543,
+        "_geo": [
+          [565, -575],
+          [805, -535]
+        ],
+        "_geoTipo": "BT",
+        "vinculoEstruturas": [6]
+      },
+      {
+        "entidade": "CABO",
+        "operacao": "M",
+        "ativo": "RAMA25 20 m",
+        "textoOriginal": "RAMA25 20 m",
+        "_x": 550,
+        "_y": -660,
+        "_geo": [
+          [565, -575],
+          [565, -745]
+        ],
+        "_geoTipo": "BT",
+        "vinculoEstruturas": []
+      }
+    ],
+    "outros": [
+      {
+        "entidade": "POSTE",
+        "operacao": "I",
+        "ativo": "9200D, N1",
+        "textoOriginal": "9200D, N1",
+        "_x": 83,
+        "_y": -293,
+        "_poste": [105, -305]
+      },
+      {
+        "entidade": "POSTE",
+        "operacao": "I",
+        "ativo": "9400D, N1, N4",
+        "textoOriginal": "9400D, N1, N4",
+        "_x": 303,
+        "_y": -263,
+        "_poste": [325, -275]
+      },
+      {
+        "entidade": "POSTE",
+        "operacao": "I",
+        "ativo": "11300D, N3",
+        "textoOriginal": "11300D, N3",
+        "_x": 533,
+        "_y": -323,
+        "_poste": [555, -335]
+      },
+      {
+        "entidade": "POSTE",
+        "operacao": "I",
+        "ativo": "9400D, N1",
+        "textoOriginal": "9400D, N1",
+        "_x": 763,
+        "_y": -273,
+        "_poste": [785, -285]
+      },
+      {
+        "entidade": "POSTE",
+        "operacao": "I",
+        "ativo": "10300R, N1",
+        "textoOriginal": "10300R, N1",
+        "_x": 303,
+        "_y": -513,
+        "_poste": [325, -525]
+      },
+      {
+        "entidade": "POSTE",
+        "operacao": "I",
+        "ativo": "9300F, N3",
+        "textoOriginal": "9300F, N3",
+        "_x": 543,
+        "_y": -563,
+        "_poste": [565, -575]
+      },
+      {
+        "entidade": "POSTE",
+        "operacao": "I",
+        "ativo": "9200D, N1",
+        "textoOriginal": "9200D, N1",
+        "_x": 783,
+        "_y": -523,
+        "_poste": [805, -535]
+      },
+      {
+        "entidade": "POSTE",
+        "operacao": "I",
+        "ativo": "7150FV, B2",
+        "textoOriginal": "7150FV, B2",
+        "_x": 543,
+        "_y": -733,
+        "_poste": [565, -745]
+      }
+    ],
+    "totalizadora": []
+  },
+  "cad": {
+    "versao": 1,
+    "origem": "plugin-nanocad",
+    "plugin": "0.1.0",
+    "desenho": "C:\\Projetos\\Projeto_Rua_das_Flores.dwg",
+    "regras": "Pernambuco (081) — Leitor",
+    "modo": "ler",
+    "altura_texto": 8,
+    "salvo_em": "31/10/2026 09:00",
+    "postes": [
+      {
+        "numero": "P1",
+        "texto": "105",
+        "textoOriginal": "9200D, N1",
+        "textoLayer": "01_INSTALANDO",
+        "textoCor": "#000000",
+        "textoX": 83,
+        "textoY": -293,
+        "entidade": "POSTE",
+        "ativoLido": "9200D, N1",
+        "operacaoLida": "I",
+        "operacao": "I",
+        "estado": "CONFERIR",
+        "mensagens": ["N1 1/2 cabos"],
+        "handle": "104",
+        "x": 105,
+        "y": -305,
+        "bloco": "POSTE",
+        "estruturas": [
+          {
+            "nome": "N1",
+            "cabos": 1,
+            "parametros": {
+              "TIPOCABO": ["P"]
+            }
+          }
+        ]
+      },
+      {
+        "numero": "P2",
+        "texto": "10B",
+        "textoOriginal": "9400D, N1, N4",
+        "textoLayer": "01_INSTALANDO",
+        "textoCor": "#000000",
+        "textoX": 303,
+        "textoY": -263,
+        "entidade": "POSTE",
+        "ativoLido": "9400D, N1, N4",
+        "operacaoLida": "I",
+        "operacao": "I",
+        "estado": "CONFERIR",
+        "mensagens": ["N4 0/2 cabos"],
+        "handle": "10A",
+        "x": 325,
+        "y": -275,
+        "bloco": "POSTE",
+        "estruturas": [
+          {
+            "nome": "N1",
+            "cabos": 2,
+            "parametros": {
+              "TIPOCABO": ["P"]
+            }
+          },
+          {
+            "nome": "N4",
+            "cabos": 0,
+            "parametros": {
+              "TIPOCABO": [null],
+              "CABO": [null],
+              "CABO2": [null]
+            }
+          }
+        ]
+      },
+      {
+        "numero": "P3",
+        "texto": "103",
+        "textoOriginal": "11300D, N3",
+        "textoLayer": "01_INSTALANDO",
+        "textoCor": "#000000",
+        "textoX": 533,
+        "textoY": -323,
+        "entidade": "POSTE",
+        "ativoLido": "11300D, N3",
+        "operacaoLida": "I",
+        "operacao": "I",
+        "estado": "OK",
+        "handle": "102",
+        "x": 555,
+        "y": -335,
+        "bloco": "POSTE",
+        "estruturas": [
+          {
+            "nome": "N3",
+            "cabos": 1,
+            "parametros": {
+              "TIPOCABO": ["P"],
+              "CABO": ["3XA35P_7.94_-13.8KV"]
+            }
+          }
+        ]
+      },
+      {
+        "numero": "P4",
+        "texto": "10F",
+        "textoOriginal": "9400D, N1",
+        "textoLayer": "01_INSTALANDO",
+        "textoCor": "#000000",
+        "textoX": 763,
+        "textoY": -273,
+        "entidade": "POSTE",
+        "ativoLido": "9400D, N1",
+        "operacaoLida": "I",
+        "operacao": "I",
+        "estado": "CONFERIR",
+        "mensagens": ["N1 1/2 cabos"],
+        "handle": "10E",
+        "x": 785,
+        "y": -285,
+        "bloco": "POSTE",
+        "estruturas": [
+          {
+            "nome": "N1",
+            "cabos": 1,
+            "parametros": {
+              "TIPOCABO": ["A"]
+            }
+          }
+        ]
+      },
+      {
+        "numero": "P5",
+        "texto": "109",
+        "textoOriginal": "10300R, N1",
+        "textoLayer": "01_INSTALANDO",
+        "textoCor": "#000000",
+        "textoX": 303,
+        "textoY": -513,
+        "entidade": "POSTE",
+        "ativoLido": "10300R, N1",
+        "operacaoLida": "I",
+        "operacao": "I",
+        "estado": "CONFERIR",
+        "mensagens": ["N1 1/2 cabos"],
+        "handle": "108",
+        "x": 325,
+        "y": -525,
+        "bloco": "POSTE",
+        "estruturas": [
+          {
+            "nome": "N1",
+            "cabos": 1,
+            "parametros": {
+              "TIPOCABO": ["C"]
+            }
+          }
+        ]
+      },
+      {
+        "numero": "P6",
+        "texto": "10D",
+        "textoOriginal": "9300F, N3",
+        "textoLayer": "01_INSTALANDO",
+        "textoCor": "#000000",
+        "textoX": 543,
+        "textoY": -563,
+        "entidade": "POSTE",
+        "ativoLido": "9300F, N3",
+        "operacaoLida": "I",
+        "operacao": "I",
+        "estado": "OK",
+        "handle": "10C",
+        "x": 565,
+        "y": -575,
+        "bloco": "POSTE",
+        "estruturas": [
+          {
+            "nome": "N3",
+            "cabos": 1,
+            "parametros": {
+              "TIPOCABO": ["C"],
+              "CABO": ["3XC16_16_"]
+            }
+          }
+        ]
+      },
+      {
+        "numero": "P7",
+        "texto": "101",
+        "textoOriginal": "9200D, N1",
+        "textoLayer": "01_INSTALANDO",
+        "textoCor": "#000000",
+        "textoX": 783,
+        "textoY": -523,
+        "entidade": "POSTE",
+        "ativoLido": "9200D, N1",
+        "operacaoLida": "I",
+        "operacao": "I",
+        "estado": "CONFERIR",
+        "mensagens": ["N1 1/2 cabos"],
+        "handle": "100",
+        "x": 805,
+        "y": -535,
+        "bloco": "POSTE",
+        "estruturas": [
+          {
+            "nome": "N1",
+            "cabos": 1,
+            "parametros": {
+              "TIPOCABO": ["C"]
+            }
+          }
+        ]
+      },
+      {
+        "numero": "P8",
+        "texto": "107",
+        "textoOriginal": "7150FV, B2",
+        "textoLayer": "01_INSTALANDO",
+        "textoCor": "#000000",
+        "textoX": 543,
+        "textoY": -733,
+        "entidade": "POSTE",
+        "ativoLido": "7150FV, B2",
+        "operacaoLida": "I",
+        "operacao": "I",
+        "estado": "CONFERIR",
+        "mensagens": ["B2 0/2 cabos"],
+        "handle": "106",
+        "x": 565,
+        "y": -745,
+        "bloco": "POSTE",
+        "estruturas": [
+          {
+            "nome": "B2",
+            "cabos": 0,
+            "parametros": {}
+          }
+        ]
+      }
+    ],
+    "vaos": [
+      {
+        "numero": "V1",
+        "texto": "111",
+        "textoOriginal": "3xA35P(7,94)-13,8kV 45 m",
+        "textoLayer": "01_INSTALANDO",
+        "textoCor": "#000000",
+        "textoX": 215,
+        "textoY": -278,
+        "entidade": "CABO",
+        "ativoLido": "3xA35P(7,94)-13,8kV 45 m",
+        "operacaoLida": "I",
+        "operacao": "I",
+        "estado": "OK",
+        "linha": "110",
+        "trecho": 0,
+        "pontos": [
+          [105, -305],
+          [325, -275]
+        ],
+        "tipo": "MT",
+        "linhaLayer": "REDE_MT",
+        "linhaCor": "#ff0000",
+        "posteA": "P1",
+        "posteB": "P2",
+        "metrosLidos": 45,
+        "metros": 45,
+        "vinculoA": {
+          "poste": "P1",
+          "estrutura": "N1",
+          "k": 0
+        },
+        "vinculoB": {
+          "poste": "P2",
+          "estrutura": "N1",
+          "k": 0
+        }
+      },
+      {
+        "numero": "V2",
+        "texto": "113",
+        "textoOriginal": "3xA35P(7,94)-13,8kV 45 m",
+        "textoLayer": "01_INSTALANDO",
+        "textoCor": "#000000",
+        "textoX": 440,
+        "textoY": -293,
+        "entidade": "CABO",
+        "ativoLido": "3xA35P(7,94)-13,8kV 45 m",
+        "operacaoLida": "I",
+        "operacao": "I",
+        "estado": "OK",
+        "linha": "112",
+        "trecho": 0,
+        "pontos": [
+          [325, -275],
+          [555, -335]
+        ],
+        "tipo": "MT",
+        "linhaLayer": "REDE_MT",
+        "linhaCor": "#ff0000",
+        "posteA": "P2",
+        "posteB": "P3",
+        "metrosLidos": 45,
+        "metros": 45,
+        "vinculoA": {
+          "poste": "P2",
+          "estrutura": "N1",
+          "k": 0
+        },
+        "vinculoB": {
+          "poste": "P3",
+          "estrutura": "N3",
+          "k": 0
+        }
+      },
+      {
+        "numero": "V3",
+        "texto": "115",
+        "textoOriginal": "3xS04-7,97kV 38 m",
+        "textoLayer": "01_INSTALANDO",
+        "textoCor": "#000000",
+        "textoX": 670,
+        "textoY": -298,
+        "entidade": "CABO",
+        "ativoLido": "3xS04-7,97kV 38 m",
+        "operacaoLida": "I",
+        "operacao": "I",
+        "estado": "CONFERIR",
+        "mensagens": ["vínculo 1/2 — a estrutura N3 já tem os 1 cabo(s) que aceita"],
+        "linha": "114",
+        "trecho": 0,
+        "pontos": [
+          [555, -335],
+          [785, -285]
+        ],
+        "tipo": "MT",
+        "linhaLayer": "REDE_MT",
+        "linhaCor": "#ff0000",
+        "posteA": "P3",
+        "posteB": "P4",
+        "metrosLidos": 38,
+        "metros": 38,
+        "vinculoA": null,
+        "vinculoB": {
+          "poste": "P4",
+          "estrutura": "N1",
+          "k": 0
+        },
+        "motivoVinculo": "a estrutura N3 já tem os 1 cabo(s) que aceita"
+      },
+      {
+        "numero": "V4",
+        "texto": "117",
+        "textoOriginal": "3xA35P(7,94)-13,8kV 52 m",
+        "textoLayer": "01_REMOVER",
+        "textoCor": "#000000",
+        "textoX": 310,
+        "textoY": -400,
+        "entidade": "CABO",
+        "ativoLido": "3xA35P(7,94)-13,8kV 52 m",
+        "operacaoLida": "R",
+        "operacao": "R",
+        "estado": "OK",
+        "mensagens": ["R não vincula"],
+        "linha": "116",
+        "trecho": 0,
+        "pontos": [
+          [325, -275],
+          [325, -525]
+        ],
+        "tipo": "MT",
+        "linhaLayer": "REDE_MT",
+        "linhaCor": "#ff0000",
+        "posteA": "P2",
+        "posteB": "P5",
+        "metrosLidos": 52,
+        "metros": 52,
+        "vinculoA": null,
+        "vinculoB": null
+      },
+      {
+        "numero": "V5",
+        "texto": "119",
+        "textoOriginal": "3xC16(16) 30 m",
+        "textoLayer": "01_INSTALANDO",
+        "textoCor": "#000000",
+        "textoX": 445,
+        "textoY": -538,
+        "entidade": "CABO",
+        "ativoLido": "3xC16(16) 30 m",
+        "operacaoLida": "I",
+        "operacao": "I",
+        "estado": "OK",
+        "linha": "118",
+        "trecho": 0,
+        "pontos": [
+          [325, -525],
+          [565, -575]
+        ],
+        "tipo": "BT",
+        "linhaLayer": "REDE_BT",
+        "linhaCor": "#00ff00",
+        "posteA": "P5",
+        "posteB": "P6",
+        "metrosLidos": 30,
+        "metros": 30,
+        "vinculoA": {
+          "poste": "P5",
+          "estrutura": "N1",
+          "k": 0
+        },
+        "vinculoB": {
+          "poste": "P6",
+          "estrutura": "N3",
+          "k": 0
+        }
+      },
+      {
+        "numero": "V6",
+        "texto": "11B",
+        "textoOriginal": "3xC16(16) 28 m",
+        "textoLayer": "01_INSTALANDO",
+        "textoCor": "#000000",
+        "textoX": 685,
+        "textoY": -543,
+        "entidade": "CABO",
+        "ativoLido": "3xC16(16) 28 m",
+        "operacaoLida": "I",
+        "operacao": "I",
+        "estado": "CONFERIR",
+        "mensagens": ["vínculo 1/2 — a estrutura N3 já tem os 1 cabo(s) que aceita"],
+        "linha": "11A",
+        "trecho": 0,
+        "pontos": [
+          [565, -575],
+          [805, -535]
+        ],
+        "tipo": "BT",
+        "linhaLayer": "REDE_BT",
+        "linhaCor": "#00ff00",
+        "posteA": "P6",
+        "posteB": "P7",
+        "metrosLidos": 28,
+        "metros": 28,
+        "vinculoA": null,
+        "vinculoB": {
+          "poste": "P7",
+          "estrutura": "N1",
+          "k": 0
+        },
+        "motivoVinculo": "a estrutura N3 já tem os 1 cabo(s) que aceita"
+      },
+      {
+        "numero": "V7",
+        "texto": "11D",
+        "textoOriginal": "RAMA25 20 m",
+        "textoLayer": "01_REAPLICANDO",
+        "textoCor": "#000000",
+        "textoX": 550,
+        "textoY": -660,
+        "entidade": "CABO",
+        "ativoLido": "RAMA25 20 m",
+        "operacaoLida": "M",
+        "operacao": "M",
+        "estado": "CONFERIR",
+        "mensagens": ["vínculo 0/1 — a regra do cabo RAMA25 não aceita a operação M"],
+        "linha": "11C",
+        "trecho": 0,
+        "pontos": [
+          [565, -575],
+          [565, -745]
+        ],
+        "tipo": "BT",
+        "linhaLayer": "REDE_BT",
+        "linhaCor": "#00ff00",
+        "posteA": "P6",
+        "posteB": "P8",
+        "metrosLidos": 20,
+        "metros": 20,
+        "vinculoA": null,
+        "vinculoB": null,
+        "motivoVinculo": "a regra do cabo RAMA25 não aceita a operação M"
+      }
+    ],
+    "avulsos": []
+  }
+}

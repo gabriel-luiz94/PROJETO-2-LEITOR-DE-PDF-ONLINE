@@ -153,6 +153,18 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ---
 
+### Plugin nanoCAD (subproduto `plugin_nanocad/`, TASK-103)
+- [x] Subproduto com `.ai` próprio (`plugin_nanocad/.ai/`: requisitos, estado, arquitetura, regras, decisões, tarefas)
+- [x] Plugin C# para o nanoCAD 26 (DLL pronta em `plugin_nanocad/appload/nanoCAD26/`) e `build_nanocad5.bat` para o nanoCAD 5:
+      lê o desenho (layer + cor, mesmas regras de `data/`), numera postes/vãos, vincula cabo ⇄ estrutura e grava
+      `<desenho>.obra.json` — **aguardando teste no nanoCAD** pelo usuário (`plugin_nanocad/.ai/STATE.md`)
+- [x] Importar/exportar obra (`services/obras_arquivo.py`) mantém o vínculo e a geometria das linhas (`CAMPOS_VINCULO`:
+      `vinculoEstruturas`, `textoOriginal`, `_x/_y/_geo/_geoTipo/_poste`, fictícios, fases/tensão/nível) — antes eram descartados
+- [x] Teste de contrato `tests/test_plugin_nanocad_contrato.py` (exemplo gerado pelo plugin → API → vínculo igual ao da aplicação)
+- [ ] Modo autônomo achar o `.obra.json` e gravar o resultado na pasta do desenho (plugin RQ-40/41)
+
+---
+
 ## Em desenvolvimento / escrito mas não conectado
 
 - [ ] **Fila de operações offline** — `services/offline_queue.py` está completo (tabela `sync_log`,
@@ -677,7 +689,12 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-10-08
+**Data:** 2026-10-31
+**Motivo:** TASK-103 — subproduto plugin nanoCAD (`plugin_nanocad/`, com `.ai` próprio) e contrato do `.obra.json`:
+a importação de obra passou a manter os campos de vínculo/geometria das linhas. Suíte: 1207 passed, 11 skipped
+(sem `quickjs`/`pywebview`, que não compilam no Python 3.13 do ambiente).
+
+**Anterior — Data:** 2026-10-08
 **Motivo:** TASK-054/TASK-055 — usuário mandou `"substitua o texto S3 por S3T na tabela outros"` no
 chat e recebeu `[ERRO] 400 INVALID_ARGUMENT ... 'Multiturn chat is not enabled for this model'`.
 Investigado: o chat usava a API de sessão do Gemini (`chats.create`/`send_message_stream`), que

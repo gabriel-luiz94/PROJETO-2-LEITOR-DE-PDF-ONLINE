@@ -8,6 +8,16 @@
 
 ---
 
+## 2026-10-31 — TASK-103: subproduto plugin nanoCAD e vínculo preservado no `.obra.json`
+
+**Tipo:** novo subproduto + contrato · `plugin_nanocad/` (com `.ai` próprio), `services/obras_arquivo.py`, `tests/test_plugin_nanocad_contrato.py`
+
+Plugin C# para o nanoCAD (26 pronto; 5 compilado no Windows do usuário) que lê o desenho com as regras do projeto e grava
+`<desenho>.obra.json`. Importar/exportar obra deixa de descartar `vinculoEstruturas`, `textoOriginal`, `_x/_y/_geo/_geoTipo/_poste`
+e fictícios (validados campo a campo). Detalhes: `plugin_nanocad/.ai/`.
+
+---
+
 ## 2026-10-28 — TASK-102: declaração com condições, apelido na declaração e cabo2
 
 **Tipo:** regra de negócio · `static/ativo_parametros.js` ⇄ `services/ativo_parametros.py`, `services/orcamento_calc.py`, `static/vinculacao_regras.js` ⇄ `services/vinculacao_regras.py`, `data/vinculacao_pernambuco_seed.json`

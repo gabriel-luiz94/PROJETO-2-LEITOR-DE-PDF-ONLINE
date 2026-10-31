@@ -1,0 +1,119 @@
+[
+ {
+  "texto": "3xA35P(7,94)-13,8kV 45 m",
+  "codigo": "A35P",
+  "comprimento": 45.0,
+  "fases": 3,
+  "tensao": "13,8kV",
+  "nivel": "MT",
+  "descricao": "3XA35P_7.94_-13.8KV"
+ },
+ {
+  "texto": "3xS04-7,97kV 38 m",
+  "codigo": "S04",
+  "comprimento": 38.0,
+  "fases": 3,
+  "tensao": "7,97kV",
+  "nivel": "MT",
+  "descricao": "3XS04-7.97KV"
+ },
+ {
+  "texto": "3xC16(16) 30 m",
+  "codigo": "C16",
+  "comprimento": 30.0,
+  "fases": 3,
+  "tensao": "",
+  "nivel": "BT",
+  "descricao": "3XC16_16_"
+ },
+ {
+  "texto": "RAMA25 20 m",
+  "codigo": "RAMA25",
+  "comprimento": 20.0,
+  "fases": 1,
+  "tensao": "",
+  "nivel": "BT",
+  "descricao": "RAMA25"
+ },
+ {
+  "texto": "C 3x1x95(95)+20kV 12 m",
+  "codigo": "C3X1X95(95)",
+  "comprimento": 12.0,
+  "fases": 1,
+  "tensao": "20kV",
+  "nivel": "MT",
+  "descricao": "C3X1X95_95_+20KV"
+ },
+ {
+  "texto": "16 25 m",
+  "codigo": "C16",
+  "comprimento": 25.0,
+  "fases": 1,
+  "tensao": "",
+  "nivel": "BT",
+  "descricao": "16"
+ },
+ {
+  "texto": "(S04) 40 m",
+  "codigo": "S04",
+  "comprimento": 40.0,
+  "fases": 1,
+  "tensao": "",
+  "nivel": "BT",
+  "descricao": "_S04_"
+ },
+ {
+  "texto": "[C16] 12",
+  "codigo": "C16",
+  "comprimento": 12.0,
+  "fases": 1,
+  "tensao": "",
+  "nivel": "BT",
+  "descricao": "_C16_"
+ },
+ {
+  "texto": "S50P(35) 10 m",
+  "codigo": "S50P",
+  "comprimento": 10.0,
+  "fases": 1,
+  "tensao": "",
+  "nivel": "BT",
+  "descricao": "S50P_35_"
+ },
+ {
+  "texto": "3xA35P(7,94)-13,8kV",
+  "codigo": null,
+  "comprimento": null,
+  "fases": 3,
+  "tensao": "13,8kV",
+  "nivel": "MT",
+  "descricao": "3XA35P_7.94_-13.8KV"
+ },
+ {
+  "texto": "2x1/0CA(S04) 7,5 m",
+  "codigo": "1/0CA",
+  "comprimento": 7.5,
+  "fases": 1,
+  "tensao": "",
+  "nivel": "BT",
+  "descricao": "2X1/0CA_S04_"
+ },
+ {
+  "texto": "PB35 15m",
+  "codigo": "PB35",
+  "comprimento": 15.0,
+  "fases": 1,
+  "tensao": "",
+  "nivel": "BT",
+  "descricao": "PB35"
+ },
+ {
+  "texto": "1xA70P - 13,8 kV 100 m",
+  "codigo": "A70P",
+  "comprimento": 100.0,
+  "fases": 1,
+  "tensao": "13,8kV",
+  "nivel": "MT",
+  "descricao": "1XA70P-13.8KV"
+ }
+]

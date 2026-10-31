@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Plugin do nanoCAD 26 (APPLOAD/NETLOAD). Gera UMA DLL: núcleo (src/Nucleo) + camada do CAD (src/Plugin) + regras embutidas.
+    Compilar:  dotnet build src/OrcamentoNanoCAD.csproj -c Release   (ou compilar.sh / compilar_nanocad26.bat)
+    Saída:     appload/nanoCAD26/OrcamentoNanoCAD.dll
+    nanoCAD 5 (.NET Framework 4): build_nanocad5.bat, com as DLLs do próprio nanoCAD 5 instalado.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>OrcamentoNanoCAD</AssemblyName>
+    <RootNamespace>OrcamentoNanoCAD</RootNamespace>
+    <LangVersion>5</LangVersion>
+    <WinDesktopRef>6.0.36</WinDesktopRef>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <Version>0.1.0</Version>
+    <Product>Orçamento — Leitor de Projetos (plugin nanoCAD)</Product>
+    <Deterministic>true</Deterministic>
+    <NoWarn>CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Nucleo/*.cs" />
+    <Compile Include="Plugin/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- regras = os MESMOS arquivos do projeto principal (uma só fonte) -->
+    <EmbeddedResource Include="../../data/regras_leitor_processamento_pernambuco_seed.json" LogicalName="regras.081.processamento.json" />
+    <EmbeddedResource Include="../../data/regras_leitor_classificacao_pernambuco_seed.json" LogicalName="regras.081.classificacao.json" />
+    <EmbeddedResource Include="../../data/vinculacao_pernambuco_seed.json" LogicalName="regras.081.vinculacao.json" />
+    <EmbeddedResource Include="../../data/regras_leitor_processamento_seed.json" LogicalName="regras.padrao.processamento.json" />
+    <EmbeddedResource Include="../../data/regras_leitor_classificacao_seed.json" LogicalName="regras.padrao.classificacao.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- hostmgd.dll / hostdbmgd.dll do nanoCAD 26 só para compilar (o nanoCAD já tem as dele): não vão para a saída -->
+    <PackageReference Include="ModPlus.nanoCAD.API.26" Version="2.0.0" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- WinForms/WPF: assemblies de REFERÊNCIA do pacote oficial (dá para compilar até no Linux, sem o SDK "Windows Desktop").
+         Em tempo de execução vêm do .NET que o nanoCAD já carrega. -->
+    <PackageDownload Include="Microsoft.WindowsDesktop.App.Ref" Version="[$(WinDesktopRef)]" />
+    <Reference Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(WinDesktopRef)/ref/net6.0/System.Windows.Forms.dll" Private="false" />
+    <Reference Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(WinDesktopRef)/ref/net6.0/System.Windows.Forms.Primitives.dll" Private="false" />
+    <Reference Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(WinDesktopRef)/ref/net6.0/System.Drawing.Common.dll" Private="false" />
+    <Reference Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(WinDesktopRef)/ref/net6.0/System.Drawing.dll" Private="false" />
+    <Reference Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(WinDesktopRef)/ref/net6.0/WindowsBase.dll" Private="false" />
+    <Reference Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(WinDesktopRef)/ref/net6.0/PresentationCore.dll" Private="false" />
+    <Reference Include="$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(WinDesktopRef)/ref/net6.0/PresentationFramework.dll" Private="false" />
+  </ItemGroup>
+  <Target Name="CopiarParaAppload" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildProjectDirectory)/../appload/nanoCAD26" />
+  </Target>
+</Project>

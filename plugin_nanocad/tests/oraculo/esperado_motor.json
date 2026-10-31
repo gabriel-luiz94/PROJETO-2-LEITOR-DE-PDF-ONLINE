@@ -1,0 +1,207 @@
+[
+ {
+  "nome": "pe_poste_e_cabos",
+  "resultados": [
+   {
+    "operacao": "I",
+    "ativo": "9200D, N1",
+    "entidade": "POSTE"
+   },
+   {
+    "operacao": "I",
+    "ativo": "9400D, N1, N4",
+    "entidade": "POSTE"
+   },
+   {
+    "operacao": "0",
+    "ativo": "",
+    "entidade": "0"
+   },
+   {
+    "operacao": "0",
+    "ativo": "",
+    "entidade": "0"
+   },
+   {
+    "operacao": "I",
+    "ativo": "3xA35P(7,94)-13,8kV 45 m",
+    "entidade": "CABO"
+   },
+   {
+    "operacao": "I",
+    "ativo": "3xS04-7,97kV 38 m",
+    "entidade": "CABO"
+   },
+   {
+    "operacao": "0",
+    "ativo": "",
+    "entidade": "0"
+   },
+   {
+    "operacao": "R",
+    "ativo": "3xA35P(7,94)-13,8kV 52 m",
+    "entidade": "CABO"
+   },
+   {
+    "operacao": "M",
+    "ativo": "RAMA25 20 m",
+    "entidade": "CABO"
+   },
+   {
+    "operacao": "I",
+    "ativo": "C3x1x95(95)+20kV 12 m",
+    "entidade": "CABO"
+   },
+   {
+    "operacao": "I",
+    "ativo": "3xC16(16) 30 m",
+    "entidade": "CABO"
+   },
+   {
+    "operacao": "R",
+    "ativo": "3xC16(16) 28 m",
+    "entidade": "CABO"
+   },
+   {
+    "operacao": "0",
+    "ativo": "",
+    "entidade": "0"
+   },
+   {
+    "operacao": "0",
+    "ativo": "11300D, N3",
+    "entidade": "0"
+   },
+   {
+    "operacao": "0",
+    "ativo": "10300R, N1",
+    "entidade": "0"
+   },
+   {
+    "operacao": "0",
+    "ativo": "7150FV, B2",
+    "entidade": "0"
+   },
+   {
+    "operacao": "*I",
+    "ativo": "9300F, N3",
+    "entidade": "POSTE"
+   },
+   {
+    "operacao": "I",
+    "ativo": "",
+    "entidade": "0"
+   },
+   {
+    "operacao": "I",
+    "ativo": "16 25 m",
+    "entidade": "CABO"
+   },
+   {
+    "operacao": "I",
+    "ativo": "(S04) 40 m",
+    "entidade": "CABO"
+   }
+  ]
+ },
+ {
+  "nome": "padrao_cores",
+  "resultados": [
+   {
+    "operacao": "I",
+    "ativo": "CAA 2 ABC 35 m",
+    "entidade": "CABO"
+   },
+   {
+    "operacao": "R",
+    "ativo": "CAA 2 ABC 35 m",
+    "entidade": "CABO"
+   },
+   {
+    "operacao": "M",
+    "ativo": "CAA 2 ABC 35 m",
+    "entidade": "0"
+   },
+   {
+    "operacao": "I",
+    "ativo": "DT 11/300",
+    "entidade": "POSTE"
+   },
+   {
+    "operacao": "I",
+    "ativo": "1-U4 1-CFU",
+    "entidade": "CHAVE"
+   },
+   {
+    "operacao": "I",
+    "ativo": "2-SI3",
+    "entidade": "ESTRUTURA"
+   },
+   {
+    "operacao": "I",
+    "ativo": "2-RECAL",
+    "entidade": "APOIO"
+   },
+   {
+    "operacao": "I",
+    "ativo": "3-IP",
+    "entidade": "IP"
+   },
+   {
+    "operacao": "*I",
+    "ativo": "1-RTR3",
+    "entidade": "TRAFO"
+   },
+   {
+    "operacao": "I",
+    "ativo": "1-CFU 1-EF6K",
+    "entidade": "CHAVE"
+   },
+   {
+    "operacao": "R",
+    "ativo": "1-TERRA3",
+    "entidade": "ATERRAMENTO"
+   },
+   {
+    "operacao": "I",
+    "ativo": "1-RFLY",
+    "entidade": "ESTRUTURA"
+   },
+   {
+    "operacao": "I",
+    "ativo": "25-ROCO",
+    "entidade": "APOIO"
+   },
+   {
+    "operacao": "I",
+    "ativo": "PODA",
+    "entidade": "APOIO"
+   },
+   {
+    "operacao": "I",
+    "ativo": "1-EF6K",
+    "entidade": "CHAVE"
+   },
+   {
+    "operacao": "I",
+    "ativo": "1-3F",
+    "entidade": "ESTRUTURA"
+   },
+   {
+    "operacao": "I",
+    "ativo": "2-BASE",
+    "entidade": "APOIO"
+   },
+   {
+    "operacao": "I",
+    "ativo": "1-AF",
+    "entidade": "ESTRUTURA"
+   },
+   {
+    "operacao": "0",
+    "ativo": "X",
+    "entidade": "0"
+   }
+  ]
+ }
+]
