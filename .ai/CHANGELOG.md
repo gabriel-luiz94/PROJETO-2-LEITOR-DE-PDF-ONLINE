@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-02 — TASK-105: cálculo mostra o que o formato antigo de Outros descarta
+
+**Tipo:** correção · `services/orcamento_calc.py` (`interpretar_outros`, `_descartes_formato_antigo`)
+
+`1-U3-TM` virava os tokens `1 U3 TM` e o `-TM` era descartado em silêncio no cálculo (a camada 1 já acusava `C1-OUT-ORFAO`, mas **Montar Orçamento** seguia). Agora o cálculo coloca em `nao_encontrados` o token sem par, a quantidade não numérica e o `-` dentro do ativo (com a dica do compacto `U3-TM, 2 N1`); o que se entende (`U3`) continua calculado. Erros de formato de Outros (ex.: vírgula sem espaço) também passam a aparecer. Leitura e validação inalteradas. `test_orcamento_lv`: nomes com espaço passaram para a notação compacta (no formato antigo o 2º token era descartado).
+
+---
+
 ## 2026-10-31 — TASK-104: API do plugin nanoCAD (regras e base ao vivo)
 
 **Tipo:** feature · `routers/plugin_cad.py`, `app.py`, `tests/test_plugin_cad_api.py` · plugin: `plugin_nanocad/` (TASK-003 do plugin)

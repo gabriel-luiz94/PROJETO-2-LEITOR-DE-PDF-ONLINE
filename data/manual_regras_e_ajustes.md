@@ -547,3 +547,6 @@ No REC e na SAP, as linhas de **mão de obra (N / MAO-DE-OBRA)** têm fundo cinz
 ## Declaração com condições na Base de Orçamento (TASK-102)
 
 A linha de declaração pode trazer condições e valer como o primeiro grupo: `N1=N1(poste=%D, tipocabo=A)` declara os parâmetros `poste` e `tipocabo`, define `A` como padrão do `tipocabo` e vale só para postes que terminam em D. Curingas (`%`), alternativas (`|`) e exceções (`!=`) na declaração são só condição, sem padrão. Declaração só com valores concretos (`N1=N1(cabo=XLPE, poste=DT)`) continua sendo o grupo comum, como antes. O apelido pode ficar na mesma célula: `B1MT=B1MT(poste=%D,tipocabo=A), B1-MT`. No vínculo: `cabo` = descrição do 1º cabo, `cabo2` = a do 2º, `tipocabo` = o tipo (o maior, se os cabos diferem).
+
+## Formato antigo de Outros: o que é descartado (TASK-105)
+No formato antigo (`1-U3 2-N1`) o `-` só separa a **quantidade** do ativo. Um ativo com hífen (`1-U3-TM`) ou um item sem par (`1-U3 TM`) era lido pela metade. Agora **Montar Orçamento** lista o problema em "não encontrados" (o que se entende, `U3`, continua calculado) e a validação já o marca como erro. Para nomes com hífen ou com espaço use a notação compacta: `U3-TM, 2 N1`.
