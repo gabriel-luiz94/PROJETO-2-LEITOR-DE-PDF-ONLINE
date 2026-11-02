@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-11-02 — TASK-011: leitura do desenho real (0.4.0)
+
+**Tipo:** correção · `LeitorProjeto`, `ConfigLeitura`, `Diagnostico`, `Vinculador`, `Marcas`, `Telas`
+
+Com o primeiro diagnóstico real: guias na mesma layer do texto até 6 alturas e em pedaços; várias anotações por vão/poste
+(irmãos V7b/P3b); MT/BT da anotação respeitado; redes em pedaços juntadas; blocos no mesmo lugar = um poste; rede sem poste
+descartada; 2ª passada por proximidade (Conferir); placa do poste; sugestões de layers de rede e blocos de poste; "=NOME" exato.
+
+---
+
 ## 2026-11-02 — TASK-004 a 010: correções do primeiro uso no nanoCAD (0.3.0)
 
 **Tipo:** correção + feature · núcleo (`DesenhoBruto`, `ConfigLeitura`, `Diagnostico`, `LeitorProjeto`), CAD (`ExtratorDesenho`, `Tema`,

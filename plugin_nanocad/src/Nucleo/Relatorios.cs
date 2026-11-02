@@ -38,7 +38,9 @@ namespace OrcamentoNanoCAD.Nucleo
                 LinhaTabela l = new LinhaTabela();
                 l.Chave = e.Numero;
                 Vao v = e as Vao;
+                Poste p = e as Poste;
                 string anot = v != null ? v.Ativo : e.AtivoLido;
+                if (p != null && !string.IsNullOrEmpty(p.Placa)) anot = (string.IsNullOrEmpty(anot) ? "" : anot + " · ") + "placa " + p.Placa;
                 l.Celulas = new[] { e.Numero, string.IsNullOrEmpty(anot) ? "(sem anotação)" : anot, e.Operacao ?? "", TextoEstado(e) };
                 l.Estado = e.Estado;
                 r.Add(l);

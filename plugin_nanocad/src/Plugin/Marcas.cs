@@ -119,8 +119,12 @@ namespace OrcamentoNanoCAD
         {
             Limpar();
             double h = Math.Max(obra.AlturaTexto, 1e-3) * 1.1;
+            Dictionary<string, int> pilha = new Dictionary<string, int>();      // irmãos (P3b, V7b…) empilhados embaixo do principal
             foreach (Poste p in obra.Postes)
-                Rotulo(p.Numero, new Point3d(p.X + h * 0.8, p.Y + h * 0.4, 0), h, CorDoEstado(p, Azul));
+            {
+                int k = Pilha(pilha, p);
+                Rotulo(p.Numero, new Point3d(p.X + h * 0.8, p.Y + h * 0.4 - k * h * 1.6, 0), h, CorDoEstado(p, Azul));
+            }
             foreach (Vao v in obra.Vaos)
             {
                 if (v.Pontos.Count < 2) continue;
@@ -132,11 +136,21 @@ namespace OrcamentoNanoCAD
                     Poste p = obra.PostePorNumero(vi.Poste);
                     if (p != null) Tracejado(pm, new Point3d(p.X, p.Y, 0), h * 0.8, Ciano);
                 }
-                Rotulo(v.Numero, new Point3d(meio.X - h * 0.9, meio.Y - h * 0.5, 0), h * 0.9, CorDoEstado(v, CorDaOperacao(v.Operacao)));
+                int kv = Pilha(pilha, v);
+                Rotulo(v.Numero, new Point3d(meio.X - h * 0.9, meio.Y - h * 0.5 - kv * h * 1.5, 0), h * 0.9, CorDoEstado(v, CorDaOperacao(v.Operacao)));
             }
             foreach (Avulso a in obra.Avulsos)
                 if (a.TextoX.HasValue && a.Estado != Estados.Ok)
                     Rotulo(a.Numero, new Point3d(a.TextoX.Value, a.TextoY.Value - h * 1.6, 0), h * 0.8, CorDoEstado(a, Cinza));
+        }
+
+        private static int Pilha(Dictionary<string, int> pilha, Elemento e)
+        {
+            string raiz = e.IrmaoDe ?? e.Numero ?? "";
+            int k;
+            pilha.TryGetValue(raiz, out k);
+            pilha[raiz] = k + 1;
+            return k;
         }
 
         /// <summary>Destaque passageiro de um elemento (pop-up / clique na lista): círculo em volta.</summary>

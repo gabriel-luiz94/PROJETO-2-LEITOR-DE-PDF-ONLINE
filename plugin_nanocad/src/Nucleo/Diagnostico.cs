@@ -47,18 +47,62 @@ namespace OrcamentoNanoCAD.Nucleo
             if (d.Postes.Count == 0) avisos.Add("nenhum poste achado: confira o nome do bloco de poste em Configurar leitura (hoje: "
                                                 + string.Join(", ", cfg.BlocosPoste.ToArray()) + ") — blocos do desenho: "
                                                 + string.Join(", ", blocos.Keys.Take(15).ToArray()));
+            foreach (string s in SugestoesDeBlocos(b, obra, cfg)) avisos.Add(s);
+            foreach (string s in SugestoesDeRede(d, obra, cfg)) avisos.Add(s);
             if (guias == 0) avisos.Add("nenhuma linha guia achada (LEADER, MLEADER ou linha curta fora da rede)");
             int lidos = obra.Elementos.Count(e => e.TemAnotacao);
             if (obra.Ignorados.Count > 0 && lidos == 0) avisos.Add("todas as anotações foram ignoradas pelas regras do leitor: confira se as regras escolhidas são as do projeto");
             return new JObj()
                 .Set("entidades_por_tipo", tipos).Set("blocos", blocos).Set("layers", layers)
                 .Set("altura_tipica", Math.Round(h, 3))
-                .Set("redes_mt", mt).Set("redes_bt", bt).Set("guias", guias).Set("postes", d.Postes.Count)
+                .Set("redes_mt", mt).Set("redes_bt", bt).Set("redes_sem_poste", obra.RedesSemPoste).Set("guias", guias).Set("postes", d.Postes.Count)
                 .Set("textos", d.Textos.Count(t => t.Tipo != "BLOCO"))
                 .Set("obra", new JObj().Set("postes", obra.Postes.Count).Set("vaos", obra.Vaos.Count).Set("avulsos", obra.Avulsos.Count)
                                        .Set("ignorados", obra.Ignorados.Count))
                 .Set("avisos", avisos.Cast<object>().ToList())
                 .Set("erros_de_leitura", b.Avisos.Cast<object>().ToList());
+        }
+
+        /// <summary>Pontas de rede sem poste que caem em blocos que NÃO contam como poste: se forem postes (ex.: pontos KML de poste
+        /// existente), basta incluir o nome em "Blocos de poste".</summary>
+        public static List<string> SugestoesDeBlocos(DesenhoBruto b, Obra obra, ConfigLeitura cfg)
+        {
+            double tol = cfg.TolPosteAlturas * Math.Max(obra.AlturaTexto, 1e-6);
+            List<EntidadeBruta> blocos = b.Entidades.Where(e => e.Tipo == "INSERT" && !cfg.EhBlocoPoste(e.Bloco, e.Layer)).ToList();
+            Dictionary<string, int> cont = new Dictionary<string, int>();
+            int soltas = 0;
+            foreach (Vao v in obra.Vaos.Where(v => v.IrmaoDe == null))
+                foreach (Ponto? q in new[] { v.PosteA == null ? (Ponto?)v.Pontos[0] : null, v.PosteB == null ? (Ponto?)v.Pontos[v.Pontos.Count - 1] : null })
+                {
+                    if (!q.HasValue) continue;
+                    soltas++;
+                    EntidadeBruta perto = blocos.Where(e => new Ponto(e.X, e.Y).Dist(q.Value) <= tol).OrderBy(e => new Ponto(e.X, e.Y).Dist(q.Value)).FirstOrDefault();
+                    if (perto == null) continue;
+                    string n = perto.Bloco ?? "";
+                    cont[n] = (cont.ContainsKey(n) ? cont[n] : 0) + 1;
+                }
+            return cont.OrderByDescending(k => k.Value).Select(k => k.Value + " de " + soltas + " pontas de rede sem poste caem no bloco " + k.Key
+                + " — se ele for poste, inclua \"" + k.Key + "\" em Blocos de poste (⚙ Leitura)").ToList();
+        }
+
+        /// <summary>Linhas vermelhas (MT) ou verdes (BT) de poste a poste em layers que NÃO são de rede: provável rede desenhada em outra
+        /// layer (ex.: rede nova na layer de anotações). Sugere a layer — exata ("=0") quando o nome é curto.</summary>
+        public static List<string> SugestoesDeRede(Desenho d, Obra obra, ConfigLeitura cfg)
+        {
+            double tol = cfg.TolPosteAlturas * Math.Max(obra.AlturaTexto, 1e-6);
+            List<Ponto> postes = d.Postes.Select(p => new Ponto(p.X, p.Y)).ToList();
+            if (postes.Count == 0) return new List<string>();
+            Func<Ponto, bool> noPoste = q => postes.Any(p => p.Dist(q) <= tol);
+            List<string> r = new List<string>();
+            foreach (IGrouping<string, LinhaDesenho> g in d.Linhas.Where(l => !l.Leader && cfg.TipoPelaLayer(l.Layer) == null && l.Pontos.Count >= 2
+                        && noPoste(l.Pontos[0]) && noPoste(l.Pontos[l.Pontos.Count - 1])).GroupBy(l => l.Layer))
+            {
+                int mt = g.Count(l => ConfigLeitura.TipoPelaCor(l.Cor) == "MT"), bt = g.Count(l => ConfigLeitura.TipoPelaCor(l.Cor) == "BT");
+                string nome = g.Key.Length <= 2 ? "=" + g.Key : g.Key;
+                if (mt >= 2) r.Add(mt + " linhas VERMELHAS de poste a poste na layer " + g.Key + " — se forem rede de MT, inclua \"" + nome + "\" em Layers da rede de MÉDIA (⚙ Leitura)");
+                if (bt >= 2) r.Add(bt + " linhas VERDES de poste a poste na layer " + g.Key + " — se forem rede de BT, inclua \"" + nome + "\" em Layers da rede de BAIXA (⚙ Leitura)");
+            }
+            return r;
         }
 
         public static JObj Gerar(DesenhoBruto b, Desenho d, Obra obra, RegrasProjeto regras, DateTime agora)

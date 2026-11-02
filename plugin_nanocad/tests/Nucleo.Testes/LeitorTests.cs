@@ -77,7 +77,7 @@ namespace OrcamentoNanoCAD.Testes
         }
 
         [Fact]
-        public void Polilinha_com_varios_postes_vira_varios_vaos_e_ponta_solta_e_erro()
+        public void Polilinha_com_varios_postes_vira_varios_vaos_e_ponta_solta_so_pesa_com_anotacao()
         {
             Desenho d = new Desenho { Arquivo = "x.dwg" };
             d.Postes.Add(new PosteDesenho { Handle = "A", X = 0, Y = 0, Bloco = "Poste_DT" });
@@ -88,8 +88,11 @@ namespace OrcamentoNanoCAD.Testes
             Assert.Equal(2, o.Vaos.Count);
             Assert.Equal(new[] { 0, 1 }, o.Vaos.Select(v => v.Trecho).OrderBy(x => x).ToArray());
             Vao solto = o.Vaos.First(v => v.PosteB == null);
-            Assert.Equal(Estados.Erro, solto.Estado);
-            Assert.Contains("sem poste na ponta", solto.Mensagens);
+            Assert.Equal(Estados.Ok, solto.Estado);                                    // rede existente sem anotação: só informa
+            Assert.Contains(solto.Mensagens, m => m.Contains("ponta sem poste"));
+            solto.Operacao = "I"; solto.AtivoLido = "PB35 50 m"; solto.Cabo = Anotacoes.LerCabo("PB35 50 m");
+            Conferencia.Avaliar(o, Apoio.Pernambuco);
+            Assert.Equal(Estados.Conferir, solto.Estado);                              // na obra: confere a ponta
             Assert.Equal("3xC16(16) 30 m", o.Vaos.First(v => v.PosteB != null).AtivoLido);
         }
 
@@ -118,7 +121,7 @@ namespace OrcamentoNanoCAD.Testes
         }
 
         [Fact]
-        public void Poste_so_com_anotacao_e_segunda_anotacao_viram_conferir()
+        public void Poste_so_com_anotacao_vira_conferir_e_segunda_anotacao_vira_irmao()
         {
             Desenho d = new Desenho { Arquivo = "x.dwg" };
             d.Postes.Add(new PosteDesenho { Handle = "A", X = 0, Y = 0 });
@@ -126,12 +129,16 @@ namespace OrcamentoNanoCAD.Testes
             d.Textos.Add(new TextoDesenho { Handle = "T2", Texto = "11300D, N3", X = -5, Y = 9, Altura = 8, Layer = "01_INSTALANDO" });
             d.Textos.Add(new TextoDesenho { Handle = "T3", Texto = "9400D", X = 500, Y = 500, Altura = 8, Layer = "01_INSTALANDO" });
             Obra o = LeitorProjeto.Ler(d, Apoio.Pernambuco);
-            Assert.Equal(2, o.Postes.Count);
-            Assert.Equal("T1", o.Postes.First(p => p.Handle == "A").TextoHandle);
+            Poste p1 = o.Postes.First(p => p.Handle == "A" && p.IrmaoDe == null);
+            Assert.Equal("T1", p1.TextoHandle);
+            // a 2ª anotação do mesmo poste (troca de poste, estrutura a mais) vira um irmão: P1b, mesma posição, linha própria na obra
+            Poste irmao = o.Postes.Single(p => p.IrmaoDe == p1.Numero);
+            Assert.Equal(p1.Numero + "b", irmao.Numero);
+            Assert.Equal("11300D, N3", irmao.AtivoLido);
+            Assert.Equal(new[] { p1, irmao }, o.GrupoDoPoste(irmao).ToArray());
             Poste soAnot = o.Postes.First(p => p.Handle == "");
             Assert.Equal(Estados.Conferir, soAnot.Estado);
-            Assert.Single(o.Avulsos);
-            Assert.Contains(o.Avulsos[0].Mensagens, m => m.Contains("já tem a sua"));
+            Assert.Empty(o.Avulsos);
         }
     }
 }

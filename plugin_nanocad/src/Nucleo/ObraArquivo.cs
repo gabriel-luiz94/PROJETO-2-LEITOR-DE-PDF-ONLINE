@@ -19,7 +19,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public const string Formato = "leitor-obra";
         public const int Versao = 1;
         public const int VersaoCad = 1;
-        public const string VersaoPlugin = "0.3.0";
+        public const string VersaoPlugin = "0.4.0";
         private const int MaxPontosGeo = 60;
 
         public static string NomeDoArquivo(string desenho)
@@ -160,6 +160,7 @@ namespace OrcamentoNanoCAD.Nucleo
             o.Set("operacaoLida", e.OperacaoLida);
             o.Set("operacao", e.Operacao);
             if (e.Manual) o.Set("manual", true);
+            if (e.IrmaoDe != null) o.Set("irmaoDe", e.IrmaoDe);
             if (e.MensagensFixas.Count > 0) o.Set("avisosLeitura", e.MensagensFixas.Cast<object>().ToList());
             o.Set("estado", e.Estado);
             if (e.Mensagens.Count > 0) o.Set("mensagens", e.Mensagens.Cast<object>().ToList());
@@ -193,6 +194,8 @@ namespace OrcamentoNanoCAD.Nucleo
                 o.Set("handle", p.Handle ?? "");
                 o.Set("x", p.X); o.Set("y", p.Y);
                 o.Set("bloco", p.Bloco ?? "");
+                if (p.OutrosHandles.Count > 0) o.Set("outrosBlocos", p.OutrosHandles.Cast<object>().ToList());
+                if (!string.IsNullOrEmpty(p.Placa)) o.Set("placa", p.Placa);
                 // só informativo (recalculado ao abrir): o que cada estrutura recebeu do vínculo — conferido contra a aplicação no teste de contrato
                 List<object> estr = new List<object>();
                 for (int k = 0; k < p.Lido.Estruturas.Count; k++)
@@ -262,6 +265,7 @@ namespace OrcamentoNanoCAD.Nucleo
             e.OperacaoLida = o.Str("operacaoLida") ?? "";
             e.Operacao = o.Str("operacao") ?? e.OperacaoLida;
             e.Manual = o.Bool("manual", false);
+            e.IrmaoDe = o.Str("irmaoDe");
             e.MensagensFixas = Json.ListaDeTextos(o["avisosLeitura"]);
         }
 
@@ -297,6 +301,8 @@ namespace OrcamentoNanoCAD.Nucleo
                 p.Handle = o.Str("handle") ?? "";
                 p.X = o.Num("x") ?? 0; p.Y = o.Num("y") ?? 0;
                 p.Bloco = o.Str("bloco") ?? "";
+                p.OutrosHandles = Json.ListaDeTextos(o["outrosBlocos"]);
+                p.Placa = o.Str("placa");
                 p.Lido = Anotacoes.LerPoste(p.AtivoLido);
                 obra.Postes.Add(p);
             }

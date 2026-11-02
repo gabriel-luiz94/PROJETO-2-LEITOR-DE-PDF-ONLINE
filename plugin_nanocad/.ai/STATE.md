@@ -5,7 +5,7 @@
 
 ## Versão
 
-`0.3.0` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` (e `<Version>` do `.csproj`)
+`0.4.0` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` (e `<Version>` do `.csproj`)
 
 Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
@@ -42,6 +42,11 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 - [x] Trocar a layer da anotação ao mudar a operação (opção do pop-up; layer tirada das regras)
 - [x] Regras embutidas (081 e padrão) + pasta `regras\<codigo>\` ao lado da DLL
 
+### Desenho real NOTA 9101578729 (TASK-011, 0.4.0) — ✅ núcleo · 🟡 CAD
+- [x] Diagnóstico real em `referencias/desenhos/` como teste (`LeitorRealTests`)
+- [x] Guias em pedaços / mesma layer; irmãos (várias anotações por vão/poste); MT×BT; redes em pedaços; troca de poste; placas
+- [x] Sugestões de layers de rede (linhas vermelhas/verdes de poste a poste) e de blocos de poste (pontas soltas) no ORC_LER e no diagnóstico
+
 ### Correções do primeiro uso (TASK-004 a 010, 0.3.0) — ✅ núcleo e aplicação · 🟡 CAD
 - [x] Desenho bruto + montagem no núcleo; paridade texto a texto com o Leitor da aplicação num DXF de teste (`LeitorDxfTests`)
 - [x] MLEADER (texto + linhas de chamada), LEADER, contorno do texto; guia usada mostrada no destaque
@@ -64,7 +69,7 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
 ## Pendente / próximas tarefas
 
-- [ ] **Desenho real**: rodar `ORC_DIAGNOSTICO` num DWG de Pernambuco e mandar o `.diagnostico.json` (vai para `referencias/desenhos/`, vira teste)
+- [ ] NOTA 9101578729 no nanoCAD com a configuração sugerida (⚙ Leitura: MT = REDE_MT, ANOTACOES, =0; postes = pg, KMLP) e novo diagnóstico
 - [ ] Testar no nanoCAD as TASK-004 a 010 (painel, seleção manual, guias, Abrir na aplicação, visual)
 - [ ] Teste da ligação com a aplicação dentro do nanoCAD (TASK-003, passos na tarefa)
 - [ ] **Teste no nanoCAD 26** pelo usuário: APPLOAD, ORCAMENTO, ler um DWG real de Pernambuco, salvar, importar na aplicação (TASK-002)
@@ -89,7 +94,7 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
 | Suíte | Comando | Resultado (31/10/2026) |
 |---|---|---|
-| Núcleo (xUnit, net8.0) | `dotnet test tests/Nucleo.Testes` | 37 ✅ (ponta a ponta com `APP_URL`/`APP_EMAIL`/`APP_SENHA`) |
+| Núcleo (xUnit, net8.0) | `dotnet test tests/Nucleo.Testes` | 40 ✅ (ponta a ponta com `APP_URL`/`APP_EMAIL`/`APP_SENHA`) |
 | Núcleo em .NET 4 / C# 5 | `dotnet build tests/Net40` | compila ✅ |
 | DLL nanoCAD 26 | `dotnet build src/OrcamentoNanoCAD.csproj -c Release` | compila ✅ (18 comandos, ExtensionApplication, 5 recursos de regras) |
 | Contrato com a aplicação | `pytest tests/test_plugin_nanocad_contrato.py` (raiz) | 5 ✅ |
@@ -97,4 +102,4 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
 ## Última atualização
 
-2026-11-02 — TASK-004 a 010 (correções do primeiro uso no nanoCAD). Antes: TASK-003 e TASK-001.
+2026-11-02 — TASK-011 (desenho real NOTA 9101578729). Antes: TASK-004 a 010, TASK-003 e TASK-001.

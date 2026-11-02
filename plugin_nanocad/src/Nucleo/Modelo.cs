@@ -106,6 +106,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public List<string> Mensagens = new List<string>();
         public List<string> MensagensFixas = new List<string>();   // da leitura (não mudam na conferência)
         public List<Ponto> GuiaUsada;                               // linha guia que ligou a anotação a este elemento (para mostrar na tela)
+        public string IrmaoDe;                                      // 2ª+ anotação do mesmo vão/poste (V7b é irmão de V7): mesma geometria
         public List<string> ForaDaBase = new List<string>();       // ativos desta linha que a aplicação não achou na Base de Orçamento
         public List<string> MensagensBase = new List<string>();    // ... e as mensagens (vêm de /api/plugin/conferir)
 
@@ -122,6 +123,8 @@ namespace OrcamentoNanoCAD.Nucleo
     public class Poste : Elemento
     {
         public string Handle;         // bloco do poste (vazio se o poste foi criado só pela anotação)
+        public List<string> OutrosHandles = new List<string>();   // outros blocos no mesmo lugar (troca de poste: o que sai + o que entra)
+        public string Placa;          // número/placa do poste lido do desenho (ex.: B039571)
         public double X, Y;
         public string Bloco = "";
         public PosteLido Lido = new PosteLido();
@@ -192,8 +195,17 @@ namespace OrcamentoNanoCAD.Nucleo
         public List<Vao> Vaos = new List<Vao>();
         public List<Avulso> Avulsos = new List<Avulso>();
         public List<TextoIgnorado> Ignorados = new List<TextoIgnorado>();   // só na memória (não vai para o arquivo)
+        public int RedesSemPoste;                                            // linhas nas layers de rede que não passam por poste (descartadas)
 
         public Poste PostePorNumero(string n) { return n == null ? null : Postes.FirstOrDefault(p => p.Numero == n); }
+
+        /// <summary>O poste e os irmãos dele (outras anotações no mesmo poste).</summary>
+        public List<Poste> GrupoDoPoste(Poste p)
+        {
+            if (p == null) return new List<Poste>();
+            string raiz = p.IrmaoDe ?? p.Numero;
+            return Postes.Where(x => x.Numero == raiz || x.IrmaoDe == raiz).ToList();
+        }
         public Vao VaoPorNumero(string n) { return Vaos.FirstOrDefault(v => v.Numero == n); }
 
         public Elemento PorNumero(string n)
@@ -219,8 +231,8 @@ namespace OrcamentoNanoCAD.Nucleo
         public Elemento PorHandle(string handle)
         {
             if (string.IsNullOrEmpty(handle)) return null;
-            foreach (Poste p in Postes) if (p.Handle == handle || p.TextoHandle == handle) return p;
-            foreach (Vao v in Vaos) if (v.LinhaHandle == handle || v.TextoHandle == handle) return v;
+            foreach (Poste p in Postes) if (p.Handle == handle || p.TextoHandle == handle || p.OutrosHandles.Contains(handle)) return p;
+            foreach (Vao v in Vaos) if (v.LinhaHandle == handle || v.TextoHandle == handle || (v.LinhaHandle ?? "").Split('+').Contains(handle)) return v;
             foreach (Avulso a in Avulsos) if (a.TextoHandle == handle) return a;
             return null;
         }

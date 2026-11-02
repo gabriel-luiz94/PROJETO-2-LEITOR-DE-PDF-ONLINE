@@ -132,7 +132,7 @@ namespace OrcamentoNanoCAD.Testes
             Assert.Equal(Estados.Ok, v.Estado);
             Construtor.Remover(o, p2, rg);
             Assert.Null(v.PosteB);
-            Assert.Equal(Estados.Erro, v.Estado);
+            Assert.Equal(Estados.Conferir, v.Estado);
         }
 
         [Fact]

@@ -18,7 +18,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <Product>Orçamento — Leitor de Projetos (plugin nanoCAD)</Product>
     <Deterministic>true</Deterministic>
     <NoWarn>CA1416;SYSLIB0014</NoWarn>

@@ -46,8 +46,11 @@ namespace OrcamentoNanoCAD.Nucleo
                 for (int ponta = 0; ponta < 2 && tem < v.InfoCabo.Pontas; ponta++)
                 {
                     if ((ponta == 0 ? v.VinculoA : v.VinculoB) != null) continue;
-                    Poste p = ponta == 0 ? v.PosteObjA : v.PosteObjB;
-                    if (!PosteParticipa(p)) continue;
+                    Poste p0 = ponta == 0 ? v.PosteObjA : v.PosteObjB;
+                    bool ligou = false;
+                    foreach (Poste p in obra.GrupoDoPoste(p0))                // o poste e as outras anotações dele (troca de poste etc.)
+                    {
+                    if (ligou || !PosteParticipa(p)) continue;
                     for (int k = 0; k < p.Lido.Estruturas.Count; k++)
                     {
                         InfoEstrutura e = regras.Vinculo.InfoEstrutura(p.Lido.Estruturas[k].Nome);
@@ -59,7 +62,9 @@ namespace OrcamentoNanoCAD.Nucleo
                         if (ponta == 0) v.VinculoA = vi; else v.VinculoB = vi;
                         Ocupar(ocup, vi, v.InfoCabo);
                         tem++;
+                        ligou = true;
                         break;
+                    }
                     }
                 }
             }
@@ -143,8 +148,15 @@ namespace OrcamentoNanoCAD.Nucleo
             }
             foreach (Vao v in obra.Vaos)
             {
-                if (v.PosteA == null || v.PosteB == null) v.Marcar(Estados.Erro, "sem poste na ponta");
-                if (!v.TemAnotacao) { v.Marcar(Estados.Conferir, "vão sem anotação"); continue; }
+                bool solta = v.PosteA == null || v.PosteB == null;
+                if (!v.TemAnotacao)
+                {
+                    // rede existente que não muda: só informa (a ponta solta costuma ser rede que continua fora do desenho)
+                    v.Mensagens.Add("sem anotação (rede existente que não muda — fica fora da obra)" + (solta ? "; ponta sem poste" : ""));
+                    continue;
+                }
+                if (v.PosteA == null && v.PosteB == null) v.Marcar(Estados.Erro, "sem poste nas pontas");
+                else if (solta) v.Marcar(Estados.Conferir, "ponta sem poste (poste fora do desenho? confira o vínculo dessa ponta)");
                 if (v.Cabo != null && v.Cabo.Erro != null) v.Marcar(Estados.Conferir, v.Cabo.Erro);
                 if (!v.ParticipaVinculo) { v.Mensagens.Add("R não vincula"); continue; }
                 if (v.InfoCabo == null) continue;
