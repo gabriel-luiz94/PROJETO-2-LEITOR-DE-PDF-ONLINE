@@ -79,9 +79,10 @@ def test_ativo_so_com_o_outro_tipo_vai_para_nao_encontrados_com_dica():
     ("desc parcial", [linha("OUTRO", "C4", "k1", "LV", desc_ativo="POSTE DUPLO T 9X150")], "DUPLO T"),
 ])
 def test_cada_passo_da_cascata_filtra_lv(passo, base, busca):
-    viva = calc.processar_calculo([], [outros(f"1-{busca}", "*I")], "", base)
+    # TASK-105: nome com espaço só existe na notação compacta (no formato antigo "1-DESCRICAO EXATA" o "EXATA" era descartado em silêncio)
+    viva = calc.processar_calculo([], [outros(busca, "*I")], "", base)
     assert [r["codigo"] for r in viva["resultado"]] == ["k1"], passo
-    morta = calc.processar_calculo([], [outros(f"1-{busca}", "I")], "", base)
+    morta = calc.processar_calculo([], [outros(busca, "I")], "", base)
     assert morta["resultado"] == [] and len(morta["nao_encontrados"]) == 1, passo
 
 

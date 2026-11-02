@@ -120,9 +120,39 @@ def extrair_ativos_outros(item: dict, ctx: dict = None) -> list:
     compacta de poste, preenche o parâmetro ``poste`` das estruturas e aplica a regra do M/*M (poste ignorado, demais itens I/*I).
     ``ctx`` (opcional) = contexto_da_base(...). Linha com erro de formato devolve só o que se entende sem ambiguidade (nada).
     """
+    return interpretar_outros(item, ctx)[0]
+
+
+def _descartes_formato_antigo(texto: str) -> list:
+    """TASK-105: o que o formato antigo ("qtd-ativo qtd-ativo") descarta ou assume em silêncio — mesmas regras da camada 1 (C1-OUT-ORFAO / C1-OUT-NUM),
+    mais o "-" dentro do ativo ("1-U3-TM": o "-" só separa quantidade de ativo)."""
+    txt = (texto or "").strip()
+    avisos = []
+    for tok in re.sub(r"\([^()]*\)", "()", txt).split():
+        m = re.match(r"^[*-]?\d+(?:[.,]\d+)?-(.+)$", tok)
+        if m and "-" in m.group(1):
+            avisos.append(f"'{tok}': o '-' dentro do ativo '{m.group(1)}' não é suportado no formato antigo (ele só separa quantidade de ativo); use vírgula + espaço (ex.: '{m.group(1)}, 2 N1')")
+    tokens = tokenizar_outros(txt)
+    if len(tokens) % 2 == 1:
+        avisos.append(f"token sem par '{tokens[-1]}' descartado; use <qtd>-<ativo>")
+    for i in range(0, len(tokens) - 1, 2):
+        try:
+            float(tokens[i].replace(",", "."))
+        except ValueError:
+            avisos.append(f"quantidade '{tokens[i]}' não numérica antes de '{tokens[i + 1]}': assumido 1")
+    return avisos
+
+
+def interpretar_outros(item: dict, ctx: dict = None) -> tuple:
+    """(ativos, problemas) de uma linha de OUTROS: ``problemas`` = erros de formato (a linha não calcula) e, no formato antigo, o que foi
+    descartado/assumido em silêncio (TASK-105) — o cálculo os mostra em ``nao_encontrados``."""
     operacao = item.get("operacao", "").strip().upper()
-    r = interpretar_linha(item.get("ativo", ""), operacao, _classico_outros, ctx)
-    return [{"ativo": i["ativo"], "qtd": i["qtd"], "operacao": i["operacao"], "origem": "OUTROS"} for i in r["itens"]]
+    texto = item.get("ativo", "")
+    r = interpretar_linha(texto, operacao, _classico_outros, ctx)
+    problemas = [e["msg"] for e in r["erros"]]
+    if r["formato"] == "antigo" and not r["erros"]:
+        problemas += _descartes_formato_antigo(texto)
+    return [{"ativo": i["ativo"], "qtd": i["qtd"], "operacao": i["operacao"], "origem": "OUTROS"} for i in r["itens"]], problemas
 
 
 def _linha_vale_no_projeto(row, req_proj) -> bool:
@@ -227,8 +257,12 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             ativos_qtd.append(av)
 
     # 2b. OUTROS: texto separado por espaços no modelo "[qtd]-[ativo] [qtd]-[ativo] ..."
+    erros_formato = []
     for item in req_outros:
-        ativos_qtd.extend(extrair_ativos_outros(item, ctx_outros))
+        ativos, erros = interpretar_outros(item, ctx_outros)
+        ativos_qtd.extend(ativos)
+        if erros:
+            erros_formato.append(f"{(item.get('ativo') or '').strip()} ({'; '.join(erros)})")
 
     # ── 3. Cross-reference: Ativo → 1º match → Componente → todos os Códigos ─
     
@@ -262,7 +296,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             codigo_lookup[codigo] = row
 
     componentes_qtd = []
-    nao_encontrados = []
+    nao_encontrados = list(erros_formato)
 
     # Índice auxiliar: DESC_ATIVO (upper) → lista de rows (para busca parcial)
     desc_ativo_index = {}
