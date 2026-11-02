@@ -52,6 +52,19 @@
 | RQ-54 | Sem conexão: segue com o que tem e tenta de novo; sessão vencida pede login | ✅ · 🟡 CAD | `Sincronizador.Aplicar` |
 | RQ-55 | `ORC_SINCRONIZAR`: baixar agora e conferir, com a lista do que está fora da base | 🟡 | `Comandos.CmdSincronizar` |
 
+## RQ — Correções do primeiro uso (TASK-004 a 010)
+
+| ID | Requisito | Situação | Onde |
+|---|---|---|---|
+| RQ-60 | Diagnóstico do que foi lido (arquivo + tabela) e log, para desenhos reais virarem teste | ✅ · 🟡 CAD | `ORC_DIAGNOSTICO`, `Diagnostico`, `Aplicacao.Log` |
+| RQ-61 | Leitura e filtros iguais aos do Leitor da aplicação no desenho inteiro; textos descartados visíveis (Ignorados) | ✅ | `MontadorDesenho`, `LeitorDxfTests`, filtro Ignorados |
+| RQ-62 | Anotação ligada ao bloco/vão pelas linhas guias (LEADER, MLEADER, linha curta), medindo pelo contorno do texto | ✅ · 🟡 CAD | `LeitorProjeto.Ancoras` |
+| RQ-63 | Layers da rede, bloco/layer de poste e guias configuráveis por projeto | ✅ · 🟡 CAD | `ConfigLeitura`, `TelaLeitura`, `ORC_LEITURA` |
+| RQ-64 | Seleção manual funcionando (poste bloco/círculo, anotação TEXT/MTEXT/MLEADER) | 🟡 | `ORC_POSTE`, `ORC_VAO`, `Visual.Executar` |
+| RQ-65 | Voltar ao menu inicial; fechar a obra | 🟡 | ⌂ Início, `ORC_FECHAR` |
+| RQ-66 | Visual na paleta da aplicação | 🟡 | `Plugin/Tema.cs` |
+| RQ-67 | Abrir a aplicação já com a obra do plugin carregada | ✅ API · 🟡 CAD | `ORC_ABRIR_APP`, `/api/plugin/obra`, Resumo `?obra=` |
+
 ## RQ — Cálculo (fora do CAD)
 
 | ID | Requisito | Situação |

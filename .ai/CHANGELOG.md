@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-11-02 — TASK-106: "Abrir na aplicação" (plugin nanoCAD)
+
+**Tipo:** feature · `routers/plugin_cad.py`, `static/resumo.js`, `static/login.js`, `static/auth_fetch.js` · plugin: TASK-004 a 010 (`plugin_nanocad/.ai/`)
+
+`POST /api/plugin/obra` grava a obra do desenho (particular, sem duplicar) e devolve o link do Resumo; o Resumo abre `?obra=` já carregado e o login volta
+para o link. No plugin (0.3.0): MLEADER/guias, configuração de leitura, Ignorados, diagnóstico, seleção manual, navegação e visual da aplicação.
+
+---
+
 ## 2026-11-02 — TASK-105: cálculo mostra o que o formato antigo de Outros descarta
 
 **Tipo:** correção · `services/orcamento_calc.py` (`interpretar_outros`, `_descartes_formato_antigo`)

@@ -26,8 +26,9 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             localStorage.setItem('user_email', data.email);
             localStorage.setItem('is_admin', data.is_admin);
             
-            // Redireciona
-            window.location.href = '/';
+            // Redireciona — TASK-106: volta para a página pedida (?next=, ex.: obra aberta pelo plugin do nanoCAD); só caminho local
+            const proximo = new URLSearchParams(window.location.search).get('next') || '';
+            window.location.href = (proximo.startsWith('/') && !proximo.startsWith('//') && !proximo.startsWith('/\\')) ? proximo : '/';
         } else {
             errorMsg.innerText = data.detail || "Erro ao fazer login";
             errorMsg.classList.remove('hidden');

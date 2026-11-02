@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-11-02 — TASK-004 a 010: correções do primeiro uso no nanoCAD (0.3.0)
+
+**Tipo:** correção + feature · núcleo (`DesenhoBruto`, `ConfigLeitura`, `Diagnostico`, `LeitorProjeto`), CAD (`ExtratorDesenho`, `Tema`,
+`PainelObra`, `Telas`, `Comandos`) · aplicação: `routers/plugin_cad.py`, `static/resumo.js`, `login.js`, `auth_fetch.js` (TASK-106 do principal)
+
+- Leitura em duas etapas: DWG → desenho **bruto** (CAD) → interpretação no núcleo (testável com DXF; paridade texto a texto com o Leitor da aplicação).
+- **MLEADER** lido (texto + linhas como guias); LEADER sempre guia; guia toca o **contorno** do texto.
+- **Configurar leitura** por projeto (layers da rede, bloco/layer de poste, círculo como poste, layers de guia, raios).
+- **Ignorados** no painel (textos que as regras descartaram, com motivo); `ORC_DIAGNOSTICO` (arquivo + tabela) e log.
+- Botões do painel disparam com Enter e foco no desenho; seleção manual aceita bloco/círculo, MLEADER, polilinha 3D.
+- Navegação (⌂ Início, ✕ Fechar obra, voltar ao painel); visual na paleta da aplicação.
+- **🌐 Abrir na aplicação** (`ORC_ABRIR_APP`): grava a obra do desenho na aplicação e abre o Resumo com ela carregada.
+
+---
+
 ## 2026-10-31 — TASK-003: ligação com a aplicação (0.2.0)
 
 **Tipo:** feature · `src/Nucleo/ClienteAplicacao.cs`, `src/Plugin/Sincronizador.cs`, telas/comandos · aplicação: `routers/plugin_cad.py` (TASK-104 do principal)

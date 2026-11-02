@@ -36,7 +36,9 @@
                 window.__sessaoExpiradaTratada = true;
                 ['auth_token', 'user_id', 'user_email', 'is_admin'].forEach(function(k) { localStorage.removeItem(k); });
                 try { alert('Sessão expirada. Entre novamente.'); } catch (e) {}
-                window.location.href = '/login';
+                // TASK-106: volta para onde estava depois do login (ex.: obra aberta pelo plugin do nanoCAD)
+                var aqui = (window.location.pathname || '') + (window.location.search || '');
+                window.location.href = aqui && aqui !== '/' && aqui.indexOf('/login') !== 0 ? '/login?next=' + encodeURIComponent(aqui) : '/login';
             }
             return res;
         });

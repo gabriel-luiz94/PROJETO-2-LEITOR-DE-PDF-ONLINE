@@ -100,3 +100,42 @@ def test_conferir_ignora_campos_estranhos_e_limita_tamanho(client):
     assert _itens(r, "cabos", 0)["RAMA25"]["naoEncontrado"] is False
     grande = {"cabos": [{"entidade": "CABO", "operacao": "I", "ativo": "RAMA25 1 m"}] * 5001, "outros": []}
     assert client.post("/api/plugin/conferir", json={"projeto": "081", "dados": grande}, headers=cab()).status_code == 413
+
+
+# ── TASK-106: "Abrir na aplicação" ──────────────────────────────────────────
+def _enviar(client, uid="u1", chave=r"C:\Projetos\Rua.dwg", envelope=None):
+    return client.post("/api/plugin/obra", json={"chave": chave, "envelope": envelope or EXEMPLO}, headers=cab(uid))
+
+
+def test_abrir_na_aplicacao_grava_a_obra_do_desenho_sem_duplicar(client):
+    r1 = _enviar(client)
+    assert r1.status_code == 200, r1.text
+    j = r1.json()
+    assert j["atualizada"] is False and j["nome"] == "Projeto_Rua_das_Flores (nanoCAD)" and j["cabos"] == 7 and j["outros"] == 8
+    assert j["url"] == f"/resumo?obra={j['id']}&projeto=081&projeto_nome=PERNAMBUCO"
+    obra = client.get(f"/api/obras/{j['id']}?projeto=081", headers=cab("u1")).json()
+    dados = json.loads(obra["dados_json"])
+    assert dados["cabos"]["data"][0]["vinculoEstruturas"] == [0, 1]           # o vínculo do plugin chega à tela
+    r2 = _enviar(client, chave=r"c:\projetos\RUA.dwg")                          # mesmo desenho (caixa diferente): mesma obra
+    assert r2.json()["id"] == j["id"] and r2.json()["atualizada"] is True
+    lista = client.get("/api/obras?projeto=081", headers=cab("u1")).json()
+    assert [o["nome"] for o in lista].count("Projeto_Rua_das_Flores (nanoCAD)") == 1
+    assert client.get(f"/api/obras/{j['id']}?projeto=081", headers=cab("u2")).status_code == 404   # particular
+    assert _enviar(client, uid="u2").json()["id"] != j["id"]                    # outro usuário, outra obra
+
+
+def test_abrir_na_aplicacao_recusa_o_que_nao_e_obra_valida(client):
+    assert client.post("/api/plugin/obra", json={"chave": "x", "envelope": EXEMPLO}).status_code == 401
+    assert _enviar(client, envelope={**EXEMPLO, "projeto": "999"}).status_code == 404
+    assert _enviar(client, envelope={**EXEMPLO, "formato": "outro"}).status_code == 400
+    assert _enviar(client, chave="  ").status_code == 400
+    modelo = {**EXEMPLO, "tipo": "modelo", "parametros": []}
+    assert _enviar(client, envelope=modelo).status_code == 400
+
+
+def test_telas_abrem_a_obra_do_link_e_o_login_volta_para_ela():
+    resumo = (RAIZ / "static" / "resumo.js").read_text(encoding="utf-8")
+    assert "abrirObraDoLink" in resumo and "restoreObraSnapshot(snap)" in resumo and "history.replaceState" in resumo
+    login = (RAIZ / "static" / "login.js").read_text(encoding="utf-8")
+    assert "get('next')" in login and "!proximo.startsWith('//')" in login           # só caminho local (sem redirecionar para fora)
+    assert "/login?next=" in (RAIZ / "static" / "auth_fetch.js").read_text(encoding="utf-8")

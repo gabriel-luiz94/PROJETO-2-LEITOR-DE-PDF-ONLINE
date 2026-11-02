@@ -236,6 +236,14 @@ namespace OrcamentoNanoCAD.Nucleo
             return ConferenciaBase.De(Chamar("POST", "/api/plugin/conferir", corpo));
         }
 
+        /// <summary>"Abrir na aplicação": grava a obra do desenho (a mesma a cada envio) e devolve o link COMPLETO que a abre no Resumo.</summary>
+        public string EnviarObra(string chaveDoDesenho, JObj envelope)
+        {
+            JObj r = Chamar("POST", "/api/plugin/obra", new JObj().Set("chave", chaveDoDesenho ?? "").Set("envelope", envelope));
+            string url = r.Str("url") ?? "/resumo";
+            return url.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? url : Conexao.Base + url;
+        }
+
         /// <summary>Resposta de /api/plugin/regras → regras do projeto (origem = endereço da aplicação).</summary>
         public static RegrasProjeto RegrasDe(JObj resposta, string origem)
         {

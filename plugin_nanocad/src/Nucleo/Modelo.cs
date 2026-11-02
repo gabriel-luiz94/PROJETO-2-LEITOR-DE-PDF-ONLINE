@@ -16,7 +16,28 @@ namespace OrcamentoNanoCAD.Nucleo
         public string Layer = "";
         public double X, Y;
         public double Altura;
-        public string Tipo = "TEXT";  // TEXT | MTEXT | ATTRIB | BLOCO ("[BLOCO: nome]", como o leitor de DXF)
+        public string Tipo = "TEXT";  // TEXT | MTEXT | ATTRIB | MLEADER | BLOCO ("[BLOCO: nome]") | BLOCO_DEF (texto da definição do bloco)
+        public double[] Caixa;        // contorno [minX, minY, maxX, maxY], quando o CAD informa
+        public List<List<Ponto>> Guias = new List<List<Ponto>>();   // linhas de chamada do próprio texto (MLEADER)
+
+        /// <summary>Distância de um ponto ao texto: ao contorno, quando há; senão ao ponto de inserção.</summary>
+        public double Distancia(Ponto p)
+        {
+            if (Caixa == null) return p.Dist(new Ponto(X, Y));
+            double dx = Math.Max(Math.Max(Caixa[0] - p.X, 0), p.X - Caixa[2]);
+            double dy = Math.Max(Math.Max(Caixa[1] - p.Y, 0), p.Y - Caixa[3]);
+            return Math.Sqrt(dx * dx + dy * dy);
+        }
+
+        /// <summary>Pontos do texto de onde a busca parte: o centro do contorno (ou a inserção).</summary>
+        public Ponto Centro { get { return Caixa == null ? new Ponto(X, Y) : new Ponto((Caixa[0] + Caixa[2]) / 2, (Caixa[1] + Caixa[3]) / 2); } }
+    }
+
+    /// <summary>Texto que as regras do leitor descartaram (operação 0 / entidade 0) — fica visível em "Ignorados" para conferir.</summary>
+    public class TextoIgnorado
+    {
+        public string Handle, Texto, Layer, Cor, Motivo, Tipo;
+        public double X, Y;
     }
 
     public class PosteDesenho
@@ -84,6 +105,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public string Estado = Estados.Ok;
         public List<string> Mensagens = new List<string>();
         public List<string> MensagensFixas = new List<string>();   // da leitura (não mudam na conferência)
+        public List<Ponto> GuiaUsada;                               // linha guia que ligou a anotação a este elemento (para mostrar na tela)
         public List<string> ForaDaBase = new List<string>();       // ativos desta linha que a aplicação não achou na Base de Orçamento
         public List<string> MensagensBase = new List<string>();    // ... e as mensagens (vêm de /api/plugin/conferir)
 
@@ -169,6 +191,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public List<Poste> Postes = new List<Poste>();
         public List<Vao> Vaos = new List<Vao>();
         public List<Avulso> Avulsos = new List<Avulso>();
+        public List<TextoIgnorado> Ignorados = new List<TextoIgnorado>();   // só na memória (não vai para o arquivo)
 
         public Poste PostePorNumero(string n) { return n == null ? null : Postes.FirstOrDefault(p => p.Numero == n); }
         public Vao VaoPorNumero(string n) { return Vaos.FirstOrDefault(v => v.Numero == n); }

@@ -1,0 +1,767 @@
+{
+ "formato": "plugin-desenho-bruto",
+ "versao": 1,
+ "arquivo": "teste.dxf",
+ "layers": {
+  "0": {
+   "m": "aci",
+   "aci": 7
+  },
+  "Defpoints": {
+   "m": "aci",
+   "aci": 7
+  },
+  "REDE_MT": {
+   "m": "aci",
+   "aci": 1
+  },
+  "REDE_BT": {
+   "m": "aci",
+   "aci": 3
+  },
+  "01_INSTALANDO": {
+   "m": "aci",
+   "aci": 7
+  },
+  "01_REMOVER": {
+   "m": "aci",
+   "aci": 7
+  },
+  "01_REAPLICANDO": {
+   "m": "aci",
+   "aci": 7
+  },
+  "TXT_RUAS": {
+   "m": "aci",
+   "aci": 8
+  },
+  "POSTES": {
+   "m": "aci",
+   "aci": 7
+  },
+  "GUIAS": {
+   "m": "aci",
+   "aci": 2
+  },
+  "COTAS": {
+   "m": "aci",
+   "aci": 4
+  },
+  "TXT_FF0000": {
+   "m": "aci",
+   "aci": 7
+  }
+ },
+ "entidades": [
+  {
+   "t": "INSERT",
+   "h": "3F",
+   "layer": "POSTES",
+   "cor": {
+    "m": "layer"
+   },
+   "bloco": "POSTE",
+   "x": 105.0,
+   "y": -305.0,
+   "atributos": [
+    {
+     "t": "ATTRIB",
+     "h": "41",
+     "layer": "POSTES",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "1",
+     "x": 110.0,
+     "y": -310.0,
+     "altura": 2.0
+    }
+   ],
+   "definicao": [
+    {
+     "t": "TEXT",
+     "h": "3E",
+     "layer": "0",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "x",
+     "x": 0.0,
+     "y": 0.0,
+     "altura": 1.0
+    }
+   ]
+  },
+  {
+   "t": "TEXT",
+   "h": "42",
+   "layer": "01_INSTALANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "9200D, N1",
+   "x": 83.0,
+   "y": -293.0,
+   "altura": 8.0
+  },
+  {
+   "t": "INSERT",
+   "h": "43",
+   "layer": "POSTES",
+   "cor": {
+    "m": "layer"
+   },
+   "bloco": "POSTE",
+   "x": 325.0,
+   "y": -275.0,
+   "atributos": [
+    {
+     "t": "ATTRIB",
+     "h": "45",
+     "layer": "POSTES",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "2",
+     "x": 330.0,
+     "y": -280.0,
+     "altura": 2.0
+    }
+   ],
+   "definicao": [
+    {
+     "t": "TEXT",
+     "h": "3E",
+     "layer": "0",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "x",
+     "x": 0.0,
+     "y": 0.0,
+     "altura": 1.0
+    }
+   ]
+  },
+  {
+   "t": "INSERT",
+   "h": "46",
+   "layer": "POSTES",
+   "cor": {
+    "m": "layer"
+   },
+   "bloco": "POSTE",
+   "x": 555.0,
+   "y": -335.0,
+   "atributos": [
+    {
+     "t": "ATTRIB",
+     "h": "48",
+     "layer": "POSTES",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "3",
+     "x": 560.0,
+     "y": -340.0,
+     "altura": 2.0
+    }
+   ],
+   "definicao": [
+    {
+     "t": "TEXT",
+     "h": "3E",
+     "layer": "0",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "x",
+     "x": 0.0,
+     "y": 0.0,
+     "altura": 1.0
+    }
+   ]
+  },
+  {
+   "t": "TEXT",
+   "h": "49",
+   "layer": "01_INSTALANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "11300D, N3",
+   "x": 533.0,
+   "y": -323.0,
+   "altura": 8.0
+  },
+  {
+   "t": "INSERT",
+   "h": "4A",
+   "layer": "POSTES",
+   "cor": {
+    "m": "layer"
+   },
+   "bloco": "POSTE",
+   "x": 785.0,
+   "y": -285.0,
+   "atributos": [
+    {
+     "t": "ATTRIB",
+     "h": "4C",
+     "layer": "POSTES",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "4",
+     "x": 790.0,
+     "y": -290.0,
+     "altura": 2.0
+    }
+   ],
+   "definicao": [
+    {
+     "t": "TEXT",
+     "h": "3E",
+     "layer": "0",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "x",
+     "x": 0.0,
+     "y": 0.0,
+     "altura": 1.0
+    }
+   ]
+  },
+  {
+   "t": "TEXT",
+   "h": "4D",
+   "layer": "01_INSTALANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "9400D, N1",
+   "x": 763.0,
+   "y": -273.0,
+   "altura": 8.0
+  },
+  {
+   "t": "INSERT",
+   "h": "4E",
+   "layer": "POSTES",
+   "cor": {
+    "m": "layer"
+   },
+   "bloco": "POSTE",
+   "x": 325.0,
+   "y": -525.0,
+   "atributos": [
+    {
+     "t": "ATTRIB",
+     "h": "50",
+     "layer": "POSTES",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "5",
+     "x": 330.0,
+     "y": -530.0,
+     "altura": 2.0
+    }
+   ],
+   "definicao": [
+    {
+     "t": "TEXT",
+     "h": "3E",
+     "layer": "0",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "x",
+     "x": 0.0,
+     "y": 0.0,
+     "altura": 1.0
+    }
+   ]
+  },
+  {
+   "t": "TEXT",
+   "h": "51",
+   "layer": "01_INSTALANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "10300R, N1",
+   "x": 303.0,
+   "y": -513.0,
+   "altura": 8.0
+  },
+  {
+   "t": "INSERT",
+   "h": "52",
+   "layer": "POSTES",
+   "cor": {
+    "m": "layer"
+   },
+   "bloco": "POSTE",
+   "x": 565.0,
+   "y": -575.0,
+   "atributos": [
+    {
+     "t": "ATTRIB",
+     "h": "54",
+     "layer": "POSTES",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "6",
+     "x": 570.0,
+     "y": -580.0,
+     "altura": 2.0
+    }
+   ],
+   "definicao": [
+    {
+     "t": "TEXT",
+     "h": "3E",
+     "layer": "0",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "x",
+     "x": 0.0,
+     "y": 0.0,
+     "altura": 1.0
+    }
+   ]
+  },
+  {
+   "t": "TEXT",
+   "h": "55",
+   "layer": "01_INSTALANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "9300F, N3",
+   "x": 543.0,
+   "y": -563.0,
+   "altura": 8.0
+  },
+  {
+   "t": "INSERT",
+   "h": "56",
+   "layer": "POSTES",
+   "cor": {
+    "m": "layer"
+   },
+   "bloco": "POSTE",
+   "x": 805.0,
+   "y": -535.0,
+   "atributos": [
+    {
+     "t": "ATTRIB",
+     "h": "58",
+     "layer": "POSTES",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "7",
+     "x": 810.0,
+     "y": -540.0,
+     "altura": 2.0
+    }
+   ],
+   "definicao": [
+    {
+     "t": "TEXT",
+     "h": "3E",
+     "layer": "0",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "x",
+     "x": 0.0,
+     "y": 0.0,
+     "altura": 1.0
+    }
+   ]
+  },
+  {
+   "t": "INSERT",
+   "h": "59",
+   "layer": "POSTES",
+   "cor": {
+    "m": "layer"
+   },
+   "bloco": "POSTE",
+   "x": 565.0,
+   "y": -745.0,
+   "atributos": [
+    {
+     "t": "ATTRIB",
+     "h": "5B",
+     "layer": "POSTES",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "8",
+     "x": 570.0,
+     "y": -750.0,
+     "altura": 2.0
+    }
+   ],
+   "definicao": [
+    {
+     "t": "TEXT",
+     "h": "3E",
+     "layer": "0",
+     "cor": {
+      "m": "layer"
+     },
+     "texto": "x",
+     "x": 0.0,
+     "y": 0.0,
+     "altura": 1.0
+    }
+   ]
+  },
+  {
+   "t": "TEXT",
+   "h": "5C",
+   "layer": "01_INSTALANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "7150FV, B2",
+   "x": 543.0,
+   "y": -733.0,
+   "altura": 8.0
+  },
+  {
+   "t": "MTEXT",
+   "h": "5D",
+   "layer": "01_INSTALANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "9400D\\P{\\C7;N1}\\PN4",
+   "x": 303.0,
+   "y": -255.0,
+   "altura": 8.0
+  },
+  {
+   "t": "TEXT",
+   "h": "5E",
+   "layer": "01_INSTALANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "9200D, N1",
+   "x": 845.0,
+   "y": -595.0,
+   "altura": 8.0
+  },
+  {
+   "t": "LEADER",
+   "h": "5F",
+   "layer": "GUIAS",
+   "cor": {
+    "m": "layer"
+   },
+   "pontos": [
+    [
+     843.0,
+     -593.0
+    ],
+    [
+     808.0,
+     -538.0
+    ]
+   ]
+  },
+  {
+   "t": "LINE",
+   "h": "60",
+   "layer": "REDE_MT",
+   "cor": {
+    "m": "layer"
+   },
+   "pontos": [
+    [
+     105.0,
+     -305.0
+    ],
+    [
+     325.0,
+     -275.0
+    ]
+   ]
+  },
+  {
+   "t": "TEXT",
+   "h": "61",
+   "layer": "01_INSTALANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "3xA35P(7,94)-13,8kV 45 m",
+   "x": 215.0,
+   "y": -278.0,
+   "altura": 8.0
+  },
+  {
+   "t": "LINE",
+   "h": "62",
+   "layer": "REDE_MT",
+   "cor": {
+    "m": "layer"
+   },
+   "pontos": [
+    [
+     325.0,
+     -275.0
+    ],
+    [
+     555.0,
+     -335.0
+    ]
+   ]
+  },
+  {
+   "t": "MLEADER",
+   "h": "63",
+   "layer": "01_INSTALANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "3xA35P(7,94)-13,8kV 45 m",
+   "x": 470.0,
+   "y": -245.0,
+   "altura": 8.0,
+   "linhas": [
+    [
+     [
+      440.0,
+      -305.0
+     ],
+     [
+      460.0,
+      -249.0
+     ]
+    ]
+   ]
+  },
+  {
+   "t": "LINE",
+   "h": "64",
+   "layer": "REDE_MT",
+   "cor": {
+    "m": "layer"
+   },
+   "pontos": [
+    [
+     555.0,
+     -335.0
+    ],
+    [
+     785.0,
+     -285.0
+    ]
+   ]
+  },
+  {
+   "t": "TEXT",
+   "h": "65",
+   "layer": "01_INSTALANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "3xS04-7,97kV",
+   "x": 670.0,
+   "y": -298.0,
+   "altura": 8.0
+  },
+  {
+   "t": "TEXT",
+   "h": "66",
+   "layer": "01_INSTALANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "38 m",
+   "x": 670.0,
+   "y": -308.0,
+   "altura": 8.0
+  },
+  {
+   "t": "LINE",
+   "h": "67",
+   "layer": "REDE_MT",
+   "cor": {
+    "m": "layer"
+   },
+   "pontos": [
+    [
+     325.0,
+     -275.0
+    ],
+    [
+     325.0,
+     -525.0
+    ]
+   ]
+  },
+  {
+   "t": "TEXT",
+   "h": "68",
+   "layer": "01_REMOVER",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "3xA35P(7,94)-13,8kV 52 m",
+   "x": 310.0,
+   "y": -400.0,
+   "altura": 8.0
+  },
+  {
+   "t": "LINE",
+   "h": "69",
+   "layer": "REDE_BT",
+   "cor": {
+    "m": "layer"
+   },
+   "pontos": [
+    [
+     325.0,
+     -525.0
+    ],
+    [
+     565.0,
+     -575.0
+    ]
+   ]
+  },
+  {
+   "t": "TEXT",
+   "h": "6A",
+   "layer": "01_INSTALANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "3xC16(16) 30 m",
+   "x": 445.0,
+   "y": -538.0,
+   "altura": 8.0
+  },
+  {
+   "t": "LINE",
+   "h": "6B",
+   "layer": "REDE_BT",
+   "cor": {
+    "m": "layer"
+   },
+   "pontos": [
+    [
+     565.0,
+     -575.0
+    ],
+    [
+     805.0,
+     -535.0
+    ]
+   ]
+  },
+  {
+   "t": "TEXT",
+   "h": "6C",
+   "layer": "01_INSTALANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "3xC16(16) 28 m",
+   "x": 685.0,
+   "y": -543.0,
+   "altura": 8.0
+  },
+  {
+   "t": "LINE",
+   "h": "6D",
+   "layer": "REDE_BT",
+   "cor": {
+    "m": "layer"
+   },
+   "pontos": [
+    [
+     565.0,
+     -575.0
+    ],
+    [
+     565.0,
+     -745.0
+    ]
+   ]
+  },
+  {
+   "t": "TEXT",
+   "h": "6E",
+   "layer": "01_REAPLICANDO",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "RAMA25 20 m",
+   "x": 550.0,
+   "y": -660.0,
+   "altura": 8.0
+  },
+  {
+   "t": "TEXT",
+   "h": "6F",
+   "layer": "TXT_RUAS",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "Rua das Flores",
+   "x": 450.0,
+   "y": -420.0,
+   "altura": 8.0
+  },
+  {
+   "t": "TEXT",
+   "h": "70",
+   "layer": "COTAS",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "12.50",
+   "x": 200.0,
+   "y": -200.0,
+   "altura": 8.0
+  },
+  {
+   "t": "MTEXT",
+   "h": "71",
+   "layer": "0",
+   "cor": {
+    "m": "layer"
+   },
+   "texto": "{\\C1;OBS: conferir}",
+   "x": 700.0,
+   "y": -700.0,
+   "altura": 8.0
+  },
+  {
+   "t": "TEXT",
+   "h": "72",
+   "layer": "0",
+   "cor": {
+    "m": "rgb",
+    "rgb": 255
+   },
+   "texto": "3xC16(16) 99 m",
+   "x": 900.0,
+   "y": -900.0,
+   "altura": 8.0
+  }
+ ],
+ "avisos": []
+}
