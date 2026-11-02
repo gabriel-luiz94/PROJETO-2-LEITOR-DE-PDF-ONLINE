@@ -50,6 +50,11 @@ ou poste que **não está na base** vira *Conferir* no painel ("não está na ba
 2. **🩺 Diagnóstico** (`ORC_DIAGNOSTICO`): grava `<desenho>.diagnostico.json` e mostra, para cada texto, o que as regras fizeram e
    para onde ele foi (poste, vão, avulso ou ignorado + motivo). Mande esse arquivo para ajuste fino; o log fica em
    `%APPDATA%\OrcamentoNanoCAD\log.txt`.
+3. **Dicas** que o `ORC_LER` e o diagnóstico mostram (💡): linhas vermelhas/verdes de poste a poste numa layer que não é de rede
+   (inclua a layer em MT/BT) e blocos nas pontas soltas da rede (inclua em Blocos de poste). `=NOME` exige o nome exato
+   (ex.: `=0` = só a layer 0; sem `=` vale qualquer layer que contenha o trecho).
+4. Várias anotações no mesmo vão ou poste (recondutagem, troca de poste) viram **irmãos** (`V7b`, `P3b`), cada um com sua linha
+   na obra. A **placa** do poste (ex.: B039571) é lida e aparece no painel.
 
 ### Regras
 
