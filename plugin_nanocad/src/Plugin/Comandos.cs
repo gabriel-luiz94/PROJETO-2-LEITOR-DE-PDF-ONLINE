@@ -33,6 +33,7 @@ namespace OrcamentoNanoCAD
         private static void Rodar(string nome, Action<Sessao> acao)
         {
             Sessao s = null;
+            Aplicacao.Log("comando " + nome);
             try
             {
                 s = Sessao();
@@ -41,7 +42,8 @@ namespace OrcamentoNanoCAD
             }
             catch (System.Exception e)
             {
-                Aplicacao.Msg("[" + nome + "] erro: " + e.Message);
+                Aplicacao.Log("[" + nome + "] " + e);
+                Aplicacao.Msg("[" + nome + "] erro: " + e.Message + " (detalhes em " + Aplicacao.ArquivoLog + ")");
             }
         }
 
@@ -80,7 +82,9 @@ namespace OrcamentoNanoCAD
                 using (TelaInicio t = new TelaInicio(s, salva))
                 {
                     if (Application.ShowModalDialog(t) != DialogResult.OK || t.Escolha == Escolha.Nada) return;
+                    if (t.Escolha == Escolha.Painel) { PainelObra.Abrir(s); return; }
                     if (t.Regras != null) s.Regras = RegrasFrescas(t.Regras, t.Projeto);
+                    if (t.Escolha == Escolha.Leitura) { ConfigurarLeitura(s); return; }
                     if (t.Escolha == Escolha.Ler) Ler(s, false, t.Projeto);
                     else if (t.Escolha == Escolha.Construir) Construir(s, t.Projeto);
                     else if (t.Escolha == Escolha.Continuar) Continuar(s, salva);
@@ -99,13 +103,20 @@ namespace OrcamentoNanoCAD
         private static void Ler(Sessao s, bool manterAjustes, string projeto)
         {
             Obra antiga = s.Obra;
-            Desenho d = ExtratorDesenho.Ler(s.Doc, s.Regras);
+            DesenhoBruto bruto = ExtratorDesenho.Ler(s.Doc);
+            s.UltimoBruto = bruto;
+            Desenho d = MontadorDesenho.Montar(bruto, s.Regras.Leitura);
             s.UltimoDesenho = d;
             Obra nova = LeitorProjeto.Ler(d, s.Regras);
             nova.Projeto = !string.IsNullOrEmpty(projeto) ? projeto : (antiga != null && !string.IsNullOrEmpty(antiga.Projeto) ? antiga.Projeto : s.Regras.Codigo);
             if (manterAjustes && antiga != null) { Construtor.ReaplicarAjustes(nova, antiga, s.Regras); nova.SalvoEm = antiga.SalvoEm; }
             s.Obra = nova;
-            Aplicacao.Msg("ORC_LER " + Relatorios.Resumo(nova) + " (" + d.Textos.Count + " textos, " + d.Postes.Count + " blocos de poste, " + d.Linhas.Count + " linhas)");
+            Aplicacao.Msg("ORC_LER " + Relatorios.Resumo(nova) + " (" + d.Textos.Count + " textos, " + d.Postes.Count + " postes no desenho, " + d.Linhas.Count
+                          + " linhas; " + nova.Ignorados.Count + " textos ignorados pelas regras)");
+            if (d.Postes.Count == 0 || nova.Vaos.Count == 0)
+                Aplicacao.Msg("⚠ " + (d.Postes.Count == 0 ? "Nenhum bloco de poste achado. " : "") + (nova.Vaos.Count == 0 ? "Nenhuma rede achada. " : "")
+                              + "Confira em ⚙ Leitura (ORC_LEITURA) as layers da rede e o nome do bloco de poste deste desenho; ORC_DIAGNOSTICO mostra o que foi lido.");
+            foreach (string a in bruto.Avisos.Take(5)) Aplicacao.Log("leitura: " + a);
             Mudou(s, true);
             PainelObra.Abrir(s);
         }
@@ -158,29 +169,31 @@ namespace OrcamentoNanoCAD
         public void CmdPainel() { Rodar("ORC_PAINEL", s => { if (PrecisaObra(s)) PainelObra.Abrir(s); }); }
 
         // ── construir do zero ──
+        /// <summary>Entidades → desenho montado com a configuração de leitura das regras (textos já com cor e parágrafos).</summary>
+        private static Desenho Montar(Sessao s, IEnumerable<ObjectId> ids)
+        {
+            DesenhoBruto b = ExtratorDesenho.LerSelecao(s.Doc, ids);
+            foreach (string a in b.Avisos) Aplicacao.Log("seleção: " + a);
+            return MontadorDesenho.Montar(b, s.Regras.Leitura);
+        }
+
         private static List<TextoDesenho> SelecionarTextos(Sessao s, string mensagem)
         {
             Editor ed = s.Doc.Editor;
             PromptSelectionOptions o = new PromptSelectionOptions { MessageForAdding = mensagem };
-            SelectionFilter f = new SelectionFilter(new[] { new TypedValue((int)DxfCode.Start, "TEXT,MTEXT") });
+            // TEXT, MTEXT e linha de chamada múltipla (MLEADER = "MULTILEADER" no filtro)
+            SelectionFilter f = new SelectionFilter(new[] { new TypedValue((int)DxfCode.Start, "TEXT,MTEXT,MULTILEADER") });
             PromptSelectionResult r = ed.GetSelection(o, f);
-            List<TextoDesenho> textos = new List<TextoDesenho>();
-            if (r.Status != PromptStatus.OK) return textos;
-            using (Transaction tr = s.Doc.Database.TransactionManager.StartTransaction())
-            {
-                foreach (ObjectId id in r.Value.GetObjectIds())
-                {
-                    Entity ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
-                    if (ent != null) textos.AddRange(ExtratorDesenho.Textos(ent, tr, null));
-                }
-                tr.Commit();
-            }
+            if (r.Status != PromptStatus.OK) return new List<TextoDesenho>();
+            List<TextoDesenho> textos = Montar(s, r.Value.GetObjectIds()).Textos.Where(t => t.Tipo != "BLOCO" && t.Tipo != "BLOCO_DEF").ToList();
+            Aplicacao.Msg(textos.Count == 0 ? "Nenhum texto selecionado." : "Anotação: " + string.Join(" / ", textos.Select(t => t.Texto).ToArray()));
             return textos;
         }
 
         private static bool PrepararConstrucao(Sessao s)
         {
             if (s.Obra == null) { s.Obra = Construtor.NovaObra(s.Doc.Name, s.Regras); PainelObra.Abrir(s); }
+            else if (s.Obra.Modo != "construir") Aplicacao.Msg("Acrescentando à obra lida (os elementos novos ficam marcados como manuais).");
             return true;
         }
 
@@ -193,24 +206,28 @@ namespace OrcamentoNanoCAD
                 Editor ed = s.Doc.Editor;
                 while (true)
                 {
-                    PromptEntityOptions o = new PromptEntityOptions("\nSelecione o BLOCO do poste (Enter = sem bloco, Esc = terminar): ");
-                    o.SetRejectMessage("\nPrecisa ser um bloco.");
-                    o.AddAllowedClass(typeof(BlockReference), true);
+                    // o poste pode ser bloco OU círculo (projetos sem padrão); clicar direto num texto = poste só com a anotação
+                    PromptEntityOptions o = new PromptEntityOptions("\nSelecione o POSTE — bloco ou círculo (Enter = sem símbolo, Esc = terminar): ");
                     o.AllowNone = true;
                     PromptEntityResult r = ed.GetEntity(o);
                     if (r.Status == PromptStatus.Cancel || r.Status == PromptStatus.Error) break;
                     PosteDesenho bloco = null;
+                    List<TextoDesenho> textos = new List<TextoDesenho>();
                     if (r.Status == PromptStatus.OK)
-                        using (Transaction tr = s.Doc.Database.TransactionManager.StartTransaction())
-                        {
-                            BlockReference br = (BlockReference)tr.GetObject(r.ObjectId, OpenMode.ForRead);
-                            bloco = ExtratorDesenho.Poste(br, tr);
-                            tr.Commit();
-                        }
-                    List<TextoDesenho> textos = SelecionarTextos(s, "\nSelecione a(s) anotação(ões) do poste e Enter: ");
+                    {
+                        DesenhoBruto b = ExtratorDesenho.LerSelecao(s.Doc, new[] { r.ObjectId });
+                        EntidadeBruta e = b.Entidades.FirstOrDefault();
+                        if (e != null && (e.Tipo == "INSERT" || e.Tipo == "CIRCLE"))
+                            bloco = new PosteDesenho { Handle = e.Handle, X = e.X, Y = e.Y, Bloco = e.Tipo == "CIRCLE" ? "(círculo)" : (e.Bloco ?? ""), Layer = e.Layer };
+                        else if (e != null && (e.Tipo == "TEXT" || e.Tipo == "MTEXT" || e.Tipo == "MLEADER"))
+                            textos = MontadorDesenho.Montar(b, s.Regras.Leitura).Textos;
+                        else { Aplicacao.Msg("Isso não é bloco, círculo nem texto. Tente de novo."); continue; }
+                    }
+                    if (textos.Count == 0) textos = SelecionarTextos(s, "\nSelecione a(s) anotação(ões) do poste e Enter: ");
                     if (bloco == null && textos.Count == 0) break;
                     Poste p = Construtor.AdicionarPoste(s.Obra, bloco, textos, s.Regras);
-                    Aplicacao.Msg(p.Numero + ": " + (p.TemAnotacao ? p.AtivoLido : "(sem anotação)") + " [" + p.Operacao + "]");
+                    Aplicacao.Msg(p.Numero + ": " + (p.TemAnotacao ? p.AtivoLido : "(sem anotação)") + " [" + p.Operacao + "]"
+                                  + (p.Estado != Estados.Ok ? " — " + string.Join("; ", p.Mensagens.ToArray()) : ""));
                     Mudou(s, true);
                 }
             });
@@ -240,21 +257,12 @@ namespace OrcamentoNanoCAD
                 Editor ed = s.Doc.Editor;
                 while (true)
                 {
-                    PromptEntityOptions o = new PromptEntityOptions("\nSelecione a LINHA do vão (Esc/Enter = terminar): ");
-                    o.SetRejectMessage("\nPrecisa ser linha ou polilinha.");
-                    o.AddAllowedClass(typeof(Line), true);
-                    o.AddAllowedClass(typeof(Polyline), true);
-                    o.AddAllowedClass(typeof(Polyline2d), true);
+                    PromptEntityOptions o = new PromptEntityOptions("\nSelecione a LINHA do vão — linha ou polilinha (Esc/Enter = terminar): ");
                     o.AllowNone = true;
                     PromptEntityResult r = ed.GetEntity(o);
                     if (r.Status != PromptStatus.OK) break;
-                    LinhaDesenho linha;
-                    using (Transaction tr = s.Doc.Database.TransactionManager.StartTransaction())
-                    {
-                        linha = ExtratorDesenho.Linha((Entity)tr.GetObject(r.ObjectId, OpenMode.ForRead), tr);
-                        tr.Commit();
-                    }
-                    if (linha == null || linha.Pontos.Count < 2) continue;
+                    LinhaDesenho linha = Montar(s, new[] { r.ObjectId }).Linhas.FirstOrDefault(l => !l.Leader);
+                    if (linha == null || linha.Pontos.Count < 2) { Aplicacao.Msg("Isso não é linha nem polilinha. Tente de novo."); continue; }
                     List<TextoDesenho> textos = SelecionarTextos(s, "\nSelecione a anotação do vão e Enter: ");
                     Poste a, b;
                     Construtor.SugerirPostes(s.Obra, linha.Pontos, 4 * s.Obra.AlturaTexto, out a, out b);
@@ -289,6 +297,19 @@ namespace OrcamentoNanoCAD
             PromptResult r = ed.GetString(o);
             if (r.Status != PromptStatus.OK) return null;
             string n = (r.StringResult ?? "").Trim().ToUpperInvariant();
+            if (n.StartsWith("H:"))
+            {
+                // linha de "Ignorados"/diagnóstico: um texto pelo handle
+                string hh = n.Substring(2);
+                Elemento porH = s.Obra.PorHandle(hh);
+                if (porH != null) return porH;
+                TextoIgnorado t = s.Obra.Ignorados.FirstOrDefault(x => string.Equals(x.Handle, hh, StringComparison.OrdinalIgnoreCase));
+                TextoDesenho td = t == null && s.UltimoDesenho != null ? s.UltimoDesenho.Textos.FirstOrDefault(x => string.Equals(x.Handle, hh, StringComparison.OrdinalIgnoreCase)) : null;
+                if (t != null) ZoomPontos(s, new List<Ponto> { new Ponto(t.X, t.Y) });
+                else if (td != null) ZoomPontos(s, new List<Ponto> { new Ponto(td.X, td.Y) });
+                else Aplicacao.Msg("Texto " + hh + " não encontrado.");
+                return null;
+            }
             if (n.Length > 0)
             {
                 Elemento e = s.Obra.PorNumero(n);
@@ -314,14 +335,21 @@ namespace OrcamentoNanoCAD
 
         private static void Zoom(Sessao s, Elemento e)
         {
-            double h = Math.Max(s.Obra.AlturaTexto, 1e-3);
             List<Ponto> pts = new List<Ponto>();
             Poste p = e as Poste;
             Vao v = e as Vao;
             if (p != null) pts.Add(p.Ponto);
             if (v != null) pts.AddRange(v.Pontos);
             if (e.TextoX.HasValue) pts.Add(new Ponto(e.TextoX.Value, e.TextoY.Value));
+            if (e.GuiaUsada != null) pts.AddRange(e.GuiaUsada);
             if (pts.Count == 0) return;
+            ZoomPontos(s, pts);
+            if (s.MarcasVisiveis) { s.Marcas.Mostrar(s.Obra, s.Regras); s.Marcas.Destacar(s.Obra, e); }
+        }
+
+        private static void ZoomPontos(Sessao s, List<Ponto> pts)
+        {
+            double h = Math.Max(s.Obra != null ? s.Obra.AlturaTexto : 1, 1e-3);
             double minX = pts.Min(q => q.X), maxX = pts.Max(q => q.X), minY = pts.Min(q => q.Y), maxY = pts.Max(q => q.Y);
             double margem = h * 12;
             Editor ed = s.Doc.Editor;
@@ -333,7 +361,6 @@ namespace OrcamentoNanoCAD
             vista.Width = largura;
             vista.Height = altura;
             ed.SetCurrentView(vista);
-            if (s.MarcasVisiveis) { s.Marcas.Mostrar(s.Obra, s.Regras); s.Marcas.Destacar(s.Obra, e); }
         }
 
         [CommandMethod("ORC_ZOOM")]
@@ -566,6 +593,95 @@ namespace OrcamentoNanoCAD
             });
         }
 
+        // ── navegação, leitura, diagnóstico, abrir na aplicação (TASK-004/006/008/010) ──
+        [CommandMethod("ORC_FECHAR")]
+        public void CmdFechar()
+        {
+            Rodar("ORC_FECHAR", s =>
+            {
+                if (s.Obra == null) { PainelObra.Esconder(); return; }
+                if (s.Modificada && !Confirmar(s.Doc.Editor, "A obra tem mudanças não salvas. Fechar mesmo assim?")) return;
+                s.Obra = null;
+                s.Modificada = false;
+                s.Marcas.Limpar();
+                PainelObra.Esconder();
+                Aplicacao.Msg("Obra fechada (o desenho não foi alterado). ORCAMENTO abre a tela inicial.");
+            });
+        }
+
+        private static void ListasDoDesenho(Sessao s, out List<string> layers, out List<string> blocos)
+        {
+            DesenhoBruto b = s.UltimoBruto;
+            if (b == null) { try { b = ExtratorDesenho.Ler(s.Doc); s.UltimoBruto = b; } catch (System.Exception) { b = new DesenhoBruto(); } }
+            layers = b.Layers.Keys.ToList();
+            blocos = b.Entidades.Where(e => e.Tipo == "INSERT").Select(e => e.Bloco ?? "").Distinct().ToList();
+        }
+
+        private static void ConfigurarLeitura(Sessao s)
+        {
+            List<string> layers, blocos;
+            ListasDoDesenho(s, out layers, out blocos);
+            using (TelaLeitura t = new TelaLeitura(s.Regras, layers, blocos))
+            {
+                if (Application.ShowModalDialog(t) != DialogResult.OK || t.Resultado == null) return;
+                s.Regras.Leitura = t.Resultado;
+                ConfigsLocais.Salvar(s.Regras.Codigo, t.Resultado);
+                Aplicacao.Msg("Configuração de leitura salva para " + s.Regras.Nome + ".");
+            }
+            if (s.Obra != null && s.Obra.Modo == "ler") Ler(s, true, null);
+            else if (s.Obra == null && Confirmar(s.Doc.Editor, "Ler o projeto agora com essa configuração?")) Ler(s, false, null);
+        }
+
+        [CommandMethod("ORC_LEITURA")]
+        public void CmdLeitura() { Rodar("ORC_LEITURA", ConfigurarLeitura); }
+
+        private static TelaTabela _diag;
+
+        [CommandMethod("ORC_DIAGNOSTICO")]
+        public void CmdDiagnostico()
+        {
+            Rodar("ORC_DIAGNOSTICO", s =>
+            {
+                DesenhoBruto b = ExtratorDesenho.Ler(s.Doc);
+                s.UltimoBruto = b;
+                Desenho d = MontadorDesenho.Montar(b, s.Regras.Leitura);
+                Obra o = LeitorProjeto.Ler(d, s.Regras);
+                JObj diag = Diagnostico.Gerar(b, d, o, s.Regras, DateTime.Now);
+                string arq = s.DesenhoSalvo ? Path.ChangeExtension(s.Doc.Name, null) + ".diagnostico.json" : Path.Combine(Conexao.Pasta, "diagnostico.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(arq));
+                File.WriteAllText(arq, Json.Escrever(diag, true), new System.Text.UTF8Encoding(false));
+                foreach (string l in Diagnostico.Linhas(diag)) Aplicacao.Msg(l);
+                Aplicacao.Msg("Diagnóstico gravado em " + arq + " — mande esse arquivo para conferir a leitura deste desenho.");
+                AbrirTabela(ref _diag, () => new TelaTabela("🩺 Diagnóstico — o que o plugin leu em cada texto", Relatorios.ColunasDiagnostico,
+                    () => Relatorios.TextosDoDiagnostico(diag),
+                    string.Join("  ·  ", Diagnostico.Linhas(diag).ToArray()) + "\nArquivo: " + arq));
+            });
+        }
+
+        [CommandMethod("ORC_ABRIR_APP")]
+        public void CmdAbrirApp()
+        {
+            Rodar("ORC_ABRIR_APP", s =>
+            {
+                if (!PrecisaObra(s)) return;
+                if (string.IsNullOrEmpty(s.Obra.Projeto)) { Aplicacao.Msg("A obra não tem o código do projeto (ORCAMENTO → Projeto na aplicação)."); return; }
+                if (!Conexao.Logado)
+                {
+                    using (TelaConexao tc = new TelaConexao()) Application.ShowModalDialog(tc);
+                    if (!Conexao.Logado) { Aplicacao.Msg("Sem ligação com a aplicação: conecte em 🔗 Aplicação e tente de novo."); return; }
+                    Sincronizador.Agora();
+                }
+                try
+                {
+                    string chave = string.IsNullOrEmpty(s.Doc.Name) ? s.Obra.Nome : s.Doc.Name;
+                    string url = Conexao.Cliente.EnviarObra(chave, ObraArquivo.Envelope(s.Obra, DateTime.UtcNow));
+                    Aplicacao.Msg("Obra enviada para a aplicação; abrindo " + url);
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+                }
+                catch (ErroAplicacao e) { Aplicacao.Msg("Não abriu na aplicação: " + e.Message); }
+            });
+        }
+
         [CommandMethod("ORC_AJUDA")]
         public void CmdAjuda()
         {
@@ -576,6 +692,9 @@ namespace OrcamentoNanoCAD
                 + "  ORC_VINCULOS  ORC_ATIVOS  ORC_SALVAR  ORC_PAINEL  ORC_MARCAS  ORC_REGRAS\n"
                 + "  ORC_CONECTAR   ligar à aplicação (localhost/online): regras e base de orçamento ao vivo\n"
                 + "  ORC_SINCRONIZAR baixar agora as regras da aplicação e conferir a obra com a base\n"
+                + "  ORC_ABRIR_APP  enviar a obra e abrir a aplicação com ela carregada\n"
+                + "  ORC_LEITURA    configurar layers da rede, bloco de poste e guias · ORC_DIAGNOSTICO o que foi lido\n"
+                + "  ORC_FECHAR     fechar a obra · log: " + Aplicacao.ArquivoLog + "\n"
                 + "  " + Sincronizador.Status);
         }
     }

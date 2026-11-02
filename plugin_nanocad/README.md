@@ -29,6 +29,9 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 | `ORC_EDITAR` | pop-up do vão/poste: entrada (lida do desenho), saída (para a obra), ajustes (operação, metros, estrutura do vínculo; troca opcional da layer do texto) |
 | `ORC_VINCULOS`, `ORC_ATIVOS` | tabela de vínculos · ativos com parâmetros (`N4(9400D, P, 3XA35P_7.94_-13.8KV, ?)`) |
 | `ORC_SALVAR` | grava a obra **no DWG** e em **`<desenho>.obra.json`** na pasta do desenho |
+| `ORC_ABRIR_APP` | envia a obra e abre a aplicação com ela carregada (🌐 no painel) |
+| `ORC_LEITURA`, `ORC_DIAGNOSTICO` | onde ficam rede, postes e guias neste padrão de desenho · o que o plugin leu em cada texto (arquivo + tabela) |
+| `ORC_FECHAR` | fecha a obra (⌂ Início no painel volta à tela inicial) |
 | `ORC_CONECTAR`, `ORC_SINCRONIZAR` | ligar à aplicação aberta (localhost/online): regras e base de orçamento ao vivo · baixar e conferir agora |
 | `ORC_CONTINUAR`, `ORC_PAINEL`, `ORC_ZOOM`, `ORC_MARCAS`, `ORC_REGRAS`, `ORC_AJUDA` | abrir a obra salva · reabrir o painel · localizar · ligar/desligar números e vínculos na tela · recarregar regras · ajuda |
 
@@ -39,6 +42,14 @@ inicial escolha as regras **"Aplicação: PERNAMBUCO (081)"**. O plugin consulta
 do leitor/vínculo mudaram → refaz a obra (mantendo os ajustes); base de orçamento mudou → confere de novo. Estrutura, cabo
 ou poste que **não está na base** vira *Conferir* no painel ("não está na base de orçamento"). Sem a aplicação, segue com a
 última cópia das regras (ou as embutidas). A senha não é guardada; o acesso vale até 30 dias.
+
+### Quando a leitura não acha a rede, os postes ou as guias
+
+1. **⚙ Leitura** (`ORC_LEITURA`): informe as layers da rede MT/BT, o nome (ou a layer) do bloco de poste — círculo também vale — e,
+   se quiser, as layers das linhas guias. A tela mostra as layers e os blocos do desenho. Fica guardado por projeto neste computador.
+2. **🩺 Diagnóstico** (`ORC_DIAGNOSTICO`): grava `<desenho>.diagnostico.json` e mostra, para cada texto, o que as regras fizeram e
+   para onde ele foi (poste, vão, avulso ou ignorado + motivo). Mande esse arquivo para ajuste fino; o log fica em
+   `%APPDATA%\OrcamentoNanoCAD\log.txt`.
 
 ### Regras
 

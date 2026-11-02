@@ -138,6 +138,21 @@ namespace OrcamentoNanoCAD.Testes
         }
 
         [Fact]
+        public void Abrir_na_aplicacao_envia_a_obra_e_devolve_o_link_completo()
+        {
+            TransporteFalso t = new TransporteFalso();
+            JObj recebido = null;
+            t.Rotas["POST /api/plugin/obra"] = (corpo, tok) => { recebido = (JObj)Json.Ler(corpo); return TransporteFalso.Ok("{\"id\":\"plugin_x\",\"url\":\"/resumo?obra=plugin_x&projeto=081\"}"); };
+            ClienteAplicacao c = Cliente(t);
+            c.Conexao.Token = "A";
+            Obra o = LeitorProjeto.Ler(DesenhoExemplo.Montar(), Apoio.Pernambuco);
+            string url = c.EnviarObra(@"C:\Projetos\Rua.dwg", ObraArquivo.Envelope(o, ObraArquivoTests.Data));
+            Assert.Equal("http://127.0.0.1:8000/resumo?obra=plugin_x&projeto=081", url);
+            Assert.Equal(@"C:\Projetos\Rua.dwg", recebido.Str("chave"));
+            Assert.Equal("leitor-obra", recebido.Obj("envelope").Str("formato"));
+        }
+
+        [Fact]
         public void Linhas_da_obra_na_mesma_ordem_do_arquivo()
         {
             Obra o = LeitorProjeto.Ler(DesenhoExemplo.Montar(), Apoio.Pernambuco);

@@ -151,6 +151,9 @@ namespace OrcamentoNanoCAD
             else if (e.TextoX.HasValue) c = new Point3d(e.TextoX.Value, e.TextoY.Value, 0);
             else return;
             Add(new Circle(c, Vector3d.ZAxis, h * 3), Amarelo);
+            if (e.GuiaUsada != null)                       // a linha guia que ligou a anotação a este elemento
+                for (int i = 0; i + 1 < e.GuiaUsada.Count; i++)
+                    Add(new Line(P(e.GuiaUsada[i]), P(e.GuiaUsada[i + 1])), Ciano);
             if (v != null)
                 for (int i = 0; i + 1 < v.Pontos.Count; i++)
                     Add(new Line(P(v.Pontos[i]), P(v.Pontos[i + 1])), Amarelo);

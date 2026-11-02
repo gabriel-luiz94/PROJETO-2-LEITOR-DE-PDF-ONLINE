@@ -5983,6 +5983,38 @@ window.handleTotPaste = function(e, index) {
     }
 };
 
+
+    /* TASK-106: aberto pelo plugin do nanoCAD ("Abrir na aplicação"): /resumo?obra=<id>&projeto=<código>&projeto_nome=<nome>.
+       Seleciona o projeto, carrega a obra nas tabelas (como "Carregar") e tira os parâmetros da barra (F5 não recarrega por cima). */
+    (async function abrirObraDoLink() {
+        const q = new URLSearchParams(window.location.search);
+        const obraId = q.get('obra');
+        if (!obraId) return;
+        if (!localStorage.getItem('auth_token')) {
+            window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+            return;
+        }
+        const projeto = q.get('projeto') || '';
+        const projetoNome = q.get('projeto_nome') || '';
+        if (projeto) localStorage.setItem('projeto_selecionado_codigo', projeto);
+        if (projetoNome) {
+            localStorage.setItem('projeto_selecionado', projetoNome);
+            const sel = document.getElementById('select-projeto');
+            if (sel) sel.value = projetoNome;
+        }
+        try { history.replaceState(null, '', window.location.pathname); } catch (e) { /* navegador antigo: fica o link */ }
+        try {
+            const r = await fetch(`/api/obras/${encodeURIComponent(obraId)}?projeto=${encodeURIComponent(projeto)}`);
+            if (!r.ok) { showToast(`Não consegui abrir a obra do nanoCAD (HTTP ${r.status}).`); return; }
+            const obra = await r.json();
+            const snap = typeof obra.dados_json === 'string' ? JSON.parse(obra.dados_json) : obra.dados_json;
+            restoreObraSnapshot(snap);
+            showToast(`Obra "${obra.nome}" aberta do nanoCAD. Ctrl+Z desfaz.`);
+        } catch (e) {
+            showToast('Não consegui abrir a obra do nanoCAD: ' + e.message);
+        }
+    })();
+
 }); // end DOMContentLoaded
 
 // ==========================================

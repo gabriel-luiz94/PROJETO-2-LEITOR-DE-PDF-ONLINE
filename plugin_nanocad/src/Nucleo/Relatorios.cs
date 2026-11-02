@@ -46,6 +46,33 @@ namespace OrcamentoNanoCAD.Nucleo
             return r;
         }
 
+        public static readonly string[] ColunasIgnorados = { "Texto", "Layer", "Cor", "Motivo" };
+
+        /// <summary>Textos que as regras descartaram (chave "H:&lt;handle&gt;" para localizar no desenho).</summary>
+        public static List<LinhaTabela> TextosIgnorados(Obra obra)
+        {
+            return obra.Ignorados.Select(t => new LinhaTabela { Chave = "H:" + t.Handle, Celulas = new[] { t.Texto, t.Layer, t.Cor, t.Motivo }, Estado = Estados.Ok }).ToList();
+        }
+
+        public static readonly string[] ColunasDiagnostico = { "Texto", "Tipo", "Layer", "Cor", "Entidade", "Op", "Ativo", "Destino" };
+
+        /// <summary>A lista de textos do arquivo de diagnóstico, como tabela.</summary>
+        public static List<LinhaTabela> TextosDoDiagnostico(JObj diag)
+        {
+            List<LinhaTabela> r = new List<LinhaTabela>();
+            foreach (JObj t in (diag.Lista("textos") ?? new List<object>()).OfType<JObj>())
+            {
+                string destino = t.Str("destino") ?? "";
+                r.Add(new LinhaTabela
+                {
+                    Chave = "H:" + t.Str("h"),
+                    Celulas = new[] { t.Str("texto"), t.Str("tipo"), t.Str("layer"), t.Str("cor"), t.Str("entidade"), t.Str("operacao"), t.Str("ativo"), destino },
+                    Estado = destino.StartsWith("ignorado") || destino.StartsWith("texto da defini") ? Estados.Ok : destino.Contains(" — ") || destino.StartsWith("A") ? Estados.Conferir : Estados.Ok,
+                });
+            }
+            return r;
+        }
+
         public static readonly string[] ColunasVinculos = { "Vão", "Anotação", "Op", "Poste A", "Estrutura em A", "Poste B", "Estrutura em B", "Estado" };
 
         private static string PosteTxt(Obra obra, string numero)

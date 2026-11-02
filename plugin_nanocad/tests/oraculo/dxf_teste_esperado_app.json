@@ -1,0 +1,362 @@
+[
+ {
+  "texto": "x",
+  "cor": "#000000",
+  "layer": "0",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "x",
+  "cor": "#000000",
+  "layer": "0",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "x",
+  "cor": "#000000",
+  "layer": "0",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "x",
+  "cor": "#000000",
+  "layer": "0",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "x",
+  "cor": "#000000",
+  "layer": "0",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "x",
+  "cor": "#000000",
+  "layer": "0",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "x",
+  "cor": "#000000",
+  "layer": "0",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "x",
+  "cor": "#000000",
+  "layer": "0",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "12.50",
+  "cor": "#00ffff",
+  "layer": "COTAS",
+  "operacao": "0",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "9400D",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "I",
+  "ativo": "9400D, N1, N4",
+  "entidade": "POSTE"
+ },
+ {
+  "texto": "N1",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "0",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "N4",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "0",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "9400D, N1",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "I",
+  "ativo": "9400D, N1",
+  "entidade": "POSTE"
+ },
+ {
+  "texto": "[BLOCO: POSTE]",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "3xA35P(7,94)-13,8kV 45 m",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "I",
+  "ativo": "3xA35P(7,94)-13,8kV 45 m",
+  "entidade": "CABO"
+ },
+ {
+  "texto": "2",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "[BLOCO: POSTE]",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "4",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "9200D, N1",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "I",
+  "ativo": "9200D, N1",
+  "entidade": "POSTE"
+ },
+ {
+  "texto": "3xS04-7,97kV",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "I",
+  "ativo": "3xS04-7,97kV 38 m",
+  "entidade": "CABO"
+ },
+ {
+  "texto": "[BLOCO: POSTE]",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "38 m",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "0",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "1",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "11300D, N3",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "I",
+  "ativo": "11300D, N3",
+  "entidade": "POSTE"
+ },
+ {
+  "texto": "[BLOCO: POSTE]",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "3",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "3xA35P(7,94)-13,8kV 52 m",
+  "cor": "#000000",
+  "layer": "01_REMOVER",
+  "operacao": "R",
+  "ativo": "3xA35P(7,94)-13,8kV 52 m",
+  "entidade": "CABO"
+ },
+ {
+  "texto": "Rua das Flores",
+  "cor": "#808080",
+  "layer": "TXT_RUAS",
+  "operacao": "0",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "10300R, N1",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "I",
+  "ativo": "10300R, N1",
+  "entidade": "POSTE"
+ },
+ {
+  "texto": "[BLOCO: POSTE]",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "5",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "[BLOCO: POSTE]",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "3xC16(16) 30 m",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "I",
+  "ativo": "3xC16(16) 30 m",
+  "entidade": "CABO"
+ },
+ {
+  "texto": "7",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "3xC16(16) 28 m",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "I",
+  "ativo": "3xC16(16) 28 m",
+  "entidade": "CABO"
+ },
+ {
+  "texto": "9300F, N3",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "I",
+  "ativo": "9300F, N3",
+  "entidade": "POSTE"
+ },
+ {
+  "texto": "[BLOCO: POSTE]",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "6",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "9200D, N1",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "I",
+  "ativo": "9200D, N1",
+  "entidade": "POSTE"
+ },
+ {
+  "texto": "RAMA25 20 m",
+  "cor": "#000000",
+  "layer": "01_REAPLICANDO",
+  "operacao": "M",
+  "ativo": "RAMA25 20 m",
+  "entidade": "CABO"
+ },
+ {
+  "texto": "OBS: conferir",
+  "cor": "#ff0000",
+  "layer": "0",
+  "operacao": "0",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "7150FV, B2",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "I",
+  "ativo": "7150FV, B2",
+  "entidade": "POSTE"
+ },
+ {
+  "texto": "[BLOCO: POSTE]",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "8",
+  "cor": "#000000",
+  "layer": "POSTES",
+  "operacao": "I",
+  "ativo": "",
+  "entidade": "0"
+ },
+ {
+  "texto": "3xC16(16) 99 m",
+  "cor": "#0000ff",
+  "layer": "0",
+  "operacao": "0",
+  "ativo": "3xC16(16) 99 m",
+  "entidade": "0"
+ }
+]

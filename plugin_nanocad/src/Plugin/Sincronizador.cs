@@ -127,7 +127,7 @@ namespace OrcamentoNanoCAD
                 if (!Directory.Exists(PastaCache)) return l;
                 foreach (string f in Directory.GetFiles(PastaCache, "regras_*.json"))
                 {
-                    try { l.Add(ClienteAplicacao.RegrasDe((JObj)Json.Ler(File.ReadAllText(f, Encoding.UTF8)), Dados.Base)); }
+                    try { l.Add(ConfigsLocais.Aplicar(ClienteAplicacao.RegrasDe((JObj)Json.Ler(File.ReadAllText(f, Encoding.UTF8)), Dados.Base))); }
                     catch (Exception) { }
                 }
             }
@@ -140,7 +140,36 @@ namespace OrcamentoNanoCAD
         {
             JObj cru = Cliente.RegrasCruas(projeto);
             SalvarCache(projeto, cru);
-            return ClienteAplicacao.RegrasDe(cru, Dados.Base);
+            return ConfigsLocais.Aplicar(ClienteAplicacao.RegrasDe(cru, Dados.Base));
+        }
+    }
+
+    /// <summary>Configuração de leitura de cada projeto, guardada neste computador (%APPDATA%\\OrcamentoNanoCAD\\leitura_&lt;projeto&gt;.json).</summary>
+    public static class ConfigsLocais
+    {
+        private static string Arquivo(string codigo)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (char c in string.IsNullOrEmpty(codigo) ? "padrao" : codigo) sb.Append(char.IsLetterOrDigit(c) ? c : '_');
+            return Path.Combine(Conexao.Pasta, "leitura_" + sb + ".json");
+        }
+
+        public static RegrasProjeto Aplicar(RegrasProjeto r)
+        {
+            try
+            {
+                string f = Arquivo(r.Codigo);
+                if (File.Exists(f)) r.Leitura = ConfigLeitura.De(Json.Ler(File.ReadAllText(f, Encoding.UTF8)) as JObj);
+            }
+            catch (Exception e) { Aplicacao.Log("configuração de leitura ignorada: " + e.Message); }
+            return r;
+        }
+
+        public static void Salvar(string codigo, ConfigLeitura c)
+        {
+            Directory.CreateDirectory(Conexao.Pasta);
+            File.WriteAllText(Arquivo(codigo), Json.Escrever(c.ParaJson(), true), new UTF8Encoding(false));
+            foreach (RegrasProjeto r in Aplicacao.Regras.Where(x => x.Codigo == codigo)) r.Leitura = c.Copia();
         }
     }
 
@@ -286,7 +315,7 @@ namespace OrcamentoNanoCAD
             else if (t.Tipo == Tipo.Regras)
             {
                 Conexao.SalvarCache(t.Projeto, t.RegrasCruas);
-                TrocarRegras(s, ClienteAplicacao.RegrasDe(t.RegrasCruas, Conexao.Dados.Base));
+                TrocarRegras(s, ConfigsLocais.Aplicar(ClienteAplicacao.RegrasDe(t.RegrasCruas, Conexao.Dados.Base)));
                 Aplicacao.Msg("Regras do projeto " + t.Projeto + " atualizadas pela aplicação; obra refeita (ajustes mantidos). " + Relatorios.Resumo(s.Obra));
             }
             else if (t.Revisao == s.Revisao)
@@ -308,8 +337,9 @@ namespace OrcamentoNanoCAD
             Obra antiga = s.Obra;
             if (antiga != null)
             {
-                if (antiga.Modo == "ler" && s.UltimoDesenho != null)
+                if (antiga.Modo == "ler" && (s.UltimoBruto != null || s.UltimoDesenho != null))
                 {
+                    if (s.UltimoBruto != null) s.UltimoDesenho = MontadorDesenho.Montar(s.UltimoBruto, novas.Leitura);
                     Obra nova = LeitorProjeto.Ler(s.UltimoDesenho, novas);
                     nova.Projeto = antiga.Projeto; nova.Nome = antiga.Nome; nova.SalvoEm = antiga.SalvoEm;
                     Construtor.ReaplicarAjustes(nova, antiga, novas);

@@ -10,68 +10,8 @@ using OrcamentoNanoCAD.Nucleo;
 
 namespace OrcamentoNanoCAD.UI
 {
-    public static class Visual
-    {
-        public static readonly Color Ok = Color.FromArgb(30, 130, 60);
-        public static readonly Color Conferir = Color.FromArgb(190, 120, 0);
-        public static readonly Color Erro = Color.FromArgb(200, 40, 40);
-        public static readonly Font Titulo = new Font("Segoe UI", 11f, FontStyle.Bold);
-        public static readonly Font Normal = new Font("Segoe UI", 9f);
-        public static readonly Font Mono = new Font("Consolas", 9.5f);
-        public static readonly Font Secao = new Font("Segoe UI", 8f, FontStyle.Bold);
-
-        public static Color DoEstado(string estado)
-        {
-            if (estado == Estados.Erro) return Erro;
-            if (estado == Estados.Conferir) return Conferir;
-            return Ok;
-        }
-
-        public static Label Rotulo(string texto, Font fonte, Color? cor = null)
-        {
-            Label l = new Label { Text = texto, Font = fonte ?? Normal, AutoSize = true, Margin = new Padding(0, 2, 0, 2) };
-            if (cor.HasValue) l.ForeColor = cor.Value;
-            return l;
-        }
-
-        public static Button Botao(string texto, EventHandler acao)
-        {
-            Button b = new Button { Text = texto, AutoSize = true, Font = Normal, Margin = new Padding(2), Padding = new Padding(4, 2, 4, 2) };
-            b.Click += acao;
-            return b;
-        }
-
-        public static ListView Lista(string[] colunas)
-        {
-            ListView lv = new ListView { View = View.Details, FullRowSelect = true, GridLines = true, MultiSelect = false, HideSelection = false, Font = Normal, Dock = DockStyle.Fill };
-            foreach (string c in colunas) lv.Columns.Add(c);
-            return lv;
-        }
-
-        public static void Preencher(ListView lv, List<LinhaTabela> linhas)
-        {
-            lv.BeginUpdate();
-            lv.Items.Clear();
-            foreach (LinhaTabela l in linhas)
-            {
-                ListViewItem it = new ListViewItem(l.Celulas);
-                it.Tag = l.Chave;
-                if (l.Estado != Estados.Ok) it.ForeColor = DoEstado(l.Estado);
-                lv.Items.Add(it);
-            }
-            foreach (ColumnHeader c in lv.Columns) c.Width = -2;
-            lv.EndUpdate();
-        }
-
-        public static void Executar(string comando)
-        {
-            HostMgd.ApplicationServices.Document d = Aplicacao.Doc();
-            if (d != null) d.SendStringToExecute(comando + " ", true, false, false);
-        }
-    }
-
-    // ── tela inicial ──
-    public enum Escolha { Nada, Construir, Ler, Continuar }
+    // ── tela inicial (mockup A) ──
+    public enum Escolha { Nada, Construir, Ler, Continuar, Painel, Leitura }
 
     public class TelaInicio : Form
     {
@@ -80,61 +20,74 @@ namespace OrcamentoNanoCAD.UI
         public string Projeto;
         private readonly ComboBox _regras;
         private readonly TextBox _projeto;
+        private readonly Label _status;
+        private readonly Sessao _s;
 
         public TelaInicio(Sessao s, PersistenciaDwg.ObraSalva salva)
         {
-            Text = "⚡ Orçamento — o que deseja fazer neste desenho?";
+            _s = s;
+            Text = "Orçamento — Leitor de Projetos";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
             AutoSize = true; AutoSizeMode = AutoSizeMode.GrowAndShrink;
             Font = Visual.Normal;
-            Padding = new Padding(12);
+            Padding = new Padding(16);
 
-            TableLayoutPanel raiz = new TableLayoutPanel { ColumnCount = 2, AutoSize = true, Dock = DockStyle.Fill };
-            raiz.Controls.Add(Opcao("🧱 Construir do zero",
-                "Você seleciona no desenho:\n• os postes e suas anotações\n• os vãos e suas anotações\n\nPara projetos sem padrão de layers/cores.",
-                Escolha.Construir), 0, 0);
-            raiz.Controls.Add(Opcao("📖 Ler projeto",
-                "Lê o desenho inteiro com as regras do projeto (layer + cor).\nMonta postes, vãos e vínculos sozinho.\n\nSobra só a conferência e os ajustes.",
-                Escolha.Ler), 1, 0);
+            FlowLayoutPanel raiz = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false };
+            raiz.Controls.Add(Visual.Rotulo("⚡ O que deseja fazer neste desenho?", Visual.Titulo));
+            if (s.Obra != null)
+            {
+                FlowLayoutPanel aberta = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 6, 0, 0) };
+                aberta.Controls.Add(Visual.Rotulo("Obra aberta: " + s.Obra.Nome + " (" + (s.Obra.Modo == "construir" ? "construir do zero" : "projeto lido") + ")"
+                                                  + (s.Modificada ? " — com mudanças não salvas" : ""), Visual.Normal, s.Modificada ? Visual.Conferir : Visual.Suave));
+                aberta.Controls.Add(Visual.Botao("↩ Voltar ao painel", (o, e) => Escolher(Escolha.Painel), true));
+                raiz.Controls.Add(aberta);
+            }
+            FlowLayoutPanel cartoes = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 8, 0, 0) };
+            cartoes.Controls.Add(Opcao("🧱  Construir do zero",
+                "Você seleciona no desenho:\n•  os postes e suas anotações\n•  os vãos e suas anotações", "Para projetos sem padrão de layers/cores.", Escolha.Construir, false));
+            cartoes.Controls.Add(Opcao("📖  Ler projeto",
+                "Lê o desenho inteiro com as regras do projeto (layer + cor).\nMonta postes, vãos e vínculos sozinho.", "Sobra só a conferência e os ajustes.", Escolha.Ler, true));
+            raiz.Controls.Add(cartoes);
 
-            FlowLayoutPanel baixo = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new Padding(0, 10, 0, 0) };
+            FlowLayoutPanel baixo = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 10, 0, 0) };
             FlowLayoutPanel colRegras = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown };
-            colRegras.Controls.Add(Visual.Rotulo("Regras do projeto", Visual.Secao));
-            _regras = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 280 };
+            colRegras.Controls.Add(Visual.Rotulo("REGRAS DO PROJETO", Visual.Secao, Visual.Suave));
+            _regras = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 290 };
             PreencherRegras(s.Regras);
             colRegras.Controls.Add(_regras);
-            colRegras.Controls.Add(Visual.Botao("🔗 Aplicação…", (o, e) =>
+            FlowLayoutPanel botoesRegras = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+            botoesRegras.Controls.Add(Visual.Botao("⚙ Configurar leitura…", (o, e) => Escolher(Escolha.Leitura)));
+            botoesRegras.Controls.Add(Visual.Botao("🔗 Aplicação…", (o, e) =>
             {
                 using (TelaConexao tc = new TelaConexao()) tc.ShowDialog(this);
                 PreencherRegras(_regras.SelectedItem as RegrasProjeto);
                 _status.Text = Sincronizador.Status;
             }));
-            FlowLayoutPanel colProj = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown };
-            colProj.Controls.Add(Visual.Rotulo("Projeto (código na aplicação)", Visual.Secao));
+            colRegras.Controls.Add(botoesRegras);
+            FlowLayoutPanel colProj = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, Margin = new Padding(12, 0, 0, 0) };
+            colProj.Controls.Add(Visual.Rotulo("PROJETO NA APLICAÇÃO", Visual.Secao, Visual.Suave));
             _projeto = new TextBox { Width = 90, Text = s.Obra != null ? s.Obra.Projeto : (s.Regras != null ? s.Regras.Codigo : "") };
             colProj.Controls.Add(_projeto);
             _regras.SelectedIndexChanged += (o, e) => { RegrasProjeto r = _regras.SelectedItem as RegrasProjeto; if (r != null && r.Codigo.Length > 0) _projeto.Text = r.Codigo; };
-            FlowLayoutPanel colSalva = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, Margin = new Padding(16, 0, 0, 0) };
-            colSalva.Controls.Add(Visual.Rotulo("Obra salva neste desenho", Visual.Secao));
+            FlowLayoutPanel colSalva = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, Margin = new Padding(12, 0, 0, 0) };
+            colSalva.Controls.Add(Visual.Rotulo("OBRA SALVA NESTE DESENHO", Visual.Secao, Visual.Suave));
             colSalva.Controls.Add(Visual.Rotulo(salva == null ? "(nenhuma)" : ((salva.Quando ?? "") + " · " + salva.Onde), Visual.Mono));
-            Button continuar = Visual.Botao("Continuar obra salva", (o, e) => Escolher(Escolha.Continuar));
+            Button continuar = Visual.Botao("Continuar obra salva", (o, e) => Escolher(Escolha.Continuar), salva != null);
             continuar.Enabled = salva != null;
             colSalva.Controls.Add(continuar);
             baixo.Controls.Add(colRegras);
             baixo.Controls.Add(colProj);
             baixo.Controls.Add(colSalva);
-            raiz.Controls.Add(baixo, 0, 1);
-            raiz.SetColumnSpan(baixo, 2);
-            _status = Visual.Rotulo(Sincronizador.Status, Visual.Normal, Color.DimGray);
-            _status.MaximumSize = new Size(620, 0);
-            raiz.Controls.Add(_status, 0, 2);
-            raiz.SetColumnSpan(_status, 2);
+            raiz.Controls.Add(baixo);
+            _status = Visual.Rotulo(Sincronizador.Status, Visual.Normal, Visual.Suave);
+            _status.MaximumSize = new Size(700, 0);
+            _status.Margin = new Padding(0, 10, 0, 0);
+            raiz.Controls.Add(_status);
             Controls.Add(raiz);
+            Visual.Aplicar(this);
         }
-
-        private readonly Label _status;
 
         private void PreencherRegras(RegrasProjeto atual)
         {
@@ -146,22 +99,125 @@ namespace OrcamentoNanoCAD.UI
             _regras.SelectedItem = sel;
         }
 
-        private Control Opcao(string titulo, string descricao, Escolha escolha)
+        /// <summary>Cartão clicável (o destacado = a opção recomendada, como no mockup).</summary>
+        private Control Opcao(string titulo, string descricao, string rodape, Escolha escolha, bool destacado)
         {
-            Button b = new Button
-            {
-                Text = titulo + "\n\n" + descricao,
-                Width = 300, Height = 170, Font = Visual.Normal, TextAlign = ContentAlignment.MiddleCenter, Margin = new Padding(6),
-            };
-            b.Click += (o, e) => Escolher(escolha);
-            return b;
+            FlowLayoutPanel f = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = false, Width = 320, Height = 170, WrapContents = false, Padding = new Padding(14), Margin = new Padding(0, 0, 10, 0), Cursor = Cursors.Hand };
+            f.Controls.Add(Visual.Rotulo(titulo, Visual.Grande));
+            Label d = Visual.Rotulo(descricao, Visual.Normal, Visual.Suave);
+            d.MaximumSize = new Size(290, 0); d.Margin = new Padding(0, 8, 0, 8);
+            f.Controls.Add(d);
+            f.Controls.Add(Visual.Rotulo(rodape, Visual.Normal, destacado ? Visual.Ok : Color.FromArgb(0x58, 0xa6, 0xff)));
+            f.Tag = "cartao";
+            Color borda = destacado ? Visual.Azul : Visual.Borda;
+            f.Paint += (o, e) => { using (Pen p = new Pen(borda, destacado ? 2 : 1)) e.Graphics.DrawRectangle(p, 1, 1, f.Width - 2, f.Height - 2); };
+            EventHandler clique = (o, e) => Escolher(escolha);
+            f.Click += clique;
+            foreach (Control c in f.Controls) { c.Click += clique; c.Cursor = Cursors.Hand; }
+            return f;
         }
 
         private void Escolher(Escolha e)
         {
+            if ((e == Escolha.Ler || e == Escolha.Construir || e == Escolha.Continuar) && _s.Obra != null && _s.Modificada
+                && MessageBox.Show(this, "A obra aberta tem mudanças não salvas. Começar outra e descartar essas mudanças?", "Orçamento",
+                                   MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
             Escolha = e;
             Regras = _regras.SelectedItem as RegrasProjeto;
             Projeto = (_projeto.Text ?? "").Trim();
+            DialogResult = DialogResult.OK;
+            Close();
+        }
+    }
+
+    // ── configuração da leitura (TASK-006): onde estão rede, postes e guias neste padrão de desenho ──
+    public class TelaLeitura : Form
+    {
+        public ConfigLeitura Resultado;
+        private readonly TextBox _mt, _bt, _blocos, _layersPoste, _layersGuia;
+        private readonly CheckBox _cor;
+        private readonly NumericUpDown _raio, _guia, _tol;
+
+        public TelaLeitura(RegrasProjeto regras, IEnumerable<string> layersDoDesenho, IEnumerable<string> blocosDoDesenho)
+        {
+            ConfigLeitura c = regras.Leitura ?? new ConfigLeitura();
+            Text = "⚙ Configurar leitura — " + regras.Nome;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false; MinimizeBox = false;
+            StartPosition = FormStartPosition.CenterScreen;
+            AutoSize = true; AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            Font = Visual.Normal;
+            Padding = new Padding(16);
+            FlowLayoutPanel f = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false };
+            f.Controls.Add(Visual.Rotulo("Onde o plugin procura a rede, os postes e as linhas guias neste padrão de desenho.\n"
+                + "Listas separadas por vírgula; vale quando o nome CONTÉM o trecho (sem diferença de maiúsculas).", Visual.Normal, Visual.Suave));
+            _mt = Campo(f, "Layers da rede de MÉDIA tensão", string.Join(", ", c.LayersRedeMT.ToArray()));
+            _bt = Campo(f, "Layers da rede de BAIXA tensão", string.Join(", ", c.LayersRedeBT.ToArray()));
+            _cor = new CheckBox { Text = "A cor confirma a layer (vermelho = MT, verde = BT; cor contrária descarta a linha)", Checked = c.CorConfirma, AutoSize = true };
+            f.Controls.Add(_cor);
+            _blocos = Campo(f, "Blocos de POSTE (trecho do nome do bloco)", string.Join(", ", c.BlocosPoste.ToArray()));
+            _layersPoste = Campo(f, "…ou layers de poste (qualquer bloco ou círculo nelas é poste)", string.Join(", ", c.LayersPoste.ToArray()));
+            _layersGuia = Campo(f, "Layers das linhas guias (vazio = qualquer linha curta fora da rede; LEADER e MLEADER sempre valem)", string.Join(", ", c.LayersGuia.ToArray()));
+            FlowLayoutPanel nums = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+            _raio = Numero(nums, "Busca a partir do texto (× altura)", c.RaioAlturas);
+            _guia = Numero(nums, "Guia de até (× altura)", c.GuiaMaxAlturas);
+            _tol = Numero(nums, "Poste sobre a rede até (× altura)", c.TolPosteAlturas);
+            f.Controls.Add(nums);
+            Label ajuda = Visual.Rotulo("Layers deste desenho: " + Resumir(layersDoDesenho) + "\nBlocos deste desenho: " + Resumir(blocosDoDesenho), Visual.Normal, Visual.Suave);
+            ajuda.MaximumSize = new Size(640, 0);
+            ajuda.Margin = new Padding(0, 8, 0, 8);
+            f.Controls.Add(ajuda);
+            FlowLayoutPanel b = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+            Button salvar = Visual.Botao("Salvar e reler", (o, e) => Salvar(), true);
+            b.Controls.Add(salvar);
+            b.Controls.Add(Visual.Botao("Padrão (Pernambuco)", (o, e) => { Resultado = new ConfigLeitura(); DialogResult = DialogResult.OK; Close(); }));
+            b.Controls.Add(Visual.Botao("Cancelar", (o, e) => Close()));
+            f.Controls.Add(b);
+            Controls.Add(f);
+            AcceptButton = salvar;
+            Visual.Aplicar(this);
+        }
+
+        private static string Resumir(IEnumerable<string> l)
+        {
+            List<string> x = (l ?? new string[0]).Where(s => !string.IsNullOrEmpty(s)).Distinct().OrderBy(s => s).ToList();
+            return x.Count == 0 ? "(leia o desenho primeiro)" : string.Join(", ", x.Take(40).ToArray()) + (x.Count > 40 ? "…" : "");
+        }
+
+        private static TextBox Campo(FlowLayoutPanel f, string rotulo, string valor)
+        {
+            f.Controls.Add(Visual.Rotulo(rotulo, Visual.Secao, Visual.Suave));
+            TextBox t = new TextBox { Width = 640, Text = valor };
+            f.Controls.Add(t);
+            return t;
+        }
+
+        private static NumericUpDown Numero(FlowLayoutPanel f, string rotulo, double valor)
+        {
+            f.Controls.Add(Visual.Rotulo(rotulo, Visual.Normal, Visual.Suave));
+            NumericUpDown n = new NumericUpDown { Minimum = 0.1m, Maximum = 1000, DecimalPlaces = 1, Increment = 0.5m, Width = 70, Value = (decimal)Math.Max(0.1, Math.Min(1000, valor)), Margin = new Padding(4, 0, 16, 0) };
+            f.Controls.Add(n);
+            return n;
+        }
+
+        private void Salvar()
+        {
+            ConfigLeitura c = new ConfigLeitura();
+            c.LayersRedeMT = ConfigLeitura.Lista(_mt.Text);
+            c.LayersRedeBT = ConfigLeitura.Lista(_bt.Text);
+            c.CorConfirma = _cor.Checked;
+            c.BlocosPoste = ConfigLeitura.Lista(_blocos.Text);
+            c.LayersPoste = ConfigLeitura.Lista(_layersPoste.Text);
+            c.LayersGuia = ConfigLeitura.Lista(_layersGuia.Text);
+            c.RaioAlturas = (double)_raio.Value;
+            c.GuiaMaxAlturas = (double)_guia.Value;
+            c.TolPosteAlturas = (double)_tol.Value;
+            if (c.LayersRedeMT.Count + c.LayersRedeBT.Count == 0 || c.BlocosPoste.Count + c.LayersPoste.Count == 0)
+            {
+                MessageBox.Show(this, "Informe ao menos uma layer de rede e um bloco (ou layer) de poste.", "Orçamento", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            Resultado = c;
             DialogResult = DialogResult.OK;
             Close();
         }
@@ -184,10 +240,11 @@ namespace OrcamentoNanoCAD.UI
             _lista.ItemActivate += (o, e) => { if (_lista.SelectedItems.Count > 0) Visual.Executar("ORC_EDITAR " + _lista.SelectedItems[0].Tag); };
             _lista.Click += (o, e) => { if (_lista.SelectedItems.Count > 0) Visual.Executar("ORC_ZOOM " + _lista.SelectedItems[0].Tag); };
             Controls.Add(_lista);
-            Label r = Visual.Rotulo(rodape, Visual.Normal, Color.DimGray);
+            Label r = Visual.Rotulo(rodape, Visual.Normal, Visual.Suave);
             r.Dock = DockStyle.Bottom; r.AutoSize = false; r.Height = 36; r.Padding = new Padding(6);
             Controls.Add(r);
             Atualizar();
+            Visual.Aplicar(this);
         }
 
         public void Atualizar() { Visual.Preencher(_lista, _linhas()); }
@@ -296,8 +353,7 @@ namespace OrcamentoNanoCAD.UI
             MostrarAviso();
 
             FlowLayoutPanel botoes = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
-            Button aplicar = Visual.Botao("Aplicar", (o, ev) => Fechar(AcaoPopup.Aplicar));
-            aplicar.BackColor = Visual.Ok; aplicar.ForeColor = Color.White;
+            Button aplicar = Visual.Botao("Aplicar", (o, ev) => Fechar(AcaoPopup.Aplicar), true);
             botoes.Controls.Add(aplicar);
             botoes.Controls.Add(Visual.Botao("Voltar ao lido", (o, ev) => Fechar(AcaoPopup.VoltarAoLido)));
             if (podeExcluir) botoes.Controls.Add(Visual.Botao("Excluir da obra", (o, ev) => Fechar(AcaoPopup.Excluir)));
@@ -307,6 +363,7 @@ namespace OrcamentoNanoCAD.UI
             t.SetColumnSpan(aj, 2);
             Controls.Add(t);
             AcceptButton = aplicar;
+            Visual.Aplicar(this);
         }
 
         private static string Descr(Obra obra, string numero)
@@ -347,13 +404,13 @@ namespace OrcamentoNanoCAD.UI
         private static FlowLayoutPanel Coluna(string titulo)
         {
             FlowLayoutPanel f = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false, Margin = new Padding(4, 4, 18, 4) };
-            f.Controls.Add(Visual.Rotulo(titulo, Visual.Secao, Color.DimGray));
+            f.Controls.Add(Visual.Rotulo(titulo, Visual.Secao, Visual.Suave));
             return f;
         }
 
         private static void Campo(FlowLayoutPanel f, string rotulo, string valor, Color? cor = null)
         {
-            f.Controls.Add(Visual.Rotulo(rotulo, Visual.Normal, Color.DimGray));
+            f.Controls.Add(Visual.Rotulo(rotulo, Visual.Normal, Visual.Suave));
             Label v = Visual.Rotulo(valor ?? "", Visual.Mono, cor);
             v.MaximumSize = new Size(420, 0);
             v.Margin = new Padding(0, 0, 0, 6);
@@ -402,7 +459,7 @@ namespace OrcamentoNanoCAD.UI
             ConexaoAplicacao c = Conexao.Dados;
             FlowLayoutPanel f = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false };
             f.Controls.Add(Visual.Rotulo("Com a aplicação aberta, o plugin usa as regras do leitor e de vínculo GRAVADAS nela e confere a obra\n"
-                + "com a Base de Orçamento (o que não está cadastrado vira Conferir). Mudou lá, aparece aqui em poucos segundos.", Visual.Normal, Color.DimGray));
+                + "com a Base de Orçamento (o que não está cadastrado vira Conferir). Mudou lá, aparece aqui em poucos segundos.", Visual.Normal, Visual.Suave));
             f.Controls.Add(Visual.Rotulo("Endereço (local: http://127.0.0.1:8000 · ou o endereço online)", Visual.Secao));
             _url = new TextBox { Width = 420, Text = c.Url };
             f.Controls.Add(_url);
@@ -420,19 +477,19 @@ namespace OrcamentoNanoCAD.UI
             _auto = new CheckBox { Text = "atualizar sozinho", Checked = c.Automatico, AutoSize = true, Margin = new Padding(16, 4, 0, 0) };
             l.Controls.Add(_auto);
             f.Controls.Add(l);
-            _situacao = Visual.Rotulo(Conexao.Logado ? "Conectado como " + c.Email + " em " + c.Base : "Não conectado.", Visual.Normal, Conexao.Logado ? Visual.Ok : Color.DimGray);
+            _situacao = Visual.Rotulo(Conexao.Logado ? "Conectado como " + c.Email + " em " + c.Base : "Não conectado.", Visual.Normal, Conexao.Logado ? Visual.Ok : Visual.Suave);
             _situacao.MaximumSize = new Size(440, 0);
             f.Controls.Add(_situacao);
             FlowLayoutPanel b = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
-            Button entrar = Visual.Botao("Entrar", (o, e) => Entrar());
-            entrar.BackColor = Visual.Ok; entrar.ForeColor = Color.White;
+            Button entrar = Visual.Botao("Entrar", (o, e) => Entrar(), true);
             b.Controls.Add(entrar);
             b.Controls.Add(Visual.Botao("Salvar opções", (o, e) => { Conexao.Ajustar((int)_intervalo.Value, _auto.Checked); _situacao.Text = "Opções salvas."; }));
-            b.Controls.Add(Visual.Botao("Desconectar", (o, e) => { Conexao.Sair(); _situacao.Text = "Desconectado: o plugin volta às regras embutidas."; _situacao.ForeColor = Color.DimGray; }));
+            b.Controls.Add(Visual.Botao("Desconectar", (o, e) => { Conexao.Sair(); _situacao.Text = "Desconectado: o plugin volta às regras embutidas."; _situacao.ForeColor = Visual.Suave; }));
             b.Controls.Add(Visual.Botao("Fechar", (o, e) => Close()));
             f.Controls.Add(b);
             Controls.Add(f);
             AcceptButton = entrar;
+            Visual.Aplicar(this);
         }
 
         private void Entrar()

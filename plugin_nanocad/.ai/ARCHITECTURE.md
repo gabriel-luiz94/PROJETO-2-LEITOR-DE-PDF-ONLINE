@@ -36,6 +36,16 @@
 Regra de dependência: **Nucleo não referencia nada do CAD nem de WinForms**. Tudo que é decisão (o que é vão, quem
 vincula com quem, estado, o que vai para o arquivo) fica no núcleo e é testado no Linux.
 
+## 1b. Do DWG ao desenho (TASK-004/005/006)
+
+```
+DWG ──ExtratorDesenho (CAD)──▶ DesenhoBruto ──MontadorDesenho (núcleo)──▶ Desenho ──LeitorProjeto──▶ Obra
+       texto original, cor crua,            cor final (como dxf_service.py),         + Ignorados (com motivo)
+       MLEADER, contorno, blocos            parágrafos do MTEXT, postes/redes/guias
+                                            conforme ConfigLeitura do projeto
+```
+O mesmo `DesenhoBruto` sai do conversor de DXF (`tests/oraculo/dxf_para_bruto.py`) e do `ORC_DIAGNOSTICO` → desenhos reais viram teste.
+
 ## 2. Ler projeto (LeitorProjeto.Ler)
 
 1. **Textos** ordenados como o leitor de DXF (Y decrescente, depois X; ordenação estável → parágrafos do mesmo MTEXT
@@ -68,7 +78,7 @@ vincula com quem, estado, o que vai para o arquivo) fica no núcleo e é testado
                "_x": 215, "_y": -278, "_geo": [[105,-305],[325,-275]], "_geoTipo": "MT", "vinculoEstruturas": [0, 1]}],
    "outros": [{"entidade": "POSTE", "operacao": "I", "ativo": "9400D, N1, N4", "textoOriginal": "…", "_x": …, "_y": …, "_poste": [325, -275]}],
    "totalizadora": []},
- "cad": {"versao": 1, "origem": "plugin-nanocad", "plugin": "0.2.0", "desenho": "…dwg", "regras": "Pernambuco (081) — Leitor",
+ "cad": {"versao": 1, "origem": "plugin-nanocad", "plugin": "0.3.0", "desenho": "…dwg", "regras": "Pernambuco (081) — Leitor",
          "modo": "ler", "salvo_em": "…", "altura_texto": 8,
          "postes": [{"numero": "P1", "handle": "…", "x": …, "y": …, "texto": "<handle>", "operacao": "I", "operacaoLida": "I",
                      "estruturas": [{"nome": "N1", "cabos": 1, "parametros": {"TIPOCABO": ["P"]}}], "estado": "CONFERIR", …}],

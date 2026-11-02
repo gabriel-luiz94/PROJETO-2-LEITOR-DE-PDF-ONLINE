@@ -163,6 +163,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 - [x] Teste de contrato `tests/test_plugin_nanocad_contrato.py` (exemplo gerado pelo plugin → API → vínculo igual ao da aplicação)
 - [x] API do plugin (TASK-104, `routers/plugin_cad.py`): `/api/plugin/versao`, `/api/plugin/regras`, `/api/plugin/conferir` — regras e base de orçamento
       ao vivo no plugin; ativos fora da base apontados por linha (mesmo caminho do modo autônomo)
+- [x] "Abrir na aplicação" (TASK-106): `POST /api/plugin/obra` + Resumo abre `/resumo?obra=…` + login volta ao link (`?next=`)
 - [ ] Modo autônomo achar o `.obra.json` e gravar o resultado na pasta do desenho (plugin RQ-40/41)
 
 ---
@@ -691,7 +692,10 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-10-31
+**Data:** 2026-11-02
+**Motivo:** TASK-106 — "Abrir na aplicação" para o plugin do nanoCAD (e plugin 0.3.0: TASK-004 a 010). Suíte: 1220 passed, 11 skipped.
+
+**Anterior — Data:** 2026-10-31
 **Motivo:** TASK-104 — API do plugin nanoCAD (regras e base de orçamento ao vivo). Suíte: 1212 passed, 11 skipped.
 
 **Anterior — Data:** 2026-10-31

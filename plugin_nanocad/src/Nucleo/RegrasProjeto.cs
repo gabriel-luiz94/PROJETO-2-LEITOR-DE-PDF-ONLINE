@@ -18,11 +18,8 @@ namespace OrcamentoNanoCAD.Nucleo
         public string Versao;                   // impressão digital das regras na aplicação (só quando vêm dela)
         public bool DaAplicacao;                // baixadas da aplicação (atualizam sozinhas quando ela muda)
 
-        // geometria (mesmos números de services/dxf_geometria.py)
-        public double RaioAlturas = 4;          // texto → rede/poste: até 4 × a altura do texto
-        public double GuiaMaxAlturas = 40;      // linha fora da rede vale como guia até 40 × a altura típica
-        public double TolPosteAlturas = 1.5;    // poste "na" rede: até 1,5 × a altura típica da linha
-        public string FiltroBlocoPoste = "poste";
+        // onde estão rede, postes e guias no desenho (padrão = Pernambuco, como services/dxf_geometria.py); editável por projeto
+        public ConfigLeitura Leitura = new ConfigLeitura();
 
         public override string ToString() { return Nome; }
 

@@ -10,12 +10,17 @@ regras GRAVADAS AQUI e a conferir a obra contra a Base de Orçamento, sem repeti
     POST /api/plugin/conferir              {"projeto", "dados": {"cabos", "outros"}} (as linhas do .obra.json) → para cada linha, os
                                            ativos que a Totalizadora gera e se cada um existe na Base de Orçamento do projeto
                                            (mesmo caminho do modo autônomo: montar_totalizadora → processar_calculo, RN-06).
+    POST /api/plugin/obra                  {"chave", "envelope"} (TASK-106): "Abrir na aplicação" — grava a obra do desenho como obra
+                                           PARTICULAR do usuário (a mesma obra a cada envio do mesmo desenho, sem duplicar) e devolve o
+                                           link do Resumo que a abre já carregada (/resumo?obra=…&projeto=…).
 
-Só leitura: nada é gravado. Exige login (o middleware protege /api/*). Não registrar o conteúdo das obras em log (RULES Regra 11).
+As três primeiras só leem; a última grava só a obra do próprio usuário. Exige login (o middleware protege /api/*). Não registrar o conteúdo das obras em log (RULES Regra 11).
 """
 import hashlib
 import json
 import math
+from datetime import datetime
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -148,3 +153,39 @@ def conferir(payload: ConferirPayload, request: Request):
     if payload.incluir_totalizadora:
         resposta["totalizadora"] = normalizar_para_json(tot)
     return resposta
+
+
+class ObraPluginPayload(BaseModel):
+    chave: str                      # identifica o desenho (o plugin manda o caminho do DWG; aqui só entra no hash do id)
+    envelope: Dict[str, Any]        # o mesmo conteúdo do .obra.json
+
+
+@router.post("/obra")
+def enviar_obra(payload: ObraPluginPayload, request: Request):
+    """Grava (cria ou atualiza) a obra do desenho para o usuário e devolve o link que a abre no Resumo (TASK-106)."""
+    from routers.obras import _existente, gravar_obra
+    from middleware.auth_middleware import get_current_user_from_state
+    user = get_current_user_from_state(request)
+    env = payload.envelope if isinstance(payload.envelope, dict) else {}
+    p = _projeto(str(env.get("projeto") or ""))
+    if len(json.dumps(env, ensure_ascii=False)) > obras_arquivo.LIMITE_BYTES:
+        raise HTTPException(status_code=413, detail={"erros": ["Obra grande demais."]})
+    try:
+        pronta = obras_arquivo.validar_importacao(env, p["codigo"])
+    except obras_arquivo.ErroArquivoObra as e:
+        raise HTTPException(status_code=400, detail={"erros": e.mensagens})
+    if pronta["tipo"] != "obra":
+        raise HTTPException(status_code=400, detail={"erros": ["O plugin só envia obras (não modelos)."]})
+    chave = (payload.chave or "").strip()
+    if not chave:
+        raise HTTPException(status_code=400, detail={"erros": ["Falta a chave do desenho."]})
+    obra_id = "plugin_" + hashlib.sha256(f"{user['user_id']}|{chave.lower()}".encode("utf-8")).hexdigest()[:20]
+    existe, dono, _, _ = _existente(obra_id)
+    if existe and dono and dono != user["user_id"]:
+        raise HTTPException(status_code=403, detail={"erros": ["Essa obra pertence a outro usuário."]})
+    nome = (pronta["nome"] + " (nanoCAD)")[:120]
+    gravar_obra(user, {"id": obra_id, "nome": nome, "data": datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
+                       "dados_json": obras_arquivo.dados_json_para_gravar(pronta["dados"]), "projeto": p["codigo"], "publica": False, "tipo": "obra"})
+    url = f"/resumo?obra={quote(obra_id)}&projeto={quote(p['codigo'])}&projeto_nome={quote(p['nome'])}"
+    return {"id": obra_id, "nome": nome, "projeto": p, "url": url, "atualizada": existe,
+            "cabos": len(pronta["dados"]["cabos"]), "outros": len(pronta["dados"]["outros"])}

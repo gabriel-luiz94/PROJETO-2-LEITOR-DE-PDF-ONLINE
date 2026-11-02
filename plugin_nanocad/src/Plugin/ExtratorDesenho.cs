@@ -1,6 +1,8 @@
-// Plugin/ExtratorDesenho.cs — lê o DWG aberto para o modelo do núcleo (Desenho): textos (TEXT, MTEXT por parágrafo, atributos),
-// blocos de poste (nome contém "poste") e linhas (LINE, LWPOLYLINE, POLYLINE 2D, LEADER). Cor resolvida como o leitor de DXF da aplicação.
+// Plugin/ExtratorDesenho.cs — lê o DWG aberto como DesenhoBruto (o que o CAD entrega, sem interpretar): textos com o conteúdo
+// original, cores sem resolver, blocos (atributos + textos da definição), linhas, LEADER, MLEADER (texto + linhas de chamada),
+// círculos e o contorno de cada texto. A interpretação (cor final, parágrafos, postes, redes, guias) é do núcleo (MontadorDesenho).
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using HostMgd.ApplicationServices;
 using OrcamentoNanoCAD.Nucleo;
@@ -12,33 +14,19 @@ namespace OrcamentoNanoCAD
 {
     public static class ExtratorDesenho
     {
-        public static string Hex(Color c)
+        public static CorBruta CorBrutaDe(Color c)
         {
-            System.Drawing.Color v = c.ColorValue;
-            return Cores.Hex(v.R, v.G, v.B);
-        }
-
-        /// <summary>true color → ACI → layer TXT_RRGGBB → cor da layer → preto. ByBlock dentro de bloco = cor do bloco.</summary>
-        public static string CorDe(Entity ent, Transaction tr, string corDoBloco)
-        {
-            Color c = ent.Color;
-            if (c.ColorMethod == ColorMethod.ByColor) return Hex(c);
-            if (c.ColorMethod == ColorMethod.ByAci) return Cores.AciParaHex(c.ColorIndex);
-            if (c.ColorMethod == ColorMethod.ByBlock && corDoBloco != null) return corDoBloco;
-            string h = Cores.CorDoNomeDaLayer(ent.Layer);
-            if (h != null) return h;
-            try
+            CorBruta r = new CorBruta();
+            if (c == null) return r;
+            if (c.ColorMethod == ColorMethod.ByColor)
             {
-                LayerTableRecord ltr = tr.GetObject(ent.LayerId, OpenMode.ForRead) as LayerTableRecord;
-                if (ltr != null)
-                {
-                    Color lc = ltr.Color;
-                    if (lc.ColorMethod == ColorMethod.ByColor) return Hex(lc);
-                    return Cores.AciParaHex(lc.ColorIndex);
-                }
+                System.Drawing.Color v = c.ColorValue;
+                r.Metodo = "rgb"; r.Rgb = (v.R << 16) | (v.G << 8) | v.B;
             }
-            catch (System.Exception) { }
-            return "#000000";
+            else if (c.ColorMethod == ColorMethod.ByAci) { r.Metodo = "aci"; r.Aci = c.ColorIndex; }
+            else if (c.ColorMethod == ColorMethod.ByBlock) r.Metodo = "block";
+            else r.Metodo = "layer";
+            return r;
         }
 
         public static string NomeDoBloco(BlockReference br, Transaction tr)
@@ -55,134 +43,214 @@ namespace OrcamentoNanoCAD
             return br.Name;
         }
 
-        public static bool EhPoste(string nomeBloco, RegrasProjeto regras)
+        private static double[] Caixa(Entity e)
         {
-            string filtro = string.IsNullOrEmpty(regras.FiltroBlocoPoste) ? "poste" : regras.FiltroBlocoPoste;
-            return (nomeBloco ?? "").IndexOf(filtro, StringComparison.OrdinalIgnoreCase) >= 0;
+            try
+            {
+                Extents3d x = e.GeometricExtents;
+                return new[] { x.MinPoint.X, x.MinPoint.Y, x.MaxPoint.X, x.MaxPoint.Y };
+            }
+            catch (System.Exception) { return null; }
         }
 
-        public static List<TextoDesenho> Textos(Entity ent, Transaction tr, string corDoBloco)
+        private static Ponto P(Point3d p) { return new Ponto(p.X, p.Y); }
+
+        private static EntidadeBruta Base(Entity ent, string tipo)
         {
-            List<TextoDesenho> r = new List<TextoDesenho>();
-            string handle = ent.Handle.ToString();
+            EntidadeBruta b = new EntidadeBruta();
+            b.Tipo = tipo; b.Handle = ent.Handle.ToString(); b.Layer = ent.Layer; b.Cor = CorBrutaDe(ent.Color);
+            return b;
+        }
+
+        /// <summary>Uma entidade → bruta (null = tipo que o leitor não usa).</summary>
+        public static EntidadeBruta Bruta(Entity ent, Transaction tr, bool comDefinicao)
+        {
             MText mt = ent as MText;
             if (mt != null)
             {
-                string corBase = CorDe(mt, tr, corDoBloco);
-                int parte = 0;
-                foreach (ParteTexto p in Cores.DividirMText(mt.Contents, corBase))
-                {
-                    TextoDesenho t = new TextoDesenho();
-                    t.Handle = handle; t.Parte = parte++; t.Texto = p.Texto; t.Cor = p.Cor; t.Layer = mt.Layer;
-                    t.X = mt.Location.X; t.Y = mt.Location.Y; t.Altura = mt.TextHeight; t.Tipo = "MTEXT";
-                    r.Add(t);
-                }
-                return r;
+                EntidadeBruta b = Base(ent, "MTEXT");
+                b.Texto = mt.Contents; b.X = mt.Location.X; b.Y = mt.Location.Y; b.Altura = mt.TextHeight; b.Caixa = Caixa(mt);
+                return b;
             }
-            DBText dt = ent as DBText;   // TEXT e ATTRIB (AttributeReference herda de DBText)
+            AttributeReference ar = ent as AttributeReference;
+            if (ar != null)
+            {
+                EntidadeBruta b = Base(ent, "ATTRIB");
+                b.Texto = ar.TextString; b.X = ar.Position.X; b.Y = ar.Position.Y; b.Altura = ar.Height; b.Invisivel = ar.Invisible; b.Caixa = Caixa(ar);
+                return b;
+            }
+            if (ent is AttributeDefinition) return null;
+            DBText dt = ent as DBText;
             if (dt != null)
             {
-                AttributeReference ar = dt as AttributeReference;
-                if (ar != null && ar.Invisible) return r;
-                string txt = Cores.LimparTextoSimples(dt.TextString);
-                if (txt.Length == 0) return r;
-                TextoDesenho t = new TextoDesenho();
-                t.Handle = handle; t.Texto = txt; t.Cor = CorDe(dt, tr, corDoBloco); t.Layer = dt.Layer;
-                t.X = dt.Position.X; t.Y = dt.Position.Y; t.Altura = dt.Height; t.Tipo = ar != null ? "ATTRIB" : "TEXT";
-                r.Add(t);
+                EntidadeBruta b = Base(ent, "TEXT");
+                b.Texto = dt.TextString; b.X = dt.Position.X; b.Y = dt.Position.Y; b.Altura = dt.Height; b.Caixa = Caixa(dt);
+                return b;
             }
-            return r;
-        }
-
-        public static LinhaDesenho Linha(Entity ent, Transaction tr)
-        {
+            MLeader ml = ent as MLeader;
+            if (ml != null) return Multileader(ml);
+            BlockReference br = ent as BlockReference;
+            if (br != null)
+            {
+                EntidadeBruta b = Base(ent, "INSERT");
+                b.Bloco = NomeDoBloco(br, tr); b.X = br.Position.X; b.Y = br.Position.Y;
+                foreach (ObjectId aid in br.AttributeCollection)
+                {
+                    AttributeReference a = tr.GetObject(aid, OpenMode.ForRead) as AttributeReference;
+                    if (a != null) b.Filhos.Add(Bruta(a, tr, false));
+                }
+                if (comDefinicao)
+                {
+                    // como a aplicação: TEXT/MTEXT da DEFINIÇÃO do bloco, com as coordenadas da definição
+                    BlockTableRecord def = tr.GetObject(br.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                    if (def != null)
+                        foreach (ObjectId id in def)
+                        {
+                            Entity e = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                            if ((e is DBText && !(e is AttributeDefinition)) || e is MText) b.Definicao.Add(Bruta(e, tr, false));
+                        }
+                }
+                return b;
+            }
+            Circle c = ent as Circle;
+            if (c != null)
+            {
+                EntidadeBruta b = Base(ent, "CIRCLE");
+                b.X = c.Center.X; b.Y = c.Center.Y; b.Raio = c.Radius;
+                return b;
+            }
             List<Ponto> pts = new List<Ponto>();
-            bool leader = false;
+            string tipo;
             Line ln = ent as Line;
             Polyline pl = ent as Polyline;
             Polyline2d p2 = ent as Polyline2d;
+            Polyline3d p3 = ent as Polyline3d;
             Leader ld = ent as Leader;
-            if (ln != null) { pts.Add(P(ln.StartPoint)); pts.Add(P(ln.EndPoint)); }
+            if (ln != null) { tipo = "LINE"; pts.Add(P(ln.StartPoint)); pts.Add(P(ln.EndPoint)); }
             else if (pl != null)
             {
+                tipo = "LWPOLYLINE";
                 for (int i = 0; i < pl.NumberOfVertices; i++) { Point2d q = pl.GetPoint2dAt(i); pts.Add(new Ponto(q.X, q.Y)); }
                 if (pl.Closed && pts.Count > 0) pts.Add(pts[0]);
             }
             else if (p2 != null)
             {
-                foreach (ObjectId vid in p2)
-                {
-                    Vertex2d v = tr.GetObject(vid, OpenMode.ForRead) as Vertex2d;
-                    if (v != null) pts.Add(P(v.Position));
-                }
+                tipo = "POLYLINE";
+                foreach (ObjectId vid in p2) { Vertex2d v = tr.GetObject(vid, OpenMode.ForRead) as Vertex2d; if (v != null) pts.Add(P(v.Position)); }
                 if (p2.Closed && pts.Count > 0) pts.Add(pts[0]);
             }
-            else if (ld != null)
+            else if (p3 != null)
             {
-                leader = true;
-                for (int i = 0; i < ld.NumVertices; i++) pts.Add(P(ld.VertexAt(i)));
+                tipo = "POLYLINE";
+                foreach (ObjectId vid in p3) { PolylineVertex3d v = tr.GetObject(vid, OpenMode.ForRead) as PolylineVertex3d; if (v != null) pts.Add(P(v.Position)); }
+                if (p3.Closed && pts.Count > 0) pts.Add(pts[0]);
             }
+            else if (ld != null) { tipo = "LEADER"; for (int i = 0; i < ld.NumVertices; i++) pts.Add(P(ld.VertexAt(i))); }
             else return null;
-            LinhaDesenho l = new LinhaDesenho();
-            l.Handle = ent.Handle.ToString(); l.Layer = ent.Layer; l.Cor = CorDe(ent, tr, null); l.Pontos = pts; l.Leader = leader;
-            return l;
+            EntidadeBruta r = Base(ent, tipo);
+            r.Pontos = pts;
+            return r;
         }
 
-        private static Ponto P(Point3d p) { return new Ponto(p.X, p.Y); }
-
-        public static PosteDesenho Poste(BlockReference br, Transaction tr)
+        private static EntidadeBruta Multileader(MLeader ml)
         {
-            PosteDesenho p = new PosteDesenho();
-            p.Handle = br.Handle.ToString(); p.X = br.Position.X; p.Y = br.Position.Y; p.Bloco = NomeDoBloco(br, tr); p.Layer = br.Layer;
-            return p;
+            EntidadeBruta b = Base(ml, "MLEADER");
+            try
+            {
+                if (ml.ContentType == ContentType.MTextContent && ml.MText != null)
+                {
+                    MText m = ml.MText;
+                    b.Texto = m.Contents; b.X = m.Location.X; b.Y = m.Location.Y; b.Altura = m.TextHeight;
+                    try { Extents3d x = ml.GetContentGeomExtents(); b.Caixa = new[] { x.MinPoint.X, x.MinPoint.Y, x.MaxPoint.X, x.MaxPoint.Y }; }
+                    catch (System.Exception) { }
+                }
+            }
+            catch (System.Exception) { }
+            try
+            {
+                foreach (object li in ml.GetLeaderIndexes())
+                    foreach (object ll in ml.GetLeaderLineIndexes((int)li))
+                    {
+                        int linha = (int)ll;
+                        List<Ponto> pts = new List<Ponto>();
+                        for (int k = 0; k < ml.VerticesCount(linha); k++) pts.Add(P(ml.GetVertex(linha, k)));
+                        if (pts.Count >= 2) b.Linhas.Add(pts);
+                    }
+            }
+            catch (System.Exception) { }
+            return b;
+        }
+
+        public static CorBruta CorDaLayer(LayerTableRecord ltr)
+        {
+            CorBruta c = CorBrutaDe(ltr.Color);
+            if (c.Metodo != "rgb") { c.Metodo = "aci"; c.Aci = ltr.Color.ColorIndex; }
+            return c;
         }
 
         /// <summary>O espaço do modelo inteiro.</summary>
-        public static Desenho Ler(Document doc, RegrasProjeto regras)
+        public static DesenhoBruto Ler(Document doc)
         {
-            Desenho d = new Desenho();
+            DesenhoBruto d = new DesenhoBruto();
             d.Arquivo = doc.Name;
             Database db = doc.Database;
             using (Transaction tr = db.TransactionManager.StartTransaction())
             {
+                LayerTable lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
+                foreach (ObjectId lid in lt)
+                {
+                    LayerTableRecord ltr = tr.GetObject(lid, OpenMode.ForRead) as LayerTableRecord;
+                    if (ltr != null) d.Layers[ltr.Name] = CorDaLayer(ltr);
+                }
                 BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
                 BlockTableRecord ms = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead);
                 foreach (ObjectId id in ms)
                 {
-                    Entity ent;
-                    try { ent = tr.GetObject(id, OpenMode.ForRead) as Entity; }
-                    catch (System.Exception) { continue; }
-                    if (ent == null) continue;
-                    try { Acrescentar(d, ent, tr, regras); }
-                    catch (System.Exception) { /* entidade estranha não derruba a leitura */ }
+                    Entity ent = null;
+                    try
+                    {
+                        ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                        if (ent == null) continue;
+                        EntidadeBruta b = Bruta(ent, tr, true);
+                        if (b != null) d.Entidades.Add(b);
+                    }
+                    catch (System.Exception e)
+                    {
+                        d.Avisos.Add((ent != null ? ent.GetType().Name + " " + ent.Handle : id.ToString()) + ": " + e.Message);   // não derruba a leitura
+                    }
                 }
                 tr.Commit();
             }
             return d;
         }
 
-        public static void Acrescentar(Desenho d, Entity ent, Transaction tr, RegrasProjeto regras)
+        /// <summary>Entidades escolhidas pelo usuário (Construir do zero) → brutas, com as cores das layers.</summary>
+        public static DesenhoBruto LerSelecao(Document doc, IEnumerable<ObjectId> ids)
         {
-            BlockReference br = ent as BlockReference;
-            if (br != null)
+            DesenhoBruto d = new DesenhoBruto();
+            d.Arquivo = doc.Name;
+            Database db = doc.Database;
+            using (Transaction tr = db.TransactionManager.StartTransaction())
             {
-                string nome = NomeDoBloco(br, tr);
-                string corBloco = CorDe(br, tr, null);
-                if (EhPoste(nome, regras)) d.Postes.Add(Poste(br, tr));
-                TextoDesenho marca = new TextoDesenho();      // o leitor de DXF da aplicação também lista o nome do bloco
-                marca.Handle = br.Handle.ToString(); marca.Texto = "[BLOCO: " + nome + "]"; marca.Cor = corBloco; marca.Layer = br.Layer;
-                marca.X = br.Position.X; marca.Y = br.Position.Y; marca.Tipo = "BLOCO";
-                d.Textos.Add(marca);
-                foreach (ObjectId aid in br.AttributeCollection)
+                LayerTable lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
+                foreach (ObjectId lid in lt)
                 {
-                    AttributeReference ar = tr.GetObject(aid, OpenMode.ForRead) as AttributeReference;
-                    if (ar != null) d.Textos.AddRange(Textos(ar, tr, corBloco));
+                    LayerTableRecord ltr = tr.GetObject(lid, OpenMode.ForRead) as LayerTableRecord;
+                    if (ltr != null) d.Layers[ltr.Name] = CorDaLayer(ltr);
                 }
-                return;
+                foreach (ObjectId id in ids)
+                {
+                    try
+                    {
+                        Entity ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                        EntidadeBruta b = ent == null ? null : Bruta(ent, tr, false);
+                        if (b != null) d.Entidades.Add(b);
+                    }
+                    catch (System.Exception e) { d.Avisos.Add(id + ": " + e.Message); }
+                }
+                tr.Commit();
             }
-            if (ent is MText || ent is DBText) { d.Textos.AddRange(Textos(ent, tr, null)); return; }
-            LinhaDesenho l = Linha(ent, tr);
-            if (l != null && l.Pontos.Count >= 2) d.Linhas.Add(l);
+            return d;
         }
     }
 }

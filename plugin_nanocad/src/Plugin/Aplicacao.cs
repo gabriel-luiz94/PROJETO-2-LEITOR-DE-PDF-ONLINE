@@ -41,8 +41,29 @@ namespace OrcamentoNanoCAD
 
         public static void Msg(string texto)
         {
+            Log(texto);
             Editor ed = Ed();
             if (ed != null) ed.WriteMessage("\n" + texto);
+        }
+
+        // ── log (TASK-004): cada comando, mensagem e erro, para o usuário mandar quando algo não funciona ──
+        public static string ArquivoLog { get { return Path.Combine(Conexao.Pasta, "log.txt"); } }
+        private static readonly object _travaLog = new object();
+
+        public static void Log(string texto)
+        {
+            try
+            {
+                lock (_travaLog)
+                {
+                    Directory.CreateDirectory(Conexao.Pasta);
+                    FileInfo f = new FileInfo(ArquivoLog);
+                    if (f.Exists && f.Length > 1024 * 1024) File.Copy(ArquivoLog, ArquivoLog + ".1", true);
+                    if (f.Exists && f.Length > 1024 * 1024) File.Delete(ArquivoLog);
+                    File.AppendAllText(ArquivoLog, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "  " + texto + Environment.NewLine, Encoding.UTF8);
+                }
+            }
+            catch (System.Exception) { }
         }
 
         // ── regras ──
@@ -94,7 +115,11 @@ namespace OrcamentoNanoCAD
         {
             get
             {
-                if (_regras == null) _regras = CatalogoRegras.Carregar(LerRecurso, RegrasExternas());
+                if (_regras == null)
+                {
+                    _regras = CatalogoRegras.Carregar(LerRecurso, RegrasExternas());
+                    foreach (RegrasProjeto r in _regras) ConfigsLocais.Aplicar(r);
+                }
                 return _regras;
             }
         }
@@ -135,7 +160,8 @@ namespace OrcamentoNanoCAD
         public bool Modificada;
         public bool MarcasVisiveis = true;
         public readonly Marcas Marcas = new Marcas();
-        public Desenho UltimoDesenho;          // o último DWG lido (para refazer a obra quando as regras da aplicação mudam)
+        public DesenhoBruto UltimoBruto;       // o último DWG lido, cru (refaz a obra quando regras/configuração mudam, sem reler o DWG)
+        public Desenho UltimoDesenho;
         // ligação com a aplicação (Sincronizador): cada mudança na obra sobe a revisão; a conferência com a base vale para uma revisão
         public int Revisao;
         public int RevisaoConferida = -1;

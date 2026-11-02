@@ -23,6 +23,9 @@ As REGRAS são dados (`../data/*.json`) e nunca são copiadas. O MOTOR é portad
 2. ajustar o porte até `dotnet test` passar;
 3. rodar `pytest tests/test_plugin_nanocad_contrato.py` (compara o vínculo do plugin com o da aplicação).
 `ParidadeTests.Esperados_versionados_batem_com_o_codigo_atual_da_aplicacao` falha quando o passo 1 foi esquecido.
+Leitura do DXF inteiro (TASK-005): ao mudar `services/dxf_service.py` ou o montador, regerar (na raiz):
+`python plugin_nanocad/tests/oraculo/gerar_dxf_teste.py <tmp>.dxf` e
+`python plugin_nanocad/tests/oraculo/dxf_para_bruto.py <tmp>.dxf plugin_nanocad/tests/oraculo/dxf_teste_bruto.json --app plugin_nanocad/tests/oraculo/dxf_teste_esperado_app.json --regras 081`.
 
 ## Regra P4 — Contrato do `.obra.json` (ADR-002)
 
