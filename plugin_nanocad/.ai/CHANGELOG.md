@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-11-03 — TASK-012: painel Cabos / Postes e estruturas, filtro do leitor, ícones (0.5.0)
+
+**Tipo:** melhoria · `PainelObra`, `Relatorios`, `Marcas`, `Tema`, `Icones` (novo)
+
+Painel em duas listas (CABOS e POSTES E ESTRUTURAS), as mesmas linhas de Cabos/Outros da aplicação. Na leitura só aparece o que
+as regras do leitor classificaram (sem anotação = oculto no painel, nas marcas e na tabela de vínculos; a contagem vai no rodapé);
+em Construir e no que foi apontado à mão, tudo aparece. Ícones desenhados: estado, rede MT/BT, operação (+ I, − R, ↻ M), poste/solto;
+barra de ícones com dica; filtros com ícone.
+
+---
+
 ## 2026-11-02 — TASK-011: leitura do desenho real (0.4.0)
 
 **Tipo:** correção · `LeitorProjeto`, `ConfigLeitura`, `Diagnostico`, `Vinculador`, `Marcas`, `Telas`

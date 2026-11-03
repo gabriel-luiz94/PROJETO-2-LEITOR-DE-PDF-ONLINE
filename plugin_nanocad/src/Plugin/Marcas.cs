@@ -120,14 +120,16 @@ namespace OrcamentoNanoCAD
             Limpar();
             double h = Math.Max(obra.AlturaTexto, 1e-3) * 1.1;
             Dictionary<string, int> pilha = new Dictionary<string, int>();      // irmãos (P3b, V7b…) empilhados embaixo do principal
+            // só o que o painel mostra: na leitura, o que as regras do leitor classificaram (rede existente sem anotação não ganha número)
             foreach (Poste p in obra.Postes)
             {
+                if (!Relatorios.Visivel(obra, p)) continue;
                 int k = Pilha(pilha, p);
                 Rotulo(p.Numero, new Point3d(p.X + h * 0.8, p.Y + h * 0.4 - k * h * 1.6, 0), h, CorDoEstado(p, Azul));
             }
             foreach (Vao v in obra.Vaos)
             {
-                if (v.Pontos.Count < 2) continue;
+                if (v.Pontos.Count < 2 || !Relatorios.Visivel(obra, v)) continue;
                 Ponto meio = Geometria.Meio(v.Pontos);
                 Point3d pm = P(meio);
                 // vínculo vão ⇄ poste: tracejado ciano do meio do vão até cada poste ligado

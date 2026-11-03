@@ -11,6 +11,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public string Chave;          // número do elemento (P1, V2…) para zoom/pop-up
         public string[] Celulas;
         public string Estado = Estados.Ok;
+        public string[] Icones;       // ícone desenhado em cada coluna (null = só texto): "estado:OK", "rede:MT", "op:I", "poste", "avulso"
     }
 
     public static class Relatorios
@@ -28,6 +29,90 @@ namespace OrcamentoNanoCAD.Nucleo
         }
 
         public static readonly string[] ColunasConferencia = { "Nº", "Anotação / texto", "Op", "Estado" };
+
+        // ── painel em duas listas, como o Resumo da aplicação (Tabela de Cabos · Tabela de Outros) ──
+        public const string PainelCabos = "CABOS", PainelOutros = "OUTROS";
+
+        /// <summary>O que aparece no painel/na tela. Ler: só o que as regras do leitor classificaram (elemento com anotação lida) —
+        /// rede existente e poste sem anotação ficam ocultos. Construir (e o que foi montado à mão): tudo, sem filtro das regras.</summary>
+        public static bool Visivel(Obra obra, Elemento e)
+        {
+            return obra.Modo == "construir" || e.Manual || e.TemAnotacao;
+        }
+
+        public static string PainelDe(Elemento e)
+        {
+            if (e is Vao) return PainelCabos;
+            if (e is Poste) return PainelOutros;
+            return e.Entidade == "CABO" ? PainelCabos : PainelOutros;
+        }
+
+        public static IEnumerable<Elemento> DoPainel(Obra obra, string painel)
+        {
+            return obra.Elementos.Where(e => Visivel(obra, e) && (painel == null || PainelDe(e) == painel));
+        }
+
+        public static int Contar(Obra obra, string painel, string estado)
+        {
+            return DoPainel(obra, painel).Count(e => estado == null || e.Estado == estado);
+        }
+
+        /// <summary>Elementos que a leitura achou mas o painel não mostra (sem anotação classificada pelo leitor).</summary>
+        public static int Ocultos(Obra obra) { return obra.Elementos.Count(e => !Visivel(obra, e)); }
+
+        public static readonly string[] ColunasCabos = { "", "Nº", "Rede", "Op", "Anotação", "m", "Postes", "Observação" };
+        public static readonly string[] ColunasOutros = { "", "Nº", "Tipo", "Op", "Anotação", "Placa", "Observação" };
+
+        private static string OpCurta(string op) { return (op ?? "").Trim(); }
+
+        public static List<LinhaTabela> Cabos(Obra obra, string filtro)
+        {
+            List<LinhaTabela> r = new List<LinhaTabela>();
+            foreach (Elemento e in DoPainel(obra, PainelCabos))
+            {
+                if (filtro != null && e.Estado != filtro) continue;
+                Vao v = e as Vao;
+                string rede = v != null ? (v.Tipo ?? "") : "";
+                string anot = v != null ? v.Ativo : e.AtivoLido;
+                double? m = v != null ? (v.Metros ?? v.MetrosLidos) : null;
+                string metros = m.HasValue ? m.Value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) : "";
+                string postes = v != null ? (v.PosteA ?? "—") + " → " + (v.PosteB ?? "—") : "solto";
+                r.Add(new LinhaTabela
+                {
+                    Chave = e.Numero, Estado = e.Estado,
+                    Celulas = new[] { "", e.Numero, rede, OpCurta(e.Operacao), string.IsNullOrEmpty(anot) ? "(sem anotação)" : anot, metros, postes, Observacao(e) },
+                    Icones = new[] { "estado:" + e.Estado, null, v != null ? "rede:" + rede : "avulso", "op:" + OpCurta(e.Operacao), null, null, null, null },
+                });
+            }
+            return r;
+        }
+
+        public static List<LinhaTabela> Outros(Obra obra, string filtro)
+        {
+            List<LinhaTabela> r = new List<LinhaTabela>();
+            foreach (Elemento e in DoPainel(obra, PainelOutros))
+            {
+                if (filtro != null && e.Estado != filtro) continue;
+                Poste p = e as Poste;
+                string tipo = p != null ? (p.Lido.CodigoPoste != null ? "Poste" : p.Lido.Estruturas.Count > 0 ? "Estrutura" : "Poste") : "Solto";
+                r.Add(new LinhaTabela
+                {
+                    Chave = e.Numero, Estado = e.Estado,
+                    Celulas = new[] { "", e.Numero, tipo, OpCurta(e.Operacao), string.IsNullOrEmpty(e.AtivoLido) ? "(sem anotação)" : e.AtivoLido,
+                                      p != null ? (p.Placa ?? "") : "", Observacao(e) },
+                    Icones = new[] { "estado:" + e.Estado, null, p != null ? "poste" : "avulso", "op:" + OpCurta(e.Operacao), null, null, null },
+                });
+            }
+            return r;
+        }
+
+        private static string Observacao(Elemento e)
+        {
+            List<string> l = new List<string>(e.Mensagens);
+            if (e.IrmaoDe != null) l.Insert(0, "junto com " + e.IrmaoDe);
+            if (e.Manual) l.Insert(0, "✋ manual");
+            return string.Join("; ", l.ToArray());
+        }
 
         public static List<LinhaTabela> Conferencia(Obra obra, string filtro)
         {
@@ -96,6 +181,7 @@ namespace OrcamentoNanoCAD.Nucleo
             List<LinhaTabela> r = new List<LinhaTabela>();
             foreach (Vao v in obra.Vaos)
             {
+                if (!Visivel(obra, v)) continue;
                 LinhaTabela l = new LinhaTabela();
                 l.Chave = v.Numero;
                 l.Estado = v.Estado;
@@ -180,10 +266,10 @@ namespace OrcamentoNanoCAD.Nucleo
         /// <summary>Texto do comando no rodapé: "15 elementos · 11 ok · 3 a conferir · 1 erro · regras: Pernambuco (081)".</summary>
         public static string Resumo(Obra obra)
         {
-            int total = Conferencia_(obra, null), ok = Conferencia_(obra, Estados.Ok), conf = Conferencia_(obra, Estados.Conferir), erro = Conferencia_(obra, Estados.Erro);
-            return total + " elementos · " + ok + " ok · " + conf + " a conferir · " + erro + " erro" + (erro == 1 ? "" : "s") + " · regras: " + obra.NomeRegras;
+            int total = Contar(obra, null, null), ok = Contar(obra, null, Estados.Ok), conf = Contar(obra, null, Estados.Conferir), erro = Contar(obra, null, Estados.Erro);
+            int cabos = Contar(obra, PainelCabos, null), ocultos = Ocultos(obra);
+            return total + " elementos (" + cabos + " cabos · " + (total - cabos) + " postes/outros) · " + ok + " ok · " + conf + " a conferir · " + erro + " erro"
+                   + (erro == 1 ? "" : "s") + (ocultos > 0 ? " · " + ocultos + " sem anotação ocultos" : "") + " · regras: " + obra.NomeRegras;
         }
-
-        private static int Conferencia_(Obra obra, string estado) { return Nucleo.Conferencia.Contar(obra, estado); }
     }
 }

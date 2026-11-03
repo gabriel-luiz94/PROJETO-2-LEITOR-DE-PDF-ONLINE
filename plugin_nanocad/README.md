@@ -16,7 +16,9 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 
 1. No nanoCAD: `APPLOAD` (ou `NETLOAD`) → escolha a DLL. Para carregar sempre, adicione-a à lista de inicialização do APPLOAD.
 2. Comando **`ORCAMENTO`** → *Construir do zero*, *Ler projeto* ou *Continuar obra salva*; escolha as regras (ex.: Pernambuco 081).
-3. Confira no painel (filtros Ok / Conferir / Erro), ajuste no pop-up (duplo clique ou `ORC_EDITAR`) e **Salvar**.
+3. Confira no painel — **CABOS** (vãos) e **POSTES E ESTRUTURAS** em listas separadas, como no Resumo da aplicação; filtros
+   Ok / Conferir / Erro / Ignorados. Na leitura só aparece o que as regras do leitor classificaram (rede existente e poste sem
+   anotação ficam ocultos); em *Construir do zero* aparece tudo o que você montou. Ajuste no pop-up (duplo clique ou `ORC_EDITAR`) e **Salvar**.
 4. Na aplicação: selecione o mesmo projeto (ex.: 081) → Carregar Obra → importar o `.obra.json` da pasta do desenho.
 
 ### Comandos

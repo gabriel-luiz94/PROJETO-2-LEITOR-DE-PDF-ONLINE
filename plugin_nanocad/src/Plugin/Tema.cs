@@ -60,13 +60,46 @@ namespace OrcamentoNanoCAD.UI
             return l;
         }
 
-        public static Button Botao(string texto, EventHandler acao, bool primario = false)
+        public static Button Botao(string texto, EventHandler acao, bool primario = false, string icone = null)
         {
             Button b = new Button { Text = texto, AutoSize = true, Font = Normal, Margin = new Padding(3), Padding = new Padding(6, 3, 6, 3), Cursor = Cursors.Hand };
             if (primario) b.Tag = Primario;
+            if (icone != null)
+            {
+                b.Image = Icones.Imagem(icone, primario ? Color.White : Texto);
+                b.ImageAlign = ContentAlignment.MiddleLeft;
+                b.TextImageRelation = TextImageRelation.ImageBeforeText;
+                if (string.IsNullOrEmpty(texto)) b.Padding = new Padding(3);
+            }
             b.Click += acao;
             Estilo(b);
             return b;
+        }
+
+        /// <summary>Botão só com ícone (o nome aparece na dica ao passar o mouse).</summary>
+        public static Button BotaoIcone(string icone, string dica, EventHandler acao, ToolTip dicas)
+        {
+            Button b = Botao("", acao, false, icone);
+            b.AutoSize = false;
+            b.Size = new Size(32, 30);
+            b.ImageAlign = ContentAlignment.MiddleCenter;
+            if (dicas != null) dicas.SetToolTip(b, dica);
+            return b;
+        }
+
+        /// <summary>Faixa de título de uma lista do painel: ícone desenhado + TÍTULO + contagem (como os cabeçalhos do Resumo da aplicação).</summary>
+        public static Panel Cabecalho(string icone, Func<string> texto)
+        {
+            Panel p = new Panel { Dock = DockStyle.Top, Height = 30, BackColor = Cartao, Tag = "cartao" };
+            p.Paint += (o, e) =>
+            {
+                e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                Icones.Desenhar(e.Graphics, new Rectangle(6, 0, 28, p.Height), icone);
+                TextRenderer.DrawText(e.Graphics, texto(), Grande, new Rectangle(36, 0, p.Width - 40, p.Height), Texto,
+                    TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+                using (Pen b = new Pen(Destaque, 2)) e.Graphics.DrawLine(b, 0, p.Height - 1, p.Width, p.Height - 1);
+            };
+            return p;
         }
 
         private static void Estilo(Button b)
@@ -130,6 +163,7 @@ namespace OrcamentoNanoCAD.UI
         {
             ListView lv = new ListView { View = View.Details, FullRowSelect = true, GridLines = false, MultiSelect = false, HideSelection = false, Font = Normal, Dock = DockStyle.Fill };
             foreach (string c in colunas) lv.Columns.Add(c);
+            lv.SmallImageList = new ImageList { ImageSize = new Size(1, 24) };      // linhas mais altas (cabem os ícones)
             Lista(lv);
             return lv;
         }
@@ -155,6 +189,8 @@ namespace OrcamentoNanoCAD.UI
                 using (SolidBrush f = new SolidBrush(sel ? Color.FromArgb(0x3a, 0x2a, 0x10) : (e.ItemIndex % 2 == 0 ? Cartao : Realce))) e.Graphics.FillRectangle(f, e.Bounds);
                 Color cor = e.Item.ForeColor == lv.ForeColor || e.Item.ForeColor.IsEmpty ? Texto : e.Item.ForeColor;
                 if (e.ColumnIndex == 0 && !sel) cor = e.Item.ForeColor == lv.ForeColor ? Texto : cor;
+                string icone = e.SubItem.Tag as string;
+                if (icone != null && Icones.Desenhar(e.Graphics, e.Bounds, icone)) return;
                 TextRenderer.DrawText(e.Graphics, e.SubItem.Text, lv.Font, new Rectangle(e.Bounds.X + 4, e.Bounds.Y, e.Bounds.Width - 4, e.Bounds.Height), cor,
                     TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
             };
@@ -169,10 +205,19 @@ namespace OrcamentoNanoCAD.UI
                 ListViewItem it = new ListViewItem(l.Celulas);
                 it.Tag = l.Chave;
                 it.ForeColor = l.Estado == Estados.Ok ? Texto : DoEstado(l.Estado);
+                if (l.Icones != null)
+                    for (int i = 0; i < l.Icones.Length && i < it.SubItems.Count; i++) it.SubItems[i].Tag = l.Icones[i];
                 lv.Items.Add(it);
             }
             foreach (ColumnHeader c in lv.Columns) c.Width = -2;
-            foreach (ColumnHeader c in lv.Columns) if (c.Width < 60) c.Width = 60;
+            for (int i = 0; i < lv.Columns.Count; i++)
+            {
+                ColumnHeader c = lv.Columns[i];
+                bool soIcone = c.Text.Length == 0;
+                if (soIcone) c.Width = 30;                                  // coluna do estado (só o ícone)
+                else if (c.Width < 60) c.Width = 60;
+                if (c.Width > 320) c.Width = 320;
+            }
             lv.EndUpdate();
         }
 
