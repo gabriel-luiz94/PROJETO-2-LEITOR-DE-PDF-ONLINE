@@ -52,11 +52,14 @@ namespace OrcamentoNanoCAD.Nucleo
         private class Contexto
         {
             public RegrasProjeto Regras;
+            public ConfigLeitura Cfg;
             public double H;
             public List<List<Ponto>> Guias = new List<List<Ponto>>();
             public List<Poste> Postes = new List<Poste>();
             public List<Vao> Vaos = new List<Vao>();
             public List<TextoIgnorado> Ignorados = new List<TextoIgnorado>();
+            public List<TextoLido> Lidos;
+            public int RedesSemPoste;
         }
 
         public static double AlturaTipica(IEnumerable<TextoDesenho> textos)
@@ -69,32 +72,32 @@ namespace OrcamentoNanoCAD.Nucleo
         {
             Contexto ctx = new Contexto();
             ctx.Regras = regras;
+            ctx.Cfg = regras.Leitura ?? _padrao;
             ctx.H = AlturaTipica(d.Textos);
+            ConfigLeitura cfg = ctx.Cfg;
+            double tol = cfg.TolPosteAlturas * ctx.H;
 
-            ConfigLeitura cfg = regras.Leitura ?? _padrao;
             List<Rede> redes = new List<Rede>();
             foreach (LinhaDesenho l in d.Linhas)
             {
                 if (l.Pontos.Count < 2) continue;
                 string tipo = l.Leader ? null : cfg.ClassificarRede(l.Layer, l.Cor);
                 if (tipo != null) { Rede r = new Rede(); r.L = l; r.Tipo = tipo; redes.Add(r); }
-                else if (l.Leader) ctx.Guias.Add(l.Pontos);                 // LEADER/MLEADER: sempre guia, de qualquer tamanho
-                else if (cfg.PodeSerGuia(l.Layer) && Geometria.Comprimento(l.Pontos) <= cfg.GuiaMaxAlturas * ctx.H) ctx.Guias.Add(l.Pontos);
+                else if (l.Leader) { ctx.Guias.Add(l.Pontos); _layerDaGuia[l.Pontos] = l.Layer; }      // LEADER/MLEADER: sempre guia, de qualquer tamanho
+                else if (cfg.PodeSerGuia(l.Layer) && !Fechada(l.Pontos) && Geometria.Comprimento(l.Pontos) <= cfg.GuiaMaxAlturas * ctx.H)
+                {
+                    ctx.Guias.Add(l.Pontos);
+                    _layerDaGuia[l.Pontos] = l.Layer;
+                }
             }
 
-            foreach (PosteDesenho pd in d.Postes)
-            {
-                Poste p = new Poste();
-                p.Handle = pd.Handle; p.X = pd.X; p.Y = pd.Y; p.Bloco = pd.Bloco ?? "";
-                ctx.Postes.Add(p);
-            }
-
-            double tol = cfg.TolPosteAlturas * ctx.H;
+            AgruparPostes(d.Postes, ctx, tol);
+            redes = JuntarRedes(redes, ctx, tol);
             foreach (Rede r in redes) CortarEmVaos(r, ctx, tol);
 
-            List<TextoLido> lidos = ClassificarTextos(d.Textos, regras);
+            ctx.Lidos = ClassificarTextos(d.Textos, regras);
             List<Avulso> avulsos = new List<Avulso>();
-            AssociarTextos(lidos, ctx, avulsos);
+            Dictionary<Elemento, List<TextoLido>> extras = AssociarTextos(ctx.Lidos, ctx, avulsos);
 
             Obra obra = new Obra();
             obra.Projeto = regras.Codigo;
@@ -107,7 +110,11 @@ namespace OrcamentoNanoCAD.Nucleo
             obra.Vaos = ctx.Vaos;
             obra.Avulsos = avulsos;
             obra.Ignorados = ctx.Ignorados;
+            obra.RedesSemPoste = ctx.RedesSemPoste;
             Numerar(obra);
+            CriarIrmaos(obra, extras);
+            LerPlacas(obra, ctx);
+            _layerDaGuia.Clear();
             Vinculador.Vincular(obra, regras, false);
             Conferencia.Avaliar(obra, regras);
             return obra;
@@ -120,6 +127,73 @@ namespace OrcamentoNanoCAD.Nucleo
             n = n.Substring(n.LastIndexOf('/') + 1);
             int p = n.LastIndexOf('.');
             return p > 0 ? n.Substring(0, p) : n;
+        }
+
+        private static bool Fechada(List<Ponto> pts)
+        {
+            return pts.Count > 2 && pts[0].Dist(pts[pts.Count - 1]) < 1e-6;
+        }
+
+        /// <summary>Blocos de poste no MESMO lugar (ex.: troca de poste: o que sai + o que entra) viram um poste só.</summary>
+        private static void AgruparPostes(List<PosteDesenho> postes, Contexto ctx, double tol)
+        {
+            foreach (PosteDesenho pd in postes)
+            {
+                Poste junto = ctx.Postes.FirstOrDefault(x => x.Ponto.Dist(new Ponto(pd.X, pd.Y)) <= tol);
+                if (junto != null)
+                {
+                    junto.OutrosHandles.Add(pd.Handle);
+                    if (!string.IsNullOrEmpty(pd.Bloco) && junto.Bloco.IndexOf(pd.Bloco, StringComparison.Ordinal) < 0) junto.Bloco += " + " + pd.Bloco;
+                    continue;
+                }
+                Poste p = new Poste();
+                p.Handle = pd.Handle; p.X = pd.X; p.Y = pd.Y; p.Bloco = pd.Bloco ?? "";
+                ctx.Postes.Add(p);
+            }
+        }
+
+        private static bool TemPoste(Ponto q, Contexto ctx, double tol)
+        {
+            return ctx.Postes.Any(p => p.Ponto.Dist(q) <= tol);
+        }
+
+        /// <summary>Redes do mesmo tipo desenhadas em pedaços (pontas que se encontram FORA de poste, só duas no nó) viram uma linha só.</summary>
+        private static List<Rede> JuntarRedes(List<Rede> redes, Contexto ctx, double tol)
+        {
+            double junta = Math.Max(ctx.H, 1e-6);
+            List<Rede> l = redes.Select(r => new Rede { L = new LinhaDesenho { Handle = r.L.Handle, Layer = r.L.Layer, Cor = r.L.Cor, Pontos = new List<Ponto>(r.L.Pontos) }, Tipo = r.Tipo }).ToList();
+            bool mudou = true;
+            while (mudou)
+            {
+                mudou = false;
+                for (int i = 0; i < l.Count && !mudou; i++)
+                    for (int fi = 0; fi < 2 && !mudou; fi++)
+                    {
+                        List<Ponto> a = l[i].L.Pontos;
+                        Ponto pa = fi == 0 ? a[0] : a[a.Count - 1];
+                        if (TemPoste(pa, ctx, tol)) continue;
+                        List<int> outros = new List<int>();
+                        List<int> lados = new List<int>();
+                        for (int j = 0; j < l.Count; j++)
+                        {
+                            if (j == i || l[j].Tipo != l[i].Tipo) continue;
+                            List<Ponto> b = l[j].L.Pontos;
+                            if (b[0].Dist(pa) <= junta) { outros.Add(j); lados.Add(0); }
+                            else if (b[b.Count - 1].Dist(pa) <= junta) { outros.Add(j); lados.Add(1); }
+                        }
+                        if (outros.Count != 1) continue;                         // nó com 3+ linhas = derivação: não junta
+                        List<Ponto> c = new List<Ponto>(l[outros[0]].L.Pontos);
+                        List<Ponto> pi = new List<Ponto>(a);
+                        if (fi == 0) pi.Reverse();                                // pi termina no nó
+                        if (lados[0] == 1) c.Reverse();                           // c começa no nó
+                        pi.AddRange(c.Skip(1));
+                        l[i].L.Pontos = pi;
+                        l[i].L.Handle = l[i].L.Handle + "+" + l[outros[0]].L.Handle;
+                        l.RemoveAt(outros[0]);
+                        mudou = true;
+                    }
+            }
+            return l;
         }
 
         private class NaRede { public Poste P; public double S; public double D; }
@@ -135,6 +209,8 @@ namespace OrcamentoNanoCAD.Nucleo
                 if (pr.Distancia <= tol) { NaRede n = new NaRede(); n.P = p; n.S = pr.Estacao; n.D = pr.Distancia; nela.Add(n); }
             }
             nela = nela.OrderBy(n => n.S).ToList();
+            // linha "de rede" que não passa por poste nenhum não é rede (marca, nuvem, desenho de apoio na mesma layer): fica fora
+            if (nela.Count == 0 && ctx.Postes.Any(p => !string.IsNullOrEmpty(p.Handle))) { ctx.RedesSemPoste++; return; }
             // dois postes "no mesmo ponto" da rede: fica o mais próximo da linha
             List<NaRede> limpos = new List<NaRede>();
             foreach (NaRede n in nela)
@@ -155,6 +231,7 @@ namespace OrcamentoNanoCAD.Nucleo
             for (int i = 0; i + 1 < cortes.Count; i++)
             {
                 if (cortes[i + 1] - cortes[i] <= 1e-9) continue;
+                if (postes[i] == null && postes[i + 1] == null && limpos.Count > 0) continue;
                 Vao v = new Vao();
                 v.LinhaHandle = r.L.Handle;
                 v.Trecho = trecho++;
@@ -171,9 +248,44 @@ namespace OrcamentoNanoCAD.Nucleo
         // ── 3) associação texto → vão / poste ──
         private class Ancora { public Ponto P; public List<Ponto> Guia; }
 
+        /// <summary>Segue uma guia a partir da ponta que toca o texto; se a outra ponta encosta em outra guia (guia em pedaços:
+        /// sublinhado + chamada), continua por ela. Devolve a ponta final e o caminho percorrido.</summary>
+        private static Ancora Seguir(List<Ponto> g, bool comecaNoInicio, Contexto ctx)
+        {
+            double junta = ctx.H * 0.5, limite = ctx.Cfg.GuiaMaxAlturas * ctx.H;
+            string layer;
+            _layerDaGuia.TryGetValue(g, out layer);
+            List<Ponto> caminho = new List<Ponto>(comecaNoInicio ? g : Enumerable.Reverse(g));
+            HashSet<List<Ponto>> usadas = new HashSet<List<Ponto>> { g };
+            for (int passo = 0; passo < 4 && Geometria.Comprimento(caminho) < limite; passo++)
+            {
+                Ponto fim = caminho[caminho.Count - 1];
+                List<Ponto> prox = null;
+                bool inicio = true;
+                foreach (List<Ponto> o in ctx.Guias)
+                {
+                    string lo;
+                    // só continua por guia da MESMA layer (sublinhado + chamada); não passeia por ruas e outras linhas
+                    if (usadas.Contains(o) || !_layerDaGuia.TryGetValue(o, out lo) || lo != layer) continue;
+                    if (o[0].Dist(fim) <= junta) { prox = o; inicio = true; break; }
+                    if (o[o.Count - 1].Dist(fim) <= junta) { prox = o; inicio = false; break; }
+                }
+                if (prox == null) break;
+                usadas.Add(prox);
+                caminho.AddRange((inicio ? prox : Enumerable.Reverse(prox)).Skip(1));
+            }
+            return new Ancora { P = caminho[caminho.Count - 1], Guia = caminho };
+        }
+
+        [ThreadStatic] private static Dictionary<List<Ponto>, string> _layerDaGuiaTs;
+        private static Dictionary<List<Ponto>, string> _layerDaGuia
+        {
+            get { if (_layerDaGuiaTs == null) _layerDaGuiaTs = new Dictionary<List<Ponto>, string>(); return _layerDaGuiaTs; }
+        }
+
         /// <summary>De onde a busca parte: a outra ponta das linhas de chamada do próprio texto (MLEADER), depois a outra ponta de cada
-        /// guia que toca o CONTORNO do texto (da mais perto à mais longe), depois o próprio texto (centro e inserção).</summary>
-        private static List<Ancora> Ancoras(TextoDesenho t, double raio, Contexto ctx)
+        /// guia que toca o CONTORNO do texto (da mais perto à mais longe, seguindo guias em pedaços), depois o próprio texto.</summary>
+        private static List<Ancora> Ancoras(TextoDesenho t, Contexto ctx)
         {
             List<Ancora> saida = new List<Ancora>();
             foreach (List<Ponto> g in t.Guias)
@@ -181,12 +293,17 @@ namespace OrcamentoNanoCAD.Nucleo
                 Ponto a = g[0], b = g[g.Count - 1];
                 saida.Add(new Ancora { P = t.Distancia(a) >= t.Distancia(b) ? a : b, Guia = g });
             }
+            double h = t.Altura > 0 ? t.Altura : ctx.H;
             List<KeyValuePair<double, Ancora>> achados = new List<KeyValuePair<double, Ancora>>();
             foreach (List<Ponto> g in ctx.Guias)
             {
+                string lg;
+                _layerDaGuia.TryGetValue(g, out lg);
+                // guia na MESMA layer do texto (o normal num projeto organizado): pode começar mais longe; outra layer: só encostada
+                double toque = (lg != null && string.Equals(lg, t.Layer, StringComparison.OrdinalIgnoreCase) ? ctx.Cfg.GuiaToqueAlturas : ctx.Cfg.RaioAlturas) * h;
                 double d0 = t.Distancia(g[0]), d1 = t.Distancia(g[g.Count - 1]);
-                if (d0 <= raio && d0 <= d1) achados.Add(new KeyValuePair<double, Ancora>(d0, new Ancora { P = g[g.Count - 1], Guia = g }));
-                else if (d1 <= raio) achados.Add(new KeyValuePair<double, Ancora>(d1, new Ancora { P = g[0], Guia = g }));
+                if (d0 <= toque && d0 <= d1) achados.Add(new KeyValuePair<double, Ancora>(d0, Seguir(g, true, ctx)));
+                else if (d1 <= toque) achados.Add(new KeyValuePair<double, Ancora>(d1, Seguir(g, false, ctx)));
             }
             saida.AddRange(achados.OrderBy(a => a.Key).Select(a => a.Value));
             saida.Add(new Ancora { P = t.Centro });
@@ -194,41 +311,48 @@ namespace OrcamentoNanoCAD.Nucleo
             return saida;
         }
 
-        private static Vao VaoMaisProximo(List<Ancora> busca, double raio, Contexto ctx, out double dist, out List<Ponto> guia)
+        private class Candidato
         {
-            foreach (Ancora q in busca)
-            {
-                Vao melhor = null;
-                double md = double.MaxValue;
-                foreach (Vao v in ctx.Vaos)
-                {
-                    double dd = Geometria.Projetar(q.P, v.Pontos).Distancia;
-                    if (dd <= raio && dd < md) { md = dd; melhor = v; }
-                }
-                if (melhor != null) { dist = md; guia = q.Guia; return melhor; }
-            }
-            dist = double.MaxValue;
-            guia = null;
+            public TextoLido T;
+            public Elemento E;
+            public double Nota;          // menor = melhor
+            public double Dist;
+            public List<Ponto> Guia;
+            public bool Reserva;         // sem guia, por proximidade ampliada
+        }
+
+        /// <summary>Nível que a anotação do cabo indica: MT com tensão em kV; BT para multiplex (PB/RAMA); null = não diz.</summary>
+        private static string NivelDoTexto(TextoLido tl)
+        {
+            CaboLido c = Anotacoes.LerCabo(tl.R.Ativo);
+            if (!string.IsNullOrEmpty(c.Tensao)) return c.Nivel;
+            string cod = (c.Codigo ?? "").ToUpperInvariant();
+            if (cod.StartsWith("PB") || cod.StartsWith("RAMA")) return "BT";
             return null;
         }
 
-        private static Poste PosteMaisProximo(List<Ancora> busca, double raio, Contexto ctx, out double dist, out List<Ponto> guia)
+        private static List<Candidato> Candidatos(TextoLido tl, Contexto ctx, bool cabo, double raio, bool reserva)
         {
-            foreach (Ancora q in busca)
+            List<Candidato> l = new List<Candidato>();
+            string nivel = cabo ? NivelDoTexto(tl) : null;
+            List<Ancora> ancoras = Ancoras(tl.T, ctx);
+            for (int k = 0; k < ancoras.Count; k++)
             {
-                Poste melhor = null;
-                double md = double.MaxValue;
-                foreach (Poste p in ctx.Postes)
+                Ancora q = ancoras[k];
+                bool viaGuia = q.Guia != null;
+                // pela guia, a ponta precisa CAIR no elemento; pelo próprio texto, vale o raio (na reserva, o raio ampliado vale para os dois)
+                double alcance = viaGuia && !reserva ? Math.Max(ctx.Cfg.TolPosteAlturas * ctx.H, ctx.H * 2) : raio;
+                IEnumerable<Elemento> elems = cabo ? ctx.Vaos.Cast<Elemento>() : ctx.Postes.Where(p => !string.IsNullOrEmpty(p.Handle)).Cast<Elemento>();
+                foreach (Elemento e in elems)
                 {
-                    if (string.IsNullOrEmpty(p.Handle)) continue;            // poste "só anotação" não recebe outra anotação
-                    double dd = q.P.Dist(p.Ponto);
-                    if (dd <= raio && dd < md) { md = dd; melhor = p; }
+                    double dd = cabo ? Geometria.Projetar(q.P, ((Vao)e).Pontos).Distancia : q.P.Dist(((Poste)e).Ponto);
+                    if (dd > alcance) continue;
+                    double nota = (viaGuia ? 0 : 1000) + k + dd / Math.Max(alcance, 1e-9);
+                    if (cabo && nivel != null && ((Vao)e).Tipo != nivel) continue;           // anotação de MT nunca vai para vão de BT (e vice-versa)
+                    l.Add(new Candidato { T = tl, E = e, Nota = nota, Dist = dd, Guia = q.Guia, Reserva = reserva });
                 }
-                if (melhor != null) { dist = md; guia = q.Guia; return melhor; }
             }
-            dist = double.MaxValue;
-            guia = null;
-            return null;
+            return l.OrderBy(c => c.Nota).ToList();
         }
 
         public static void Anotar(Elemento e, TextoLido tl)
@@ -263,12 +387,11 @@ namespace OrcamentoNanoCAD.Nucleo
             ctx.Ignorados.Add(new TextoIgnorado { Handle = tl.T.Handle, Texto = tl.T.Texto, Layer = tl.T.Layer, Cor = tl.T.Cor, Tipo = tl.T.Tipo, X = tl.T.X, Y = tl.T.Y, Motivo = motivo });
         }
 
-        private static void AssociarTextos(List<TextoLido> lidos, Contexto ctx, List<Avulso> avulsos)
+        /// <summary>Liga cada anotação a um poste/vão. Devolve as anotações a MAIS de cada elemento (viram "irmãos": V7b, P3b).</summary>
+        private static Dictionary<Elemento, List<TextoLido>> AssociarTextos(List<TextoLido> lidos, Contexto ctx, List<Avulso> avulsos)
         {
-            ConfigLeitura cfg = ctx.Regras.Leitura ?? _padrao;
-            Dictionary<Vao, List<KeyValuePair<double, TextoLido>>> porVao = new Dictionary<Vao, List<KeyValuePair<double, TextoLido>>>();
-            Dictionary<Poste, List<KeyValuePair<double, TextoLido>>> porPoste = new Dictionary<Poste, List<KeyValuePair<double, TextoLido>>>();
-            Dictionary<TextoLido, List<Ponto>> guias = new Dictionary<TextoLido, List<Ponto>>();
+            ConfigLeitura cfg = ctx.Cfg;
+            List<TextoLido> paraLigar = new List<TextoLido>();
             foreach (TextoLido tl in lidos)
             {
                 if (tl.T.Tipo == "BLOCO") continue;
@@ -279,74 +402,148 @@ namespace OrcamentoNanoCAD.Nucleo
                     continue;
                 }
                 if (ent == "RAMAIS" || ent == "IP") { Ignorar(ctx, tl, "ramal/IP (vai para Ramais na aplicação, fora da obra do plugin)"); continue; }
-                if (tl.T.Tipo == "BLOCO_DEF") { if (VaiParaOutros(ent) || EhCabo(ent)) avulsos.Add(NovoAvulso(tl, Estados.Ok, null)); continue; }
+                if (tl.T.Tipo == "BLOCO_DEF") { if (VaiParaOutros(ent) || EhCabo(ent)) avulsos.Add(NovoAvulso(tl, null)); continue; }
+                if (EhCabo(ent) || EhPoste(ent)) paraLigar.Add(tl);
+                else if (VaiParaOutros(ent)) avulsos.Add(NovoAvulso(tl, null));
+            }
+
+            // 1ª passada: cada anotação no melhor candidato (guia primeiro, depois o raio normal)
+            Dictionary<Elemento, List<Candidato>> por = new Dictionary<Elemento, List<Candidato>>();
+            Dictionary<TextoLido, List<Candidato>> cands = new Dictionary<TextoLido, List<Candidato>>();
+            List<TextoLido> sobra = new List<TextoLido>();
+            foreach (TextoLido tl in paraLigar)
+            {
                 double h = tl.T.Altura > 0 ? tl.T.Altura : ctx.H;
-                double raio = cfg.RaioAlturas * h;
-                List<Ancora> busca = Ancoras(tl.T, raio, ctx);
-                double dist;
-                List<Ponto> guia;
-                if (EhCabo(ent))
-                {
-                    Vao v = VaoMaisProximo(busca, raio, ctx, out dist, out guia);
-                    if (v != null) { Adicionar(porVao, v, dist, tl); guias[tl] = guia; continue; }
-                    avulsos.Add(NovoAvulso(tl, Estados.Conferir, "anotação de cabo sem vão por perto (rede nas layers " + string.Join("/", cfg.LayersRedeMT.Concat(cfg.LayersRedeBT).ToArray()) + ")"));
-                    continue;
-                }
-                if (EhPoste(ent))
-                {
-                    Poste ps = PosteMaisProximo(busca, raio, ctx, out dist, out guia);
-                    if (ps != null) { Adicionar(porPoste, ps, dist, tl); guias[tl] = guia; continue; }
-                    // sem bloco de poste: vira um poste só da anotação (fica sem vãos)
-                    Poste novo = new Poste();
-                    novo.Handle = ""; novo.X = tl.T.X; novo.Y = tl.T.Y;
-                    Anotar(novo, tl);
-                    novo.MensagensFixas.Add("anotação de poste sem bloco de poste por perto (blocos: " + string.Join(", ", cfg.BlocosPoste.ToArray())
-                                            + (cfg.LayersPoste.Count > 0 ? "; layers: " + string.Join(", ", cfg.LayersPoste.ToArray()) : "") + ")");
-                    ctx.Postes.Add(novo);
-                    continue;
-                }
-                if (VaiParaOutros(ent)) avulsos.Add(NovoAvulso(tl, Estados.Ok, null));
+                List<Candidato> c = Candidatos(tl, ctx, EhCabo(tl.R.Entidade), cfg.RaioAlturas * h, false);
+                cands[tl] = c;
+                if (c.Count == 0) { sobra.Add(tl); continue; }
+                Lista(por, c[0].E).Add(c[0]);
             }
-            foreach (KeyValuePair<Vao, List<KeyValuePair<double, TextoLido>>> kv in porVao)
+            // rebalanceia: anotação a mais num elemento vai para um candidato SEM anotação, se ele for quase tão bom
+            foreach (Elemento e in por.Keys.ToList())
             {
-                List<KeyValuePair<double, TextoLido>> l = kv.Value.OrderBy(x => x.Key).ToList();
-                Anotar(kv.Key, l[0].Value);
-                kv.Key.GuiaUsada = guias.ContainsKey(l[0].Value) ? guias[l[0].Value] : null;
+                List<Candidato> l = por[e].OrderBy(x => x.Nota).ToList();
                 for (int i = 1; i < l.Count; i++)
                 {
-                    Avulso a = NovoAvulso(l[i].Value, Estados.Conferir, null);
-                    a.PertoDe = kv.Key;
-                    avulsos.Add(a);
+                    Candidato alt = cands[l[i].T].FirstOrDefault(x => x.E != e && !por.ContainsKey(x.E) && x.Nota <= l[i].Nota + 1);
+                    if (alt == null) continue;
+                    por[e].Remove(l[i]);
+                    Lista(por, alt.E).Add(alt);
                 }
             }
-            foreach (KeyValuePair<Poste, List<KeyValuePair<double, TextoLido>>> kv in porPoste)
+            // 2ª passada (sem guia e longe): elemento SEM anotação mais perto, até o raio de reserva; vai para Conferir
+            foreach (TextoLido tl in sobra)
             {
-                // a anotação do poste é a de entidade POSTE mais próxima; senão a ESTRUTURA mais próxima
-                List<KeyValuePair<double, TextoLido>> l = kv.Value.OrderBy(x => x.Value.R.Entidade == "POSTE" ? 0 : 1).ThenBy(x => x.Key).ToList();
-                Anotar(kv.Key, l[0].Value);
-                kv.Key.GuiaUsada = guias.ContainsKey(l[0].Value) ? guias[l[0].Value] : null;
-                for (int i = 1; i < l.Count; i++)
+                double h = tl.T.Altura > 0 ? tl.T.Altura : ctx.H;
+                Candidato c = Candidatos(tl, ctx, EhCabo(tl.R.Entidade), cfg.RaioReservaAlturas * h, true).FirstOrDefault(x => !por.ContainsKey(x.E));
+                if (c != null) { Lista(por, c.E).Add(c); continue; }
+                if (EhCabo(tl.R.Entidade))
                 {
-                    Avulso a = NovoAvulso(l[i].Value, Estados.Conferir, null);
-                    a.PertoDe = kv.Key;
-                    avulsos.Add(a);
+                    avulsos.Add(NovoAvulso(tl, "anotação de cabo sem vão por perto (rede nas layers " + string.Join("/", cfg.LayersRedeMT.Concat(cfg.LayersRedeBT).ToArray()) + ")"));
+                    continue;
                 }
+                Poste novo = new Poste();                                       // sem bloco: poste só da anotação (fica sem vãos)
+                novo.Handle = ""; novo.X = tl.T.X; novo.Y = tl.T.Y;
+                Anotar(novo, tl);
+                novo.MensagensFixas.Add("anotação de poste sem bloco de poste por perto (blocos: " + string.Join(", ", cfg.BlocosPoste.ToArray())
+                                        + (cfg.LayersPoste.Count > 0 ? "; layers: " + string.Join(", ", cfg.LayersPoste.ToArray()) : "") + ")");
+                ctx.Postes.Add(novo);
             }
+
+            Dictionary<Elemento, List<TextoLido>> extras = new Dictionary<Elemento, List<TextoLido>>();
+            foreach (KeyValuePair<Elemento, List<Candidato>> kv in por)
+            {
+                // poste: a anotação de entidade POSTE vem antes da de ESTRUTURA
+                List<Candidato> l = kv.Value.OrderBy(x => x.T.R.Entidade == "POSTE" ? 0 : 1).ThenBy(x => x.Nota).ToList();
+                Anotar(kv.Key, l[0].T);
+                kv.Key.GuiaUsada = l[0].Guia;
+                if (l[0].Reserva) kv.Key.MensagensFixas.Add("anotação ligada por proximidade (sem linha guia): confira");
+                if (l.Count > 1) extras[kv.Key] = l.Skip(1).Select(x => x.T).ToList();
+                for (int i = 1; i < l.Count; i++) _guiaExtra[l[i].T] = l[i].Guia;
+            }
+            return extras;
         }
 
-        private static void Adicionar<T>(Dictionary<T, List<KeyValuePair<double, TextoLido>>> d, T chave, double dist, TextoLido tl)
+        [ThreadStatic] private static Dictionary<TextoLido, List<Ponto>> _guiaExtraTs;
+        private static Dictionary<TextoLido, List<Ponto>> _guiaExtra
         {
-            List<KeyValuePair<double, TextoLido>> l;
-            if (!d.TryGetValue(chave, out l)) { l = new List<KeyValuePair<double, TextoLido>>(); d[chave] = l; }
-            l.Add(new KeyValuePair<double, TextoLido>(dist, tl));
+            get { if (_guiaExtraTs == null) _guiaExtraTs = new Dictionary<TextoLido, List<Ponto>>(); return _guiaExtraTs; }
         }
 
-        private static Avulso NovoAvulso(TextoLido tl, string estado, string msg)
+        private static List<Candidato> Lista(Dictionary<Elemento, List<Candidato>> d, Elemento e)
+        {
+            List<Candidato> l;
+            if (!d.TryGetValue(e, out l)) { l = new List<Candidato>(); d[e] = l; }
+            return l;
+        }
+
+        private static Avulso NovoAvulso(TextoLido tl, string msg)
         {
             Avulso a = new Avulso();
             Anotar(a, tl);
             if (msg != null) a.MensagensFixas.Add(msg);
             return a;
+        }
+
+        /// <summary>Mais de uma anotação no mesmo vão/poste (recondutagem: instala + retira + BT; troca de poste): cada uma vira um
+        /// elemento "irmão" na mesma geometria (V7b, P3b) — vai para a obra como uma linha a mais, com vínculo próprio.</summary>
+        private static void CriarIrmaos(Obra obra, Dictionary<Elemento, List<TextoLido>> extras)
+        {
+            foreach (KeyValuePair<Elemento, List<TextoLido>> kv in extras)
+            {
+                int k = 2;
+                foreach (TextoLido tl in kv.Value)
+                {
+                    Vao v = kv.Key as Vao;
+                    Poste p = kv.Key as Poste;
+                    Elemento novo;
+                    if (v != null)
+                    {
+                        Vao n = new Vao { LinhaHandle = v.LinhaHandle, Trecho = v.Trecho, Pontos = v.Pontos, Tipo = v.Tipo, LinhaLayer = v.LinhaLayer, LinhaCor = v.LinhaCor,
+                                          PosteA = v.PosteA, PosteB = v.PosteB, PosteObjA = v.PosteObjA, PosteObjB = v.PosteObjB };
+                        obra.Vaos.Insert(obra.Vaos.IndexOf(v) + k - 1, n);
+                        novo = n;
+                    }
+                    else
+                    {
+                        Poste n = new Poste { Handle = p.Handle, X = p.X, Y = p.Y, Bloco = p.Bloco };
+                        n.OutrosHandles.AddRange(p.OutrosHandles);
+                        obra.Postes.Insert(obra.Postes.IndexOf(p) + k - 1, n);
+                        novo = n;
+                    }
+                    Anotar(novo, tl);
+                    List<Ponto> g;
+                    if (_guiaExtra.TryGetValue(tl, out g)) novo.GuiaUsada = g;
+                    novo.Numero = kv.Key.Numero + (char)('a' + k - 1);              // V7b, V7c… (só ASCII: vai na linha de comando)
+                    novo.IrmaoDe = kv.Key.Numero;
+                    k++;
+                }
+            }
+            _guiaExtra.Clear();
+            // anotação repetida (mesmo texto e operação no mesmo vão/poste) é quase sempre desenho duplicado
+            foreach (IGrouping<string, Elemento> g in obra.Postes.Cast<Elemento>().Concat(obra.Vaos.Cast<Elemento>())
+                         .Where(e => e.TemAnotacao).GroupBy(e => (e.IrmaoDe ?? e.Numero) + "|" + e.Operacao + "|" + MotorLeitor.LimparTexto(e.AtivoLido).ToUpperInvariant()))
+                foreach (Elemento e in g.Skip(1)) e.MensagensFixas.Add("anotação repetida no mesmo " + (e is Vao ? "vão" : "poste") + " (" + g.First().Numero + "): desenho duplicado?");
+        }
+
+        /// <summary>Placa do poste (texto como B039571, que as regras ignoram) perto do poste ou ligada a ele por guia.</summary>
+        private static void LerPlacas(Obra obra, Contexto ctx)
+        {
+            System.Text.RegularExpressions.Regex re = MotorLeitor.RegexJs(ctx.Cfg.PlacaRegex);
+            if (re == null) return;
+            List<Poste> comBloco = obra.Postes.Where(p => !string.IsNullOrEmpty(p.Handle) && p.IrmaoDe == null).ToList();
+            foreach (TextoIgnorado t in ctx.Ignorados.ToList())
+            {
+                if (!re.IsMatch((t.Texto ?? "").Trim())) continue;
+                TextoLido tl = ctx.Lidos.FirstOrDefault(x => x.T.Handle == t.Handle && x.T.Texto == t.Texto);
+                if (tl == null) continue;
+                double h = tl.T.Altura > 0 ? tl.T.Altura : ctx.H;
+                List<Candidato> c = Candidatos(tl, ctx, false, ctx.Cfg.RaioAlturas * h, false);
+                Candidato melhor = c.FirstOrDefault(x => comBloco.Contains((Poste)x.E) && string.IsNullOrEmpty(((Poste)x.E).Placa));
+                if (melhor == null) continue;
+                ((Poste)melhor.E).Placa = t.Texto.Trim();
+                t.Motivo = "placa do poste " + melhor.E.Numero;
+            }
         }
 
         // ── 4) numeração seguindo a rede ──

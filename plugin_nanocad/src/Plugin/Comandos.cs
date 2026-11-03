@@ -113,6 +113,8 @@ namespace OrcamentoNanoCAD
             s.Obra = nova;
             Aplicacao.Msg("ORC_LER " + Relatorios.Resumo(nova) + " (" + d.Textos.Count + " textos, " + d.Postes.Count + " postes no desenho, " + d.Linhas.Count
                           + " linhas; " + nova.Ignorados.Count + " textos ignorados pelas regras)");
+            foreach (string sug in Diagnostico.SugestoesDeRede(d, nova, s.Regras.Leitura).Concat(Diagnostico.SugestoesDeBlocos(bruto, nova, s.Regras.Leitura)))
+                Aplicacao.Msg("💡 " + sug);
             if (d.Postes.Count == 0 || nova.Vaos.Count == 0)
                 Aplicacao.Msg("⚠ " + (d.Postes.Count == 0 ? "Nenhum bloco de poste achado. " : "") + (nova.Vaos.Count == 0 ? "Nenhuma rede achada. " : "")
                               + "Confira em ⚙ Leitura (ORC_LEITURA) as layers da rede e o nome do bloco de poste deste desenho; ORC_DIAGNOSTICO mostra o que foi lido.");

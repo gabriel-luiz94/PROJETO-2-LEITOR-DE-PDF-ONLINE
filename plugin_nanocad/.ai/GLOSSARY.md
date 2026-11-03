@@ -6,6 +6,8 @@
 |---|---|
 | **Poste** (P1…) | bloco cujo nome contém "poste" + a anotação associada (`9400D, N1, N4`). Sem bloco por perto, a anotação vira um poste "só anotação" (Conferir). |
 | **Vão** (V1…) | **linha da rede + anotação associada**. Uma rede (`REDE_MT`/`REDE_BT`) é cortada nos postes: cada pedaço entre dois postes é um vão. |
+| **Irmão** (V7b, P3b) | 2ª+ anotação do mesmo vão/poste (ex.: instala + retira no mesmo vão; poste que sai + poste que entra): mesma geometria, linha própria na obra. |
+| **Placa** | número do poste no desenho (ex.: B039571), lido pela expressão regular da configuração de leitura. |
 | **Trecho** | índice do vão dentro da mesma linha (polilinha que passa por vários postes vira vários vãos). |
 | **Ponta A / B** | postes nas pontas do vão; A = o de número menor (por onde a numeração chegou). Ponta sem poste = Erro. |
 | **Anotação** | o texto do desenho associado ao poste/vão (TEXT, parágrafo de MTEXT ou atributo). |

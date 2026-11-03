@@ -136,7 +136,8 @@ namespace OrcamentoNanoCAD.UI
         public ConfigLeitura Resultado;
         private readonly TextBox _mt, _bt, _blocos, _layersPoste, _layersGuia;
         private readonly CheckBox _cor;
-        private readonly NumericUpDown _raio, _guia, _tol;
+        private readonly NumericUpDown _raio, _guia, _tol, _toque, _reserva;
+        private readonly TextBox _placa;
 
         public TelaLeitura(RegrasProjeto regras, IEnumerable<string> layersDoDesenho, IEnumerable<string> blocosDoDesenho)
         {
@@ -150,7 +151,7 @@ namespace OrcamentoNanoCAD.UI
             Padding = new Padding(16);
             FlowLayoutPanel f = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false };
             f.Controls.Add(Visual.Rotulo("Onde o plugin procura a rede, os postes e as linhas guias neste padrão de desenho.\n"
-                + "Listas separadas por vírgula; vale quando o nome CONTÉM o trecho (sem diferença de maiúsculas).", Visual.Normal, Visual.Suave));
+                + "Listas separadas por vírgula; vale quando o nome CONTÉM o trecho (sem diferença de maiúsculas); \"=NOME\" = nome exato (ex.: =0).", Visual.Normal, Visual.Suave));
             _mt = Campo(f, "Layers da rede de MÉDIA tensão", string.Join(", ", c.LayersRedeMT.ToArray()));
             _bt = Campo(f, "Layers da rede de BAIXA tensão", string.Join(", ", c.LayersRedeBT.ToArray()));
             _cor = new CheckBox { Text = "A cor confirma a layer (vermelho = MT, verde = BT; cor contrária descarta a linha)", Checked = c.CorConfirma, AutoSize = true };
@@ -163,6 +164,11 @@ namespace OrcamentoNanoCAD.UI
             _guia = Numero(nums, "Guia de até (× altura)", c.GuiaMaxAlturas);
             _tol = Numero(nums, "Poste sobre a rede até (× altura)", c.TolPosteAlturas);
             f.Controls.Add(nums);
+            FlowLayoutPanel nums2 = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+            _toque = Numero(nums2, "Guia começa a até (× altura do texto)", c.GuiaToqueAlturas);
+            _reserva = Numero(nums2, "Sem guia: elemento livre até (× altura)", c.RaioReservaAlturas);
+            f.Controls.Add(nums2);
+            _placa = Campo(f, "Placa do poste (expressão regular; vazio = não procurar)", c.PlacaRegex);
             Label ajuda = Visual.Rotulo("Layers deste desenho: " + Resumir(layersDoDesenho) + "\nBlocos deste desenho: " + Resumir(blocosDoDesenho), Visual.Normal, Visual.Suave);
             ajuda.MaximumSize = new Size(640, 0);
             ajuda.Margin = new Padding(0, 8, 0, 8);
@@ -212,6 +218,9 @@ namespace OrcamentoNanoCAD.UI
             c.RaioAlturas = (double)_raio.Value;
             c.GuiaMaxAlturas = (double)_guia.Value;
             c.TolPosteAlturas = (double)_tol.Value;
+            c.GuiaToqueAlturas = (double)_toque.Value;
+            c.RaioReservaAlturas = (double)_reserva.Value;
+            c.PlacaRegex = (_placa.Text ?? "").Trim();
             if (c.LayersRedeMT.Count + c.LayersRedeBT.Count == 0 || c.BlocosPoste.Count + c.LayersPoste.Count == 0)
             {
                 MessageBox.Show(this, "Informe ao menos uma layer de rede e um bloco (ou layer) de poste.", "Orçamento", MessageBoxButtons.OK, MessageBoxIcon.Warning);

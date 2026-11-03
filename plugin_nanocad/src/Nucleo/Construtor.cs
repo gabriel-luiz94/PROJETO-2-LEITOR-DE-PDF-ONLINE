@@ -181,13 +181,15 @@ namespace OrcamentoNanoCAD.Nucleo
             if (antiga == null) return;
             foreach (Poste pa in antiga.Postes)
             {
-                Poste pn = nova.Postes.FirstOrDefault(x => (!string.IsNullOrEmpty(pa.Handle) && x.Handle == pa.Handle) || (!string.IsNullOrEmpty(pa.TextoHandle) && x.TextoHandle == pa.TextoHandle));
+                Poste pn = nova.Postes.FirstOrDefault(x => !string.IsNullOrEmpty(pa.TextoHandle) && x.TextoHandle == pa.TextoHandle)
+                        ?? nova.Postes.FirstOrDefault(x => !string.IsNullOrEmpty(pa.Handle) && x.Handle == pa.Handle && x.IrmaoDe == null);
                 if (pn != null && pa.OperacaoAjustada && pn.TextoHandle == pa.TextoHandle) pn.Operacao = pa.Operacao;
             }
             foreach (Vao va in antiga.Vaos)
             {
-                Vao vn = nova.Vaos.FirstOrDefault(x => x.LinhaHandle == va.LinhaHandle && x.Trecho == va.Trecho)
-                      ?? nova.Vaos.FirstOrDefault(x => !string.IsNullOrEmpty(va.TextoHandle) && x.TextoHandle == va.TextoHandle);
+                // pela anotação primeiro (vários vãos "irmãos" dividem a mesma linha), depois pela linha
+                Vao vn = nova.Vaos.FirstOrDefault(x => !string.IsNullOrEmpty(va.TextoHandle) && x.TextoHandle == va.TextoHandle)
+                      ?? nova.Vaos.FirstOrDefault(x => x.LinhaHandle == va.LinhaHandle && x.Trecho == va.Trecho && x.IrmaoDe == null);
                 if (vn == null || vn.TextoHandle != va.TextoHandle) continue;
                 if (va.OperacaoAjustada) vn.Operacao = va.Operacao;
                 if (va.Metros.HasValue && va.Metros != va.MetrosLidos) vn.Metros = va.Metros;

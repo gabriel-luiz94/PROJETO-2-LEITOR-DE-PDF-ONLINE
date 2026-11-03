@@ -63,6 +63,10 @@
 | RQ-64 | Seleção manual funcionando (poste bloco/círculo, anotação TEXT/MTEXT/MLEADER) | 🟡 | `ORC_POSTE`, `ORC_VAO`, `Visual.Executar` |
 | RQ-65 | Voltar ao menu inicial; fechar a obra | 🟡 | ⌂ Início, `ORC_FECHAR` |
 | RQ-66 | Visual na paleta da aplicação | 🟡 | `Plugin/Tema.cs` |
+| RQ-68 | Várias anotações no mesmo vão/poste (recondutagem, troca de poste) | ✅ · 🟡 CAD | irmãos V7b/P3b (`LeitorProjeto.CriarIrmaos`) |
+| RQ-69 | Sugerir a configuração de leitura a partir do desenho (layers de rede, blocos de poste) | ✅ · 🟡 CAD | `Diagnostico.SugestoesDeRede/DeBlocos`, ORC_LER |
+| RQ-70 | Painel com Cabos separados de Postes/estruturas (como o Resumo da aplicação), ícones fáceis de ver | ✅ · 🟡 CAD | `PainelObra`, `Relatorios.Cabos/Outros`, `Icones` |
+| RQ-71 | Ler mostra só o que as regras do leitor classificaram; Construir é livre (sem filtro das regras) | ✅ | `Relatorios.Visivel` |
 | RQ-67 | Abrir a aplicação já com a obra do plugin carregada | ✅ API · 🟡 CAD | `ORC_ABRIR_APP`, `/api/plugin/obra`, Resumo `?obra=` |
 
 ## RQ — Cálculo (fora do CAD)
