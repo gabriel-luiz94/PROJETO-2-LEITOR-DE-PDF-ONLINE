@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-04 — TASK-109: FATOR da Base em função de parâmetro (fórmula)
+
+**Tipo:** feature + migração · `services/fator_formula.py` (novo), `services/orcamento_calc.py`, `services/ativo_parametros.py` (`validar_base`), `database.py`, `routers/orcamento.py`, `routers/admin.py`, `services/sync_service.py`, `services/realtime_sync.py`, `static/orcamento.html`, `scripts/schema_supabase.sql`
+
+FATOR I / FATOR R aceitam um número (como sempre) ou uma FÓRMULA começando com `=` que usa os parâmetros do pedido: `=NUM(fios)/8`, `=SE(tipo="A"; 2; 1)`. Avaliador próprio (sem `eval`): `+ - * /`, comparações, `NUM`, `ABS`, `MAX`, `MIN`, `ARRED`, `CIMA`, `BAIXO`, `SE`, `E`, `OU`, `NAO`; argumentos separados por `;`. A fórmula fica nas colunas novas `formula_i` / `formula_r` (o fator numérico vira 0); linhas sem fórmula não mudam. No cálculo cada uso da linha avalia a fórmula com os parâmetros do pedido (antes do ARRED da TASK-107); erro de fórmula avisa e a linha não soma. A importação recusa fórmula inválida ou com parâmetro que o ativo não declara. O administrador precisa rodar o `schema_supabase.sql` no Supabase.
+
+---
+
 ## 2026-11-04 — TASK-108: nome literal entre colchetes ([S336,4]) na Base e nos pedidos
 
 **Tipo:** feature · `services/ativo_parametros.py` ⇄ `static/ativo_parametros.js` (`literal_de`/`sem_colchetes`, `separar_apelidos`, `nome_base`, `analisar_ativo`, `dividir_tokens`), `services/anotacao_outros.py` ⇄ `static/anotacao_outros.js`, `services/orcamento_calc.py`, `services/autonomo/totalizadora.py`, `static/resumo.js`

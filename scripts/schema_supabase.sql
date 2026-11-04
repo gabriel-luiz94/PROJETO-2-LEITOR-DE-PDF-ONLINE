@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS public.tabela_orcamento_master (
     origem TEXT,
     lv TEXT DEFAULT 'A',
     arred TEXT DEFAULT 'NORMAL',
+    formula_i TEXT DEFAULT '',
+    formula_r TEXT DEFAULT '',
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -112,6 +114,13 @@ UPDATE public.tabela_orcamento_master SET lv = 'A' WHERE lv IS NULL OR btrim(lv)
 -- Linhas existentes (e sem valor) ficam 'NORMAL' = nada muda no cálculo até alguém marcar outro valor.
 ALTER TABLE public.tabela_orcamento_master ADD COLUMN IF NOT EXISTS arred TEXT DEFAULT 'NORMAL';
 UPDATE public.tabela_orcamento_master SET arred = 'NORMAL' WHERE arred IS NULL OR btrim(arred) = '';
+
+-- TASK-109: fator em fórmula (ex.: '=NUM(fios)/8'). Quando preenchida, vale no lugar do número de fator_i / fator_r (que ficam 0).
+-- Linhas existentes ficam sem fórmula ('') = nada muda no cálculo.
+ALTER TABLE public.tabela_orcamento_master ADD COLUMN IF NOT EXISTS formula_i TEXT DEFAULT '';
+ALTER TABLE public.tabela_orcamento_master ADD COLUMN IF NOT EXISTS formula_r TEXT DEFAULT '';
+UPDATE public.tabela_orcamento_master SET formula_i = '' WHERE formula_i IS NULL;
+UPDATE public.tabela_orcamento_master SET formula_r = '' WHERE formula_r IS NULL;
 
 -- Projetos criados antes desta revisão não têm a tabela `regras_conversao`. Ela guarda a tabela
 -- de regras que traduz as entradas CABOS/OUTROS para a totalizadora (botão "Salvar na Nuvem" em

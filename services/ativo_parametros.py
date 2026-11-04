@@ -688,4 +688,25 @@ def validar_base(linhas) -> dict:
                     p1, p2 = restr_do_comp[c1], restr_do_comp[c2]
                     if all(_compativeis(p1[k], p2[k]) for k in set(p1) & set(p2)):
                         avisos.append(f"Código {cod} aparece nos grupos {c1} (linha {n1}) e {c2} (linha {n2}), que podem valer juntos: a quantidade soma duas vezes.")
+    _validar_formulas(analises, parametrizadas, erros)
     return {"erros": erros, "avisos": avisos}
+
+
+def _validar_formulas(analises, parametrizadas, erros):
+    """TASK-109: FATOR I/R em fórmula (``=NUM(fios)/8``) — sintaxe válida e só parâmetros que o ativo da linha declara."""
+    from services.fator_formula import FormulaErro, identificadores
+    for n, linha, a in analises:
+        for campo, rotulo in (("formula_i", "FATOR I"), ("formula_r", "FATOR R")):
+            f = (linha.get(campo) or "").strip()
+            if not f:
+                continue
+            try:
+                usados = identificadores(f)
+            except FormulaErro as e:
+                erros.append(f"Linha {n}: {rotulo} '{f}': {e}.")
+                continue
+            nomes = {nome_tela(p["nome"]) for _, _, aa in parametrizadas.get((_escopo(linha), a["base"]), []) for p in aa["params"] if p["nome"]}
+            for nome in sorted(usados):
+                if nome not in nomes:
+                    existentes = ", ".join(sorted(x.lower() for x in nomes)) or "nenhum"
+                    erros.append(f"Linha {n}: {rotulo} '{f}' usa o parâmetro '{nome.lower()}', que o ativo {a['base']} não tem (parâmetros: {existentes}).")
