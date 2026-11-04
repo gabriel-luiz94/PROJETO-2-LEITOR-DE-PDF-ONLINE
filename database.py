@@ -448,6 +448,8 @@ def init_db():
             origem TEXT,
             lv TEXT DEFAULT 'A',
             arred TEXT DEFAULT 'NORMAL',
+            formula_i TEXT DEFAULT '',
+            formula_r TEXT DEFAULT '',
             updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
@@ -475,6 +477,11 @@ def init_db():
         cursor.execute("ALTER TABLE tabela_orcamento ADD COLUMN arred TEXT DEFAULT 'NORMAL'")   # TASK-107: NORMAL / INTEIRO / CIMA / BAIXO
     except sqlite3.OperationalError:
         pass
+    for coluna_formula in ("formula_i", "formula_r"):                                                # TASK-109: fator em fórmula ("=NUM(fios)/8"); fator_i/fator_r ficam 0
+        try:
+            cursor.execute(f"ALTER TABLE tabela_orcamento ADD COLUMN {coluna_formula} TEXT DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass
 
     # Tabela Orçamento Mestre (Admin)
     cursor.execute('''
@@ -493,6 +500,8 @@ def init_db():
             origem TEXT,
             lv TEXT DEFAULT 'A',
             arred TEXT DEFAULT 'NORMAL',
+            formula_i TEXT DEFAULT '',
+            formula_r TEXT DEFAULT '',
             updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
@@ -512,6 +521,11 @@ def init_db():
         cursor.execute("ALTER TABLE tabela_orcamento_master ADD COLUMN arred TEXT DEFAULT 'NORMAL'")   # TASK-107
     except sqlite3.OperationalError:
         pass
+    for coluna_formula in ("formula_i", "formula_r"):                                                # TASK-109
+        try:
+            cursor.execute(f"ALTER TABLE tabela_orcamento_master ADD COLUMN {coluna_formula} TEXT DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass
     # TASK-078: bancos antigos (e linhas sem valor) ficam todos com 'A' = vale para linha viva e morta (nada muda no cálculo).
     for tabela_lv in ("tabela_orcamento", "tabela_orcamento_master"):
         cursor.execute(f"UPDATE {tabela_lv} SET lv = 'A' WHERE lv IS NULL OR TRIM(lv) = ''")

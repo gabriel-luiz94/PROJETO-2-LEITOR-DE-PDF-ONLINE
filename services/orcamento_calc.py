@@ -6,6 +6,7 @@ import re
 
 from services.orcamento_lv import operacao_viva, passa_lv
 from services.orcamento_arred import aplicar_arred
+from services.fator_formula import FormulaErro, avaliar
 from services.anotacao_outros import contexto_da_base, interpretar_linha
 from services.ativo_parametros import (
     analisar_celula_base, linha_vale, montar_assinaturas, nome_base, resolver_pedido, restricoes_do_grupo, sem_colchetes,
@@ -154,6 +155,19 @@ def interpretar_outros(item: dict, ctx: dict = None) -> tuple:
     if r["formato"] == "antigo" and not r["erros"]:
         problemas += _descartes_formato_antigo(texto)
     return [{"ativo": i["ativo"], "qtd": i["qtd"], "operacao": i["operacao"], "origem": "OUTROS"} for i in r["itens"]], problemas
+
+
+def _fator_do_uso(row, qual, params, avisos) -> float:
+    """TASK-109: fator da linha para ESTE uso — a fórmula (``=NUM(fios)/8``, com os parâmetros do pedido) se houver, senão o número. Fórmula com
+    erro (parâmetro não informado, texto sem número…) avisa e a linha não soma neste uso."""
+    formula = (row.get(f"formula_{qual}") or "").strip()
+    if not formula:
+        return float(row.get(f"fator_{qual}") or 0)
+    try:
+        return avaliar(formula, params)
+    except FormulaErro as e:
+        avisos.append(f"FATOR {qual.upper()} da linha {row.get('codigo')} ({formula}): {e} — a linha não soma neste pedido.")
+        return 0.0
 
 
 def _linha_vale_no_projeto(row, req_proj) -> bool:
@@ -323,7 +337,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             return ("codigo", codigo_lookup[nome_ativo])
         return None
 
-    def _processar_um(nome_ativo, av, rotulo):
+    def _processar_um(nome_ativo, av, rotulo, params=None):
         """Resolve UMA chave do índice (cascata completa). Retorna (achou, dica_de_linha_viva_morta|None)."""
         origem_req = av.get("origem", "").upper()
         operacao_req = av["operacao"]
@@ -347,7 +361,8 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             row_clone["fator_i"] = 1.0
             row_clone["fator_r"] = 1.0
             row_clone["arred"] = "NORMAL"                                   # código direto: fatores e arredondamento neutros
-            componentes_qtd.append({"qtd": av["qtd"], "operacao": av["operacao"], "row": row_clone})
+            row_clone["formula_i"] = row_clone["formula_r"] = ""
+            componentes_qtd.append({"qtd": av["qtd"], "operacao": av["operacao"], "row": row_clone, "params": params or {}})
             return True, None
 
         linhas_ativo = achado[1]
@@ -376,6 +391,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
                 "qtd":      av["qtd"],
                 "operacao": av["operacao"],
                 "row":      row,
+                "params":   params or {},                                  # TASK-109: parâmetros do pedido (para a fórmula do fator)
             })
         return True, None
 
@@ -400,7 +416,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             chaves += [k for k, params in grupos_param.get(base, {}).items() if linha_vale(params, pedido["params"])]
             achou, dica = False, None
             for chave in chaves:
-                ok, d = _processar_um(chave, av, pedido["texto"])
+                ok, d = _processar_um(chave, av, pedido["texto"], pedido["params"])
                 achou = achou or ok
                 dica = dica or d
             if not achou:
@@ -421,8 +437,8 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
         mdo     = (row.get("mdo") or "").strip() or (fallback_mdo or "").strip() or "-"
         key     = (codigo, mdo)
         is_inst = c["operacao"] in ("I", "*I")
-        fator_i = float(row.get("fator_i") or 0)
-        fator_r = float(row.get("fator_r") or 0)
+        fator_i = _fator_do_uso(row, "i", c.get("params"), avisos)
+        fator_r = _fator_do_uso(row, "r", c.get("params"), avisos)
         if key not in codigos:
             codigos[key] = {
                 "mdo":       mdo,

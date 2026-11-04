@@ -11,6 +11,7 @@ from models import SalvarOrcamentoRequest, OrcamentoRequest, DetalhesRequest
 from services.orcamento_calc import processar_calculo
 from services.orcamento_lv import normalizar_lv
 from services.orcamento_arred import normalizar_arred
+from services.fator_formula import normalizar_fator
 from services.ativo_parametros import preencher_componentes, validar_base, resumo_erros
 from services.exportar_xlsx import ErroExportacao, gerar_xlsx
 from services.sync_service import (
@@ -50,14 +51,10 @@ async def upload_orcamento(request: Request, file: UploadFile = File(...)):
                 continue
 
             try:
-                fator_i = float(row_upper.get("FATOR I", "0").replace(",", "."))
-            except ValueError:
-                fator_i = 0.0
-
-            try:
-                fator_r = float(row_upper.get("FATOR R", "0").replace(",", "."))
-            except ValueError:
-                fator_r = 0.0
+                fator_i, formula_i = normalizar_fator(row_upper.get("FATOR I"), "FATOR I")          # TASK-109: número ou fórmula (=NUM(fios)/8)
+                fator_r, formula_r = normalizar_fator(row_upper.get("FATOR R"), "FATOR R")
+            except ValueError as e:
+                return JSONResponse(status_code=400, content={"error": f"Linha {n} do arquivo: {e} Nada foi alterado."})
 
             try:
                 lv = normalizar_lv(row_upper.get("LV"))
@@ -71,10 +68,11 @@ async def upload_orcamento(request: Request, file: UploadFile = File(...)):
 
             linhas.append((ativo, row_upper.get("DESC ATIVO", ""), row_upper.get("COMPONENTE", ""), row_upper.get("PROJETO", ""),
                            row_upper.get("MDO", ""), row_upper.get("CODIGO", ""), row_upper.get("DESC CODIGO", ""),
-                           fator_i, fator_r, row_upper.get("FILTRO", ""), lv, arred))
+                           fator_i, fator_r, row_upper.get("FILTRO", ""), lv, arred, formula_i, formula_r))
 
         # TASK-079: ativos com parâmetros (N1=N1(cabo=XLPE), N1(cabo=ALUM)…) — recusa cadastro inconsistente antes de apagar
-        reg, n_comp = preencher_componentes([{"ativo": t[0], "componente": t[2], "projeto": t[3], "codigo": t[5], "lv": t[10]} for t in linhas])   # TASK-080
+        reg, n_comp = preencher_componentes([{"ativo": t[0], "componente": t[2], "projeto": t[3], "codigo": t[5], "lv": t[10],
+                                       "formula_i": t[12], "formula_r": t[13]} for t in linhas])   # TASK-080; TASK-109: fórmulas do fator para a validação
         linhas = [t[:2] + (r["componente"],) + t[3:] for t, r in zip(linhas, reg)]
         val = validar_base(reg)
         if val["erros"]:
@@ -87,8 +85,8 @@ async def upload_orcamento(request: Request, file: UploadFile = File(...)):
         cursor.execute("DELETE FROM tabela_orcamento")
         for t in linhas:
             cursor.execute('''
-                INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, lv, arred)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, lv, arred, formula_i, formula_r)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', t)
 
         conn.commit()
@@ -156,6 +154,8 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
         try:
             row["lv"] = normalizar_lv(row.get("lv"))
             row["arred"] = normalizar_arred(row.get("arred"))        # TASK-107
+            row["fator_i"], row["formula_i"] = normalizar_fator(row.get("fator_i"), "FATOR I")      # TASK-109: número ou fórmula
+            row["fator_r"], row["formula_r"] = normalizar_fator(row.get("fator_r"), "FATOR R")
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Linha {i}: {e}")
 
@@ -187,19 +187,11 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
             if not ativo and not codigo:
                 continue
 
-            try:
-                fator_i = float(str(row.get("fator_i", "0")).replace(",", "."))
-            except ValueError:
-                fator_i = 0.0
-
-            try:
-                fator_r = float(str(row.get("fator_r", "0")).replace(",", "."))
-            except ValueError:
-                fator_r = 0.0
+            fator_i, fator_r = row["fator_i"], row["fator_r"]                 # já normalizados acima (TASK-109)
 
             cursor.execute('''
-                INSERT INTO tabela_orcamento (user_id, ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, lv, arred)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO tabela_orcamento (user_id, ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, lv, arred, formula_i, formula_r)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 user_id,
                 ativo,
@@ -213,7 +205,9 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
                 fator_r,
                 row.get("filtro", "").strip(),
                 row["lv"],
-                row["arred"]
+                row["arred"],
+                row["formula_i"],
+                row["formula_r"]
             ))
 
         conn.commit()

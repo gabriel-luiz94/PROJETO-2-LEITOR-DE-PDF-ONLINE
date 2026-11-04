@@ -43,8 +43,8 @@ def sync_tabela_master():
         for row in master_rows:
             cursor.execute('''
                 INSERT INTO tabela_orcamento_master 
-                (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv, arred)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv, arred, formula_i, formula_r)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 row.get("ativo", ""),
                 row.get("desc_ativo", ""),
@@ -58,7 +58,9 @@ def sync_tabela_master():
                 row.get("filtro", ""),
                 row.get("origem", ""),
                 lv_tolerante(row.get("lv")),      # nuvem antiga (sem a coluna) → "A"
-                arred_tolerante(row.get("arred"))      # TASK-107: nuvem sem a coluna → "NORMAL"
+                arred_tolerante(row.get("arred")),      # TASK-107: nuvem sem a coluna → "NORMAL"
+                row.get("formula_i") or "",             # TASK-109: nuvem sem a coluna → fator numérico
+                row.get("formula_r") or ""
             ))
             
         cursor.execute("COMMIT")
@@ -167,14 +169,16 @@ def migrar_projetos_compartilhados() -> dict:
             for nova in divididas[1:]:
                 cursor.execute('''
                     INSERT INTO tabela_orcamento_master
-                    (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv, arred)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv, arred, formula_i, formula_r)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     nova.get("ativo"), nova.get("desc_ativo"), nova.get("componente"), nova.get("projeto"),
                     nova.get("mdo"), nova.get("codigo"), nova.get("desc_codigo"),
                     nova.get("fator_i"), nova.get("fator_r"), nova.get("filtro"), nova.get("origem"),
                     lv_tolerante(nova.get("lv")),
                     arred_tolerante(nova.get("arred")),
+                    nova.get("formula_i") or "",
+                    nova.get("formula_r") or "",
                 ))
                 resultado["linhas_criadas_local"] += 1
             resultado["linhas_divididas_local"] += 1

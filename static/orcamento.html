@@ -568,6 +568,13 @@
                 ['LV', 'LM', 'A'].map(o => `<option value="${o}"${o === v ? ' selected' : ''}>${o}</option>`).join('') + '</select></td>';
         }
 
+        /** FATOR I/R (TASK-109): a fórmula (se houver) aparece no lugar do número; o fator numérico de uma linha com fórmula fica 0. */
+        function fatorTela(formula, numero) {
+            const f = String(formula || '').trim();
+            if (f) return f.replace(/"/g, '&quot;');
+            return numero !== null && numero !== undefined ? numero : '';
+        }
+
         /** Coluna ARRED (TASK-107): lista NORMAL / INTEIRO / CIMA / BAIXO; vazio/desconhecido aparece como NORMAL. */
         function arredHTML(valor) {
             const lista = ['NORMAL', 'INTEIRO', 'CIMA', 'BAIXO'], t = String(valor || '').trim().toUpperCase();
@@ -587,8 +594,8 @@
                 `<td><input type="text" class="cell-input" value="${r.origem || ''}"></td>` +
                 `<td><input type="text" class="cell-input" value="${r.codigo || ''}"></td>` +
                 `<td><input type="text" class="cell-input" value="${r.desc_codigo || ''}"></td>` +
-                `<td><input type="number" step="0.01" class="cell-input" value="${r.fator_i !== null ? r.fator_i : ''}"></td>` +
-                `<td><input type="number" step="0.01" class="cell-input" value="${r.fator_r !== null ? r.fator_r : ''}"></td>` +
+                `<td><input type="text" inputmode="decimal" title="Número (1,5) ou fórmula com parâmetros do ativo: =NUM(fios)/8, =SE(tipo=&quot;A&quot;; 2; 1)" class="cell-input" value="${fatorTela(r.formula_i, r.fator_i)}"></td>` +
+                `<td><input type="text" inputmode="decimal" title="Número (1,5) ou fórmula com parâmetros do ativo: =NUM(fios)/8, =SE(tipo=&quot;A&quot;; 2; 1)" class="cell-input" value="${fatorTela(r.formula_r, r.fator_r)}"></td>` +
                 `<td><input type="text" class="cell-input" value="${r.filtro || ''}"></td>` +
                 lvHTML(r.lv) +
                 arredHTML(r.arred) +
@@ -707,8 +714,8 @@
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
-                <td><input type="number" step="0.01" class="cell-input"></td>
-                <td><input type="number" step="0.01" class="cell-input"></td>
+                <td><input type="text" inputmode="decimal" title="Número (1,5) ou fórmula com parâmetros do ativo: =NUM(fios)/8, =SE(tipo=&quot;A&quot;; 2; 1)" class="cell-input"></td>
+                <td><input type="text" inputmode="decimal" title="Número (1,5) ou fórmula com parâmetros do ativo: =NUM(fios)/8, =SE(tipo=&quot;A&quot;; 2; 1)" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
                 ${lvHTML('A')}
                 ${arredHTML('NORMAL')}
@@ -733,8 +740,8 @@
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
-                <td><input type="number" step="0.01" class="cell-input"></td>
-                <td><input type="number" step="0.01" class="cell-input"></td>
+                <td><input type="text" inputmode="decimal" title="Número (1,5) ou fórmula com parâmetros do ativo: =NUM(fios)/8, =SE(tipo=&quot;A&quot;; 2; 1)" class="cell-input"></td>
+                <td><input type="text" inputmode="decimal" title="Número (1,5) ou fórmula com parâmetros do ativo: =NUM(fios)/8, =SE(tipo=&quot;A&quot;; 2; 1)" class="cell-input"></td>
                 <td><input type="text" class="cell-input"></td>
                 ${lvHTML('A')}
                 ${arredHTML('NORMAL')}
@@ -755,8 +762,8 @@
                 origem: inputs[5].value,
                 codigo: inputs[6].value,
                 desc_codigo: inputs[7].value,
-                fator_i: inputs[8].value ? parseFloat(inputs[8].value) : 0,
-                fator_r: inputs[9].value ? parseFloat(inputs[9].value) : 0,
+                fator_i: inputs[8].value.trim() || 0,          // TASK-109: número ou fórmula ("=NUM(fios)/8") — o servidor interpreta
+                fator_r: inputs[9].value.trim() || 0,
                 filtro: inputs[10].value,
                 lv: inputs[11].value, arred: inputs[12].value
             };

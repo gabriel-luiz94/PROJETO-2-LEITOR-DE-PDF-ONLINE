@@ -570,3 +570,16 @@ Na Base de Orçamento a vírgula separa **apelidos** (`DT11/600, 11600D`), entã
 - O neutro do cabo (`3xA35P(7,94)` → `CAZ7,94`) já casa um ativo cadastrado como `[CAZ7,94]`. Nas regras da Totalizadora, `ATIVO_DE`/`ATIVO_PARA` aceitam colchetes e `CAZ7,94` também casa `[CAZ7,94]`.
 - Colchete vazio, aberto, com texto fora ou com parênteses dentro é recusado na importação da base (a mensagem diz a linha).
 - Sem colchetes nada muda (`S336,4` continua sendo `S336` com apelido `4`).
+
+## FATOR em fórmula (Base de Orçamento, TASK-109)
+As colunas **FATOR I** e **FATOR R** aceitam um número (`1,5`) **ou uma fórmula que começa com `=`** e usa os **parâmetros** do ativo. Assim uma única linha cobre variantes como `CERCA(fios=%F)` com `=NUM(fios)`: o pedido `10-CERCA(8F)` gera 80, `10-CERCA(12F)` gera 120.
+
+- **Parâmetro:** pelo nome, sem diferença de caixa (`fios`, `cabo`, `tipocabo`, `poste`); `cabo#2` é o 2º `cabo` de um ativo com o parâmetro repetido.
+- **Número do texto:** `NUM(fios)` pega o 1º número de `8F` → 8 (`12,5m` → 12,5). Um parâmetro só entra direto em conta se for número puro (`8`); com `8F` use `NUM`.
+- **Operadores:** `+ - * /`, parênteses e comparações `= <> < > <= >=` (texto sem diferença de caixa).
+- **Funções** (argumentos separados por `;`): `NUM(x)`, `ABS(x)`, `MAX(a; b; …)`, `MIN(a; b; …)`, `ARRED(x; casas)`, `CIMA(x)`, `BAIXO(x)`, `SE(cond; então; senão)`, `E(…)`, `OU(…)`, `NAO(x)`.
+- **Exemplos:** `=NUM(fios)/8` · `=SE(tipo="A"; 2; 1)` · `=MAX(NUM(cabo); 35) * 2` · `=SE(NUM(fios)>=10; 2; 1)`.
+- **Com o ARRED:** a coluna ARRED (TASK-107) arredonda o resultado da fórmula (ex.: `=NUM(fios)/8` + `CIMA`).
+- **Pedido sem o parâmetro:** a fórmula não pode ser calculada; o cálculo avisa e a linha não soma (as demais linhas do ativo entram normalmente). Padrão na declaração (`CERCA=CERCA(fios=8F)`) vale na fórmula.
+- **Na importação:** fórmula com erro de sintaxe, ou que use parâmetro que o ativo da linha não declara, é recusada com a linha e nada é alterado. No CSV, fórmula com `;` precisa estar entre aspas (a exportação da tela já faz isso).
+- Depois de atualizar, o administrador roda o `schema_supabase.sql` no Supabase (cria `formula_i` e `formula_r`). Linhas existentes continuam com o número.
