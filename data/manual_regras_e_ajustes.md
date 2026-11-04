@@ -560,3 +560,13 @@ A linha de declaração pode trazer condições e valer como o primeiro grupo: `
 
 ## Formato antigo de Outros: o que é descartado (TASK-105)
 No formato antigo (`1-U3 2-N1`) o `-` só separa a **quantidade** do ativo. Um ativo com hífen (`1-U3-TM`) ou um item sem par (`1-U3 TM`) era lido pela metade. Agora **Montar Orçamento** lista o problema em "não encontrados" (o que se entende, `U3`, continua calculado) e a validação já o marca como erro. Para nomes com hífen ou com espaço use a notação compacta: `U3-TM, 2 N1`.
+
+## Nome de ativo com vírgula, espaço ou outro caractere: `[nome]` (TASK-108)
+Na Base de Orçamento a vírgula separa **apelidos** (`DT11/600, 11600D`), então um nome como `S336,4` ou `CAZ7,94` seria cortado. Para o nome valer **do jeito que está**, cadastre-o **entre colchetes** na coluna ATIVO: `[S336,4]`, `[CAZ7,94]`, `[CAZ 7,94]`, `[A-B]`.
+
+- Dentro dos colchetes vale qualquer caractere (vírgula, espaço, hífen, `=`, `%`…), **menos** `(`, `)` e `[ ]`. O ativo entre colchetes é simples: **não aceita parâmetros**.
+- O nome oficial é o conteúdo, sem os colchetes. Apelidos continuam depois da vírgula: `[S336,4], 11336D`.
+- Em **Outros** use o mesmo `[nome]`: `2-[CAZ 7,94]`, `[S336,A], 3 N1`. Os colchetes protegem a vírgula, o espaço e o `-`.
+- O neutro do cabo (`3xA35P(7,94)` → `CAZ7,94`) já casa um ativo cadastrado como `[CAZ7,94]`. Nas regras da Totalizadora, `ATIVO_DE`/`ATIVO_PARA` aceitam colchetes e `CAZ7,94` também casa `[CAZ7,94]`.
+- Colchete vazio, aberto, com texto fora ou com parênteses dentro é recusado na importação da base (a mensagem diz a linha).
+- Sem colchetes nada muda (`S336,4` continua sendo `S336` com apelido `4`).

@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-04 — TASK-108: nome literal entre colchetes ([S336,4]) na Base e nos pedidos
+
+**Tipo:** feature · `services/ativo_parametros.py` ⇄ `static/ativo_parametros.js` (`literal_de`/`sem_colchetes`, `separar_apelidos`, `nome_base`, `analisar_ativo`, `dividir_tokens`), `services/anotacao_outros.py` ⇄ `static/anotacao_outros.js`, `services/orcamento_calc.py`, `services/autonomo/totalizadora.py`, `static/resumo.js`
+
+`[nome]` é UM ativo simples cujo nome pode ter vírgula, espaço, hífen ou qualquer caractere (menos `(`, `)` e colchetes) — sem parâmetros. Na célula ATIVO da base (`[S336,4], 11336D` = nome + apelido) e nos pedidos de Outros (`2-[CAZ 7,94]`, `[S336,A], 3 N1`). O nome oficial é o conteúdo sem colchetes. Colchete mal formado/vazio/com parênteses = erro na validação da base. Sem colchetes, nada muda. O pedido mantém os colchetes até a busca (`sem_colchetes`), a Totalizadora casa `CAZ7,94` (neutro do cabo) com `[CAZ7,94]` e as regras aceitam `[ ]` em ATIVO_DE/ATIVO_PARA.
+
+---
+
 ## 2026-11-04 — TASK-107: coluna ARRED (arredondamento por linha) na Base de Orçamento
 
 **Tipo:** feature + migração · `services/orcamento_arred.py`, `services/orcamento_calc.py`, `database.py`, `routers/orcamento.py`, `routers/admin.py`, `services/sync_service.py`, `services/realtime_sync.py`, `static/orcamento.html`, `scripts/schema_supabase.sql`

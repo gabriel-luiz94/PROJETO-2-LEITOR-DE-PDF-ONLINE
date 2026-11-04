@@ -3,6 +3,7 @@
  * Nos GRUPOS da base também: curinga %, lista | e exceto != (N1(poste=D%, cabo!=XLPE)). Pedido e declaração: só valores concretos.
  * MESMA lógica de services/ativo_parametros.py (paridade testada em tests/test_ativo_parametros.py). Sem DOM. Chaves iguais às do Python.
  * Nomes e valores: letras, números, "_" e "." (sem hífen), sem diferença de caixa.
+ * TASK-108: nome literal entre colchetes ([S336,4], [CAZ 7,94], [A-B]) = UM ativo simples, sem parâmetros, com qualquer caractere (menos parênteses e colchetes).
  */
 (function (raiz) {
     'use strict';
@@ -15,12 +16,27 @@
     const norm = t => String(t == null ? '' : t).replace(/\s+/g, '').toUpperCase();
     const cont = (s, c) => s.split(c).length - 1;
 
-    /** Vírgulas FORA de parênteses. */
+    /** "[S336,4]" → "S336,4" (nome literal inteiro entre colchetes); null se o texto não é só um [nome]. */
+    function literalDe(texto) {
+        const m = String(texto == null ? '' : texto).trim().match(/^\[([^\[\]]*)\]$/);
+        return m ? m[1] : null;
+    }
+    /** Tira os colchetes de nomes literais ("[S336,4]" → "S336,4"). */
+    const semColchetes = texto => String(texto == null ? '' : texto).replace(/\[([^\[\]]*)\]/g, '$1');
+    function erroLiteral(conteudo) {
+        if (!conteudo.trim()) return 'colchetes vazios: use [nome]';
+        if (conteudo.includes('(') || conteudo.includes(')')) return 'parênteses não são permitidos dentro de [ ]';
+        return null;
+    }
+
+    /** Vírgulas FORA de parênteses e de colchetes (nome literal [..]). */
     function virgulasDeTopo(texto) {
-        const pos = []; let prof = 0;
+        const pos = []; let prof = 0, colchete = false;
         for (let i = 0; i < texto.length; i++) {
             const ch = texto[i];
-            if (ch === '(') prof++;
+            if (colchete) { colchete = ch !== ']'; continue; }
+            if (ch === '[') colchete = true;
+            else if (ch === '(') prof++;
             else if (ch === ')' && prof > 0) prof--;
             else if (ch === ',' && prof === 0) pos.push(i);
         }
@@ -39,6 +55,8 @@
 
     function nomeBase(texto) {
         let t = separarApelidos(texto)[0];
+        const lit = literalDe(t);
+        if (lit !== null) return lit.trim().toUpperCase();                    // TASK-108: [nome literal]
         const i = t.indexOf('('), e = t.indexOf('=');
         if (e !== -1 && (i === -1 || e < i)) t = t.slice(0, e);
         else if (i !== -1) t = t.slice(0, i);
@@ -84,6 +102,12 @@
         const original = String(texto == null ? '' : texto).trim();
         const r = { texto: original, base: '', tipo: 'simples', params: [], erro: null, apelidos: [] };
         if (!original) { r.erro = 'ativo vazio'; return r; }
+        if (original.includes('[') || original.includes(']')) {                // TASK-108: nome literal [S336,4] (sem parâmetros)
+            const lit = literalDe(original);
+            if (lit === null) { r.base = original.toUpperCase(); r.erro = 'colchetes mal formados: use só [nome], sem parâmetros nem texto fora dos colchetes'; }
+            else { r.base = lit.trim().toUpperCase(); r.erro = erroLiteral(lit); }
+            return r;
+        }
         const i = original.indexOf('('), e = original.indexOf('=');
         if (e !== -1 && (i === -1 || e < i)) {
             const esq = original.slice(0, e).trim().toUpperCase(), dir = original.slice(e + 1).trim();
@@ -144,7 +168,8 @@
         const t = String(texto == null ? '' : texto);
         const [principal, apelidos] = separarApelidos(t);
         const e = principal.indexOf('='), i = principal.indexOf('(');
-        const a = (e !== -1 && (i === -1 || e < i)) ? analisarDeclaracao(principal) : analisarAtivo(principal, true);
+        const a = (principal.includes('[') || principal.includes(']')) ? analisarAtivo(principal, true)
+            : ((e !== -1 && (i === -1 || e < i)) ? analisarDeclaracao(principal) : analisarAtivo(principal, true));
         if (apelidos.length) {
             a.texto = t.trim();
             for (const ap of apelidos) {
@@ -270,11 +295,13 @@
 
     /** Divide por espaços sem quebrar o que está entre parênteses. */
     function dividirTokens(texto) {
-        const saida = []; let atual = '', prof = 0;
+        const saida = []; let atual = '', prof = 0, colchete = false;
         for (const ch of String(texto == null ? '' : texto)) {
-            if (ch === '(') prof++;
+            if (colchete) colchete = ch !== ']';
+            else if (ch === '[') colchete = true;
+            else if (ch === '(') prof++;
             else if (ch === ')' && prof > 0) prof--;
-            if (/\s/.test(ch) && prof === 0) { if (atual) { saida.push(atual); atual = ''; } }
+            if (/\s/.test(ch) && prof === 0 && !colchete) { if (atual) { saida.push(atual); atual = ''; } }
             else atual += ch;
         }
         if (atual) saida.push(atual);
@@ -305,7 +332,7 @@
         return saida;
     }
 
-    const api = { nomeTela, separarApelidos, apelidosDoProjeto, nomeBase, analisarAtivo, analisarDeclaracao, analisarCelulaBase, restricoesDoGrupo, casarPadrao, restricaoVale, montarAssinaturas, resolverPedido, linhaVale, dividirTokens, assinaturasDoProjeto };
+    const api = { literalDe, semColchetes, nomeTela, separarApelidos, apelidosDoProjeto, nomeBase, analisarAtivo, analisarDeclaracao, analisarCelulaBase, restricoesDoGrupo, casarPadrao, restricaoVale, montarAssinaturas, resolverPedido, linhaVale, dividirTokens, assinaturasDoProjeto };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.AtivoParametros = api;
 })(typeof window !== 'undefined' ? window : globalThis);

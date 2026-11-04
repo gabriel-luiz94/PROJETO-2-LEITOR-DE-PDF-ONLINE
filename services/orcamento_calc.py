@@ -8,7 +8,7 @@ from services.orcamento_lv import operacao_viva, passa_lv
 from services.orcamento_arred import aplicar_arred
 from services.anotacao_outros import contexto_da_base, interpretar_linha
 from services.ativo_parametros import (
-    analisar_celula_base, linha_vale, montar_assinaturas, nome_base, resolver_pedido, restricoes_do_grupo,
+    analisar_celula_base, linha_vale, montar_assinaturas, nome_base, resolver_pedido, restricoes_do_grupo, sem_colchetes,
 )
 
 
@@ -84,7 +84,7 @@ def tokenizar_outros(ativo_raw: str) -> list:
         protegidos.append(m.group(0))
         return f"\x00{len(protegidos) - 1}\x00"
 
-    txt = re.sub(r"\([^()]*\)", _guarda, txt)
+    txt = re.sub(r"\([^()]*\)|\[[^\[\]]*\]", _guarda, txt)             # TASK-108: o que está entre [ ] (nome literal) também é protegido
     # Se inicia com DT ou CV sem quantidade, adiciona "1-"
     if re.match(r'^(DT|CV)', txt, re.IGNORECASE) and not re.match(r'^\d', txt):
         txt = "1-" + txt
@@ -129,7 +129,7 @@ def _descartes_formato_antigo(texto: str) -> list:
     mais o "-" dentro do ativo ("1-U3-TM": o "-" só separa quantidade de ativo)."""
     txt = (texto or "").strip()
     avisos = []
-    for tok in re.sub(r"\([^()]*\)", "()", txt).split():
+    for tok in re.sub(r"\([^()]*\)|\[[^\[\]]*\]", "()", txt).split():
         m = re.match(r"^[*-]?\d+(?:[.,]\d+)?-(.+)$", tok)
         if m and "-" in m.group(1):
             avisos.append(f"'{tok}': o '-' dentro do ativo '{m.group(1)}' não é suportado no formato antigo (ele só separa quantidade de ativo); use vírgula + espaço (ex.: '{m.group(1)}, 2 N1')")
@@ -172,7 +172,7 @@ def _preparar_parametros(orcamento_rows, req_proj):
     """
     validas = [r for r in orcamento_rows if _linha_vale_no_projeto(r, req_proj)]
     assinaturas = montar_assinaturas([r.get("ativo") or "" for r in validas])
-    if not assinaturas and not any("(" in (r.get("ativo") or "") or "," in (r.get("ativo") or "") for r in orcamento_rows):
+    if not assinaturas and not any("(" in (r.get("ativo") or "") or "," in (r.get("ativo") or "") or "[" in (r.get("ativo") or "") for r in orcamento_rows):
         return orcamento_rows, assinaturas, {}
 
     def _chave(a):
@@ -181,7 +181,7 @@ def _preparar_parametros(orcamento_rows, req_proj):
     linhas, grupos = [], {}
     for r in orcamento_rows:
         cel = (r.get("ativo") or "").strip()
-        a = analisar_celula_base(cel) if cel and ("(" in cel or "=" in cel or "," in cel) else None
+        a = analisar_celula_base(cel) if cel and ("(" in cel or "=" in cel or "," in cel or "[" in cel) else None
         if a is None or a["erro"]:
             linhas.append(r)
             continue
@@ -382,6 +382,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
     for av in ativos_qtd:
         nome_ativo = av["ativo"]
         base = nome_base(nome_ativo)
+        nome_ativo = sem_colchetes(nome_ativo)             # TASK-108: [S336,4] procura "S336,4" (o nome literal da base)
 
         if base in assinaturas or "(" in nome_ativo:
             # TASK-079: ativo com parâmetros → grupo comum + grupos que valem para os parâmetros pedidos

@@ -21,7 +21,7 @@ O "classico" é o leitor do formato antigo de cada chamador (cálculo, Totalizad
 import re
 
 from services.ativo_parametros import (
-    analisar_celula_base, apelidos_do_projeto, assinaturas_do_projeto, dividir_tokens, nome_base,
+    analisar_celula_base, apelidos_do_projeto, assinaturas_do_projeto, dividir_tokens, literal_de, nome_base,
 )
 
 SUFIXO_PARA_TIPO = {"D": "DT", "R": "RC", "F": "CV", "FV": "FV"}
@@ -78,10 +78,14 @@ def compacto_para_poste(token, postes=None):
 
 
 def _virgulas(texto):
-    """Vírgulas fora de parênteses: [(posição, 'separador'|'decimal'|'invalida')]."""
-    saida, prof = [], 0
+    """Vírgulas fora de parênteses e de colchetes (TASK-108: nome literal): [(posição, 'separador'|'decimal'|'invalida')]."""
+    saida, prof, colchete = [], 0, False
     for i, ch in enumerate(texto):
-        if ch == "(":
+        if colchete:
+            colchete = ch != "]"
+        elif ch == "[":
+            colchete = True
+        elif ch == "(":
             prof += 1
         elif ch == ")" and prof > 0:
             prof -= 1
@@ -105,6 +109,8 @@ def eh_compacta(texto) -> bool:
 def _resolver_nome(nome, ctx):
     """Apelido cadastrado → nome oficial; notação compacta de poste → DT11/600; preserva os parâmetros (…(PARAMS))."""
     nome = str(nome).strip().upper()
+    if literal_de(nome) is not None:
+        return nome, None                                              # TASK-108: [nome literal] — sem apelido nem notação compacta; vale como está
     i = nome.find("(")
     base, params = (nome[:i], nome[i:]) if i != -1 else (nome, "")
     ctx = ctx or {}
