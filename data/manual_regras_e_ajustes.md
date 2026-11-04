@@ -427,6 +427,16 @@ Na tela da base de orçamento há a coluna **LV** com três valores: **LV** (a l
 - No CSV, a coluna se chama `LV`; arquivo sem ela = tudo `A`; valor diferente de LV/LM/A é recusado (a mensagem diz a linha) e nada é alterado.
 - Depois de atualizar, o administrador roda o `schema_supabase.sql` no Supabase (cria a coluna) — nada muda no orçamento até alguém marcar LV ou LM.
 
+## Arredondamento por linha (coluna ARRED da base de orçamento, TASK-107)
+Na tela da base há a coluna **ARRED** (depois de LV) com quatro valores: **NORMAL** (padrão: não arredonda cada uso; o total do código sai com 2 casas, como sempre), **INTEIRO** (arredonda a 0 casas, meio para cima), **CIMA** (próximo inteiro acima) e **BAIXO** (inteiro abaixo).
+
+- O arredondamento vale para **cada uso da linha**, antes da soma por código: `ceil(quantidade × fator)` por pedido/vão. Dois vãos de 30 m com FATOR I `0,125` e CIMA geram `4 + 4 = 8`, não `ceil(7,5)`.
+- Instalação usa o **FATOR I** e remoção o **FATOR R**; os dois passam pelo mesmo ARRED da linha.
+- Exemplo (espaçador, 1 a cada 8 m): linha com COMPONENTE `CAZ7,94`, CÓDIGO `3426163`, FATOR I `0,125`, ARRED `CIMA` → vão de 30 m = 4, de 64 m = 8, de 5 m = 1.
+- Código direto (pedir o próprio código) continua com fator 1 e sem arredondamento.
+- No CSV a coluna se chama `ARRED`; arquivo sem ela = tudo NORMAL; `PARA CIMA`/`PARA BAIXO` também valem; valor diferente é recusado (a mensagem diz a linha) e nada é alterado.
+- Depois de atualizar, o administrador roda o `schema_supabase.sql` no Supabase (cria a coluna e marca tudo como NORMAL).
+
 ## Ativos com variantes (parâmetros) na base de orçamento
 
 Quando um ativo muda de itens conforme uma categoria (tipo de cabo, tipo de poste…), cadastre **uma variante por grupo de linhas**, na própria tabela base:
@@ -550,3 +560,13 @@ A linha de declaração pode trazer condições e valer como o primeiro grupo: `
 
 ## Formato antigo de Outros: o que é descartado (TASK-105)
 No formato antigo (`1-U3 2-N1`) o `-` só separa a **quantidade** do ativo. Um ativo com hífen (`1-U3-TM`) ou um item sem par (`1-U3 TM`) era lido pela metade. Agora **Montar Orçamento** lista o problema em "não encontrados" (o que se entende, `U3`, continua calculado) e a validação já o marca como erro. Para nomes com hífen ou com espaço use a notação compacta: `U3-TM, 2 N1`.
+
+## Nome de ativo com vírgula, espaço ou outro caractere: `[nome]` (TASK-108)
+Na Base de Orçamento a vírgula separa **apelidos** (`DT11/600, 11600D`), então um nome como `S336,4` ou `CAZ7,94` seria cortado. Para o nome valer **do jeito que está**, cadastre-o **entre colchetes** na coluna ATIVO: `[S336,4]`, `[CAZ7,94]`, `[CAZ 7,94]`, `[A-B]`.
+
+- Dentro dos colchetes vale qualquer caractere (vírgula, espaço, hífen, `=`, `%`…), **menos** `(`, `)` e `[ ]`. O ativo entre colchetes é simples: **não aceita parâmetros**.
+- O nome oficial é o conteúdo, sem os colchetes. Apelidos continuam depois da vírgula: `[S336,4], 11336D`.
+- Em **Outros** use o mesmo `[nome]`: `2-[CAZ 7,94]`, `[S336,A], 3 N1`. Os colchetes protegem a vírgula, o espaço e o `-`.
+- O neutro do cabo (`3xA35P(7,94)` → `CAZ7,94`) já casa um ativo cadastrado como `[CAZ7,94]`. Nas regras da Totalizadora, `ATIVO_DE`/`ATIVO_PARA` aceitam colchetes e `CAZ7,94` também casa `[CAZ7,94]`.
+- Colchete vazio, aberto, com texto fora ou com parênteses dentro é recusado na importação da base (a mensagem diz a linha).
+- Sem colchetes nada muda (`S336,4` continua sendo `S336` com apelido `4`).

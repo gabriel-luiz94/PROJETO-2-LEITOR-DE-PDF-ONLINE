@@ -46,10 +46,12 @@
 
     /** Vírgulas fora de parênteses: [[posição, 'separador'|'decimal'|'invalida']]. */
     function virgulas(texto) {
-        const saida = []; let prof = 0;
+        const saida = []; let prof = 0, colchete = false;
         for (let i = 0; i < texto.length; i++) {
             const ch = texto[i];
-            if (ch === '(') prof++;
+            if (colchete) { colchete = ch !== ']'; continue; }
+            if (ch === '[') colchete = true;
+            else if (ch === '(') prof++;
             else if (ch === ')' && prof > 0) prof--;
             else if (ch === ',' && prof === 0) {
                 const prox = i + 1 < texto.length ? texto[i + 1] : '', ant = i > 0 ? texto[i - 1] : '';
@@ -65,6 +67,7 @@
 
     function resolverNome(nome, ctx) {
         nome = txt(nome).trim().toUpperCase();
+        if (AP.literalDe(nome) !== null) return [nome, null];                  // TASK-108: [nome literal] — sem apelido nem notação compacta; vale como está
         const i = nome.indexOf('('), base = i !== -1 ? nome.slice(0, i) : nome, params = i !== -1 ? nome.slice(i) : '';
         ctx = ctx || {};
         if (ctx.nomes && ctx.nomes.has(base)) return [base + params, null];

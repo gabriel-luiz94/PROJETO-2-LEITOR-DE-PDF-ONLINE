@@ -19,6 +19,10 @@ Em Outros/Totalizadora o pedido usa só os valores, na ordem cadastrada: ``3-N1(
 Nomes e valores: letras, números, "_" e "." (sem hífen), sem diferença de caixa (guardados em maiúsculas). ``%``, ``|`` e ``!=`` só nos
 grupos da base. COMPONENTE em branco nos grupos é preenchido automaticamente (preencher_componentes).
 
+TASK-108 — nome literal entre colchetes: ``[S336,4]`` / ``[CAZ 7,94]`` / ``[A-B]`` é UM ativo simples cujo nome pode ter vírgula, espaço, hífen ou qualquer
+caractere (menos parênteses e colchetes); não aceita parâmetros. Vale na célula ATIVO da base (``[S336,4], 11336D`` = nome + apelido) e nos pedidos
+(``2-[S336,4]``, ``[S336,A], N1``). O nome oficial é o conteúdo, sem os colchetes (``nome_base``/``sem_colchetes``).
+
 Este arquivo tem a MESMA lógica de static/ativo_parametros.js (paridade testada em tests/test_ativo_parametros.py).
 """
 import re
@@ -52,11 +56,37 @@ def _norm(txt) -> str:
     return re.sub(r"\s+", "", str(txt if txt is not None else "")).upper()
 
 
+_RE_LITERAL = re.compile(r"^\[([^\[\]]*)\]$")
+
+
+def literal_de(texto):
+    """"[S336,4]" → "S336,4" (nome literal inteiro entre colchetes); None se o texto não é só um [nome]."""
+    m = _RE_LITERAL.match(str(texto if texto is not None else "").strip())
+    return m.group(1) if m else None
+
+
+def sem_colchetes(texto) -> str:
+    """Tira os colchetes de nomes literais ("[S336,4]" → "S336,4"; "2-[A B]" → "2-A B"). Texto sem colchetes não muda."""
+    return re.sub(r"\[([^\[\]]*)\]", r"\1", str(texto if texto is not None else ""))
+
+
+def _erro_literal(conteudo):
+    if not conteudo.strip():
+        return "colchetes vazios: use [nome]"
+    if "(" in conteudo or ")" in conteudo:
+        return "parênteses não são permitidos dentro de [ ]"
+    return None
+
+
 def _virgulas_de_topo(texto):
-    """Posições das vírgulas FORA de parênteses."""
-    prof, pos = 0, []
+    """Posições das vírgulas FORA de parênteses e de colchetes (nome literal [..])."""
+    prof, pos, colchete = 0, [], False
     for i, ch in enumerate(texto):
-        if ch == "(":
+        if colchete:
+            colchete = ch != "]"
+        elif ch == "[":
+            colchete = True
+        elif ch == "(":
             prof += 1
         elif ch == ")" and prof > 0:
             prof -= 1
@@ -82,6 +112,9 @@ def separar_apelidos(texto):
 def nome_base(texto) -> str:
     """"N1(XLPE,DT)" / "N1=N1(cabo=XLPE)" / "DT11/300, 11300D" / "N1" → nome oficial em maiúsculas, sem parâmetros nem apelidos."""
     t, _ = separar_apelidos(texto)
+    lit = literal_de(t)
+    if lit is not None:
+        return lit.strip().upper()                                  # TASK-108: [nome literal]
     i = t.find("(")
     e = t.find("=")
     if e != -1 and (i == -1 or e < i):
@@ -148,6 +181,15 @@ def analisar_ativo(texto, modo_base=False) -> dict:
     r = {"texto": original, "base": "", "tipo": "simples", "params": [], "erro": None, "apelidos": []}
     if not original:
         r["erro"] = "ativo vazio"
+        return r
+    if "[" in original or "]" in original:                             # TASK-108: nome literal [S336,4] (sem parâmetros)
+        lit = literal_de(original)
+        if lit is None:
+            r["base"] = original.upper()
+            r["erro"] = "colchetes mal formados: use só [nome], sem parâmetros nem texto fora dos colchetes"
+        else:
+            r["base"] = lit.strip().upper()
+            r["erro"] = _erro_literal(lit)
         return r
     i = original.find("(")
     e = original.find("=")
@@ -242,7 +284,10 @@ def analisar_celula_base(texto) -> dict:
     principal, apelidos = separar_apelidos(t)
     e = principal.find("=")
     i = principal.find("(")
-    a = analisar_declaracao(principal) if (e != -1 and (i == -1 or e < i)) else analisar_ativo(principal, True)
+    if "[" in principal or "]" in principal:
+        a = analisar_ativo(principal, True)
+    else:
+        a = analisar_declaracao(principal) if (e != -1 and (i == -1 or e < i)) else analisar_ativo(principal, True)
     if apelidos:
         a["texto"] = t.strip()
         for ap in apelidos:
@@ -404,14 +449,18 @@ def linha_vale(params_linha, params_pedido) -> bool:
 
 
 def dividir_tokens(texto) -> list:
-    """Divide o texto de uma linha de Outros por espaços, sem quebrar o que está entre parênteses ("2-N1(XLPE, DT)" é um token só)."""
-    saida, atual, prof = [], [], 0
+    """Divide o texto de uma linha de Outros por espaços, sem quebrar o que está entre parênteses ("2-N1(XLPE, DT)" é um token só) nem entre colchetes ("2-[CAZ 7,94]")."""
+    saida, atual, prof, colchete = [], [], 0, False
     for ch in str(texto if texto is not None else ""):
-        if ch == "(":
+        if colchete:
+            colchete = ch != "]"
+        elif ch == "[":
+            colchete = True
+        elif ch == "(":
             prof += 1
         elif ch == ")" and prof > 0:
             prof -= 1
-        if ch.isspace() and prof == 0:
+        if ch.isspace() and prof == 0 and not colchete:
             if atual:
                 saida.append("".join(atual))
                 atual = []

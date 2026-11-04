@@ -9,7 +9,7 @@ Limite conhecido: as regex digitadas nas regras de conversão são avaliadas pel
 """
 from services.anotacao_cabos import eh_notacao, interpretar as interpretar_cabo
 from services.anotacao_outros import contexto_da_base, interpretar_linha
-from services.ativo_parametros import analisar_celula_base, assinaturas_do_projeto, dividir_tokens, nome_base, resolver_pedido
+from services.ativo_parametros import analisar_celula_base, assinaturas_do_projeto, dividir_tokens, nome_base, sem_colchetes, resolver_pedido
 import math
 import re
 from decimal import Decimal
@@ -102,7 +102,7 @@ def _buscar_descricao(base, ativo_nome, projeto_nome):
     proj = (projeto_nome or "").upper()
     nb = nome_base(ativo)
     candidatas = [r for r in base
-                  if ((((r.get("ativo") or "") != "" and nome_base(r.get("ativo")) == nb) or (r.get("codigo") or "").upper() == ativo)
+                  if ((((r.get("ativo") or "") != "" and (nome_base(r.get("ativo")) == nb or sem_colchetes(r.get("ativo")).strip().upper() == ativo)) or (r.get("codigo") or "").upper() == ativo)      # TASK-108: nome literal [CAZ7,94] casa "CAZ7,94"
                       and ((r.get("projeto") or "").strip().upper() == proj or (r.get("projeto") or "").strip() == ""))]
     linha = next((r for r in candidatas if analisar_celula_base(r.get("ativo") or "")["tipo"] != "grupo"), candidatas[0] if candidatas else None)
     if linha is not None:
@@ -248,7 +248,7 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
             r_origem = (regra.get("origem") or "").strip().upper()
             r_op = (regra.get("op_de") or "").strip().upper()
             r_ativo = (regra.get("ativo_de") or "").strip().upper()
-            casa_ativo = _confere(r_ativo, item["ativo"]) or ("(" in item["ativo"] and _confere(r_ativo, nome_base(item["ativo"])))   # TASK-079
+            casa_ativo = _confere(r_ativo, item["ativo"]) or _confere(r_ativo, sem_colchetes(item["ativo"])) or ("(" in item["ativo"] and _confere(r_ativo, nome_base(item["ativo"])))   # TASK-079
             if not (_confere(r_origem, item["origem"]) and _confere(r_op, item["operacao"]) and casa_ativo):
                 continue
             achou = True

@@ -1591,8 +1591,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (/^(DT|CV)/i.test(txt) && !/^\d/.test(txt)) {
             txt = '1-' + txt;
         }
+        const protegidos = [];                                                   // TASK-108: o que está entre [ ] (nome literal) não é quebrado nem tem o "-" trocado
+        txt = txt.replace(/\[[^\[\]]*\]/g, m => { protegidos.push(m); return '\x00' + (protegidos.length - 1) + '\x00'; });
         txt = txt.replace(/-/g, ' ').replace(/\*/g, '-');
-        const tokens = txt.split(/\s+/).filter(Boolean);
+        const tokens = txt.split(/\s+/).filter(Boolean).map(t => t.replace(/\x00(\d+)\x00/g, (_, i) => protegidos[+i]));
         const pares = [];
         let i = 0;
         while (i + 1 < tokens.length) {
@@ -5432,7 +5434,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
         const nb = AtivoParametros.nomeBase(ativoUpper);
         const doProjeto = r => (r.projeto || '').trim().toUpperCase() === projName || (r.projeto || '').trim() === '';
         const candidatas = orcamentoBaseData.filter(r =>
-            ((r.ativo || '') !== '' && AtivoParametros.nomeBase(r.ativo) === nb || (r.codigo || '').toUpperCase() === ativoUpper) && doProjeto(r));
+            ((r.ativo || '') !== '' && (AtivoParametros.nomeBase(r.ativo) === nb || AtivoParametros.semColchetes(r.ativo).trim().toUpperCase() === ativoUpper) || (r.codigo || '').toUpperCase() === ativoUpper) && doProjeto(r));      // TASK-108: [CAZ7,94] casa "CAZ7,94"
         const row = candidatas.find(r => AtivoParametros.analisarCelulaBase(r.ativo || '').tipo !== 'grupo') || candidatas[0];
         if (row) {
             return { desc: row.desc_ativo || row.componente || row.desc_codigo || '', naoEncontrado: false };
@@ -5633,7 +5635,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
             if (!checkMatch(ruleOrigem, item.origem)) applies = false;
             if (!checkMatch(ruleOp, item.operacao)) applies = false;
             // TASK-079: a regra casa o texto completo (N1(XLPE,DT)) OU o nome-base (N1)
-            if (!checkMatch(ruleAtivo, item.ativo) && !(item.ativo.indexOf('(') >= 0 && checkMatch(ruleAtivo, AtivoParametros.nomeBase(item.ativo)))) applies = false;
+            if (!checkMatch(ruleAtivo, item.ativo) && !checkMatch(ruleAtivo, AtivoParametros.semColchetes(item.ativo)) && !(item.ativo.indexOf('(') >= 0 && checkMatch(ruleAtivo, AtivoParametros.nomeBase(item.ativo)))) applies = false;
 
             if (applies) {
                 matchEncontrado = true;

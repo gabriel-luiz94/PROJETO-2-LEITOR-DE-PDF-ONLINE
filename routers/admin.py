@@ -18,6 +18,7 @@ from middleware.auth_middleware import get_current_user_from_state
 from config import logger
 from models import SalvarOrcamentoRequest
 from services.orcamento_lv import normalizar_lv
+from services.orcamento_arred import normalizar_arred
 from services.ativo_parametros import preencher_componentes, validar_base, resumo_erros
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -53,6 +54,7 @@ class MasterRowCreate(BaseModel):
     filtro: str = ""
     origem: str = ""
     lv: str = "A"          # TASK-078: LV / LM / A
+    arred: str = "NORMAL"  # TASK-107: NORMAL / INTEIRO / CIMA / BAIXO
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -328,6 +330,7 @@ def add_master_row(req: MasterRowCreate, request: Request):
     admin = _require_admin(request)
     try:
         lv = normalizar_lv(req.lv)
+        arred = normalizar_arred(req.arred)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     componente_final = req.componente.strip()
@@ -342,8 +345,8 @@ def add_master_row(req: MasterRowCreate, request: Request):
     cur = conn.cursor()
     cur.execute('''
         INSERT INTO tabela_orcamento_master 
-        (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv, arred)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         req.ativo.strip(),
         req.desc_ativo.strip(),
@@ -356,7 +359,8 @@ def add_master_row(req: MasterRowCreate, request: Request):
         req.fator_r,
         req.filtro.strip(),
         req.origem.strip() if hasattr(req, 'origem') and req.origem else "",
-        lv
+        lv,
+        arred
     ))
     conn.commit()
     row_id = cur.lastrowid
@@ -377,7 +381,8 @@ def add_master_row(req: MasterRowCreate, request: Request):
                 "fator_r": req.fator_r,
                 "filtro": req.filtro.strip(),
                 "origem": req.origem.strip() if hasattr(req, 'origem') and req.origem else "",
-                "lv": lv
+                "lv": lv,
+                "arred": arred
             }).execute()
         except Exception as e:
             logger.warning(f"Erro ao salvar linha master no Supabase: {e}")
@@ -427,6 +432,11 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...), proj
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=f"Linha {n} do arquivo: {e} Nada foi alterado.")
 
+            try:
+                arred = normalizar_arred(row_upper.get("ARRED"))      # TASK-107: coluna opcional; vazia = NORMAL
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=f"Linha {n} do arquivo: {e} Nada foi alterado.")
+
             rows_to_insert.append({
                 "ativo": ativo,
                 "desc_ativo": row_upper.get("DESC ATIVO", "").strip(),
@@ -439,7 +449,8 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...), proj
                 "fator_r": fator_r,
                 "filtro": row_upper.get("FILTRO", "").strip(),
                 "origem": row_upper.get("ORIGEM", "").strip(),
-                "lv": lv
+                "lv": lv,
+                "arred": arred
             })
 
         if projeto:
@@ -464,12 +475,12 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...), proj
         for item_dict in rows_to_insert:
             cur.execute('''
                 INSERT INTO tabela_orcamento_master
-                (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv, arred)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 item_dict["ativo"], item_dict["desc_ativo"], item_dict["componente"],
                 item_dict["projeto"], item_dict["mdo"], item_dict["codigo"],
-                item_dict["desc_codigo"], item_dict["fator_i"], item_dict["fator_r"], item_dict["filtro"], item_dict["origem"], item_dict["lv"]
+                item_dict["desc_codigo"], item_dict["fator_i"], item_dict["fator_r"], item_dict["filtro"], item_dict["origem"], item_dict["lv"], item_dict["arred"]
             ))
 
         conn.commit()
@@ -526,6 +537,7 @@ def sync_master_all(req: SalvarOrcamentoRequest, request: Request):
     for i, row in enumerate(dados, start=1):
         try:
             row["lv"] = normalizar_lv(row.get("lv"))
+            row["arred"] = normalizar_arred(row.get("arred"))        # TASK-107
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Linha {i}: {e}")
     dados, n_comp = preencher_componentes(dados)       # TASK-080: COMPONENTE em branco dos grupos
@@ -573,18 +585,19 @@ def sync_master_all(req: SalvarOrcamentoRequest, request: Request):
             "fator_r": fator_r,
             "filtro": row.get("filtro", "").strip(),
             "origem": row.get("origem", "").strip(),
-            "lv": row["lv"]
+            "lv": row["lv"],
+            "arred": row["arred"]
         }
         rows_to_insert.append(item_dict)
 
         cur.execute('''
             INSERT INTO tabela_orcamento_master
-            (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv, arred)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             item_dict["ativo"], item_dict["desc_ativo"], item_dict["componente"],
             item_dict["projeto"], item_dict["mdo"], item_dict["codigo"],
-            item_dict["desc_codigo"], item_dict["fator_i"], item_dict["fator_r"], item_dict["filtro"], item_dict["origem"], item_dict["lv"]
+            item_dict["desc_codigo"], item_dict["fator_i"], item_dict["fator_r"], item_dict["filtro"], item_dict["origem"], item_dict["lv"], item_dict["arred"]
         ))
 
     cur.execute("COMMIT")

@@ -10,6 +10,7 @@ from database import get_connection, get_row_connection
 from models import SalvarOrcamentoRequest, OrcamentoRequest, DetalhesRequest
 from services.orcamento_calc import processar_calculo
 from services.orcamento_lv import normalizar_lv
+from services.orcamento_arred import normalizar_arred
 from services.ativo_parametros import preencher_componentes, validar_base, resumo_erros
 from services.exportar_xlsx import ErroExportacao, gerar_xlsx
 from services.sync_service import (
@@ -63,9 +64,14 @@ async def upload_orcamento(request: Request, file: UploadFile = File(...)):
             except ValueError as e:
                 return JSONResponse(status_code=400, content={"error": f"Linha {n} do arquivo: {e} Nada foi alterado."})
 
+            try:
+                arred = normalizar_arred(row_upper.get("ARRED"))                 # TASK-107: coluna opcional; vazia = NORMAL
+            except ValueError as e:
+                return JSONResponse(status_code=400, content={"error": f"Linha {n} do arquivo: {e} Nada foi alterado."})
+
             linhas.append((ativo, row_upper.get("DESC ATIVO", ""), row_upper.get("COMPONENTE", ""), row_upper.get("PROJETO", ""),
                            row_upper.get("MDO", ""), row_upper.get("CODIGO", ""), row_upper.get("DESC CODIGO", ""),
-                           fator_i, fator_r, row_upper.get("FILTRO", ""), lv))
+                           fator_i, fator_r, row_upper.get("FILTRO", ""), lv, arred))
 
         # TASK-079: ativos com parâmetros (N1=N1(cabo=XLPE), N1(cabo=ALUM)…) — recusa cadastro inconsistente antes de apagar
         reg, n_comp = preencher_componentes([{"ativo": t[0], "componente": t[2], "projeto": t[3], "codigo": t[5], "lv": t[10]} for t in linhas])   # TASK-080
@@ -81,8 +87,8 @@ async def upload_orcamento(request: Request, file: UploadFile = File(...)):
         cursor.execute("DELETE FROM tabela_orcamento")
         for t in linhas:
             cursor.execute('''
-                INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, lv)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO tabela_orcamento (ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, lv, arred)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', t)
 
         conn.commit()
@@ -149,6 +155,7 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
     for i, row in enumerate(dados, start=1):
         try:
             row["lv"] = normalizar_lv(row.get("lv"))
+            row["arred"] = normalizar_arred(row.get("arred"))        # TASK-107
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Linha {i}: {e}")
 
@@ -191,8 +198,8 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
                 fator_r = 0.0
 
             cursor.execute('''
-                INSERT INTO tabela_orcamento (user_id, ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, lv)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO tabela_orcamento (user_id, ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, lv, arred)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 user_id,
                 ativo,
@@ -205,7 +212,8 @@ def salvar_orcamento(req: SalvarOrcamentoRequest, request: Request):
                 fator_i,
                 fator_r,
                 row.get("filtro", "").strip(),
-                row["lv"]
+                row["lv"],
+                row["arred"]
             ))
 
         conn.commit()
