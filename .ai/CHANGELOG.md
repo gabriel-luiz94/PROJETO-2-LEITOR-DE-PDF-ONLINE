@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-04 — TASK-107: coluna ARRED (arredondamento por linha) na Base de Orçamento
+
+**Tipo:** feature + migração · `services/orcamento_arred.py`, `services/orcamento_calc.py`, `database.py`, `routers/orcamento.py`, `routers/admin.py`, `services/sync_service.py`, `services/realtime_sync.py`, `static/orcamento.html`, `scripts/schema_supabase.sql`
+
+Nova coluna `arred` (NORMAL / INTEIRO / CIMA / BAIXO; padrão NORMAL) em `tabela_orcamento` e `tabela_orcamento_master`: arredonda a quantidade que a linha gera A CADA USO (`qtd × fator`, antes da soma por código). NORMAL não arredonda cada uso (o total continua com 2 casas — resultado idêntico ao anterior). Dados existentes (SQLite e Supabase) viram NORMAL; a importação (local, master e tela) aceita a coluna `ARRED` (opcional; valor desconhecido recusa o arquivo sem alterar nada; `PARA CIMA`/`PARA BAIXO` também valem). O administrador precisa rodar o `schema_supabase.sql` no Supabase. Código direto (`9001`) segue com fatores e arredondamento neutros.
+
+---
+
 ## 2026-11-02 — TASK-106: "Abrir na aplicação" (plugin nanoCAD)
 
 **Tipo:** feature · `routers/plugin_cad.py`, `static/resumo.js`, `static/login.js`, `static/auth_fetch.js` · plugin: TASK-004 a 010 (`plugin_nanocad/.ai/`)

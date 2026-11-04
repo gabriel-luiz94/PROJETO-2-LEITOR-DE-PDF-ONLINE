@@ -7,6 +7,7 @@ Emite eventos via WebSocket para atualizar a UI.
 import threading
 import json
 from services.orcamento_lv import lv_tolerante
+from services.orcamento_arred import arred_tolerante
 from config import logger, APP_MODE
 from services.supabase_client import get_supabase
 from database import get_connection
@@ -37,8 +38,8 @@ def _realtime_worker():
                 if event_type == "INSERT" or event_type == "UPDATE":
                     cur.execute('''
                         INSERT OR REPLACE INTO tabela_orcamento_master 
-                        (id, ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        (id, ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv, arred, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         record.get("id"),
                         record.get("ativo", ""),
@@ -53,6 +54,7 @@ def _realtime_worker():
                         record.get("filtro", ""),
                         record.get("origem", ""),
                         lv_tolerante(record.get("lv")),
+                        arred_tolerante(record.get("arred")),
                         record.get("updated_at")
                     ))
                 elif event_type == "DELETE":

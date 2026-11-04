@@ -422,6 +422,8 @@ conta se passar em (a) `origem` (CABOS/OUTROS) e (b) `lv` (`services/orcamento_l
 operações com `*` (`*I`, `*R`, `*M` = linha viva); `LM` só para operações sem `*`. Ativo que só existe com o outro tipo vai para
 `nao_encontrados` como `"ATIVO (só existe para linha morta|viva)"`.
 
+**Arredondamento por linha (TASK-107):** a linha da base tem `arred` (`services/orcamento_arred.py`): na soma por código, a quantidade de cada uso (`qtd × fator_i` ou `fator_r`) passa por `aplicar_arred` antes de somar — `NORMAL` não arredonda o uso (o total sai com 2 casas), `INTEIRO` arredonda a 0 casas (meio para cima), `CIMA` e `BAIXO` vão ao inteiro acima/abaixo. Vazio/ausente/desconhecido = `NORMAL`. Código direto (passo 5) usa fatores e `arred` neutros.
+
 **Ativos com parâmetros (TASK-079):** `N1(XLPE,DT)` é nome-base `N1` + parâmetros. A base declara `N1=N1(cabo=XLPE, poste=DT)` (1ª linha do ativo) e
 os grupos `N1(cabo=XLPE)`… (cada grupo com o seu COMPONENTE); `_preparar_parametros` troca cada grupo por uma chave própria no índice e o
 pedido seleciona o grupo comum + os grupos cujos parâmetros ele satisfaz (`services/ativo_parametros.py`, espelhado em

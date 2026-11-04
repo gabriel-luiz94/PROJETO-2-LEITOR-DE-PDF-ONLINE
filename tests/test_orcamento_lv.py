@@ -251,5 +251,5 @@ def test_sync_da_nuvem_sem_coluna_lv_vira_A(client, monkeypatch):
 
 def test_tela_da_base_tem_a_coluna_lv():
     html = open("static/orcamento.html", encoding="utf-8").read()
-    assert 'data-col="11"' in html and "lvHTML(" in html and "'FILTRO', 'LV'" in html
-    assert html.count("inputs.length < 12") >= 3 and "lv: inputs[11].value" in html
+    assert 'data-col="11"' in html and "lvHTML(" in html and "'FILTRO', 'LV', 'ARRED'" in html
+    assert html.count("inputs.length < 13") >= 3 and "lv: inputs[11].value" in html and "arred: inputs[12].value" in html    # TASK-107: ARRED é a coluna 12

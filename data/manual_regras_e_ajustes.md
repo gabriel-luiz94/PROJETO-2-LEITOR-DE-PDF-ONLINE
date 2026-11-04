@@ -427,6 +427,16 @@ Na tela da base de orçamento há a coluna **LV** com três valores: **LV** (a l
 - No CSV, a coluna se chama `LV`; arquivo sem ela = tudo `A`; valor diferente de LV/LM/A é recusado (a mensagem diz a linha) e nada é alterado.
 - Depois de atualizar, o administrador roda o `schema_supabase.sql` no Supabase (cria a coluna) — nada muda no orçamento até alguém marcar LV ou LM.
 
+## Arredondamento por linha (coluna ARRED da base de orçamento, TASK-107)
+Na tela da base há a coluna **ARRED** (depois de LV) com quatro valores: **NORMAL** (padrão: não arredonda cada uso; o total do código sai com 2 casas, como sempre), **INTEIRO** (arredonda a 0 casas, meio para cima), **CIMA** (próximo inteiro acima) e **BAIXO** (inteiro abaixo).
+
+- O arredondamento vale para **cada uso da linha**, antes da soma por código: `ceil(quantidade × fator)` por pedido/vão. Dois vãos de 30 m com FATOR I `0,125` e CIMA geram `4 + 4 = 8`, não `ceil(7,5)`.
+- Instalação usa o **FATOR I** e remoção o **FATOR R**; os dois passam pelo mesmo ARRED da linha.
+- Exemplo (espaçador, 1 a cada 8 m): linha com COMPONENTE `CAZ7,94`, CÓDIGO `3426163`, FATOR I `0,125`, ARRED `CIMA` → vão de 30 m = 4, de 64 m = 8, de 5 m = 1.
+- Código direto (pedir o próprio código) continua com fator 1 e sem arredondamento.
+- No CSV a coluna se chama `ARRED`; arquivo sem ela = tudo NORMAL; `PARA CIMA`/`PARA BAIXO` também valem; valor diferente é recusado (a mensagem diz a linha) e nada é alterado.
+- Depois de atualizar, o administrador roda o `schema_supabase.sql` no Supabase (cria a coluna e marca tudo como NORMAL).
+
 ## Ativos com variantes (parâmetros) na base de orçamento
 
 Quando um ativo muda de itens conforme uma categoria (tipo de cabo, tipo de poste…), cadastre **uma variante por grupo de linhas**, na própria tabela base:

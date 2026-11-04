@@ -5,6 +5,7 @@ import re
 
 
 from services.orcamento_lv import operacao_viva, passa_lv
+from services.orcamento_arred import aplicar_arred
 from services.anotacao_outros import contexto_da_base, interpretar_linha
 from services.ativo_parametros import (
     analisar_celula_base, linha_vale, montar_assinaturas, nome_base, resolver_pedido, restricoes_do_grupo,
@@ -345,6 +346,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             row_clone = dict(achado[1])
             row_clone["fator_i"] = 1.0
             row_clone["fator_r"] = 1.0
+            row_clone["arred"] = "NORMAL"                                   # código direto: fatores e arredondamento neutros
             componentes_qtd.append({"qtd": av["qtd"], "operacao": av["operacao"], "row": row_clone})
             return True, None
 
@@ -429,10 +431,11 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
                 "soma_i":    0.0,
                 "soma_r":    0.0,
             }
+        arred = row.get("arred")                                                # TASK-107: arredonda a quantidade de CADA uso da linha (NORMAL = não arredonda)
         if is_inst:
-            codigos[key]["soma_i"] += c["qtd"] * fator_i
+            codigos[key]["soma_i"] += aplicar_arred(c["qtd"] * fator_i, arred)
         else:
-            codigos[key]["soma_r"] += c["qtd"] * fator_r
+            codigos[key]["soma_r"] += aplicar_arred(c["qtd"] * fator_r, arred)
 
     # ── 5. Montar resultado com uma linha por operação presente ──────────────
     resultado = []

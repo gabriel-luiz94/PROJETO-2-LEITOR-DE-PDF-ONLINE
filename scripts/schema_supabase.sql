@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS public.tabela_orcamento_master (
     filtro TEXT,
     origem TEXT,
     lv TEXT DEFAULT 'A',
+    arred TEXT DEFAULT 'NORMAL',
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -106,6 +107,11 @@ ALTER TABLE public.tabela_orcamento_master ADD COLUMN IF NOT EXISTS origem TEXT;
 -- Linhas existentes (e sem valor) ficam 'A' = nada muda no cálculo até alguém marcar LV/LM.
 ALTER TABLE public.tabela_orcamento_master ADD COLUMN IF NOT EXISTS lv TEXT DEFAULT 'A';
 UPDATE public.tabela_orcamento_master SET lv = 'A' WHERE lv IS NULL OR btrim(lv) = '';
+
+-- TASK-107: arredondamento por linha da base. `arred` = 'NORMAL' (padrão: o total sai com 2 casas), 'INTEIRO' (0 casas), 'CIMA' ou 'BAIXO'.
+-- Linhas existentes (e sem valor) ficam 'NORMAL' = nada muda no cálculo até alguém marcar outro valor.
+ALTER TABLE public.tabela_orcamento_master ADD COLUMN IF NOT EXISTS arred TEXT DEFAULT 'NORMAL';
+UPDATE public.tabela_orcamento_master SET arred = 'NORMAL' WHERE arred IS NULL OR btrim(arred) = '';
 
 -- Projetos criados antes desta revisão não têm a tabela `regras_conversao`. Ela guarda a tabela
 -- de regras que traduz as entradas CABOS/OUTROS para a totalizadora (botão "Salvar na Nuvem" em
