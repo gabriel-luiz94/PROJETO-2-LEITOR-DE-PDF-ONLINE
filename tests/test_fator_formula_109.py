@@ -362,7 +362,8 @@ def test_parametro_com_padrao_e_so_de_formula_aceita_qualquer_valor():
     assert _calc_pe("2-CERCA(10F,P)")[0]["4404026"] == 6.54
     assert _calc_pe("2-CERCA(tipo=T)")[0]["3471009"] == 6.0
     assert _calc_pe("2-CERCA(descr=7L,tipo=PA)")[0]["3432011"] == 14.0
-    assert any("DESCR=7X não cadastrado" in n for n in _calc_pe("2-CERCA(7X)")[1])                                     # descr tem grupos (%F/%L): continua fechado
+    tot, nao = _calc_pe("2-CERCA(7X)")                                                                                  # descr também é usado em fórmula: aceita qualquer valor
+    assert nao == [] and "3432010" not in tot and "3432011" not in tot and tot["4404026"] > 0                           # (7X não casa %F nem %L: só as linhas comuns)
     assert _calc_pe("2-CERCA(5F,PA)", "*I")[0].keys() == {"4404026", "3471009", "3432010"}                              # linha viva: sem o código só de linha morta
 
 
@@ -382,4 +383,36 @@ def test_paridade_js_do_parametro_aberto():
     r = subprocess.run([node, "-e", codigo], input=json.dumps({"linhas": linhas, "pedidos": pedidos}), capture_output=True, text=True, timeout=30)
     assert r.returncode == 0, r.stderr
     assert json.loads(r.stdout) == json.loads(json.dumps(esperado))
-    assert "TIPO" not in sig["CERCA"]["fechados"] and "DESCR" in sig["CERCA"]["fechados"]
+    assert sig["CERCA"]["fechados"] == []                                                          # os dois parâmetros são usados em fórmula: nenhum fica fechado
+
+
+# ── TASK-115: parâmetro usado em fórmula aceita qualquer valor, mesmo com grupos que citam só alguns (base ATERINT) ──
+ATERINT = [
+    _f("ATERINT=ATERINT(tipo), TERRAI", "", "", "0"),
+    _f("ATERINT", "ATERINT_COM", "SDEMU3803II", "1", mdo="MAO-DE-OBRA", lv="LM"),
+    _f("ATERINT", "ATERINT_COM", "3470008", '=SE(OU(tipo="MRT_RPN";tipo="MRT_RDC");12;3)'),
+    _f("ATERINT", "ATERINT_COM", "2418057", '=SE(OU(tipo="MRT_RPN";tipo="MRT_RDC");12;3)'),
+    _f("ATERINT", "ATERINT_COM", "2200002", '=SE(tipo="RDC";2.4;1.8)'),
+    _f("ATERINT", "ATERINT_COM", "2203009", '=SE(tipo="PR";3.9;SE(tipo="RDC";3.5;SE(tipo="RPN";4.7;SE(tipo="MRT_RPN";14;14.2))))'),
+    _f("ATERINT(tipo=MRT%)", "ATERINT_MRT", "7616020", "288"),
+    _f("ATERINT(tipo=MRT%)", "ATERINT_MRT", "6221004", "4"),
+    _f("ATERINT(tipo=MRT_RDC)", "ATERINT_MRD", "2411149", "2"),
+]
+
+
+def _calc_ater(texto, op="I"):
+    r = calc.processar_calculo([], [{"ativo": texto, "operacao": op, "entidade": "0"}], "PERNAMBUCO", ATERINT)
+    return {x["codigo"]: x["total"] for x in r["resultado"]}, r["nao_encontrados"]
+
+
+def test_base_aterint_valores_que_so_a_formula_conhece():
+    assert ap.validar_base([dict(r) for r in ATERINT])["erros"] == []
+    # PR, RDC e RPN não têm grupo (só as linhas comuns + a fórmula): antes "TIPO=PR não cadastrado em ATERINT (existem: MRT_RDC, MRT%)"
+    assert _calc_ater("2-ATERINT(PR)") == ({"SDEMU3803II": 2.0, "3470008": 6.0, "2418057": 6.0, "2200002": 3.6, "2203009": 7.8}, [])
+    assert _calc_ater("2-ATERINT(RDC)")[0]["2200002"] == 4.8 and _calc_ater("2-ATERINT(RDC)")[0]["2203009"] == 7.0
+    assert _calc_ater("2-TERRAI(RPN)")[0]["2203009"] == 9.4                                                          # apelido
+    mrt = _calc_ater("2-ATERINT(MRT_RPN)")[0]                                                                         # grupo MRT%: bentonita + massa
+    assert mrt["7616020"] == 576.0 and mrt["6221004"] == 8.0 and "2411149" not in mrt and mrt["3470008"] == 24.0
+    assert _calc_ater("2-ATERINT(MRT_RDC)")[0]["2411149"] == 4.0                                                      # grupo específico MRT_RDC: + grampo
+    tot, nao = _calc_ater("2-ATERINT")                                                                                # sem tipo (sem padrão): só o que não depende dele
+    assert tot == {"SDEMU3803II": 2.0}

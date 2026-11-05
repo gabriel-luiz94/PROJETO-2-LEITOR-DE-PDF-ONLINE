@@ -432,10 +432,10 @@
                 const livres = sig.livres || (sig.livres = []);
                 novos.forEach(n => { if (!livres.includes(n)) livres.push(n); });
             }
-            // parâmetro declarado com padrão, usado numa fórmula e sem NENHUM grupo que o restrinja: o padrão é só o padrão (aceita qualquer valor)
+            // parâmetro usado numa fórmula de FATOR do ativo (ex.: tipo="PR"): os valores vêm da fórmula, então ele aceita QUALQUER valor. Grupos e padrão
+            // continuam valendo como condição (o que não casa grupo recebe só as linhas comuns), mas o valor não cadastrado deixa de ser erro (TASK-115).
             for (const n of ((sig || {}).nomes || []).slice()) {
-                const val = sig.valores[n] || [], esperado = n in sig.padroes ? [sig.padroes[n]] : [];
-                if (usados.has(nomeTela(n)) && sig.fechados.includes(n) && val.length === esperado.length && val.every((v, i) => v === esperado[i]) && !(sig.mascaras[n] || []).length) sig.fechados.splice(sig.fechados.indexOf(n), 1);
+                if (usados.has(nomeTela(n)) && sig.fechados.includes(n)) sig.fechados.splice(sig.fechados.indexOf(n), 1);
             }
         }
         return saida;
