@@ -1077,3 +1077,4 @@ sessão. Alterações: `services/pdf_service.py` (coordenadas `_x`/`_y`), `confi
 - [x] **TASK-112** (pedido de 2026-11-05): Parâmetro usado só na fórmula do FATOR (não declarado no ativo) salva com aviso em vez de recusar. CONCLUÍDA em 2026-11-05. Ver `.ai/tasks/TASK-112-05-11-2026.md`.
 - [x] **TASK-113** (pedido de 2026-11-05): Parâmetro usado só na fórmula do FATOR (não declarado) passa a ser aceito no pedido por nome (`CERCA(fios=8F)`). CONCLUÍDA em 2026-11-05. Ver `.ai/tasks/TASK-113-05-11-2026.md`.
 - [x] **TASK-114** (pedido de 2026-11-05): Parâmetro declarado com padrão e usado só em fórmula de FATOR não exige grupo e aceita qualquer valor (caso CERCA/tipo). CONCLUÍDA em 2026-11-05. Ver `.ai/tasks/TASK-114-05-11-2026.md`.
+- [x] **TASK-115** (pedido de 2026-11-05): Parâmetro usado em fórmula de FATOR aceita qualquer valor mesmo com grupos que citam só alguns (caso ATERINT/tipo). CONCLUÍDA em 2026-11-05. Ver `.ai/tasks/TASK-115-05-11-2026.md`.

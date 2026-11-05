@@ -600,9 +600,10 @@ def assinaturas_das_linhas(validas) -> dict:
             sig = saida.setdefault(base, {"nomes": [], "padroes": {}, "valores": {}, "mascaras": {}, "fechados": [], "declarada": False})
             livres = sig.setdefault("livres", [])
             livres.extend(n for n in novos if n not in livres)
-        # parâmetro declarado com padrão, usado numa fórmula e sem NENHUM grupo que o restrinja: o padrão é só o padrão (aceita qualquer valor)
+        # parâmetro usado numa fórmula de FATOR do ativo (ex.: tipo="PR"): os valores vêm da fórmula, então ele aceita QUALQUER valor. Grupos e padrão
+        # continuam valendo como condição (o que não casa grupo recebe só as linhas comuns), mas o valor não cadastrado deixa de ser erro (TASK-115).
         for n in list((sig or {}).get("nomes", [])):
-            if nome_tela(n) in usados and n in sig["fechados"] and sig["valores"].get(n, []) == ([sig["padroes"][n]] if n in sig["padroes"] else []) and not sig["mascaras"].get(n):
+            if nome_tela(n) in usados and n in sig["fechados"]:
                 sig["fechados"].remove(n)
     return saida
 

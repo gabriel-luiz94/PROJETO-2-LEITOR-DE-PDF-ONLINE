@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-05 — TASK-115: parâmetro usado em fórmula aceita qualquer valor (mesmo com grupos parciais)
+
+**Tipo:** correção · `services/ativo_parametros.py` ⇄ `static/ativo_parametros.js` (`assinaturas_das_linhas`/`assinaturasDasLinhas`)
+
+Base real `ATERINT` (`tipo` com grupos só para `MRT%` e `MRT_RDC`, e valores `PR/RDC/RPN` só nas fórmulas): `ATERINT(PR)` dava `TIPO=PR não cadastrado em ATERINT (existem: MRT_RDC, MRT%)`. A regra da TASK-114 (abrir só quando não há grupos) foi generalizada: parâmetro usado em fórmula de FATOR do ativo deixa de ser fechado, e o valor sem grupo recebe só as linhas comuns + fórmula. Parâmetro fora de fórmulas continua fechado.
+
+---
+
 ## 2026-11-05 — TASK-114: parâmetro com padrão usado só em fórmula não exige grupo e aceita qualquer valor
 
 **Tipo:** correção · `services/ativo_parametros.py` ⇄ `static/ativo_parametros.js` (`assinaturas_das_linhas`/`assinaturasDasLinhas`, `_formula_por_ativo`, `validar_base`)
