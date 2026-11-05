@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-05 — TASK-110: ativo composto na Base (`N1C:=N1(C) + 2*N2(C)`)
+
+**Tipo:** feature · `services/ativo_parametros.py` ⇄ `static/ativo_parametros.js` (`analisar_composto`, `_achar_composto`, `compostos_do_projeto`, `_validar_compostos`), `services/orcamento_calc.py` (`_expandir_compostos`)
+
+Uma linha da Base com ATIVO `NOME:=item + qtd*item …` (sem CÓDIGO/COMPONENTE) define um ativo que agrupa outros: itens podem ser ativos simples, com parâmetros (`N1(C)`), `[nomes literais]` ou outros compostos, com quantidade por item (`2*N2(C)`, ponto decimal) e apelidos na mesma célula (`KIT:=…, K`). Pedir `3-N1C` no cálculo vale como `3-N1(C)` e `6-N2(C)` (a Totalizadora mostra `N1C`; o servidor expande). Composto por projeto (o do projeto vence o genérico); ciclo no cálculo avisa. A importação recusa composto com CÓDIGO/COMPONENTE, nome repetido ou igual a ativo existente, item que não existe na base ou com parâmetro inválido, quantidade ≤ 0 e ciclos.
+
+---
+
 ## 2026-11-04 — TASK-109: FATOR da Base em função de parâmetro (fórmula)
 
 **Tipo:** feature + migração · `services/fator_formula.py` (novo), `services/orcamento_calc.py`, `services/ativo_parametros.py` (`validar_base`), `database.py`, `routers/orcamento.py`, `routers/admin.py`, `services/sync_service.py`, `services/realtime_sync.py`, `static/orcamento.html`, `scripts/schema_supabase.sql`
