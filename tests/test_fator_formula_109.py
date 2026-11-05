@@ -323,3 +323,63 @@ def test_paridade_js_dos_parametros_livres():
     r = subprocess.run([node, "-e", codigo], input=json.dumps({"linhas": linhas, "pedidos": pedidos}), capture_output=True, text=True, timeout=30)
     assert r.returncode == 0, r.stderr
     assert json.loads(r.stdout) == json.loads(json.dumps(esperado))
+
+
+# ── TASK-114: parâmetro declarado com padrão e usado só em fórmula (sem grupo) aceita qualquer valor e não exige grupo ──
+def _f(ativo, comp, cod, fator, mdo="MATERIAL", lv="A"):
+    from services.fator_formula import normalizar_fator
+    n, f = normalizar_fator(fator)
+    return L(ativo, comp, cod, n, mdo=mdo, lv=lv, projeto="PERNAMBUCO", formula_i=f, fator_r=0.0, formula_r="")
+
+
+CERCA_PE = [
+    _f("CERCA=CERCA(descr=5F,tipo=PA), AC", "", "", "0"),
+    _f("CERCA", "CERCA_COM", "SDEMU3801II", "1", mdo="MAO-DE-OBRA", lv="LM"),
+    _f("CERCA", "CERCA_COM", "3471009", '=SE(tipo="T";3;2)'),
+    _f("CERCA", "CERCA_COM", "4404026", '=(0.0274*(0.16*NUM(descr)*NUM(descr)+1.16*NUM(descr))*SE(tipo="PA";2;3))+SE(tipo="P";1;0)'),
+    _f("CERCA(descr=%F)", "CERCA_F", "3432010", '=NUM(descr)*SE(tipo="PA";1;2)'),
+    _f("CERCA(descr=%L)", "CERCA_L", "3432011", '=NUM(descr)*SE(tipo="PA";1;2)'),
+]
+
+
+def _calc_pe(texto, op="I"):
+    r = calc.processar_calculo([], [{"ativo": texto, "operacao": op, "entidade": "0"}], "PERNAMBUCO", CERCA_PE)
+    return {x["codigo"]: x["total"] for x in r["resultado"]}, r["nao_encontrados"]
+
+
+def test_base_com_padrao_so_usado_em_formula_valida_sem_grupo():
+    v = ap.validar_base([dict(r) for r in CERCA_PE])
+    assert v["erros"] == [] and v["avisos"] == []
+    # padrão que NÃO é usado em fórmula continua exigindo um grupo
+    ruim = ap.validar_base([L("X=X(a=1)", "", ""), L("X", "C", "k", 1.0)])
+    assert any("padrão A=1 de X não tem nenhum grupo cadastrado" in e for e in ruim["erros"])
+
+
+def test_parametro_com_padrao_e_so_de_formula_aceita_qualquer_valor():
+    assert _calc_pe("2-CERCA") == ({"SDEMU3801II": 2.0, "4404026": 1.07, "3471009": 4.0, "3432010": 10.0}, [])        # padrões 5F e PA
+    assert _calc_pe("2-AC")[0] == _calc_pe("2-CERCA")[0]                                                               # apelido
+    assert _calc_pe("2-CERCA(5F,T)")[0] == {"SDEMU3801II": 2.0, "4404026": 1.61, "3471009": 6.0, "3432010": 20.0}      # tipo=T: antes "não cadastrado (existem: PA)"
+    assert _calc_pe("2-CERCA(10F,P)")[0]["4404026"] == 6.54
+    assert _calc_pe("2-CERCA(tipo=T)")[0]["3471009"] == 6.0
+    assert _calc_pe("2-CERCA(descr=7L,tipo=PA)")[0]["3432011"] == 14.0
+    assert any("DESCR=7X não cadastrado" in n for n in _calc_pe("2-CERCA(7X)")[1])                                     # descr tem grupos (%F/%L): continua fechado
+    assert _calc_pe("2-CERCA(5F,PA)", "*I")[0].keys() == {"4404026", "3471009", "3432010"}                              # linha viva: sem o código só de linha morta
+
+
+def test_paridade_js_do_parametro_aberto():
+    import os, shutil, subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node indisponível")
+    import config
+    modulo = os.path.join(config.STATIC_DIR, "ativo_parametros.js")
+    linhas = [dict(r) for r in CERCA_PE]
+    pedidos = ["CERCA", "CERCA(5F,T)", "CERCA(tipo=T)", "CERCA(7X)", "AC"]
+    sig = ap.assinaturas_do_projeto(linhas, "PERNAMBUCO")
+    esperado = {"sig": sig, "ped": [ap.resolver_pedido(p, sig) for p in pedidos]}
+    codigo = (f"const A=require({json.dumps(modulo)});const e=JSON.parse(require('fs').readFileSync(0,'utf8'));"
+              "const s=A.assinaturasDoProjeto(e.linhas,'PERNAMBUCO');console.log(JSON.stringify({sig:s,ped:e.pedidos.map(p=>A.resolverPedido(p,s))}));")
+    r = subprocess.run([node, "-e", codigo], input=json.dumps({"linhas": linhas, "pedidos": pedidos}), capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0, r.stderr
+    assert json.loads(r.stdout) == json.loads(json.dumps(esperado))
+    assert "TIPO" not in sig["CERCA"]["fechados"] and "DESCR" in sig["CERCA"]["fechados"]

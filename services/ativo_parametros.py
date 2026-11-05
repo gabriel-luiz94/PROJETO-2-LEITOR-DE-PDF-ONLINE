@@ -589,28 +589,42 @@ def assinaturas_das_linhas(validas) -> dict:
     """TASK-113: assinaturas das células ATIVO (``montar_assinaturas``) + os parâmetros LIVRES: nomes usados só na fórmula do FATOR (``=NUM(fios)``) que o
     ativo não declara. Eles entram em ``sig["livres"]`` (lista, só quando existem) e o pedido os informa por nome: ``3-CERCA(fios=8F)``."""
     saida = montar_assinaturas([l.get("ativo") or "" for l in validas])
+    por_ativo = {}
+    for (_, base), nomes in _formula_por_ativo(validas).items():
+        por_ativo.setdefault(base, set()).update(nomes)
+    for base, usados in por_ativo.items():
+        sig = saida.get(base)
+        declarados = {nome_tela(n) for n in (sig or {}).get("nomes", [])}
+        novos = sorted(usados - declarados)
+        if novos:
+            sig = saida.setdefault(base, {"nomes": [], "padroes": {}, "valores": {}, "mascaras": {}, "fechados": [], "declarada": False})
+            livres = sig.setdefault("livres", [])
+            livres.extend(n for n in novos if n not in livres)
+        # parâmetro declarado com padrão, usado numa fórmula e sem NENHUM grupo que o restrinja: o padrão é só o padrão (aceita qualquer valor)
+        for n in list((sig or {}).get("nomes", [])):
+            if nome_tela(n) in usados and n in sig["fechados"] and sig["valores"].get(n, []) == ([sig["padroes"][n]] if n in sig["padroes"] else []) and not sig["mascaras"].get(n):
+                sig["fechados"].remove(n)
+    return saida
+
+
+def _formula_por_ativo(linhas) -> dict:
+    """{(escopo, nome-base): {NOMES usados nas fórmulas de FATOR das linhas do ativo}} (TASK-113)."""
     from services.fator_formula import FormulaErro, identificadores
-    for l in validas:
+    saida = {}
+    for l in linhas or []:
         if not ((l.get("formula_i") or "").strip() or (l.get("formula_r") or "").strip()):
             continue
         cel = (l.get("ativo") or "").strip()
         a = analisar_celula_base(cel) if cel else None
         if a is None or a["erro"] or a["tipo"] == "composto" or not a["base"]:
             continue
-        usados = set()
         for campo in ("formula_i", "formula_r"):
             f = (l.get(campo) or "").strip()
             if f:
                 try:
-                    usados |= identificadores(f)
+                    saida.setdefault((_escopo(l), a["base"]), set()).update(identificadores(f))
                 except FormulaErro:
                     pass
-        declarados = {nome_tela(n) for n in (saida.get(a["base"]) or {}).get("nomes", [])}
-        novos = sorted(usados - declarados)
-        if novos:
-            sig = saida.setdefault(a["base"], {"nomes": [], "padroes": {}, "valores": {}, "mascaras": {}, "fechados": [], "declarada": False})
-            livres = sig.setdefault("livres", [])
-            livres.extend(n for n in novos if n not in livres)
     return saida
 
 
@@ -762,6 +776,7 @@ def validar_base(linhas) -> dict:
             parametrizadas.setdefault((_escopo(linha), a["base"]), []).append((n, linha, a))
 
     # declaração: uma só, na primeira linha do ativo, cobrindo todos os nomes usados; padrões com grupo que os aceite
+    formulas = _formula_por_ativo(linhas)
     for (esc, base), itens in parametrizadas.items():
         todas = [(n, a) for n, l, a in analises if _escopo(l) == esc and a["base"] == base]
         decls = [(n, a) for n, l, a in itens if a["tipo"] == "declaracao"]
@@ -777,11 +792,12 @@ def validar_base(linhas) -> dict:
                     for p in a["params"]:
                         if p["nome"] not in nomes:
                             erros.append(f"Linha {n}: parâmetro {p['nome']} não está na declaração de {base} ({', '.join(nomes)}).")
+            em_formula = formulas.get((esc, base), set()) | formulas.get(("", base), set())          # TASK-113: parâmetro só da fórmula não precisa de grupo
             for p in decl["params"]:
                 if p["valor"] is None:
                     continue
                 aceitam = [r[p["nome"]] for _, _, a in itens if a["tipo"] == "grupo" or a.get("condicionada") for r in [restricoes_do_grupo(a)] if p["nome"] in r]
-                if not any(restricao_vale(r, p["valor"]) for r in aceitam):
+                if not any(restricao_vale(r, p["valor"]) for r in aceitam) and nome_tela(p["nome"]) not in em_formula:
                     erros.append(f"Linha {n_decl}: padrão {p['nome']}={p['valor']} de {base} não tem nenhum grupo cadastrado.")
 
     # grupo de cada COMPONENTE (por escopo); componente usado por grupos diferentes é erro (a expansão traria os dois)
