@@ -1074,3 +1074,4 @@ sessão. Alterações: `services/pdf_service.py` (coordenadas `_x`/`_y`), `confi
 - [x] **TASK-109** (pedido de 2026-11-04): FATOR I/R da Base em função de parâmetro (fórmula `=NUM(fios)/8`). CONCLUÍDA em 2026-11-04. Ver `.ai/tasks/TASK-109-04-11-2026.md`.
 - [x] **TASK-110** (pedido de 2026-11-05): Ativo composto na Base (`N1C:=N1(C) + 2*N2(C)`) agrupa ativos, com parâmetros e quantidade por item. CONCLUÍDA em 2026-11-05. Ver `.ai/tasks/TASK-110-05-11-2026.md`.
 - [x] **TASK-111** (pedido de 2026-11-05): Novo layout da tela Resumo (painéis laterais fixáveis, barra de título/modais, tabelas com linhas vazias estilo Excel, colar várias linhas com operação herdada, exportar JSON da obra). CONCLUÍDA em 2026-11-05. Ver `.ai/tasks/TASK-111-05-11-2026.md`.
+- [x] **TASK-112** (pedido de 2026-11-05): Parâmetro usado só na fórmula do FATOR (não declarado no ativo) salva com aviso em vez de recusar. CONCLUÍDA em 2026-11-05. Ver `.ai/tasks/TASK-112-05-11-2026.md`.

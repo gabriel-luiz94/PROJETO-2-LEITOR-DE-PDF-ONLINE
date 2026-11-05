@@ -139,9 +139,11 @@ def test_validar_base_formula():
     sintaxe = ap.validar_base([L("CERCA=CERCA(fios)", "", ""), L("CERCA(fios=8F)", "C", "k", 0.0, formula_i="=NUM(fios")])
     assert any("FATOR I" in e and "incompleta" in e for e in sintaxe["erros"])
     outro = ap.validar_base([L("CERCA=CERCA(fios)", "", ""), L("CERCA(fios=8F)", "C", "k", 0.0, formula_r="=NUM(poste)")])
-    assert any("FATOR R" in e and "'poste'" in e and "fios" in e for e in outro["erros"])
+    assert outro["erros"] == [] and any("FATOR R" in e and "'poste'" in e and "fios" in e and "não declara" in e for e in outro["avisos"])      # parâmetro não declarado: só aviso
     sem_param = ap.validar_base([L("X", "C", "k", 0.0, formula_i="=NUM(fios)")])
-    assert any("'fios'" in e and "nenhum" in e for e in sem_param["erros"])
+    assert sem_param["erros"] == [] and any("'fios'" in e and "nenhum" in e for e in sem_param["avisos"])
+    do_grupo_generico = ap.validar_base([L("CERCA=CERCA(fios)", "", ""), L("CERCA(fios=8F)", "C", "k", 0.0, formula_i="=NUM(fios)", proj="PE")])
+    assert do_grupo_generico["erros"] == [] and do_grupo_generico["avisos"] == []              # declaração genérica vale para a linha do projeto
     constante = ap.validar_base([L("X", "C", "k", 0.0, formula_i="=2*3")])
     assert constante["erros"] == []                                          # fórmula sem parâmetro vale em ativo simples
 
@@ -203,7 +205,7 @@ def test_upload_master_aceita_numero_e_formula(client):
     assert f["arame"] == ("arame", 0.0, "=NUM(fios)", 0.0, "=NUM(fios)/2") and f["grampo"] == ("grampo", 1.5, "", 2.0, "")
 
 
-@pytest.mark.parametrize("fator, trecho", [("=NUM(fios", "FATOR I"), ("=NUM(poste)", "'poste'"), ("=1+", "incompleta")])
+@pytest.mark.parametrize("fator, trecho", [("=NUM(fios", "FATOR I"), ("=1+", "incompleta")])
 def test_upload_recusa_formula_ruim_sem_alterar_nada(client, fator, trecho):
     ok = csv_("X;d;C;P;MATERIAL;k1;d;1;1;")
     client.post("/api/admin/upload-master", files={"file": ("b.csv", ok, "text/csv")}, headers=adm())
@@ -211,6 +213,25 @@ def test_upload_recusa_formula_ruim_sem_alterar_nada(client, fator, trecho):
     r = client.post("/api/admin/upload-master", files={"file": ("b.csv", ruim, "text/csv")}, headers=adm())
     assert r.status_code == 400 and trecho in r.json()["detail"], r.text
     assert [x[0] for x in fatores()] == ["k1"]
+
+
+def test_parametro_so_na_formula_salva_com_aviso(client):
+    dados = csv_('CERCA=CERCA(fios);d;;P;MATERIAL;;d;;;', 'CERCA(fios=8F);d;C1;P;MATERIAL;arame;d;"=NUM(fios)*NUM(poste)";1;')
+    r = client.post("/api/admin/upload-master", files={"file": ("b.csv", dados, "text/csv")}, headers=adm())
+    assert r.status_code == 200, r.text
+    assert any("'poste'" in a and "não declara" in a for a in r.json().get("avisos", []))
+    assert [x for x in fatores() if x[0] == "arame"] == [("arame", 0.0, "=NUM(fios)*NUM(poste)", 1.0, "")]
+    r = client.post("/api/orcamento/upload", files={"file": ("b.csv", dados, "text/csv")}, headers=adm())
+    assert r.status_code == 200 and any("'poste'" in a for a in r.json().get("avisos", []))
+    linhas = [{"ativo": "CERCA=CERCA(fios)", "projeto": "P"}, {"ativo": "CERCA(fios=8F)", "componente": "C", "projeto": "P", "codigo": "arame", "fator_i": "=NUM(poste)", "fator_r": "1"}]
+    assert client.post("/api/orcamento/salvar", json={"dados": linhas, "projeto": "P"}, headers=adm()).status_code == 200
+    assert client.post("/api/admin/sync-master-all", json={"dados": linhas, "projeto": "P"}, headers=adm()).status_code == 200
+
+
+def test_formula_que_usa_parametro_nao_informado_avisa_no_calculo():
+    base = [L("CERCA=CERCA(fios)", "", ""), L("CERCA(fios=%F)", "C", "arame", 0.0, formula_i="=NUM(fios)*NUM(poste)"), L("CERCA(fios=%F)", "C", "grampo", 1.0)]
+    tot, nao, avisos = calcular(base, "10-CERCA(8F)")
+    assert tot == {"grampo": 10.0} and any("poste" in a and "não informado" in a for a in avisos)
 
 
 def test_upload_local_e_salvar_da_tela(client):
@@ -235,7 +256,8 @@ def test_add_row_e_sync_all(client):
     assert client.post("/api/admin/add-row", json={"ativo": "CERCA=CERCA(fios)", "projeto": "P"}, headers=adm()).status_code == 200
     r = client.post("/api/admin/add-row", json={"ativo": "CERCA(fios=8F)", "componente": "C", "projeto": "P", "codigo": "arame", "fator_i": "=NUM(fios)", "fator_r": 2}, headers=adm())
     assert r.status_code == 200, r.text
-    assert client.post("/api/admin/add-row", json={"ativo": "CERCA(fios=9F)", "componente": "C", "projeto": "P", "codigo": "k9", "fator_i": "=NUM(x)"}, headers=adm()).status_code == 400
+    assert client.post("/api/admin/add-row", json={"ativo": "CERCA(fios=9F)", "componente": "C", "projeto": "P", "codigo": "k9", "fator_i": "=NUM(x)"}, headers=adm()).status_code == 200      # parâmetro não declarado: salva (só aviso)
+    assert client.post("/api/admin/add-row", json={"ativo": "CERCA(fios=7F)", "componente": "C", "projeto": "P", "codigo": "k7", "fator_i": "=NUM("}, headers=adm()).status_code == 400      # sintaxe inválida: recusa
     assert [x for x in fatores() if x[0] == "arame"] == [("arame", 0.0, "=NUM(fios)", 2.0, "")]
     linhas = [{"ativo": "CERCA=CERCA(fios)", "projeto": "P"}, {"ativo": "CERCA(fios=8F)", "componente": "C", "projeto": "P", "codigo": "arame", "fator_i": "=NUM(fios)/4", "fator_r": "1"}]
     assert client.post("/api/admin/sync-master-all", json={"dados": linhas, "projeto": "P"}, headers=adm()).status_code == 200

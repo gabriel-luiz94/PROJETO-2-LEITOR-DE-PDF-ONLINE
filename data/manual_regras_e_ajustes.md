@@ -581,7 +581,7 @@ As colunas **FATOR I** e **FATOR R** aceitam um número (`1,5`) **ou uma fórmul
 - **Exemplos:** `=NUM(fios)/8` · `=SE(tipo="A"; 2; 1)` · `=MAX(NUM(cabo); 35) * 2` · `=SE(NUM(fios)>=10; 2; 1)`.
 - **Com o ARRED:** a coluna ARRED (TASK-107) arredonda o resultado da fórmula (ex.: `=NUM(fios)/8` + `CIMA`).
 - **Pedido sem o parâmetro:** a fórmula não pode ser calculada; o cálculo avisa e a linha não soma (as demais linhas do ativo entram normalmente). Padrão na declaração (`CERCA=CERCA(fios=8F)`) vale na fórmula.
-- **Na importação:** fórmula com erro de sintaxe, ou que use parâmetro que o ativo da linha não declara, é recusada com a linha e nada é alterado. No CSV, fórmula com `;` precisa estar entre aspas (a exportação da tela já faz isso).
+- **Na importação:** fórmula com **erro de sintaxe** é recusada com a linha e nada é alterado. Fórmula que usa um **parâmetro que o ativo não declara** salva normalmente e gera só um **aviso** (o parâmetro pode existir apenas na fórmula); ela é calculada quando o pedido traz esse parâmetro, senão o cálculo avisa e a linha não soma. No CSV, fórmula com `;` precisa estar entre aspas (a exportação da tela já faz isso).
 - Depois de atualizar, o administrador roda o `schema_supabase.sql` no Supabase (cria `formula_i` e `formula_r`). Linhas existentes continuam com o número.
 
 ## Ativo composto: agrupar ativos (TASK-110)

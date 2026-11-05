@@ -777,7 +777,7 @@ def validar_base(linhas) -> dict:
                     p1, p2 = restr_do_comp[c1], restr_do_comp[c2]
                     if all(_compativeis(p1[k], p2[k]) for k in set(p1) & set(p2)):
                         avisos.append(f"Código {cod} aparece nos grupos {c1} (linha {n1}) e {c2} (linha {n2}), que podem valer juntos: a quantidade soma duas vezes.")
-    _validar_formulas(analises, parametrizadas, erros)
+    _validar_formulas(analises, parametrizadas, erros, avisos)
     _validar_compostos(linhas, analises, erros)
     return {"erros": erros, "avisos": avisos}
 
@@ -855,8 +855,10 @@ def _validar_compostos(linhas, analises, erros):
                     pilha.append((filho, caminho + [filho]))
 
 
-def _validar_formulas(analises, parametrizadas, erros):
-    """TASK-109: FATOR I/R em fórmula (``=NUM(fios)/8``) — sintaxe válida e só parâmetros que o ativo da linha declara."""
+def _validar_formulas(analises, parametrizadas, erros, avisos):
+    """TASK-109: FATOR I/R em fórmula (``=NUM(fios)/8``). Sintaxe inválida recusa a importação (erro); parâmetro que o ativo NÃO declara só gera AVISO
+    (a fórmula pode usar um parâmetro que só aparece nela; ela é calculada quando o pedido traz o parâmetro). Os parâmetros do ativo contam os do
+    próprio projeto da linha e os das linhas genéricas (projeto em branco)."""
     from services.fator_formula import FormulaErro, identificadores
     for n, linha, a in analises:
         for campo, rotulo in (("formula_i", "FATOR I"), ("formula_r", "FATOR R")):
@@ -868,8 +870,9 @@ def _validar_formulas(analises, parametrizadas, erros):
             except FormulaErro as e:
                 erros.append(f"Linha {n}: {rotulo} '{f}': {e}.")
                 continue
-            nomes = {nome_tela(p["nome"]) for _, _, aa in parametrizadas.get((_escopo(linha), a["base"]), []) for p in aa["params"] if p["nome"]}
+            nomes = {nome_tela(p["nome"]) for esc in {_escopo(linha), ""} for _, _, aa in parametrizadas.get((esc, a["base"]), []) for p in aa["params"] if p["nome"]}
             for nome in sorted(usados):
                 if nome not in nomes:
                     existentes = ", ".join(sorted(x.lower() for x in nomes)) or "nenhum"
-                    erros.append(f"Linha {n}: {rotulo} '{f}' usa o parâmetro '{nome.lower()}', que o ativo {a['base']} não tem (parâmetros: {existentes}).")
+                    avisos.append(f"Linha {n}: {rotulo} '{f}' usa o parâmetro '{nome.lower()}', que o ativo {a['base']} não declara (declarados: {existentes}); "
+                                  f"a fórmula só é calculada quando o pedido traz esse parâmetro.")
