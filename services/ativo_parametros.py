@@ -468,20 +468,31 @@ def resolver_pedido(texto, assinaturas) -> dict:
         return r
     r["com_assinatura"] = True
     nomes = sig["nomes"]
-    dados = {}
+    livres = list(sig.get("livres") or [])                   # TASK-113: parâmetros que só existem na fórmula do fator
+    dados, dados_livres = {}, {}
     pos = 0
     for p in a["params"]:
         if p["nome"] is None:
             while pos < len(nomes) and nomes[pos] in dados:
                 pos += 1
             if pos >= len(nomes):
-                r["erros"].append(f"parâmetros demais para {a['base']} (esperado: {', '.join(nome_tela(n) for n in nomes)})")
+                if livres and not nomes:
+                    r["erros"].append(f"os parâmetros de {a['base']} precisam do nome: {a['base']}({livres[0].lower()}=valor)")
+                else:
+                    r["erros"].append(f"parâmetros demais para {a['base']} (esperado: {', '.join(nome_tela(n) for n in nomes)})")
                 continue
             dados[nomes[pos]] = p["valor"]
             pos += 1
         else:
-            if p["nome"] not in nomes:
-                r["erros"].append(f"parâmetro {nome_tela(p['nome'])} desconhecido em {a['base']} (existem: {', '.join(nome_tela(n) for n in nomes)})")
+            if p["nome"] in livres and p["nome"] not in nomes:
+                if p["nome"] in dados_livres:
+                    r["erros"].append(f"parâmetro {p['nome']} repetido")
+                else:
+                    dados_livres[p["nome"]] = p["valor"]
+            elif p["nome"] not in nomes and nome_tela(p["nome"]) in livres:
+                r["erros"].append(f"parâmetro {nome_tela(p['nome'])} repetido")
+            elif p["nome"] not in nomes:
+                r["erros"].append(f"parâmetro {nome_tela(p['nome'])} desconhecido em {a['base']} (existem: {', '.join(nome_tela(n) for n in nomes + livres)})")
             elif p["nome"] in dados:
                 r["erros"].append(f"parâmetro {p['nome']} repetido")
             else:
@@ -499,11 +510,14 @@ def resolver_pedido(texto, assinaturas) -> dict:
                     r["erros"].append(f"{nome_tela(n)}={dados[n]} não cadastrado em {a['base']} (existem: {', '.join(exatos + mascaras)})")
         else:
             r["faltando"].append(n)
-    r["params"] = {n: dados[n] for n in nomes if n in dados}
-    if not r["faltando"]:
-        r["texto"] = f"{a['base']}({','.join(dados[n] for n in nomes)})"
-    elif dados:
-        r["texto"] = f"{a['base']}({','.join(nome_tela(n) + '=' + dados[n] for n in nomes if n in dados)})"
+    r["params"] = {**{n: dados[n] for n in nomes if n in dados}, **dados_livres}
+    extras = [f"{n}={v}" for n, v in dados_livres.items()]
+    if not nomes:
+        r["texto"] = f"{a['base']}({','.join(extras)})" if extras else a["base"]
+    elif not r["faltando"]:
+        r["texto"] = f"{a['base']}({','.join([dados[n] for n in nomes] + extras)})"
+    elif dados or extras:
+        r["texto"] = f"{a['base']}({','.join([nome_tela(n) + '=' + dados[n] for n in nomes if n in dados] + extras)})"
     return r
 
 
@@ -568,7 +582,36 @@ def assinaturas_do_projeto(linhas, projeto) -> dict:
         lp = str(l.get("projeto") or "").strip().upper()
         if not lp or not p or p in [x.strip() for x in lp.split("/")]:
             validas.append(l)
-    return montar_assinaturas([l.get("ativo") or "" for l in validas])
+    return assinaturas_das_linhas(validas)
+
+
+def assinaturas_das_linhas(validas) -> dict:
+    """TASK-113: assinaturas das células ATIVO (``montar_assinaturas``) + os parâmetros LIVRES: nomes usados só na fórmula do FATOR (``=NUM(fios)``) que o
+    ativo não declara. Eles entram em ``sig["livres"]`` (lista, só quando existem) e o pedido os informa por nome: ``3-CERCA(fios=8F)``."""
+    saida = montar_assinaturas([l.get("ativo") or "" for l in validas])
+    from services.fator_formula import FormulaErro, identificadores
+    for l in validas:
+        if not ((l.get("formula_i") or "").strip() or (l.get("formula_r") or "").strip()):
+            continue
+        cel = (l.get("ativo") or "").strip()
+        a = analisar_celula_base(cel) if cel else None
+        if a is None or a["erro"] or a["tipo"] == "composto" or not a["base"]:
+            continue
+        usados = set()
+        for campo in ("formula_i", "formula_r"):
+            f = (l.get(campo) or "").strip()
+            if f:
+                try:
+                    usados |= identificadores(f)
+                except FormulaErro:
+                    pass
+        declarados = {nome_tela(n) for n in (saida.get(a["base"]) or {}).get("nomes", [])}
+        novos = sorted(usados - declarados)
+        if novos:
+            sig = saida.setdefault(a["base"], {"nomes": [], "padroes": {}, "valores": {}, "mascaras": {}, "fechados": [], "declarada": False})
+            livres = sig.setdefault("livres", [])
+            livres.extend(n for n in novos if n not in livres)
+    return saida
 
 
 def apelidos_do_projeto(linhas, projeto) -> dict:
@@ -777,7 +820,7 @@ def validar_base(linhas) -> dict:
                     p1, p2 = restr_do_comp[c1], restr_do_comp[c2]
                     if all(_compativeis(p1[k], p2[k]) for k in set(p1) & set(p2)):
                         avisos.append(f"Código {cod} aparece nos grupos {c1} (linha {n1}) e {c2} (linha {n2}), que podem valer juntos: a quantidade soma duas vezes.")
-    _validar_formulas(analises, parametrizadas, erros)
+    _validar_formulas(analises, parametrizadas, erros, avisos)
     _validar_compostos(linhas, analises, erros)
     return {"erros": erros, "avisos": avisos}
 
@@ -855,8 +898,10 @@ def _validar_compostos(linhas, analises, erros):
                     pilha.append((filho, caminho + [filho]))
 
 
-def _validar_formulas(analises, parametrizadas, erros):
-    """TASK-109: FATOR I/R em fórmula (``=NUM(fios)/8``) — sintaxe válida e só parâmetros que o ativo da linha declara."""
+def _validar_formulas(analises, parametrizadas, erros, avisos):
+    """TASK-109: FATOR I/R em fórmula (``=NUM(fios)/8``). Sintaxe inválida recusa a importação (erro); parâmetro que o ativo NÃO declara só gera AVISO
+    (a fórmula pode usar um parâmetro que só aparece nela; ela é calculada quando o pedido traz o parâmetro). Os parâmetros do ativo contam os do
+    próprio projeto da linha e os das linhas genéricas (projeto em branco)."""
     from services.fator_formula import FormulaErro, identificadores
     for n, linha, a in analises:
         for campo, rotulo in (("formula_i", "FATOR I"), ("formula_r", "FATOR R")):
@@ -868,8 +913,9 @@ def _validar_formulas(analises, parametrizadas, erros):
             except FormulaErro as e:
                 erros.append(f"Linha {n}: {rotulo} '{f}': {e}.")
                 continue
-            nomes = {nome_tela(p["nome"]) for _, _, aa in parametrizadas.get((_escopo(linha), a["base"]), []) for p in aa["params"] if p["nome"]}
+            nomes = {nome_tela(p["nome"]) for esc in {_escopo(linha), ""} for _, _, aa in parametrizadas.get((esc, a["base"]), []) for p in aa["params"] if p["nome"]}
             for nome in sorted(usados):
                 if nome not in nomes:
                     existentes = ", ".join(sorted(x.lower() for x in nomes)) or "nenhum"
-                    erros.append(f"Linha {n}: {rotulo} '{f}' usa o parâmetro '{nome.lower()}', que o ativo {a['base']} não tem (parâmetros: {existentes}).")
+                    avisos.append(f"Linha {n}: {rotulo} '{f}' usa o parâmetro '{nome.lower()}', que o ativo {a['base']} não declara (declarados: {existentes}); "
+                                  f"a fórmula só é calculada quando o pedido traz esse parâmetro por nome: {a['base']}({nome.lower()}=valor).")

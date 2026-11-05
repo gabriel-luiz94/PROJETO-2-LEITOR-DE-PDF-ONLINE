@@ -9,7 +9,7 @@ from services.orcamento_arred import aplicar_arred
 from services.fator_formula import FormulaErro, avaliar
 from services.anotacao_outros import contexto_da_base, interpretar_linha
 from services.ativo_parametros import (
-    analisar_celula_base, compostos_do_projeto, linha_vale, montar_assinaturas, nome_base, resolver_pedido, restricoes_do_grupo, sem_colchetes,
+    analisar_celula_base, assinaturas_das_linhas, compostos_do_projeto, linha_vale, montar_assinaturas, nome_base, resolver_pedido, restricoes_do_grupo, sem_colchetes,
 )
 
 
@@ -207,7 +207,7 @@ def _preparar_parametros(orcamento_rows, req_proj):
     passa intacta. ``grupos`` = {base: {chave: {NOME: VALOR}}} só com as linhas válidas para o projeto do pedido.
     """
     validas = [r for r in orcamento_rows if _linha_vale_no_projeto(r, req_proj)]
-    assinaturas = montar_assinaturas([r.get("ativo") or "" for r in validas])
+    assinaturas = assinaturas_das_linhas(validas)                     # TASK-113: inclui os parâmetros que só existem na fórmula do fator
     if not assinaturas and not any("(" in (r.get("ativo") or "") or "," in (r.get("ativo") or "") or "[" in (r.get("ativo") or "") for r in orcamento_rows):
         return orcamento_rows, assinaturas, {}
 

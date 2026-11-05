@@ -8,6 +8,22 @@
 
 ---
 
+## 2026-11-05 — TASK-113: parâmetro livre (só na fórmula do fator) aceito no pedido
+
+**Tipo:** correção/feature · `services/ativo_parametros.py` ⇄ `static/ativo_parametros.js` (`assinaturas_das_linhas`/`assinaturasDasLinhas`, `resolver_pedido`/`resolverPedido`), `services/orcamento_calc.py`
+
+O cálculo recusava `3-CERCA(fios=8F)` quando `fios` só aparecia na fórmula do FATOR (`CERCA não tem variantes cadastradas` / `parâmetro FIOS desconhecido`). Agora os nomes usados nas fórmulas e não declarados viram **parâmetros livres** da assinatura do ativo (`sig["livres"]`): o pedido os informa **por nome** e eles chegam à fórmula (sem lista de valores; por posição não vale). Vale no cálculo, na Totalizadora (Python e JS em paridade) e para ativos sem nenhuma declaração.
+
+---
+
+## 2026-11-05 — TASK-112: parâmetro só na fórmula do fator vira aviso
+
+**Tipo:** ajuste · `services/ativo_parametros.py` (`_validar_formulas`)
+
+Fórmula do FATOR (`=NUM(fios)…`) que usa parâmetro que o ativo não declara deixou de recusar a importação/salvamento da Base: agora é **aviso**. Erro de sintaxe continua sendo erro. Os parâmetros declarados passam a contar os do projeto da linha e os das linhas genéricas.
+
+---
+
 ## 2026-11-05 — TASK-111: novo layout da tela Resumo do Orçamento
 
 **Tipo:** UI · `static/resumo.html`, `static/resumo_layout.css`/`.js` (novos), `static/resumo.js`, `static/grade_tabela.js`, `routers/obras.py`, `app.py`
