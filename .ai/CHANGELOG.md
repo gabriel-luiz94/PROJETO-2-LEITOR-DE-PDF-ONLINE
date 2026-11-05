@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-05 — TASK-111: novo layout da tela Resumo do Orçamento
+
+**Tipo:** UI · `static/resumo.html`, `static/resumo_layout.css`/`.js` (novos), `static/resumo.js`, `static/grade_tabela.js`, `routers/obras.py`, `app.py`
+
+Barra de título (nº da obra, Ler projeto, Montar orçamento, carregar/salvar/modelo, importar/exportar JSON), barra de modais ocultável, controles (visão, visibilidade e layout lado a lado/empilhadas das tabelas, resumo compacto) e dois painéis laterais ocultos por padrão e fixáveis (Configurações à esquerda, Assistente IA à direita). As tabelas ocupam a altura da tela e mostram **linhas vazias estilo Excel** (digitar ou colar cria as linhas). Regra de operação das linhas novas/coladas: `I` se a tabela está vazia, senão a da linha preenchida acima. Nova rota `POST /api/obras/exportar-atual` (JSON da obra da tela). Sem mudança de banco; os `id` do HTML foram mantidos.
+
+---
+
 ## 2026-11-05 — TASK-110: ativo composto na Base (`N1C:=N1(C) + 2*N2(C)`)
 
 **Tipo:** feature · `services/ativo_parametros.py` ⇄ `static/ativo_parametros.js` (`analisar_composto`, `_achar_composto`, `compostos_do_projeto`, `_validar_compostos`), `services/orcamento_calc.py` (`_expandir_compostos`)

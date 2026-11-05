@@ -601,83 +601,385 @@
             color: #d97706;
         }
     </style>
+    <link rel="stylesheet" href="/static/resumo_layout.css?v=1">
 </head>
 <body>
-    <main class="container">
-        <header class="report-header">
-            <div style="display:flex; align-items:center; gap: 10px;">
-                <h1 class="report-title">Resumo do <span class="highlight">Orçamento</span></h1>
-                <div style="display:flex; align-items:center; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-                    <label style="font-size: 0.75rem; color: #8b949e; margin-right: 6px;">Projeto:</label>
-                    <select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;" onchange="const o=this.options[this.selectedIndex]; const cod=o?.dataset.codigo||''; localStorage.setItem('projeto_selecionado', this.value); localStorage.setItem('projeto_selecionado_codigo', cod); carregarRegras(); carregarRegrasLeitorResumo(cod); carregarRegrasVinculacaoResumo(cod); if (window.ModalMontavelUI) ModalMontavelUI.recarregar(); if (window.carregarContextosAjustes) carregarContextosAjustes(cod);"></select>
-                    <button id="btn-novo-projeto" class="btn-primary" onclick="abrirModalNovoProjeto()" style="display: none; padding: 2px 8px; font-size: 0.75rem; margin-left: 8px; border-radius: 4px;" title="Cadastrar Novo Projeto">+ Novo</button>
-                </div>
-                <!-- TASK-040: indicador de conectividade com a nuvem (Supabase) -->
-                <span id="indicador-conectividade" style="display:none; align-items:center; gap:5px; font-size:0.75rem; padding:3px 9px; border-radius:10px; white-space:nowrap;" title="Status da conexão com a nuvem (Supabase)">
+    <div class="app-shell" id="app-shell">
+
+        <!-- ═══ BARRA DE TÍTULO (TASK-111) ═══ -->
+        <header class="titlebar" id="titlebar">
+            <button class="btn-secondary btn-ico" onclick="window.location.href='/'" title="Voltar ao início">←</button>
+            <div class="titlebar-obra">
+                <label for="input-num-obra">Obra nº</label>
+                <input type="text" id="input-num-obra" placeholder="Nº da Obra" title="Número da Obra" style="padding: 6px 10px; border-radius: 5px; border: 1px solid var(--border-default); background: var(--bg-canvas); color: var(--text-primary); font-family: 'Inter', sans-serif; font-size: 0.9rem; width: 140px; outline: none;">
+            </div>
+            <button class="btn-secondary" id="btn-ler-projeto" title="Ler um PDF/DXF/DWG e processar aqui mesmo (clique ou arraste o arquivo)" style="padding: 6px 12px; font-size: 0.8rem; background: rgba(35, 134, 54, 0.15); border: 1px solid rgba(35, 134, 54, 0.5); color: #3fb950;">
+                            Ler projeto
+                        </button>
+            <input type="file" id="input-ler-projeto" accept=".pdf,.dxf,.dwg" hidden>
+            <button class="btn-primary" id="btn-montar-orcamento" style="background-color: #238636;">
+                            Montar Orçamento
+                        </button>
+            <span class="tb-sep"></span>
+            <button class="btn-secondary" id="btn-load-obra" title="Carregar Obra">
+                        Carregar Obra
+                    </button>
+            <button class="btn-primary" id="btn-save-obra" title="Salvar Obra na Memória">
+                        Salvar Obra
+                    </button>
+            <button class="btn-secondary" id="btn-save-modelo" title="Salva as tabelas como MODELO: quantidades escritas V (ou V(nome)) viram variáveis pedidas a quem usar o modelo">
+                        Salvar como modelo
+                    </button>
+            <button class="btn-secondary" id="btn-importar-json" type="button" title="Importa um arquivo .obra.json (JSON da obra) como cópia particular sua, no projeto selecionado">⤒ Importar JSON</button>
+            <button class="btn-secondary" id="btn-exportar-json" type="button" title="Exporta a obra que está na tela como arquivo .obra.json">⤓ Exportar JSON</button>
+            <span id="modelo-editando-aviso" style="display:none; font-size:0.75rem; color:#d29922;"></span>
+            <span class="tb-flex"></span>
+            <span class="chip-projeto" id="chip-projeto" title="Projeto selecionado (troque no painel Configurações)">Projeto: —</span>
+            <span id="indicador-conectividade" style="display:none; align-items:center; gap:5px; font-size:0.75rem; padding:3px 9px; border-radius:10px; white-space:nowrap;" title="Status da conexão com a nuvem (Supabase)">
                     <span id="indicador-conectividade-bola" style="width:7px; height:7px; border-radius:50%; display:inline-block;"></span>
                     <span id="indicador-conectividade-texto"></span>
                 </span>
-            <div class="header-actions">
-                <button class="btn-primary" style="background: #30363d; color: #c9d1d9;" onclick="window.location.href='/'">
-                    ← Voltar
-                </button>
-                <!-- Undo / Redo -->
-                <button id="btn-undo" class="btn-undo" disabled title="Desfazer (Ctrl+Z)">
+            <button id="btn-undo" class="btn-undo" disabled title="Desfazer (Ctrl+Z)">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 10H16a5 5 0 0 1 0 10H8"/><polyline points="7 6 3 10 7 14"/></svg>
                     Desfazer
                 </button>
-                <button id="btn-redo" class="btn-redo" disabled title="Refazer (Ctrl+Y)">
+            <button id="btn-redo" class="btn-redo" disabled title="Refazer (Ctrl+Y)">
                     Refazer
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10H8a5 5 0 0 0 0 10h8"/><polyline points="17 6 21 10 17 14"/></svg>
                 </button>
-                <span id="history-info" class="history-info"></span>
-                <div class="btn-sep"></div>
-                <button class="btn-primary" onclick="window.print()" style="font-size:0.82rem;padding:7px 15px;">Imprimir PDF</button>
-                <button class="btn-secondary" onclick="window.close()" style="font-size:0.82rem;padding:7px 12px;">Fechar</button>
-            </div>
+            <span id="history-info" class="history-info"></span>
+            <button class="btn-secondary btn-ico" onclick="window.print()" title="Imprimir PDF">🖨</button>
+            <span class="tb-sep"></span>
+            <button class="btn-secondary btn-painel" id="btn-toggle-config" type="button" aria-pressed="false" title="Abrir/ocultar o painel de Configurações">⚙ Configurações</button>
+            <button class="btn-secondary btn-painel" id="btn-toggle-ia" type="button" aria-pressed="false" title="Abrir/ocultar o Assistente de IA">✨ Assistente IA</button>
         </header>
 
-        <!-- ─── PAINEL DE INTELIGÊNCIA (GEMINI) E MEMÓRIA DE OBRAS ─── -->
-        <section class="ai-memory-panel">
-            <div class="ai-header">
-                <!-- Header da Aba de Resumo -->
-                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <h2 class="card-title" style="margin: 0;">Resumo do Projeto</h2>
-                        <input type="text" id="input-num-obra" placeholder="Nº da Obra" title="Número da Obra" style="padding: 6px 10px; border-radius: 5px; border: 1px solid var(--border-default); background: var(--bg-canvas); color: var(--text-primary); font-family: 'Inter', sans-serif; font-size: 0.9rem; width: 140px; outline: none;">
-                    </div>
-                    <div style="display: flex; gap: 10px;">
-                        <button class="btn-secondary" id="btn-ler-projeto" title="Ler um PDF/DXF/DWG e processar aqui mesmo (clique ou arraste o arquivo)" style="padding: 6px 12px; font-size: 0.8rem; background: rgba(35, 134, 54, 0.15); border: 1px solid rgba(35, 134, 54, 0.5); color: #3fb950;">
-                            Ler projeto
+        <!-- ═══ BARRA DE MODAIS (ocultável) ═══ -->
+        <nav class="barra-modais" id="barra-modais" aria-label="Modais">
+            <button class="btn-barra-toggle" id="btn-toggle-modais" type="button" aria-expanded="true" title="Ocultar/mostrar a barra de modais">▾ Modais</button>
+            <div class="barra-modais-itens" id="barra-modais-itens">
+                <button class="btn-secondary btn-modal-barra" id="btn-resumo-rede" type="button" title="Totais da rede (postes, média, baixa e equipamentos instalando)">📊 Resumo da rede</button>
+                <button class="btn-secondary" id="btn-ajustar" title="Roda todos os ajustes habilitados do projeto e mostra cada correção (com pré-visualização) para você executar">
+                            Ajustar
                         </button>
-                        <input type="file" id="input-ler-projeto" accept=".pdf,.dxf,.dwg" hidden>
-                        <button class="btn-secondary" id="btn-tabela-orcamento" onclick="window.open('/orcamento', '_blank')">
+                <button class="btn-secondary" id="btn-validar" title="Verificar as planilhas Cabos e Outros (contrato, regras de domínio e IA)">
+                            Validar
+                        </button>
+                <span id="validar-estado" style="font-size: 0.7rem; color: var(--text-secondary); margin-left: -8px;" title="O que o botão Validar vai rodar (mude na gaveta Regras de validação › Execução)"></span>
+                <button class="btn-secondary" id="btn-validacao-opcoes" style="padding: 4px 8px; margin-left: -8px;" title="Opções da validação: modos (determinística, regras, IA) e Validar ao montar" aria-label="Opções da validação">⚙</button>
+                <span class="ctx-grupo" title="Contexto">
+                    <span class="ctx-rotulo">Contexto</span>
+                    <select id="select-contexto" style="background: transparent; color: var(--text-primary); border: none; outline: none; font-size: 0.85rem; cursor: pointer; max-width: 140px;" title="Subconjunto de ajustes ativo neste projeto (afeta o botão Ajustar)"></select>
+                    <button id="btn-novo-contexto" class="btn-secondary" onclick="abrirNovoContexto()" style="display:none; padding: 1px 6px; font-size: 0.75rem; border-radius: 4px;" title="Cadastrar novo contexto">+</button>
+                    <button id="btn-excluir-contexto" class="btn-secondary" onclick="excluirContextoAtual()" style="display:none; padding: 1px 6px; font-size: 0.75rem; border-radius: 4px; color: #f85149; border-color: rgba(248,81,73,0.4);" title="Excluir este contexto">✕</button>
+                </span>
+                <button class="btn-secondary" id="btn-regras-validacao" title="Regras e prompts da validação deste projeto (só o administrador edita)">
+                            Regras de validação
+                        </button>
+                <span class="tb-sep"></span>
+                <button class="btn-secondary btn-modal-barra" title="Gerador de Postes e Estruturas" onclick="abrirModalPostes()">POSTES E ESTRUTURAS</button>
+                <button class="btn-secondary btn-modal-barra" title="Gerador de Cabos" onclick="abrirModalCabos()">CABOS</button>
+                <button class="btn-secondary btn-modal-barra" title="Gerador de Conexões" onclick="abrirModalConexoes()">CONEXÕES</button>
+                <button class="btn-secondary btn-modal-barra" title="Ver Ramais, IPs e Apoios detectados" onclick="abrirModalRamais()">
+                        RAMAIS
+                        <span id="badge-ramais" style="display:none; position:absolute; top:-6px; right:-6px; min-width:16px; height:16px; background-color:#f85149; border-radius:8px; box-shadow:0 0 0 2px #0d1117; color:white; font-size:10px; font-weight:bold; align-items:center; justify-content:center; padding:0 4px; box-sizing:border-box;"></span>
+                    </button>
+                <button class="btn-secondary btn-modal-barra" title="Vincular cabos a estruturas/postes" onclick="abrirModalVinculacao()">VINCULAR CABOS</button>
+                <span id="barra-modais-montaveis" style="display: contents;"></span>
+            </div>
+        </nav>
+
+        <!-- ═══ CONTROLES: visão, tabelas, layout e resumo compacto ═══ -->
+        <div class="ctlbar" id="ctlbar">
+            <div class="view-toggle">
+                <label><input type="radio" name="view_mode" value="padrao" checked onchange="toggleViewMode()"> Padrão</label>
+                <label><input type="radio" name="view_mode" value="totalizadora" onchange="toggleViewMode()"> Totalizadora</label>
+            </div>
+            <span class="tb-sep"></span>
+            <span class="ctl-rotulo">Tabelas</span>
+            <button class="chip-toggle on" id="chip-tabela-cabos" type="button" data-tabela="cabos" aria-pressed="true" title="Mostrar/ocultar a tabela de Cabos">👁 Cabos</button>
+            <button class="chip-toggle on" id="chip-tabela-outros" type="button" data-tabela="outros" aria-pressed="true" title="Mostrar/ocultar a tabela de Demais ativos">👁 Demais ativos</button>
+            <span class="tb-sep"></span>
+            <span class="ctl-rotulo">Layout</span>
+            <div class="seg-layout" id="seg-layout">
+                <button type="button" data-layout="lado" class="on" title="Tabelas lado a lado">▥ Lado a lado</button>
+                <button type="button" data-layout="empilhadas" title="Tabelas empilhadas (uma sobre a outra)">☰ Empilhadas</button>
+            </div>
+            <span class="tb-sep"></span>
+            <div class="resumo-compacto" id="resumo-compacto" title="Resumo da rede (só linhas instalando)">
+                <span class="rc-item"><span class="rc-lbl">Postes</span><span class="resumo-rede-valor" id="resumo-rede-postes">0</span></span>
+                <span class="rc-item"><span class="rc-lbl">Média</span><span class="resumo-rede-valor" id="resumo-rede-media">0 m</span></span>
+                <span class="rc-item"><span class="rc-lbl">Baixa</span><span class="resumo-rede-valor" id="resumo-rede-baixa">0 m</span></span>
+                <span class="rc-item"><span class="rc-lbl">Equip.</span><span class="resumo-rede-valor" id="resumo-rede-equipamentos">0</span></span>
+            </div>
+            <span class="tb-flex"></span>
+            <button class="btn-secondary" id="btn-gerar-totalizadora" style="color: #3fb950; margin-right: 10px; display: none;" onclick="syncTotalizadora(true)">Gerar / Atualizar Tabela</button>
+            <button class="btn-secondary" id="btn-limpar-tabelas" style="color: #f85149; margin-right: 10px;">Limpar Tudo</button>
+            <button class="btn-primary" id="btn-salvar-alteracoes">Salvar no PDF</button>
+        </div>
+
+        <div class="work" id="work">
+            <!-- ═══ PAINEL DE CONFIGURAÇÕES (esquerda) ═══ -->
+            <aside class="painel painel-esq" id="painel-config" aria-label="Configurações" hidden>
+                <div class="painel-topo">
+                    <span class="painel-titulo">⚙ Configurações</span>
+                    <button class="painel-btn" type="button" data-acao="fixar" title="Fixar (empurra as tabelas) / soltar (flutua sobre elas)" aria-pressed="false">📌</button>
+                    <button class="painel-btn" type="button" data-acao="fechar" title="Ocultar o painel">✕</button>
+                </div>
+                <div class="painel-corpo">
+                    <section class="painel-sec"><h4>Projeto</h4>
+                        <div class="painel-linha"><select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;" onchange="const o=this.options[this.selectedIndex]; const cod=o?.dataset.codigo||''; localStorage.setItem('projeto_selecionado', this.value); localStorage.setItem('projeto_selecionado_codigo', cod); carregarRegras(); carregarRegrasLeitorResumo(cod); carregarRegrasVinculacaoResumo(cod); if (window.ModalMontavelUI) ModalMontavelUI.recarregar(); if (window.carregarContextosAjustes) carregarContextosAjustes(cod);"></select></div>
+                        <div class="painel-linha"><button id="btn-novo-projeto" class="btn-primary" onclick="abrirModalNovoProjeto()" style="display: none; padding: 2px 8px; font-size: 0.75rem; margin-left: 8px; border-radius: 4px;" title="Cadastrar Novo Projeto">+ Novo</button></div>
+                    </section>
+                    <section class="painel-sec"><h4>Base de orçamento</h4>
+                        <div class="painel-linha"><button class="btn-secondary" id="btn-tabela-orcamento" onclick="window.open('/orcamento', '_blank')">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                                 <path d="M1.5 1.5A1.5 1.5 0 0 1 3 0h10a1.5 1.5 0 0 1 1.5 1.5v13a1.5 1.5 0 0 1-1.5 1.5H3a1.5 1.5 0 0 1-1.5-1.5v-13zm1.5 0v13h10v-13H3z"/>
                             </svg> Tabela Orçamento
-                        </button>
-                        <button class="btn-secondary" id="btn-abrir-pesquisa" onclick="document.getElementById('modal-search').classList.remove('hidden'); setTimeout(() => document.getElementById('input-search-db').focus(), 100);" style="padding: 6px 12px; font-size: 0.8rem; background: rgba(217, 119, 6, 0.15); border: 1px solid rgba(217, 119, 6, 0.4); color: #d97706;" title="Buscar ativos e códigos na tabela base">
+                        </button></div>
+                        <div class="painel-linha"><button class="btn-secondary" id="btn-abrir-pesquisa" onclick="document.getElementById('modal-search').classList.remove('hidden'); setTimeout(() => document.getElementById('input-search-db').focus(), 100);" title="Buscar ativos e códigos na tabela base">
                             Pesquisar Ativos
+                        </button></div>
+                    </section>
+                    <section class="painel-sec"><h4>Inteligência artificial</h4>
+                        <div class="painel-linha"><button class="btn-secondary" id="btn-config-api" title="Configurar Chave da API do Google Gemini">
+                        Chave API
+                    </button></div>
+                    </section>
+                    <section class="painel-sec"><h4>Aparência</h4>
+                        <div class="painel-linha"><button class="btn-secondary" id="btn-restaurar-layout" type="button" title="Volta painéis, tabelas e layout ao padrão">↺ Restaurar layout padrão</button></div>
+                    </section>
+                </div>
+            </aside>
+
+            <main class="center" id="center">
+<!-- DATALIST para autocomplete de Ativo -->
+        <datalist id="dl-ativos-cabos"></datalist>
+        <datalist id="dl-ativos-outros"></datalist>
+
+        <!-- VIEW PADRÃO -->
+        <div id="view-padrao">
+            <!-- Tabelas lado a lado -->
+            <div class="tables-row">
+
+            <!-- ── CABOS ── -->
+            <section class="report-section" id="section-cabos">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        Tabela de Cabos <span class="badge-count" id="count-cabos">0</span>
+                        <button class="btn-ghost-mini" id="btn-toggle-cabo-extra" title="Ocultar as colunas Fases / Tensão / Nível" aria-label="Ocultar ou mostrar as colunas Fases, Tensão e Nível"></button>
+                    </h2>
+                    <div class="section-actions">
+                        <button class="btn-add-row" id="btn-add-cabos" title="Adicionar linha">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Add
+                        </button>
+                        <button class="btn-del-row-bulk" id="btn-del-cabos" title="Excluir linhas selecionadas">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                            Excluir
+                        </button>
+                        <button class="btn-copy-table" id="btn-copy-cabos" title="Copiar tabela">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            Copiar
+                        </button>
+                        <button class="btn-del-row-bulk" id="btn-clear-cabos" title="Limpar Tudo">
+                            Limpar Tudo
                         </button>
                     </div>
                 </div>
-                <div class="ai-actions">
-                    <button class="btn-secondary" id="btn-config-api" title="Configurar Chave da API do Google Gemini">
-                        Chave API
-                    </button>
-                    <button class="btn-secondary" id="btn-load-obra" title="Carregar Obra">
-                        Carregar Obra
-                    </button>
-                    <button class="btn-primary" id="btn-save-obra" title="Salvar Obra na Memória">
-                        Salvar Obra
-                    </button>
-                    <button class="btn-secondary" id="btn-save-modelo" title="Salva as tabelas como MODELO: quantidades escritas V (ou V(nome)) viram variáveis pedidas a quem usar o modelo">
-                        Salvar como modelo
-                    </button>
-                    <span id="modelo-editando-aviso" style="display:none; font-size:0.75rem; color:#d29922;"></span>
+                <div class="table-wrap">
+                    <table class="resumo-table" id="table-cabos">
+                        <thead>
+                            <tr>
+                                <th class="col-num" title="Clique no número para selecionar a linha">#</th>
+                                <th class="col-operacao">
+                                    <div class="th-label th-sort" data-tipo="cabos" data-campo="operacao" title="Clique para classificar; clique de novo inverte. Shift+clique: 2º critério. Botão direito: agrupar.">Operação<span class="sort-ind"></span></div>
+                                    <div class="r-filter-container" id="rfc-cabos-operacao"></div>
+                                </th>
+                                <th class="col-ativo">
+                                    <div class="th-label th-sort" data-tipo="cabos" data-campo="ativo" title="Clique para classificar; clique de novo inverte. Shift+clique: 2º critério. Botão direito: agrupar.">Ativo<span class="sort-ind"></span></div>
+                                    <div class="r-filter-container" id="rfc-cabos-ativo"></div>
+                                </th>
+                                <th class="col-cabo-extra col-fases" title="Número de fases (do 3x do texto; sem Nx = 1)">Fases</th>
+                                <th class="col-cabo-extra col-tensao" title="Tensão do texto (ex.: 13,8kV)">Tensão</th>
+                                <th class="col-cabo-extra col-nivel" title="MT = tensão acima de 1 kV; BT = sem tensão">Nível</th>
+                                <th class="col-qtd-ativos">
+                                    <div class="th-label th-sort" data-tipo="cabos" data-campo="qtdAtivos" title="Clique para classificar; clique de novo inverte. Shift+clique: 2º critério. Botão direito: agrupar.">Qtd Ativos<span class="sort-ind"></span></div>
+                                </th>
+                                <th class="col-del"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="body-cabos"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ── OUTROS ── -->
+            <section class="report-section" id="section-outros">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                        Demais Ativos <span class="badge-count" id="count-outros">0</span>
+                        <button class="btn-ghost-mini" id="btn-toggle-entidade" title="Ocultar a coluna Entidade" aria-label="Ocultar ou mostrar a coluna Entidade"></button>
+                    </h2>
+                    <div class="section-actions">
+                        <button class="btn-add-row" id="btn-add-outros" title="Adicionar linha">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Add
+                        </button>
+                        <button class="btn-del-row-bulk" id="btn-del-outros" title="Excluir linhas selecionadas">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                            Excluir
+                        </button>
+                        <button class="btn-copy-table" id="btn-copy-outros" title="Copiar tabela">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            Copiar
+                        </button>
+                        <button class="btn-del-row-bulk" id="btn-clear-outros" title="Limpar Tudo">
+                            Limpar Tudo
+                        </button>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="resumo-table" id="table-outros">
+                        <thead>
+                            <tr>
+                                <th class="col-num" title="Clique no número para selecionar a linha">#</th>
+                                <th class="col-entidade">
+                                    <div class="th-label th-sort" data-tipo="outros" data-campo="entidade" title="Clique para classificar; clique de novo inverte. Shift+clique: 2º critério. Botão direito: agrupar.">Entidade<span class="sort-ind"></span></div>
+                                    <div class="r-filter-container" id="rfc-outros-entidade"></div>
+                                </th>
+                                <th class="col-operacao">
+                                    <div class="th-label th-sort" data-tipo="outros" data-campo="operacao" title="Clique para classificar; clique de novo inverte. Shift+clique: 2º critério. Botão direito: agrupar.">Operação<span class="sort-ind"></span></div>
+                                    <div class="r-filter-container" id="rfc-outros-operacao"></div>
+                                </th>
+                                <th class="col-ativo">
+                                    <div class="th-label th-sort" data-tipo="outros" data-campo="ativo" title="Clique para classificar; clique de novo inverte. Shift+clique: 2º critério. Botão direito: agrupar.">Ativo<span class="sort-ind"></span></div>
+                                    <div class="r-filter-container" id="rfc-outros-ativo"></div>
+                                </th>
+                                <th class="col-del"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="body-outros"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            </div><!-- /tables-row -->
+        </div><!-- /view-padrao -->
+
+        <!-- VIEW TOTALIZADORA & REGRAS -->
+        <div id="view-totalizadora" class="hidden" style="margin-top: 15px; display: flex; flex-direction: column; gap: 15px;">
+            
+            <!-- Tabela de Regras -->
+            <div style="background: var(--bg-card); border: 1px solid var(--border-default); border-radius: 8px; display: flex; flex-direction: column;">
+                <div class="section-header" style="padding: 15px; border-bottom: 1px solid var(--border-default); cursor: pointer;" onclick="toggleRegras()">
+                    <h2 class="section-title" style="color: #d2991e;">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                        Tabela de Regras de Conversão
+                    </h2>
+                    <div class="section-actions">
+                        <span id="regras-toggle-icon" style="font-size: 0.8rem; color: #8b949e;">▼ Mostrar</span>
+                    </div>
+                </div>
+                <div id="regras-content" class="table-wrap hidden" style="padding: 15px; overflow-x: auto;">
+                    <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <p style="font-size: 0.75rem; color: #8b949e; margin: 0;">Regras aplicadas sequencialmente. Deixe vazio para "Qualquer".</p>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="file" id="input-importar-regras-csv" accept=".csv" style="display:none" onchange="importarRegrasCSV(this)">
+                            <button class="btn-secondary" style="font-size: 0.75rem; padding: 4px 8px; color: #8b949e; border-color: rgba(139,148,158,0.3);" onclick="document.getElementById('input-importar-regras-csv').click()" title="Importar CSV">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                Importar
+                            </button>
+                            <button class="btn-secondary" style="font-size: 0.75rem; padding: 4px 8px; color: #8b949e; border-color: rgba(139,148,158,0.3);" onclick="exportarRegrasCSV()" title="Exportar CSV">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                Exportar
+                            </button>
+                            <button class="btn-secondary" style="font-size: 0.75rem; padding: 4px 8px; color: #3fb950; border-color: rgba(63,185,80,0.4);" onclick="salvarRegrasNuvem()" title="Salvar na Nuvem">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                Salvar na Nuvem
+                            </button>
+                            <button class="btn-add-row" onclick="adicionarRegra()" title="Adicionar Regra">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                Add Regra
+                            </button>
+                        </div>
+                    </div>
+                    <table class="resumo-table" id="table-regras">
+                        <thead>
+                            <tr>
+                                <th><div class="th-label">ORIGEM</div></th>
+                                <th><div class="th-label">OP DE</div></th>
+                                <th><div class="th-label">ATIVO DE</div></th>
+                                <th><div class="th-label">AÇÃO</div></th>
+                                <th><div class="th-label">OP PARA</div></th>
+                                <th><div class="th-label">ATIVO PARA</div></th>
+                                <th><div class="th-label">FATOR</div></th>
+                                <th><div class="th-label">ARREDOND.</div></th>
+                                <th><div class="th-label">MIN</div></th>
+                                <th><div class="th-label">MAX</div></th>
+                                <th class="col-del"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="body-regras">
+                            <!-- JS vai preencher -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
-            <div class="ai-chat-container">
+
+            <!-- Tabela Totalizadora -->
+            <div style="background: var(--bg-card); border: 1px solid var(--border-default); border-radius: 8px; display: flex; flex-direction: column;">
+                <div class="section-header" style="padding: 15px; border-bottom: 1px solid var(--border-default);">
+                <h2 class="section-title">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    Tabela Totalizadora <span class="badge-count" id="count-totalizadora">0</span>
+                </h2>
+                <div class="section-actions">
+                    <button class="btn-add-row" onclick="adicionarLinhaTotalizadora()" title="Adicionar linha manual">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Add Manual
+                    </button>
+                </div>
+            </div>
+            <div class="table-wrap" style="padding: 15px; overflow-x: auto;">
+                <table class="resumo-table" id="table-totalizadora">
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;"><div class="th-label">ID</div></th>
+                            <th style="width: 150px;"><div class="th-label">OBS</div></th>
+                            <th style="width: 80px;"><div class="th-label">OP</div></th>
+                            <th style="width: 250px;"><div class="th-label">ATIVO</div></th>
+                            <th style="width: 80px;"><div class="th-label">QTD</div></th>
+                            <th style="width: 200px;"><div class="th-label">DESCRIÇÃO</div></th>
+                            <th style="width: 100px;"><div class="th-label">ORIGEM</div></th>
+                            <th class="col-del" style="width: 40px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="body-totalizadora">
+                        <!-- Renderizado via JS -->
+                    </tbody>
+                </table>
+                <div id="tot-empty-msg" style="text-align: center; color: var(--text-secondary); padding: 30px; display: none;">
+                    Clique em "Gerar / Atualizar Tabela" acima para preencher com os dados das tabelas Cabos e Outros.
+                </div>
+            </div>
+            </div>
+        </div><!-- /view-totalizadora -->
+
+
+            </main>
+
+            <!-- ═══ PAINEL DO ASSISTENTE DE IA (direita) ═══ -->
+            <aside class="painel painel-dir" id="painel-ia" aria-label="Assistente de IA" hidden>
+                <div class="painel-topo">
+                    <span class="painel-titulo">✨ Assistente IA</span>
+                    <button class="painel-btn" type="button" data-acao="fixar" title="Fixar (empurra as tabelas) / soltar (flutua sobre elas)" aria-pressed="false">📌</button>
+                    <button class="painel-btn" type="button" data-acao="fechar" title="Ocultar o painel">✕</button>
+                </div>
+                <div class="painel-corpo painel-corpo-chat">
+                    <div class="ai-chat-container">
                 <div class="ai-chat-messages" id="chat-messages">
                     <div class="chat-message system">
                         Olá! Sou seu assistente de redes elétricas. Você pode me pedir para gerar obras, adicionar ativos, ou me ensinar novas regras técnicas (ex: "Lembre-se que trafo X usa IP Y").
@@ -694,85 +996,21 @@
                 </div>
             </div>
             <div id="voz-estado" class="voz-estado" aria-live="polite"></div>
-            <!-- Action Bar -->
-            <div style="padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px; background: var(--bg-card); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <button class="btn-primary" id="btn-montar-orcamento" style="background-color: #238636;">
-                            Montar Orçamento
-                        </button>
-                        <button class="btn-secondary" id="btn-regras-validacao" title="Regras e prompts da validação deste projeto (só o administrador edita)">
-                            Regras de validação
-                        </button>
-                        <button class="btn-secondary" id="btn-ajustar" title="Roda todos os ajustes habilitados do projeto e mostra cada correção (com pré-visualização) para você executar">
-                            Ajustar
-                        </button>
-                        <button class="btn-secondary" id="btn-validar" title="Verificar as planilhas Cabos e Outros (contrato, regras de domínio e IA)">
-                            Validar
-                        </button>
-                        <span id="validar-estado" style="font-size: 0.7rem; color: var(--text-secondary); margin-left: -8px;" title="O que o botão Validar vai rodar (mude na gaveta Regras de validação › Execução)"></span>
-                        <button class="btn-secondary" id="btn-validacao-opcoes" style="padding: 4px 8px; margin-left: -8px;" title="Opções da validação: modos (determinística, regras, IA) e Validar ao montar" aria-label="Opções da validação">⚙</button>
-                        <div class="view-toggle" style="display: flex; background: rgba(255,255,255,0.05); padding: 4px; border-radius: 6px; border: 1px solid var(--border-default);">
-                            <label style="display:flex; align-items:center; gap:5px; padding: 4px 8px; cursor: pointer; font-size: 0.8rem; color: var(--text-primary);">
-                                <input type="radio" name="view_mode" value="padrao" checked onchange="toggleViewMode()"> Padrão
-                            </label>
-                            <label style="display:flex; align-items:center; gap:5px; padding: 4px 8px; cursor: pointer; font-size: 0.8rem; color: var(--text-secondary);">
-                                <input type="radio" name="view_mode" value="totalizadora" onchange="toggleViewMode()"> Totalizadora
-                            </label>
-                        </div>
-                    </div>
-                    <div>
-                        <button class="btn-secondary" id="btn-gerar-totalizadora" style="color: #3fb950; margin-right: 10px; display: none;" onclick="syncTotalizadora(true)">Gerar / Atualizar Tabela</button>
-                        <button class="btn-secondary" id="btn-limpar-tabelas" style="color: #f85149; margin-right: 10px;">Limpar Tudo</button>
-                        <button class="btn-primary" id="btn-salvar-alteracoes">Salvar no PDF</button>
-                    </div>
                 </div>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: -5px;">
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Gerador de Postes e Estruturas" onclick="abrirModalPostes()">POSTES E ESTRUTURAS</button>
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Gerador de Cabos" onclick="abrirModalCabos()">CABOS</button>
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Gerador de Conexões" onclick="abrirModalConexoes()">CONEXÕES</button>
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706; position: relative;" title="Ver Ramais, IPs e Apoios detectados" onclick="abrirModalRamais()">
-                        RAMAIS
-                        <span id="badge-ramais" style="display:none; position:absolute; top:-6px; right:-6px; min-width:16px; height:16px; background-color:#f85149; border-radius:8px; box-shadow:0 0 0 2px #0d1117; color:white; font-size:10px; font-weight:bold; align-items:center; justify-content:center; padding:0 4px; box-sizing:border-box;"></span>
-                    </button>
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Vincular cabos a estruturas/postes" onclick="abrirModalVinculacao()">VINCULAR CABOS</button>
-                    <span id="barra-modais-montaveis" style="display: contents;"></span>
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">RETENSIONAMENTO</button>
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(217,119,6,0.3); color: #d97706;" title="Função futura">ADICIONAIS</button>
-                    <button class="btn-secondary" style="font-size: 0.75rem; padding: 5px 10px; border-color: rgba(227,179,65,0.4); color: #e3b341;" title="Função futura">LINHA VIVA</button>
-                </div>
-                <!-- Resumo da rede (TASK-008) -->
-                <div class="resumo-rede-painel" id="resumo-rede-painel">
-                    <div class="resumo-rede-item">
-                        <span class="resumo-rede-label">Postes instalando</span>
-                        <span class="resumo-rede-valor" id="resumo-rede-postes">0</span>
-                    </div>
-                    <div class="resumo-rede-item">
-                        <span class="resumo-rede-label">Rede de média instalando</span>
-                        <span class="resumo-rede-valor" id="resumo-rede-media">0 m</span>
-                    </div>
-                    <div class="resumo-rede-item">
-                        <span class="resumo-rede-label">Rede de baixa instalando</span>
-                        <span class="resumo-rede-valor" id="resumo-rede-baixa">0 m</span>
-                    </div>
-                    <div class="resumo-rede-item">
-                        <span class="resumo-rede-label">Equipamentos instalando</span>
-                        <span class="resumo-rede-valor" id="resumo-rede-equipamentos">0</span>
-                    </div>
-                    <!-- TASK-044: seletor de Contexto (subconjunto de Ajustes dentro do projeto) -->
-                    <div class="resumo-rede-item">
-                        <span class="resumo-rede-label">Contexto</span>
-                        <div style="display:flex; align-items:center; gap:5px;">
-                            <select id="select-contexto" style="background: transparent; color: var(--text-primary); border: none; outline: none; font-size: 0.85rem; cursor: pointer; max-width: 140px;" title="Subconjunto de ajustes ativo neste projeto (afeta o botão Ajustar)"></select>
-                            <button id="btn-novo-contexto" class="btn-secondary" onclick="abrirNovoContexto()" style="display:none; padding: 1px 6px; font-size: 0.75rem; border-radius: 4px;" title="Cadastrar novo contexto">+</button>
-                            <button id="btn-excluir-contexto" class="btn-secondary" onclick="excluirContextoAtual()" style="display:none; padding: 1px 6px; font-size: 0.75rem; border-radius: 4px; color: #f85149; border-color: rgba(248,81,73,0.4);" title="Excluir este contexto">✕</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
+            </aside>
+        </div>
+    </div>
 
-        <!-- Modal Vinculação Cabo<->Estrutura/Poste (TASK-032) -->
+    <!-- ═══ MODAIS (fora do fluxo da tela) ═══ -->
+    <div id="modal-resumo-rede" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 460px; width: 92%;">
+            <h3>Resumo da rede</h3>
+            <p style="font-size:0.8rem; color:#8b949e; margin:4px 0 12px;">Só as linhas em operação <b>I</b> (instalando).</p>
+            <div id="modal-resumo-rede-corpo" class="resumo-rede-modal"></div>
+            <div class="modal-actions"><button class="btn-primary" id="btn-fechar-resumo-rede" type="button">Fechar</button></div>
+        </div>
+    </div>
+<!-- Modal Vinculação Cabo<->Estrutura/Poste (TASK-032) -->
         <div id="modal-vinculacao" class="modal-overlay hidden">
             <div class="modal-content" style="max-width: 820px; width: 94%; max-height: 85vh; display: flex; flex-direction: column; overflow-y: auto;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
@@ -1016,8 +1254,6 @@
             </div>
         </div>
     </div>
-            </div>
-        </div>
 
         <!-- Salvar como modelo (TASK-058) -->
         <div id="modal-save-modelo" class="modal-overlay hidden" style="z-index: 10000;">
@@ -1098,221 +1334,7 @@
             </div>
         </div>
 
-        <!-- DATALIST para autocomplete de Ativo -->
-        <datalist id="dl-ativos-cabos"></datalist>
-        <datalist id="dl-ativos-outros"></datalist>
-
-        <!-- VIEW PADRÃO -->
-        <div id="view-padrao">
-            <!-- Tabelas lado a lado -->
-            <div class="tables-row">
-
-            <!-- ── CABOS ── -->
-            <section class="report-section" id="section-cabos">
-                <div class="section-header">
-                    <h2 class="section-title">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                        Tabela de Cabos <span class="badge-count" id="count-cabos">0</span>
-                        <button class="btn-ghost-mini" id="btn-toggle-cabo-extra" title="Ocultar as colunas Fases / Tensão / Nível" aria-label="Ocultar ou mostrar as colunas Fases, Tensão e Nível"></button>
-                    </h2>
-                    <div class="section-actions">
-                        <button class="btn-add-row" id="btn-add-cabos" title="Adicionar linha">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                            Add
-                        </button>
-                        <button class="btn-del-row-bulk" id="btn-del-cabos" title="Excluir linhas selecionadas">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-                            Excluir
-                        </button>
-                        <button class="btn-copy-table" id="btn-copy-cabos" title="Copiar tabela">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                            Copiar
-                        </button>
-                        <button class="btn-del-row-bulk" id="btn-clear-cabos" title="Limpar Tudo">
-                            Limpar Tudo
-                        </button>
-                    </div>
-                </div>
-                <div class="table-wrap">
-                    <table class="resumo-table" id="table-cabos">
-                        <thead>
-                            <tr>
-                                <th class="col-num" title="Clique no número para selecionar a linha">#</th>
-                                <th class="col-operacao">
-                                    <div class="th-label th-sort" data-tipo="cabos" data-campo="operacao" title="Clique para classificar; clique de novo inverte. Shift+clique: 2º critério. Botão direito: agrupar.">Operação<span class="sort-ind"></span></div>
-                                    <div class="r-filter-container" id="rfc-cabos-operacao"></div>
-                                </th>
-                                <th class="col-ativo">
-                                    <div class="th-label th-sort" data-tipo="cabos" data-campo="ativo" title="Clique para classificar; clique de novo inverte. Shift+clique: 2º critério. Botão direito: agrupar.">Ativo<span class="sort-ind"></span></div>
-                                    <div class="r-filter-container" id="rfc-cabos-ativo"></div>
-                                </th>
-                                <th class="col-cabo-extra col-fases" title="Número de fases (do 3x do texto; sem Nx = 1)">Fases</th>
-                                <th class="col-cabo-extra col-tensao" title="Tensão do texto (ex.: 13,8kV)">Tensão</th>
-                                <th class="col-cabo-extra col-nivel" title="MT = tensão acima de 1 kV; BT = sem tensão">Nível</th>
-                                <th class="col-qtd-ativos">
-                                    <div class="th-label th-sort" data-tipo="cabos" data-campo="qtdAtivos" title="Clique para classificar; clique de novo inverte. Shift+clique: 2º critério. Botão direito: agrupar.">Qtd Ativos<span class="sort-ind"></span></div>
-                                </th>
-                                <th class="col-del"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="body-cabos"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- ── OUTROS ── -->
-            <section class="report-section" id="section-outros">
-                <div class="section-header">
-                    <h2 class="section-title">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                        Demais Ativos <span class="badge-count" id="count-outros">0</span>
-                        <button class="btn-ghost-mini" id="btn-toggle-entidade" title="Ocultar a coluna Entidade" aria-label="Ocultar ou mostrar a coluna Entidade"></button>
-                    </h2>
-                    <div class="section-actions">
-                        <button class="btn-add-row" id="btn-add-outros" title="Adicionar linha">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                            Add
-                        </button>
-                        <button class="btn-del-row-bulk" id="btn-del-outros" title="Excluir linhas selecionadas">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-                            Excluir
-                        </button>
-                        <button class="btn-copy-table" id="btn-copy-outros" title="Copiar tabela">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                            Copiar
-                        </button>
-                        <button class="btn-del-row-bulk" id="btn-clear-outros" title="Limpar Tudo">
-                            Limpar Tudo
-                        </button>
-                    </div>
-                </div>
-                <div class="table-wrap">
-                    <table class="resumo-table" id="table-outros">
-                        <thead>
-                            <tr>
-                                <th class="col-num" title="Clique no número para selecionar a linha">#</th>
-                                <th class="col-entidade">
-                                    <div class="th-label th-sort" data-tipo="outros" data-campo="entidade" title="Clique para classificar; clique de novo inverte. Shift+clique: 2º critério. Botão direito: agrupar.">Entidade<span class="sort-ind"></span></div>
-                                    <div class="r-filter-container" id="rfc-outros-entidade"></div>
-                                </th>
-                                <th class="col-operacao">
-                                    <div class="th-label th-sort" data-tipo="outros" data-campo="operacao" title="Clique para classificar; clique de novo inverte. Shift+clique: 2º critério. Botão direito: agrupar.">Operação<span class="sort-ind"></span></div>
-                                    <div class="r-filter-container" id="rfc-outros-operacao"></div>
-                                </th>
-                                <th class="col-ativo">
-                                    <div class="th-label th-sort" data-tipo="outros" data-campo="ativo" title="Clique para classificar; clique de novo inverte. Shift+clique: 2º critério. Botão direito: agrupar.">Ativo<span class="sort-ind"></span></div>
-                                    <div class="r-filter-container" id="rfc-outros-ativo"></div>
-                                </th>
-                                <th class="col-del"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="body-outros"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            </div><!-- /tables-row -->
-        </div><!-- /view-padrao -->
-
-        <!-- VIEW TOTALIZADORA & REGRAS -->
-        <div id="view-totalizadora" class="hidden" style="margin-top: 15px; display: flex; flex-direction: column; gap: 15px;">
-            
-            <!-- Tabela de Regras -->
-            <div style="background: var(--bg-card); border: 1px solid var(--border-default); border-radius: 8px; display: flex; flex-direction: column;">
-                <div class="section-header" style="padding: 15px; border-bottom: 1px solid var(--border-default); cursor: pointer;" onclick="toggleRegras()">
-                    <h2 class="section-title" style="color: #d2991e;">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                        Tabela de Regras de Conversão
-                    </h2>
-                    <div class="section-actions">
-                        <span id="regras-toggle-icon" style="font-size: 0.8rem; color: #8b949e;">▼ Mostrar</span>
-                    </div>
-                </div>
-                <div id="regras-content" class="table-wrap hidden" style="padding: 15px; overflow-x: auto;">
-                    <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                        <p style="font-size: 0.75rem; color: #8b949e; margin: 0;">Regras aplicadas sequencialmente. Deixe vazio para "Qualquer".</p>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="file" id="input-importar-regras-csv" accept=".csv" style="display:none" onchange="importarRegrasCSV(this)">
-                            <button class="btn-secondary" style="font-size: 0.75rem; padding: 4px 8px; color: #8b949e; border-color: rgba(139,148,158,0.3);" onclick="document.getElementById('input-importar-regras-csv').click()" title="Importar CSV">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                                Importar
-                            </button>
-                            <button class="btn-secondary" style="font-size: 0.75rem; padding: 4px 8px; color: #8b949e; border-color: rgba(139,148,158,0.3);" onclick="exportarRegrasCSV()" title="Exportar CSV">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                                Exportar
-                            </button>
-                            <button class="btn-secondary" style="font-size: 0.75rem; padding: 4px 8px; color: #3fb950; border-color: rgba(63,185,80,0.4);" onclick="salvarRegrasNuvem()" title="Salvar na Nuvem">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                Salvar na Nuvem
-                            </button>
-                            <button class="btn-add-row" onclick="adicionarRegra()" title="Adicionar Regra">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                                Add Regra
-                            </button>
-                        </div>
-                    </div>
-                    <table class="resumo-table" id="table-regras">
-                        <thead>
-                            <tr>
-                                <th><div class="th-label">ORIGEM</div></th>
-                                <th><div class="th-label">OP DE</div></th>
-                                <th><div class="th-label">ATIVO DE</div></th>
-                                <th><div class="th-label">AÇÃO</div></th>
-                                <th><div class="th-label">OP PARA</div></th>
-                                <th><div class="th-label">ATIVO PARA</div></th>
-                                <th><div class="th-label">FATOR</div></th>
-                                <th><div class="th-label">ARREDOND.</div></th>
-                                <th><div class="th-label">MIN</div></th>
-                                <th><div class="th-label">MAX</div></th>
-                                <th class="col-del"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="body-regras">
-                            <!-- JS vai preencher -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Tabela Totalizadora -->
-            <div style="background: var(--bg-card); border: 1px solid var(--border-default); border-radius: 8px; display: flex; flex-direction: column;">
-                <div class="section-header" style="padding: 15px; border-bottom: 1px solid var(--border-default);">
-                <h2 class="section-title">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
-                    Tabela Totalizadora <span class="badge-count" id="count-totalizadora">0</span>
-                </h2>
-                <div class="section-actions">
-                    <button class="btn-add-row" onclick="adicionarLinhaTotalizadora()" title="Adicionar linha manual">
-                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                        Add Manual
-                    </button>
-                </div>
-            </div>
-            <div class="table-wrap" style="padding: 15px; overflow-x: auto;">
-                <table class="resumo-table" id="table-totalizadora">
-                    <thead>
-                        <tr>
-                            <th style="width: 80px;"><div class="th-label">ID</div></th>
-                            <th style="width: 150px;"><div class="th-label">OBS</div></th>
-                            <th style="width: 80px;"><div class="th-label">OP</div></th>
-                            <th style="width: 250px;"><div class="th-label">ATIVO</div></th>
-                            <th style="width: 80px;"><div class="th-label">QTD</div></th>
-                            <th style="width: 200px;"><div class="th-label">DESCRIÇÃO</div></th>
-                            <th style="width: 100px;"><div class="th-label">ORIGEM</div></th>
-                            <th class="col-del" style="width: 40px;"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="body-totalizadora">
-                        <!-- Renderizado via JS -->
-                    </tbody>
-                </table>
-                <div id="tot-empty-msg" style="text-align: center; color: var(--text-secondary); padding: 30px; display: none;">
-                    Clique em "Gerar / Atualizar Tabela" acima para preencher com os dados das tabelas Cabos e Outros.
-                </div>
-            </div>
-        </div><!-- /view-totalizadora -->
-
-    </main>
+        
 
     <!-- Context menu -->
     <div id="ctx-menu-resumo">
@@ -1695,6 +1717,7 @@
     <script src="/static/modal_montavel_arquivo.js"></script>
     <script src="/static/modal_montavel_ui.js"></script>
     <script src="/static/resumo.js?v=5.3"></script>
+    <script src="/static/resumo_layout.js?v=1"></script>
     <script src="/static/painel_regras.js"></script>
     <script src="/static/voz.js"></script>
     <script>

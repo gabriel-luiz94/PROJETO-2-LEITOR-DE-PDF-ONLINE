@@ -554,6 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Após render, aplica filtros ativos sem rebuildar dropdowns
         applyFilters(type);
+        ajustarLinhasVazias(type);                    // TASK-111: linhas em branco até o fim da área visível
     }
 
     /* ═══════════════════════════════════════
@@ -583,13 +584,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function addRow(type, afterIdx = -1) {
         pushHistory();  // snapshot ANTES da inserção
-        let op = 'I';
-        if (afterIdx >= 0 && tableStates[type].data[afterIdx]) {
-            op = tableStates[type].data[afterIdx].operacao;
-        } else if (tableStates[type].data.length > 0 && afterIdx === -1) {
-            op = tableStates[type].data[tableStates[type].data.length - 1].operacao;
-        }
-        
+        // TASK-111: operação da linha PREENCHIDA mais próxima acima da nova (tabela vazia ou sem nada preenchido acima = I)
+        const op = window.GradeTabela.operacaoHerdada(tableStates[type].data, afterIdx === -1 ? tableStates[type].data.length : afterIdx + 1);
+
         const newRow = { entidade: '0', operacao: op, ativo: '' };
         if (afterIdx === -1) tableStates[type].data.push(newRow);
         else tableStates[type].data.splice(afterIdx + 1, 0, newRow);
@@ -604,6 +601,123 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         refreshAllFilters(type);
     }
+
+    /* ═══════════════════════════════════════
+       LINHAS VAZIAS ESTILO EXCEL (TASK-111)
+       Abaixo das linhas de dados a tabela mostra linhas em branco até preencher a área visível. Elas NÃO são dados (ficam num <tbody> à parte):
+       digitar no Ativo de uma delas cria a linha de dados (operação herdada da linha preenchida acima, ou I) e passa o foco para ela; colar várias
+       linhas numa delas cola a partir da primeira linha em branco. Sem o botão Add.
+    ═══════════════════════════════════════ */
+    function tbodyVazio(type) {
+        const body = document.getElementById(tableStates[type].bodyId);
+        const id = tableStates[type].bodyId + '-vazio';
+        let tb = document.getElementById(id);
+        if (!tb) {
+            tb = document.createElement('tbody');
+            tb.id = id; tb.className = 'tbody-vazio';
+            body.after(tb);
+        }
+        return tb;
+    }
+
+    function materializarLinhaVazia(type, texto) {
+        const dados = tableStates[type].data;
+        pushHistory();                                         // um passo de Ctrl+Z para criar a linha
+        limparGrade();
+        const GT = window.GradeTabela;
+        const row = GT.novaLinha(type, GT.operacaoHerdada(dados, dados.length));
+        row.ativo = String(texto).toUpperCase();
+        dados.push(row);
+        if (type === 'outros') reclassificarEntidade(row);
+        else recalcRowAndAbove(dados.length - 1);
+        renderTable(type);
+        buildAtivoSets(); buildDataLists();
+        refreshAllFilters(type);
+        const body = document.getElementById(tableStates[type].bodyId);
+        const tr = Array.from(body.children).find(x => parseInt(x.dataset.index) === dados.length - 1);
+        const inp = tr && tr.querySelector('.inp-ativo');
+        if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+        atualizarResumoRedeUI();
+    }
+
+    function focarLinhaVazia(type, i) {
+        const tb = document.getElementById(tableStates[type].bodyId + '-vazio');
+        const tr = tb && tb.children[i];
+        const inp = tr && tr.querySelector('.inp-ativo-vazio');
+        if (inp) { inp.focus(); return true; }
+        return false;
+    }
+
+    function ajustarLinhasVazias(type) {
+        if (type !== 'cabos' && type !== 'outros') return;
+        const body = document.getElementById(tableStates[type].bodyId);
+        if (!body) return;
+        const tb = tbodyVazio(type);
+        const dados = tableStates[type].data;
+        const wrap = body.closest('.table-wrap');
+        const MIN = 4, MAX = 300;                                                  // (constantes locais: renderTable roda antes desta seção na inicialização)
+        let n = MIN;
+        if (wrap && wrap.offsetParent !== null && wrap.clientHeight > 0) {            // visível: preenche o que sobra da altura
+            const tabela = body.closest('table');
+            const ocupado = (tabela.tHead ? tabela.tHead.offsetHeight : 0) + body.offsetHeight;
+            const amostra = body.querySelector('tr:not(.grupo-sep)');
+            const linhaH = (amostra && amostra.offsetHeight) || tb.querySelector('tr')?.offsetHeight || 30;
+            n = Math.max(MIN, Math.min(MAX, Math.floor((wrap.clientHeight - ocupado) / linhaH)));
+        }
+        const dica = window.GradeTabela.operacaoHerdada(dados, dados.length);
+        const assinatura = [n, dados.length, dica, type === 'outros' ? 'o' : 'c'].join('|');
+        if (tb.dataset.assinatura === assinatura && tb.children.length === n) return;
+        tb.dataset.assinatura = assinatura;
+        const frag = document.createDocumentFragment();
+        for (let i = 0; i < n; i++) {
+            const tr = document.createElement('tr');
+            tr.className = 'linha-vazia';
+            const cel = (cls, txt) => { const td = document.createElement('td'); if (cls) td.className = cls; if (txt) td.textContent = txt; tr.appendChild(td); return td; };
+            cel('col-num', String(dados.length + i + 1));
+            if (type === 'outros') cel('cel-ent', '');
+            cel('vz-op', i === 0 ? dica : '');                                         // dica: a operação que a nova linha vai receber
+            const tdAt = cel('', '');
+            const inp = document.createElement('input');
+            inp.type = 'text'; inp.className = 'inp-ativo-vazio'; inp.autocomplete = 'off';
+            inp.setAttribute('aria-label', 'Nova linha: digite o ativo');
+            inp.addEventListener('input', () => { if (inp.value.trim() !== '') materializarLinhaVazia(type, inp.value); });
+            inp.addEventListener('paste', e => {
+                const texto = (e.clipboardData || window.clipboardData).getData('text');
+                if (!window.GradeTabela.ehColagemMultipla(texto)) return;               // valor único: colagem nativa (cai no 'input')
+                e.preventDefault();
+                colarNaGrade(type, dados.length, 1, texto);
+            });
+            inp.addEventListener('keydown', e => {
+                if (e.key === 'ArrowDown' || e.key === 'Enter') { e.preventDefault(); focarLinhaVazia(type, i + 1); }
+                else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (i > 0) focarLinhaVazia(type, i - 1);
+                    else if (dados.length) irParaCelula(type, dados.length - 1, 1, -1);
+                }
+            });
+            tdAt.appendChild(inp);
+            if (type === 'cabos') { cel('col-cabo-extra', ''); cel('col-cabo-extra', ''); cel('col-cabo-extra', ''); cel('', ''); }
+            cel('col-del', '');
+            frag.appendChild(tr);
+        }
+        tb.innerHTML = '';
+        tb.appendChild(frag);
+    }
+
+    /* mantém as linhas em branco do tamanho da área visível (redimensionar a janela, abrir/fixar painéis, mudar o layout) */
+    (function observarAlturaDasTabelas() {
+        let pendente = false;
+        const agendar = () => {
+            if (pendente) return;
+            pendente = true;
+            requestAnimationFrame(() => { pendente = false; ['cabos', 'outros'].forEach(ajustarLinhasVazias); });
+        };
+        window.addEventListener('resize', agendar);
+        if (window.ResizeObserver) {
+            const ro = new ResizeObserver(agendar);
+            ['table-cabos', 'table-outros'].forEach(id => { const w = document.getElementById(id)?.closest('.table-wrap'); if (w) ro.observe(w); });
+        }
+    })();
 
     /* ═══════════════════════════════════════
        BOTÕES DE AÇÃO
@@ -3273,6 +3387,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     document.getElementById('btn-load-obra').addEventListener('click', abrirModalObras);
+
+    // Exportar JSON da obra que está na tela (TASK-111): mesmo formato .obra.json da exportação de uma obra salva, sem precisar salvá-la antes.
+    document.getElementById('btn-exportar-json').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-exportar-json');
+        btn.disabled = true;
+        try {
+            const numero = (document.getElementById('input-num-obra').value || '').trim();
+            const projeto = localStorage.getItem('projeto_selecionado_codigo') || '229';
+            const r = await fetch(`/api/obras/exportar-atual?projeto=${encodeURIComponent(projeto)}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome: numero || 'obra', dados_json: JSON.stringify(tableStates) })
+            });
+            if (!r.ok) throw new Error(await lerDetalhe(r));
+            const blob = new Blob([JSON.stringify(await r.json(), null, 2)], { type: 'application/json' });
+            const arquivo = `${String(numero || 'obra').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80)}.obra.json`;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = arquivo;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            showToast('Obra exportada (.obra.json).');
+        } catch (err) {
+            showToast('Erro ao exportar a obra: ' + err.message);
+        } finally {
+            btn.disabled = false;
+        }
+    });
 
     // Importar obra (TASK-056): arquivo .obra.json → cópia PARTICULAR do usuário, só se for do projeto selecionado.
     const inputImportarObra = document.getElementById('input-importar-obra');
