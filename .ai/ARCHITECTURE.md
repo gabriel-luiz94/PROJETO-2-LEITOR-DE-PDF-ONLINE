@@ -426,6 +426,8 @@ operações com `*` (`*I`, `*R`, `*M` = linha viva); `LM` só para operações s
 
 **Fator em fórmula (TASK-109):** `fator_i`/`fator_r` da linha podem ser uma fórmula guardada em `formula_i`/`formula_r` (`services/fator_formula.py`, avaliador sem `eval`). Cada uso da linha (`componentes_qtd`) carrega os parâmetros do pedido; `_fator_do_uso` avalia a fórmula (ex.: `=NUM(fios)/8`) ou usa o número, e só depois vem o `arred` da TASK-107. Fórmula com erro: aviso e a linha não soma no uso. `validar_base` exige que a fórmula use só parâmetros declarados pelo ativo da linha.
 
+**Ativo composto (TASK-110):** linha da base `NOME:=item + qtd*item` (só definição, sem código/componente) lida por `analisar_composto`; `compostos_do_projeto` monta o mapa por projeto e `_expandir_compostos` (em `processar_calculo`, antes da busca no passo 3) substitui o pedido do composto pelos itens com a quantidade multiplicada, em cadeia e com proteção contra ciclo. O composto nunca vira linha de cálculo.
+
 **Ativos com parâmetros (TASK-079):** `N1(XLPE,DT)` é nome-base `N1` + parâmetros. A base declara `N1=N1(cabo=XLPE, poste=DT)` (1ª linha do ativo) e
 os grupos `N1(cabo=XLPE)`… (cada grupo com o seu COMPONENTE); `_preparar_parametros` troca cada grupo por uma chave própria no índice e o
 pedido seleciona o grupo comum + os grupos cujos parâmetros ele satisfaz (`services/ativo_parametros.py`, espelhado em

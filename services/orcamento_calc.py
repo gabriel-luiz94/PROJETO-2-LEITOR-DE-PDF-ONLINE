@@ -9,7 +9,7 @@ from services.orcamento_arred import aplicar_arred
 from services.fator_formula import FormulaErro, avaliar
 from services.anotacao_outros import contexto_da_base, interpretar_linha
 from services.ativo_parametros import (
-    analisar_celula_base, linha_vale, montar_assinaturas, nome_base, resolver_pedido, restricoes_do_grupo, sem_colchetes,
+    analisar_celula_base, compostos_do_projeto, linha_vale, montar_assinaturas, nome_base, resolver_pedido, restricoes_do_grupo, sem_colchetes,
 )
 
 
@@ -157,6 +157,28 @@ def interpretar_outros(item: dict, ctx: dict = None) -> tuple:
     return [{"ativo": i["ativo"], "qtd": i["qtd"], "operacao": i["operacao"], "origem": "OUTROS"} for i in r["itens"]], problemas
 
 
+def _expandir_compostos(itens, compostos, avisos, profundidade_max=10) -> list:
+    """TASK-110: cada pedido de um ativo composto (``3-N1C``) vira os itens dele (``3-N1(C)``, ``6-N2(C)``), com a quantidade multiplicada pela do item;
+    compostos dentro de compostos expandem em cadeia. Ciclo ou cadeia funda demais: avisa e o composto não conta."""
+    saida = []
+
+    def expande(av, nivel, pilha):
+        base = nome_base(av["ativo"])
+        itens_do_composto = compostos.get(base) if "(" not in sem_colchetes(av["ativo"]) else None
+        if itens_do_composto is None:
+            saida.append(av)
+            return
+        if base in pilha or nivel >= profundidade_max:
+            avisos.append(f"Composto {base} se referencia em ciclo ({' → '.join(pilha + (base,))}): não foi calculado.")
+            return
+        for it in itens_do_composto:
+            expande(dict(av, ativo=it["ativo"], qtd=av["qtd"] * it["qtd"]), nivel + 1, pilha + (base,))
+
+    for av in itens:
+        expande(av, 0, ())
+    return saida
+
+
 def _fator_do_uso(row, qual, params, avisos) -> float:
     """TASK-109: fator da linha para ESTE uso — a fórmula (``=NUM(fios)/8``, com os parâmetros do pedido) se houver, senão o número. Fórmula com
     erro (parâmetro não informado, texto sem número…) avisa e a linha não soma neste uso."""
@@ -199,6 +221,8 @@ def _preparar_parametros(orcamento_rows, req_proj):
         if a is None or a["erro"]:
             linhas.append(r)
             continue
+        if a["tipo"] == "composto":
+            continue                                       # TASK-110: ativo composto é só definição (compostos_do_projeto); nunca entra no cálculo
         novo = dict(r)
         if a["tipo"] == "simples":                         # TASK-081: "DT11/300, 11300D" → o nome oficial é o 1º
             novo["ativo"] = a["base"]
@@ -224,6 +248,7 @@ def _preparar_parametros(orcamento_rows, req_proj):
 
 def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcamento_rows: list) -> dict:
     req_proj = (req_projeto or "").strip().upper()
+    compostos = compostos_do_projeto(orcamento_rows, req_proj)          # TASK-110: N1C:=N1(C) + 2*N2(C)
     ctx_outros = contexto_da_base(orcamento_rows, req_proj)          # TASK-081: apelidos, postes e assinaturas (antes de normalizar a base)
     orcamento_rows, assinaturas, grupos_param = _preparar_parametros(orcamento_rows, req_proj)
     avisos = []
@@ -278,6 +303,9 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
         ativos_qtd.extend(ativos)
         if erros:
             erros_formato.append(f"{(item.get('ativo') or '').strip()} ({'; '.join(erros)})")
+
+    if compostos:
+        ativos_qtd = _expandir_compostos(ativos_qtd, compostos, avisos)
 
     # ── 3. Cross-reference: Ativo → 1º match → Componente → todos os Códigos ─
     

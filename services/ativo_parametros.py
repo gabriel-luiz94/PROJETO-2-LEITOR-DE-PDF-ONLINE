@@ -23,6 +23,10 @@ TASK-108 — nome literal entre colchetes: ``[S336,4]`` / ``[CAZ 7,94]`` / ``[A-
 caractere (menos parênteses e colchetes); não aceita parâmetros. Vale na célula ATIVO da base (``[S336,4], 11336D`` = nome + apelido) e nos pedidos
 (``2-[S336,4]``, ``[S336,A], N1``). O nome oficial é o conteúdo, sem os colchetes (``nome_base``/``sem_colchetes``).
 
+TASK-110 — ativo COMPOSTO: ``N1C:=N1(C) + 2*N2(C)`` na célula ATIVO (linha só de definição, sem CÓDIGO/COMPONENTE) agrupa outros ativos, com ou sem
+parâmetros e com quantidade (``qtd*``) por item. Pedir ``3-N1C`` vale como ``3-N1(C)`` e ``6-N2(C)`` (``compostos_do_projeto``; o cálculo expande). Itens podem ser
+outros compostos (sem ciclo), nomes ``[literais]`` e ter apelidos na mesma célula (``N1C:=N1(C)+N2(C), N1CC``).
+
 Este arquivo tem a MESMA lógica de static/ativo_parametros.js (paridade testada em tests/test_ativo_parametros.py).
 """
 import re
@@ -109,9 +113,91 @@ def separar_apelidos(texto):
     return partes[0].strip(), [p.strip().upper() for p in partes[1:]]
 
 
+def _achar_composto(texto) -> int:
+    """Posição do ":=" (ativo composto) fora de parênteses e colchetes; -1 se não houver."""
+    prof, colchete = 0, False
+    for i, ch in enumerate(texto):
+        if colchete:
+            colchete = ch != "]"
+        elif ch == "[":
+            colchete = True
+        elif ch == "(":
+            prof += 1
+        elif ch == ")" and prof > 0:
+            prof -= 1
+        elif ch == ":" and prof == 0 and texto[i + 1:i + 2] == "=":
+            return i
+    return -1
+
+
+def _partes_mais(texto):
+    """Itens separados por "+" fora de parênteses e colchetes."""
+    partes, atual, prof, colchete = [], [], 0, False
+    for ch in texto:
+        if colchete:
+            colchete = ch != "]"
+        elif ch == "[":
+            colchete = True
+        elif ch == "(":
+            prof += 1
+        elif ch == ")" and prof > 0:
+            prof -= 1
+        elif ch == "+" and prof == 0:
+            partes.append("".join(atual))
+            atual = []
+            continue
+        atual.append(ch)
+    partes.append("".join(atual))
+    return partes
+
+
+_RE_ITEM_COMPOSTO = re.compile(r"^\s*(\d+(?:[.,]\d+)?)\s*\*\s*(.+)$", re.S)
+
+
+def analisar_composto(texto, k=None) -> dict:
+    """``N1C:=N1(C) + 2*N2(C)`` → {"tipo": "composto", "base": "N1C", "itens": [{"ativo": "N1(C)", "qtd": 1.0}, ...], "erro", ...}.
+    Cada item é um ativo de pedido (nome, ``nome(param)`` ou ``[literal]``), com ``qtd*`` opcional (padrão 1)."""
+    original = str(texto if texto is not None else "").strip()
+    k = _achar_composto(original) if k is None else k
+    r = {"texto": original, "base": "", "tipo": "composto", "params": [], "erro": None, "apelidos": [], "itens": []}
+    esq, dir_ = original[:k].strip(), original[k + 2:].strip()
+    lit = literal_de(esq)
+    if lit is not None:
+        r["base"], erro = lit.strip().upper(), _erro_literal(lit)
+    else:
+        r["base"], erro = esq.upper(), (None if _RE_APELIDO.match(esq.upper()) else f"nome '{esq}' inválido (use letras, números, _, ., - e /; ou [nome])")
+    if erro:
+        r["erro"] = erro
+        return r
+    if not dir_:
+        r["erro"] = f"composto {r['base']} sem itens: {r['base']}:=N1(C) + 2*N2(C)"
+        return r
+    for parte in _partes_mais(dir_):
+        m = _RE_ITEM_COMPOSTO.match(parte)
+        qtd, ativo = (float(m.group(1).replace(",", ".")), m.group(2).strip()) if m else (1.0, parte.strip())
+        if not ativo:
+            r["erro"] = "item vazio (+ sobrando)"
+            return r
+        if qtd <= 0:
+            r["erro"] = f"quantidade '{m.group(1)}' do item '{ativo}' precisa ser maior que zero"
+            return r
+        a = analisar_ativo(ativo, False)
+        if a["erro"]:
+            r["erro"] = f"item '{ativo}': {a['erro']}"
+            return r
+        if a["tipo"] == "declaracao":
+            r["erro"] = f"item '{ativo}': declaração não pode ser item de composto"
+            return r
+        r["itens"].append({"ativo": ativo.upper(), "qtd": qtd})
+    return r
+
+
 def nome_base(texto) -> str:
-    """"N1(XLPE,DT)" / "N1=N1(cabo=XLPE)" / "DT11/300, 11300D" / "N1" → nome oficial em maiúsculas, sem parâmetros nem apelidos."""
+    """"N1(XLPE,DT)" / "N1=N1(cabo=XLPE)" / "N1C:=N1(C)+N2(C)" / "DT11/300, 11300D" / "N1" → nome oficial em maiúsculas, sem parâmetros nem apelidos."""
     t, _ = separar_apelidos(texto)
+    k = _achar_composto(t)
+    if k != -1:
+        t = t[:k].strip()                                           # TASK-110: composto
     lit = literal_de(t)
     if lit is not None:
         return lit.strip().upper()                                  # TASK-108: [nome literal]
@@ -284,7 +370,10 @@ def analisar_celula_base(texto) -> dict:
     principal, apelidos = separar_apelidos(t)
     e = principal.find("=")
     i = principal.find("(")
-    if "[" in principal or "]" in principal:
+    k = _achar_composto(principal)
+    if k != -1:
+        a = analisar_composto(principal, k)                            # TASK-110: N1C:=N1(C) + 2*N2(C)
+    elif "[" in principal or "]" in principal:
         a = analisar_ativo(principal, True)
     else:
         a = analisar_declaracao(principal) if (e != -1 and (i == -1 or e < i)) else analisar_ativo(principal, True)
@@ -538,7 +627,7 @@ def preencher_componentes(linhas):
         if cel:
             a = analisar_celula_base(cel)
             analises[i] = a
-            if not a["erro"] and a["tipo"] != "simples":
+            if not a["erro"] and a["tipo"] not in ("simples", "composto"):
                 parametrizados.add((_escopo(l), a["base"]))
     atual, n = {}, 0
     for i, l in enumerate(novas):
@@ -626,7 +715,7 @@ def validar_base(linhas) -> dict:
 
     parametrizadas = {}                                               # (escopo, base) → [(n, linha, analise)] das linhas com parâmetros
     for n, linha, a in analises:
-        if a["tipo"] != "simples":
+        if a["tipo"] not in ("simples", "composto"):
             parametrizadas.setdefault((_escopo(linha), a["base"]), []).append((n, linha, a))
 
     # declaração: uma só, na primeira linha do ativo, cobrindo todos os nomes usados; padrões com grupo que os aceite
@@ -689,7 +778,81 @@ def validar_base(linhas) -> dict:
                     if all(_compativeis(p1[k], p2[k]) for k in set(p1) & set(p2)):
                         avisos.append(f"Código {cod} aparece nos grupos {c1} (linha {n1}) e {c2} (linha {n2}), que podem valer juntos: a quantidade soma duas vezes.")
     _validar_formulas(analises, parametrizadas, erros)
+    _validar_compostos(linhas, analises, erros)
     return {"erros": erros, "avisos": avisos}
+
+
+def compostos_do_projeto(linhas, projeto) -> dict:
+    """TASK-110: {NOME_OFICIAL: [{"ativo", "qtd"}]} dos ativos compostos das linhas válidas para o projeto (genéricas + as do projeto; o do
+    projeto vence o genérico). Composto com erro de sintaxe não entra."""
+    p = str(projeto or "").strip().upper()
+    genericos, do_projeto = {}, {}
+    for l in linhas or []:
+        cel = (l.get("ativo") or "")
+        if ":=" not in cel:
+            continue
+        lp = str(l.get("projeto") or "").strip().upper()
+        if lp and p and p not in [x.strip() for x in lp.split("/")]:
+            continue
+        a = analisar_celula_base(cel)
+        if a["tipo"] != "composto" or a["erro"]:
+            continue
+        (do_projeto if lp else genericos).setdefault(a["base"], a["itens"])
+    return {**genericos, **do_projeto}
+
+
+def _validar_compostos(linhas, analises, erros):
+    """TASK-110: composto sem CÓDIGO/COMPONENTE, nome único, itens que existem na base (com parâmetros válidos) e sem ciclo."""
+    compostos = [(n, l, a) for n, l, a in analises if a["tipo"] == "composto"]
+    if not compostos:
+        return
+    existentes = {}                                                   # nome oficial/apelido → True (qualquer escopo)
+    for n, l, a in analises:
+        if a["tipo"] != "composto":
+            existentes[a["base"]] = True
+        for ap in a["apelidos"]:
+            existentes.setdefault(ap, True)
+    nomes_comp, grafo = {}, {}
+    for n, l, a in compostos:
+        existentes[a["base"]] = True
+        for ap in a["apelidos"]:
+            existentes[ap] = True
+    for n, l, a in compostos:
+        cel = (l.get("ativo") or "").strip()
+        if (l.get("codigo") or "").strip() or (l.get("componente") or "").strip():
+            erros.append(f"Linha {n}: ativo composto '{a['base']}' é só uma definição: deixe CÓDIGO e COMPONENTE em branco.")
+        chave = (_escopo(l), a["base"])
+        if chave in nomes_comp:
+            erros.append(f"Linha {n}: ativo composto '{a['base']}' já foi definido na linha {nomes_comp[chave]}.")
+        nomes_comp.setdefault(chave, n)
+        if any(x["tipo"] != "composto" and x["base"] == a["base"] and _escopo(xl) == _escopo(l) for _, xl, x in analises):
+            erros.append(f"Linha {n}: '{a['base']}' já existe como ativo da base; o composto precisa de outro nome.")
+    for n, l, a in compostos:
+        esc = _escopo(l)
+        celulas_escopo = [x.get("ativo") or "" for x in linhas if _escopo(x) in (esc, "")]
+        assinaturas = montar_assinaturas(celulas_escopo)
+        for it in a["itens"]:
+            base_item = nome_base(it["ativo"])
+            if base_item not in existentes:
+                erros.append(f"Linha {n}: composto '{a['base']}' usa '{it['ativo']}', que não existe na base.")
+                continue
+            if "(" in it["ativo"]:
+                ped = resolver_pedido(it["ativo"], assinaturas)
+                if ped["erros"]:
+                    erros.append(f"Linha {n}: composto '{a['base']}', item '{it['ativo']}': {'; '.join(ped['erros'])}.")
+            grafo.setdefault((esc, a["base"]), set()).add(base_item)
+    for (esc, inicio) in list(grafo):                                 # ciclos (A → B → A)
+        visto, pilha = set(), [(inicio, [inicio])]
+        while pilha:
+            atual, caminho = pilha.pop()
+            for filho in grafo.get((esc, atual), ()):
+                if filho == inicio:
+                    erros.append(f"Composto '{inicio}' se referencia em ciclo: {' → '.join(caminho + [inicio])}.")
+                    pilha = []
+                    break
+                if filho not in visto and (esc, filho) in grafo:
+                    visto.add(filho)
+                    pilha.append((filho, caminho + [filho]))
 
 
 def _validar_formulas(analises, parametrizadas, erros):

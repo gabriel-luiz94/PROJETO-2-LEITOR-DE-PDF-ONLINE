@@ -583,3 +583,19 @@ As colunas **FATOR I** e **FATOR R** aceitam um número (`1,5`) **ou uma fórmul
 - **Pedido sem o parâmetro:** a fórmula não pode ser calculada; o cálculo avisa e a linha não soma (as demais linhas do ativo entram normalmente). Padrão na declaração (`CERCA=CERCA(fios=8F)`) vale na fórmula.
 - **Na importação:** fórmula com erro de sintaxe, ou que use parâmetro que o ativo da linha não declara, é recusada com a linha e nada é alterado. No CSV, fórmula com `;` precisa estar entre aspas (a exportação da tela já faz isso).
 - Depois de atualizar, o administrador roda o `schema_supabase.sql` no Supabase (cria `formula_i` e `formula_r`). Linhas existentes continuam com o número.
+
+## Ativo composto: agrupar ativos (TASK-110)
+Para pedir vários ativos com um nome só (ou dar um apelido a configurações de ativos com parâmetros), cadastre uma linha na Base com ATIVO no formato **`NOME:=item + qtd*item`**:
+
+| ATIVO | DESC ATIVO | COMPONENTE | CÓDIGO |
+|---|---|---|---|
+| `N1C:=N1(C) + 2*N2(C)` | N1 tipo C com 2 N2 tipo C | (vazio) | (vazio) |
+
+- Pedir `3-N1C` vale como `3-N1(C)` e `6-N2(C)` (a quantidade pedida multiplica a de cada item). O texto continua `N1C` na Totalizadora; o cálculo expande.
+- **Itens:** ativo simples (`T3`), com parâmetros (`N1(C)`, `N1(poste=DT)`), nome literal (`[CAZ 7,94]`) ou **outro composto**. Quantidade antes, com `*` e **ponto** decimal (`0.5*T3`; a vírgula separa apelidos). Separe os itens com `+`.
+- **Apelido:** `KIT:=N1C + T3, K` (o apelido `K` também pede o kit). Nome com caracteres especiais: `[S 1]:=A+B`.
+- **Só definição:** CÓDIGO e COMPONENTE ficam **em branco** (os códigos vêm dos itens). O nome precisa ser diferente de qualquer ativo da base.
+- **Itens completos:** os parâmetros do item devem estar no próprio item (ou usar o padrão da declaração); o composto não repassa parâmetros do vínculo cabo⇄estrutura.
+- **Por projeto:** o composto do projeto vence o genérico com o mesmo nome.
+- **Importação:** é recusada (com a linha) se o composto tiver CÓDIGO/COMPONENTE, nome repetido, quantidade ≤ 0, item que não existe na base, parâmetro inválido (`N1(Z)` com `Z` não cadastrado) ou ciclo (`A:=B`, `B:=A`).
+- **Regras da Totalizadora** casam o nome do composto (`N1C`), não os itens.

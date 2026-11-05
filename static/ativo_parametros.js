@@ -3,6 +3,7 @@
  * Nos GRUPOS da base também: curinga %, lista | e exceto != (N1(poste=D%, cabo!=XLPE)). Pedido e declaração: só valores concretos.
  * MESMA lógica de services/ativo_parametros.py (paridade testada em tests/test_ativo_parametros.py). Sem DOM. Chaves iguais às do Python.
  * Nomes e valores: letras, números, "_" e "." (sem hífen), sem diferença de caixa.
+ * TASK-110: ativo COMPOSTO ("N1C:=N1(C) + 2*N2(C)", só definição) agrupa outros ativos com quantidade por item; o cálculo (Python) expande o pedido.
  * TASK-108: nome literal entre colchetes ([S336,4], [CAZ 7,94], [A-B]) = UM ativo simples, sem parâmetros, com qualquer caractere (menos parênteses e colchetes).
  */
 (function (raiz) {
@@ -53,8 +54,64 @@
         return [partes[0].trim(), partes.slice(1).map(p => p.trim().toUpperCase())];
     }
 
+    /** Posição do ":=" (ativo composto) fora de parênteses e colchetes; -1 se não houver. */
+    function acharComposto(texto) {
+        let prof = 0, colchete = false;
+        for (let i = 0; i < texto.length; i++) {
+            const ch = texto[i];
+            if (colchete) { colchete = ch !== ']'; continue; }
+            if (ch === '[') colchete = true;
+            else if (ch === '(') prof++;
+            else if (ch === ')' && prof > 0) prof--;
+            else if (ch === ':' && prof === 0 && texto[i + 1] === '=') return i;
+        }
+        return -1;
+    }
+
+    /** Itens separados por "+" fora de parênteses e colchetes. */
+    function partesMais(texto) {
+        const partes = []; let atual = '', prof = 0, colchete = false;
+        for (const ch of texto) {
+            if (colchete) colchete = ch !== ']';
+            else if (ch === '[') colchete = true;
+            else if (ch === '(') prof++;
+            else if (ch === ')' && prof > 0) prof--;
+            else if (ch === '+' && prof === 0) { partes.push(atual); atual = ''; continue; }
+            atual += ch;
+        }
+        partes.push(atual);
+        return partes;
+    }
+
+    /** "N1C:=N1(C) + 2*N2(C)" → { tipo: 'composto', base: 'N1C', itens: [{ ativo, qtd }], erro, ... } (espelha analisar_composto). */
+    function analisarComposto(texto, k) {
+        const original = String(texto == null ? '' : texto).trim();
+        if (k === undefined || k === null) k = acharComposto(original);
+        const r = { texto: original, base: '', tipo: 'composto', params: [], erro: null, apelidos: [], itens: [] };
+        const esq = original.slice(0, k).trim(), dir = original.slice(k + 2).trim();
+        const lit = literalDe(esq);
+        let erro;
+        if (lit !== null) { r.base = lit.trim().toUpperCase(); erro = erroLiteral(lit); }
+        else { r.base = esq.toUpperCase(); erro = RE_APELIDO.test(esq.toUpperCase()) ? null : `nome '${esq}' inválido (use letras, números, _, ., - e /; ou [nome])`; }
+        if (erro) { r.erro = erro; return r; }
+        if (!dir) { r.erro = `composto ${r.base} sem itens: ${r.base}:=N1(C) + 2*N2(C)`; return r; }
+        for (const parte of partesMais(dir)) {
+            const m = parte.match(/^\s*(\d+(?:[.,]\d+)?)\s*\*\s*([\s\S]+)$/);
+            const qtd = m ? parseFloat(m[1].replace(',', '.')) : 1, ativo = (m ? m[2] : parte).trim();
+            if (!ativo) { r.erro = 'item vazio (+ sobrando)'; return r; }
+            if (qtd <= 0) { r.erro = `quantidade '${m[1]}' do item '${ativo}' precisa ser maior que zero`; return r; }
+            const a = analisarAtivo(ativo, false);
+            if (a.erro) { r.erro = `item '${ativo}': ${a.erro}`; return r; }
+            if (a.tipo === 'declaracao') { r.erro = `item '${ativo}': declaração não pode ser item de composto`; return r; }
+            r.itens.push({ ativo: ativo.toUpperCase(), qtd });
+        }
+        return r;
+    }
+
     function nomeBase(texto) {
         let t = separarApelidos(texto)[0];
+        const kc = acharComposto(t);
+        if (kc !== -1) t = t.slice(0, kc).trim();                              // TASK-110: composto
         const lit = literalDe(t);
         if (lit !== null) return lit.trim().toUpperCase();                    // TASK-108: [nome literal]
         const i = t.indexOf('('), e = t.indexOf('=');
@@ -168,8 +225,10 @@
         const t = String(texto == null ? '' : texto);
         const [principal, apelidos] = separarApelidos(t);
         const e = principal.indexOf('='), i = principal.indexOf('(');
-        const a = (principal.includes('[') || principal.includes(']')) ? analisarAtivo(principal, true)
-            : ((e !== -1 && (i === -1 || e < i)) ? analisarDeclaracao(principal) : analisarAtivo(principal, true));
+        const kc = acharComposto(principal);
+        const a = kc !== -1 ? analisarComposto(principal, kc)                  // TASK-110: N1C:=N1(C) + 2*N2(C)
+            : ((principal.includes('[') || principal.includes(']')) ? analisarAtivo(principal, true)
+                : ((e !== -1 && (i === -1 || e < i)) ? analisarDeclaracao(principal) : analisarAtivo(principal, true)));
         if (apelidos.length) {
             a.texto = t.trim();
             for (const ap of apelidos) {
@@ -332,7 +391,7 @@
         return saida;
     }
 
-    const api = { literalDe, semColchetes, nomeTela, separarApelidos, apelidosDoProjeto, nomeBase, analisarAtivo, analisarDeclaracao, analisarCelulaBase, restricoesDoGrupo, casarPadrao, restricaoVale, montarAssinaturas, resolverPedido, linhaVale, dividirTokens, assinaturasDoProjeto };
+    const api = { analisarComposto, literalDe, semColchetes, nomeTela, separarApelidos, apelidosDoProjeto, nomeBase, analisarAtivo, analisarDeclaracao, analisarCelulaBase, restricoesDoGrupo, casarPadrao, restricaoVale, montarAssinaturas, resolverPedido, linhaVale, dividirTokens, assinaturasDoProjeto };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.AtivoParametros = api;
 })(typeof window !== 'undefined' ? window : globalThis);
