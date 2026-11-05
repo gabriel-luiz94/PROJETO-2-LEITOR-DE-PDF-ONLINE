@@ -413,19 +413,29 @@
     /** TASK-113: assinaturas das células + parâmetros LIVRES (usados só na fórmula do fator e não declarados): sig.livres, só quando existem. */
     function assinaturasDasLinhas(validas) {
         const saida = montarAssinaturas(validas.map(l => l.ativo || ''));
+        const porAtivo = {};
         for (const l of validas) {
             if (!(String(l.formula_i || '').trim() || String(l.formula_r || '').trim())) continue;
             const cel = String(l.ativo || '').trim();
             const a = cel ? analisarCelulaBase(cel) : null;
             if (!a || a.erro || a.tipo === 'composto' || !a.base) continue;
-            const usados = new Set();
-            for (const campo of ['formula_i', 'formula_r']) { const f = String(l[campo] || '').trim(); if (f) identificadoresDeFormula(f).forEach(n => usados.add(n)); }
-            const declarados = new Set(((saida[a.base] || {}).nomes || []).map(nomeTela));
+            const conj = porAtivo[a.base] || (porAtivo[a.base] = new Set());
+            for (const campo of ['formula_i', 'formula_r']) { const f = String(l[campo] || '').trim(); if (f) identificadoresDeFormula(f).forEach(n => conj.add(n)); }
+        }
+        for (const base of Object.keys(porAtivo)) {
+            const usados = porAtivo[base];
+            let sig = saida[base];
+            const declarados = new Set(((sig || {}).nomes || []).map(nomeTela));
             const novos = Array.from(usados).filter(n => !declarados.has(n)).sort();
             if (novos.length) {
-                const sig = saida[a.base] || (saida[a.base] = { nomes: [], padroes: {}, valores: {}, mascaras: {}, fechados: [], declarada: false });
+                sig = sig || (saida[base] = { nomes: [], padroes: {}, valores: {}, mascaras: {}, fechados: [], declarada: false });
                 const livres = sig.livres || (sig.livres = []);
                 novos.forEach(n => { if (!livres.includes(n)) livres.push(n); });
+            }
+            // parâmetro declarado com padrão, usado numa fórmula e sem NENHUM grupo que o restrinja: o padrão é só o padrão (aceita qualquer valor)
+            for (const n of ((sig || {}).nomes || []).slice()) {
+                const val = sig.valores[n] || [], esperado = n in sig.padroes ? [sig.padroes[n]] : [];
+                if (usados.has(nomeTela(n)) && sig.fechados.includes(n) && val.length === esperado.length && val.every((v, i) => v === esperado[i]) && !(sig.mascaras[n] || []).length) sig.fechados.splice(sig.fechados.indexOf(n), 1);
             }
         }
         return saida;

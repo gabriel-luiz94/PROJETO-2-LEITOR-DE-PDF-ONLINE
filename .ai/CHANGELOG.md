@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-05 — TASK-114: parâmetro com padrão usado só em fórmula não exige grupo e aceita qualquer valor
+
+**Tipo:** correção · `services/ativo_parametros.py` ⇄ `static/ativo_parametros.js` (`assinaturas_das_linhas`/`assinaturasDasLinhas`, `_formula_por_ativo`, `validar_base`)
+
+Base real (`CERCA=CERCA(descr=5F,tipo=PA)` com `tipo` só nas fórmulas): a importação recusava (`padrão TIPO=PA … não tem nenhum grupo cadastrado`) e, mesmo importada, o pedido com `tipo=T`/`P` seria rejeitado (`não cadastrado (existem: PA)`). Agora um parâmetro declarado com padrão, usado em fórmula de FATOR do ativo e sem nenhum grupo/máscara que o restrinja, não exige grupo e fica **aberto** (o padrão é só o padrão). Parâmetros com grupos continuam fechados.
+
+---
+
 ## 2026-11-05 — TASK-113: parâmetro livre (só na fórmula do fator) aceito no pedido
 
 **Tipo:** correção/feature · `services/ativo_parametros.py` ⇄ `static/ativo_parametros.js` (`assinaturas_das_linhas`/`assinaturasDasLinhas`, `resolver_pedido`/`resolverPedido`), `services/orcamento_calc.py`
