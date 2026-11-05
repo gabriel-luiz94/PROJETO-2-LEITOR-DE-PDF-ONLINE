@@ -301,14 +301,21 @@
             return r;
         }
         r.com_assinatura = true;
-        const nomes = sig.nomes, dados = {};
+        const nomes = sig.nomes, dados = {}, livres = (sig.livres || []).slice(), dadosLivres = {};           // TASK-113: livres = parâmetros só da fórmula do fator
         let pos = 0;
         for (const p of a.params) {
             if (p.nome === null) {
                 while (pos < nomes.length && nomes[pos] in dados) pos++;
-                if (pos >= nomes.length) { r.erros.push(`parâmetros demais para ${a.base} (esperado: ${nomes.map(nomeTela).join(', ')})`); continue; }
+                if (pos >= nomes.length) {
+                    if (livres.length && !nomes.length) r.erros.push(`os parâmetros de ${a.base} precisam do nome: ${a.base}(${livres[0].toLowerCase()}=valor)`);
+                    else r.erros.push(`parâmetros demais para ${a.base} (esperado: ${nomes.map(nomeTela).join(', ')})`);
+                    continue;
+                }
                 dados[nomes[pos]] = p.valor; pos++;
-            } else if (!nomes.includes(p.nome)) r.erros.push(`parâmetro ${nomeTela(p.nome)} desconhecido em ${a.base} (existem: ${nomes.map(nomeTela).join(', ')})`);
+            } else if (livres.includes(p.nome) && !nomes.includes(p.nome)) {
+                if (p.nome in dadosLivres) r.erros.push(`parâmetro ${p.nome} repetido`); else dadosLivres[p.nome] = p.valor;
+            } else if (!nomes.includes(p.nome) && livres.includes(nomeTela(p.nome))) r.erros.push(`parâmetro ${nomeTela(p.nome)} repetido`);
+            else if (!nomes.includes(p.nome)) r.erros.push(`parâmetro ${nomeTela(p.nome)} desconhecido em ${a.base} (existem: ${nomes.concat(livres).map(nomeTela).join(', ')})`);
             else if (p.nome in dados) r.erros.push(`parâmetro ${p.nome} repetido`);
             else dados[p.nome] = p.valor;
         }
@@ -323,8 +330,11 @@
             } else r.faltando.push(n);
         }
         for (const n of nomes) if (n in dados) r.params[n] = dados[n];
-        if (!r.faltando.length) r.texto = `${a.base}(${nomes.map(n => dados[n]).join(',')})`;
-        else if (Object.keys(dados).length) r.texto = `${a.base}(${nomes.filter(n => n in dados).map(n => nomeTela(n) + '=' + dados[n]).join(',')})`;
+        Object.keys(dadosLivres).forEach(n => { r.params[n] = dadosLivres[n]; });
+        const extras = Object.keys(dadosLivres).map(n => `${nomeTela(n)}=${dadosLivres[n]}`);
+        if (!nomes.length) r.texto = extras.length ? `${a.base}(${extras.join(',')})` : a.base;
+        else if (!r.faltando.length) r.texto = `${a.base}(${nomes.map(n => dados[n]).concat(extras).join(',')})`;
+        else if (Object.keys(dados).length || extras.length) r.texto = `${a.base}(${nomes.filter(n => n in dados).map(n => nomeTela(n) + '=' + dados[n]).concat(extras).join(',')})`;
         return r;
     }
 
@@ -374,7 +384,51 @@
             const lp = String(l.projeto || '').trim().toUpperCase();
             return !lp || !p || lp.split('/').map(x => x.trim()).includes(p);
         });
-        return montarAssinaturas(validas.map(l => l.ativo || ''));
+        return assinaturasDasLinhas(validas);
+    }
+
+    /** Nomes de parâmetro usados numa fórmula de fator (maiúsculos, sem "#2"); o que vem antes de "(" é função. Fórmula ilegível → []. (Espelha identificadores do Python.) */
+    function identificadoresDeFormula(formula) {
+        let t = String(formula == null ? '' : formula).trim();
+        if (t.startsWith('=')) t = t.slice(1);
+        t = t.replace(/\s+$/, '');
+        const rx = /\s*(?:(\d+(?:[.,]\d+)?)|("[^"]*")|([A-Za-z_][A-Za-z0-9_.]*(?:#\d+)?)|(<>|<=|>=|[-+*\/()=<>;]))/y;
+        const toks = []; let pos = 0;
+        while (pos < t.length) {
+            rx.lastIndex = pos;
+            const m = rx.exec(t);
+            if (!m || rx.lastIndex === pos) return [];
+            pos = rx.lastIndex;
+            toks.push(m[3] !== undefined ? ['id', m[3]] : ['o', m[0].trim()]);
+        }
+        const ids = [];
+        toks.forEach((tk, i) => {
+            if (tk[0] !== 'id' || (toks[i + 1] && toks[i + 1][1] === '(')) return;
+            const n = tk[1].toUpperCase().split('#')[0];
+            if (!ids.includes(n)) ids.push(n);
+        });
+        return ids;
+    }
+
+    /** TASK-113: assinaturas das células + parâmetros LIVRES (usados só na fórmula do fator e não declarados): sig.livres, só quando existem. */
+    function assinaturasDasLinhas(validas) {
+        const saida = montarAssinaturas(validas.map(l => l.ativo || ''));
+        for (const l of validas) {
+            if (!(String(l.formula_i || '').trim() || String(l.formula_r || '').trim())) continue;
+            const cel = String(l.ativo || '').trim();
+            const a = cel ? analisarCelulaBase(cel) : null;
+            if (!a || a.erro || a.tipo === 'composto' || !a.base) continue;
+            const usados = new Set();
+            for (const campo of ['formula_i', 'formula_r']) { const f = String(l[campo] || '').trim(); if (f) identificadoresDeFormula(f).forEach(n => usados.add(n)); }
+            const declarados = new Set(((saida[a.base] || {}).nomes || []).map(nomeTela));
+            const novos = Array.from(usados).filter(n => !declarados.has(n)).sort();
+            if (novos.length) {
+                const sig = saida[a.base] || (saida[a.base] = { nomes: [], padroes: {}, valores: {}, mascaras: {}, fechados: [], declarada: false });
+                const livres = sig.livres || (sig.livres = []);
+                novos.forEach(n => { if (!livres.includes(n)) livres.push(n); });
+            }
+        }
+        return saida;
     }
 
     /** {APELIDO: NOME_OFICIAL} das linhas da base válidas para o projeto. */

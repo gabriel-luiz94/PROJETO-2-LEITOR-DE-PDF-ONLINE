@@ -1,4 +1,5 @@
 """TASK-109 — FATOR I/R da base em função de parâmetro (fórmula "=NUM(fios)/8")."""
+import json
 import sqlite3
 
 import pytest
@@ -267,3 +268,58 @@ def test_add_row_e_sync_all(client):
 def test_tela_da_base_aceita_formula():
     html = open("static/orcamento.html", encoding="utf-8").read()
     assert "fatorTela(" in html and 'type="number" step="0.01"' not in html and "fator_i: inputs[8].value.trim() || 0" in html
+
+
+# ── TASK-113: parâmetro que só existe na fórmula (não declarado) pode ser informado no pedido por nome ──
+SEM_DECLARACAO = [L("CERCA", "CC", "arame", 0.0, formula_i="=NUM(fios)"), L("", "CC", "grampo", 1.0)]
+OUTRO_PARAM = [L("CERCA=CERCA(tipo=A)", "", ""), L("CERCA(tipo=A)", "CV", "arame", 0.0, formula_i="=NUM(fios)")]
+
+
+def test_pedido_informa_parametro_que_so_existe_na_formula():
+    assert calcular(SEM_DECLARACAO, "10-CERCA(fios=8F)")[:2] == ({"arame": 80.0, "grampo": 10.0}, [])
+    assert calcular(OUTRO_PARAM, "10-CERCA(fios=8F)")[:2] == ({"arame": 80.0}, [])
+    assert calcular(OUTRO_PARAM, "10-CERCA(A,fios=12F)")[0] == {"arame": 120.0}                 # declarado por posição + livre por nome
+    assert calcular(OUTRO_PARAM, "10-CERCA(fios=12F,tipo=A)")[0] == {"arame": 120.0}
+
+
+def test_parametro_livre_exige_o_nome_e_valida_o_que_nao_existe():
+    tot, nao, _ = calcular(SEM_DECLARACAO, "10-CERCA(8F)")
+    assert tot == {} and any("precisam do nome: CERCA(fios=valor)" in n for n in nao)
+    assert any("desconhecido" in n and "FIOS" in n for n in calcular(SEM_DECLARACAO, "10-CERCA(x=1)")[1])
+    assert any("repetido" in n for n in calcular(SEM_DECLARACAO, "10-CERCA(fios=8F,fios=9F)")[1])
+    tot, nao, avisos = calcular(SEM_DECLARACAO, "10-CERCA")                                      # sem informar: avisa e a linha não soma
+    assert tot == {"grampo": 10.0} and nao == [] and any("fios" in a and "não informado" in a for a in avisos)
+
+
+def test_assinaturas_com_livres_e_resolver_pedido():
+    sig = ap.assinaturas_do_projeto([dict(r) for r in SEM_DECLARACAO + OUTRO_PARAM[:0]], "")
+    assert sig["CERCA"]["livres"] == ["FIOS"] and sig["CERCA"]["nomes"] == []
+    r = ap.resolver_pedido("CERCA(fios=8F)", sig)
+    assert (r["params"], r["texto"], r["erros"], r["faltando"]) == ({"FIOS": "8F"}, "CERCA(FIOS=8F)", [], [])
+    assert ap.resolver_pedido("CERCA", sig)["texto"] == "CERCA"
+    sem_livre = ap.assinaturas_do_projeto([L("N1=N1(a=1)", "", ""), L("N1(a=1)", "C", "k")], "")
+    assert "livres" not in sem_livre["N1"]                                                       # sem fórmula, nada muda
+
+
+def test_totalizadora_aceita_o_pedido_com_parametro_livre():
+    from services.autonomo.totalizadora import montar_totalizadora
+    r = montar_totalizadora([], [{"entidade": "0", "operacao": "I", "ativo": "10-CERCA(fios=8F)"}], [], SEM_DECLARACAO, "")
+    assert [(x["ativo"], x["qtd"], x["naoEncontrado"]) for x in r] == [("CERCA(FIOS=8F)", 10.0, False)]
+
+
+def test_paridade_js_dos_parametros_livres():
+    import os, shutil, subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node indisponível")
+    import config
+    modulo = os.path.join(config.STATIC_DIR, "ativo_parametros.js")
+    linhas = [dict(r) for r in SEM_DECLARACAO + OUTRO_PARAM + [L("T3", "T", "t3", 1.0, formula_i='=SE(tipo="A"; NUM(x); y)')]]
+    pedidos = ["CERCA", "CERCA(fios=8F)", "CERCA(8F)", "CERCA(x=1)", "CERCA(fios=8F,fios=9F)", "CERCA(A,fios=12F)", "T3(y=2)", "T3(x=1,Y=2)"]
+    esperado_sig = ap.assinaturas_do_projeto(linhas, "")
+    esperado = {"sig": esperado_sig, "ped": [ap.resolver_pedido(p, esperado_sig) for p in pedidos]}
+    codigo = (f"const A=require({json.dumps(modulo)});const e=JSON.parse(require('fs').readFileSync(0,'utf8'));"
+              "const s=A.assinaturasDoProjeto(e.linhas,'');console.log(JSON.stringify({sig:s,ped:e.pedidos.map(p=>A.resolverPedido(p,s))}));")
+    r = subprocess.run([node, "-e", codigo], input=json.dumps({"linhas": linhas, "pedidos": pedidos}), capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0, r.stderr
+    assert json.loads(r.stdout) == json.loads(json.dumps(esperado))
