@@ -1,0 +1,164 @@
+/* resumo_layout.css (TASK-111) — layout da tela Resumo do Orçamento: barra de título, barra de modais, controles, painéis laterais
+   (Configurações à esquerda, Assistente IA à direita) e tabelas ocupando o espaço da tela. Só apresentação: os ids do resumo.html não mudam. */
+
+html, body { height: 100%; }
+body { display: block; overflow: hidden; }
+
+.app-shell { display: flex; flex-direction: column; height: 100vh; width: 100%; min-width: 0; }
+
+/* ── Barra de título ── */
+.titlebar {
+    display: flex; align-items: center; gap: 5px; flex: none; padding: 6px 10px; min-height: 46px;
+    background: #161b22; border-bottom: 1px solid #30363d; flex-wrap: wrap;
+}
+.titlebar .btn-secondary, .titlebar .btn-primary, .titlebar .btn-undo, .titlebar .btn-redo {
+    padding: 4px 8px; font-size: 0.74rem; white-space: nowrap; border-radius: 6px; margin: 0;
+}
+.titlebar .btn-undo, .titlebar .btn-redo { font-size: 0; gap: 0; padding: 5px 9px; }          /* só o ícone (o texto fica no title) */
+.titlebar .btn-ico { padding: 5px 9px; }
+.titlebar-obra { display: flex; align-items: center; gap: 6px; font-weight: 700; color: #e6edf3; font-size: 0.85rem; white-space: nowrap; }
+.titlebar-obra label { color: #8b949e; font-weight: 600; }
+.titlebar-obra input { width: 128px !important; padding: 5px 8px !important; font-size: 0.85rem !important; font-weight: 600; }
+#btn-ler-projeto { padding: 5px 10px !important; font-size: 0.78rem !important; }
+#btn-montar-orcamento { padding: 5px 12px; font-size: 0.8rem; font-weight: 600; }
+.tb-sep { width: 1px; height: 22px; background: #30363d; margin: 0 3px; flex: none; }
+.tb-flex { flex: 1 1 8px; }
+.chip-projeto {
+    font-size: 0.72rem; color: #8b949e; border: 1px solid #30363d; border-radius: 12px; padding: 2px 10px; white-space: nowrap;
+    max-width: 150px; overflow: hidden; text-overflow: ellipsis;
+}
+.btn-painel[aria-pressed="true"] { background: rgba(31,111,235,0.2); border-color: #388bfd; color: #79c0ff; }
+#modelo-editando-aviso { font-size: 0.72rem; }
+#history-info { display: none; }                 /* o contador 3/3 some da barra (Ctrl+Z / Ctrl+Y continuam) */
+
+/* ── Barra de modais (ocultável) ── */
+.barra-modais {
+    display: flex; align-items: center; gap: 8px; flex: none; padding: 5px 12px; background: #11161d; border-bottom: 1px solid #30363d;
+}
+.btn-barra-toggle {
+    background: transparent; border: 0; color: #8b949e; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em;
+    cursor: pointer; padding: 2px 4px; font-family: inherit; white-space: nowrap;
+}
+.btn-barra-toggle:hover { color: #e6edf3; }
+.barra-modais-itens { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.barra-modais.recolhida { padding-top: 2px; padding-bottom: 2px; }
+.barra-modais.recolhida .barra-modais-itens { display: none; }
+.btn-modal-barra, .barra-modais-itens .btn-secondary { font-size: 0.74rem; padding: 4px 10px; border-color: rgba(217,119,6,0.35); color: #d97706; position: relative; margin: 0; }
+.barra-modais-itens #btn-validacao-opcoes { padding: 3px 7px; margin: 0; }
+#validar-estado { margin: 0 !important; font-size: 0.66rem !important; }
+.btn-modal-barra:hover, .barra-modais-itens .btn-secondary:hover { background: rgba(217,119,6,0.12); }
+#barra-modais-montaveis { display: contents; }
+.ctx-grupo { display: inline-flex; align-items: center; gap: 5px; border: 1px solid rgba(217,119,6,0.35); border-radius: 6px; padding: 2px 8px; }
+.ctx-rotulo { font-size: 0.68rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; }
+#select-contexto { max-width: 150px; }
+
+/* ── Controles (visão, tabelas, layout, resumo compacto) ── */
+.ctlbar { display: flex; align-items: center; gap: 8px; flex: none; padding: 6px 12px; flex-wrap: wrap; }
+.ctlbar .view-toggle { display: flex; background: rgba(255,255,255,0.05); padding: 2px; border-radius: 6px; border: 1px solid #30363d; }
+.ctlbar .view-toggle label { display: flex; align-items: center; gap: 5px; padding: 3px 9px; cursor: pointer; font-size: 0.78rem; color: #8b949e; }
+.ctlbar .view-toggle label:has(input:checked) { background: #30363d; color: #e6edf3; border-radius: 4px; }
+.ctl-rotulo { font-size: 0.68rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; }
+.chip-toggle {
+    border: 1px solid #30363d; background: transparent; border-radius: 14px; padding: 2px 11px; font-size: 0.74rem; color: #8b949e;
+    cursor: pointer; font-family: inherit;
+}
+.chip-toggle.on { border-color: #d97706; color: #d97706; background: rgba(217,119,6,0.1); }
+.seg-layout { display: flex; background: rgba(255,255,255,0.05); padding: 2px; border-radius: 6px; border: 1px solid #30363d; }
+.seg-layout button { border: 0; background: transparent; color: #8b949e; padding: 3px 10px; font-size: 0.76rem; border-radius: 4px; cursor: pointer; font-family: inherit; }
+.seg-layout button.on { background: #30363d; color: #e6edf3; }
+.resumo-compacto { display: flex; gap: 6px; align-items: center; }
+.rc-item { display: flex; align-items: baseline; gap: 5px; padding: 2px 9px; border: 1px solid #30363d; border-radius: 12px; background: rgba(255,255,255,0.03); }
+.rc-lbl { font-size: 0.66rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }
+.rc-item .resumo-rede-valor { font-size: 0.82rem !important; font-weight: 700; color: #e6edf3; }
+.ctlbar #btn-limpar-tabelas, .ctlbar #btn-salvar-alteracoes, .ctlbar #btn-gerar-totalizadora { padding: 4px 10px; font-size: 0.76rem; margin: 0 !important; }
+
+/* ── Área de trabalho: painéis + centro ── */
+.work { flex: 1; display: flex; min-height: 0; position: relative; }
+.center { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+.painel {
+    display: flex; flex-direction: column; flex: none; background: #161b22; border: 0 solid #30363d; min-height: 0; z-index: 40;
+}
+.painel[hidden] { display: none; }
+.painel-esq { width: 300px; border-right-width: 1px; }
+.painel-dir { width: 400px; border-left-width: 1px; }
+.painel.flutuante { position: absolute; top: 0; bottom: 0; z-index: 60; box-shadow: 0 0 34px rgba(0,0,0,0.65); }
+.painel-esq.flutuante { left: 0; }
+.painel-dir.flutuante { right: 0; }
+.painel-topo { display: flex; align-items: center; gap: 4px; padding: 8px 10px; border-bottom: 1px solid #30363d; flex: none; }
+.painel-titulo { font-weight: 700; color: #e6edf3; font-size: 0.85rem; margin-right: auto; }
+.painel-btn { background: transparent; border: 0; color: #8b949e; cursor: pointer; font-size: 0.9rem; padding: 3px 6px; border-radius: 5px; font-family: inherit; }
+.painel-btn:hover { background: #21262d; color: #e6edf3; }
+.painel-btn[aria-pressed="true"] { color: #79c0ff; background: rgba(31,111,235,0.18); }
+.painel-corpo { flex: 1; min-height: 0; overflow-y: auto; }
+.painel-sec { padding: 10px 12px; border-bottom: 1px solid #21262d; }
+.painel-sec h4 { font-size: 0.66rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 7px; font-weight: 600; }
+.painel-linha { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.painel-linha .btn-secondary, .painel-linha .btn-primary { font-size: 0.78rem; padding: 6px 10px; }
+.painel #select-projeto {
+    width: 100%; background: #0d1117 !important; border: 1px solid #30363d !important; border-radius: 6px; padding: 6px 8px; color: #e6edf3 !important;
+}
+.painel #btn-novo-projeto { margin: 0 !important; }
+
+/* Painel do chat (estilo assistente lateral) */
+.painel-corpo-chat { display: flex; flex-direction: column; overflow: hidden; }
+.painel-corpo-chat .ai-chat-container { flex: 1; min-height: 0; padding: 10px; }
+.painel-corpo-chat .ai-chat-messages { flex: 1; max-height: none; min-height: 0; }
+.painel-corpo-chat .ai-chat-input-area { flex: none; align-items: flex-end; flex-wrap: wrap; }
+.painel-corpo-chat #chat-input { min-height: 62px; flex: 1 1 100%; }
+.painel-corpo-chat .voz-estado { padding: 0 12px; flex: none; }
+.painel-corpo-chat #btn-send-chat { margin-left: auto; }
+
+/* ── Tabelas ── */
+#view-padrao { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#view-padrao.hidden { display: none !important; }
+.tables-row { display: flex !important; flex: 1; min-height: 0; gap: 10px; padding: 0 12px 12px; align-items: stretch; }
+.tables-row.empilhadas { flex-direction: column; }
+.tables-row .report-section {
+    flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 0; overflow: hidden; border-radius: 10px;
+}
+.tables-row .section-header { margin: 0; padding: 6px 10px; border-bottom: 1px solid #30363d; flex: none; }
+.tables-row .section-title { font-size: 0.9rem; }
+.tables-row .section-actions { flex-wrap: wrap; gap: 5px; }
+.tables-row .btn-add-row, .tables-row .btn-del-row-bulk, .tables-row .btn-copy-table { padding: 3px 8px; font-size: 0.72rem; }
+.tables-row .table-wrap { flex: 1; min-height: 0; max-height: none; border: 0; border-radius: 0; overflow: auto; }
+.tables-row .report-section.recolhida { flex: none; }
+.tables-row .report-section.recolhida .table-wrap { display: none; }
+.tables-row .report-section.recolhida .section-header { border-bottom: 0; }
+.tables-row .report-section.oculta { display: none; }
+.btn-recolher { font-size: 0.72rem; padding: 3px 8px; border-radius: 7px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; cursor: pointer; font-family: inherit; }
+.btn-recolher:hover { color: #fff; }
+
+#view-totalizadora { flex: 1; min-height: 0; overflow: auto; margin-top: 0 !important; padding: 0 12px 12px; }
+#view-totalizadora.hidden { display: none !important; }
+
+/* ── Linhas vazias estilo Excel (TASK-111): preenchem a área visível; digitar nelas cria a linha ── */
+.resumo-table tr.linha-vazia td { background: rgba(255,255,255,0.012); }
+.resumo-table tr.linha-vazia td.col-num { color: #484f58; }
+.resumo-table tr.linha-vazia .inp-ativo-vazio {
+    width: 100%; border: none; border-radius: 0; background: transparent; color: inherit; font: inherit; font-size: 0.85rem; padding: 6px 8px; outline: none; box-sizing: border-box;
+}
+.resumo-table tr.linha-vazia .inp-ativo-vazio:focus { outline: 2px solid #388bfd; outline-offset: -2px; background: rgba(56,139,253,0.08); }
+.resumo-table tr.linha-vazia td.vz-op { color: #484f58; text-align: center; font-size: 0.75rem; }
+
+/* ── Modal Resumo da rede ── */
+.resumo-rede-modal { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.resumo-rede-modal .cx { border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px; background: rgba(255,255,255,0.03); }
+.resumo-rede-modal .cx span { display: block; font-size: 0.7rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }
+.resumo-rede-modal .cx b { font-size: 1.3rem; color: #e6edf3; }
+
+/* ── Telas estreitas: painéis sempre flutuam ── */
+@media (max-width: 1100px) {
+    .painel { position: absolute; top: 0; bottom: 0; z-index: 60; box-shadow: 0 0 34px rgba(0,0,0,0.65); }
+    .painel-esq { left: 0; }
+    .painel-dir { right: 0; width: min(400px, 92vw); }
+    .tables-row { flex-direction: column; }
+}
+
+/* ── Impressão: só as tabelas ── */
+@media print {
+    body { overflow: visible; }
+    .app-shell { height: auto; }
+    .titlebar, .barra-modais, .ctlbar, .painel { display: none !important; }
+    .tables-row .table-wrap { overflow: visible; }
+}

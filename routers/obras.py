@@ -250,6 +250,22 @@ async def importar_obra(request: Request, projeto: str = None):
             "cabos": len(pronta["dados"]["cabos"]), "outros": len(pronta["dados"]["outros"])}
 
 
+class ExportarAtualRequest(BaseModel):
+    nome: str = ""
+    dados_json: str = "{}"
+
+
+@router.post("/exportar-atual")
+def exportar_obra_atual(req: ExportarAtualRequest, request: Request, projeto: str = None):
+    """TASK-111: `.obra.json` da obra que está na TELA (sem salvá-la antes): os mesmos campos validados e filtrados da exportação de uma obra
+    salva (`obras_arquivo.montar_exportacao`). `nome` vazio vira "obra"; `projeto` é o código do projeto selecionado."""
+    get_current_user_from_state(request)
+    if len(req.dados_json) > obras_arquivo.LIMITE_BYTES:
+        raise HTTPException(status_code=413, detail=f"Obra grande demais (máx. {obras_arquivo.LIMITE_BYTES // (1024 * 1024)} MB).")
+    envelope = obras_arquivo.montar_exportacao({"nome": req.nome.strip()[:120], "projeto": projeto or "", "dados_json": req.dados_json, "tipo": "obra"})
+    return JSONResponse(envelope)
+
+
 @router.get("/{obra_id}/exportar")
 def exportar_obra(obra_id: str, request: Request, projeto: str = None):
     """Baixa a obra do usuário (ou pública de outro no `projeto`) como `.obra.json` (TASK-056)."""

@@ -599,3 +599,11 @@ Para pedir vários ativos com um nome só (ou dar um apelido a configurações d
 - **Por projeto:** o composto do projeto vence o genérico com o mesmo nome.
 - **Importação:** é recusada (com a linha) se o composto tiver CÓDIGO/COMPONENTE, nome repetido, quantidade ≤ 0, item que não existe na base, parâmetro inválido (`N1(Z)` com `Z` não cadastrado) ou ciclo (`A:=B`, `B:=A`).
 - **Regras da Totalizadora** casam o nome do composto (`N1C`), não os itens.
+
+## Tela Resumo do Orçamento: novo layout (TASK-111)
+- **Barra de título:** nº da obra, **Ler projeto** e **Montar orçamento** ao lado; depois **Carregar obra**, **Salvar obra**, **Salvar como modelo**, **Importar JSON** e **Exportar JSON** (o `.obra.json` da obra que está na tela, sem precisar salvar antes). Os botões **Configurações** e **Assistente IA** abrem os painéis laterais.
+- **Painéis laterais** (ocultos por padrão): **Configurações** (esquerda: projeto, Tabela Orçamento, Pesquisar ativos, Chave API, restaurar layout) e **Assistente IA** (direita: o chat). O 📌 **fixa** o painel (ele empurra as tabelas); solto, ele flutua sobre as tabelas e fecha ao clicar fora ou com Esc. O estado fica lembrado neste navegador.
+- **Barra de modais** (▾ Modais recolhe e mostra): Resumo da rede, Ajustar, Validar, Contexto, Regras de validação, Postes e estruturas, Cabos, Conexões, Ramais, Vincular cabos e os modais montáveis. Um **resumo compacto** (postes, média, baixa, equipamentos) fica sempre na barra de controles.
+- **Tabelas:** botões **Cabos** e **Demais ativos** mostram/ocultam cada tabela; **⌄ Ocultar** recolhe só o corpo; **Lado a lado** ou **Empilhadas**. **Padrão/Totalizadora** continua escolhendo a visão.
+- **Linhas vazias estilo Excel:** as tabelas Cabos e Demais ativos mostram linhas em branco até o fim da área visível. **Digite direto** no Ativo de uma linha em branco (ela vira linha da tabela, com Ctrl+Z) ou **cole várias linhas** do Excel/e-mail (a colagem começa na primeira linha em branco). Não precisa do botão **Add**.
+- **Operação das linhas novas e coladas:** se a tabela está vazia, **I**; senão a **mesma operação da linha preenchida mais próxima acima**. Linhas coladas no formato `operação<TAB>ativo` (por exemplo `*R` e `9400D, B1-MT`) mantêm a operação que veio; as que trazem só o ativo herdam a da linha de cima.

@@ -46,6 +46,19 @@
 
     function operacaoValida(v) { return OPERACOES.indexOf(String(v == null ? '' : v).trim().toUpperCase()) >= 0; }
 
+    /**
+     * TASK-111: operação de uma linha NOVA que entra na posição `idx` de `dados`: a da linha PREENCHIDA (Ativo não vazio) mais próxima acima
+     * dela; sem nenhuma linha preenchida acima (tabela vazia ou só linhas em branco) vale "I".
+     */
+    function operacaoHerdada(dados, idx) {
+        const n = Math.min(idx == null ? dados.length : idx | 0, dados.length);
+        for (let i = n - 1; i >= 0; i--) {
+            const r = dados[i];
+            if (r && String(r.ativo == null ? '' : r.ativo).trim() !== '') return operacaoValida(r.operacao) ? String(r.operacao).trim().toUpperCase() : 'I';
+        }
+        return 'I';
+    }
+
     function novaLinha(tipo, operacao) {
         return { entidade: tipo === 'cabos' ? 'CABO' : '0', operacao: operacao || 'I', ativo: '' };
     }
@@ -71,13 +84,15 @@
         mat.forEach((celulas, k) => {
             const idx = ini + k;
             if (idx >= dados.length) {
-                const ant = dados[dados.length - 1];
-                dados.push(novaLinha(tipo, ant ? ant.operacao : 'I'));
+                dados.push(novaLinha(tipo, operacaoHerdada(dados, dados.length)));         // TASK-111: a da linha preenchida acima (ou I)
                 res.criadas++;
             }
             const row = dados[idx];
+            // TASK-111: colagem mista — a linha "OP<tab>ATIVO" respeita a operação mesmo que as outras só tragam o Ativo (essas herdam a de cima)
+            const opIdx = cols.indexOf('operacao');
+            const inicioDaLinha = (cols[c0] === 'ativo' && opIdx >= 0 && celulas.length >= 2 && (operacaoValida(celulas[0]) || String(celulas[0]).trim() === '')) ? opIdx : c0;
             celulas.forEach((valor, j) => {
-                const campo = cols[c0 + j];
+                const campo = cols[inicioDaLinha + j];
                 if (!campo) return;                                  // sobrou coluna: descarta
                 const v = String(valor).trim();
                 if (campo === 'operacao') {
@@ -270,7 +285,7 @@
         return true;
     }
 
-    const api = { OPERACOES, COLUNAS, MAX_LINHAS, colunasDe, parseColagem, ehColagemMultipla, operacaoValida, aplicarColagem, textoDoIntervalo, limparIntervalo,
+    const api = { OPERACOES, COLUNAS, MAX_LINHAS, operacaoHerdada, novaLinha, colunasDe, parseColagem, ehColagemMultipla, operacaoValida, aplicarColagem, textoDoIntervalo, limparIntervalo,
         FASES, parseAtivoMontado, aplicarColagemModal, textoDoIntervaloModal,
         compararLinhas, ordenarLinhas, mapaDeOrdem, estaOrdenado };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
