@@ -165,7 +165,7 @@ def analisar_composto(texto, k=None) -> dict:
     if lit is not None:
         r["base"], erro = lit.strip().upper(), _erro_literal(lit)
     else:
-        r["base"], erro = esq.upper(), (None if _RE_APELIDO.match(esq.upper()) else f"nome '{esq}' inválido (use letras, números, _, ., -, + e /; ou [nome])")
+        r["base"], erro = esq.upper(), (None if _RE_APELIDO.match(esq.upper()) else f"nome '{esq}' inválido (use letras, números, _, ., - e /; ou [nome])")
     if erro:
         r["erro"] = erro
         return r
@@ -360,7 +360,7 @@ def analisar_declaracao(texto) -> dict:
     return r
 
 
-_RE_APELIDO = re.compile(r"^[A-Z0-9_./+-]+$")      # TASK-102: "-" também (B1-MT); TASK-119: "+" também (U3+CM)
+_RE_APELIDO = re.compile(r"^[A-Z0-9_./-]+$")      # TASK-102: "-" também (B1-MT)
 
 
 def analisar_celula_base(texto) -> dict:
@@ -383,7 +383,7 @@ def analisar_celula_base(texto) -> dict:
             if not ap:
                 a["erro"] = a["erro"] or "apelido vazio"
             elif not _RE_APELIDO.match(ap):
-                a["erro"] = a["erro"] or f"apelido '{ap}' inválido (use letras, números, _, ., -, + e /)"
+                a["erro"] = a["erro"] or f"apelido '{ap}' inválido (use letras, números, _, ., - e /)"
         a["apelidos"] = [x for x in apelidos if x]
     return a
 
@@ -400,7 +400,6 @@ def montar_assinaturas(celulas) -> dict:
     {"nomes", "padroes", "valores" (exatos), "mascaras" (padrões com %), "fechados" (parâmetros que só aceitam o cadastrado), "declarada"}.
     Só entram ativos com parâmetros."""
     saida = {}
-    com_grupo = {}                                         # nome-base → parâmetros que algum grupo/condição restringe (TASK-119)
     for cel in celulas:
         a = analisar_celula_base(cel)
         if a["erro"] or not a["params"]:
@@ -423,7 +422,6 @@ def montar_assinaturas(celulas) -> dict:
                     if p["nome"] not in s["fechados"]:
                         s["fechados"].append(p["nome"])
                 else:                                                                           # condição (%, |, !=): como num grupo, sem padrão
-                    com_grupo.setdefault(a["base"], set()).add(p["nome"])
                     for alt in p["alts"]:
                         destino = s["mascaras"] if "%" in alt else s["valores"]
                         lista = destino.setdefault(p["nome"], [])
@@ -435,7 +433,6 @@ def montar_assinaturas(celulas) -> dict:
             for p in a["params"]:
                 if p["nome"] is None:
                     continue
-                com_grupo.setdefault(a["base"], set()).add(p["nome"])
                 if p["nome"] not in s["nomes"]:
                     s["nomes"].append(p["nome"])
                 for alt in p["alts"]:
@@ -445,12 +442,6 @@ def montar_assinaturas(celulas) -> dict:
                         lista.append(alt)
                 if p["op"] == "=" and p["nome"] not in s["fechados"]:
                     s["fechados"].append(p["nome"])
-    # TASK-119: parâmetro com PADRÃO na declaração mas SEM nenhum grupo no ativo (U1=U1(poste=D,tipocabo=A) só com linhas comuns) não tem valores
-    # cadastrados para conferir: aceita qualquer valor (o pedido U1(poste=C) segue com as linhas comuns). Com grupos continua fechado.
-    for base, s in saida.items():
-        for n in list(s["fechados"]):
-            if n in s["padroes"] and n not in com_grupo.get(base, set()):
-                s["fechados"].remove(n)
     return saida
 
 
@@ -807,8 +798,8 @@ def validar_base(linhas) -> dict:
                 if p["valor"] is None:
                     continue
                 aceitam = [r[p["nome"]] for _, _, a in itens if a["tipo"] == "grupo" or a.get("condicionada") for r in [restricoes_do_grupo(a)] if p["nome"] in r]
-                if aceitam and not any(restricao_vale(r, p["valor"]) for r in aceitam) and nome_tela(p["nome"]) not in em_formula:      # TASK-119: sem nenhum grupo, o padrão não tem o que conferir
-                    avisos.append(f"Linha {n_decl}: padrão {p['nome']}={p['valor']} de {base} não tem nenhum grupo cadastrado (o padrão recebe só as linhas comuns).")      # TASK-119: aviso, não erro
+                if not any(restricao_vale(r, p["valor"]) for r in aceitam) and nome_tela(p["nome"]) not in em_formula:
+                    erros.append(f"Linha {n_decl}: padrão {p['nome']}={p['valor']} de {base} não tem nenhum grupo cadastrado.")
 
     # grupo de cada COMPONENTE (por escopo); componente usado por grupos diferentes é erro (a expansão traria os dois)
     bases_param = {k for k in parametrizadas}

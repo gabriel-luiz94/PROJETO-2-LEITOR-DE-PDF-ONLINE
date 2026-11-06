@@ -92,7 +92,7 @@
         const lit = literalDe(esq);
         let erro;
         if (lit !== null) { r.base = lit.trim().toUpperCase(); erro = erroLiteral(lit); }
-        else { r.base = esq.toUpperCase(); erro = RE_APELIDO.test(esq.toUpperCase()) ? null : `nome '${esq}' inválido (use letras, números, _, ., -, + e /; ou [nome])`; }
+        else { r.base = esq.toUpperCase(); erro = RE_APELIDO.test(esq.toUpperCase()) ? null : `nome '${esq}' inválido (use letras, números, _, ., - e /; ou [nome])`; }
         if (erro) { r.erro = erro; return r; }
         if (!dir) { r.erro = `composto ${r.base} sem itens: ${r.base}:=N1(C) + 2*N2(C)`; return r; }
         for (const parte of partesMais(dir)) {
@@ -218,7 +218,7 @@
         return r;
     }
 
-    const RE_APELIDO = /^[A-Z0-9_./+-]+$/;      // TASK-102: "-" também (B1-MT); TASK-119: "+" também (U3+CM)
+    const RE_APELIDO = /^[A-Z0-9_./-]+$/;      // TASK-102: "-" também (B1-MT)
 
     /** Célula ATIVO da base; o 1º nome é o oficial e os demais são apelidos (só em ativo sem parâmetros na célula). */
     function analisarCelulaBase(texto) {
@@ -233,7 +233,7 @@
             a.texto = t.trim();
             for (const ap of apelidos) {
                 if (!ap) a.erro = a.erro || 'apelido vazio';
-                else if (!RE_APELIDO.test(ap)) a.erro = a.erro || `apelido '${ap}' inválido (use letras, números, _, ., -, + e /)`;
+                else if (!RE_APELIDO.test(ap)) a.erro = a.erro || `apelido '${ap}' inválido (use letras, números, _, ., - e /)`;
             }
             a.apelidos = apelidos.filter(x => x);
         }
@@ -249,8 +249,6 @@
 
     function montarAssinaturas(celulas) {
         const saida = {};
-        const comGrupo = {};                                         // nome-base → parâmetros que algum grupo/condição restringe (TASK-119)
-        const marcar = (base, nome) => { (comGrupo[base] || (comGrupo[base] = new Set())).add(nome); };
         for (const cel of celulas) {
             const a = analisarCelulaBase(cel);
             if (a.erro || !a.params.length) continue;
@@ -268,7 +266,6 @@
                         if (!lista.includes(p.valor)) lista.push(p.valor);
                         if (!s.fechados.includes(p.nome)) s.fechados.push(p.nome);
                     } else {                                                                              // condição (%, |, !=): como num grupo, sem padrão
-                        marcar(a.base, p.nome);
                         for (const alt of p.alts) {
                             const destino = alt.indexOf('%') !== -1 ? s.mascaras : s.valores;
                             const lista = destino[p.nome] || (destino[p.nome] = []);
@@ -280,7 +277,6 @@
             } else {
                 for (const p of a.params) {
                     if (p.nome === null) continue;
-                    marcar(a.base, p.nome);
                     if (!s.nomes.includes(p.nome)) s.nomes.push(p.nome);
                     for (const alt of p.alts) {
                         const destino = alt.indexOf('%') !== -1 ? s.mascaras : s.valores;
@@ -289,13 +285,6 @@
                     }
                     if (p.op === '=' && !s.fechados.includes(p.nome)) s.fechados.push(p.nome);
                 }
-            }
-        }
-        // TASK-119: parâmetro com PADRÃO na declaração mas SEM nenhum grupo no ativo não tem valores cadastrados para conferir: aceita qualquer valor
-        for (const base of Object.keys(saida)) {
-            const s = saida[base];
-            for (const n of s.fechados.slice()) {
-                if (Object.prototype.hasOwnProperty.call(s.padroes, n) && !(comGrupo[base] && comGrupo[base].has(n))) s.fechados.splice(s.fechados.indexOf(n), 1);
             }
         }
         return saida;

@@ -612,7 +612,7 @@ Para pedir vários ativos com um nome só (ou dar um apelido a configurações d
 Normalmente um parâmetro **só aceita os valores cadastrados** nos grupos (para pegar erro de digitação) e o padrão da declaração exige um grupo que o aceite. Quando o parâmetro é **usado em alguma fórmula de FATOR do ativo** (`=SE(tipo="PR";3.9;…)`), os valores vêm da fórmula e o parâmetro passa a aceitar **qualquer valor**, mesmo que existam grupos que citem só alguns (`ATERINT(tipo=MRT%)`, `ATERINT(tipo=MRT_RDC)`): o pedido `ATERINT(PR)` calcula com as linhas comuns e a fórmula, e só ganha as linhas de um grupo quando o valor casa com ele (`MRT_RPN` → grupo `MRT%`). A importação também não exige grupo para o padrão (`CERCA=CERCA(descr=5F, tipo=PA)`).
 
 - **Consequência:** um valor digitado errado (`RPM` em vez de `RPN`) não é mais recusado; ele cai no `SENÃO` das fórmulas. Se quiser conferir os valores, tire o parâmetro das fórmulas ou use um parâmetro separado só para a conferência.
-- Parâmetro **fora** de fórmulas continua fechado nos valores dos grupos (só aceita o que está cadastrado), **exceto** quando o ativo não tem nenhum grupo para ele (ver TASK-119 abaixo).
+- Parâmetro **fora** de fórmulas continua fechado nos valores dos grupos, e padrão sem grupo e sem uso em fórmula continua sendo erro de importação.
 
 ## Resumo da rede: comprimentos (TASK-116)
 O resumo (Postes, Média, Baixa, Equip.) conta só linhas de operação **I**. **Média** = cabos com tensão (`-13,8kV`) ou do formato antigo com prefixo `CAA`, `CAL` ou `P`; **Baixa** = sem tensão ou `M2X`/`M3X`.
@@ -631,10 +631,4 @@ O resumo (Postes, Média, Baixa, Equip.) conta só linhas de operação **I**. *
 
 ## Importar JSON direto na tela (TASK-118)
 **⤒ Importar JSON** (barra de título) abre o arquivo `.obra.json` e mostra um diálogo com a obra (nome, nº de linhas) e três ações: **Carregar** (substitui as tabelas da tela), **Adicionar** (acrescenta as linhas no fim) e **Subtrair** (acrescenta como retirada: cabos com quantidade negativa e `*` na frente dos ativos de Outros, o mesmo "Subtrair" do Carregar Obra). Tudo pode ser desfeito com **Ctrl+Z**. Nada é gravado no servidor; o arquivo precisa ser do projeto selecionado (senão a tela explica e não importa). **Modelo** com variáveis V continua sendo importado como modelo salvo e aparece em Carregar Obra. O botão "Importar obra" dentro de Carregar Obra segue salvando uma cópia particular da obra.
-
-## Importação da base: apelido com `+`, padrão sem grupo (TASK-119)
-- **Apelido pode ter `+`:** `U3_CM=U3_CM(poste=D,tipocabo=A,cabo=S04), U3+CM` importa, e `3-U3+CM` funciona nos pedidos (letras, números, `_`, `.`, `-`, `+` e `/`).
-- **Padrão da declaração sem grupo não é mais erro:**
-  - Se o ativo **não tem nenhum grupo** para o parâmetro (`U1=U1(poste=D,tipocabo=A)` só com linhas comuns), não há valores cadastrados para conferir: o parâmetro **aceita qualquer valor** (`U1(poste=C)` calcula com as linhas comuns) e a importação não avisa nada.
-  - Se o parâmetro **tem grupos**, mas nenhum aceita o padrão (`ID_M=ID_M(cabo=S04)` com grupos só de `%C25%`…), a importação mostra um **aviso** (antes era erro): o padrão recebe só as linhas comuns. O parâmetro continua fechado nos valores cadastrados (o próprio padrão conta como cadastrado).
 

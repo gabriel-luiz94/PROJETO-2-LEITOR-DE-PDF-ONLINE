@@ -8,14 +8,6 @@
 
 ---
 
-## 2026-11-06 — TASK-119: importação da base — apelido com `+` e padrão sem grupo deixam de ser erro
-
-**Tipo:** correção · `services/ativo_parametros.py` ⇄ `static/ativo_parametros.js` (`_RE_APELIDO`, `montar_assinaturas`/`montarAssinaturas`), `validar_base`
-
-A base real do usuário (4325 linhas) era recusada com 155 erros: 3 apelidos com `+` (`U3+CM`, `N3+CFU`, `N4+CFU`) e 152 "padrão X=V de Y não tem nenhum grupo cadastrado". Agora o apelido aceita `+`; parâmetro com padrão e **sem nenhum grupo** fica aberto (aceita qualquer valor) e sem mensagem; padrão fora dos grupos existentes vira **aviso**. A Totalizadora deixou de gerar a forma incompleta `N1(CABO=C,POSTE=9200D)` para parâmetro sem grupo (agora `N1(C,9200D)`).
-
----
-
 ## 2026-11-06 — TASK-118: Resumo da rede (comprimento vindo de outro cabo) + Importar JSON com diálogo
 
 **Tipo:** ajuste/funcionalidade · `static/resumo.js`, `static/resumo.html`, `static/resumo_layout.js`, `routers/obras.py`

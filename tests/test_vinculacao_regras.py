@@ -241,7 +241,7 @@ def test_totalizadora_preenche_o_parametro_cabo_igual_ao_js():
     tot = tt.montar_totalizadora(cabos, outros, [], BASE_N1, "P1", cfg_vinculo=CFG_P1)
     assert tt.normalizar_para_json(tot) == js["totalizadora"] and tt.payload_calculo(tot) == js["payload"]
     ativos = _codigos(tot)
-    assert "N1(C,9200D)" in ativos                                     # 9200D, N1 ligado a 2 cabos C16 → cabo=C (e poste 9200D; TASK-119: poste sem grupo aceita qualquer valor, então sai completo)
+    assert any("CABO=C" in a and "9200D" in a for a in ativos)         # 9200D, N1 ligado a 2 cabos C16 → cabo=C (e poste 9200D)
     assert "N3(C)" in ativos                                           # N3 com 1 cabo C16
     assert any(a.startswith("N1(P") for a in ativos)                   # valor digitado vence (N1(P))
     assert sum(1 for a in ativos if a.startswith("N1(A,")) == 1         # N1 sem vínculo usa o padrão da declaração (A)
