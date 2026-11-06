@@ -27,7 +27,9 @@ def sync_tabela_master():
         page_size = 1000
         start = 0
         while True:
-            res = supabase.table("tabela_orcamento_master").select("*").range(start, start + page_size - 1).execute()
+            # TASK-120: SEM ordenar, o Postgres devolve na ordem física (embaralhada depois de apagar/reinserir, ex.: Importar Tabela Master) e a paginação
+            # pode até repetir/pular linhas. Por `id` volta a ordem em que as linhas foram inseridas (a ordem da planilha/tela).
+            res = supabase.table("tabela_orcamento_master").select("*").order("id").range(start, start + page_size - 1).execute()
             data = res.data or []
             master_rows.extend(data)
             if len(data) < page_size:
@@ -189,7 +191,7 @@ def migrar_projetos_compartilhados() -> dict:
     supabase = get_supabase()
     if supabase:
         try:
-            res = supabase.table("tabela_orcamento_master").select("*").like("projeto", "%/%").execute()
+            res = supabase.table("tabela_orcamento_master").select("*").like("projeto", "%/%").order("id").execute()
             linhas_nuvem = res.data or []
             for linha in linhas_nuvem:
                 divididas = _linhas_divididas(linha)
@@ -225,21 +227,21 @@ def get_merged_orcamento(user_id: str = None) -> list[dict]:
     
     # 1. Tabela local com as modificações do próprio usuário
     if user_id:
-        cursor.execute("SELECT * FROM tabela_orcamento WHERE user_id = ?", (user_id,))
+        cursor.execute("SELECT * FROM tabela_orcamento WHERE user_id = ? ORDER BY id", (user_id,))      # TASK-120: ordem explícita (a da gravação)
         user_rows = [dict(r) for r in cursor.fetchall()]
         if user_rows:
             conn.close()
             return user_rows
 
     # 2. Tabela Master oficial sincronizada do Supabase
-    cursor.execute("SELECT * FROM tabela_orcamento_master")
+    cursor.execute("SELECT * FROM tabela_orcamento_master ORDER BY id")      # TASK-120: ordem explícita (a da sincronização)
     master_rows = [dict(r) for r in cursor.fetchall()]
     if master_rows and len(master_rows) > 0:
         conn.close()
         return master_rows
     
     # 3. Fallback genérico (Seed sem user_id)
-    cursor.execute("SELECT * FROM tabela_orcamento WHERE user_id IS NULL")
+    cursor.execute("SELECT * FROM tabela_orcamento WHERE user_id IS NULL ORDER BY id")
     seed_rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return seed_rows

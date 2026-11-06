@@ -317,6 +317,9 @@ class FakeTabelaMaster:
         self._filtros_like[campo] = ("ilike", valor)
         return self
 
+    def order(self, *_a, **_k):          # TASK-120: a sincronização pede as linhas ordenadas por id
+        return self
+
     def _bate_filtros(self, linha):
         for campo, valor in self._filtros_eq.items():
             if isinstance(campo, tuple):

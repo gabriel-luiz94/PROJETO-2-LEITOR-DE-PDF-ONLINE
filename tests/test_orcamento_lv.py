@@ -236,6 +236,7 @@ def test_sync_da_nuvem_sem_coluna_lv_vira_A(client, monkeypatch):
     class Tabela:
         def __init__(self, linhas): self.linhas = linhas
         def select(self, *_): return self
+        def order(self, *_): return self
         def range(self, *_): return self
         def execute(self):
             class R: pass
