@@ -155,7 +155,8 @@ def test_validar_base_erros():
     assert "mais de uma declaração" in erros(base + [L("N1=N1(cabo=XLPE, poste=DT)", "N1X", "z1")])
     assert "primeira linha do ativo" in erros([L("N1", "N1", "c1")] + base[:1] + base[2:])
     assert "não está na declaração" in erros(base + [L("N1(tubo=X)", "N1.T", "t1")])
-    assert "padrão" in erros([L("N1=N1(cabo=ZZZ, poste=DT)", "N1", "c1")] + base[1:])
+    ruim = [L("N1=N1(cabo=ZZZ, poste=DT)", "N1", "c1")] + base[1:]                                   # TASK-119: padrão fora dos grupos é AVISO (o padrão recebe só as linhas comuns)
+    assert erros(ruim) == "" and any("padrão CABO=ZZZ" in av for av in ap.validar_base(ruim)["avisos"])
     assert "levam nome" in erros(base + [L("N1(XLPE)", "N1.Z", "z1")])
     assert "inválido" in erros(base + [L("N1(cabo=XL+PE)", "N1.Z", "z1")])
     assert "COMPONENTE N1.XLPE é usado por grupos diferentes" in erros(base + [L("N1(cabo=COBRE)", "N1.XLPE", "z1")])
@@ -274,7 +275,8 @@ def test_validar_base_com_operadores():
     assert ap.validar_base(linhas) == {"erros": [], "avisos": []}
     assert ap.validar_base([Lc("N1=N1(cabo=ZZ%)", "N1", "c1")])["erros"] == []                    # TASK-102: curinga na declaração = condição do 1º grupo (sem padrão)
     padrao_sem_grupo = [Lc("N1=N1(cabo=ALUM)", "N1", "c1"), Lc("N1(cabo=XLPE)", "N1.X", "x1")]
-    assert any("padrão CABO=ALUM" in e for e in ap.validar_base(padrao_sem_grupo)["erros"])
+    v = ap.validar_base(padrao_sem_grupo)                                                         # TASK-119: aviso, não erro
+    assert v["erros"] == [] and any("padrão CABO=ALUM" in av for av in v["avisos"])
     padrao_por_curinga = [Lc("N1=N1(poste=DT)", "N1", "c1"), Lc("N1(poste=D%)", "N1.D", "d1")]
     assert ap.validar_base(padrao_por_curinga)["erros"] == []                                    # o padrão DT é aceito pelo grupo D%
     aviso = [Lc("N1(poste=D%)", "N1.D", "k1"), Lc("N1(poste=%T)", "N1.T", "k1")]

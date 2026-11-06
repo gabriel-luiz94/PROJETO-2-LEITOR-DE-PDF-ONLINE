@@ -350,9 +350,11 @@ def _calc_pe(texto, op="I"):
 def test_base_com_padrao_so_usado_em_formula_valida_sem_grupo():
     v = ap.validar_base([dict(r) for r in CERCA_PE])
     assert v["erros"] == [] and v["avisos"] == []
-    # padrão que NÃO é usado em fórmula continua exigindo um grupo
-    ruim = ap.validar_base([L("X=X(a=1)", "", ""), L("X", "C", "k", 1.0)])
-    assert any("padrão A=1 de X não tem nenhum grupo cadastrado" in e for e in ruim["erros"])
+    # padrão fora de fórmula: com grupos que não o aceitam vira AVISO (TASK-119); sem nenhum grupo não há o que conferir (nada a avisar)
+    com_grupos = ap.validar_base([L("X=X(a=1)", "", ""), L("X(a=2)", "C", "k", 1.0)])
+    assert com_grupos["erros"] == [] and any("padrão A=1 de X não tem nenhum grupo cadastrado" in av for av in com_grupos["avisos"])
+    sem_grupos = ap.validar_base([L("X=X(a=1)", "", ""), L("X", "C", "k", 1.0)])
+    assert sem_grupos == {"erros": [], "avisos": []}
 
 
 def test_parametro_com_padrao_e_so_de_formula_aceita_qualquer_valor():
@@ -416,3 +418,51 @@ def test_base_aterint_valores_que_so_a_formula_conhece():
     assert _calc_ater("2-ATERINT(MRT_RDC)")[0]["2411149"] == 4.0                                                      # grupo específico MRT_RDC: + grampo
     tot, nao = _calc_ater("2-ATERINT")                                                                                # sem tipo (sem padrão): só o que não depende dele
     assert tot == {"SDEMU3803II": 2.0}
+
+
+# ── TASK-119: base real do usuário (U1/U3_CM/ID_M): apelido com "+", padrão sem grupo e parâmetros sem grupo abertos ──
+def _l119(ativo, comp="", cod="", fi=1):
+    return {"ativo": ativo, "desc_ativo": "", "componente": comp, "projeto": "PERNAMBUCO", "mdo": "MATERIAL", "origem": "", "codigo": cod, "desc_codigo": "", "fator_i": fi,
+            "fator_r": 0, "filtro": "", "lv": "A", "arred": "NORMAL", "formula_i": "", "formula_r": ""}
+
+
+BASE119 = [_l119("U1=U1(poste=D,tipocabo=A)", "", "", 0), _l119("U1", "U1", "111"), _l119("U1", "U1", "222", 2),
+           _l119("U3_CM=U3_CM(poste=D,tipocabo=A,cabo=S04), U3+CM", "", "", 0), _l119("U3_CM", "U3_CM", "333"),
+           _l119("U3_CM(cabo=%S04%)", "U3_CM_S04", "444"), _l119("U3_CM(cabo=%S1/0%)", "U3_CM_S10", "555"),
+           _l119("ID_M=ID_M(cabo=S04)", "", "", 0), _l119("ID_M", "ID_M", "666"), _l119("ID_M(cabo=%C25%)", "ID_M_C25", "777")]
+
+
+def _calc119(texto):
+    r = calc.processar_calculo([], [{"ativo": texto, "operacao": "I", "entidade": "0"}], "PERNAMBUCO", [dict(x) for x in BASE119])
+    return {x["codigo"]: x["total"] for x in r["resultado"]}, r["nao_encontrados"]
+
+
+def test_base_com_apelido_com_mais_padrao_sem_grupo_importa_e_calcula():
+    v = ap.validar_base([dict(r) for r in BASE119])
+    assert v["erros"] == []                                                                  # antes: apelido 'U3+CM' inválido e padrões sem grupo
+    assert any("padrão CABO=S04 de ID_M" in a for a in v["avisos"]) and not any("de U1" in a for a in v["avisos"])   # com grupos que não o aceitam: aviso; sem grupo: nada
+    # apelido com "+" funciona no pedido; poste/tipocabo sem grupo aceitam qualquer valor; cabo (com grupos) continua fechado
+    assert _calc119("3-U3+CM") == ({"333": 3.0, "444": 3.0}, [])
+    assert _calc119("3-U3+CM(poste=C,tipocabo=B,cabo=S1/0)") == ({"333": 3.0, "555": 3.0}, [])
+    assert _calc119("2-U1(poste=C,tipocabo=B)") == ({"111": 2.0, "222": 4.0}, [])
+    tot, nao = _calc119("3-U3_CM(cabo=S2/0)")
+    assert tot == {} and "CABO=S2/0 não cadastrado" in nao[0]
+    assert _calc119("2-ID_M")[0] == {"666": 2.0}                                              # padrão S04 sem grupo: só as linhas comuns
+
+
+def test_paridade_js_do_parametro_sem_grupo_e_apelido_com_mais():
+    import os, shutil, subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node indisponível")
+    import config
+    linhas = [dict(r) for r in BASE119]
+    pedidos = ["U1", "U1(poste=C,tipocabo=B)", "U3_CM", "U3_CM(cabo=S1/0)", "U3_CM(cabo=S2/0)", "ID_M"]
+    sig = ap.assinaturas_do_projeto(linhas, "PERNAMBUCO")
+    esperado = {"sig": sig, "ped": [ap.resolver_pedido(p, sig) for p in pedidos]}
+    codigo = (f"const A=require({json.dumps(os.path.join(config.STATIC_DIR, 'ativo_parametros.js'))});const e=JSON.parse(require('fs').readFileSync(0,'utf8'));"
+              "const s=A.assinaturasDoProjeto(e.linhas,'PERNAMBUCO');console.log(JSON.stringify({sig:s,ped:e.pedidos.map(p=>A.resolverPedido(p,s))}));")
+    r = subprocess.run([node, "-e", codigo], input=json.dumps({"linhas": linhas, "pedidos": pedidos}), capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0, r.stderr
+    assert json.loads(r.stdout) == json.loads(json.dumps(esperado))
+    assert esperado["sig"]["U1"]["fechados"] == [] and esperado["sig"]["U3_CM"]["fechados"] == ["CABO"] and not any(p["erros"] for p in esperado["ped"][:4])
