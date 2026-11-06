@@ -617,7 +617,7 @@ Normalmente um parâmetro **só aceita os valores cadastrados** nos grupos (para
 ## Resumo da rede: comprimentos (TASK-116)
 O resumo (Postes, Média, Baixa, Equip.) conta só linhas de operação **I**. **Média** = cabos com tensão (`-13,8kV`) ou do formato antigo com prefixo `CAA`, `CAL` ou `P`; **Baixa** = sem tensão ou `M2X`/`M3X`.
 - **O neutro não entra na Média:** `3xA35P(7,94)-13,8kV 45 m` soma 45 m (o cabo principal), não 90 m. Na Baixa o neutro continua somando.
-- **Cabo sem comprimento na própria linha:** se a linha de baixo trouxer **só** o comprimento (`45`, `45 m`, `7,5m`), ele vale para o cabo de cima (`3xA35P(7,94)-13,8kV` + `45 m`; `CAA2 ABC` + `30`). Se a linha de baixo tiver outra coisa, o cabo fica sem comprimento e não soma. O comprimento solto não é contado sozinho.
+- **Cabo sem comprimento na própria linha:** vale o comprimento da linha de baixo, seja ela só o número (`45`, `45 m`, `7,5m`) ou outro cabo com comprimento. Exemplos: `3xA35P(7,94)-13,8kV` + `45 m`; `CAA2 ABC` + `30`; `P 50` + `CAZ9,5 abc 50 m` (os 50 m entram na Média para o `P50`; a linha do `CAZ9,5` continua sendo contada por si mesma, e `CAZ` não entra em Média nem Baixa). Se a linha de baixo não tiver comprimento, o cabo não soma. A operação da linha de baixo não importa. (TASK-118)
 
 ## Limpar Tudo e Modais do projeto (TASK-117)
 **Limpar Tudo** (barra de controles) agora esvazia, além de Cabos e Outros (com os cabos fictícios do Vincular cabos), os modais que guardam dados: **Ramais** (itens e badge vermelho), **Conexões** (quantidades digitadas) e os geradores de **Postes** e **Cabos**. Os modais montáveis começam vazios a cada abertura, então não há o que limpar neles. A confirmação lista o que será esvaziado e **Ctrl+Z** devolve tudo (tabelas, Ramais e Conexões; Refazer limpa de novo). Se as tabelas já estavam vazias e só os modais tinham dados, a limpeza vale, mas não dá para desfazer (a confirmação avisa).
@@ -628,4 +628,7 @@ O resumo (Postes, Média, Baixa, Equip.) conta só linhas de operação **I**. *
 - **⧉ Copiar de outro projeto…** copia montáveis (id repetido ganha sufixo `_2`; quem estava oculto na origem fica oculto) — útil para levar da Paraíba para Pernambuco.
 - **↺ Restaurar barra padrão** mostra tudo na ordem original.
 - Salvo por projeto e vale para todos os usuários do projeto; **só o administrador altera** (os demais veem a lista). Não precisa de SQL no Supabase (usa a tabela `atalhos_modais`).
+
+## Importar JSON direto na tela (TASK-118)
+**⤒ Importar JSON** (barra de título) abre o arquivo `.obra.json` e mostra um diálogo com a obra (nome, nº de linhas) e três ações: **Carregar** (substitui as tabelas da tela), **Adicionar** (acrescenta as linhas no fim) e **Subtrair** (acrescenta como retirada: cabos com quantidade negativa e `*` na frente dos ativos de Outros, o mesmo "Subtrair" do Carregar Obra). Tudo pode ser desfeito com **Ctrl+Z**. Nada é gravado no servidor; o arquivo precisa ser do projeto selecionado (senão a tela explica e não importa). **Modelo** com variáveis V continua sendo importado como modelo salvo e aparece em Carregar Obra. O botão "Importar obra" dentro de Carregar Obra segue salvando uma cópia particular da obra.
 

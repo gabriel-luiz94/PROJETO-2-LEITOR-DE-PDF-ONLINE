@@ -1744,8 +1744,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const linhasCabos = tableStates.cabos.data;
         linhasCabos.forEach((row, idx) => {
             if ((row.operacao || '').toUpperCase() !== 'I') return;
-            // TASK-116: cabo reconhecido, mas sem comprimento na própria linha → vale a linha de baixo, se ela trouxer só o comprimento ("45 m")
-            const abaixo = () => { const p = linhasCabos[idx + 1]; return p ? AnotacaoCabos.comprimentoSozinho(p.ativo) : null; };
+            // TASK-116/118: cabo reconhecido, mas sem comprimento na própria linha → vale o comprimento da linha de baixo: só o número ("45 m")
+            // ou outro cabo com comprimento ("CAZ9,5 abc 50 m"). A linha de baixo continua sendo contada por si mesma.
+            const abaixo = () => {
+                const p = linhasCabos[idx + 1];
+                if (!p) return null;
+                const solto = AnotacaoCabos.comprimentoSozinho(p.ativo);
+                if (solto !== null) return solto;
+                const info = extrairPrefixoEComprimentoCabo(p.ativo);
+                return info ? info.comprimento : null;
+            };
             if (AnotacaoCabos.ehNotacao(row.ativo)) {                                             // TASK-083: com tensão = média; sem = baixa
                 const nr = AnotacaoCabos.interpretar(row.ativo);
                 nr.itens.forEach(it => {
@@ -3463,6 +3471,65 @@ document.addEventListener('DOMContentLoaded', () => {
             dizer(`Importada: “${d.nome}” (${d.cabos} linha(s) de Cabos, ${d.outros} de Outros) — particular, só sua.`, false);
         } catch (e) {
             dizer('Não foi possível importar: ' + e.message, true);
+        }
+    });
+
+    /* TASK-118: "Importar JSON" da barra de título — abre o arquivo .obra.json e pergunta direto: Carregar (substitui a obra da tela),
+       Adicionar (acrescenta as linhas) ou Subtrair (acrescenta como retirada). Nada é gravado no servidor (valida em /api/obras/ler-arquivo).
+       Modelo com variáveis V continua sendo importado como modelo salvo (precisa dos parâmetros) e aparece em Carregar Obra. */
+    const inputImportarJson = document.getElementById('input-importar-json');
+    function dialogoImportarJson(info, snap) {
+        return new Promise(resolve => {
+            const fundo = document.createElement('div');
+            fundo.className = 'modal-overlay';
+            fundo.innerHTML = `<div class="modal-content" style="max-width:480px; width:92%;">
+                <h3>Importar JSON</h3>
+                <p style="margin:0 0 6px; font-size:0.86rem;"><b></b></p>
+                <p style="margin:0 0 12px; font-size:0.78rem; color:#8b949e;"></p>
+                <div style="display:flex; flex-direction:column; gap:6px; font-size:0.8rem;">
+                    <button type="button" class="btn-primary" data-acao="carregar">Carregar — substitui as tabelas da tela</button>
+                    <button type="button" class="btn-secondary" data-acao="adicionar">Adicionar — acrescenta as linhas no fim</button>
+                    <button type="button" class="btn-secondary" data-acao="subtrair">Subtrair — acrescenta como retirada (cabos negativos e * nos ativos)</button>
+                </div>
+                <div class="modal-actions" style="margin-top:12px;"><button type="button" class="btn-secondary" data-acao="cancelar">Cancelar</button></div>
+            </div>`;
+            fundo.querySelector('b').textContent = info.nome;
+            fundo.querySelectorAll('p')[1].textContent = `${info.cabos} linha(s) de Cabos e ${info.outros} de Outros. Todas as ações podem ser desfeitas com Ctrl+Z.`;
+            const fechar = r => { document.removeEventListener('keydown', tecla, true); fundo.remove(); resolve(r); };
+            const tecla = e => { if (e.key === 'Escape') { e.stopPropagation(); fechar('cancelar'); } };
+            fundo.addEventListener('click', e => { const a = e.target.closest && e.target.closest('[data-acao]'); if (a) fechar(a.dataset.acao); else if (e.target === fundo) fechar('cancelar'); });
+            document.addEventListener('keydown', tecla, true);
+            document.body.appendChild(fundo);
+        });
+    }
+    if (inputImportarJson) inputImportarJson.addEventListener('change', async () => {
+        const arquivo = inputImportarJson.files[0];
+        inputImportarJson.value = '';
+        if (!arquivo) return;
+        if (arquivo.size > 5 * 1024 * 1024) { showToast('Arquivo grande demais (máx. 5 MB).'); return; }
+        try {
+            const projeto = localStorage.getItem('projeto_selecionado_codigo') || '229';
+            const texto = await arquivo.text();
+            const r = await fetch(`/api/obras/ler-arquivo?projeto=${encodeURIComponent(projeto)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: texto });
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok) {
+                const erros = d.detail && Array.isArray(d.detail.erros) ? d.detail.erros : [typeof d.detail === 'string' ? d.detail : 'Falha ao ler o arquivo.'];
+                alert('Não foi possível importar:\n' + erros.join('\n'));
+                return;
+            }
+            if (d.tipo === 'modelo') {                                   // modelo: importa como modelo salvo (os parâmetros são pedidos ao usar)
+                const r2 = await fetch(`/api/obras/importar?projeto=${encodeURIComponent(projeto)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: texto });
+                if (!r2.ok) { alert('Não foi possível importar o modelo:\n' + (await mensagensDeErro(r2)).join('\n')); return; }
+                showToast(`Modelo “${d.nome}” importado. Use-o em Carregar Obra.`);
+                await abrirModalObras();
+                return;
+            }
+            const acao = await dialogoImportarJson(d, d.dados);
+            if (acao === 'carregar') { restoreObraSnapshot(d.dados); showToast(`Obra “${d.nome}” carregada.`); }
+            else if (acao === 'adicionar') { if (adicionarObraAoProjeto(d.dados)) showToast(`Obra “${d.nome}” adicionada.`); }
+            else if (acao === 'subtrair') { if (subtrairObraDoProjeto(d.dados)) showToast(`Obra “${d.nome}” subtraída.`); }
+        } catch (e) {
+            showToast('Não foi possível importar: ' + e.message);
         }
     });
 

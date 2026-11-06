@@ -217,6 +217,34 @@ def _nome_livre(user_id, projeto, nome: str) -> str:
     return candidato
 
 
+async def _carga_validada(request: Request, projeto: str):
+    """Lê o corpo (.obra.json), confere tamanho/JSON/formato/projeto e devolve a obra pronta (levanta HTTPException 413/400)."""
+    corpo = await request.body()
+    if len(corpo) > obras_arquivo.LIMITE_BYTES:
+        raise HTTPException(status_code=413, detail={"erros": [f"Arquivo grande demais (máx. {obras_arquivo.LIMITE_BYTES // (1024 * 1024)} MB)."]})
+    try:
+        carga = json.loads(corpo.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        raise HTTPException(status_code=400, detail={"erros": ["O arquivo não é um JSON válido."]})
+    try:
+        return obras_arquivo.validar_importacao(carga, projeto)
+    except obras_arquivo.ErroArquivoObra as e:
+        raise HTTPException(status_code=400, detail={"erros": e.mensagens})
+
+
+@router.post("/ler-arquivo")
+async def ler_arquivo_obra(request: Request, projeto: str = None):
+    """TASK-118: valida um `.obra.json` SEM gravar nada e devolve as linhas para a tela decidir (Carregar / Adicionar / Subtrair).
+    Mesmas regras do /importar (formato, versão, projeto selecionado). Modelo (com variáveis V) também é validado, mas a tela o importa
+    como modelo salvo (precisa dos parâmetros)."""
+    get_current_user_from_state(request)
+    pronta = await _carga_validada(request, projeto)
+    dados = pronta["dados"]
+    return {"nome": pronta["nome"], "projeto": pronta["projeto"], "tipo": pronta["tipo"],
+            "cabos": len(dados["cabos"]), "outros": len(dados["outros"]),
+            "dados": {"cabos": dados["cabos"], "outros": dados["outros"], "totalizadora": dados.get("totalizadora", [])} if pronta["tipo"] == "obra" else None}
+
+
 @router.post("/importar")
 async def importar_obra(request: Request, projeto: str = None):
     """Importa um arquivo `.obra.json` como obra NOVA e PARTICULAR do usuário que importa (TASK-056).

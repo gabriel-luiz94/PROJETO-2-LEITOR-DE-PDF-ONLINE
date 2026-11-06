@@ -32,3 +32,4 @@ def test_resumo_js_usa_a_regra_nova():
     assert "if (!it.neutro) resumo.redeMedia" in corpo                    # neutro fora da Média
     assert "AnotacaoCabos.comprimentoSozinho" in corpo and "linhasCabos[idx + 1]" in corpo          # comprimento na linha de baixo
     assert "extrairPrefixoCaboSemComprimento" in corpo
+    assert "extrairPrefixoEComprimentoCabo(p.ativo)" in corpo                # TASK-118: a linha de baixo também pode ser outro cabo com comprimento

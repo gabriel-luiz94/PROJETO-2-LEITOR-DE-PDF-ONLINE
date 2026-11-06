@@ -133,8 +133,8 @@
         estado.layout = b.dataset.layout; aplicarLayout(); gravar(); window.dispatchEvent(new Event('resize'));
     }));
 
-    /* ── Importar JSON (reaproveita o arquivo do modal "Carregar obra") ── */
-    const btnImp = $('btn-importar-json'), inpImp = $('input-importar-obra');
+    /* ── Importar JSON: o resumo.js abre o arquivo e mostra o diálogo Carregar / Adicionar / Subtrair (TASK-118) ── */
+    const btnImp = $('btn-importar-json'), inpImp = $('input-importar-json');
     if (btnImp && inpImp) btnImp.addEventListener('click', () => inpImp.click());
 
     /* ── Modal Resumo da rede ── */
