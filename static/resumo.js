@@ -1588,7 +1588,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /* Histórico (TASK-021). Os chamadores empilham ANTES de mudar (a maioria) ou DEPOIS (poucos); como o estado ao vivo
        pode estar à frente do ponteiro, `historyDirty` marca "pode haver mudança não gravada" e o undo a grava antes
        de voltar — assim cada ação é exatamente um passo, qualquer que seja o estilo do chamador. */
-    const mesmoEstado = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const mesmoEstado = (a, b) => JSON.stringify([a && a.cabos, a && a.outros]) === JSON.stringify([b && b.cabos, b && b.outros]);      // TASK-117: `modais` (extra do Limpar Tudo) não conta
 
     function pushHistory() {
         const snap = snapshotState();
@@ -1618,6 +1618,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function undo() {
         gravarEstadoAoVivo();
         if (historyIdx <= 0) { updateHistoryUI(); return; }
+        if (history[historyIdx - 1].modais && !history[historyIdx].modais) history[historyIdx].modais = coletarModaisDaObra();      // TASK-117: o Refazer devolve o estado atual dos modais
         historyIdx--;
         applyUndoRedoSnapshot(history[historyIdx]);
         showToast('Desfeito');
@@ -1634,6 +1635,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyUndoRedoSnapshot(snap) {
         tableStates.cabos.data  = snap.cabos.map(deepClone);
         tableStates.outros.data = snap.outros.map(deepClone);
+        if (snap.modais && typeof restaurarModaisDaObra === 'function') restaurarModaisDaObra(snap.modais);      // TASK-117: Ramais/Conexões voltam com o Limpar Tudo
         renderTable('cabos');
         renderTable('outros');
         buildAtivoSets();
@@ -4696,21 +4698,68 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ═══════════════════════════════════════
        LIMPAR TUDO (ao lado do Salvar no PDF)
     ═══════════════════════════════════════ */
+    /* TASK-117: o Limpar Tudo também esvazia os modais que guardam dados da obra (Ramais, Conexões, geradores de Postes e Cabos).
+       Vincular cabos guarda os cabos fictícios dentro das linhas de Outros (saem junto); os modais montáveis começam vazios a cada abertura. */
+    const _camposConexoes = () => Array.from(document.querySelectorAll('#modal-conexoes input.con-mono, #modal-conexoes input.con-tri, #modal-conexoes input.con-glv'));
+    const _chaveConexao = i => (i.className.match(/con-(mono|tri|glv)/) || [''])[0] + '|' + (i.dataset.id || '');
+    function coletarModaisDaObra() {
+        const conexoes = {};
+        _camposConexoes().forEach(i => { if (String(i.value || '').trim() !== '') conexoes[_chaveConexao(i)] = i.value; });
+        return { ramais: JSON.parse(JSON.stringify(window._ramaisData || [])), conexoes };
+    }
+    function contarModaisDaObra() {
+        const m = coletarModaisDaObra();
+        const g = (typeof GeradorPostes !== 'undefined' ? GeradorPostes.preenchidas() : 0) + (typeof GeradorCabos !== 'undefined' ? GeradorCabos.preenchidas() : 0);
+        return { ramais: m.ramais.length, conexoes: Object.keys(m.conexoes).length, geradores: g };
+    }
+    function limparModaisDaObra() {
+        window._ramaisData = [];
+        if (typeof renderizarTabelaRamais === 'function') renderizarTabelaRamais([]);       // também zera os ativos de ramais e o badge
+        if (typeof atualizarBadgeRamais === 'function') atualizarBadgeRamais();
+        _camposConexoes().forEach(i => { i.value = ''; });
+        if (typeof recalcularTotaisConexoes === 'function' && document.getElementById('conexoes-totalizador')) recalcularTotaisConexoes();
+        if (typeof GeradorPostes !== 'undefined') GeradorPostes.limpar();
+        if (typeof GeradorCabos !== 'undefined') GeradorCabos.limpar();
+    }
+    function restaurarModaisDaObra(m) {
+        if (!m) return;
+        window._ramaisData = JSON.parse(JSON.stringify(m.ramais || []));
+        if (typeof renderizarTabelaRamais === 'function') renderizarTabelaRamais(window._ramaisData);
+        if (typeof atualizarBadgeRamais === 'function') atualizarBadgeRamais();
+        _camposConexoes().forEach(i => { const k = _chaveConexao(i); i.value = Object.prototype.hasOwnProperty.call(m.conexoes || {}, k) ? m.conexoes[k] : ''; });
+        if (typeof recalcularTotaisConexoes === 'function' && document.getElementById('conexoes-totalizador')) recalcularTotaisConexoes();
+    }
+    window.limparModaisDaObra = limparModaisDaObra;
+
     const btnLimparTabelas = document.getElementById('btn-limpar-tabelas');
     if (btnLimparTabelas) {
         btnLimparTabelas.addEventListener('click', () => {
-            const totalLinhas = tableStates.cabos.data.length + tableStates.outros.data.length;
-            if (totalLinhas === 0) {
-                showToast('As tabelas já estão vazias.');
+            const nCabos = tableStates.cabos.data.length, nOutros = tableStates.outros.data.length;
+            const mod = contarModaisDaObra();
+            const temModais = mod.ramais + mod.conexoes + mod.geradores > 0;
+            if (nCabos + nOutros === 0 && !temModais) {
+                showToast('As tabelas e os modais já estão vazios.');
                 return;
             }
-            if (!confirm('Tem certeza que deseja limpar TODAS as tabelas (Cabos e Outros)?\nEsta ação pode ser desfeita com Ctrl+Z.')) return;
+            const itens = [];
+            if (nCabos + nOutros) itens.push(`• Tabelas Cabos (${nCabos} linha(s)) e Outros (${nOutros} linha(s)), com os cabos fictícios do Vincular cabos`);
+            if (mod.ramais) itens.push(`• Modal Ramais (${mod.ramais} item(ns))`);
+            if (mod.conexoes) itens.push(`• Modal Conexões (${mod.conexoes} campo(s) preenchido(s))`);
+            if (mod.geradores) itens.push(`• Geradores de Postes e Cabos (${mod.geradores} linha(s) preenchida(s))`);
+            const desfazer = nCabos + nOutros ? 'Esta ação pode ser desfeita com Ctrl+Z.' : 'Esta ação NÃO pode ser desfeita (as tabelas já estão vazias).';
+            if (!confirm(`Tem certeza que deseja limpar TUDO?\n\n${itens.join('\n')}\n\n${desfazer}`)) return;
 
-            pushHistory(); // snapshot ANTES de limpar
+            const haviaTabelas = nCabos + nOutros > 0;
+            if (haviaTabelas) {
+                pushHistory(); // snapshot ANTES de limpar
+                const atual = history[historyIdx];
+                if (atual) atual.modais = coletarModaisDaObra();      // o Ctrl+Z devolve também Ramais e Conexões (fora da comparação de estados)
+            }
 
             tableStates.cabos.data  = [];
             tableStates.outros.data = [];
             localStorage.removeItem('processar_dados');
+            limparModaisDaObra();
 
             renderTable('cabos');
             renderTable('outros');
@@ -4718,8 +4767,9 @@ document.addEventListener('DOMContentLoaded', () => {
             buildDataLists();
             refreshAllFilters('cabos');
             refreshAllFilters('outros');
+            if (typeof updateCounters === 'function') updateCounters();
 
-            showToast('Tabelas limpas! Use Ctrl+Z para desfazer.');
+            showToast(haviaTabelas ? 'Tabelas e modais limpos! Use Ctrl+Z para desfazer.' : 'Modais limpos.');
         });
     }
 
@@ -4836,6 +4886,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     if (window.ModalMontavelUI) window.ModalMontavelUI.iniciar({ barra: document.getElementById('barra-modais-montaveis'), host: window.ModalMontavelHost });
+    if (window.BarraModais) window.BarraModais.iniciar();      // TASK-117: aplica ocultos/ordem da barra deste projeto e monta a seção do painel Configurações
 
     // Mostrar badge na aba RAMAIS caso existam itens
     if (window._ramaisData && window._ramaisData.length > 0) {

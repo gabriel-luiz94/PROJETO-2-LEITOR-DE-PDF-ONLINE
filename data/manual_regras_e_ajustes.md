@@ -619,3 +619,13 @@ O resumo (Postes, Média, Baixa, Equip.) conta só linhas de operação **I**. *
 - **O neutro não entra na Média:** `3xA35P(7,94)-13,8kV 45 m` soma 45 m (o cabo principal), não 90 m. Na Baixa o neutro continua somando.
 - **Cabo sem comprimento na própria linha:** se a linha de baixo trouxer **só** o comprimento (`45`, `45 m`, `7,5m`), ele vale para o cabo de cima (`3xA35P(7,94)-13,8kV` + `45 m`; `CAA2 ABC` + `30`). Se a linha de baixo tiver outra coisa, o cabo fica sem comprimento e não soma. O comprimento solto não é contado sozinho.
 
+## Limpar Tudo e Modais do projeto (TASK-117)
+**Limpar Tudo** (barra de controles) agora esvazia, além de Cabos e Outros (com os cabos fictícios do Vincular cabos), os modais que guardam dados: **Ramais** (itens e badge vermelho), **Conexões** (quantidades digitadas) e os geradores de **Postes** e **Cabos**. Os modais montáveis começam vazios a cada abertura, então não há o que limpar neles. A confirmação lista o que será esvaziado e **Ctrl+Z** devolve tudo (tabelas, Ramais e Conexões; Refazer limpa de novo). Se as tabelas já estavam vazias e só os modais tinham dados, a limpeza vale, mas não dá para desfazer (a confirmação avisa).
+
+**Modais do projeto** (painel ⚙ Configurações): lista os botões da barra de modais deste projeto.
+- 👁 oculta/mostra o botão **só neste projeto** (nada é apagado); ▲▼ muda a ordem. Os modais do sistema (Resumo da rede, Ajustar, Validar e opções, Contexto, Regras de validação, POSTES E ESTRUTURAS, CABOS, CONEXÕES, RAMAIS, VINCULAR CABOS) só ocultam/reordenam.
+- Os **montáveis** também podem ser editados (✏️, abre o gerenciador), **excluídos** (🗑, com confirmação; a versão anterior fica no histórico do gerenciador) e criados (**＋ Novo modal montável**).
+- **⧉ Copiar de outro projeto…** copia montáveis (id repetido ganha sufixo `_2`; quem estava oculto na origem fica oculto) — útil para levar da Paraíba para Pernambuco.
+- **↺ Restaurar barra padrão** mostra tudo na ordem original.
+- Salvo por projeto e vale para todos os usuários do projeto; **só o administrador altera** (os demais veem a lista). Não precisa de SQL no Supabase (usa a tabela `atalhos_modais`).
+

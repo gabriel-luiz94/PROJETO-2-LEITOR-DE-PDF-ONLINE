@@ -435,6 +435,15 @@
             }
         };
 
+        /** TASK-117: "Limpar Tudo" da tela — volta as linhas ao inicial (o modal já recomeça assim a cada abertura). Devolve quantas linhas tinham ativo. */
+        ctl.limpar = function () {
+            const n = (ctl.linhas || []).filter(l => l && String(l.ativo || '').trim()).length;
+            ctl.linhas = [cfg.inicial()]; ctl.sel = null; ctl.undo = []; ctl.edicao = false;
+            if (aberto()) ctl.render();
+            return n;
+        };
+        ctl.preenchidas = () => (ctl.linhas || []).filter(l => l && String(l.ativo || '').trim()).length;
+
         /* ───────────── abrir ───────────── */
         ctl.abrir = function () {
             ctl.linhas = [cfg.inicial()];
