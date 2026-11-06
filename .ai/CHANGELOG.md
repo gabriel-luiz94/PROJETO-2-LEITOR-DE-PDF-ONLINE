@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-11-06 — TASK-118: Resumo da rede (comprimento vindo de outro cabo) + Importar JSON com diálogo
+
+**Tipo:** ajuste/funcionalidade · `static/resumo.js`, `static/resumo.html`, `static/resumo_layout.js`, `routers/obras.py`
+
+- Resumo da rede: cabo sem comprimento usa também o comprimento de **outro cabo** na linha de baixo (`P 50` + `CAZ9,5 abc 50 m` → 50 m na Média), além da linha só com o número (TASK-116).
+- **Importar JSON** abre direto um diálogo Carregar / Adicionar / Subtrair (sem salvar a obra no servidor). Rota nova `POST /api/obras/ler-arquivo` (valida como o /importar, não grava). Modelo continua importado como modelo salvo.
+
+---
+
 ## 2026-11-06 — TASK-117: Limpar Tudo nos modais + configuração da barra de modais por projeto
 
 **Tipo:** funcionalidade · `routers/barra_modais.py` (novo), `static/barra_modais.js` (novo), `static/resumo.js`, `static/resumo.html`, `static/resumo_layout.css`, `static/gerador_modal.js`, `static/modal_montavel_ui.js`, `app.py`
