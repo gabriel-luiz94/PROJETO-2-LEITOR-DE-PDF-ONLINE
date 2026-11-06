@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-06 — TASK-120: base de orçamento mantém a ordem da planilha ao sincronizar com o Supabase
+
+**Tipo:** correção · `services/sync_service.py` (`sync_tabela_master`, `migrar_projetos_compartilhados`, `get_merged_orcamento`)
+
+Depois de **Importar Tabela Master** a tela mostrava as linhas embaralhadas (e ao salvar a validação reclamava de "declaração fora da ordem"). A sincronização baixava a tabela do Supabase **sem ordenar** (ordem física do Postgres, embaralhada após apagar/reinserir; a paginação ainda podia repetir/pular linhas). Agora pede por `id` (ordem de inserção = ordem da planilha), e as leituras locais também têm `ORDER BY id` explícito. Para voltar ao normal, reimportar a planilha uma vez.
+
+---
+
 ## 2026-11-06 — TASK-118: Resumo da rede (comprimento vindo de outro cabo) + Importar JSON com diálogo
 
 **Tipo:** ajuste/funcionalidade · `static/resumo.js`, `static/resumo.html`, `static/resumo_layout.js`, `routers/obras.py`
