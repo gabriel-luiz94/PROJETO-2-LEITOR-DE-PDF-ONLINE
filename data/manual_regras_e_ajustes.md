@@ -613,3 +613,9 @@ Normalmente um parâmetro **só aceita os valores cadastrados** nos grupos (para
 
 - **Consequência:** um valor digitado errado (`RPM` em vez de `RPN`) não é mais recusado; ele cai no `SENÃO` das fórmulas. Se quiser conferir os valores, tire o parâmetro das fórmulas ou use um parâmetro separado só para a conferência.
 - Parâmetro **fora** de fórmulas continua fechado nos valores dos grupos, e padrão sem grupo e sem uso em fórmula continua sendo erro de importação.
+
+## Resumo da rede: comprimentos (TASK-116)
+O resumo (Postes, Média, Baixa, Equip.) conta só linhas de operação **I**. **Média** = cabos com tensão (`-13,8kV`) ou do formato antigo com prefixo `CAA`, `CAL` ou `P`; **Baixa** = sem tensão ou `M2X`/`M3X`.
+- **O neutro não entra na Média:** `3xA35P(7,94)-13,8kV 45 m` soma 45 m (o cabo principal), não 90 m. Na Baixa o neutro continua somando.
+- **Cabo sem comprimento na própria linha:** se a linha de baixo trouxer **só** o comprimento (`45`, `45 m`, `7,5m`), ele vale para o cabo de cima (`3xA35P(7,94)-13,8kV` + `45 m`; `CAA2 ABC` + `30`). Se a linha de baixo tiver outra coisa, o cabo fica sem comprimento e não soma. O comprimento solto não é contado sozinho.
+

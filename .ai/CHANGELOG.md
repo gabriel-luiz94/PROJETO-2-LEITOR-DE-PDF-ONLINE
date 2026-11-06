@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-06 — TASK-116: Resumo da rede (neutro fora da Média; comprimento na linha de baixo)
+
+**Tipo:** ajuste · `static/resumo.js` (`calcularResumoRede`, `extrairPrefixoCaboSemComprimento`), `static/anotacao_cabos.js` (`comprimentoSozinho`)
+
+O neutro do cabo de média deixa de somar na Média (a Baixa não mudou). Cabo reconhecido sem comprimento na linha (notação nova ou formato antigo) usa o comprimento da linha seguinte quando ela traz só o número (`45`, `45 m`).
+
+---
+
 ## 2026-11-05 — TASK-115: parâmetro usado em fórmula aceita qualquer valor (mesmo com grupos parciais)
 
 **Tipo:** correção · `services/ativo_parametros.py` ⇄ `static/ativo_parametros.js` (`assinaturas_das_linhas`/`assinaturasDasLinhas`)
