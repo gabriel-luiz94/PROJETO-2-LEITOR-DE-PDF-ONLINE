@@ -1739,18 +1739,28 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        tableStates.cabos.data.forEach(row => {
+        const linhasCabos = tableStates.cabos.data;
+        linhasCabos.forEach((row, idx) => {
             if ((row.operacao || '').toUpperCase() !== 'I') return;
-            if (AnotacaoCabos.ehNotacao(row.ativo)) {                                             // TASK-083: com tensão = média; sem = baixa; o neutro entra na soma
+            // TASK-116: cabo reconhecido, mas sem comprimento na própria linha → vale a linha de baixo, se ela trouxer só o comprimento ("45 m")
+            const abaixo = () => { const p = linhasCabos[idx + 1]; return p ? AnotacaoCabos.comprimentoSozinho(p.ativo) : null; };
+            if (AnotacaoCabos.ehNotacao(row.ativo)) {                                             // TASK-083: com tensão = média; sem = baixa
                 const nr = AnotacaoCabos.interpretar(row.ativo);
                 nr.itens.forEach(it => {
-                    if (it.comprimento === null) return;
-                    if (nr.tensao !== null) resumo.redeMedia += it.comprimento; else resumo.redeBaixa += it.comprimento;
+                    const comp = it.comprimento !== null ? it.comprimento : abaixo();
+                    if (comp === null) return;
+                    if (nr.tensao !== null) { if (!it.neutro) resumo.redeMedia += comp; }          // TASK-116: o neutro não entra na Média
+                    else resumo.redeBaixa += comp;
                 });
                 return;
             }
-            const info = extrairPrefixoEComprimentoCabo(row.ativo);
-            if (!info) return;
+            let info = extrairPrefixoEComprimentoCabo(row.ativo);
+            if (!info) {
+                const pref = extrairPrefixoCaboSemComprimento(row.ativo);
+                const comp = pref ? abaixo() : null;
+                if (comp === null) return;
+                info = { prefixo: pref, comprimento: comp };
+            }
             if (/^(CAA|CAL|P)/i.test(info.prefixo)) {
                 resumo.redeMedia += info.comprimento;
             } else if (/^(M2X|M3X)/i.test(info.prefixo)) {
@@ -1942,6 +1952,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const comprimento = parseFloat(tokens[tokens.length - 1].replace(',', '.'));
         if (isNaN(comprimento)) return null;
         return { prefixo, comprimento };
+    }
+
+    /** TASK-116: formato antigo com o cabo reconhecido mas sem número no fim ("CAA2 ABC"): devolve só o prefixo; com comprimento ou vazio → null. */
+    function extrairPrefixoCaboSemComprimento(ativoRaw) {
+        if (!ativoRaw || !ativoRaw.trim() || extrairPrefixoEComprimentoCabo(ativoRaw)) return null;
+        const tokens = ativoRaw.trim().toUpperCase().replace(/\//g, '').replace(/^(CAA|CA|CU|CAZ|P)\s+(\d)/, '$1$2').replace(/\s+M\s*$/, '').trim().split(/\s+/).filter(Boolean);
+        if (!tokens.length || !isNaN(parseFloat(tokens[tokens.length - 1].replace(',', '.')))) return null;
+        return tokens[0];
     }
 
     /** TASK-094: códigos de TODAS as estruturas da linha, sem o poste (`9400D, N1, N4` → [N1, N4]); só poste → []. */

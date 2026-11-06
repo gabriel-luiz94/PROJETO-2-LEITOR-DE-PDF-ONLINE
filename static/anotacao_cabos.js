@@ -85,7 +85,13 @@
         return p && p.comprimento !== null ? [p.ativo, p.comprimento] : null;
     }
 
-    const api = { ehNotacao, interpretar, fasesDaLinha, prefixoEComprimento };
+    /** TASK-116: linha que traz SÓ o comprimento ("45", "45 m", "7,5M"): vale para o cabo da linha de cima que ficou sem comprimento. */
+    function comprimentoSozinho(texto) {
+        const m = String(texto == null ? '' : texto).trim().match(/^(\d+(?:[.,]\d+)?)\s*[mM]?$/);
+        return m ? num(m[1]) : null;
+    }
+
+    const api = { ehNotacao, interpretar, fasesDaLinha, prefixoEComprimento, comprimentoSozinho };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.AnotacaoCabos = api;
 })(typeof window !== 'undefined' ? window : globalThis);
