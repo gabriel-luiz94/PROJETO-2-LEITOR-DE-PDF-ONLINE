@@ -601,7 +601,7 @@
             color: #d97706;
         }
     </style>
-    <link rel="stylesheet" href="/static/resumo_layout.css?v=1">
+    <link rel="stylesheet" href="/static/resumo_layout.css?v=2">
 </head>
 <body>
     <div class="app-shell" id="app-shell">
@@ -658,33 +658,33 @@
         <nav class="barra-modais" id="barra-modais" aria-label="Modais">
             <button class="btn-barra-toggle" id="btn-toggle-modais" type="button" aria-expanded="true" title="Ocultar/mostrar a barra de modais">▾ Modais</button>
             <div class="barra-modais-itens" id="barra-modais-itens">
-                <button class="btn-secondary btn-modal-barra" id="btn-resumo-rede" type="button" title="Totais da rede (postes, média, baixa e equipamentos instalando)">📊 Resumo da rede</button>
-                <button class="btn-secondary" id="btn-ajustar" title="Roda todos os ajustes habilitados do projeto e mostra cada correção (com pré-visualização) para você executar">
+                <button class="btn-secondary btn-modal-barra" id="btn-resumo-rede" data-modal-id="resumo-rede" type="button" title="Totais da rede (postes, média, baixa e equipamentos instalando)">📊 Resumo da rede</button>
+                <button class="btn-secondary" id="btn-ajustar" data-modal-id="ajustar" title="Roda todos os ajustes habilitados do projeto e mostra cada correção (com pré-visualização) para você executar">
                             Ajustar
                         </button>
-                <button class="btn-secondary" id="btn-validar" title="Verificar as planilhas Cabos e Outros (contrato, regras de domínio e IA)">
+                <button class="btn-secondary" id="btn-validar" data-modal-id="validar" title="Verificar as planilhas Cabos e Outros (contrato, regras de domínio e IA)">
                             Validar
                         </button>
-                <span id="validar-estado" style="font-size: 0.7rem; color: var(--text-secondary); margin-left: -8px;" title="O que o botão Validar vai rodar (mude na gaveta Regras de validação › Execução)"></span>
-                <button class="btn-secondary" id="btn-validacao-opcoes" style="padding: 4px 8px; margin-left: -8px;" title="Opções da validação: modos (determinística, regras, IA) e Validar ao montar" aria-label="Opções da validação">⚙</button>
-                <span class="ctx-grupo" title="Contexto">
+                <span id="validar-estado" data-modal-id="validar" style="font-size: 0.7rem; color: var(--text-secondary); margin-left: -8px;" title="O que o botão Validar vai rodar (mude na gaveta Regras de validação › Execução)"></span>
+                <button class="btn-secondary" id="btn-validacao-opcoes" data-modal-id="validar" style="padding: 4px 8px; margin-left: -8px;" title="Opções da validação: modos (determinística, regras, IA) e Validar ao montar" aria-label="Opções da validação">⚙</button>
+                <span class="ctx-grupo" data-modal-id="contexto" title="Contexto">
                     <span class="ctx-rotulo">Contexto</span>
                     <select id="select-contexto" style="background: transparent; color: var(--text-primary); border: none; outline: none; font-size: 0.85rem; cursor: pointer; max-width: 140px;" title="Subconjunto de ajustes ativo neste projeto (afeta o botão Ajustar)"></select>
                     <button id="btn-novo-contexto" class="btn-secondary" onclick="abrirNovoContexto()" style="display:none; padding: 1px 6px; font-size: 0.75rem; border-radius: 4px;" title="Cadastrar novo contexto">+</button>
                     <button id="btn-excluir-contexto" class="btn-secondary" onclick="excluirContextoAtual()" style="display:none; padding: 1px 6px; font-size: 0.75rem; border-radius: 4px; color: #f85149; border-color: rgba(248,81,73,0.4);" title="Excluir este contexto">✕</button>
                 </span>
-                <button class="btn-secondary" id="btn-regras-validacao" title="Regras e prompts da validação deste projeto (só o administrador edita)">
+                <button class="btn-secondary" id="btn-regras-validacao" data-modal-id="regras" title="Regras e prompts da validação deste projeto (só o administrador edita)">
                             Regras de validação
                         </button>
                 <span class="tb-sep"></span>
-                <button class="btn-secondary btn-modal-barra" title="Gerador de Postes e Estruturas" onclick="abrirModalPostes()">POSTES E ESTRUTURAS</button>
-                <button class="btn-secondary btn-modal-barra" title="Gerador de Cabos" onclick="abrirModalCabos()">CABOS</button>
-                <button class="btn-secondary btn-modal-barra" title="Gerador de Conexões" onclick="abrirModalConexoes()">CONEXÕES</button>
-                <button class="btn-secondary btn-modal-barra" title="Ver Ramais, IPs e Apoios detectados" onclick="abrirModalRamais()">
+                <button class="btn-secondary btn-modal-barra" data-modal-id="postes" title="Gerador de Postes e Estruturas" onclick="abrirModalPostes()">POSTES E ESTRUTURAS</button>
+                <button class="btn-secondary btn-modal-barra" data-modal-id="cabos" title="Gerador de Cabos" onclick="abrirModalCabos()">CABOS</button>
+                <button class="btn-secondary btn-modal-barra" data-modal-id="conexoes" title="Gerador de Conexões" onclick="abrirModalConexoes()">CONEXÕES</button>
+                <button class="btn-secondary btn-modal-barra" data-modal-id="ramais" title="Ver Ramais, IPs e Apoios detectados" onclick="abrirModalRamais()">
                         RAMAIS
                         <span id="badge-ramais" style="display:none; position:absolute; top:-6px; right:-6px; min-width:16px; height:16px; background-color:#f85149; border-radius:8px; box-shadow:0 0 0 2px #0d1117; color:white; font-size:10px; font-weight:bold; align-items:center; justify-content:center; padding:0 4px; box-sizing:border-box;"></span>
                     </button>
-                <button class="btn-secondary btn-modal-barra" title="Vincular cabos a estruturas/postes" onclick="abrirModalVinculacao()">VINCULAR CABOS</button>
+                <button class="btn-secondary btn-modal-barra" data-modal-id="vincular" title="Vincular cabos a estruturas/postes" onclick="abrirModalVinculacao()">VINCULAR CABOS</button>
                 <span id="barra-modais-montaveis" style="display: contents;"></span>
             </div>
         </nav>
@@ -745,6 +745,9 @@
                         <div class="painel-linha"><button class="btn-secondary" id="btn-config-api" title="Configurar Chave da API do Google Gemini">
                         Chave API
                     </button></div>
+                    </section>
+                    <section class="painel-sec" id="cfg-modais"><h4>Modais do projeto</h4>
+                        <div id="cfg-modais-corpo"></div>
                     </section>
                     <section class="painel-sec"><h4>Aparência</h4>
                         <div class="painel-linha"><button class="btn-secondary" id="btn-restaurar-layout" type="button" title="Volta painéis, tabelas e layout ao padrão">↺ Restaurar layout padrão</button></div>
@@ -1443,6 +1446,7 @@
                         if (window.carregarRegrasVinculacaoResumo) carregarRegrasVinculacaoResumo(codigoAtual);
                         if (window.carregarContextosAjustes) carregarContextosAjustes(codigoAtual);
                         if (window.ModalMontavelUI) ModalMontavelUI.recarregar();
+                        if (window.BarraModais) BarraModais.recarregar();
                     }
                 }
                 if (localStorage.getItem('is_admin') === 'true') {
@@ -1716,6 +1720,7 @@
     <script src="/static/modal_montavel_editor.js"></script>
     <script src="/static/modal_montavel_arquivo.js"></script>
     <script src="/static/modal_montavel_ui.js"></script>
+    <script src="/static/barra_modais.js?v=1"></script>
     <script src="/static/resumo.js?v=5.3"></script>
     <script src="/static/resumo_layout.js?v=1"></script>
     <script src="/static/painel_regras.js"></script>

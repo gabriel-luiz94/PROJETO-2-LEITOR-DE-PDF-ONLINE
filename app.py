@@ -35,7 +35,7 @@ from middleware.nocache_middleware import NoCacheHtmlMiddleware
 from websocket_manager import manager
 
 # Routers
-from routers import manual, obras, regras, regras_leitor, regras_vinculacao, vinculacao_config, atalhos, modais_montaveis, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes, autonomo, aprendizado, plugin_cad
+from routers import manual, obras, regras, regras_leitor, regras_vinculacao, vinculacao_config, atalhos, modais_montaveis, barra_modais, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes, autonomo, aprendizado, plugin_cad
 
 
 app = FastAPI(
@@ -93,6 +93,18 @@ async def serve_resumo_js():
 @app.get("/static/resumo_layout.js")
 async def serve_resumo_layout_js():
     return _serve_js("resumo_layout.js")
+
+@app.get("/static/barra_modais.js")
+async def serve_barra_modais_js():
+    return _serve_js("barra_modais.js")         # TASK-117
+
+@app.get("/static/modal_montavel_ui.js")
+async def serve_modal_montavel_ui_js():
+    return _serve_js("modal_montavel_ui.js")    # TASK-117
+
+@app.get("/static/gerador_modal.js")
+async def serve_gerador_modal_js():
+    return _serve_js("gerador_modal.js")        # TASK-117
 
 @app.get("/static/base_grade.js")
 async def serve_base_grade_js():
@@ -325,6 +337,7 @@ app.include_router(vinculacao_config.router)
 app.include_router(plugin_cad.router)          # TASK-104: plugin do nanoCAD (regras, versão, conferência com a base)
 app.include_router(atalhos.router)
 app.include_router(modais_montaveis.router)
+app.include_router(barra_modais.router)           # TASK-117: configuração da barra de modais por projeto
 app.include_router(recs.router)
 app.include_router(projetos.router)
 app.include_router(orcamento.router)

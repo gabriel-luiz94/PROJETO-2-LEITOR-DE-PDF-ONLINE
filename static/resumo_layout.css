@@ -162,3 +162,15 @@ body { display: block; overflow: hidden; }
     .titlebar, .barra-modais, .ctlbar, .painel { display: none !important; }
     .tables-row .table-wrap { overflow: visible; }
 }
+
+/* TASK-117: barra de modais por projeto */
+.barra-modais-itens .modal-oculto { display: none !important; }
+.cfgm-lista { display: flex; flex-direction: column; gap: 3px; }
+.cfgm-linha { display: flex; align-items: center; gap: 3px; padding: 3px 0; border-bottom: 1px solid #21262d; flex-wrap: wrap; }
+.cfgm-linha.off .cfgm-nome { opacity: 0.4; text-decoration: line-through; }
+.cfgm-nome { flex: 1 1 70px; font-size: 0.76rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cfgm-tag { font-size: 0.6rem; padding: 1px 5px; border-radius: 4px; }
+.cfgm-tag.t-sis { background: rgba(31,111,235,0.2); color: #58a6ff; }
+.cfgm-tag.t-mm { background: rgba(163,113,247,0.2); color: #a371f7; }
+.cfgm-linha button[disabled] { opacity: 0.35; cursor: not-allowed; }
+

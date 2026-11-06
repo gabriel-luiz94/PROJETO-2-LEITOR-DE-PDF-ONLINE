@@ -73,10 +73,20 @@
         const barra = estado.barra;
         if (!barra) return;
         barra.innerHTML = '';
-        estado.modais.forEach(m => barra.appendChild(el('button', { class: 'btn-secondary', style: css + 'border-color:rgba(88,166,255,.4);color:#58a6ff;',
+        estado.modais.forEach(m => barra.appendChild(el('button', { class: 'btn-secondary', style: css + 'border-color:rgba(88,166,255,.4);color:#58a6ff;', 'data-modal-id': 'mm:' + m.id,
             title: 'Modal montável (' + m.tipo + ')', text: String(m.nome).toUpperCase(), onclick: () => abrir(m) })));
         if (ehAdmin()) barra.appendChild(el('button', { class: 'btn-secondary', style: css + 'font-weight:700;', title: 'Criar/editar modais deste projeto (admin)', text: '＋',
-            onclick: abrirGerenciador }));
+            'data-modal-fixo': '1', onclick: abrirGerenciador }));
+        if (typeof raiz.ModalMontavelUI.aoRecarregar === 'function') raiz.ModalMontavelUI.aoRecarregar(estado.modais);      // TASK-117: a barra aplica ocultos/ordem
+    }
+
+    /** TASK-117: exclui um modal montável do projeto (usado pela configuração da barra). Devolve a lista de erros ou null. */
+    async function excluir(id) {
+        const dados = await carregar();
+        const r = await gravar({ versao: 1, modais: (dados.modais || []).filter(x => x.id !== id) });
+        if (!r.ok) return r.erros;
+        await recarregar();
+        return null;
     }
 
     /* ───────────── modal ───────────── */
@@ -385,5 +395,5 @@
         return recarregar();
     }
 
-    raiz.ModalMontavelUI = { iniciar, recarregar, abrir, EXEMPLOS };
+    raiz.ModalMontavelUI = { iniciar, recarregar, abrir, abrirGerenciador, excluir, lista: () => estado.modais.slice(), aoRecarregar: null, EXEMPLOS };
 })(window);

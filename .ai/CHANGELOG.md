@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-11-06 — TASK-117: Limpar Tudo nos modais + configuração da barra de modais por projeto
+
+**Tipo:** funcionalidade · `routers/barra_modais.py` (novo), `static/barra_modais.js` (novo), `static/resumo.js`, `static/resumo.html`, `static/resumo_layout.css`, `static/gerador_modal.js`, `static/modal_montavel_ui.js`, `app.py`
+
+- **Limpar Tudo** esvazia também Ramais, Conexões e os geradores de Postes/Cabos; confirmação detalhada e Ctrl+Z/Refazer (o snapshot ganha o campo extra `modais`, fora da comparação de estados).
+- **Modais do projeto** (painel Configurações): ocultar/mostrar, ordenar, excluir/editar/criar montáveis e copiar montáveis entre projetos. API `/api/barra-modais` (GET todos, PUT/copiar só admin), guardada em `atalhos_modais` (chave `barra_modais`), sem SQL novo. Cada botão da barra ganhou `data-modal-id`.
+
+---
+
 ## 2026-11-06 — TASK-116: Resumo da rede (neutro fora da Média; comprimento na linha de baixo)
 
 **Tipo:** ajuste · `static/resumo.js` (`calcularResumoRede`, `extrairPrefixoCaboSemComprimento`), `static/anotacao_cabos.js` (`comprimentoSozinho`)
