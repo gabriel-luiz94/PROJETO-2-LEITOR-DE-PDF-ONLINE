@@ -159,6 +159,11 @@ async def serve_ativo_parametros_js():
     return _serve_js("ativo_parametros.js")
 
 
+@app.get("/static/ativo_avaliar.js")
+async def serve_ativo_avaliar_js():
+    return _serve_js("ativo_avaliar.js")       # TASK-123
+
+
 @app.get("/static/ativo_dica.js")
 async def serve_ativo_dica_js():
     return _serve_js("ativo_dica.js")          # TASK-122

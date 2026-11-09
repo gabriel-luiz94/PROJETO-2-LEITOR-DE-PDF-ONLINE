@@ -23,7 +23,9 @@ router = APIRouter(prefix="/api/validacao", tags=["validacao"])
 def validar(req: ValidacaoPlanilhasRequest, request: Request):
     # Não registrar o conteúdo das planilhas em log (RULES Regra 11).
     user = getattr(request.state, "user", None)
-    base_rows = get_merged_orcamento(user["user_id"] if user else None) if (req.payload_calculo is not None or req.projeto) else None
+    # TASK-123: a validação confere contra a MESMA base que a tela e o cálculo usam (a oficial/master: /api/orcamento/dados e /calcular não identificam o
+    # usuário). Antes usava a cópia pessoal ("Salvar Alterações"), que ficava congelada e contradizia o cálculo ("ativo não encontrado" para o que a tela via).
+    base_rows = get_merged_orcamento(None) if (req.payload_calculo is not None or req.projeto) else None
     achados = validar_planilhas(req.cabos, req.outros, base_rows, req.projeto)     # TASK-081: apelidos/postes da base
     if req.incluir_dominio:
         regras, grupos, _ = regras_efetivas(req.projeto_codigo or "DEFAULT")

@@ -161,3 +161,5 @@ sozinho: é preciso validar/montar de novo.
 
 - Validação: botão sob demanda **ou** automática ao "montar orçamento", conforme radio (preferência local, `localStorage`, padrão desligado).
 - Com achados **de erro ou aviso**, o sistema **pergunta "continuar mesmo assim?"** (só achados `info` não interrompem; decisão da implementação, ajustável). Se o usuário responder **não**, entra o fluxo de **correção** (camada 3, modo corrigir), com aceite por linha.
+
+TASK-123: a camada 1 com base (`C1-BASE`/`C1-PARAM`) usa a **mesma base do cálculo** (a oficial/master, `get_merged_orcamento(None)`), não a cópia pessoal do usuário; `C1-PARAM` também reconhece pedidos escritos com apelido.

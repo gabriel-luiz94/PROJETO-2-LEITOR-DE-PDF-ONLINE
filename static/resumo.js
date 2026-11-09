@@ -5681,6 +5681,21 @@ window.excluirRegraConector = function (index) {
 };
 
 let orcamentoBaseData = [];
+
+// TASK-123: avalia o ativo da Totalizadora SEPARANDO o nome dos parâmetros (static/ativo_avaliar.js). Nome inexistente → vermelho (naoEncontrado);
+// nome que existe mas parâmetros com problema → âmbar (avisoParametros), com a mensagem na descrição.
+let _idxAvaliar = null;
+function avaliarTot(texto, origem) {
+    const proj = localStorage.getItem('projeto_selecionado') || '';
+    const rows = orcamentoBaseData;
+    if (!_idxAvaliar || _idxAvaliar.rows !== rows || _idxAvaliar.n !== rows.length || _idxAvaliar.proj !== proj) {
+        _idxAvaliar = { rows, n: rows.length, proj, idx: AtivoAvaliar.construirIndice(rows, proj) };
+    }
+    const r = AtivoAvaliar.avaliarAtivo(texto, origem, _idxAvaliar.idx);
+    if (r.naoEncontrado) return { desc: '', naoEncontrado: true, avisoParametros: false };
+    if (r.erroParametros) return { desc: r.erroParametros, naoEncontrado: false, avisoParametros: true };
+    return { desc: r.desc, naoEncontrado: false, avisoParametros: false };
+}
 // TASK-122: ao digitar "(" na coluna Ativo de Outros, mostra os parâmetros aceitos do ativo (ou "ativo sem parâmetros declarados" / "ativo não encontrado")
 if (window.AtivoDica) window.AtivoDica.iniciar({
     base: () => orcamentoBaseData,
@@ -5842,7 +5857,8 @@ window.syncTotalizadora = async function(forceUpdate = true) {
             const ped = AtivoParametros.resolverPedido(aName, assinaturasParam);
             if (ped.com_assinatura || aName.indexOf('(') >= 0) aName = ped.erros.length ? aName.toUpperCase() : ped.texto;
             let resDesc = buscarDescricao(aName);
-            if (ped.erros.length) resDesc = { desc: ped.erros.join('; '), naoEncontrado: true };
+            // TASK-123: nome que existe com parâmetros com problema = âmbar (avisoParametros, mensagem na descrição); nome inexistente = vermelho (como antes)
+            if (ped.erros.length) resDesc = resDesc.naoEncontrado ? { desc: ped.erros.join('; '), naoEncontrado: true } : { desc: ped.erros.join('; '), naoEncontrado: false, avisoParametros: true };
 
             rawItems.push({
                 baseId: `TOT-${currentBaseId}`,
@@ -5852,6 +5868,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
                 qtd: q,
                 desc: resDesc.desc,
                 naoEncontrado: resDesc.naoEncontrado,
+                ...(resDesc.avisoParametros ? { avisoParametros: true } : {}),
                 origem: 'OUTROS'
             });
         });
@@ -6007,7 +6024,9 @@ window.renderTotalizadora = function() {
         const tr = document.createElement('tr');
         tr.id = `tot-row-${index}`;
         if (row.naoEncontrado) {
-            tr.style.backgroundColor = 'rgba(248, 81, 73, 0.15)';
+            tr.style.backgroundColor = 'rgba(248, 81, 73, 0.15)';           // o NOME do ativo não existe na base
+        } else if (row.avisoParametros) {
+            tr.style.backgroundColor = 'rgba(210, 153, 34, 0.18)';          // o nome existe, mas os PARÂMETROS têm problema (a mensagem está na descrição)
         }
         
         tr.innerHTML = `
@@ -6051,7 +6070,7 @@ window.updateTotRow = async function(index, field, value) {
         }
         tableStates.totalizadora.data[index][field] = value;
 
-        if (field === 'ativo') {
+        if (field === 'ativo' || field === 'origem') {
             // Garante que a base de orçamentos está carregada
             if (orcamentoBaseData.length === 0) {
                 try {
@@ -6062,44 +6081,19 @@ window.updateTotRow = async function(index, field, value) {
                     console.error("Erro ao carregar base de orçamento", e);
                 }
             }
-            
-            // Tenta buscar a descrição baseada no ativo
-            const ativoUpper = (value || '').trim().toUpperCase();
-            const projName = (localStorage.getItem('projeto_selecionado') || '').toUpperCase();
-            
-            const row = orcamentoBaseData.find(r => 
-                ((r.ativo || '').toUpperCase() === ativoUpper || 
-                 (r.componente || '').toUpperCase() === ativoUpper ||
-                 (r.codigo || '').toUpperCase() === ativoUpper) &&
-                ((r.projeto || '').trim().toUpperCase() === projName || (r.projeto || '').trim() === '')
-            );
-            
-            if (row) {
-                let desc = '';
-                if ((row.codigo || '').toUpperCase() === ativoUpper) {
-                    desc = row.desc_codigo || '';
-                } else {
-                    desc = row.desc_ativo || '';
-                }
-                
-                tableStates.totalizadora.data[index].desc = desc;
-                tableStates.totalizadora.data[index].naoEncontrado = false;
-                
-                const descInput = document.getElementById(`tot-desc-${index}`);
-                if (descInput) descInput.value = desc;
-                
-                const tr = document.getElementById(`tot-row-${index}`);
-                if (tr) tr.style.backgroundColor = '';
-            } else {
-                tableStates.totalizadora.data[index].desc = '';
-                tableStates.totalizadora.data[index].naoEncontrado = true;
-                
-                const descInput = document.getElementById(`tot-desc-${index}`);
-                if (descInput) descInput.value = '';
-                
-                const tr = document.getElementById(`tot-row-${index}`);
-                if (tr) tr.style.backgroundColor = 'rgba(248, 81, 73, 0.15)';
-            }
+
+            // TASK-123: o NOME é avaliado separado dos PARÂMETROS (antes comparava o texto inteiro "FLABIT(D,35)" e ficava vermelho)
+            const lin = tableStates.totalizadora.data[index];
+            const res = avaliarTot(field === 'ativo' ? value : lin.ativo, lin.origem);
+            lin.desc = res.desc;
+            lin.naoEncontrado = res.naoEncontrado;
+            lin.avisoParametros = res.avisoParametros;
+
+            const descInput = document.getElementById(`tot-desc-${index}`);
+            if (descInput) descInput.value = res.desc;
+
+            const tr = document.getElementById(`tot-row-${index}`);
+            if (tr) tr.style.backgroundColor = res.naoEncontrado ? 'rgba(248, 81, 73, 0.15)' : (res.avisoParametros ? 'rgba(210, 153, 34, 0.18)' : '');
         }
     }
 };
