@@ -24,7 +24,31 @@ class ConnectivityStatus:
     last_checked = 0
 
 
+def _rede_ativa() -> bool:
+    try:
+        from services import rede_adaptativa
+        return rede_adaptativa.ativa()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _mensagem(online: bool) -> str:
+    """Evento do WebSocket. No desktop leva também o caminho de rede e a data da cópia local (o indicador da tela mostra "modo local — cópia de …")."""
+    msg = {"type": "connectivity", "status": "online" if online else "offline"}
+    if _rede_ativa():
+        try:
+            from services import rede_adaptativa, copia_local
+            msg["caminho"] = rede_adaptativa.estado()["caminho"]
+            msg["copia"] = copia_local.estado()["ultima"]
+        except Exception:  # noqa: BLE001
+            pass
+    return json.dumps(msg)
+
+
 def _testar_conexao() -> bool:
+    if _rede_ativa():                                      # TASK-121 (desktop): quem testa a rede é a vigia de rede_adaptativa; aqui só se espelha o estado dela
+        from services import rede_adaptativa
+        return rede_adaptativa.estado()["online"]
     supabase = get_supabase()
     if not supabase:
         return False
@@ -47,14 +71,14 @@ def _monitor_worker(loop: asyncio.AbstractEventLoop):
                 reset_supabase_client()
             ConnectivityStatus.is_online = is_online
             logger.info(f"Status de conectividade com o Supabase alterado: {'ONLINE' if is_online else 'OFFLINE'}")
-            mensagem = json.dumps({"type": "connectivity", "status": "online" if is_online else "offline"})
+            mensagem = _mensagem(is_online)
             try:
                 asyncio.run_coroutine_threadsafe(manager.broadcast(mensagem), loop)
             except Exception as e:  # noqa: BLE001 — a vigia nunca morre por falha ao notificar
                 logger.warning(f"Falha ao transmitir status de conectividade: {e}")
 
         ConnectivityStatus.last_checked = time.time()
-        time.sleep(INTERVALO_S)
+        time.sleep(3 if _rede_ativa() else INTERVALO_S)       # espelhar o estado da vigia de rede não custa rede: pode ser frequente
 
 
 def start_connectivity_monitor():

@@ -112,9 +112,10 @@ def list_users(request: Request):
             for cu in cloud_users:
                 role = cu.get("role", "admin" if cu.get("is_admin") else "viewer")
                 cur.execute('''
-                    INSERT OR REPLACE INTO usuarios_locais (email, senha_hash, is_admin, role)
-                    VALUES (?, ?, ?, ?)
-                ''', (cu["email"], cu["senha_hash"], int(cu.get("is_admin", False)), role))
+                    INSERT INTO usuarios_locais (email, senha_hash, is_admin, role, nuvem_id)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(email) DO UPDATE SET senha_hash=excluded.senha_hash, is_admin=excluded.is_admin, role=excluded.role, nuvem_id=excluded.nuvem_id
+                ''', (cu["email"], cu["senha_hash"], int(cu.get("is_admin", False)), role, str(cu.get("id")) if cu.get("id") is not None else None))          # TASK-121: não troca o id local nem perde o id da nuvem
             conn.commit()
         except Exception as e:
             registrar_falha("admin.list_users", e)
