@@ -35,15 +35,35 @@ _RE_QTD_ANTIGA = re.compile(r"^\*?\d+(?:[.,]\d+)?[-xX][A-Za-z(].*$")
 _RE_QTD_CLASSICA = re.compile(r"^[*-]?\d+(?:[.,]\d+)?[Xx-].+$")          # token do formato antigo (qtd-ativo): decide entre o formato antigo e o compacto numa linha sem vírgula+espaço
 
 
+_RE_POSTE_ABREV = re.compile(r"^(R|D|F)(\d+)/(\d+)$")
+
+
+def _compacto_do_poste(nome):
+    """Nome de poste → notação compacta, ou None. Reconhece (TASK-124): ``DT11/600``/``RC12/1000``/``CV…``/``FV…`` (formato antigo),
+    a abreviação ``R12/1000``/``D11/600``/``F12/1000`` e o próprio compacto (``121000R``) — este quando o poste está cadastrado na base com o
+    nome compacto como ATIVO (e não como DT/RC…), caso em que o nome não é reescrito mas continua sendo um poste."""
+    t = str(nome if nome is not None else "").strip().upper()
+    m = _RE_POSTE.match(t)
+    if m:
+        return f"{m.group(2)}{m.group(3)}{TIPO_PARA_SUFIXO[m.group(1)]}"
+    m = _RE_POSTE_ABREV.match(t)
+    if m:
+        t = f"{m.group(2)}{m.group(3)}{m.group(1)}"
+    if _RE_COMPACTO.match(t):
+        c = compacto_para_poste(t)
+        if c is not None and not c["erro"]:
+            return t
+    return None
+
+
 def eh_poste(nome) -> bool:
-    """O nome (sem parâmetros) é um poste: DT|RC|CV|FV + altura/esforço?"""
-    return bool(_RE_POSTE.match(str(nome if nome is not None else "").strip().upper()))
+    """O nome (sem parâmetros) é um poste: DT|RC|CV|FV + altura/esforço, a abreviação R/D/F + altura/esforço ou a notação compacta?"""
+    return _compacto_do_poste(nome) is not None
 
 
 def poste_para_compacto(nome):
-    """DT11/600 → 11600D (None se não for poste)."""
-    m = _RE_POSTE.match(str(nome if nome is not None else "").strip().upper())
-    return f"{m.group(2)}{m.group(3)}{TIPO_PARA_SUFIXO[m.group(1)]}" if m else None
+    """DT11/600 → 11600D; 121000R → 121000R (None se não for poste)."""
+    return _compacto_do_poste(nome)
 
 
 def compacto_para_poste(token, postes=None):

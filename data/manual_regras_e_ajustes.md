@@ -654,3 +654,7 @@ Ao digitar/editar o ATIVO (ou a ORIGEM) de uma linha da Totalizadora, a tela ava
 - Sem cor = nome e parâmetros ok; a descrição é a da linha do nome (`FLABIT(D,35)` mostra a descrição do `FLABIT`). Antes a edição comparava o texto inteiro (`FLABIT(D,35)`) com a base e ficava vermelha.
 - A **validação** (janela "Problemas encontrados nas planilhas") agora confere contra a **mesma base do cálculo** (a oficial); antes lia a cópia pessoal de "Salvar Alterações", que ficava desatualizada e dizia "ativo não encontrado" para o que a tela via. O aviso **C1-PARAM** também vale para pedidos escritos com **apelido** (`FLABIT(D,A,35)`).
 
+
+
+## Poste com nome compacto no cadastro (TASK-124)
+O poste da linha de Outros é reconhecido em qualquer destes nomes: `DT11/600`/`RC12/1000`/`CV…`/`FV…` (antigo), `R12/1000` (abreviado) e `121000R` (compacto, inclusive quando é o ATIVO cadastrado na base). Qualquer um deles preenche o parâmetro `poste` das estruturas à direita na mesma linha (`121000R, N1` → `N1(121000R,A)`), no formato compacto e no antigo (`1-121000R 1-N1`). Não precisa renomear o poste na planilha.

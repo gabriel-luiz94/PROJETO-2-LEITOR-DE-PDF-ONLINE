@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-10 — TASK-124: poste com nome compacto como ativo preenche o parâmetro `poste`
+
+- `eh_poste`/`poste_para_compacto` (Python e JS) reconhecem `DT11/600`, `R12/1000` e `121000R`. Antes `121000R, N1` deixava o `N1` com `D`. Tarefa: `.ai/tasks/TASK-124-10-11-2026.md`.
+
 ## 2026-11-10 — TASK-123: Totalizadora avalia nome e parâmetros separados; validação usa a base do cálculo
 
 **Tipo:** correção · `static/ativo_avaliar.js` (novo), `static/resumo.js`, `static/resumo.html`, `routers/validacao.py`, `services/validacao_planilhas.py`, `app.py`

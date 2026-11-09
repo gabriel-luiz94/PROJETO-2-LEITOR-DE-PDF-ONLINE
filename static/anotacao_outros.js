@@ -17,12 +17,22 @@
     const RE_QTD_CLASSICA = /^[*-]?\d+(?:[.,]\d+)?[Xx-].+$/;          // token do formato antigo (qtd-ativo): decide entre o formato antigo e o compacto numa linha sem vírgula+espaço
     const txt = t => String(t == null ? '' : t);
 
-    function ehPoste(nome) { return RE_POSTE.test(txt(nome).trim().toUpperCase()); }
+    const RE_POSTE_ABREV = /^(R|D|F)(\d+)\/(\d+)$/;
 
-    function posteParaCompacto(nome) {
-        const m = txt(nome).trim().toUpperCase().match(RE_POSTE);
-        return m ? `${m[2]}${m[3]}${TIPO_PARA_SUFIXO[m[1]]}` : null;
+    /** Nome de poste → notação compacta, ou null (TASK-124): DT11/600 · RC12/1000 (formato antigo), R12/1000 (abreviação) e o próprio compacto (121000R,
+     *  quando o poste está cadastrado na base com o nome compacto como ATIVO). Mesma lógica de services/anotacao_outros.py. */
+    function compactoDoPoste(nome) {
+        let t = txt(nome).trim().toUpperCase(), m = t.match(RE_POSTE);
+        if (m) return `${m[2]}${m[3]}${TIPO_PARA_SUFIXO[m[1]]}`;
+        m = t.match(RE_POSTE_ABREV);
+        if (m) t = `${m[2]}${m[3]}${m[1]}`;
+        if (RE_COMPACTO.test(t)) { const c = compactoParaPoste(t); if (c && !c.erro) return t; }
+        return null;
     }
+
+    function ehPoste(nome) { return compactoDoPoste(nome) !== null; }
+
+    function posteParaCompacto(nome) { return compactoDoPoste(nome); }
 
     function compactoParaPoste(token, postes) {
         const t = txt(token).trim(), m = t.match(RE_COMPACTO);
