@@ -341,27 +341,14 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
     componentes_qtd = []
     nao_encontrados = list(erros_formato)
 
-    # Índice auxiliar: DESC_ATIVO (upper) → lista de rows (para busca parcial)
-    desc_ativo_index = {}
-    for row in valid_rows:
-        desc = (row.get("desc_ativo") or "").strip().upper()
-        if desc:
-            desc_ativo_index.setdefault(desc, []).append(row)
-
     def _buscar(nome_ativo, aceita):
-        """Cascata de busca (ativo → componente → desc exata → desc parcial → código). Retorna ("linhas", [rows]) | ("codigo", row) | None."""
-        linhas = [r for r in orcamento_dict.get(nome_ativo, []) if aceita(r)]
+        """Cascata de busca (ativo → componente → código). A DESCRIÇÃO (DESC ATIVO) não resolve nome nenhum (TASK-122). Retorna ("linhas", [rows]) | ("codigo", row) | None."""
+        linhas = [r for r in orcamento_dict.get(nome_ativo, []) if aceita(r)]  # Passo 1: ATIVO (e apelidos)
         if not linhas and nome_ativo in componente_dict:                      # Passo 2: COMPONENTE exato
             linhas = [r for r in componente_dict[nome_ativo] if aceita(r)]
-        if not linhas and nome_ativo in desc_ativo_index:                     # Passo 3: DESC_ATIVO exato
-            linhas = [r for r in desc_ativo_index[nome_ativo] if aceita(r)]
-        if not linhas:                                                        # Passo 4: busca parcial em DESC_ATIVO
-            matches = [rows for desc, rows in desc_ativo_index.items() if nome_ativo in desc]
-            if matches:
-                linhas = [r for r in matches[0] if aceita(r)]
         if linhas:
             return ("linhas", linhas)
-        if nome_ativo in codigo_lookup and aceita(codigo_lookup[nome_ativo]):  # Passo 5: CÓDIGO direto
+        if nome_ativo in codigo_lookup and aceita(codigo_lookup[nome_ativo]):  # Passo 3: CÓDIGO direto
             return ("codigo", codigo_lookup[nome_ativo])
         return None
 

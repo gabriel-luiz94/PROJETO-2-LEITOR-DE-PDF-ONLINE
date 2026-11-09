@@ -203,9 +203,9 @@ multiplicar por `fator`, arredondar (`NORMAL` 2 casas / `PARA CIMA` / `PARA BAIX
 limitar por `val_min`/`val_max`. **`ADIÇÃO` mantém o item original; `SUBST` o remove.**
 📍 `resumo.js:2918-3006`
 
-### RN-06 — Resolução de ativo na base técnica (cascata de 5 passos)
-`ATIVO` exato → `COMPONENTE` exato → `DESC_ATIVO` exato → `DESC_ATIVO` parcial → `CÓDIGO` direto
-(neste último caso os fatores são forçados para `1.0`). Sem match → o ativo entra em
+### RN-06 — Resolução de ativo na base técnica (cascata de 3 passos — TASK-122)
+`ATIVO` (e apelidos) exato → `COMPONENTE` exato → `CÓDIGO` direto (neste último caso os fatores são forçados para `1.0`).
+**A DESCRIÇÃO (`DESC_ATIVO`) não resolve nome nenhum** (antes havia os passos "DESC_ATIVO exato" e "parcial", removidos a pedido do usuário). Sem match → o ativo entra em
 `nao_encontrados`. Todo passo respeita o filtro de `origem`: linha com `origem` vazia serve para
 qualquer origem; linha com `origem` preenchida só serve para a origem igual.
 📍 `orcamento_calc.py:165-231`

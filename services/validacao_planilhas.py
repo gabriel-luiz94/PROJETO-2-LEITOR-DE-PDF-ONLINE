@@ -11,7 +11,10 @@ import re
 
 from services.anotacao_cabos import eh_notacao, interpretar as interpretar_cabo
 from services.anotacao_outros import contexto_da_base, interpretar_linha
+from services.ativo_parametros import analisar_ativo
 from services.orcamento_calc import (
+    _linha_vale_no_projeto,
+    _preparar_parametros,
     extrair_ativo_cabo,
     _classico_outros,
     extrair_ativos_outros,
@@ -197,35 +200,81 @@ def validar_planilhas(cabos: list, outros: list, base_rows: list = None, projeto
     return achados
 
 
+def nomes_conhecidos(base_rows, projeto, origem) -> set:
+    """Nomes (MAIÚSCULOS) que o cálculo resolve na base para o projeto e a origem (CABOS/OUTROS): ATIVO (e apelidos) → COMPONENTE → CÓDIGO.
+    A descrição (DESC ATIVO) não conta (TASK-122). Usado pelo C1-BASE para avaliar só o NOME do ativo, separado dos parâmetros."""
+    req_proj = (projeto or "").strip().upper()
+    origem = (origem or "").strip().upper()
+    linhas, _assinaturas, _grupos = _preparar_parametros(base_rows or [], req_proj)
+    nomes = set()
+    for r in linhas:
+        if not _linha_vale_no_projeto(r, req_proj):
+            continue
+        ro = (r.get("origem") or "").strip().upper()
+        if ro and ro != origem:
+            continue
+        for campo in ("ativo", "componente", "codigo"):
+            v = (r.get(campo) or "").strip().upper()
+            if v:
+                nomes.add(v.split("#")[0] if campo == "ativo" else v)
+    ctx = contexto_da_base(base_rows or [], projeto)
+    nomes.update(str(k).strip().upper() for k in (ctx.get("apelidos") or {}))
+    return nomes
+
+
+def _nome_do_pedido(pedido: str) -> str:
+    """O nome do ativo SEM os parâmetros ("FLABIT(D,35)" → "FLABIT"; "[CAZ7,94]" → "CAZ7,94")."""
+    a = analisar_ativo(pedido)
+    if a.get("base"):
+        return a["base"]
+    return pedido.split("(")[0].strip().strip("[]").upper()
+
+
+def _detalhe(pedido: str, nao_encontrados: list):
+    """None se o pedido foi achado; senão o detalhe entre parênteses que o cálculo deu ("" quando não houve)."""
+    for n in nao_encontrados:
+        if n == pedido:
+            return ""
+        if n.startswith(pedido + " (") and n.endswith(")"):
+            return n[len(pedido) + 2:-1]
+    return None
+
+
 def validar_base(cabos_payload: list, outros_payload: list, projeto, base_rows: list) -> list:
-    """C1-BASE sobre o payload de cálculo (Totalizadora, já após as regras de conversão).
+    """C1-BASE (nome) e C1-PARAM (parâmetros) sobre o payload de cálculo (Totalizadora, já após as regras de conversão).
 
     Roda depois das regras de conversão (ADR-003) de propósito: uma regra pode gerar ou trocar um
-    ativo, então checar a tabela crua daria falso positivo. Usa a mesma cascata RN-06 do cálculo.
+    ativo, então checar a tabela crua daria falso positivo. Usa a mesma cascata do cálculo (ativo → componente → código).
+    TASK-122: o C1-BASE avalia SÓ o nome do ativo (antes do "("); problemas dos parâmetros de um ativo que existe vão para o C1-PARAM.
     """
     achados = []
-    for tabela, linhas, extrair, chamar in (
+    for tabela, linhas, extrair, chamar, origem in (
         ("cabos", cabos_payload or [], lambda it: [a for a in [extrair_ativo_cabo(it)] if a],
-         lambda itens: processar_calculo(itens, [], projeto, base_rows)),
+         lambda itens: processar_calculo(itens, [], projeto, base_rows), "CABOS"),
         ("outros", outros_payload or [], extrair_ativos_outros,
-         lambda itens: processar_calculo([], itens, projeto, base_rows)),
+         lambda itens: processar_calculo([], itens, projeto, base_rows), "OUTROS"),
     ):
         nao_encontrados = list(chamar(linhas)["nao_encontrados"])
         if not nao_encontrados:
             continue
-
-        def _nao_achado(nome):
-            # a mensagem pode trazer a dica entre parênteses ("CAA2 (só existe para linha morta)", "N1(XLIPE) (CABO=… não cadastrado)")
-            return any(n == nome or n.startswith(nome + " (") for n in nao_encontrados)
+        nomes = nomes_conhecidos(base_rows, projeto, origem)
         for i, linha in enumerate(linhas):
             linha_id = linha.get("id") or f"{tabela.upper()}-{i}"
             for av in extrair(linha):
-                if _nao_achado(av["ativo"]):
+                detalhe = _detalhe(av["ativo"], nao_encontrados)
+                if detalhe is None:
+                    continue
+                nome = _nome_do_pedido(av["ativo"])
+                if nome.upper() not in nomes or detalhe.startswith("só existe para linha"):
                     achados.append(_achado(
                         linha_id, tabela, "C1-BASE", "aviso",
-                        f"Ativo '{av['ativo']}' não encontrado na base técnica"
+                        f"Ativo '{nome}' não encontrado na base técnica"
                         f"{' (projeto ' + str(projeto) + ')' if projeto else ''}.",
                     ))
+                else:                                                        # o nome existe: o que falhou foram os parâmetros
+                    if detalhe.endswith("não tem variantes cadastradas"):
+                        detalhe = f"ativo sem parâmetros declarados na base ('{av['ativo'][len(nome):] if av['ativo'].upper().startswith(nome.upper()) else av['ativo']}' não vale)"
+                    achados.append(_achado(linha_id, tabela, "C1-PARAM", "aviso", f"Parâmetros de '{av['ativo']}': {detalhe or 'não conferem com a base'}."))
     return achados
 
 

@@ -75,11 +75,9 @@ def test_ativo_so_com_o_outro_tipo_vai_para_nao_encontrados_com_dica():
 @pytest.mark.parametrize("passo, base, busca", [
     ("ativo", [linha("X1", "C1", "k1", "LV")], "X1"),
     ("componente", [linha("OUTRO", "X2", "k1", "LV")], "X2"),
-    ("desc exata", [linha("OUTRO", "C3", "k1", "LV", desc_ativo="DESCRICAO EXATA")], "DESCRICAO EXATA"),
-    ("desc parcial", [linha("OUTRO", "C4", "k1", "LV", desc_ativo="POSTE DUPLO T 9X150")], "DUPLO T"),
 ])
 def test_cada_passo_da_cascata_filtra_lv(passo, base, busca):
-    # TASK-105: nome com espaço só existe na notação compacta (no formato antigo "1-DESCRICAO EXATA" o "EXATA" era descartado em silêncio)
+    # TASK-122: a cascata é ativo → componente → código (a DESCRIÇÃO não resolve nome)
     viva = calc.processar_calculo([], [outros(busca, "*I")], "", base)
     assert [r["codigo"] for r in viva["resultado"]] == ["k1"], passo
     morta = calc.processar_calculo([], [outros(busca, "I")], "", base)
@@ -93,9 +91,18 @@ def test_codigo_direto_filtra_lv():
     assert r["resultado"] == [] and r["nao_encontrados"] == ["9001 (só existe para linha viva)"]
 
 
+def test_descricao_nao_resolve_nome_nenhum():
+    """TASK-122: DESC ATIVO é só texto de apoio. Nem a descrição exata nem um pedaço dela acham o ativo (com ou sem parâmetros)."""
+    base = [linha("IT_2", "IT_2", "k1", "A", desc_ativo="FLABIT"), linha("IT_2(poste=%D)", "IT_2.D", "k2", "A", desc_ativo="FLABIT POSTE")]
+    for nome in ["FLABIT", "FLAB", "FLABIT POSTE"]:
+        r = calc.processar_calculo([], [outros(nome, "I")], "", base)
+        assert r["resultado"] == [] and r["nao_encontrados"] == [nome], nome
+    assert [x["codigo"] for x in calc.processar_calculo([], [outros("1-IT_2", "I")], "", base)["resultado"]] == ["k1"]       # pelo ativo continua
+
+
 def test_cabos_tambem_respeitam_lv():
     base = [linha("CAA2", "CABO", "ka", "A"), linha("", "CABO", "kv", "LV"), linha("", "CABO", "km", "LM")]
-    cab = lambda op: {"ativo": "CAA 2 ABC 80 m", "operacao": op, "entidade": "CABO"}
+    cab = lambda op: {"ativo": "CAA2 1 80", "operacao": op, "entidade": "CABO"}               # formato do payload ("ATIVO FASE COMPRIMENTO")
     assert codigos(calc.processar_calculo([cab("*I")], [], "", base)) == [("ka", "I"), ("kv", "I")]
     assert codigos(calc.processar_calculo([cab("I")], [], "", base)) == [("ka", "I"), ("km", "I")]
 

@@ -22,7 +22,7 @@ def _linha(ativo, cod, proj="PERNAMBUCO", comp=""):
 
 # base do teste: tudo do exemplo cadastrado para PERNAMBUCO, MENOS a estrutura N4 e o cabo S04
 BASE = [_linha(a, str(100 + i)) for i, a in enumerate(
-    ["N1", "N3", "B2", "DT9/200", "DT9/400", "DT11/300", "RC10/300", "CV9/300", "FV7/150", "A35P", "CAZ7,94", "C16", "RAMA25"])]
+    ["N1", "N3", "B2", "DT9/200", "DT9/400", "DT11/300", "RC10/300", "CV9/300", "FV7/150", "A35P", "[CAZ7,94]", "C16", "RAMA25"])]    # TASK-122: nome com vírgula = literal entre []
 
 
 @pytest.fixture
