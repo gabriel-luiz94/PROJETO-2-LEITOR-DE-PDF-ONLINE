@@ -353,7 +353,8 @@ def _eh_cabo_valido(row):
 
 
 def _eh_linha_estrutura(r):
-    return bool(r) and r.get("entidade") in ("ESTRUTURA", "POSTE") and participa_vinculo(r)
+    # TASK-125: também a linha ainda não classificada ('0' ou vazia) que tem ativo (mesma regra de static/vinculacao_regras.js)
+    return bool(r) and participa_vinculo(r) and (r.get("entidade") in ("ESTRUTURA", "POSTE") or (r.get("entidade") in (None, "", "0") and bool(_trim(r.get("ativo")))))
 
 
 # TASK-094: uma linha de Outros pode ter VÁRIAS estruturas (`9400D, N1, N4` = poste + N1 + N4); cada uma é uma "unidade" vinculável.

@@ -28,7 +28,7 @@ _RE_QTD_PREFIXO = re.compile(r"^[*\-]?[0-9]+(?:[.,][0-9]+)?[Xx\-](.+)\Z")
 
 def estruturas_disponiveis(outros):
     """[(i, r), ...] — mesmo filtro de _estruturasDisponiveisVinculo (resumo.js)."""
-    return [(i, r) for i, r in enumerate(outros) if r and r.get("entidade") in ("ESTRUTURA", "POSTE")]
+    return [(i, r) for i, r in enumerate(outros) if r and (r.get("entidade") in ("ESTRUTURA", "POSTE") or (r.get("entidade") in (None, "", "0") and str(r.get("ativo") or "").strip() and str(r.get("operacao") or "").strip().upper() not in ("R", "*R")))]      # TASK-125: inclui a linha ainda sem classificação
 
 
 def qtd_estruturas_para_operacao(operacao):
