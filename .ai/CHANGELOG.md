@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-09 — TASK-121: rede adaptativa (proxy/direto/offline) + cópia local do banco (só desktop)
+
+**Tipo:** funcionalidade · `services/rede_adaptativa.py`, `services/copia_local.py`, `routers/rede.py` (novos); `services/supabase_client.py`, `services/connectivity_monitor.py`, `app.py`, `database.py`, `routers/auth.py`, `routers/admin.py`, `static/resumo.js`
+
+O programa testa o Supabase por proxy e por direto ao iniciar e com ele aberto, escolhe sozinho e, sem nuvem, entra em modo offline (disjuntor: `get_supabase()` devolve None; sem esperar os ~21 s de timeout). A cada início (segundo plano) e ao voltar a nuvem, o banco local é posto igual ao da nuvem (inclui contas), preservando o que foi feito offline (mescla de 3 vias, conflitos em `conflitos_locais`). Login offline usa o mesmo `user_id` do online (`usuarios_locais.nuvem_id`). Versão online (`APP_MODE=server`) sem mudança de comportamento (a única alteração compartilhada é gravar/usar `nuvem_id`, que só torna o fallback de login coerente).
+
+---
+
 ## 2026-11-06 — TASK-120: base de orçamento mantém a ordem da planilha ao sincronizar com o Supabase
 
 **Tipo:** correção · `services/sync_service.py` (`sync_tabela_master`, `migrar_projetos_compartilhados`, `get_merged_orcamento`)

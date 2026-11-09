@@ -34,6 +34,27 @@ def _expirado() -> bool:
     return _client_initialized and _supabase_client is not None and (time.monotonic() - _client_criado_em) > _TTL_SEGUNDOS
 
 
+def _rede_offline() -> bool:
+    try:
+        from services import rede_adaptativa
+        return rede_adaptativa.offline()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _criar_cliente(url: str, key: str):
+    """TASK-121: no desktop com a rede adaptativa ligada, o cliente falha rápido na conexão (5 s) em vez de esperar ~21 s. Versão online: cliente padrão."""
+    try:
+        from services import rede_adaptativa
+        if rede_adaptativa.ativa():
+            import httpx
+            from supabase import ClientOptions
+            return create_client(url, key, options=ClientOptions(postgrest_client_timeout=httpx.Timeout(60.0, connect=5.0)))
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Timeouts curtos do Supabase indisponíveis ({e}); usando o cliente padrão.")
+    return create_client(url, key)
+
+
 def get_supabase() -> Client | None:
     """
     Retorna o cliente Supabase singleton.
@@ -41,6 +62,9 @@ def get_supabase() -> Client | None:
     Retorna None se as credenciais não estiverem configuradas.
     """
     global _supabase_client, _client_initialized, _client_criado_em
+
+    if _rede_offline():                      # TASK-121 (só desktop): nuvem inalcançável → todo o programa usa o banco local, sem esperar timeout
+        return None
 
     if _client_initialized and not _expirado():
         return _supabase_client
@@ -66,7 +90,7 @@ def get_supabase() -> Client | None:
             return None
 
         try:
-            _supabase_client = create_client(url, key)
+            _supabase_client = _criar_cliente(url, key)
             logger.info("Cliente Supabase inicializado com sucesso.")
         except Exception as e:
             logger.error(f"Erro ao inicializar cliente Supabase: {e}")
@@ -104,3 +128,8 @@ def registrar_falha(contexto: str, exc: BaseException) -> None:
     logger.warning(f"Falha ao acessar o Supabase ({contexto}): {exc}")
     if _eh_erro_de_rede(exc):
         reset_supabase_client()
+        try:
+            from services import rede_adaptativa
+            rede_adaptativa.sinalizar_falha()          # TASK-121 (só desktop): reavalia a rede já
+        except Exception:  # noqa: BLE001
+            pass

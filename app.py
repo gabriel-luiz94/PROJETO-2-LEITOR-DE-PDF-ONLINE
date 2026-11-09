@@ -35,7 +35,7 @@ from middleware.nocache_middleware import NoCacheHtmlMiddleware
 from websocket_manager import manager
 
 # Routers
-from routers import manual, obras, regras, regras_leitor, regras_vinculacao, vinculacao_config, atalhos, modais_montaveis, barra_modais, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes, autonomo, aprendizado, plugin_cad
+from routers import manual, obras, regras, regras_leitor, regras_vinculacao, vinculacao_config, atalhos, modais_montaveis, barra_modais, rede, recs, projetos, orcamento, ai_chat, upload, health, auth, admin, update, validacao, validacao_prompts, validacao_regras, validacao_ajustes, autonomo, aprendizado, plugin_cad
 
 
 app = FastAPI(
@@ -338,6 +338,7 @@ app.include_router(plugin_cad.router)          # TASK-104: plugin do nanoCAD (re
 app.include_router(atalhos.router)
 app.include_router(modais_montaveis.router)
 app.include_router(barra_modais.router)           # TASK-117: configuração da barra de modais por projeto
+app.include_router(rede.router)                    # TASK-121: estado da rede / cópia local (desktop)
 app.include_router(recs.router)
 app.include_router(projetos.router)
 app.include_router(orcamento.router)
@@ -350,6 +351,21 @@ app.include_router(upload.router)
 app.include_router(health.router)
 app.include_router(admin.router)
 app.include_router(update.router)
+
+
+# ── Rede adaptativa + cópia local do banco (TASK-121) — SÓ no modo desktop; na versão online (APP_MODE=server) nada disto roda ──
+@app.on_event("startup")
+def _iniciar_rede_adaptativa():
+    try:
+        from services import rede_adaptativa, copia_local
+        est = rede_adaptativa.iniciar()               # testa proxy × direto ANTES de qualquer conexão e liga a vigia
+        if est is None:
+            return
+        rede_adaptativa.registrar_ouvinte("online", lambda: copia_local.iniciar_em_segundo_plano("a nuvem voltou"))
+        if est["online"]:
+            copia_local.iniciar_em_segundo_plano("início")      # em segundo plano: o programa abre e usa a nuvem enquanto copia
+    except Exception as e:  # noqa: BLE001 — a rede adaptativa nunca impede o programa de abrir
+        logger.warning(f"Rede adaptativa não iniciou: {e}")
 
 
 # ── Conectividade com a nuvem (TASK-040): ping periódico + reconexão proativa + indicador online/offline ──

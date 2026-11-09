@@ -21,7 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const texto = document.getElementById('indicador-conectividade-texto');
         if (!selo || !bola || !texto) return;
 
-        function atualizar(online) {
+        // TASK-121: no desktop o evento traz a data da cópia local ("2026-11-09 10:30:00"): o aviso diz com que cópia está trabalhando
+        const dataCurta = c => { const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})/.exec(c || ''); return m ? `${m[3]}/${m[2]} ${m[4]}` : ''; };
+        function atualizar(online, extra) {
             if (online) {
                 selo.style.display = 'none';
                 return;
@@ -30,8 +32,11 @@ document.addEventListener('DOMContentLoaded', () => {
             selo.style.background = 'rgba(248,81,73,0.15)';
             selo.style.color = '#f85149';
             bola.style.background = '#f85149';
-            texto.textContent = 'Sem conexão com a nuvem — trabalhando localmente';
+            const cp = dataCurta(extra && extra.copia);
+            texto.textContent = cp ? `Sem conexão com a nuvem — modo local (cópia de ${cp})` : 'Sem conexão com a nuvem — trabalhando localmente';
         }
+        // o aviso também aparece se a tela abrir quando o programa já está offline (o evento do WebSocket só vem na troca de estado)
+        fetch('/api/rede/estado').then(r => (r.ok ? r.json() : null)).then(d => { if (d && d.ativa && d.online === false) atualizar(false, d.copia ? { copia: d.copia.ultima } : null); }).catch(() => {});
 
         try {
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -39,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
             socket.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    if (data.type === 'connectivity') atualizar(data.status === 'online');
+                    if (data.type === 'connectivity') atualizar(data.status === 'online', data);
                 } catch (e) { /* mensagem não era JSON de conectividade: ignora */ }
             };
             socket.onerror = () => { /* sem WebSocket: o indicador só não aparece, nada quebra */ };

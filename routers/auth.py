@@ -64,9 +64,10 @@ def login(req: LoginRequest):
                     conn = get_connection()
                     cur = conn.cursor()
                     cur.execute('''
-                        INSERT OR REPLACE INTO usuarios_locais (email, senha_hash, is_admin, role)
-                        VALUES (?, ?, ?, ?)
-                    ''', (email, user_cloud.get("senha_hash"), int(is_admin), role))
+                        INSERT INTO usuarios_locais (email, senha_hash, is_admin, role, nuvem_id)
+                        VALUES (?, ?, ?, ?, ?)
+                        ON CONFLICT(email) DO UPDATE SET senha_hash=excluded.senha_hash, is_admin=excluded.is_admin, role=excluded.role, nuvem_id=excluded.nuvem_id
+                    ''', (email, user_cloud.get("senha_hash"), int(is_admin), role, user_id))          # TASK-121: guarda o id da nuvem (login offline = mesmo user_id)
                     cur.execute('''
                         INSERT OR REPLACE INTO sessoes (user_id, email, access_token, refresh_token, is_admin, role, ultimo_login)
                         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
@@ -98,7 +99,7 @@ def login(req: LoginRequest):
 
     if user_local:
         if verify_password(req.password, user_local["senha_hash"]):
-            user_id = str(user_local["id"])
+            user_id = str(user_local["nuvem_id"] or user_local["id"])        # TASK-121: o MESMO user_id do login online (obras/cópias pessoais ficam visíveis)
             email = user_local["email"]
             role = user_local["role"] if user_local["role"] else ("admin" if user_local["is_admin"] else "operador")
             is_admin = bool(user_local["is_admin"]) or role == "admin"  # TASK-074

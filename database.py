@@ -577,6 +577,23 @@ def init_db():
         cursor.execute("ALTER TABLE usuarios_locais ADD COLUMN updated_at TEXT")
     except sqlite3.OperationalError:
         pass
+    try:
+        cursor.execute("ALTER TABLE usuarios_locais ADD COLUMN nuvem_id TEXT")       # TASK-121: id do usuário na nuvem (o login offline usa o MESMO user_id do online)
+    except sqlite3.OperationalError:
+        pass
+    # TASK-121: cópia local do banco da nuvem (services/copia_local.py): estado da última cópia, "foto" de cada linha na última cópia (para saber o que
+    # mudou só aqui ou só na nuvem) e backup do que a nuvem sobrescreveu num conflito.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS copia_local_meta (chave TEXT PRIMARY KEY, valor TEXT)
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS copia_local_base (tabela TEXT NOT NULL, chave TEXT NOT NULL, hash TEXT NOT NULL, PRIMARY KEY (tabela, chave))
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS conflitos_locais (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, tabela TEXT NOT NULL, chave TEXT NOT NULL, dados_json TEXT, motivo TEXT, em TEXT DEFAULT (datetime('now'))
+        )
+    ''')
 
     # Inserir admin padrão caso a tabela de usuarios esteja vazia
     # Credenciais lidas de variáveis de ambiente (nunca hardcoded)
