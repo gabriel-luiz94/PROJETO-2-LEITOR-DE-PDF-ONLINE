@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-10 — TASK-126: modal de vinculação lista as estruturas mesmo sem cabos
+
+- `abaVinculo` não sai mais com "Nenhum cabo na tabela". Tarefa: `.ai/tasks/TASK-126-10-11-2026.md`.
+
 ## 2026-11-10 — TASK-125: modal de vinculação lista as linhas de Outros sem classificação
 
 - `ehLinhaEstrutura` (JS e Python) inclui entidade `0`/vazia com ativo. Tarefa: `.ai/tasks/TASK-125-10-11-2026.md`.
