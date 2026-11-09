@@ -37,3 +37,12 @@ console.log(JSON.stringify(VR.estruturasDisponiveis(o)));
     r = subprocess.run([NODE, "-e", cod], input=json.dumps(OUTROS), capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, r.stderr
     assert json.loads(r.stdout) == ESPERADO
+
+
+def test_modal_lista_estruturas_mesmo_sem_cabos_126():
+    """TASK-126 — sem cabos na tabela o modal continua listando as estruturas (cabo fictício); a mensagem de vazio só vale sem estrutura."""
+    import os
+    import config
+    js = open(os.path.join(config.STATIC_DIR, "vinculacao_ui.js"), encoding="utf-8").read()
+    assert "if (!tem || !ests.length)" not in js
+    assert "if (!ests.length)" in js and "Nenhum cabo na tabela — use o botão direito" in js

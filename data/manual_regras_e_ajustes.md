@@ -662,3 +662,7 @@ O poste da linha de Outros é reconhecido em qualquer destes nomes: `DT11/600`/`
 
 ## Modal de vinculação: o que entra da tabela Outros (TASK-125)
 O modal lista as linhas de Outros classificadas como ESTRUTURA/POSTE **e** as ainda sem classificação (entidade `0`) que tenham ativo. Linhas com outra entidade escolhida (CHAVE, TRAFO, RAMAIS, IP…), sem ativo, ou com operação R/*R não aparecem. Linha sem regra na Tabela de Estruturas aparece como "sem regra".
+
+
+## Modal de vinculação sem cabos (TASK-126)
+As estruturas da tabela Outros aparecem no modal mesmo sem nenhum cabo na tabela de cabos, para receber cabo fictício (botão direito na estrutura).

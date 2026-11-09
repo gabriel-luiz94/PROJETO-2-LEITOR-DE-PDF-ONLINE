@@ -268,12 +268,12 @@
         corpo.appendChild(el('div', { style: 'display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap' },
             filtros.map(([id, nome]) => el('span', { class: 'vz-chip btn' + (st.filtro === id ? ' on' : ''), text: nome, onclick: () => { st.filtro = id; render(); } }))
                 .concat([el('span', { style: 'margin-left:auto;color:#8b949e', text: 'Clique no cabo e na estrutura (ou o contrário) · botão direito na estrutura: cabo fictício · no cabo: estrutura fictícia · clique na linha: desfazer' })])));
-        if (!tem || !ests.length) {
-            corpo.appendChild(el('div', { style: 'color:#8b949e;padding:20px', text: !tem ? 'Nenhum cabo na tabela.' : 'Nenhuma estrutura/poste na tabela Outros ainda.' }));
+        if (!ests.length) {                          // TASK-126: sem cabos o modal continua listando as estruturas (cabo fictício pelo botão direito); só some quando não há estrutura
+            corpo.appendChild(el('div', { style: 'color:#8b949e;padding:20px', text: 'Nenhuma estrutura/poste na tabela Outros ainda.' }));
             return;
         }
         const sc = el('div', { class: 'vz-scroll' }), cols = el('div', { class: 'vz-cols' });
-        const colC = el('div', { class: 'vz-col' }, [el('h4', { text: 'Cabos' })]), colE = el('div', { class: 'vz-col' }, [el('h4', { text: 'Estruturas (a linha liga na estrutura; o poste é só contexto)' })]);
+        const colC = el('div', { class: 'vz-col' }, [el('h4', { text: 'Cabos' }), tem ? null : el('div', { style: 'color:#8b949e;font-size:12px;padding:6px 2px', text: 'Nenhum cabo na tabela — use o botão direito na estrutura para associar um cabo fictício.' })]), colE = el('div', { class: 'vz-col' }, [el('h4', { text: 'Estruturas (a linha liga na estrutura; o poste é só contexto)' })]);
         const selC = st.sel && st.sel.t === 'c' ? st.sel.i : null, selE = st.sel && st.sel.t === 'e' ? st.sel.i : null;
         const ficticiosLista = [];
         cabos().forEach((c, ic) => {
