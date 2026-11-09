@@ -141,3 +141,40 @@ def test_processar_calculo_inalterado():
     res = processar_calculo([{"ativo": "P50 1 10", "operacao": "I"}], [{"ativo": "1-CFU", "operacao": "R"}], None, BASE)
     assert res["nao_encontrados"] == []
     assert [(r["operacao"], r["codigo"], r["total"]) for r in res["resultado"]] == [("I", "100", 10.0), ("R", "200", 1.0)]
+
+
+# ── TASK-122: C1-BASE avalia SÓ o nome; parâmetros têm regra própria (C1-PARAM); a descrição não resolve nome ──
+def _lp(ativo, comp="", cod="", desc="", origem="OUTROS"):
+    return {"ativo": ativo, "desc_ativo": desc, "componente": comp, "codigo": cod, "mdo": "MATERIAL", "fator_i": 1, "fator_r": 1, "desc_codigo": "d", "projeto": "PERNAMBUCO",
+            "origem": origem, "lv": "A"}
+
+
+BASE_PARAM = [_lp("IT_2=IT_2(poste=D,cabobt=35), IT-2"), _lp("IT_2", "IT_2", "3417025", "IT-2"), _lp("IT_2(poste=%D)", "IT_2.D", "3480305", "FLABIT"),
+              _lp("IT_2(poste=%R)", "IT_2.R", "3480270", "FLABIT [ R ] POSTE CIRCULAR"), _lp("CFU", "CFU", "200", "CHAVE")]
+
+
+def _val(texto, base=BASE_PARAM, projeto="PERNAMBUCO"):
+    return validar_base([], [{"id": "L1", "ativo": texto, "operacao": "I"}], projeto, [dict(r) for r in base])
+
+
+def test_c1_base_avalia_so_o_nome_e_a_descricao_nao_resolve():
+    a = _val("1-FLABIT(D,35)")                                  # FLABIT só existe como DESCRIÇÃO: o nome não existe (e a mensagem não leva os parâmetros)
+    assert [(x["regra_id"], x["mensagem"]) for x in a] == [("C1-BASE", "Ativo 'FLABIT' não encontrado na base técnica (projeto PERNAMBUCO).")]
+    assert [x["regra_id"] for x in _val("1-FLABIT")] == ["C1-BASE"]                # sem parâmetros também (antes achava 1 linha pela descrição)
+    assert _val("1-IT_2(D,35)") == [] and _val("1-IT-2(poste=D)".replace("1-IT-2", "IT-2")) == []      # ativo e apelido com parâmetros certos: nada a avisar
+
+
+def test_parametros_com_problema_vao_para_c1_param_e_nao_para_c1_base():
+    a = _val("1-IT_2(XX,35)")                                    # o nome existe; o valor do parâmetro não está cadastrado
+    assert [x["regra_id"] for x in a] == ["C1-PARAM"] and "POSTE=XX não cadastrado" in a[0]["mensagem"] and "IT_2(XX,35)" in a[0]["mensagem"]
+    a = _val("1-IT_2(D,35,7)")                                   # valores demais
+    assert [x["regra_id"] for x in a] == ["C1-PARAM"]
+    a = _val("2-CFU(A,B)")                                       # CFU existe mas não declara parâmetros
+    assert [x["regra_id"] for x in a] == ["C1-PARAM"] and "sem parâmetros declarados" in a[0]["mensagem"]
+
+
+def test_c1_base_origem_e_cabos_continuam_valendo():
+    base = BASE_PARAM + [_lp("P50", "C1", "100", origem="CABOS")]
+    assert [x["regra_id"] for x in validar_base([], [{"id": "O", "ativo": "1-P50", "operacao": "I"}], "PERNAMBUCO", [dict(r) for r in base])] == ["C1-BASE"]   # P50 só para CABOS
+    a = validar_base([{"id": "C", "ativo": "XYZ 1 5", "operacao": "I"}], [], "PERNAMBUCO", [dict(r) for r in base])
+    assert [(x["linha_id"], x["regra_id"], x["tabela"]) for x in a] == [("C", "C1-BASE", "cabos")]

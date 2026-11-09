@@ -8,6 +8,17 @@
 
 ---
 
+## 2026-11-09 — TASK-122: a descrição não resolve nome; validação separa nome e parâmetros; dica de parâmetros em Outros
+
+**Tipo:** mudança de regra (RN-06) + funcionalidade · `services/orcamento_calc.py`, `services/validacao_planilhas.py`, `static/ativo_dica.js` (novo), `static/resumo.js`, `static/resumo.html`
+
+- **Cascata RN-06:** agora ativo (e apelidos) → componente → código. Removidos "DESC_ATIVO exato" e "parcial" (a descrição só informa). Nomes que só existem como descrição (ex.: `FLABIT`) deixam de ser encontrados, com ou sem parâmetros.
+- **Validação:** `C1-BASE` avalia só o nome (antes do `(`) e respeita origem/projeto; novo `C1-PARAM` cobre os parâmetros de um ativo que existe (valor não cadastrado, desconhecido, a mais/menos, "ativo sem parâmetros declarados").
+- **Tabela Outros:** ao digitar `(` mostra os parâmetros aceitos do ativo (padrão, valores, parâmetro da posição atual destacado, clique insere), "ativo sem parâmetros declarados" ou "ativo não encontrado na base".
+- Testes atualizados: `test_orcamento_lv.py` (passos de descrição viraram "descrição não resolve"; cabo no formato do payload), `test_plugin_cad_api.py` (neutro cadastrado como `[CAZ7,94]`, literal com vírgula).
+
+---
+
 ## 2026-11-09 — TASK-121: rede adaptativa (proxy/direto/offline) + cópia local do banco (só desktop)
 
 **Tipo:** funcionalidade · `services/rede_adaptativa.py`, `services/copia_local.py`, `routers/rede.py` (novos); `services/supabase_client.py`, `services/connectivity_monitor.py`, `app.py`, `database.py`, `routers/auth.py`, `routers/admin.py`, `static/resumo.js`

@@ -154,7 +154,7 @@ As regras de negócio existentes têm **prioridade sobre preferências genérica
 Não substitua uma regra específica por uma implementação "mais elegante" sem autorização. Boa parte
 do que parece estranho neste código é intencional e reflete a realidade do domínio. Exemplos reais:
 
-- a cascata de 5 passos de resolução de ativo (RN-06) parece redundante, mas cada passo cobre um
+- a cascata de resolução de ativo (RN-06: ativo → componente → código; a descrição não resolve nome desde a TASK-122) parece redundante, mas cada passo cobre um
   formato diferente de preenchimento da base técnica;
 - `hasApoioConflict` parece defensivo demais, mas evita classificar errado textos ambíguos;
 - o recálculo de `qtdAtivos` **de baixo para cima** existe porque linhas standalone herdam a fase da

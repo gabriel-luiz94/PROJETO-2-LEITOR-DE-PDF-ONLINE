@@ -5681,6 +5681,12 @@ window.excluirRegraConector = function (index) {
 };
 
 let orcamentoBaseData = [];
+// TASK-122: ao digitar "(" na coluna Ativo de Outros, mostra os parâmetros aceitos do ativo (ou "ativo sem parâmetros declarados" / "ativo não encontrado")
+if (window.AtivoDica) window.AtivoDica.iniciar({
+    base: () => orcamentoBaseData,
+    projeto: () => localStorage.getItem('projeto_selecionado') || '',
+    carregarBase: async () => { try { const res = await fetch('/api/orcamento/dados'); const d = await res.json(); orcamentoBaseData = d.dados || []; } catch (e) { /* sem base: sem dica */ } }
+});
 
 window.syncTotalizadora = async function(forceUpdate = true) {
     if (tableStates.regras.data.length === 0) {

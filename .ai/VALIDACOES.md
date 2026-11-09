@@ -49,7 +49,8 @@ que daria falso positivo quando uma regra troca ou gera o ativo.
 | C1-OP | ambas | operação ∈ `I, *I, R, *R, M, *M` (vazio também é erro) | erro | IMPLEMENTADA |
 | C1-QTD-ZERO | ambas | comprimento/quantidade zero (RN-17 tira do cálculo) | aviso | IMPLEMENTADA |
 | C1-DUP | outros | mesmo ativo repetido na linha | aviso | IMPLEMENTADA (severidade confirmada) |
-| C1-BASE | payload | ativo não resolve na base técnica (cascata RN-06, com origem e projeto) | aviso | IMPLEMENTADA |
+| C1-BASE | payload | o **nome** do ativo (antes do `(`) não resolve na base técnica (cascata RN-06: ativo → componente → código, com origem e projeto); os parâmetros não entram (TASK-122) | aviso | IMPLEMENTADA |
+| C1-PARAM | payload | o nome existe, mas os **parâmetros** não conferem: valor não cadastrado, parâmetro desconhecido, valores a mais/menos ou "ativo sem parâmetros declarados" (TASK-122) | aviso | IMPLEMENTADA |
 
 Não checado de propósito: valores válidos de FASE (não há lista confirmada), linha standalone de cabo
 (`P50` sozinho é válido, herda a fase — RN-04), e linha sem ativo (o cálculo a ignora).

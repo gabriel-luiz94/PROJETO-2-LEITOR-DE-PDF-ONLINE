@@ -307,6 +307,7 @@ ativado definindo explicitamente `APP_MODE=server` no ambiente.
 | `atalhos_modal.js` · `gerador_modal.js` | Modais geradores de Cabos e Postes (TASK-068): atalhos de fábrica/projeto/computador (mescla pura + armazenamento), painéis, favoritos e grade estilo Excel. API: `routers/atalhos.py` (`/api/atalhos/{modal}`, tabela `atalhos_modais`) |
 | `barra_modais.js` · `routers/barra_modais.py` | Barra de modais por projeto (TASK-117): ocultar/ordenar os botões (`[data-modal-id]` da barra do Resumo), excluir/copiar modais montáveis entre projetos; seção "Modais do projeto" do painel Configurações. API `/api/barra-modais` (leitura qualquer usuário, escrita admin; tabela `atalhos_modais`, chave `barra_modais`) |
 | `services/rede_adaptativa.py` · `services/copia_local.py` · `routers/rede.py` | Rede adaptativa e cópia local do banco (TASK-121, **só desktop**: `APP_MODE=desktop`, desligável com `REDE_ADAPTATIVA=0`). Rede: proxy × direto × offline testados contra o Supabase ao iniciar e por uma vigia; disjuntor em `get_supabase()` (None offline). Cópia: nuvem → SQLite (mescla de 3 vias com `copia_local_base`, conflitos em `conflitos_locais`, contas em `usuarios_locais.nuvem_id`). API `/api/rede/estado` e `/api/rede/copiar` |
+| `static/ativo_dica.js` | Dica de parâmetros ao digitar `(` na coluna Ativo de Outros (TASK-122): parte pura (`contextoDoParentese`, `construirContexto`, `dica`, testada em Node) + caixa na tela; usa `AtivoParametros` e a base carregada (`orcamentoBaseData`) |
 | `orcamento_comparar.js` | Modo comparação do Resultado do Orçamento (TASK-071): chave operação\|MDO\|código, status igual/diferente/só atual/só referência, encaixe das linhas-fantasma; só visual — nada disso entra no `.rec` |
 | `orcamento_sap.js` | Visão SAP do Resultado do Orçamento (TASK-070): ODI/ODD, rótulos M/N, filtros, TSV; só projeção do REC. Excel: `services/exportar_xlsx.py` + `POST /api/orcamento/exportar-xlsx` (openpyxl) |
 | `resultado_orcamento.html` | Chama `/api/orcamento/calcular`, consolida por `operação|mdo|código`, permite edição manual, salva REC, exporta |
@@ -415,8 +416,8 @@ PASSO 7   expande TODOS os códigos do componente "9150":
             22758 MATERIAL     POSTE CONCRETO …  fator_i=1.0  fator_r=1.0
 SAÍDA     2 linhas no orçamento, cada uma com total = qtd × fator
 ```
-Não achando por `ATIVO`, tenta `COMPONENTE` exato → `DESC_ATIVO` exato → `DESC_ATIVO` parcial →
-`CÓDIGO` direto (fatores forçados a `1.0`). Falhando tudo, o ativo entra em `nao_encontrados`
+Não achando por `ATIVO` (ou apelido), tenta `COMPONENTE` exato → `CÓDIGO` direto (fatores forçados a `1.0`).
+A descrição (`DESC_ATIVO`) **não** resolve nome (TASK-122). Falhando tudo, o ativo entra em `nao_encontrados`
 e a linha fica destacada em vermelho na Totalizadora.
 
 **Filtros por linha (TASK-078):** em TODOS os passos acima, na expansão do componente e no código direto, uma linha da base só

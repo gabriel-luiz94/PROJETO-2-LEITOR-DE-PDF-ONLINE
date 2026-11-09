@@ -159,6 +159,11 @@ async def serve_ativo_parametros_js():
     return _serve_js("ativo_parametros.js")
 
 
+@app.get("/static/ativo_dica.js")
+async def serve_ativo_dica_js():
+    return _serve_js("ativo_dica.js")          # TASK-122
+
+
 @app.get("/static/regras_leitor_engine.js")
 async def serve_regras_leitor_engine_js():
     # TASK-082: o motor e as regras andam juntos (regras novas com motor antigo em cache quebram a leitura), então o motor nunca fica em cache
