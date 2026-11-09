@@ -374,7 +374,7 @@ def test_modo_autonomo_espelha_os_operadores():
             [("N1=N1(cabo=XLPE, poste=DT)", "c1"), ("N1(cabo=ALUM|COBRE)", "n1"), ("N1(poste=D%)", "p1")]]
     tot = tt.montar_totalizadora([], [{"entidade": "0", "operacao": "I", "ativo": "2-N1 1-N1(ALUM,D12) 1-N1(ALUM,XX)"}], [], base, "PERNAMBUCO")
     assert [r["ativo"] for r in tot] == ["N1(XLPE,DT)", "N1(ALUM,D12)", "N1(ALUM,XX)"]
-    assert tot[2]["naoEncontrado"] and "POSTE=XX" in tot[2]["desc"] and not tot[1]["naoEncontrado"]
+    assert tot[2]["avisoParametros"] and not tot[2]["naoEncontrado"] and "POSTE=XX" in tot[2]["desc"] and not tot[1]["naoEncontrado"]      # TASK-123: nome existe + parâmetro fora do escopo = âmbar
 
 
 def csv_declaracoes_condicionadas():

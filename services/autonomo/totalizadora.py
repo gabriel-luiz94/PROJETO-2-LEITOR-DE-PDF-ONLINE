@@ -235,10 +235,16 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
             if ped["com_assinatura"] or "(" in nome:
                 nome = nome.upper() if ped["erros"] else ped["texto"]
             desc, nao = _buscar_descricao(base, nome, projeto_nome)
-            if ped["erros"]:
-                desc, nao = "; ".join(ped["erros"]), True
-            brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": it["operacao"] or "I", "ativo": nome,
-                           "qtd": q, "desc": desc, "naoEncontrado": nao, "origem": "OUTROS"})
+            aviso = False
+            if ped["erros"]:                                          # TASK-123: nome que existe com parâmetros com problema = âmbar; nome inexistente = vermelho
+                desc = "; ".join(ped["erros"])
+                if not nao:
+                    aviso = True
+            linha = {"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": it["operacao"] or "I", "ativo": nome,
+                     "qtd": q, "desc": desc, "naoEncontrado": nao, "origem": "OUTROS"}
+            if aviso:
+                linha["avisoParametros"] = True
+            brutos.append(linha)
     brutos.extend(itens_vinculo or [])
 
     novos = []

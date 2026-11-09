@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-11-10 — TASK-123: Totalizadora avalia nome e parâmetros separados; validação usa a base do cálculo
+
+**Tipo:** correção · `static/ativo_avaliar.js` (novo), `static/resumo.js`, `static/resumo.html`, `routers/validacao.py`, `services/validacao_planilhas.py`, `app.py`
+
+- **Totalizadora:** a edição do ATIVO/ORIGEM comparava o texto inteiro com a base (`FLABIT(D,35)` ficava vermelho, sem descrição). Agora `avaliarTot` (edição) e a geração avaliam o nome (ativo/apelido → componente → código, projeto e origem) e, se existe, os parâmetros: vermelho = nome inexistente; **âmbar** = parâmetros com problema (fora do escopo, não declarados, a mais), mensagem na descrição.
+- **Validação:** passa a usar a mesma base do cálculo (oficial), não a cópia pessoal de "Salvar Alterações" (que dava "ativo não encontrado" para o que a tela via); `C1-PARAM` também para pedidos com **apelido**.
+
+---
+
 ## 2026-11-09 — TASK-122: a descrição não resolve nome; validação separa nome e parâmetros; dica de parâmetros em Outros
 
 **Tipo:** mudança de regra (RN-06) + funcionalidade · `services/orcamento_calc.py`, `services/validacao_planilhas.py`, `static/ativo_dica.js` (novo), `static/resumo.js`, `static/resumo.html`

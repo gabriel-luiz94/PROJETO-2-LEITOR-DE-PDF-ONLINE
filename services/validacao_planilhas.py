@@ -240,6 +240,22 @@ def _detalhe(pedido: str, nao_encontrados: list):
     return None
 
 
+def _detalhe_do_pedido(pedido: str, nao_encontrados: list, apelidos: dict):
+    """Como `_detalhe`, mas também reconhece o pedido escrito com APELIDO: o cálculo guarda o texto com o nome oficial ("IT_2(D,A,35)" para "FLABIT(D,A,35)")."""
+    candidatos = [pedido, pedido.upper().replace(" ", "")]
+    nome = _nome_do_pedido(pedido)
+    oficial = apelidos.get(nome.upper())
+    if oficial:
+        pos = pedido.upper().find(nome.upper())
+        resto = pedido[pos + len(nome):] if pos >= 0 else ""
+        candidatos += [oficial + resto, (oficial + resto).upper().replace(" ", "")]
+    for c in candidatos:
+        d = _detalhe(c, nao_encontrados)
+        if d is not None:
+            return d
+    return None
+
+
 def validar_base(cabos_payload: list, outros_payload: list, projeto, base_rows: list) -> list:
     """C1-BASE (nome) e C1-PARAM (parâmetros) sobre o payload de cálculo (Totalizadora, já após as regras de conversão).
 
@@ -258,10 +274,11 @@ def validar_base(cabos_payload: list, outros_payload: list, projeto, base_rows: 
         if not nao_encontrados:
             continue
         nomes = nomes_conhecidos(base_rows, projeto, origem)
+        apelidos = {str(k).strip().upper(): str(v).strip().upper() for k, v in (contexto_da_base(base_rows or [], projeto).get("apelidos") or {}).items()}
         for i, linha in enumerate(linhas):
             linha_id = linha.get("id") or f"{tabela.upper()}-{i}"
             for av in extrair(linha):
-                detalhe = _detalhe(av["ativo"], nao_encontrados)
+                detalhe = _detalhe_do_pedido(av["ativo"], nao_encontrados, apelidos)
                 if detalhe is None:
                     continue
                 nome = _nome_do_pedido(av["ativo"])
