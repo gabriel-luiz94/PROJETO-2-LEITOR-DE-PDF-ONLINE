@@ -658,3 +658,7 @@ Ao digitar/editar o ATIVO (ou a ORIGEM) de uma linha da Totalizadora, a tela ava
 
 ## Poste com nome compacto no cadastro (TASK-124)
 O poste da linha de Outros é reconhecido em qualquer destes nomes: `DT11/600`/`RC12/1000`/`CV…`/`FV…` (antigo), `R12/1000` (abreviado) e `121000R` (compacto, inclusive quando é o ATIVO cadastrado na base). Qualquer um deles preenche o parâmetro `poste` das estruturas à direita na mesma linha (`121000R, N1` → `N1(121000R,A)`), no formato compacto e no antigo (`1-121000R 1-N1`). Não precisa renomear o poste na planilha.
+
+
+## Modal de vinculação: o que entra da tabela Outros (TASK-125)
+O modal lista as linhas de Outros classificadas como ESTRUTURA/POSTE **e** as ainda sem classificação (entidade `0`) que tenham ativo. Linhas com outra entidade escolhida (CHAVE, TRAFO, RAMAIS, IP…), sem ativo, ou com operação R/*R não aparecem. Linha sem regra na Tabela de Estruturas aparece como "sem regra".
