@@ -160,7 +160,9 @@
     // TASK-095: só entram no vínculo linhas de operação I, M e as variantes *I e *M. R e *R (retirada/recolocação) ficam de fora — nem listadas, nem contadas.
     const participaVinculo = row => !['R', '*R'].includes(trim(row && row.operacao).toUpperCase());
     const ehCaboValido = row => !!row && !!trim(row.ativo) && participaVinculo(row);
-    const ehLinhaEstrutura = row => !!row && (row.entidade === 'ESTRUTURA' || row.entidade === 'POSTE') && participaVinculo(row);
+    // TASK-125: o modal lista o que está na tabela Outros — linha ESTRUTURA/POSTE e também a que ainda não foi classificada ('0' ou vazia) mas tem ativo
+    // (a classificação automática pode não reconhecer a linha; entidade escolhida à mão — CHAVE, TRAFO, RAMAIS… — continua valendo).
+    const ehLinhaEstrutura = row => !!row && participaVinculo(row) && (row.entidade === 'ESTRUTURA' || row.entidade === 'POSTE' || ((!row.entidade || row.entidade === '0') && !!trim(row.ativo)));
     /** TASK-095: estruturas fictícias do CABO (só o código): preenchem pontas do cabo, sem linha em Outros; entram na Totalizadora como `CABO_ESTRUTURA`. */
     const estruturasFicticiasDe = row => ((row && row.estruturasFicticias) || []).map(x => trim(x).toUpperCase()).filter(Boolean);
 
