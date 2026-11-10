@@ -1,0 +1,61 @@
+# TASK-127 — compila o executável Windows e o publica numa Release do GitHub.
+# Os programas instalados (services/auto_updater.py) consultam a Release mais recente e oferecem a atualização.
+# Como usar:  python scripts/release.py 2.1.0   (atualiza a versão, faz o commit e cria a tag v2.1.0)  →  git push origin main --tags
+name: Release do executável (Windows)
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Versão do programa = tag
+        shell: bash
+        run: |
+          VERSAO="${GITHUB_REF_NAME#v}"
+          sed -i "s/^APP_VERSION = .*/APP_VERSION = \"${VERSAO}\"/" config.py
+          grep '^APP_VERSION' config.py
+
+      - name: Instalar dependências
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Compilar (PyInstaller)
+        shell: cmd
+        env:
+          CI: 'true'
+        run: build.bat
+
+      - name: SHA-256 do executável
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash dist\Leitor_Projetos.exe -Algorithm SHA256).Hash.ToLower()
+          "$h  Leitor_Projetos.exe" | Out-File -Encoding ascii dist\Leitor_Projetos.exe.sha256
+          Get-Content dist\Leitor_Projetos.exe.sha256
+
+      - name: Publicar a Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/Leitor_Projetos.exe dist/Leitor_Projetos.exe.sha256 --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/Leitor_Projetos.exe dist/Leitor_Projetos.exe.sha256 \
+              --title "Leitor de Projetos Pro ${GITHUB_REF_NAME}" --generate-notes
+          fi

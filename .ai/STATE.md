@@ -1088,3 +1088,4 @@ sessão. Alterações: `services/pdf_service.py` (coordenadas `_x`/`_y`), `confi
 - [x] **TASK-124** (pedido de 2026-11-10): Poste cadastrado com o nome compacto como ativo (`121000R, R12/1000`) também é reconhecido e preenche o parâmetro `poste` (formato antigo, abreviado e compacto). CONCLUÍDA em 2026-11-10. Ver `.ai/tasks/TASK-124-10-11-2026.md`.
 - [x] **TASK-125** (pedido de 2026-11-10): Modal de vinculação lista também as linhas de Outros ainda sem classificação (entidade 0) que têm ativo. CONCLUÍDA em 2026-11-10. Ver `.ai/tasks/TASK-125-10-11-2026.md`.
 - [x] **TASK-126** (pedido de 2026-11-10): Modal de vinculação lista as estruturas mesmo sem cabos (cabos fictícios). CONCLUÍDA em 2026-11-10. Ver `.ai/tasks/TASK-126-10-11-2026.md`.
+- [x] **TASK-127** (pedido de 2026-11-10): Executável com auto atualização pelas Releases do GitHub (Actions compila no Windows; aviso + 1 clique; SHA-256). CONCLUÍDA em 2026-11-10. Ver `.ai/tasks/TASK-127-10-11-2026.md`.

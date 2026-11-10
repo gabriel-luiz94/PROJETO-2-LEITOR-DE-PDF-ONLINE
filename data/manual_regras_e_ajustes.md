@@ -666,3 +666,10 @@ O modal lista as linhas de Outros classificadas como ESTRUTURA/POSTE **e** as ai
 
 ## Modal de vinculação sem cabos (TASK-126)
 As estruturas da tabela Outros aparecem no modal mesmo sem nenhum cabo na tabela de cabos, para receber cabo fictício (botão direito na estrutura).
+
+
+## Publicar uma nova versão do programa (TASK-127)
+1. Faça o commit das alterações e rode `python scripts/release.py 2.1.0` (atualiza a versão e cria a tag `v2.1.0`).
+2. `git push origin main --tags`. O GitHub Actions compila o `Leitor_Projetos.exe` no Windows e publica a Release (com o arquivo `.sha256`).
+3. Os programas instalados consultam a Release ao abrir: aparece "Atualização Disponível" e, em **Instalar e Reiniciar**, o programa baixa, confere o SHA-256, troca o `.exe` e reabre sozinho. O banco e o `.env` ficam como estão.
+`ATUALIZADOR=0` no `.env` desliga a verificação.

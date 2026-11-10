@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-10 — TASK-127: executável com auto atualização pelo GitHub
+
+- Workflow `release-exe.yml`, `build.bat` genérico, `scripts/release.py`, `services/auto_updater.py` reescrito (Releases + SHA-256) e `/api/update/apply` sem URL vinda do navegador. Tarefa: `.ai/tasks/TASK-127-10-11-2026.md`.
+
 ## 2026-11-10 — TASK-126: modal de vinculação lista as estruturas mesmo sem cabos
 
 - `abaVinculo` não sai mais com "Nenhum cabo na tabela". Tarefa: `.ai/tasks/TASK-126-10-11-2026.md`.
