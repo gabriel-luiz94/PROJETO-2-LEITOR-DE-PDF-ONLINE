@@ -10,6 +10,8 @@
 
 ## 2026-11-10 — TASK-127: executável com auto atualização pelo GitHub
 
+- Correção: o .bat da troca iniciava com janela de console visível e o `timeout` não esperava; agora `CREATE_NO_WINDOW` + `ping`.
+
 - Workflow `release-exe.yml`, `build.bat` genérico, `scripts/release.py`, `services/auto_updater.py` reescrito (Releases + SHA-256) e `/api/update/apply` sem URL vinda do navegador. Tarefa: `.ai/tasks/TASK-127-10-11-2026.md`.
 
 ## 2026-11-10 — TASK-126: modal de vinculação lista as estruturas mesmo sem cabos
