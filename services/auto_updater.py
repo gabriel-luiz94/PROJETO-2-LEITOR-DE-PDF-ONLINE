@@ -138,8 +138,8 @@ set N=0
 tasklist /FI "PID eq %PID%" /NH /FO CSV 2>nul | find {ASPAS3}%PID%{ASPAS3} >nul
 if errorlevel 1 goto trocar
 set /a N+=1
-if %N% GEQ 90 goto falhou
-timeout /t 1 /nobreak >nul
+if %N% GEQ 120 goto falhou
+ping -n 2 127.0.0.1 >nul
 goto esperar
 :trocar
 set N=0
@@ -148,8 +148,8 @@ if exist "%ANTIGO%" del /f /q "%ANTIGO%" >nul 2>&1
 move /y "%ALVO%" "%ANTIGO%" >nul 2>&1
 if not errorlevel 1 goto colocar
 set /a N+=1
-if %N% GEQ 30 goto falhou
-timeout /t 1 /nobreak >nul
+if %N% GEQ 60 goto falhou
+ping -n 2 127.0.0.1 >nul
 goto tentar
 :colocar
 move /y "%NOVO%" "%ALVO%" >nul 2>&1
@@ -168,7 +168,8 @@ def _encerrar():
 
 
 def _iniciar_script(bat: str):
-    flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    # CREATE_NO_WINDOW (e NÃO DETACHED_PROCESS): o .bat roda num console oculto que os comandos dele herdam — sem janelas piscando e com `ping` esperando de verdade
+    flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(subprocess, "CREATE_NO_WINDOW", 0)
     env = dict(os.environ, PYINSTALLER_RESET_ENVIRONMENT="1")          # o novo .exe não pode reaproveitar a pasta temporária deste
     subprocess.Popen(["cmd", "/c", bat], creationflags=flags, close_fds=True, env=env)
 
