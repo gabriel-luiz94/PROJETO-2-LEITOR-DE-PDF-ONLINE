@@ -162,6 +162,22 @@ def test_script_de_troca_tem_a_ordem_certa():
     assert ordem == sorted(ordem) and 'del /f /q "%~f0"' in bat
 
 
+def test_script_espera_com_ping_e_nao_com_timeout():
+    bat = au.gerar_script(1, "a", "b", "c")
+    assert "timeout" not in bat and bat.count("ping -n 2 127.0.0.1") == 2          # `timeout` falha sem console e o laço de espera/tentativas se esgotaria na hora
+
+
+def test_script_inicia_com_janela_oculta(monkeypatch):
+    capturado = {}
+    monkeypatch.setattr(au.subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+    monkeypatch.setattr(au.subprocess, "DETACHED_PROCESS", 0x00000008, raising=False)
+    monkeypatch.setattr(au.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200, raising=False)
+    monkeypatch.setattr(au.subprocess, "Popen", lambda cmd, **kw: capturado.update(cmd=cmd, **kw))
+    au._iniciar_script("x.bat")
+    assert capturado["creationflags"] & 0x08000000 and not capturado["creationflags"] & 0x00000008
+    assert capturado["env"]["PYINSTALLER_RESET_ENVIRONMENT"] == "1"
+
+
 def test_limpar_residuos_apaga_antigo_e_novo(tmp_path, monkeypatch):
     exe = tmp_path / "Leitor_Projetos.exe"
     for sufixo in ("", ".antigo", ".novo"):
