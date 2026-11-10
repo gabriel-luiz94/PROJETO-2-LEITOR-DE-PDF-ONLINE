@@ -4758,7 +4758,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 registrarAprendizadoDoOrcamento();
                 localStorage.setItem('orcamentoPayload', JSON.stringify(payload));
-                window.open('/resultado_orcamento', '_blank');
+                AbrirNaApp.abrir('/resultado_orcamento', 'Resultado do orçamento');                // TASK-128: dentro do programa, sem nova aba do navegador
             } finally {
                 // Restaura o botão independentemente de sucesso ou erro
                 btnMontarOrcamento.disabled = false;
@@ -5700,8 +5700,16 @@ function avaliarTot(texto, origem) {
 if (window.AtivoDica) window.AtivoDica.iniciar({
     base: () => orcamentoBaseData,
     projeto: () => localStorage.getItem('projeto_selecionado') || '',
-    carregarBase: async () => { try { const res = await fetch('/api/orcamento/dados'); const d = await res.json(); orcamentoBaseData = d.dados || []; } catch (e) { /* sem base: sem dica */ } }
+    carregarBase: () => carregarBaseOrcamento()
 });
+// TASK-128: a base de orçamento é pedida JÁ ao abrir a tela (em segundo plano) — antes só no primeiro "(" digitado, e a resposta demora no início (sincroniza com a nuvem)
+let _basePromessa = null;
+function carregarBaseOrcamento() {
+    if (_basePromessa) return _basePromessa;
+    _basePromessa = fetch('/api/orcamento/dados').then(r => r.json()).then(d => { orcamentoBaseData = d.dados || []; }).catch(() => { /* sem base: sem dica */ }).finally(() => { _basePromessa = null; });
+    return _basePromessa;
+}
+carregarBaseOrcamento();
 
 window.syncTotalizadora = async function(forceUpdate = true) {
     if (tableStates.regras.data.length === 0) {

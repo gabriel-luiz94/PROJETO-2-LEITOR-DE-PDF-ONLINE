@@ -156,9 +156,12 @@
         const c = contextoDoParentese(input.value, input.selectionStart);
         if (!c || !c.nome) { fechar(); return; }
         const linhas = (cfg.base && cfg.base()) || [];
-        if (!linhas.length && cfg.carregarBase && !carregando) {                  // a base ainda não veio: carrega uma vez e redesenha
-            carregando = true;
-            Promise.resolve(cfg.carregarBase()).finally(() => { carregando = false; if (doc.activeElement === input) atualizar(input); });
+        if (!linhas.length) {                                                      // TASK-128: a base ainda não veio — não desenha nada (antes mostrava "ativo não encontrado" enquanto carregava)
+            fechar();
+            if (cfg.carregarBase && !carregando) {                                 // carrega uma vez e redesenha quando chegar
+                carregando = true;
+                Promise.resolve(cfg.carregarBase()).finally(() => { carregando = false; if (doc.activeElement === input) atualizar(input); });
+            }
             return;
         }
         alvo = input;

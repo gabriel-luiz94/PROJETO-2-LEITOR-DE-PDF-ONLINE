@@ -744,7 +744,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) { /* aprendizado é um extra */ }
 
             localStorage.setItem('processar_dados', JSON.stringify(exportData));
-            window.open('/resumo', '_blank');
+            AbrirNaApp.navegar('/resumo');                                    // TASK-128: na mesma janela do programa (os dados vão pelo localStorage)
         });
     }
 

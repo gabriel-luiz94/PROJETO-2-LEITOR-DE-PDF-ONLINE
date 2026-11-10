@@ -94,6 +94,16 @@ async def serve_resumo_js():
 async def serve_resumo_layout_js():
     return _serve_js("resumo_layout.js")
 
+@app.get("/static/abrir_na_app.js")
+async def serve_abrir_na_app_js():
+    return _serve_js("abrir_na_app.js")         # TASK-128
+
+
+@app.get("/static/campos_segredo.js")
+async def serve_campos_segredo_js():
+    return _serve_js("campos_segredo.js")       # TASK-128
+
+
 @app.get("/static/barra_modais.js")
 async def serve_barra_modais_js():
     return _serve_js("barra_modais.js")         # TASK-117
@@ -450,11 +460,14 @@ if __name__ == "__main__":
         app_url = f"http://127.0.0.1:{port}"
         login_url = f"{app_url}/login?new_session=1"
 
+        from services.inicio_janela import TELA_ERRO, TELA_INICIAL, esperar_servidor
+
         try:
             import webview
+            # TASK-128: a janela abre já com a tela "Iniciando…" e só carrega o login quando o servidor aceita conexões (sem a mensagem "recusou a conectar")
             window = webview.create_window(
                 title=f"Leitor de Projetos Pro v{APP_VERSION}",
-                url=login_url,
+                html=TELA_INICIAL,
                 width=1320,
                 height=860,
                 min_size=(960, 640),
@@ -462,8 +475,16 @@ if __name__ == "__main__":
                 text_select=True,
                 zoomable=True
             )
-            webview.start(private_mode=False)
+
+            def _abrir_quando_pronto(win):
+                if esperar_servidor("127.0.0.1", port):
+                    win.load_url(login_url)
+                else:
+                    win.load_html(TELA_ERRO)
+
+            webview.start(_abrir_quando_pronto, window, private_mode=False)
         except Exception as e:
             logger.warning(f"Janela nativa indisponível ({e}). Abrindo no navegador...")
+            esperar_servidor("127.0.0.1", port)
             webbrowser.open(login_url)
             server_thread.join()

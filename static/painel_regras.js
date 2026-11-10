@@ -211,6 +211,7 @@
         const sel = no('select', 'px-3 py-1'); sel.id = 'rdProjeto';
         topo.append(no('h2', '', 'Regras de validação'), campo('Editando', sel));
         const manual = no('a', 'rp-btn', 'Manual'); manual.href = '/manual'; manual.target = '_blank'; manual.rel = 'noopener';
+        manual.addEventListener('click', ev => { if (window.AbrirNaApp) { ev.preventDefault(); AbrirNaApp.abrir('/manual', 'Manual'); } });          // TASK-128: dentro do programa
         manual.title = 'Como cadastrar regras de validação e ajustes'; manual.style.marginLeft = 'auto'; manual.style.textDecoration = 'none';
         const fechar = botao('', 'Fechar', 'rp-btn'); fechar.onclick = fecharPainel;
         topo.append(manual, fechar);

@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-10 — TASK-128: desktop — abertura sem erro, campos de chave, telas dentro do programa, dica do ativo
+
+- Tela "Iniciando…" até o servidor responder; `campos_segredo.js`; `abrir_na_app.js` (Montar Orçamento e outras telas na própria janela); `ativo_dica.js` sem falso "não encontrado" e base pré-carregada. Tarefa: `.ai/tasks/TASK-128-10-11-2026.md`.
+
 ## 2026-11-10 — TASK-127: executável com auto atualização pelo GitHub
 
 - Correção: o .bat da troca iniciava com janela de console visível e o `timeout` não esperava; agora `CREATE_NO_WINDOW` + `ping`.

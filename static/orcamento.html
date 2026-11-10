@@ -360,12 +360,13 @@
             }
         }
     </style>
+<script>/* TASK-128: dentro da moldura do programa o Voltar fecha a moldura; fora dela volta ao início */function voltarOuFechar(){ if (window.self !== window.top) window.parent.postMessage({ tipo: 'fechar-tela-app' }, location.origin); else window.location.href = '/'; }</script>
 </head>
 <body>
     <div class="container-base">
         <header class="page-header-card">
             <div class="header-title-group">
-                <button class="btn-nav-back" onclick="window.location.href='/'" title="Voltar ao início">
+                <button class="btn-nav-back" onclick="voltarOuFechar()" title="Voltar">
                     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
                         <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
                     </svg>
