@@ -378,6 +378,16 @@ def _iniciar_rede_adaptativa():
         logger.warning(f"Rede adaptativa não iniciou: {e}")
 
 
+# ── Atualização pelo GitHub (TASK-127): depois de abrir, apaga as sobras da atualização anterior (só o .exe desktop) ──
+@app.on_event("startup")
+def _limpar_residuos_da_atualizacao():
+    try:
+        from services import auto_updater
+        auto_updater.limpar_residuos()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Limpeza da atualização anterior falhou: {e}")
+
+
 # ── Conectividade com a nuvem (TASK-040): ping periódico + reconexão proativa + indicador online/offline ──
 @app.on_event("startup")
 def _iniciar_monitor_conectividade():

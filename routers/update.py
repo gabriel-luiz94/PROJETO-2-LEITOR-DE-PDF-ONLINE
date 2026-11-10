@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/update", tags=["update"])
 
 
 class UpdateRequest(BaseModel):
-    download_url: str
+    download_url: str | None = None      # TASK-127: ignorado — a URL é sempre a da Release do GitHub consultada pelo servidor local
 
 
 @router.get("/check")
@@ -53,12 +53,14 @@ def check_update():
 
 @router.post("/apply")
 def apply_update(req: UpdateRequest):
-    """(Apenas Desktop) Inicia o download e reinicia o app."""
+    """(Apenas Desktop) Baixa a Release mais recente do GitHub (conferindo o SHA-256) e reinicia o app. O corpo do pedido não decide o que é baixado."""
     if APP_MODE == "server":
         raise HTTPException(status_code=400, detail="Esta rota só funciona no cliente Desktop.")
-        
+
     try:
-        download_and_install_update(req.download_url)
+        download_and_install_update()
         return {"status": "ok", "msg": "Atualização baixada. O aplicativo será reiniciado."}
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao aplicar atualização: {e}")
