@@ -14,7 +14,12 @@ regras GRAVADAS AQUI e a conferir a obra contra a Base de Orçamento, sem repeti
                                            PARTICULAR do usuário (a mesma obra a cada envio do mesmo desenho, sem duplicar) e devolve o
                                            link do Resumo que a abre já carregada (/resumo?obra=…&projeto=…).
 
-As três primeiras só leem; a última grava só a obra do próprio usuário. Exige login (o middleware protege /api/*). Não registrar o conteúdo das obras em log (RULES Regra 11).
+    GET  /api/plugin/atualizacao?alvo=nanocad26          (TASK-130) versão do plugin publicada aqui + SHA-256 + endereço do arquivo.
+    GET  /api/plugin/atualizacao/arquivo?alvo=nanocad26  a DLL. As duas são PÚBLICAS (a DLL não tem dados): o plugin se atualiza
+                                           sozinho mesmo sem login. A DLL servida é a do repositório (plugin_nanocad/appload/<pasta>/),
+                                           com o manifesto versao.json que o compilar.sh grava; mesclou no main e publicou = atualização.
+
+As quatro primeiras exigem login (o middleware protege /api/*); a 4ª grava só a obra do próprio usuário. Não registrar o conteúdo das obras em log (RULES Regra 11).
 """
 import hashlib
 import json
@@ -22,7 +27,10 @@ import math
 from datetime import datetime
 from urllib.parse import quote
 
+import os
+
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Any, Dict, Optional
 
@@ -189,3 +197,52 @@ def enviar_obra(payload: ObraPluginPayload, request: Request):
     url = f"/resumo?obra={quote(obra_id)}&projeto={quote(p['codigo'])}&projeto_nome={quote(p['nome'])}"
     return {"id": obra_id, "nome": nome, "projeto": p, "url": url, "atualizada": existe,
             "cabos": len(pronta["dados"]["cabos"]), "outros": len(pronta["dados"]["outros"])}
+
+
+# ── atualização automática do plugin (TASK-130) ──
+def _pasta_appload() -> str:
+    from config import _get_resource_path        # dev: pasta do repositório · .exe: empacotada pelo build.bat
+    return _get_resource_path(os.path.join("plugin_nanocad", "appload"))
+
+
+PASTA_APPLOAD = _pasta_appload()
+ALVOS_PLUGIN = {"nanocad26": "nanoCAD26", "nanocad5": "nanoCAD5"}
+ARQUIVO_DLL = "OrcamentoNanoCAD.dll"
+_cache_sha: Dict[str, Any] = {}
+
+
+def _pacote(alvo: str) -> dict:
+    """Versão publicada para o alvo, conferida: o SHA-256 do manifesto tem de ser o do arquivo (senão o manifesto está velho)."""
+    pasta = ALVOS_PLUGIN.get((alvo or "").strip().lower())
+    if not pasta:
+        raise HTTPException(status_code=404, detail="Alvo desconhecido.")
+    dll = os.path.join(PASTA_APPLOAD, pasta, ARQUIVO_DLL)
+    manifesto = os.path.join(PASTA_APPLOAD, pasta, "versao.json")
+    if not (os.path.isfile(dll) and os.path.isfile(manifesto)):
+        raise HTTPException(status_code=404, detail="Nenhuma versão do plugin publicada para esse alvo.")
+    st = os.stat(dll)
+    chave = (dll, st.st_mtime, st.st_size)
+    if _cache_sha.get(dll, (None,))[0] != chave:
+        with open(dll, "rb") as f:
+            _cache_sha[dll] = (chave, hashlib.sha256(f.read()).hexdigest())
+    sha = _cache_sha[dll][1]
+    with open(manifesto, encoding="utf-8") as f:
+        m = json.load(f)
+    if str(m.get("sha256", "")).lower() != sha:
+        raise HTTPException(status_code=503, detail="Manifesto do plugin desatualizado (versao.json não confere com a DLL).")
+    return {"alvo": alvo.lower(), "versao": str(m.get("versao", "")), "sha256": sha, "tamanho": st.st_size, "dll": dll}
+
+
+@router.get("/atualizacao")
+def atualizacao_plugin(alvo: str = "nanocad26"):
+    """Versão do plugin publicada nesta aplicação (pública: o plugin se atualiza sem login)."""
+    p = _pacote(alvo)
+    return {"alvo": p["alvo"], "versao": p["versao"], "sha256": p["sha256"], "tamanho": p["tamanho"],
+            "url": f"/api/plugin/atualizacao/arquivo?alvo={quote(p['alvo'])}"}
+
+
+@router.get("/atualizacao/arquivo")
+def atualizacao_arquivo(alvo: str = "nanocad26"):
+    p = _pacote(alvo)
+    return FileResponse(p["dll"], media_type="application/octet-stream", filename=ARQUIVO_DLL,
+                        headers={"X-Plugin-Versao": p["versao"], "X-Plugin-Sha256": p["sha256"], "Cache-Control": "no-store"})

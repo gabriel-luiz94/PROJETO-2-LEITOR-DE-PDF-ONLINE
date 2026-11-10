@@ -164,6 +164,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 - [x] API do plugin (TASK-104, `routers/plugin_cad.py`): `/api/plugin/versao`, `/api/plugin/regras`, `/api/plugin/conferir` — regras e base de orçamento
       ao vivo no plugin; ativos fora da base apontados por linha (mesmo caminho do modo autônomo)
 - [x] "Abrir na aplicação" (TASK-106): `POST /api/plugin/obra` + Resumo abre `/resumo?obra=…` + login volta ao link (`?next=`)
+- [x] Atualização automática do plugin (TASK-130): `/api/plugin/atualizacao` (+ `/arquivo`), públicas, DLL do repositório conferida pelo SHA-256
 - [ ] Modo autônomo achar o `.obra.json` e gravar o resultado na pasta do desenho (plugin RQ-40/41)
 
 ---

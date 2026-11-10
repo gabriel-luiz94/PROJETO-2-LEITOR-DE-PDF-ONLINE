@@ -562,6 +562,18 @@ namespace OrcamentoNanoCAD
             });
         }
 
+        [CommandMethod("ORC_ATUALIZAR_PLUGIN")]
+        public void CmdAtualizarPlugin()
+        {
+            Rodar("ORC_ATUALIZAR_PLUGIN", s => AtualizacaoPlugin.Conferir(true));
+        }
+
+        [CommandMethod("ORC_VOLTAR_VERSAO")]
+        public void CmdVoltarVersao()
+        {
+            Rodar("ORC_VOLTAR_VERSAO", s => AtualizacaoPlugin.Voltar());
+        }
+
         [CommandMethod("ORC_SINCRONIZAR")]
         public void CmdSincronizar()
         {
@@ -697,6 +709,8 @@ namespace OrcamentoNanoCAD
                 + "  ORC_ABRIR_APP  enviar a obra e abrir a aplicação com ela carregada\n"
                 + "  ORC_LEITURA    configurar layers da rede, bloco de poste e guias · ORC_DIAGNOSTICO o que foi lido\n"
                 + "  ORC_FECHAR     fechar a obra · log: " + Aplicacao.ArquivoLog + "\n"
+                + "  ORC_ATUALIZAR_PLUGIN conferir agora se há versão nova · ORC_VOLTAR_VERSAO voltar para a anterior\n"
+                + "  Plugin " + ObraArquivo.VersaoPlugin + ": " + AtualizacaoPlugin.Status + "\n"
                 + "  " + Sincronizador.Status);
         }
     }

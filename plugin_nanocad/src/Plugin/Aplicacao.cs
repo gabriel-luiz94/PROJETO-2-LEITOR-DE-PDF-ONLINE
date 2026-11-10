@@ -25,6 +25,8 @@ namespace OrcamentoNanoCAD
                     ed.WriteMessage("\nOrçamento (Leitor de Projetos) " + ObraArquivo.VersaoPlugin + " carregado. Comando: ORCAMENTO (ajuda: ORC_AJUDA).\n");
             }
             catch (System.Exception) { /* sem documento aberto: tudo bem */ }
+            try { AtualizacaoPlugin.Iniciar(); }
+            catch (System.Exception e) { Log("atualização: " + e); }
             try { Sincronizador.Iniciar(); }
             catch (System.Exception e) { Msg("Ligação com a aplicação indisponível: " + e.Message); }
         }

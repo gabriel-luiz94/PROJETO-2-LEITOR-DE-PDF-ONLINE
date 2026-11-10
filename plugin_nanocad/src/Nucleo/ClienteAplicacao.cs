@@ -82,6 +82,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public string TokenRenovacao;
         public int IntervaloSegundos = 5;
         public bool Automatico = true;
+        public bool AtualizarPlugin = true;     // TASK-013: baixar sozinho as versões novas do plugin publicadas na aplicação
 
         public bool Logado { get { return !string.IsNullOrEmpty(Token) || !string.IsNullOrEmpty(TokenRenovacao); } }
 
@@ -99,7 +100,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public JObj ParaJson(bool comTokens)
         {
             JObj o = new JObj();
-            o.Set("url", Url); o.Set("email", Email); o.Set("intervalo", IntervaloSegundos); o.Set("automatico", Automatico);
+            o.Set("url", Url); o.Set("email", Email); o.Set("intervalo", IntervaloSegundos); o.Set("automatico", Automatico); o.Set("atualizar_plugin", AtualizarPlugin);
             if (comTokens) { o.Set("token", Token); o.Set("renovacao", TokenRenovacao); }
             return o;
         }
@@ -112,6 +113,7 @@ namespace OrcamentoNanoCAD.Nucleo
             c.Email = o.Str("email") ?? "";
             c.IntervaloSegundos = Math.Max(2, (int)(o.Num("intervalo") ?? 5));
             c.Automatico = o.Bool("automatico", true);
+            c.AtualizarPlugin = o.Bool("atualizar_plugin", true);
             c.Token = o.Str("token");
             c.TokenRenovacao = o.Str("renovacao");
             return c;

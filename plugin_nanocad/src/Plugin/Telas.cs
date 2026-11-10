@@ -453,7 +453,7 @@ namespace OrcamentoNanoCAD.UI
     {
         private readonly TextBox _url, _email, _senha;
         private readonly NumericUpDown _intervalo;
-        private readonly CheckBox _auto;
+        private readonly CheckBox _auto, _atualizarPlugin;
         private readonly Label _situacao;
 
         public TelaConexao()
@@ -486,13 +486,17 @@ namespace OrcamentoNanoCAD.UI
             _auto = new CheckBox { Text = "atualizar sozinho", Checked = c.Automatico, AutoSize = true, Margin = new Padding(16, 4, 0, 0) };
             l.Controls.Add(_auto);
             f.Controls.Add(l);
+            _atualizarPlugin = new CheckBox { Text = "Atualizar o plugin sozinho (baixa as versões novas publicadas na aplicação; valem ao reabrir o nanoCAD)",
+                                              Checked = c.AtualizarPlugin, AutoSize = true, Margin = new Padding(0, 4, 0, 0) };
+            f.Controls.Add(_atualizarPlugin);
+            f.Controls.Add(Visual.Rotulo("Plugin " + ObraArquivo.VersaoPlugin + " · " + AtualizacaoPlugin.Status, Visual.Normal, Visual.Suave));
             _situacao = Visual.Rotulo(Conexao.Logado ? "Conectado como " + c.Email + " em " + c.Base : "Não conectado.", Visual.Normal, Conexao.Logado ? Visual.Ok : Visual.Suave);
             _situacao.MaximumSize = new Size(440, 0);
             f.Controls.Add(_situacao);
             FlowLayoutPanel b = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
             Button entrar = Visual.Botao("Entrar", (o, e) => Entrar(), true);
             b.Controls.Add(entrar);
-            b.Controls.Add(Visual.Botao("Salvar opções", (o, e) => { Conexao.Ajustar((int)_intervalo.Value, _auto.Checked); _situacao.Text = "Opções salvas."; }));
+            b.Controls.Add(Visual.Botao("Salvar opções", (o, e) => { Conexao.Ajustar((int)_intervalo.Value, _auto.Checked, _atualizarPlugin.Checked); _situacao.Text = "Opções salvas."; }));
             b.Controls.Add(Visual.Botao("Desconectar", (o, e) => { Conexao.Sair(); _situacao.Text = "Desconectado: o plugin volta às regras embutidas."; _situacao.ForeColor = Visual.Suave; }));
             b.Controls.Add(Visual.Botao("Fechar", (o, e) => Close()));
             f.Controls.Add(b);
@@ -507,6 +511,7 @@ namespace OrcamentoNanoCAD.UI
             try
             {
                 Conexao.Entrar(_url.Text.Trim(), _email.Text.Trim(), _senha.Text, (int)_intervalo.Value, _auto.Checked);
+                Conexao.Ajustar((int)_intervalo.Value, _auto.Checked, _atualizarPlugin.Checked);
                 _senha.Text = "";
                 _situacao.Text = "Conectado como " + Conexao.Dados.Email + " em " + Conexao.Dados.Base + ".";
                 _situacao.ForeColor = Visual.Ok;
