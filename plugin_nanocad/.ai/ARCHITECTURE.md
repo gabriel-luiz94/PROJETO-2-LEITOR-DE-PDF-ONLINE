@@ -13,6 +13,7 @@
 │   PersistenciaDwg.cs  NOD "ORCAMENTO_LEITOR" → Xrecord "OBRA" (JSON em pedaços) + <desenho>.obra.json  │
 │   Marcas.cs           P1/V1 e vínculos como gráficos TRANSITÓRIOS (TransientManager; fallback DrawVector)│
 │   Telas.cs, PainelObra.cs  WinForms sem designer: início, painel (não modal), tabelas, pop-up         │
+│   AtualizacaoPlugin.cs  atualização automática: consulta/baixa em 2º plano, troca a DLL, ORC_VOLTAR_VERSAO │
 │   Icones.cs             ícones desenhados (estado, MT/BT, operação, poste; botões) — sem emoji         │
 ├───────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │  src/Nucleo  (SEM CAD — C# 5, .NET 4.0+, sem pacotes)                                                  │
@@ -79,7 +80,7 @@ O mesmo `DesenhoBruto` sai do conversor de DXF (`tests/oraculo/dxf_para_bruto.py
                "_x": 215, "_y": -278, "_geo": [[105,-305],[325,-275]], "_geoTipo": "MT", "vinculoEstruturas": [0, 1]}],
    "outros": [{"entidade": "POSTE", "operacao": "I", "ativo": "9400D, N1, N4", "textoOriginal": "…", "_x": …, "_y": …, "_poste": [325, -275]}],
    "totalizadora": []},
- "cad": {"versao": 1, "origem": "plugin-nanocad", "plugin": "0.5.0", "desenho": "…dwg", "regras": "Pernambuco (081) — Leitor",
+ "cad": {"versao": 1, "origem": "plugin-nanocad", "plugin": "0.6.0", "desenho": "…dwg", "regras": "Pernambuco (081) — Leitor",
          "modo": "ler", "salvo_em": "…", "altura_texto": 8,
          "postes": [{"numero": "P1", "handle": "…", "x": …, "y": …, "texto": "<handle>", "operacao": "I", "operacaoLida": "I",
                      "estruturas": [{"nome": "N1", "cabos": 1, "parametros": {"TIPOCABO": ["P"]}}], "estado": "CONFERIR", …}],

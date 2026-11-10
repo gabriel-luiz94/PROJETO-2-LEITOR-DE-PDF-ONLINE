@@ -51,7 +51,7 @@ set "REFS=/r:"%NCAD%\hostmgd.dll" /r:"%NCAD%\hostdbmgd.dll" /r:System.dll /r:Sys
 
 if not exist appload\nanoCAD5 mkdir appload\nanoCAD5
 set "SAIDA=appload\nanoCAD5\OrcamentoNanoCAD.dll"
-set "OPCOES=/nologo /target:library /platform:anycpu /optimize+ /codepage:65001 /out:%SAIDA%"
+set "OPCOES=/nologo /define:NANOCAD5 /target:library /platform:anycpu /optimize+ /codepage:65001 /out:%SAIDA%"
 
 echo Compilando...
 "%CSC%" %OPCOES% %REFS% %RES% src\Nucleo\*.cs src\Plugin\*.cs > appload\nanoCAD5\compilacao.log 2>&1

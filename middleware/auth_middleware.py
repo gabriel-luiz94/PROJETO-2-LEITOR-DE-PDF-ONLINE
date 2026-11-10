@@ -23,6 +23,8 @@ PUBLIC_ROUTES = {
     "/api/health",
     "/api/health/sync-master",
     "/api/update/check",
+    "/api/plugin/atualizacao",          # TASK-130: atualização automática do plugin do nanoCAD (versão + DLL, sem dados)
+    "/api/plugin/atualizacao/arquivo",
     "/api/orcamento/dados",
     "/api/orcamento/calcular",
     "/api/orcamento/search",

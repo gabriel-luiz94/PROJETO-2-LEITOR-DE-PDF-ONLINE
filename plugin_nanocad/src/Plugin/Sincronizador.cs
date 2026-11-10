@@ -73,6 +73,7 @@ namespace OrcamentoNanoCAD
         {
             ConexaoAplicacao nova = new ConexaoAplicacao();
             nova.Url = url; nova.IntervaloSegundos = Math.Max(2, intervalo); nova.Automatico = automatico;
+            nova.AtualizarPlugin = Dados.AtualizarPlugin;
             ClienteAplicacao c = new ClienteAplicacao(nova, new TransporteHttp());
             c.Entrar(email, senha);
             Dados = nova;
@@ -80,10 +81,11 @@ namespace OrcamentoNanoCAD
             Salvar();
         }
 
-        public static void Ajustar(int intervalo, bool automatico)
+        public static void Ajustar(int intervalo, bool automatico, bool atualizarPlugin)
         {
             Dados.IntervaloSegundos = Math.Max(2, intervalo);
             Dados.Automatico = automatico;
+            Dados.AtualizarPlugin = atualizarPlugin;
             Salvar();
         }
 

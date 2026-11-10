@@ -5,7 +5,7 @@
 
 ## Versão
 
-`0.5.0` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` (e `<Version>` do `.csproj`)
+`0.6.0` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` (e `<Version>` do `.csproj`)
 
 Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
@@ -41,6 +41,11 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 - [x] Gravar/ler a obra no DWG (NOD) e em `<desenho>.obra.json`
 - [x] Trocar a layer da anotação ao mudar a operação (opção do pop-up; layer tirada das regras)
 - [x] Regras embutidas (081 e padrão) + pasta `regras\<codigo>\` ao lado da DLL
+
+### Atualização automática (TASK-013, 0.6.0) — ✅ núcleo e API · 🟡 CAD
+- [x] Consulta/baixa/confere/troca (`Nucleo/Atualizacao`, testes `AtualizacaoTests`); `AtualizacaoPlugin` (timer, auxiliar PowerShell, estado em `atualizacao.json`)
+- [x] `ORC_ATUALIZAR_PLUGIN`, `ORC_VOLTAR_VERSAO`; opção em `ORC_CONECTAR`; manifesto `appload/nanoCAD26/versao.json` (compilar.sh)
+- [ ] Testar no nanoCAD: instalar a 0.6.0 à mão uma vez; publicar uma 0.6.1 e ver a troca ao reabrir
 
 ### Painel em duas listas + ícones (TASK-012, 0.5.0) — ✅ núcleo · 🟡 CAD
 - [x] CABOS (vãos) e POSTES E ESTRUTURAS (outros) separados, como a Tabela de Cabos e a Tabela de Outros do Resumo (`Relatorios.Cabos/Outros`)
@@ -99,7 +104,7 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
 | Suíte | Comando | Resultado (31/10/2026) |
 |---|---|---|
-| Núcleo (xUnit, net8.0) | `dotnet test tests/Nucleo.Testes` | 43 ✅ (ponta a ponta com `APP_URL`/`APP_EMAIL`/`APP_SENHA`) |
+| Núcleo (xUnit, net8.0) | `dotnet test tests/Nucleo.Testes` | 48 ✅ (ponta a ponta com `APP_URL`/`APP_EMAIL`/`APP_SENHA`) |
 | Núcleo em .NET 4 / C# 5 | `dotnet build tests/Net40` | compila ✅ |
 | DLL nanoCAD 26 | `dotnet build src/OrcamentoNanoCAD.csproj -c Release` | compila ✅ (18 comandos, ExtensionApplication, 5 recursos de regras) |
 | Contrato com a aplicação | `pytest tests/test_plugin_nanocad_contrato.py` (raiz) | 5 ✅ |
@@ -107,4 +112,4 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
 ## Última atualização
 
-2026-11-03 — TASK-012 (painel Cabos/Postes, filtro do leitor, ícones). Antes: TASK-011, TASK-004 a 010, TASK-003 e TASK-001.
+2026-11-10 — TASK-013 (atualização automática). Antes: TASK-012 (painel Cabos/Postes, filtro do leitor, ícones), TASK-011, TASK-004 a 010, TASK-003 e TASK-001.

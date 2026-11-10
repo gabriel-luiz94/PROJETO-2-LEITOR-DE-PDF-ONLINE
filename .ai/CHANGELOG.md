@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-10 — TASK-130: atualização automática do plugin do nanoCAD
+
+- `GET /api/plugin/atualizacao` e `/api/plugin/atualizacao/arquivo` (públicas): a aplicação publica a DLL do repositório (`plugin_nanocad/appload/nanoCAD26/` + `versao.json` com SHA-256, gravado pelo `compilar.sh`); manifesto que não confere com a DLL → 503. `build.bat` empacota a DLL no executável. O plugin (0.6.0) baixa, confere e troca a DLL; vale ao reabrir o nanoCAD. Tarefa: `.ai/tasks/TASK-130-10-11-2026.md`.
+
 ## 2026-11-10 — TASK-129: ")" automático e descrição/filtro da base no REC e na comparação
 
 - `completarParenteses` no Enter/blur dos campos de Outros; `/api/orcamento/detalhes` devolve filtro (base do cálculo, preferindo o projeto); resultado_orcamento usa `buscarDetalhesCodigos`. Tarefa: `.ai/tasks/TASK-129-10-11-2026.md`.

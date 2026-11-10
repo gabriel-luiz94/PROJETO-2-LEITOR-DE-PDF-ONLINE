@@ -34,8 +34,17 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 | `ORC_ABRIR_APP` | envia a obra e abre a aplicação com ela carregada (🌐 no painel) |
 | `ORC_LEITURA`, `ORC_DIAGNOSTICO` | onde ficam rede, postes e guias neste padrão de desenho · o que o plugin leu em cada texto (arquivo + tabela) |
 | `ORC_FECHAR` | fecha a obra (⌂ Início no painel volta à tela inicial) |
+| `ORC_ATUALIZAR_PLUGIN`, `ORC_VOLTAR_VERSAO` | conferir agora se há versão nova do plugin · voltar para a versão anterior |
 | `ORC_CONECTAR`, `ORC_SINCRONIZAR` | ligar à aplicação aberta (localhost/online): regras e base de orçamento ao vivo · baixar e conferir agora |
 | `ORC_CONTINUAR`, `ORC_PAINEL`, `ORC_ZOOM`, `ORC_MARCAS`, `ORC_REGRAS`, `ORC_AJUDA` | abrir a obra salva · reabrir o painel · localizar · ligar/desligar números e vínculos na tela · recarregar regras · ajuda |
+
+### Atualização automática
+
+A partir da 0.6.0 o plugin se atualiza sozinho: 20 s depois de abrir o nanoCAD e a cada 4 h ele pergunta à aplicação (o endereço do
+`ORC_CONECTAR`, sem precisar de login) se há versão nova, baixa, confere a impressão digital (SHA-256) e troca a DLL. A versão nova
+**vale quando você reabrir o nanoCAD**. `ORC_ATUALIZAR_PLUGIN` confere na hora; `ORC_VOLTAR_VERSAO` volta para a anterior. Desligar:
+`ORC_CONECTAR` → "Atualizar o plugin sozinho". Deixe a DLL numa pasta onde você pode gravar (não em "Arquivos de Programas").
+Publicar uma versão: `./compilar.sh` (DLL + `appload/nanoCAD26/versao.json`), mesclar no main e publicar a aplicação.
 
 ### Ligado à aplicação (regras e base ao vivo)
 

@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-11-10 — TASK-013: atualização automática (0.6.0)
+
+**Tipo:** funcionalidade · `Nucleo/Atualizacao`, `Plugin/AtualizacaoPlugin`, `ClienteAplicacao` (AtualizarPlugin), `TelaConexao`, `compilar.sh` (versao.json)
+
+20 s depois de abrir o nanoCAD e a cada 4 h, o plugin pergunta à aplicação (`/api/plugin/atualizacao`, TASK-130 do principal) se há versão
+mais nova; baixa só de HTTPS ou localhost, confere tamanho/SHA-256/"MZ" e troca a DLL ao lado da atual (a em uso vira `.anterior`).
+Vale ao reabrir o nanoCAD. Arquivo travado → PowerShell oculto troca quando o nanoCAD fechar. `ORC_ATUALIZAR_PLUGIN`, `ORC_VOLTAR_VERSAO`
+(a versão desfeita não volta a ser baixada). Liga/desliga em `ORC_CONECTAR`.
+
+---
+
 ## 2026-11-03 — TASK-012: painel Cabos / Postes e estruturas, filtro do leitor, ícones (0.5.0)
 
 **Tipo:** melhoria · `PainelObra`, `Relatorios`, `Marcas`, `Tema`, `Icones` (novo)
