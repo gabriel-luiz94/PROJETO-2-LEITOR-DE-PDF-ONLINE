@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse, Response
 from database import get_connection, get_row_connection
 from models import SalvarOrcamentoRequest, OrcamentoRequest, DetalhesRequest
 from services.orcamento_calc import processar_calculo
+from services.orcamento_detalhes import detalhes_por_codigo
 from services.orcamento_lv import normalizar_lv
 from services.orcamento_arred import normalizar_arred
 from services.fator_formula import normalizar_fator
@@ -254,24 +255,10 @@ def search_orcamento(q: str = "", col: str = None):
 
 @router.post("/detalhes")
 def get_detalhes_codigos(req: DetalhesRequest):
+    """TASK-129: descrição, filtro e MDO de cada código a partir da Base de Orçamento (a mesma do cálculo: master/nuvem). `projeto` (opcional) prefere as linhas dele."""
     if not req.codigos:
         return {}
-
-    conn = get_row_connection()
-    cursor = conn.cursor()
-
-    placeholders = ",".join(["?"] * len(req.codigos))
-    cursor.execute(f"SELECT codigo, desc_codigo, mdo FROM tabela_orcamento WHERE codigo IN ({placeholders})", tuple(req.codigos))
-    rows = cursor.fetchall()
-    conn.close()
-
-    resultado = {}
-    for r in rows:
-        resultado[r["codigo"]] = {
-            "desc_codigo": r["desc_codigo"],
-            "mdo": r["mdo"]
-        }
-    return resultado
+    return detalhes_por_codigo(get_merged_orcamento(None), req.codigos, req.projeto)
 
 
 @router.post("/calcular")

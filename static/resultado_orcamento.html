@@ -1275,6 +1275,21 @@
             updateStats(data);
         }
 
+        /** TASK-129: descrição, filtro e MDO dos códigos a partir da Base de Orçamento ({codigo: {desc_codigo, mdo, filtro}}; código fora da base não vem). */
+        async function buscarDetalhesCodigos(codigos) {
+            try {
+                const res = await fetch('/api/orcamento/detalhes', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ codigos: [...new Set(codigos)], projeto: localStorage.getItem('projeto_selecionado') || null })
+                });
+                return res.ok ? await res.json() : {};
+            } catch (e) {
+                console.error("Erro ao buscar detalhes:", e);
+                return {};
+            }
+        }
+
         function consolidateData(data) {
             let map = {};
             data.forEach(item => {
@@ -1285,6 +1300,8 @@
                 
                 if (map[key]) {
                     map[key].total = parseFloat((map[key].total + item.total).toFixed(2));
+                    if (!map[key].filtro && item.filtro) map[key].filtro = item.filtro;                         // TASK-129: a linha que já existia sem filtro ganha o da base
+                    if ((!map[key].desc_codigo || map[key].desc_codigo === 'Descrição indisponível') && item.desc_codigo && item.desc_codigo !== 'Descrição indisponível') map[key].desc_codigo = item.desc_codigo;
                 } else {
                     map[key] = { ...item, operacao: op, mdo: mdo, codigo: cod };
                     map[key].total = parseFloat(item.total.toFixed(2));
@@ -1571,26 +1588,17 @@
 
             log('Buscando detalhes...', true);
 
-            let descricoes = {};
-            try {
-                const codigosUnicos = [...new Set(itemsToFetch.map(i => i.codigo))];
-                const res = await fetch('/api/orcamento/detalhes', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ codigos: codigosUnicos })
-                });
-                if (res.ok) descricoes = await res.json();
-            } catch(e) {
-                console.error("Erro ao buscar detalhes:", e);
-            }
+            const descricoes = await buscarDetalhesCodigos(itemsToFetch.map(i => i.codigo));
 
             let newItemData = itemsToFetch.map(item => {
-                const desc = descricoes[item.codigo] ? descricoes[item.codigo].desc_codigo : "Descrição indisponível";
+                const det = descricoes[item.codigo];
+                const desc = det && det.desc_codigo ? det.desc_codigo : "Descrição indisponível";
                 return {
                     operacao: item.operacao,
                     mdo: item.mdo,
                     codigo: item.codigo,
                     desc_codigo: desc,
+                    filtro: det && det.filtro ? det.filtro : '',           // TASK-129: o filtro também vem da base
                     total: item.qtd
                 };
             });
@@ -1825,18 +1833,7 @@
                 if (itemsToFetch.length > 0) {
                     log(`Processando ${itemsToFetch.length} itens colados...`, true);
                     
-                    let descricoes = {};
-                    try {
-                        const codigosUnicos = [...new Set(itemsToFetch.map(i => i.codigo))];
-                        const res = await fetch('/api/orcamento/detalhes', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ codigos: codigosUnicos })
-                        });
-                        if (res.ok) descricoes = await res.json();
-                    } catch(err) {
-                        console.error("Erro ao buscar detalhes:", err);
-                    }
+                    const descricoes = await buscarDetalhesCodigos(itemsToFetch.map(i => i.codigo));
 
                     let newItemData = itemsToFetch.map(item => {
                         let finalDesc = item.pastedDesc;
@@ -1851,6 +1848,7 @@
                             mdo: item.mdo,
                             codigo: item.codigo,
                             desc_codigo: finalDesc,
+                            filtro: descricoes[item.codigo] && descricoes[item.codigo].filtro ? descricoes[item.codigo].filtro : '',          // TASK-129
                             total: item.qtd
                         };
                     });
@@ -2330,12 +2328,12 @@
                 tr.dataset.chave = f.chave;
                 tr.innerHTML = `<td style="text-align:center;"><span class="badge-op ${f.operacao === 'R' ? 'badge-r' : 'badge-i'}">${f.operacao}</span></td>
                     <td>${escHtml(f.mdo)}</td><td class="cell-mono">${escHtml(f.codigo)}</td><td>${escHtml(f.desc || 'Descrição indisponível')}</td>
-                    <td class="col-ref cell-qty">${fmtQtd(f.qtd)}</td><td class="cell-qty">0,00</td><td></td>
+                    <td class="col-ref cell-qty">${fmtQtd(f.qtd)}</td><td class="cell-qty">0,00</td><td>${escHtml(f.filtro || '')}</td>
                     <td style="text-align:center;"><button class="btn-add-fantasma" data-chave="${escHtml(f.chave)}" title="Adicionar da referência: traz este item para o atual com a quantidade da referência">＋ ref.</button></td>`;
                 return tr;
             },
             objeto(tr) { const t = Array.from(tr.cells).map(c => c.innerText.trim()); return { mdo: t[1], operacao: t[0], desc: t[3], t }; },
-            objetoDeFantasma(f) { return { mdo: f.mdo, operacao: f.operacao, desc: f.desc, t: [f.operacao, f.mdo, f.codigo, f.desc, fmtQtd(f.qtd), '0,00', ''] }; },
+            objetoDeFantasma(f) { return { mdo: f.mdo, operacao: f.operacao, desc: f.desc, t: [f.operacao, f.mdo, f.codigo, f.desc, fmtQtd(f.qtd), '0,00', f.filtro || ''] }; },
             cmp() {
                 if (!recOrdemAtual) return CMP.comparadorPadrao;
                 const { col, asc } = recOrdemAtual, num = col === 4 || col === 5;
@@ -2353,12 +2351,12 @@
                 tr.dataset.chave = f.chave;
                 tr.innerHTML = `<td class="sap-mdo" data-campo="mdo">${SAP.rotuloMdo(f.mdo)}</td><td class="cell-mono" data-campo="codigo">${escHtml(f.codigo)}</td>
                     <td class="col-ref cell-qty" data-campo="ref">${fmtQtd(f.qtd)}</td><td class="cell-qty" data-campo="qtd">0,00</td>
-                    <td class="cell-mono sap-centro" data-campo="centro">${SAP.centroDe(f.mdo)}</td><td data-campo="desc">${escHtml(f.desc || 'Descrição indisponível')}</td><td data-campo="filtro"></td>
+                    <td class="cell-mono sap-centro" data-campo="centro">${SAP.centroDe(f.mdo)}</td><td data-campo="desc">${escHtml(f.desc || 'Descrição indisponível')}</td><td data-campo="filtro">${escHtml(f.filtro || '')}</td>
                     <td style="text-align:center;"><button class="btn-add-fantasma" data-chave="${escHtml(f.chave)}" title="Adicionar da referência: traz este item para o atual com a quantidade da referência">＋ ref.</button></td>`;
                 return tr;
             },
             objeto(tr) { const l = linhaSapDoDom(tr); return Object.assign(l, { operacao: tipo === 'odd' ? 'R' : 'I' }); },
-            objetoDeFantasma(f) { return { mdo: f.mdo, operacao: f.operacao, desc: f.desc, codigo: f.codigo, qtd: '0,00', filtro: '' }; },
+            objetoDeFantasma(f) { return { mdo: f.mdo, operacao: f.operacao, desc: f.desc, codigo: f.codigo, qtd: '0,00', filtro: f.filtro || '' }; },
             cmp() {
                 const o = sapOrdem[tipo];
                 return o.col ? ((a, b) => SAP.compararColuna(a, b, o.col, o.asc)) : CMP.comparadorPadrao;
@@ -2410,12 +2408,11 @@
             const itens = CMP.parseRec(texto);
             if (!itens.length) { alert('Arquivo REC vazio ou em formato inválido.'); return; }
             log('Buscando descrições da referência...', true);
-            try {
-                const res = await fetch('/api/orcamento/detalhes', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ codigos: [...new Set(itens.map(i => i.codigo))] }) });
-                const det = res.ok ? await res.json() : {};
-                itens.forEach(i => { i.desc = (det[i.codigo] && det[i.codigo].desc_codigo) || 'Descrição indisponível'; });
-            } catch (e) { itens.forEach(i => { i.desc = 'Descrição indisponível'; }); }
+            const det = await buscarDetalhesCodigos(itens.map(i => i.codigo));
+            itens.forEach(i => {                                                    // TASK-129: descrição e filtro da referência vêm da Base de Orçamento
+                i.desc = (det[i.codigo] && det[i.codigo].desc_codigo) || 'Descrição indisponível';
+                i.filtro = (det[i.codigo] && det[i.codigo].filtro) || '';
+            });
             cmp.ref = { nome, itens };
             cmp.nome = nome;
             cmp.ativo = true;
@@ -2457,7 +2454,7 @@
             const item = cmp.ref.itens.find(i => i.chave === b.dataset.chave);
             if (!item) return;
             const data = getRowsData();
-            data.push({ operacao: item.operacao, mdo: item.mdo, codigo: item.codigo, desc_codigo: item.desc, total: item.qtd });
+            data.push({ operacao: item.operacao, mdo: item.mdo, codigo: item.codigo, desc_codigo: item.desc, filtro: item.filtro || '', total: item.qtd });
             renderRowsData(data);
             log(`Item ${item.codigo} adicionado ao atual (${fmtQtd(item.qtd)}).`);
         });
