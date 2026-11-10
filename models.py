@@ -101,6 +101,7 @@ class ProjetoRequest(BaseModel):
 
 class DetalhesRequest(BaseModel):
     codigos: List[str]
+    projeto: Optional[str] = None          # TASK-129: nome do projeto — prefere as linhas da base desse projeto (depois as genéricas)
 
 
 class RecSaveRequest(BaseModel):

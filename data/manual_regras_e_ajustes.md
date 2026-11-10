@@ -677,3 +677,8 @@ As estruturas da tabela Outros aparecem no modal mesmo sem nenhum cabo na tabela
 
 ## Programa desktop: telas dentro da janela (TASK-128)
 No programa desktop nada abre em nova aba do navegador: **Montar Orçamento**, **Tabela de orçamento** e o **Manual** abrem por cima da tela atual (botão **Fechar**/Esc ou **Voltar**; o Resumo continua como estava) e **Processar** no Leitor segue para o Resumo na mesma janela. Na versão online (navegador) continua abrindo nova aba. Ao abrir, o programa mostra "Iniciando…" até o servidor responder, e as chaves de API são campos mascarados que o navegador não oferece para salvar.
+
+
+## Parêntese automático e descrição/filtro do REC (TASK-129)
+- Na coluna Ativo de Outros, ao terminar de digitar parâmetros (`N1(D, X`), **Enter** ou **sair do campo** fecha o `)` que falta (`N1(D, X)`).
+- No Resultado do Orçamento, ao **somar/subtrair/carregar um REC**, colar itens ou usar o **modo comparação**, a descrição e o **filtro** de cada código vêm da Base de Orçamento (a mesma do cálculo; as linhas do projeto selecionado têm preferência). Código que não existe na base fica com "Descrição indisponível" e filtro vazio.

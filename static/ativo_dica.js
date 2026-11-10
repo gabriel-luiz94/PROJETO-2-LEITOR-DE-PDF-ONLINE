@@ -74,7 +74,21 @@
         return { tipo: 'nao_encontrado', ativo: n, mensagem: `${n}: ativo não encontrado na base` };
     }
 
-    const api = { contextoDoParentese, construirContexto, dica };
+    /** TASK-129: fecha os parênteses que faltam (N1(D, X → N1(D, X)); vírgula/espaço pendentes no fim saem antes; [nome literal] não conta; colchete aberto = texto malformado, não mexe. */
+    function completarParenteses(texto) {
+        const t = String(texto == null ? '' : texto);
+        let abertos = 0, colchete = false;
+        for (const c of t) {
+            if (colchete) { if (c === ']') colchete = false; continue; }
+            if (c === '[') colchete = true;
+            else if (c === '(') abertos++;
+            else if (c === ')' && abertos > 0) abertos--;
+        }
+        if (!abertos || colchete) return t;
+        return t.replace(/[,\s]+$/, '') + ')'.repeat(abertos);
+    }
+
+    const api = { contextoDoParentese, construirContexto, dica, completarParenteses };
     if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
     /* ───────────────────────── tela ───────────────────────── */
@@ -175,6 +189,16 @@
         doc.addEventListener('click', e => { if (ehCampo(e.target)) atualizar(e.target); });
         doc.addEventListener('focusout', e => { if (ehCampo(e.target)) setTimeout(() => { if (doc.activeElement !== alvo) fechar(); }, 120); });
         doc.addEventListener('keydown', e => { if (e.key === 'Escape' && caixa) { fechar(); } }, true);
+        // TASK-129: Enter ou sair do campo completa o ")" que falta (em captura: roda antes dos tratadores da própria tela, que leem o valor)
+        const completar = input => {
+            const novo = completarParenteses(input.value);
+            if (novo === input.value) return;
+            input.value = novo;
+            input.dispatchEvent(new Event('input', { bubbles: true }));          // a tela guarda o valor no 'input'
+            fechar();
+        };
+        doc.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && ehCampo(e.target)) completar(e.target); }, true);
+        doc.addEventListener('blur', e => { if (ehCampo(e.target)) completar(e.target); }, true);
         raiz.addEventListener('scroll', e => { if (caixa && e.target && caixa.contains && caixa.contains(e.target)) return; fechar(); }, true);
         raiz.addEventListener('resize', fechar);
     }

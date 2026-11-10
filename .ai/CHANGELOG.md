@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-10 — TASK-129: ")" automático e descrição/filtro da base no REC e na comparação
+
+- `completarParenteses` no Enter/blur dos campos de Outros; `/api/orcamento/detalhes` devolve filtro (base do cálculo, preferindo o projeto); resultado_orcamento usa `buscarDetalhesCodigos`. Tarefa: `.ai/tasks/TASK-129-10-11-2026.md`.
+
 ## 2026-11-10 — TASK-128: desktop — abertura sem erro, campos de chave, telas dentro do programa, dica do ativo
 
 - Tela "Iniciando…" até o servidor responder; `campos_segredo.js`; `abrir_na_app.js` (Montar Orçamento e outras telas na própria janela); `ativo_dica.js` sem falso "não encontrado" e base pré-carregada. Tarefa: `.ai/tasks/TASK-128-10-11-2026.md`.
