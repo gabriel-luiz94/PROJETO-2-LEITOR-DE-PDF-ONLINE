@@ -673,3 +673,7 @@ As estruturas da tabela Outros aparecem no modal mesmo sem nenhum cabo na tabela
 2. `git push origin main --tags`. O GitHub Actions compila o `Leitor_Projetos.exe` no Windows e publica a Release (com o arquivo `.sha256`).
 3. Os programas instalados consultam a Release ao abrir: aparece "Atualização Disponível" e, em **Instalar e Reiniciar**, o programa baixa, confere o SHA-256, troca o `.exe` e reabre sozinho. O banco e o `.env` ficam como estão.
 `ATUALIZADOR=0` no `.env` desliga a verificação.
+
+
+## Programa desktop: telas dentro da janela (TASK-128)
+No programa desktop nada abre em nova aba do navegador: **Montar Orçamento**, **Tabela de orçamento** e o **Manual** abrem por cima da tela atual (botão **Fechar**/Esc ou **Voltar**; o Resumo continua como estava) e **Processar** no Leitor segue para o Resumo na mesma janela. Na versão online (navegador) continua abrindo nova aba. Ao abrir, o programa mostra "Iniciando…" até o servidor responder, e as chaves de API são campos mascarados que o navegador não oferece para salvar.

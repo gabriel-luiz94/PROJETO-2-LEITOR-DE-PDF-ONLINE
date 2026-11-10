@@ -227,7 +227,7 @@
                 Arquivos .dxf e .pdf continuam funcionando sem internet e sem chave.
                 Crie uma gratuita em <strong>cloudconvert.com</strong>.
             </p>
-            <input type="password" id="input-cloudconvert-key" placeholder="Sua API key do CloudConvert (opcional)"
+            <input type="text" class="campo-segredo" autocomplete="off" id="input-cloudconvert-key" placeholder="Sua API key do CloudConvert (opcional)"
                    style="width:100%; background: rgba(13,17,23,0.8); border: 1px solid #30363d; border-radius: 6px; padding: 10px 12px; color: white; font-size: 0.9rem; margin-bottom: 4px;">
             <p id="cloudconvert-status" style="font-size: 0.7rem; color: #8b949e; margin-bottom: 14px;"></p>
             <div style="display: flex; justify-content: flex-end; gap: 10px;">
@@ -238,6 +238,8 @@
     </div>
     <script src="/static/regras_leitor_engine.js"></script>
     <script src="/static/regras_arquivo.js"></script>
+    <script src="/static/abrir_na_app.js?v=1"></script>
+    <script src="/static/campos_segredo.js?v=1"></script>
     <script src="/static/script.js?v=3.5"></script>
 </body>
 </html>

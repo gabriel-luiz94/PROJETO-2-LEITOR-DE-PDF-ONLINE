@@ -733,7 +733,7 @@
                         <div class="painel-linha"><button id="btn-novo-projeto" class="btn-primary" onclick="abrirModalNovoProjeto()" style="display: none; padding: 2px 8px; font-size: 0.75rem; margin-left: 8px; border-radius: 4px;" title="Cadastrar Novo Projeto">+ Novo</button></div>
                     </section>
                     <section class="painel-sec"><h4>Base de orçamento</h4>
-                        <div class="painel-linha"><button class="btn-secondary" id="btn-tabela-orcamento" onclick="window.open('/orcamento', '_blank')">
+                        <div class="painel-linha"><button class="btn-secondary" id="btn-tabela-orcamento" onclick="AbrirNaApp.abrir('/orcamento', 'Tabela de orçamento')">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                                 <path d="M1.5 1.5A1.5 1.5 0 0 1 3 0h10a1.5 1.5 0 0 1 1.5 1.5v13a1.5 1.5 0 0 1-1.5 1.5H3a1.5 1.5 0 0 1-1.5-1.5v-13zm1.5 0v13h10v-13H3z"/>
                             </svg> Tabela Orçamento
@@ -1087,7 +1087,7 @@
                 <!-- Seção Gemini -->
                 <div id="section-gemini" class="section-provider">
                     <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">GEMINI API KEY <span style="color:#3fb950;font-size:0.7rem;">(gratuita em aistudio.google.com)</span></p>
-                    <input type="password" id="input-apikey" placeholder="AIzaSy... (opcional)" class="modal-input" style="margin-bottom:4px;">
+                    <input type="text" class="campo-segredo" autocomplete="off" id="input-apikey" placeholder="AIzaSy... (opcional)" class="modal-input" style="margin-bottom:4px;">
                     <p id="apikey-status" style="font-size:0.7rem;color:#8b949e;margin-bottom:10px;"></p>
                     <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">MODELO (deixe Automático para usar gemini-3.1-flash-lite)</p>
                     <select id="input-model" class="modal-input">
@@ -1098,7 +1098,7 @@
                 <!-- Seção OpenAI -->
                 <div id="section-openai" class="section-provider hidden">
                     <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">OPENAI API KEY <span style="color:#3fb950;font-size:0.7rem;">(platform.openai.com)</span></p>
-                    <input type="password" id="input-apikey-openai" placeholder="sk-... (opcional)" class="modal-input" style="margin-bottom:4px;">
+                    <input type="text" class="campo-segredo" autocomplete="off" id="input-apikey-openai" placeholder="sk-... (opcional)" class="modal-input" style="margin-bottom:4px;">
                     <p id="apikey-status-openai" style="font-size:0.7rem;color:#8b949e;margin-bottom:10px;"></p>
                     <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">MODELO (deixe Automático para usar gpt-4o-mini)</p>
                     <select id="input-model-openai" class="modal-input">
@@ -1109,7 +1109,7 @@
                 <!-- Seção Claude (Anthropic) -->
                 <div id="section-claude" class="section-provider hidden">
                     <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">ANTHROPIC API KEY <span style="color:#3fb950;font-size:0.7rem;">(console.anthropic.com)</span></p>
-                    <input type="password" id="input-apikey-claude" placeholder="sk-ant-... (opcional)" class="modal-input" style="margin-bottom:4px;">
+                    <input type="text" class="campo-segredo" autocomplete="off" id="input-apikey-claude" placeholder="sk-ant-... (opcional)" class="modal-input" style="margin-bottom:4px;">
                     <p id="apikey-status-claude" style="font-size:0.7rem;color:#8b949e;margin-bottom:10px;"></p>
                     <p style="font-size:0.75rem;color:#8b949e;margin-bottom:4px;">MODELO (deixe Automático para usar claude-haiku-5-5)</p>
                     <select id="input-model-claude" class="modal-input">
@@ -1723,6 +1723,8 @@
     <script src="/static/modal_montavel_editor.js"></script>
     <script src="/static/modal_montavel_arquivo.js"></script>
     <script src="/static/modal_montavel_ui.js"></script>
+    <script src="/static/abrir_na_app.js?v=1"></script>
+    <script src="/static/campos_segredo.js?v=1"></script>
     <script src="/static/barra_modais.js?v=1"></script>
     <script src="/static/resumo.js?v=5.3"></script>
     <script src="/static/resumo_layout.js?v=1"></script>
