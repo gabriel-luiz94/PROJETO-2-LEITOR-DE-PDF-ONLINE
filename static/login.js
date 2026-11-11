@@ -26,6 +26,13 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             localStorage.setItem('user_email', data.email);
             localStorage.setItem('is_admin', data.is_admin);
             
+            // TASK-133: oferece salvar a senha no navegador/janela (gerenciador de senhas); falha silenciosa onde não houver suporte
+            try {
+                if (window.PasswordCredential && navigator.credentials && navigator.credentials.store) {
+                    await navigator.credentials.store(new PasswordCredential({ id: email, password, name: email }));
+                }
+            } catch (_) { /* sem gerenciador de senhas: segue */ }
+
             // Redireciona — TASK-106: volta para a página pedida (?next=, ex.: obra aberta pelo plugin do nanoCAD); só caminho local
             const proximo = new URLSearchParams(window.location.search).get('next') || '';
             window.location.href = (proximo.startsWith('/') && !proximo.startsWith('//') && !proximo.startsWith('/\\')) ? proximo : '/';
@@ -41,3 +48,19 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         btnSubmit.innerText = "Entrar";
     }
 });
+
+
+// TASK-133: senhas salvas — se houver uma credencial guardada, preenche o e-mail e a senha (o usuário só clica em Entrar).
+// O preenchimento automático do navegador também funciona (campos com autocomplete="username"/"current-password").
+(async function preencherSenhaSalva() {
+    try {
+        if (!(window.PasswordCredential && navigator.credentials && navigator.credentials.get)) return;
+        const email = document.getElementById('email');
+        const senha = document.getElementById('password');
+        if (senha.value) return;                                   // já preenchido pelo navegador
+        const c = await navigator.credentials.get({ password: true, mediation: 'optional' });
+        if (c && c.type === 'password' && !senha.value) {
+            if (!email.value || email.value === c.id) { email.value = c.id; senha.value = c.password || ''; }
+        }
+    } catch (_) { /* sem suporte: o usuário digita */ }
+})();

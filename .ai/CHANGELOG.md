@@ -8,6 +8,11 @@
 
 ---
 
+## 2026-11-11 — TASK-133: fechar a janela pede confirmação e encerra o servidor; login com senhas salvas
+
+- `services/janela_desktop.py`: `confirm_close` com texto em português ("Fechar o ReadGrid? O servidor local também será encerrado."); fechada a janela, o uvicorn para e o processo sai (`os._exit`). Perfil persistente da janela (`%APPDATA%\ReadGrid\janela`) e, no WebView2, salvar senhas + preenchimento automático ligados.
+- Login: campos com `name` + `autocomplete`, credencial guardada no gerenciador de senhas ao entrar e preenchida ao abrir (Credential Management API, onde houver). Tarefa: `.ai/tasks/TASK-133-11-11-2026.md`.
+
 ## 2026-11-11 — TASK-132: nome ReadGrid e "Desenvolvido por Gabriel Sales"
 
 - `static/marca.js`: cabeçalho com o nome (`data-marca="cabecalho"`) no login e na tela inicial e rodapé "ReadGrid · Desenvolvido por Gabriel Sales" nas telas principais. Títulos das páginas, janela do programa, tela "Iniciando…" e plugin ("ReadGrid para nanoCAD") com o nome novo. Sem logo de empresa (decisão do usuário). Arquivos `Leitor_Projetos.exe` e `OrcamentoNanoCAD.dll` mantidos (atualização automática). Tarefa: `.ai/tasks/TASK-132-11-11-2026.md`.

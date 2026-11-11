@@ -453,11 +453,16 @@ def _parar_modo_autonomo():
 
 # ── Inicialização Desktop / Servidor ─────────────────────────────────────────
 
+_servidor_uvicorn = None     # TASK-133: guardado para encerrar quando a janela fecha
+
+
 def run_uvicorn(host: str, port: int):
     """Executa o servidor Uvicorn em uma thread separada."""
+    global _servidor_uvicorn
     import uvicorn
     config = uvicorn.Config(app, host=host, port=port, log_level="warning")
     server = uvicorn.Server(config)
+    _servidor_uvicorn = server
     server.run()
 
 
@@ -493,16 +498,23 @@ if __name__ == "__main__":
                 min_size=(960, 640),
                 background_color="#0d1117",
                 text_select=True,
-                zoomable=True
+                zoomable=True,
+                confirm_close=True,          # TASK-133: pergunta antes de fechar (texto em janela_desktop.LOCALIZACAO)
             )
+            from services import janela_desktop
 
             def _abrir_quando_pronto(win):
+                janela_desktop.ligar_senhas_salvas(win)      # TASK-133: login oferece as senhas salvas
                 if esperar_servidor("127.0.0.1", port):
                     win.load_url(login_url)
                 else:
                     win.load_html(TELA_ERRO)
 
-            webview.start(_abrir_quando_pronto, window, private_mode=False)
+            # perfil persistente: senhas salvas e preenchimento automático continuam de uma vez para outra
+            webview.start(_abrir_quando_pronto, window, private_mode=False, storage_path=janela_desktop.pasta_perfil(),
+                          localization=janela_desktop.LOCALIZACAO)
+            # a janela fechou (o usuário confirmou): encerra o servidor local junto
+            janela_desktop.encerrar_servidor(_servidor_uvicorn, server_thread)
         except Exception as e:
             logger.warning(f"Janela nativa indisponível ({e}). Abrindo no navegador...")
             esperar_servidor("127.0.0.1", port)
