@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-11 — TASK-134: composto com parâmetros e grupo que chama ativos
+
+- Nome com parênteses antes do `:=` na Base de Orçamento; cálculo por fila; validação e JS em paridade. Tarefa: `.ai/tasks/TASK-134-11-11-2026.md`.
+
 ## 2026-11-11 — TASK-133: fechar a janela pede confirmação e encerra o servidor; login com senhas salvas
 
 - `services/janela_desktop.py`: `confirm_close` com texto em português ("Fechar o ReadGrid? O servidor local também será encerrado."); fechada a janela, o uvicorn para e o processo sai (`os._exit`). Perfil persistente da janela (`%APPDATA%\ReadGrid\janela`) e, no WebView2, salvar senhas + preenchimento automático ligados.

@@ -682,3 +682,11 @@ No programa desktop nada abre em nova aba do navegador: **Montar Orçamento**, *
 ## Parêntese automático e descrição/filtro do REC (TASK-129)
 - Na coluna Ativo de Outros, ao terminar de digitar parâmetros (`N1(D, X`), **Enter** ou **sair do campo** fecha o `)` que falta (`N1(D, X)`).
 - No Resultado do Orçamento, ao **somar/subtrair/carregar um REC**, colar itens ou usar o **modo comparação**, a descrição e o **filtro** de cada código vêm da Base de Orçamento (a mesma do cálculo; as linhas do projeto selecionado têm preferência). Código que não existe na base fica com "Descrição indisponível" e filtro vazio.
+
+
+## Composto com parâmetros e grupo que chama ativos (TASK-134)
+O ativo composto (`NOME:=item + qtd*item`) aceita **parênteses no nome**:
+- **Composto com parâmetros** — `CF(cabo, cabo2=S04):=CHAVE_FACA(cabo,cabo2) + TERM(cabo) + TERM(cabo2)`. `CF` não é um ativo da base. O pedido `CF(S04,A35P)` (ou `CF`, com os padrões, ou por nome `CF(cabo2=A35P,cabo=S04)`) passa os valores aos itens: **no item, o nome do parâmetro vira o valor** (`TERM(cabo)` → `TERM(S04)`). Os parâmetros do composto aceitam qualquer valor; o vínculo cabo⇄estrutura preenche `cabo`/`cabo2` nele como num ativo comum.
+- **Grupo que chama ativos** — `CHAVE_FACA(cabo=%S04%):=TERM(cabo)` quando `CHAVE_FACA` já é um ativo da base. Quando o pedido da `CHAVE_FACA` casa as condições (as mesmas dos grupos: `%`, `|`, `!=`), os itens entram no cálculo, com os valores pedidos no lugar dos nomes. Várias linhas para o mesmo ativo somam. Os valores usados nas condições também contam como cadastrados no ativo.
+- Regras: linha só de definição (CÓDIGO e COMPONENTE em branco); os itens podem ser outros compostos (sem ciclo); condição só com parâmetros que o ativo declara; use nomes diferentes (`cabo`, `cabo2`) para chamar cada cabo.
+- Compacto: terminais dos dois cabos da chave = `CHAVE_FACA(cabo=%S04%):=TERM(cabo)` e `CHAVE_FACA(cabo2=%S04%):=TERM(cabo2)` (um par de linhas por terminal), no lugar de uma linha de código por combinação.

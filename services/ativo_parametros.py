@@ -27,6 +27,13 @@ TASK-110 — ativo COMPOSTO: ``N1C:=N1(C) + 2*N2(C)`` na célula ATIVO (linha s�
 parâmetros e com quantidade (``qtd*``) por item. Pedir ``3-N1C`` vale como ``3-N1(C)`` e ``6-N2(C)`` (``compostos_do_projeto``; o cálculo expande). Itens podem ser
 outros compostos (sem ciclo), nomes ``[literais]`` e ter apelidos na mesma célula (``N1C:=N1(C)+N2(C), N1CC``).
 
+TASK-134 — composto com PARÂMETROS e grupo que CHAMA ativos (nome com parênteses antes do ``:=``):
+    CF(cabo, cabo2=S04):=CHAVE_FACA(cabo,cabo2) + TERM(cabo) + TERM(cabo2)     CF não é ativo da base: ``CF(S04,A35P)``/``CF``/``CF(cabo2=A35P,cabo=S04)`` passam os
+                                                                                 valores aos itens (no item, o NOME do parâmetro vira o valor); parâmetros abertos
+    CHAVE_FACA(cabo=%S04%):=TERM(cabo)                                         CHAVE_FACA já é ativo da base: quando o pedido casa o grupo (mesmas condições dos grupos),
+                                                                                 os itens entram no cálculo; no item vale o nome de qualquer parâmetro do ativo
+O composto com parâmetros entra nas assinaturas (o vínculo cabo⇄estrutura preenche ``cabo`` nele como num ativo); itens podem ser outros compostos (sem ciclo).
+
 Este arquivo tem a MESMA lógica de static/ativo_parametros.js (paridade testada em tests/test_ativo_parametros.py).
 """
 import re
@@ -156,12 +163,31 @@ _RE_ITEM_COMPOSTO = re.compile(r"^\s*(\d+(?:[.,]\d+)?)\s*\*\s*(.+)$", re.S)
 
 def analisar_composto(texto, k=None) -> dict:
     """``N1C:=N1(C) + 2*N2(C)`` → {"tipo": "composto", "base": "N1C", "itens": [{"ativo": "N1(C)", "qtd": 1.0}, ...], "erro", ...}.
-    Cada item é um ativo de pedido (nome, ``nome(param)`` ou ``[literal]``), com ``qtd*`` opcional (padrão 1)."""
+    Cada item é um ativo de pedido (nome, ``nome(param)`` ou ``[literal]``), com ``qtd*`` opcional (padrão 1).
+
+    TASK-134 — nome com parênteses (``cabecalho``):
+      * ``CF(cabo, cabo2=S04):=CHAVE_FACA(cabo,cabo2) + TERM(cabo) + TERM(cabo2)`` — composto com PARÂMETROS (``formais`` = [{nome, padrao}]): o pedido
+        ``CF(S04,A35P)`` passa os valores aos itens (no item, o nome do parâmetro vira o valor);
+      * ``CHAVE_FACA(cabo=%S04%):=CON_S04`` quando CHAVE_FACA já é um ativo da base — grupo que CHAMA outros ativos (``condicoes`` = como num grupo): quando o
+        pedido casa o grupo, entram os itens (e, no item, o nome de qualquer parâmetro do ativo vira o valor pedido).
+      Qual dos dois vale depende de o nome já existir como ativo da base (``compostos_parametrizados``); aqui só se lê o cabeçalho (``formais``/``condicoes`` = None quando inválido)."""
     original = str(texto if texto is not None else "").strip()
     k = _achar_composto(original) if k is None else k
-    r = {"texto": original, "base": "", "tipo": "composto", "params": [], "erro": None, "apelidos": [], "itens": []}
+    r = {"texto": original, "base": "", "tipo": "composto", "params": [], "erro": None, "apelidos": [], "itens": [], "cabecalho": None, "formais": None, "condicoes": None}
     esq, dir_ = original[:k].strip(), original[k + 2:].strip()
     lit = literal_de(esq)
+    cab = None
+    if lit is None and "(" in esq:
+        i = esq.find("(")
+        r["base"] = esq[:i].strip().upper()
+        if not esq.endswith(")") or esq.count("(") != 1 or esq.count(")") != 1:
+            r["erro"] = "parênteses mal formados no nome do composto"
+            return r
+        cab = _decimal_de_tensao(esq[i + 1:-1])
+        esq = esq[:i].strip()
+        if not cab.strip():
+            r["erro"] = "parênteses vazios no nome do composto"
+            return r
     if lit is not None:
         r["base"], erro = lit.strip().upper(), _erro_literal(lit)
     else:
@@ -169,6 +195,18 @@ def analisar_composto(texto, k=None) -> dict:
     if erro:
         r["erro"] = erro
         return r
+    if cab is not None:
+        r["cabecalho"] = _norm(cab)
+        dec = analisar_declaracao(f"{r['base']}={r['base']}({cab})")
+        gru = analisar_ativo(f"{r['base']}({cab})", True)
+        if not dec["erro"]:
+            concreto = lambda p: p["valor"] is None or (p["op"] == "=" and len(p["alts"]) == 1 and "%" not in p["alts"][0])
+            r["formais"] = [{"nome": p["nome"], "padrao": p["valor"]} for p in dec["params"]] if all(concreto(p) for p in dec["params"]) else None
+        if not gru["erro"] and all(p["nome"] is not None for p in gru["params"]):
+            r["condicoes"] = gru["params"]
+        if r["formais"] is None and r["condicoes"] is None:
+            r["erro"] = f"parâmetros do nome '{esq}({cab.strip()})' inválidos: {dec['erro'] or gru['erro'] or 'use nome ou nome=valor (composto com parâmetros) ou nome=condição (grupo de um ativo)'}"
+            return r
     if not dir_:
         r["erro"] = f"composto {r['base']} sem itens: {r['base']}:=N1(C) + 2*N2(C)"
         return r
@@ -400,18 +438,44 @@ def montar_assinaturas(celulas) -> dict:
     {"nomes", "padroes", "valores" (exatos), "mascaras" (padrões com %), "fechados" (parâmetros que só aceitam o cadastrado), "declarada"}.
     Só entram ativos com parâmetros."""
     saida = {}
-    for cel in celulas:
-        a = analisar_celula_base(cel)
-        if a["erro"] or not a["params"]:
+    analises = [analisar_celula_base(cel) for cel in celulas]
+    declaradas = {a["base"] for a in analises if not a["erro"] and a["tipo"] != "composto" and a["base"]}
+    analises = [a for a in analises if a["tipo"] != "composto"] + [a for a in analises if a["tipo"] == "composto"]          # TASK-134: os compostos por último (a declaração do ativo vem antes)
+    for a in analises:
+        if a["erro"]:
+            continue
+        params, tipo = a["params"], a["tipo"]
+        if tipo == "composto":                                                    # TASK-134: composto com nome parametrizado
+            if a.get("cabecalho") is None:
+                continue
+            if a["base"] in declaradas:                                           # CHAVE_FACA(cabo=%S04%):=CON_S04 — grupo do ativo: as condições valem como as de um grupo
+                if not a["condicoes"]:
+                    continue
+                dono = saida.get(a["base"])
+                params, tipo = [q for q in a["condicoes"] if dono and q["nome"] in dono["nomes"]], "grupo"          # só parâmetros já declarados (o desconhecido a validação aponta)
+            else:                                                                 # CF(cabo, cabo2=S04):=… — os parâmetros do composto (abertos: aceitam qualquer valor)
+                if not a["formais"]:
+                    continue
+                sc = saida.setdefault(a["base"], {"nomes": [], "padroes": {}, "valores": {}, "mascaras": {}, "fechados": [], "declarada": False})
+                if sc["declarada"]:
+                    continue
+                sc["declarada"], sc["composto"] = True, True
+                sc["nomes"] = [f["nome"] for f in a["formais"]]
+                for f in a["formais"]:
+                    if f["padrao"] is not None:
+                        sc["padroes"][f["nome"]] = f["padrao"]
+                        sc["valores"][f["nome"]] = [f["padrao"]]
+                continue
+        if not params:
             continue
         s = saida.setdefault(a["base"], {"nomes": [], "padroes": {}, "valores": {}, "mascaras": {}, "fechados": [], "declarada": False})
-        if a["tipo"] == "declaracao":
+        if tipo == "declaracao":
             if s["declarada"]:
                 continue                                   # 2ª declaração: ignorada aqui (a importação a recusa)
             s["declarada"] = True
-            nomes = [p["nome"] for p in a["params"]]
+            nomes = [p["nome"] for p in params]
             s["nomes"] = nomes + [n for n in s["nomes"] if n not in nomes]
-            for p in a["params"]:
+            for p in params:
                 if p["valor"] is None:
                     continue
                 if p["op"] == "=" and len(p["alts"]) == 1 and "%" not in p["alts"][0]:         # valor concreto: PADRÃO + valor cadastrado
@@ -430,7 +494,7 @@ def montar_assinaturas(celulas) -> dict:
                     if p["op"] == "=" and p["nome"] not in s["fechados"]:
                         s["fechados"].append(p["nome"])
         else:
-            for p in a["params"]:
+            for p in params:
                 if p["nome"] is None:
                     continue
                 if p["nome"] not in s["nomes"]:
@@ -693,7 +757,7 @@ def preencher_componentes(linhas):
         a = analises.get(i)
         codigo = (l.get("codigo") or "").strip()
         if a is not None:
-            if a["erro"] or (esc, a["base"]) not in parametrizados or (a["tipo"] == "declaracao" and not codigo and not _comp(l)):
+            if a["erro"] or a["tipo"] == "composto" or (esc, a["base"]) not in parametrizados or (a["tipo"] == "declaracao" and not codigo and not _comp(l)):          # TASK-134: o composto (inclusive o grupo que chama ativos) não ganha COMPONENTE
                 atual[esc] = None
                 continue
             if not _comp(l) and (codigo or a["tipo"] != "declaracao"):
@@ -779,7 +843,7 @@ def validar_base(linhas) -> dict:
     # declaração: uma só, na primeira linha do ativo, cobrindo todos os nomes usados; padrões com grupo que os aceite
     formulas = _formula_por_ativo(linhas)
     for (esc, base), itens in parametrizadas.items():
-        todas = [(n, a) for n, l, a in analises if _escopo(l) == esc and a["base"] == base]
+        todas = [(n, a) for n, l, a in analises if _escopo(l) == esc and a["base"] == base and a["tipo"] != "composto"]          # TASK-134: o grupo que chama ativos não é "linha do ativo"
         decls = [(n, a) for n, l, a in itens if a["tipo"] == "declaracao"]
         if len(decls) > 1:
             erros.append(f"Linha {decls[1][0]}: {base} tem mais de uma declaração ({base}=…); use só uma, na primeira linha do ativo.")
@@ -794,10 +858,13 @@ def validar_base(linhas) -> dict:
                         if p["nome"] not in nomes:
                             erros.append(f"Linha {n}: parâmetro {p['nome']} não está na declaração de {base} ({', '.join(nomes)}).")
             em_formula = formulas.get((esc, base), set()) | formulas.get(("", base), set())          # TASK-113: parâmetro só da fórmula não precisa de grupo
+            chamam = [{q["nome"]: {"op": q["op"], "alts": list(q["alts"])} for q in a["condicoes"]} for n, l, a in analises          # TASK-134: o grupo que chama ativos também cadastra valores
+                      if a["tipo"] == "composto" and a.get("condicoes") and a["base"] == base and _escopo(l) in (esc, "")]
             for p in decl["params"]:
                 if p["valor"] is None:
                     continue
                 aceitam = [r[p["nome"]] for _, _, a in itens if a["tipo"] == "grupo" or a.get("condicionada") for r in [restricoes_do_grupo(a)] if p["nome"] in r]
+                aceitam += [r[p["nome"]] for r in chamam if p["nome"] in r]
                 if not any(restricao_vale(r, p["valor"]) for r in aceitam) and nome_tela(p["nome"]) not in em_formula:
                     erros.append(f"Linha {n_decl}: padrão {p['nome']}={p['valor']} de {base} não tem nenhum grupo cadastrado.")
 
@@ -855,14 +922,110 @@ def compostos_do_projeto(linhas, projeto) -> dict:
         if lp and p and p not in [x.strip() for x in lp.split("/")]:
             continue
         a = analisar_celula_base(cel)
-        if a["tipo"] != "composto" or a["erro"]:
+        if a["tipo"] != "composto" or a["erro"] or a.get("cabecalho") is not None:        # TASK-134: com parênteses no nome → compostos_parametrizados
             continue
         (do_projeto if lp else genericos).setdefault(a["base"], a["itens"])
     return {**genericos, **do_projeto}
 
 
+def compostos_parametrizados(linhas, projeto) -> dict:
+    """TASK-134: compostos com parênteses no nome, das linhas válidas para o projeto (o do projeto vence o genérico de mesmo nome/cabeçalho).
+      {"formais": {NOME: {"nomes": [...], "padroes": {...}, "itens": [...]}},      # CF(cabo, cabo2=S04):=…  (NOME não é ativo da base)
+       "grupos":  {BASE: [{"restricoes": {NOME: {"op","alts"}}, "itens": [...]}]}}  # CHAVE_FACA(cabo=%S04%):=CON_S04  (BASE é um ativo da base)"""
+    p = str(projeto or "").strip().upper()
+    analises, declaradas = [], set()
+    for l in linhas or []:
+        cel = (l.get("ativo") or "").strip()
+        if not cel:
+            continue
+        lp = str(l.get("projeto") or "").strip().upper()
+        if lp and p and p not in [x.strip() for x in lp.split("/")]:
+            continue
+        a = analisar_celula_base(cel)
+        if a["erro"] or not a["base"]:
+            continue
+        analises.append((bool(lp), a))
+        if a["tipo"] != "composto":
+            declaradas.add(a["base"])
+    f_gen, f_proj, g_gen, g_proj = {}, {}, {}, {}
+    for do_proj, a in analises:
+        if a["tipo"] != "composto" or a.get("cabecalho") is None:
+            continue
+        if a["base"] in declaradas:
+            if not a["condicoes"]:
+                continue
+            restr = {q["nome"]: {"op": q["op"], "alts": list(q["alts"])} for q in a["condicoes"]}
+            (g_proj if do_proj else g_gen).setdefault(a["base"], {}).setdefault(a["cabecalho"], {"restricoes": restr, "itens": a["itens"]})
+        elif a["formais"]:
+            (f_proj if do_proj else f_gen).setdefault(a["base"], {
+                "nomes": [f["nome"] for f in a["formais"]], "padroes": {f["nome"]: f["padrao"] for f in a["formais"] if f["padrao"] is not None}, "itens": a["itens"]})
+    grupos = {}
+    for base in set(g_gen) | set(g_proj):
+        grupos[base] = list({**g_gen.get(base, {}), **g_proj.get(base, {})}.values())
+    return {"formais": {**f_gen, **f_proj}, "grupos": grupos}
+
+
+def substituir_variaveis(ativo, valores) -> tuple:
+    """TASK-134: troca, nos parâmetros do item de um composto, o NOME de um parâmetro pelo valor do pedido. ``valores`` = {NOME: VALOR|None} (nomes como na tela, em
+    maiúsculas; None = sem valor). ``CON(cabo)`` com {"CABO": "S04"} → ``CON(S04)``; ``TERM(cabo=cabo2)`` → ``TERM(cabo=A35P)``. Devolve (texto, [nomes sem valor])."""
+    a = analisar_ativo(ativo)
+    if a["erro"] or a["tipo"] != "grupo":
+        return ativo, []
+    chaves = {str(k).upper(): v for k, v in (valores or {}).items()}
+    partes, faltando = [], []
+    for q in a["params"]:
+        v = q["valor"]
+        if v.upper() in chaves:                                        # é o nome de um parâmetro (valor None = parâmetro sem valor no pedido)
+            alvo = chaves[v.upper()]
+            if alvo is None:
+                faltando.append(v.upper())
+                continue
+            v = alvo
+        partes.append(f"{nome_tela(q['nome'])}={v}" if q["nome"] else v)
+    if faltando:
+        return ativo, faltando
+    return f"{a['base']}({','.join(partes)})", []
+
+
+def _exemplo_de_valor(sig, nome) -> str:
+    """Um valor que o parâmetro aceita (padrão, valor cadastrado ou máscara sem o %), para validar o item de um composto que usa o NOME do parâmetro."""
+    if nome in sig["padroes"]:
+        return sig["padroes"][nome]
+    if sig["valores"].get(nome):
+        return sig["valores"][nome][0]
+    if sig["mascaras"].get(nome):
+        return sig["mascaras"][nome][0].replace("%", "") or "X"
+    return "X"
+
+
+def _item_com_exemplos(ativo, variaveis, assinaturas) -> str:
+    """O item do composto com os NOMES de parâmetro (variáveis) trocados por um valor de exemplo aceito pelo parâmetro do item — só para checar nomes/quantidade."""
+    a = analisar_ativo(ativo)
+    if a["erro"] or a["tipo"] != "grupo":
+        return ativo
+    sig = assinaturas.get(a["base"])
+    nomes, usados, pos, partes = (sig["nomes"] if sig else []), set(), 0, []
+    for q in a["params"]:
+        if q["nome"] is None:
+            while pos < len(nomes) and nomes[pos] in usados:
+                pos += 1
+            alvo = nomes[pos] if pos < len(nomes) else None
+            pos += 1
+        else:
+            alvo = q["nome"]
+        if alvo is not None:
+            usados.add(alvo)
+        v = q["valor"]
+        if v.upper() in variaveis:
+            v = _exemplo_de_valor(sig, alvo) if (sig and alvo in (sig["nomes"] or [])) else "X"
+        partes.append(f"{nome_tela(q['nome'])}={v}" if q["nome"] else v)
+    return f"{a['base']}({','.join(partes)})"
+
+
 def _validar_compostos(linhas, analises, erros):
-    """TASK-110: composto sem CÓDIGO/COMPONENTE, nome único, itens que existem na base (com parâmetros válidos) e sem ciclo."""
+    """TASK-110: composto sem CÓDIGO/COMPONENTE, nome único, itens que existem na base (com parâmetros válidos) e sem ciclo.
+    TASK-134: com parênteses no nome — ``CF(cabo, cabo2=S04):=…`` (composto com parâmetros) ou ``CHAVE_FACA(cabo=%S04%):=…`` (grupo de um ativo da base,
+    que CHAMA outros ativos); no item, o nome de um parâmetro vale como o valor pedido."""
     compostos = [(n, l, a) for n, l, a in analises if a["tipo"] == "composto"]
     if not compostos:
         return
@@ -872,32 +1035,59 @@ def _validar_compostos(linhas, analises, erros):
             existentes[a["base"]] = True
         for ap in a["apelidos"]:
             existentes.setdefault(ap, True)
+    declaradas = {(_escopo(l), a["base"]) for n, l, a in analises if a["tipo"] != "composto"}
     nomes_comp, grafo = {}, {}
     for n, l, a in compostos:
         existentes[a["base"]] = True
         for ap in a["apelidos"]:
             existentes[ap] = True
+
+    def eh_grupo(l, a):                                               # cabeçalho num nome que já é ativo da base (neste escopo ou no genérico; composto genérico vale p/ qualquer projeto)
+        if a.get("cabecalho") is None:
+            return False
+        esc = _escopo(l)
+        return (esc, a["base"]) in declaradas or ("", a["base"]) in declaradas or (esc == "" and any(b == a["base"] for _, b in declaradas))
+
     for n, l, a in compostos:
         cel = (l.get("ativo") or "").strip()
         if (l.get("codigo") or "").strip() or (l.get("componente") or "").strip():
             erros.append(f"Linha {n}: ativo composto '{a['base']}' é só uma definição: deixe CÓDIGO e COMPONENTE em branco.")
-        chave = (_escopo(l), a["base"])
+        grupo = eh_grupo(l, a)
+        chave = (_escopo(l), a["base"], a.get("cabecalho") if grupo else None)
         if chave in nomes_comp:
-            erros.append(f"Linha {n}: ativo composto '{a['base']}' já foi definido na linha {nomes_comp[chave]}.")
+            erros.append(f"Linha {n}: ativo composto '{a['base']}{'(' + a['cabecalho'] + ')' if grupo else ''}' já foi definido na linha {nomes_comp[chave]}.")
         nomes_comp.setdefault(chave, n)
-        if any(x["tipo"] != "composto" and x["base"] == a["base"] and _escopo(xl) == _escopo(l) for _, xl, x in analises):
+        if not grupo and any(x["tipo"] != "composto" and x["base"] == a["base"] and _escopo(xl) == _escopo(l) for _, xl, x in analises):
             erros.append(f"Linha {n}: '{a['base']}' já existe como ativo da base; o composto precisa de outro nome.")
+        if a.get("cabecalho") is not None:
+            if grupo and not a["condicoes"]:
+                erros.append(f"Linha {n}: grupo '{a['base']}({a['cabecalho']})': na base os parâmetros levam nome e condição (cabo=%S04%).")
+            elif not grupo and not a["formais"]:
+                erros.append(f"Linha {n}: '{a['base']}' não é um ativo da base: o composto com parâmetros leva só nomes ou nomes com padrão ({a['base']}(cabo, cabo2=S04):=…).")
     for n, l, a in compostos:
         esc = _escopo(l)
-        celulas_escopo = [x.get("ativo") or "" for x in linhas if _escopo(x) in (esc, "")]
+        celulas_escopo = [x.get("ativo") or "" for x in linhas if _escopo(x) in (esc, "") or (esc == "" and a.get("cabecalho") is not None)]          # composto genérico com nome parametrizado enxerga os ativos de qualquer projeto
         assinaturas = montar_assinaturas(celulas_escopo)
+        variaveis = set()                                             # nomes de parâmetro que, num item, valem como o valor pedido
+        if a.get("cabecalho") is not None:
+            if (eh_grupo(l, a) and not a["condicoes"]) or (not eh_grupo(l, a) and not a["formais"]):
+                continue                                              # cabeçalho inválido já apontado acima: não valida os itens
+            if eh_grupo(l, a):
+                sig_base = assinaturas.get(a["base"])
+                nomes_decl = {nome_tela(x) for x in (sig_base["nomes"] if sig_base else [])}
+                for q in (a["condicoes"] or []):
+                    if nome_tela(q["nome"]) not in nomes_decl:
+                        erros.append(f"Linha {n}: grupo '{a['base']}': o parâmetro {nome_tela(q['nome'])} não está na declaração de {a['base']} ({', '.join(sorted(nomes_decl)) or 'sem parâmetros'}).")
+                variaveis = nomes_decl
+            else:
+                variaveis = {nome_tela(f["nome"]) for f in (a["formais"] or [])}
         for it in a["itens"]:
             base_item = nome_base(it["ativo"])
             if base_item not in existentes:
                 erros.append(f"Linha {n}: composto '{a['base']}' usa '{it['ativo']}', que não existe na base.")
                 continue
             if "(" in it["ativo"]:
-                ped = resolver_pedido(it["ativo"], assinaturas)
+                ped = resolver_pedido(_item_com_exemplos(it["ativo"], variaveis, assinaturas) if variaveis else it["ativo"], assinaturas)
                 if ped["erros"]:
                     erros.append(f"Linha {n}: composto '{a['base']}', item '{it['ativo']}': {'; '.join(ped['erros'])}.")
             grafo.setdefault((esc, a["base"]), set()).add(base_item)

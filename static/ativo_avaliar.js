@@ -15,16 +15,19 @@
         const p = MAIUSC(projeto);
         const porTipo = { ativo: new Map(), componente: new Map(), codigo: new Map() };
         const juntar = (tipo, nome, info) => { if (!nome) return; const m = porTipo[tipo]; if (!m.has(nome)) m.set(nome, []); m.get(nome).push(info); };
-        (linhas || []).forEach(r => {
-            const lp = MAIUSC(r.projeto);
-            if (lp && p && !lp.split('/').map(x => x.trim()).includes(p)) return;
+        const daProjeto = (linhas || []).filter(r => { const lp = MAIUSC(r.projeto); return !(lp && p && !lp.split('/').map(x => x.trim()).includes(p)); });
+        const declaradas = new Set();                                                       // TASK-134: bases que existem como ativo (um composto com parênteses nelas é um GRUPO que chama ativos)
+        daProjeto.forEach(r => { const cel = String(r.ativo || '').trim(); if (cel) { const a = AP.analisarCelulaBase(cel); if (!a.erro && a.base && a.tipo !== 'composto') declaradas.add(a.base.toUpperCase()); } });
+        daProjeto.forEach(r => {
             const origem = MAIUSC(r.origem), comp = MAIUSC(r.componente), cod = MAIUSC(r.codigo);
             const cel = String(r.ativo || '').trim();
             if (cel) {
                 const a = AP.analisarCelulaBase(cel);
                 const soDeclaracao = a.tipo === 'declaracao' && !cod && !comp;          // linha só de declaração não entra no cálculo (como no servidor)
                 if (!a.erro && a.base && !soDeclaracao) {
-                    juntar('ativo', a.base.toUpperCase(), { desc: r.desc_ativo || r.componente || r.desc_codigo || '', origem, grupo: a.tipo === 'grupo', composto: a.tipo === 'composto' });
+                    const comParenteses = a.tipo === 'composto' && a.cabecalho !== null;
+                    const grupoDeAtivo = comParenteses && declaradas.has(a.base.toUpperCase());          // CHAVE_FACA(cabo=%S04%):=… → grupo; CF(cabo,cabo2):=… → composto que valida os parâmetros pela assinatura
+                    juntar('ativo', a.base.toUpperCase(), { desc: r.desc_ativo || r.componente || r.desc_codigo || '', origem, grupo: a.tipo === 'grupo' || grupoDeAtivo, composto: a.tipo === 'composto' && !comParenteses });
                 }
             }
             if (comp) juntar('componente', comp, { desc: r.desc_ativo || r.componente || '', origem, grupo: false, composto: false });
