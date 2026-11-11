@@ -690,3 +690,8 @@ O ativo composto (`NOME:=item + qtd*item`) aceita **parênteses no nome**:
 - **Grupo que chama ativos** — `CHAVE_FACA(cabo=%S04%):=TERM(cabo)` quando `CHAVE_FACA` já é um ativo da base. Quando o pedido da `CHAVE_FACA` casa as condições (as mesmas dos grupos: `%`, `|`, `!=`), os itens entram no cálculo, com os valores pedidos no lugar dos nomes. Várias linhas para o mesmo ativo somam. Os valores usados nas condições também contam como cadastrados no ativo.
 - Regras: linha só de definição (CÓDIGO e COMPONENTE em branco); os itens podem ser outros compostos (sem ciclo); condição só com parâmetros que o ativo declara; use nomes diferentes (`cabo`, `cabo2`) para chamar cada cabo.
 - Compacto: terminais dos dois cabos da chave = `CHAVE_FACA(cabo=%S04%):=TERM(cabo)` e `CHAVE_FACA(cabo2=%S04%):=TERM(cabo2)` (um par de linhas por terminal), no lugar de uma linha de código por combinação.
+
+
+## Sugestão de ativos ao digitar e ativo de outro projeto (TASK-136)
+- Ao digitar na coluna **Ativo** (Demais ativos e Totalizadora) aparecem as sugestões — só **ativos e apelidos** que existem na Base de Orçamento para o **projeto atual** (e os genéricos). ↑/↓ escolhem, **Tab** aceita (o 1º, se nada estiver destacado), **Enter** aceita o destacado, **Esc** fecha. O botão **💡 Sugestões**, na barra do Resumo, liga/desliga (a escolha fica guardada).
+- Um ativo cadastrado só em **outro projeto** não vale: não é sugerido, não é reconhecido e, no cálculo, aparece em "não encontrados". Ativos sem projeto (genéricos) valem em qualquer projeto.

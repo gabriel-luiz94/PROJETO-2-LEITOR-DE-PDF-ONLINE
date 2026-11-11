@@ -383,7 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (cursor !== null) inpAt.setSelectionRange(cursor, cursor);
                 }
                 row.ativo = inpAt.value;
-                showAutocomplete(inpAt, type);
+                if (type !== 'outros') showAutocomplete(inpAt, type);                // TASK-136: em Outros quem sugere é AtivoSugestao (ativos/apelidos do projeto, com botão liga/desliga)
             });
             inpAt.addEventListener('keydown', e => {
                 if (e.key === 'Delete' && inpAt.value.trim() === '') {
@@ -1558,7 +1558,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleAcKeydown(e, input, type) {
         if (!acList) {
-            if (e.key === 'ArrowDown') { showAutocomplete(input, type); e.preventDefault(); }
+            if (e.key === 'ArrowDown' && type !== 'outros') { showAutocomplete(input, type); e.preventDefault(); }
             return;
         }
         if (e.key === 'ArrowDown') {
@@ -5710,6 +5710,12 @@ function carregarBaseOrcamento() {
     return _basePromessa;
 }
 carregarBaseOrcamento();
+// TASK-136: sugestão de ativos/apelidos do PROJETO ao digitar (Outros e Totalizadora); botão "💡 Sugestões" liga/desliga
+if (window.AtivoSugestao) window.AtivoSugestao.iniciar({
+    base: () => orcamentoBaseData,
+    projeto: () => localStorage.getItem('projeto_selecionado') || '',
+    carregarBase: () => carregarBaseOrcamento()
+});
 
 window.syncTotalizadora = async function(forceUpdate = true) {
     if (tableStates.regras.data.length === 0) {

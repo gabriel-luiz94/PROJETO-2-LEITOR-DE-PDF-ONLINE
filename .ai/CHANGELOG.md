@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-11 — TASK-136: sugestão de ativos do projeto e ativo de outro projeto não vale
+
+- `ativo_sugestao.js` + botão 💡 Sugestões; `orcamento_calc.py` sem fallback para outro projeto. Tarefa: `.ai/tasks/TASK-136-11-11-2026.md`.
+
 ## 2026-11-11 — TASK-135: nome GridReader (era ReadGrid) e sem "Extraia textos…"
 
 - Nome trocado em telas, janela, tela "Iniciando…", confirmação de fechar e plugin ("GridReader para nanoCAD", 0.7.1 — sobe para a atualização automática levar o nome). Cabeçalho "Grid**Reader**". Frase "Extraia textos, fontes, cores e mais com precisão." removida da tela inicial. Perfil da janela em `%APPDATA%\GridReader\janela`, levando junto o `ReadGrid\janela` (senhas salvas). Tarefa: `.ai/tasks/TASK-135-11-11-2026.md`.
