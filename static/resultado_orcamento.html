@@ -916,6 +916,11 @@
                     Exportar Excel
                 </button>
 
+                <button class="btn-action sap-only" id="btn-relatorio-pdf" onclick="abrirRelatorioPdf()" title="Gerar os relatórios ODI e ODD em PDF no formato da nota do SAP">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zM9.5 3A1.5 1.5 0 0 0 11 4.5h2.5L9.5 0v3z"/></svg>
+                    Relatórios PDF
+                </button>
+
                 <button class="btn-action" onclick="window.print()" title="Imprimir Relatório">
                     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
                         <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/>
@@ -1044,6 +1049,24 @@
             </div>
             <div class="modal-footer">
                 <button onclick="document.getElementById('modal-recs').style.display='none'" class="btn-action">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TASK-140: cabeçalho dos relatórios ODI/ODD em PDF -->
+    <div id="modal-relatorio-pdf" class="modal-backdrop">
+        <div class="modal-card" style="max-width:640px">
+            <div class="modal-header">
+                <h2 class="modal-title">Relatórios ODI e ODD (PDF)</h2>
+                <button class="modal-close-btn" onclick="fecharRelatorioPdf()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="rel-campos" style="display:grid; grid-template-columns:1fr 1fr; gap:10px 14px;"></div>
+                <p style="margin:12px 0 0; font-size:0.76rem; color:var(--text-secondary);">Gera dois arquivos, <b>NOTA_&lt;nº&gt;_ODI.pdf</b> e <b>NOTA_&lt;nº&gt;_ODD.pdf</b>, com os itens visíveis da visão SAP. Os dados do projetista, UTD, UTEP e município ficam lembrados para a próxima vez.</p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="fecharRelatorioPdf()" class="btn-action">Cancelar</button>
+                <button onclick="gerarRelatoriosPdf()" class="btn-action" id="rel-gerar" style="font-weight:600">Gerar ODI e ODD</button>
             </div>
         </div>
     </div>
@@ -2209,6 +2232,55 @@
                 if (err.name !== 'AbortError') { console.error(err); log('Erro ao exportar o Excel.'); alert('Erro ao exportar o Excel: ' + err.message); }
                 else log('Exportação cancelada.');
             }
+        }
+
+        /* TASK-140 — relatórios ODI e ODD em PDF (formato da nota do SAP): pergunta o cabeçalho e salva os dois arquivos */
+        const REL_CAMPOS = [['titulo', 'Título', 2], ['nota', 'Nº da nota', 1], ['sap', 'Nº SAP', 1], ['bairro', 'Bairro', 1], ['municipio', 'Município', 1], ['utd', 'UTD', 1], ['utep', 'UTEP', 1],
+            ['projetista', 'Projetista', 1], ['data', 'Data', 1], ['id_investimento', 'ID Investimento (ODI)', 1], ['id_investimento_odd', 'ID Investimento (ODD) — vazio = igual ao ODI', 1]];
+        const REL_LEMBRAR = ['projetista', 'utd', 'utep', 'municipio', 'id_investimento', 'id_investimento_odd'];
+        function relLer() { try { return JSON.parse(localStorage.getItem('relatorio_sap_cabecalho') || '{}') || {}; } catch (e) { return {}; } }
+        function relGravar(v) { try { localStorage.setItem('relatorio_sap_cabecalho', JSON.stringify(v)); } catch (e) { /* sem localStorage: não lembra */ } }
+        function abrirRelatorioPdf() {
+            const odi = linhasVisiveisSap('odi'), odd = linhasVisiveisSap('odd');
+            if (!odi.length && !odd.length) return alert('Não há dados para gerar o relatório.');
+            const lembrado = relLer(), hoje = new Date().toLocaleDateString('pt-BR');
+            const box = document.getElementById('rel-campos'); box.innerHTML = '';
+            REL_CAMPOS.forEach(([k, rot, larg]) => {
+                const d = document.createElement('div'); if (larg === 2) d.style.gridColumn = '1 / -1';
+                const l = document.createElement('label'); l.textContent = rot; l.style.cssText = 'display:block; font-size:0.72rem; color:var(--text-secondary); margin-bottom:3px;';
+                const i = document.createElement('input'); i.type = 'text'; i.id = 'rel-' + k; i.style.cssText = 'width:100%; box-sizing:border-box; padding:7px 9px; background:var(--bg-canvas); color:var(--text-primary); border:1px solid var(--border-default); border-radius:6px; font:inherit; font-size:0.85rem; outline:none;';
+                i.onfocus = () => { i.style.borderColor = '#f97316'; }; i.onblur = () => { i.style.borderColor = ''; };
+                i.autocomplete = 'off'; i.value = k === 'nota' ? (document.getElementById('obra-numero').value.trim() || '') : k === 'data' ? hoje : (lembrado[k] || '');
+                d.append(l, i); box.appendChild(d);
+            });
+            document.getElementById('modal-relatorio-pdf').style.display = 'flex';
+            document.getElementById('rel-titulo').focus();
+        }
+        function fecharRelatorioPdf() { document.getElementById('modal-relatorio-pdf').style.display = 'none'; }
+        async function gerarRelatoriosPdf() {
+            const cab = {}; REL_CAMPOS.forEach(([k]) => { cab[k] = document.getElementById('rel-' + k).value.trim(); });
+            if (!cab.nota) { alert('Informe o número da nota.'); return; }
+            const lembrar = {}; REL_LEMBRAR.forEach(k => { lembrar[k] = cab[k]; }); relGravar(lembrar);
+            const nota = cab.nota.replace(/[^A-Za-z0-9_.-]+/g, '_');
+            const btn = document.getElementById('rel-gerar'); btn.disabled = true;
+            let feitos = 0;
+            try {
+                for (const tipo of ['odi', 'odd']) {
+                    const linhas = linhasVisiveisSap(tipo);
+                    if (!linhas.length) { log('Relatório ' + tipo.toUpperCase() + ' não gerado: sem itens.'); continue; }
+                    log('Gerando o PDF ' + tipo.toUpperCase() + '...', true);
+                    const res = await fetch('/api/orcamento/exportar-sap-pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tipo: tipo.toUpperCase(), cabecalho: cab, linhas: SAP.paraExcel(linhas) }) });
+                    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.detail || ('HTTP ' + res.status)); }
+                    const blob = await res.blob(), url = URL.createObjectURL(blob), a = document.createElement('a');
+                    a.href = url; a.download = `NOTA_${nota}_${tipo.toUpperCase()}.pdf`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 10000); feitos++;
+                    await new Promise(r => setTimeout(r, 500));                  // dá tempo ao navegador de iniciar o 1º download antes do 2º
+                }
+                fecharRelatorioPdf();
+                log(feitos ? `Relatórios PDF gerados: ${feitos} arquivo(s).` : 'Nenhum relatório gerado (ODI e ODD sem itens).');
+            } catch (err) { console.error(err); log('Erro ao gerar o PDF.'); alert('Erro ao gerar o PDF: ' + err.message); }
+            finally { btn.disabled = false; }
         }
 
         /* TASK-085 — larguras de coluna ao conteúdo (como o duplo clique na borda do título no Excel) e layout da visão SAP */

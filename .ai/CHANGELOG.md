@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-11 — TASK-140: relatórios ODI/ODD em PDF (formato da nota do SAP)
+
+- Novo serviço `exportar_sap_pdf.py` + rota `/api/orcamento/exportar-sap-pdf` + botão/diálogo "Relatórios PDF" na visão SAP do Resultado do Orçamento. Fontes Carlito em `data/fontes/` (fallback da Calibri).
+
+---
+
 ## 2026-11-11 — TASK-139: ajuste somar_linhas (juntar o mesmo ativo de várias linhas)
 
 - Nova ação de ajuste em Outros que soma, na 1ª linha, os ativos escolhidos repetidos em linhas diferentes (mesma operação e, por padrão, mesma entidade). Painel de ajustes ganhou a opção.
