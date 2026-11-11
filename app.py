@@ -486,7 +486,7 @@ if __name__ == "__main__":
             import webview
             # TASK-128: a janela abre já com a tela "Iniciando…" e só carrega o login quando o servidor aceita conexões (sem a mensagem "recusou a conectar")
             window = webview.create_window(
-                title=f"ReadGrid v{APP_VERSION} — Engeselt Engenharia",
+                title=f"ReadGrid v{APP_VERSION}",
                 html=TELA_INICIAL,
                 width=1320,
                 height=860,

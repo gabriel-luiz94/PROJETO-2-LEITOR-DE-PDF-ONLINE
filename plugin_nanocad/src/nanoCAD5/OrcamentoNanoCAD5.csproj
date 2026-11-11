@@ -17,7 +17,6 @@
     <Nullable>disable</Nullable>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <Product>ReadGrid para nanoCAD 5</Product>
-    <Company>Engeselt Engenharia</Company>
     <Authors>Gabriel Sales</Authors>
     <Deterministic>true</Deterministic>
     <NoWarn>SYSLIB0014;CS1685</NoWarn>

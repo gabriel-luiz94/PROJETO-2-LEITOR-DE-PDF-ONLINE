@@ -20,7 +20,6 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <Product>ReadGrid para nanoCAD</Product>
-    <Company>Engeselt Engenharia</Company>
     <Authors>Gabriel Sales</Authors>
     <Deterministic>true</Deterministic>
     <NoWarn>CA1416;SYSLIB0014</NoWarn>

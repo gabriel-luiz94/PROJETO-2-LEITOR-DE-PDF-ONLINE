@@ -8,9 +8,9 @@
 
 ---
 
-## 2026-11-11 — TASK-132: nome ReadGrid, logo da Engeselt Engenharia e "Desenvolvido por Gabriel Sales"
+## 2026-11-11 — TASK-132: nome ReadGrid e "Desenvolvido por Gabriel Sales"
 
-- `static/marca.js`: cabeçalho de marca (`data-marca="cabecalho"`: logo + ReadGrid) no login e na tela inicial e rodapé "ReadGrid · Engeselt Engenharia · Desenvolvido por Gabriel Sales" nas telas principais. Logo = `static/img/logo_engeselt.svg|png` (sem o arquivo, o nome em texto). Títulos das páginas, janela do programa, tela "Iniciando…" e plugin ("ReadGrid para nanoCAD") com o nome novo. Arquivos `Leitor_Projetos.exe` e `OrcamentoNanoCAD.dll` mantidos (atualização automática). Tarefa: `.ai/tasks/TASK-132-11-11-2026.md`.
+- `static/marca.js`: cabeçalho com o nome (`data-marca="cabecalho"`) no login e na tela inicial e rodapé "ReadGrid · Desenvolvido por Gabriel Sales" nas telas principais. Títulos das páginas, janela do programa, tela "Iniciando…" e plugin ("ReadGrid para nanoCAD") com o nome novo. Sem logo de empresa (decisão do usuário). Arquivos `Leitor_Projetos.exe` e `OrcamentoNanoCAD.dll` mantidos (atualização automática). Tarefa: `.ai/tasks/TASK-132-11-11-2026.md`.
 
 ## 2026-11-11 — TASK-131: o programa traz o plugin do nanoCAD; projetos e configuração de leitura do plugin na aplicação
 

@@ -93,7 +93,7 @@ namespace OrcamentoNanoCAD.UI
             _status.MaximumSize = new Size(700, 0);
             _status.Margin = new Padding(0, 10, 0, 0);
             raiz.Controls.Add(_status);
-            Label credito = Visual.Rotulo("ReadGrid " + ObraArquivo.VersaoPlugin + " · Engeselt Engenharia · Desenvolvido por Gabriel Sales", Visual.Normal, Visual.Suave);
+            Label credito = Visual.Rotulo("ReadGrid " + ObraArquivo.VersaoPlugin + " · Desenvolvido por Gabriel Sales", Visual.Normal, Visual.Suave);
             credito.Margin = new Padding(0, 8, 0, 0);
             raiz.Controls.Add(credito);
             Controls.Add(raiz);
