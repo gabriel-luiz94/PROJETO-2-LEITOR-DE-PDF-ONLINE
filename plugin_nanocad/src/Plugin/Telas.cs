@@ -26,7 +26,7 @@ namespace OrcamentoNanoCAD.UI
         public TelaInicio(Sessao s, PersistenciaDwg.ObraSalva salva)
         {
             _s = s;
-            Text = "Orçamento — Leitor de Projetos";
+            Text = "ReadGrid — orçamento no nanoCAD";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -93,6 +93,9 @@ namespace OrcamentoNanoCAD.UI
             _status.MaximumSize = new Size(700, 0);
             _status.Margin = new Padding(0, 10, 0, 0);
             raiz.Controls.Add(_status);
+            Label credito = Visual.Rotulo("ReadGrid " + ObraArquivo.VersaoPlugin + " · Engeselt Engenharia · Desenvolvido por Gabriel Sales", Visual.Normal, Visual.Suave);
+            credito.Margin = new Padding(0, 8, 0, 0);
+            raiz.Controls.Add(credito);
             Controls.Add(raiz);
             Visual.Aplicar(this);
         }
@@ -494,7 +497,7 @@ namespace OrcamentoNanoCAD.UI
 
         public TelaConexao()
         {
-            Text = "🔗 Ligação com a aplicação (Leitor de Projetos)";
+            Text = "🔗 Ligação com o ReadGrid";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;

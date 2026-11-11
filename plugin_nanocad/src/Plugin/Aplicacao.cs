@@ -22,7 +22,7 @@ namespace OrcamentoNanoCAD
             {
                 Editor ed = Ed();
                 if (ed != null)
-                    ed.WriteMessage("\nOrçamento (Leitor de Projetos) " + ObraArquivo.VersaoPlugin + " carregado. Comando: ORCAMENTO (ajuda: ORC_AJUDA).\n");
+                    ed.WriteMessage("\nReadGrid para nanoCAD " + ObraArquivo.VersaoPlugin + " carregado (Engeselt Engenharia · desenvolvido por Gabriel Sales). Comando: ORCAMENTO (ajuda: ORC_AJUDA).\n");
             }
             catch (System.Exception) { /* sem documento aberto: tudo bem */ }
             try { AtualizacaoPlugin.Iniciar(); }

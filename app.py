@@ -39,7 +39,7 @@ from routers import manual, obras, regras, regras_leitor, regras_vinculacao, vin
 
 
 app = FastAPI(
-    title="Leitor de Projetos Online Pro",
+    title="ReadGrid",
     version=APP_VERSION,
     description="Sistema profissional de leitura e análise de projetos PDF/DXF",
 )
@@ -102,6 +102,11 @@ async def serve_abrir_na_app_js():
 @app.get("/static/campos_segredo.js")
 async def serve_campos_segredo_js():
     return _serve_js("campos_segredo.js")       # TASK-128
+
+
+@app.get("/static/marca.js")
+async def serve_marca_js():
+    return _serve_js("marca.js")                # TASK-132
 
 
 @app.get("/static/plugin_nanocad.js")
@@ -460,7 +465,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     is_headless = os.environ.get("HEADLESS", "0") == "1" or APP_MODE == "server"
 
-    logger.info(f"Iniciando Leitor de Projetos Pro v{APP_VERSION} [modo: {APP_MODE}]...")
+    logger.info(f"Iniciando ReadGrid v{APP_VERSION} [modo: {APP_MODE}]...")
 
     if is_headless:
         # Modo Servidor / Cloud (Deploy sem janela gráfica)
@@ -481,7 +486,7 @@ if __name__ == "__main__":
             import webview
             # TASK-128: a janela abre já com a tela "Iniciando…" e só carrega o login quando o servidor aceita conexões (sem a mensagem "recusou a conectar")
             window = webview.create_window(
-                title=f"Leitor de Projetos Pro v{APP_VERSION}",
+                title=f"ReadGrid v{APP_VERSION} — Engeselt Engenharia",
                 html=TELA_INICIAL,
                 width=1320,
                 height=860,
