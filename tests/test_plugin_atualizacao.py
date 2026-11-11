@@ -19,12 +19,16 @@ def client():
     return TestClient(appmod.app)
 
 
-def test_manifesto_versionado_confere_com_a_dll_e_com_a_versao_do_plugin():
-    m = json.loads((PASTA / "versao.json").read_text(encoding="utf-8"))
-    assert m["sha256"] == hashlib.sha256((PASTA / "OrcamentoNanoCAD.dll").read_bytes()).hexdigest(), \
+@pytest.mark.parametrize("pasta", ["nanoCAD26", "nanoCAD5"])
+def test_manifesto_versionado_confere_com_a_dll_e_com_a_versao_do_plugin(pasta):
+    p = RAIZ / "plugin_nanocad" / "appload" / pasta
+    m = json.loads((p / "versao.json").read_text(encoding="utf-8"))
+    assert m["sha256"] == hashlib.sha256((p / "OrcamentoNanoCAD.dll").read_bytes()).hexdigest(), \
         "rode plugin_nanocad/compilar.sh (o manifesto ficou velho)"
     cs = (RAIZ / "plugin_nanocad" / "src" / "Nucleo" / "ObraArquivo.cs").read_text(encoding="utf-8")
     assert m["versao"] == re.search(r'VersaoPlugin = "([^"]+)"', cs).group(1)
+    props = (RAIZ / "plugin_nanocad" / "src" / "Versao.props").read_text(encoding="utf-8")
+    assert m["versao"] == re.search(r"<Version>([^<]+)</Version>", props).group(1)
 
 
 def test_versao_e_arquivo_publicos_sem_login(client):
@@ -38,6 +42,11 @@ def test_versao_e_arquivo_publicos_sem_login(client):
     assert a.headers["x-plugin-versao"] == j["versao"]
     # o resto da API do plugin continua exigindo login
     assert client.get("/api/plugin/versao?projeto=081").status_code == 401
+
+
+def test_nanocad5_tambem_e_publicado(client):
+    r = client.get("/api/plugin/atualizacao?alvo=nanocad5")
+    assert r.status_code == 200 and r.json()["versao"]
 
 
 def test_alvo_desconhecido_ou_sem_publicacao_da_404(client, tmp_path, monkeypatch):

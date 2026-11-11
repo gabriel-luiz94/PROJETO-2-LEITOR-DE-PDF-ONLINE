@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-11-11 — TASK-014 e TASK-015: nanoCAD 5 pronto; projetos e leitura da aplicação (0.7.0)
+
+**TASK-014 (nanoCAD 5):** `src/nanoCAD5/OrcamentoNanoCAD5.csproj` (.NET 4) compila o MESMO código contra `src/ApiNanoCAD5` (hostmgd/hostdbmgd
+gerados por `ferramentas/GerarApiNanoCAD5` com o Roslyn: só o que o plugin usa da API). `Plugin/Compat.cs`: recurso que a API do nanoCAD não
+tiver (MLEADER, transitórios, UserData, vista, janela não modal, comando em andamento, blocos dinâmicos, contorno) é desligado sem derrubar o
+resto; extrator com um leitor por tipo de entidade; marcas com reserva em vetores; zoom pelo comando ZOOM. Versão em `src/Versao.props`.
+
+**TASK-015 (aplicação):** tela inicial lista todos os projetos da aplicação (`/api/plugin/projetos`, cache); regras sempre baixadas do projeto
+escolhido/digitado (sem a aplicação: última cópia ou as embutidas); configuração de leitura guardada na aplicação (`/api/plugin/leitura`) e
+vinda em `/api/plugin/regras` (vale em qualquer computador; a local fica como reserva). A atualização automática grava `versao.json` ao lado da DLL.
+
+---
+
 ## 2026-11-10 — TASK-013: atualização automática (0.6.0)
 
 **Tipo:** funcionalidade · `Nucleo/Atualizacao`, `Plugin/AtualizacaoPlugin`, `ClienteAplicacao` (AtualizarPlugin), `TelaConexao`, `compilar.sh` (versao.json)

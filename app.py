@@ -104,6 +104,11 @@ async def serve_campos_segredo_js():
     return _serve_js("campos_segredo.js")       # TASK-128
 
 
+@app.get("/static/plugin_nanocad.js")
+async def serve_plugin_nanocad_js():
+    return _serve_js("plugin_nanocad.js")       # TASK-131
+
+
 @app.get("/static/barra_modais.js")
 async def serve_barra_modais_js():
     return _serve_js("barra_modais.js")         # TASK-117
@@ -396,6 +401,16 @@ def _limpar_residuos_da_atualizacao():
         auto_updater.limpar_residuos()
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Limpeza da atualização anterior falhou: {e}")
+
+
+# ── Plugin do nanoCAD (TASK-131): o .exe instala/atualiza a DLL do plugin em %APPDATA%\OrcamentoNanoCAD\plugin (em segundo plano) ──
+@app.on_event("startup")
+def _instalar_plugin_nanocad():
+    try:
+        from services import plugin_instalador
+        plugin_instalador.instalar_em_segundo_plano()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Instalação do plugin do nanoCAD não iniciou: {e}")
 
 
 # ── Conectividade com a nuvem (TASK-040): ping periódico + reconexão proativa + indicador online/offline ──

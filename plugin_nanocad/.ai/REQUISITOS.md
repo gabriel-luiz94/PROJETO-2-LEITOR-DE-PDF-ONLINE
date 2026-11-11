@@ -68,6 +68,10 @@
 | RQ-70 | Painel com Cabos separados de Postes/estruturas (como o Resumo da aplicação), ícones fáceis de ver | ✅ · 🟡 CAD | `PainelObra`, `Relatorios.Cabos/Outros`, `Icones` |
 | RQ-71 | Ler mostra só o que as regras do leitor classificaram; Construir é livre (sem filtro das regras) | ✅ | `Relatorios.Visivel` |
 | RQ-72 | Atualização automática do plugin (baixa da aplicação, confere, vale ao reabrir; voltar versão) | ✅ · 🟡 CAD | `Atualizacao`, `AtualizacaoPlugin`, `/api/plugin/atualizacao` |
+| RQ-73 | DLL pronta para o nanoCAD 5 (.NET 4), degradando o que a API dele não tiver | ✅ build · 🟡 CAD | `src/nanoCAD5`, `src/ApiNanoCAD5`, `Compat` |
+| RQ-74 | Tela inicial com todos os projetos da aplicação; regras sempre do projeto escolhido | ✅ · 🟡 CAD | `/api/plugin/projetos`, `RegrasFrescas` |
+| RQ-75 | Configuração de leitura guardada na aplicação por projeto (qualquer computador) | ✅ · 🟡 CAD | `/api/plugin/leitura`, `RegrasDe` |
+| RQ-76 | Instalado junto com o programa principal | ✅ · 🟡 Windows | `services/plugin_instalador.py`, botão "Plugin nanoCAD" |
 | RQ-67 | Abrir a aplicação já com a obra do plugin carregada | ✅ API · 🟡 CAD | `ORC_ABRIR_APP`, `/api/plugin/obra`, Resumo `?obra=` |
 
 ## RQ — Cálculo (fora do CAD)

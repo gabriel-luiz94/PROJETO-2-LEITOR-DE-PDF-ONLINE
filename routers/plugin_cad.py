@@ -17,6 +17,8 @@ regras GRAVADAS AQUI e a conferir a obra contra a Base de Orçamento, sem repeti
     GET  /api/plugin/projetos              (TASK-131) projetos cadastrados (o plugin lista todos na tela inicial).
     GET  /api/plugin/leitura?projeto=081   (TASK-131) configuração de LEITURA do desenho do projeto (layers da rede, blocos de poste,
     PUT  /api/plugin/leitura?projeto=081   guias, raios) guardada aqui para valer em qualquer computador; também vai em /regras e na versão.
+    GET  /api/plugin/instalacao            (TASK-131) o programa traz o plugin: versão trazida × instalada e caminho para o APPLOAD
+    POST /api/plugin/instalacao            (desktop) instalar/atualizar agora · POST /api/plugin/instalacao/abrir-pasta (desktop)
     GET  /api/plugin/atualizacao?alvo=nanocad26          (TASK-130) versão do plugin publicada aqui + SHA-256 + endereço do arquivo.
     GET  /api/plugin/atualizacao/arquivo?alvo=nanocad26  a DLL. As duas são PÚBLICAS (a DLL não tem dados): o plugin se atualiza
                                            sozinho mesmo sem login. A DLL servida é a do repositório (plugin_nanocad/appload/<pasta>/),
@@ -367,3 +369,52 @@ def atualizacao_arquivo(alvo: str = "nanocad26"):
     p = _pacote(alvo)
     return FileResponse(p["dll"], media_type="application/octet-stream", filename=ARQUIVO_DLL,
                         headers={"X-Plugin-Versao": p["versao"], "X-Plugin-Sha256": p["sha256"], "Cache-Control": "no-store"})
+
+
+# ── o programa principal traz o plugin (TASK-131): situação, instalar agora, abrir a pasta ──
+def _desktop() -> bool:
+    from config import APP_MODE
+    return APP_MODE == "desktop"
+
+
+@router.get("/instalacao")
+def instalacao():
+    """Desktop: versão que o programa traz × instalada e o caminho para o APPLOAD. Servidor: só os links de download."""
+    from services import plugin_instalador
+    downloads = []
+    for alvo, (_, nome) in plugin_instalador.ALVOS.items():
+        try:
+            p = _pacote(alvo)
+            downloads.append({"alvo": alvo, "nome": nome, "versao": p["versao"], "url": f"/api/plugin/atualizacao/arquivo?alvo={alvo}"})
+        except HTTPException:
+            pass
+    r = {"desktop": _desktop(), "downloads": downloads}
+    if r["desktop"]:
+        r["pasta"] = plugin_instalador.pasta_destino()
+        r["alvos"] = plugin_instalador.situacao()
+    return r
+
+
+class InstalarPayload(BaseModel):
+    forcar: Optional[bool] = False
+
+
+@router.post("/instalacao")
+def instalar_plugin(payload: InstalarPayload):
+    if not _desktop():
+        raise HTTPException(status_code=403, detail="Só no programa instalado no computador (no online, baixe a DLL).")
+    from services import plugin_instalador
+    return {"resultado": plugin_instalador.instalar(bool(payload.forcar)), "alvos": plugin_instalador.situacao()}
+
+
+@router.post("/instalacao/abrir-pasta")
+def abrir_pasta_plugin():
+    if not _desktop():
+        raise HTTPException(status_code=403, detail="Só no programa instalado no computador.")
+    from services import plugin_instalador
+    pasta = plugin_instalador.pasta_destino()
+    os.makedirs(pasta, exist_ok=True)
+    if hasattr(os, "startfile"):
+        os.startfile(pasta)  # noqa: S606 — pasta fixa do próprio programa
+        return {"aberta": True, "pasta": pasta}
+    return {"aberta": False, "pasta": pasta}

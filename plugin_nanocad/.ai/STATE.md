@@ -5,7 +5,7 @@
 
 ## Versão
 
-`0.6.0` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` (e `<Version>` do `.csproj`)
+`0.7.0` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
 
 Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
@@ -41,6 +41,12 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 - [x] Gravar/ler a obra no DWG (NOD) e em `<desenho>.obra.json`
 - [x] Trocar a layer da anotação ao mudar a operação (opção do pop-up; layer tirada das regras)
 - [x] Regras embutidas (081 e padrão) + pasta `regras\<codigo>\` ao lado da DLL
+
+### nanoCAD 5 pronto + projetos e leitura da aplicação (TASK-014/015, 0.7.0) — ✅ núcleo, API e build · 🟡 CAD
+- [x] `appload/nanoCAD5/OrcamentoNanoCAD.dll` (.NET 4) gerada aqui contra `src/ApiNanoCAD5` (gerador `ferramentas/GerarApiNanoCAD5`); `Compat` desliga o que faltar
+- [x] Tela inicial com todos os projetos da aplicação; regras sempre do projeto; configuração de leitura na aplicação (vale em qualquer computador)
+- [x] Programa principal traz e instala as duas DLLs (TASK-131 do principal)
+- [ ] Testar no nanoCAD 5 de verdade: carregar a DLL, `ORC_AJUDA` mostra os recursos indisponíveis; mandar o log se não carregar
 
 ### Atualização automática (TASK-013, 0.6.0) — ✅ núcleo e API · 🟡 CAD
 - [x] Consulta/baixa/confere/troca (`Nucleo/Atualizacao`, testes `AtualizacaoTests`); `AtualizacaoPlugin` (timer, auxiliar PowerShell, estado em `atualizacao.json`)
@@ -104,7 +110,7 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
 | Suíte | Comando | Resultado (31/10/2026) |
 |---|---|---|
-| Núcleo (xUnit, net8.0) | `dotnet test tests/Nucleo.Testes` | 48 ✅ (ponta a ponta com `APP_URL`/`APP_EMAIL`/`APP_SENHA`) |
+| Núcleo (xUnit, net8.0) | `dotnet test tests/Nucleo.Testes` | 51 ✅ (ponta a ponta com `APP_URL`/`APP_EMAIL`/`APP_SENHA`) |
 | Núcleo em .NET 4 / C# 5 | `dotnet build tests/Net40` | compila ✅ |
 | DLL nanoCAD 26 | `dotnet build src/OrcamentoNanoCAD.csproj -c Release` | compila ✅ (18 comandos, ExtensionApplication, 5 recursos de regras) |
 | Contrato com a aplicação | `pytest tests/test_plugin_nanocad_contrato.py` (raiz) | 5 ✅ |
@@ -112,4 +118,4 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
 ## Última atualização
 
-2026-11-10 — TASK-013 (atualização automática). Antes: TASK-012 (painel Cabos/Postes, filtro do leitor, ícones), TASK-011, TASK-004 a 010, TASK-003 e TASK-001.
+2026-11-11 — TASK-014 (nanoCAD 5 pronto) e TASK-015 (projetos/leitura da aplicação). Antes: TASK-013 (atualização automática), TASK-012 (painel Cabos/Postes, filtro do leitor, ícones), TASK-011, TASK-004 a 010, TASK-003 e TASK-001.
