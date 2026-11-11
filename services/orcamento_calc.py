@@ -9,7 +9,8 @@ from services.orcamento_arred import aplicar_arred
 from services.fator_formula import FormulaErro, avaliar
 from services.anotacao_outros import contexto_da_base, interpretar_linha
 from services.ativo_parametros import (
-    analisar_celula_base, assinaturas_das_linhas, compostos_do_projeto, linha_vale, montar_assinaturas, nome_base, resolver_pedido, restricoes_do_grupo, sem_colchetes,
+    analisar_celula_base, assinaturas_das_linhas, compostos_do_projeto, compostos_parametrizados, linha_vale, montar_assinaturas, nome_base, nome_tela, resolver_pedido,
+    restricoes_do_grupo, sem_colchetes, substituir_variaveis,
 )
 
 
@@ -157,16 +158,47 @@ def interpretar_outros(item: dict, ctx: dict = None) -> tuple:
     return [{"ativo": i["ativo"], "qtd": i["qtd"], "operacao": i["operacao"], "origem": "OUTROS"} for i in r["itens"]], problemas
 
 
-def _expandir_compostos(itens, compostos, avisos, profundidade_max=10) -> list:
+def _valores_por_nome(nomes, params) -> dict:
+    """{NOME na tela: valor|None} — parâmetro repetido (``cabo``, ``cabo#2``) fica com o 1º; use nomes diferentes (cabo, cabo2) para chamar cada um."""
+    saida = {}
+    for n in nomes:
+        saida.setdefault(nome_tela(n), params.get(n))
+    return saida
+
+
+def _expandir_compostos(itens, compostos, avisos, profundidade_max=10, formais=None, assinaturas=None, nao_encontrados=None, nivel0=0) -> list:
     """TASK-110: cada pedido de um ativo composto (``3-N1C``) vira os itens dele (``3-N1(C)``, ``6-N2(C)``), com a quantidade multiplicada pela do item;
-    compostos dentro de compostos expandem em cadeia. Ciclo ou cadeia funda demais: avisa e o composto não conta."""
+    compostos dentro de compostos expandem em cadeia. Ciclo ou cadeia funda demais: avisa e o composto não conta.
+    TASK-134: composto com PARÂMETROS (``formais`` = {NOME: {nomes, padroes, itens}}): o pedido ``CF(S04,A35P)`` (ou ``CF``, com os padrões) é resolvido pela assinatura do
+    composto e os valores entram nos itens no lugar do nome do parâmetro (``TERM(cabo)`` → ``TERM(S04)``)."""
+    formais = formais or {}
     saida = []
 
     def expande(av, nivel, pilha):
         base = nome_base(av["ativo"])
-        itens_do_composto = compostos.get(base) if "(" not in sem_colchetes(av["ativo"]) else None
+        tem_params = "(" in sem_colchetes(av["ativo"])
+        if base in formais:
+            if base in pilha or nivel >= profundidade_max:
+                avisos.append(f"Composto {base} se referencia em ciclo ({' → '.join(pilha + (base,))}): não foi calculado.")
+                return
+            ped = resolver_pedido(sem_colchetes(av["ativo"]), assinaturas or {})
+            if ped["erros"]:
+                if nao_encontrados is not None:
+                    nao_encontrados.append(f"{sem_colchetes(av['ativo'])} ({'; '.join(ped['erros'])})")
+                return
+            valores = _valores_por_nome(formais[base]["nomes"], ped["params"])
+            if ped["faltando"]:
+                avisos.append(f"{ped['texto']}: faltou informar {', '.join(nome_tela(n) for n in ped['faltando'])} — os itens que dependem disso não foram calculados.")
+            for it in formais[base]["itens"]:
+                texto, faltando = substituir_variaveis(it["ativo"], valores)
+                if faltando:
+                    avisos.append(f"{base}: o item {it['ativo']} não foi calculado (faltou informar {', '.join(faltando)}).")
+                    continue
+                expande(dict(av, ativo=texto, qtd=av["qtd"] * it["qtd"]), nivel + 1, pilha + (base,))
+            return
+        itens_do_composto = compostos.get(base) if not tem_params else None
         if itens_do_composto is None:
-            saida.append(av)
+            saida.append(dict(av, _nivel=nivel) if nivel else av)
             return
         if base in pilha or nivel >= profundidade_max:
             avisos.append(f"Composto {base} se referencia em ciclo ({' → '.join(pilha + (base,))}): não foi calculado.")
@@ -175,7 +207,7 @@ def _expandir_compostos(itens, compostos, avisos, profundidade_max=10) -> list:
             expande(dict(av, ativo=it["ativo"], qtd=av["qtd"] * it["qtd"]), nivel + 1, pilha + (base,))
 
     for av in itens:
-        expande(av, 0, ())
+        expande(av, nivel0, ())
     return saida
 
 
@@ -249,6 +281,8 @@ def _preparar_parametros(orcamento_rows, req_proj):
 def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcamento_rows: list) -> dict:
     req_proj = (req_projeto or "").strip().upper()
     compostos = compostos_do_projeto(orcamento_rows, req_proj)          # TASK-110: N1C:=N1(C) + 2*N2(C)
+    _param = compostos_parametrizados(orcamento_rows, req_proj)         # TASK-134: CF(cabo,cabo2):=… e CHAVE_FACA(cabo=%S04%):=…
+    compostos_formais, compostos_de_grupo = _param["formais"], _param["grupos"]
     ctx_outros = contexto_da_base(orcamento_rows, req_proj)          # TASK-081: apelidos, postes e assinaturas (antes de normalizar a base)
     orcamento_rows, assinaturas, grupos_param = _preparar_parametros(orcamento_rows, req_proj)
     avisos = []
@@ -304,8 +338,9 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
         if erros:
             erros_formato.append(f"{(item.get('ativo') or '').strip()} ({'; '.join(erros)})")
 
-    if compostos:
-        ativos_qtd = _expandir_compostos(ativos_qtd, compostos, avisos)
+    nao_encontrados_compostos = []
+    if compostos or compostos_formais:
+        ativos_qtd = _expandir_compostos(ativos_qtd, compostos, avisos, formais=compostos_formais, assinaturas=assinaturas, nao_encontrados=nao_encontrados_compostos)
 
     # ── 3. Cross-reference: Ativo → 1º match → Componente → todos os Códigos ─
     
@@ -339,7 +374,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             codigo_lookup[codigo] = row
 
     componentes_qtd = []
-    nao_encontrados = list(erros_formato)
+    nao_encontrados = list(erros_formato) + nao_encontrados_compostos
 
     def _buscar(nome_ativo, aceita):
         """Cascata de busca (ativo → componente → código). A DESCRIÇÃO (DESC ATIVO) não resolve nome nenhum (TASK-122). Retorna ("linhas", [rows]) | ("codigo", row) | None."""
@@ -410,7 +445,13 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             })
         return True, None
 
-    for av in ativos_qtd:
+    fila, posicao = list(ativos_qtd), 0                    # TASK-134: o grupo que CHAMA ativos acrescenta itens à fila
+    while posicao < len(fila):
+        av = fila[posicao]
+        posicao += 1
+        if av.get("_nivel", 0) > 10:
+            avisos.append(f"{av['ativo']}: cadeia de ativos chamados funda demais (ciclo?): não foi calculado.")
+            continue
         nome_ativo = av["ativo"]
         base = nome_base(nome_ativo)
         nome_ativo = sem_colchetes(nome_ativo)             # TASK-108: [S336,4] procura "S336,4" (o nome literal da base)
@@ -434,6 +475,19 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
                 ok, d = _processar_um(chave, av, pedido["texto"], pedido["params"])
                 achou = achou or ok
                 dica = dica or d
+            chamados = [g for g in compostos_de_grupo.get(base, []) if linha_vale(g["restricoes"], pedido["params"])]
+            if chamados:                                   # TASK-134: CHAVE_FACA(cabo=%S04%):=TERM(cabo) — os itens entram no cálculo (o nome do parâmetro vira o valor pedido)
+                achou = True
+                valores = _valores_por_nome(assinaturas[base]["nomes"], pedido["params"])
+                nivel = av.get("_nivel", 0) + 1
+                for g in chamados:
+                    for it in g["itens"]:
+                        texto, faltando = substituir_variaveis(it["ativo"], valores)
+                        if faltando:
+                            avisos.append(f"{pedido['texto']}: o item {it['ativo']} não foi calculado (faltou informar {', '.join(faltando)}).")
+                            continue
+                        fila.extend(_expandir_compostos([dict(av, ativo=texto, qtd=av["qtd"] * it["qtd"])], compostos, avisos, formais=compostos_formais, assinaturas=assinaturas,
+                                                        nao_encontrados=nao_encontrados, nivel0=nivel))
             if not achou:
                 nao_encontrados.append(f"{nome_ativo} ({dica or 'variante não cadastrada'})")
             continue

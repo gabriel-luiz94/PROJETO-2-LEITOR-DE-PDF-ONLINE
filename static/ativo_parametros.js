@@ -83,17 +83,44 @@
         return partes;
     }
 
-    /** "N1C:=N1(C) + 2*N2(C)" → { tipo: 'composto', base: 'N1C', itens: [{ ativo, qtd }], erro, ... } (espelha analisar_composto). */
+    /** "N1C:=N1(C) + 2*N2(C)" → { tipo: 'composto', base: 'N1C', itens: [{ ativo, qtd }], erro, ... } (espelha analisar_composto).
+     *  TASK-134: nome com parênteses (cabecalho) — "CF(cabo, cabo2=S04):=…" (composto com parâmetros: formais) ou "CHAVE_FACA(cabo=%S04%):=CON_S04" (grupo de um ativo da
+     *  base que chama outros ativos: condicoes). Qual dos dois vale é decidido pelo nome já existir como ativo da base (no servidor: compostos_parametrizados). */
     function analisarComposto(texto, k) {
         const original = String(texto == null ? '' : texto).trim();
         if (k === undefined || k === null) k = acharComposto(original);
-        const r = { texto: original, base: '', tipo: 'composto', params: [], erro: null, apelidos: [], itens: [] };
-        const esq = original.slice(0, k).trim(), dir = original.slice(k + 2).trim();
+        const r = { texto: original, base: '', tipo: 'composto', params: [], erro: null, apelidos: [], itens: [], cabecalho: null, formais: null, condicoes: null };
+        let esq = original.slice(0, k).trim();
+        const dir = original.slice(k + 2).trim();
         const lit = literalDe(esq);
+        let cab = null;
+        if (lit === null && esq.indexOf('(') !== -1) {
+            const i = esq.indexOf('(');
+            r.base = esq.slice(0, i).trim().toUpperCase();
+            const contar = c => esq.split(c).length - 1;
+            if (!esq.endsWith(')') || contar('(') !== 1 || contar(')') !== 1) { r.erro = 'parênteses mal formados no nome do composto'; return r; }
+            cab = decimalDeTensao(esq.slice(i + 1, -1));
+            esq = esq.slice(0, i).trim();
+            if (!cab.trim()) { r.erro = 'parênteses vazios no nome do composto'; return r; }
+        }
         let erro;
         if (lit !== null) { r.base = lit.trim().toUpperCase(); erro = erroLiteral(lit); }
         else { r.base = esq.toUpperCase(); erro = RE_APELIDO.test(esq.toUpperCase()) ? null : `nome '${esq}' inválido (use letras, números, _, ., - e /; ou [nome])`; }
         if (erro) { r.erro = erro; return r; }
+        if (cab !== null) {
+            r.cabecalho = norm(cab);
+            const dec = analisarDeclaracao(`${r.base}=${r.base}(${cab})`);
+            const gru = analisarAtivo(`${r.base}(${cab})`, true);
+            if (!dec.erro) {
+                const concreto = p => p.valor === null || (p.op === '=' && p.alts.length === 1 && p.alts[0].indexOf('%') === -1);
+                r.formais = dec.params.every(concreto) ? dec.params.map(p => ({ nome: p.nome, padrao: p.valor })) : null;
+            }
+            if (!gru.erro && gru.params.every(p => p.nome !== null)) r.condicoes = gru.params;
+            if (r.formais === null && r.condicoes === null) {
+                r.erro = `parâmetros do nome '${esq}(${cab.trim()})' inválidos: ${dec.erro || gru.erro || 'use nome ou nome=valor (composto com parâmetros) ou nome=condição (grupo de um ativo)'}`;
+                return r;
+            }
+        }
         if (!dir) { r.erro = `composto ${r.base} sem itens: ${r.base}:=N1(C) + 2*N2(C)`; return r; }
         for (const parte of partesMais(dir)) {
             const m = parte.match(/^\s*(\d+(?:[.,]\d+)?)\s*\*\s*([\s\S]+)$/);
@@ -249,16 +276,36 @@
 
     function montarAssinaturas(celulas) {
         const saida = {};
-        for (const cel of celulas) {
-            const a = analisarCelulaBase(cel);
-            if (a.erro || !a.params.length) continue;
+        let analises = celulas.map(cel => analisarCelulaBase(cel));
+        const declaradas = new Set(analises.filter(a => !a.erro && a.tipo !== 'composto' && a.base).map(a => a.base));
+        analises = analises.filter(a => a.tipo !== 'composto').concat(analises.filter(a => a.tipo === 'composto'));          // TASK-134: os compostos por último (a declaração do ativo vem antes)
+        for (const a of analises) {
+            if (a.erro) continue;
+            let params = a.params, tipo = a.tipo;
+            if (tipo === 'composto') {                                                                          // TASK-134: composto com nome parametrizado
+                if (a.cabecalho === null) continue;
+                if (declaradas.has(a.base)) {                                                                   // CHAVE_FACA(cabo=%S04%):=CON_S04 — grupo do ativo
+                    if (!a.condicoes) continue;
+                    const dono = saida[a.base];
+                    params = a.condicoes.filter(q => dono && dono.nomes.includes(q.nome)); tipo = 'grupo';
+                } else {                                                                                        // CF(cabo, cabo2=S04):=… — parâmetros do composto (abertos)
+                    if (!a.formais) continue;
+                    const sc = saida[a.base] || (saida[a.base] = { nomes: [], padroes: {}, valores: {}, mascaras: {}, fechados: [], declarada: false });
+                    if (sc.declarada) continue;
+                    sc.declarada = true; sc.composto = true;
+                    sc.nomes = a.formais.map(f => f.nome);
+                    for (const f of a.formais) if (f.padrao !== null) { sc.padroes[f.nome] = f.padrao; sc.valores[f.nome] = [f.padrao]; }
+                    continue;
+                }
+            }
+            if (!params.length) continue;
             const s = saida[a.base] || (saida[a.base] = { nomes: [], padroes: {}, valores: {}, mascaras: {}, fechados: [], declarada: false });
-            if (a.tipo === 'declaracao') {
+            if (tipo === 'declaracao') {
                 if (s.declarada) continue;
                 s.declarada = true;
-                const nomes = a.params.map(p => p.nome);
+                const nomes = params.map(p => p.nome);
                 s.nomes = nomes.concat(s.nomes.filter(n => !nomes.includes(n)));
-                for (const p of a.params) {
+                for (const p of params) {
                     if (p.valor === null) continue;
                     if (p.op === '=' && p.alts.length === 1 && p.alts[0].indexOf('%') === -1) {          // valor concreto: PADRÃO + valor cadastrado
                         s.padroes[p.nome] = p.valor;
@@ -275,7 +322,7 @@
                     }
                 }
             } else {
-                for (const p of a.params) {
+                for (const p of params) {
                     if (p.nome === null) continue;
                     if (!s.nomes.includes(p.nome)) s.nomes.push(p.nome);
                     for (const alt of p.alts) {
