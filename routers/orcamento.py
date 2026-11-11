@@ -15,6 +15,7 @@ from services.orcamento_arred import normalizar_arred
 from services.fator_formula import normalizar_fator
 from services.ativo_parametros import preencher_componentes, validar_base, resumo_erros
 from services.exportar_xlsx import ErroExportacao, gerar_xlsx
+from services.exportar_sap_pdf import ErroPdf, gerar_pdf
 from services.sync_service import (
     get_merged_orcamento, sync_tabela_master, filtrar_linhas_por_categoria,
     validar_linhas_do_projeto,
@@ -287,3 +288,19 @@ async def exportar_xlsx(request: Request):
         raise HTTPException(status_code=400, detail=str(e))
     return Response(content=conteudo, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": 'attachment; filename="SAP.xlsx"'})
+
+
+@router.post("/exportar-sap-pdf")
+async def exportar_sap_pdf(request: Request):
+    """TASK-140: relatório ODI ou ODD em PDF (formato da nota do SAP). Corpo: {tipo: "ODI"|"ODD", cabecalho: {...}, linhas: [{mdo, codigo, desc, qtd}]}."""
+    try:
+        corpo = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Corpo inválido.")
+    if not isinstance(corpo, dict):
+        raise HTTPException(status_code=400, detail="Corpo inválido.")
+    try:
+        conteudo = gerar_pdf(corpo.get("cabecalho") or {}, corpo.get("tipo", ""), corpo.get("linhas", []))
+    except ErroPdf as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return Response(content=conteudo, media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="SAP.pdf"'})

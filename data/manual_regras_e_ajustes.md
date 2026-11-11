@@ -701,3 +701,8 @@ O ativo composto (`NOME:=item + qtd*item`) aceita **parênteses no nome**:
 ## Sugestão de ativos ao digitar e ativo de outro projeto (TASK-136)
 - Ao digitar na coluna **Ativo** (Demais ativos e Totalizadora) aparecem as sugestões — só **ativos e apelidos** que existem na Base de Orçamento para o **projeto atual** (e os genéricos). ↑/↓ escolhem, **Tab** aceita (o 1º, se nada estiver destacado), **Enter** aceita o destacado, **Esc** fecha. O botão **💡 Sugestões**, na barra do Resumo, liga/desliga (a escolha fica guardada).
 - Um ativo cadastrado só em **outro projeto** não vale: não é sugerido, não é reconhecido e, no cálculo, aparece em "não encontrados". Ativos sem projeto (genéricos) valem em qualquer projeto.
+
+
+## Relatórios ODI e ODD em PDF (TASK-140)
+
+Na tela **Resultado do Orçamento**, na visão **SAP**, o botão **Relatórios PDF** abre um diálogo para preencher o cabeçalho (título, nº da nota, nº SAP, bairro, município, UTD, UTEP, projetista, data e ID de investimento) e salva dois arquivos, `NOTA_<nº>_ODI.pdf` e `NOTA_<nº>_ODD.pdf`, no mesmo formato da nota do SAP (tabela com título verde, Calibri 11, rodapé "Internal Use"). Entram os itens **visíveis** de cada tabela (filtros valem). O ID de investimento do ODD, se vazio, repete o do ODI. Projetista, UTD, UTEP, município e IDs ficam lembrados neste computador.
