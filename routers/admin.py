@@ -413,7 +413,10 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...), proj
     admin = _require_admin(request)
     try:
         contents = await file.read()
-        text = contents.decode("utf-8-sig")
+        try:
+            text = contents.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            text = contents.decode("cp1252", errors="replace")          # TASK-137: CSV em ANSI (Windows-1252) do Excel
         reader = csv.DictReader(io.StringIO(text), delimiter=";")
         if not reader.fieldnames or len(reader.fieldnames) < 2:
             reader = csv.DictReader(io.StringIO(text), delimiter=",")
