@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-11 — TASK-137: importar base de orçamento em CSV ANSI (Windows-1252)
+
+- `/api/orcamento/upload` e `/api/admin/upload-master` decodificam UTF-8 e, se falhar, Windows-1252 (CSV do Excel). Antes o arquivo em ANSI era recusado com erro de codec.
+
+---
+
 ## 2026-11-11 — TASK-136: sugestão de ativos do projeto e ativo de outro projeto não vale
 
 - `ativo_sugestao.js` + botão 💡 Sugestões; `orcamento_calc.py` sem fallback para outro projeto. Tarefa: `.ai/tasks/TASK-136-11-11-2026.md`.

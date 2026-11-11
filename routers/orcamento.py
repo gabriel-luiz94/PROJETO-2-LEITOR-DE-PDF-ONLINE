@@ -34,7 +34,10 @@ async def upload_orcamento(request: Request, file: UploadFile = File(...)):
     try:
         contents = await file.read()
         # Decode and parse CSV
-        text = contents.decode("utf-8-sig")
+        try:
+            text = contents.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            text = contents.decode("cp1252", errors="replace")          # TASK-137: CSV salvo como "CSV (separado por vírgulas)" do Excel vem em ANSI (Windows-1252), não UTF-8
         reader = csv.DictReader(io.StringIO(text), delimiter=";")
 
         # fallback to comma if no columns found
