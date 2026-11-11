@@ -44,6 +44,11 @@ AÇÕES (cada uma exige `acao` e `tabela`: "cabos" | "outros" | "ambos"; `id` e 
                       — com `2-U4` na linha, gera `*4-90277` e `4-90279`.
   remover_ativo     (Outros) {"ativo": SELETOR}
   mesclar_duplicadas(Outros) soma as quantidades do mesmo ativo repetido na linha
+  somar_linhas      (Outros) {"ativo": SELETOR, "por_entidade": true|false} (TASK-139) — junta, ENTRE linhas, os itens
+                      <qtd>-<ativo> que casam com o seletor e se repetem: a soma fica na 1ª ocorrência e as demais saem
+                      das linhas (linha que ficar vazia é excluída). Só junta itens da mesma operação (I com I, *I com *I)
+                      e, por padrão, da mesma entidade (`por_entidade` false ignora a entidade). Ex.: 1-CFU na linha 3 e
+                      2-CFU na linha 9 → 3-CFU na linha 3.
   criar_linha_derivada {"de": {"regex": ".."}, "ativo_novo": "texto com \\1, \\2..", "operacao_nova"?: "I",
                       "entidade_nova"?: "0", "posicao": "depois"(padrão)|"antes", "apenas_se_nao_existir": true}
                       (TASK-053) Para cada linha que casar com `de` (regex, pode ter grupos), insere uma linha NOVA
@@ -89,10 +94,11 @@ ESPECIFICOS = {
     "adicionar_ativo": {"ativo", "qtd", "se_ja_existe", "operacao_nova", "operacoes", "quando"},
     "remover_ativo": {"ativo", "operacao_nova", "operacoes", "quando"},
     "mesclar_duplicadas": {"operacao_nova", "operacoes", "quando"},
+    "somar_linhas": {"ativo", "por_entidade", "operacoes", "quando"},
     "criar_linha_derivada": {"de", "ativo_novo", "operacao_nova", "entidade_nova", "posicao",
                              "apenas_se_nao_existir", "operacoes", "quando"},
 }
-SO_OUTROS = {"adicionar_ativo", "remover_ativo", "mesclar_duplicadas"}
+SO_OUTROS = {"adicionar_ativo", "remover_ativo", "mesclar_duplicadas", "somar_linhas"}
 SO_UMA_TABELA = {"adicionar_linha"}
 REGRAS_NORMALIZAR = ("espacos", "maiusculas", "poste")
 COLUNAS = ("operacao", "ativo", "entidade")
@@ -283,6 +289,10 @@ def _validar_acao(a, pre, erros, grupos):
             erros.append(f"{pre}: 'se_ja_existe' precisa ser ignorar, somar ou substituir.")
     elif nome == "remover_ativo":
         _validar_sel(a.get("ativo"), f"{pre}.ativo", erros, grupos)
+    elif nome == "somar_linhas":
+        _validar_sel(a.get("ativo"), f"{pre}.ativo", erros, grupos)
+        if "por_entidade" in a and not isinstance(a["por_entidade"], bool):
+            erros.append(f"{pre}: 'por_entidade' precisa ser true ou false.")
     elif nome == "criar_linha_derivada":
         de = a.get("de")
         if not isinstance(de, dict) or set(de) != {"regex"}:
@@ -784,9 +794,70 @@ def _aplicar_criar_linha_derivada(est, idx, a):
             est.marcar(tabela, nova["id"], idx)
 
 
+def _aplicar_somar_linhas(est, idx, a):
+    """TASK-139: junta, ENTRE linhas de Outros, os itens <qtd>-<ativo> que casam com o seletor: a soma vai para a 1ª ocorrência,
+    as demais saem das suas linhas (linha que fica vazia é excluída). Chave: operação (+ entidade, salvo por_entidade=false) + ativo."""
+    filtro, sel, por_ent = _ops_filtro(a), a["ativo"], a.get("por_entidade", True)
+    tabela = "outros"
+
+    def elegivel(row):
+        texto = row["ativo"]
+        return (texto.strip() and (filtro is None or row["operacao"].strip().upper() in filtro) and not eh_compacta(texto)
+                and _quando(a.get("quando"), tabela, texto, est.grupos))
+
+    def chave(row, nome):
+        return (row["operacao"].strip().upper(), str(row.get("entidade", "0")).strip() if por_ent else None, nome.upper())
+
+    def ocorrencias():
+        achados = {}
+        for row in est.tabelas[tabela]:
+            if not elegivel(row):
+                continue
+            for k, tok in enumerate(_RE_TOKEN.findall(row["ativo"])):
+                q, nome = _parse_token(tok)
+                n = _num(q)
+                if n is not None and _casa(nome.upper(), sel, est.grupos):
+                    achados.setdefault(chave(row, nome), []).append((row["id"], k, n, nome))
+        return {c: o for c, o in achados.items() if len(o) > 1}
+
+    for c, ocs in ocorrencias().items():
+        total = sum(o[2] for o in ocs)
+        por_linha = {}
+        for lid, k, n, nome in ocs:
+            por_linha.setdefault(lid, []).append(k)
+        novos = {}
+        for row in est.tabelas[tabela]:
+            if row["id"] not in por_linha:
+                continue
+            toks, remover, primeiro = _RE_TOKEN.findall(row["ativo"]), set(por_linha[row["id"]]), (ocs[0][0], ocs[0][1])
+            saida = []
+            for k, tok in enumerate(toks):
+                if (row["id"], k) == primeiro and total != 0:
+                    saida.append(_juntar(_fmt_qtd(total), ocs[0][3]))
+                elif k not in remover:
+                    saida.append(tok)
+            novos[row["id"]] = " ".join(saida)
+        invalido = None
+        for row in est.tabelas[tabela]:
+            if row["id"] in novos and novos[row["id"]].strip():
+                invalido = invalido or _novo_erro_c1(tabela, row, {**row, "ativo": novos[row["id"]]})
+        if invalido:
+            est.descartar(idx, ocs[0][0], f"a soma deixaria uma linha inválida ({invalido})")
+            continue
+        manter = []
+        for row in est.tabelas[tabela]:
+            if row["id"] in novos:
+                est.marcar(tabela, row["id"], idx)
+                if not novos[row["id"]].strip():
+                    continue
+                row["ativo"] = novos[row["id"]]
+            manter.append(row)
+        est.tabelas[tabela] = manter
+
+
 EXECUTORES = {
     "ordenar": _aplicar_ordenar, "excluir_linhas": _aplicar_excluir, "adicionar_linha": _aplicar_adicionar_linha,
-    "criar_linha_derivada": _aplicar_criar_linha_derivada,
+    "criar_linha_derivada": _aplicar_criar_linha_derivada, "somar_linhas": _aplicar_somar_linhas,
 }
 
 
@@ -939,6 +1010,9 @@ def descrever_acao(a: dict) -> str:
         return f"Em {t}: adicionar {qtd_txt} à linha{_frase_filtros(a)}{modo}{op}."
     if nome == "remover_ativo":
         return f"Em {t}: remover {_frase_sel(a['ativo'])} da linha{_frase_filtros(a)}{op}."
+    if nome == "somar_linhas":
+        ent = "" if a.get("por_entidade", True) else ", ignorando a entidade"
+        return f"Em {t}: juntar em uma só linha (a 1ª em que aparece) as quantidades de {_frase_sel(a['ativo'])} repetido em várias linhas{ent}{_frase_filtros(a)}."
     if nome == "criar_linha_derivada":
         pos_txt = "antes" if a.get("posicao", "depois") == "antes" else "depois"
         return (f"Em {t}: quando a linha casar com /{a['de']['regex']}/, criar a linha nova "

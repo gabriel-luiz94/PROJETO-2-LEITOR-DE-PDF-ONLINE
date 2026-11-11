@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-11 — TASK-139: ajuste somar_linhas (juntar o mesmo ativo de várias linhas)
+
+- Nova ação de ajuste em Outros que soma, na 1ª linha, os ativos escolhidos repetidos em linhas diferentes (mesma operação e, por padrão, mesma entidade). Painel de ajustes ganhou a opção.
+
+---
+
 ## 2026-11-11 — TASK-138: sugestão de ativos com nome iniciado por número
 
 - `ativo_sugestao.js`: 3+ dígitos sugerem (postes `11200D`); só dígitos casam pelo começo do nome; 1-2 dígitos seguem como quantidade.

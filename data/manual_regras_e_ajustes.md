@@ -269,6 +269,12 @@ Use `"qtd"` **negativo** para adicionar como "linha viva"/retirada — o ativo e
 [{"acao": "mesclar_duplicadas", "tabela": "outros"}]
 ```
 
+**somar_linhas** (só Outros): junta, **entre linhas diferentes**, as quantidades dos ativos que você escolher. A soma fica na primeira linha em que o ativo aparece e as outras ocorrências saem das suas linhas (a linha que ficar vazia é excluída). Só junta itens da mesma operação (`I` com `I`, `*I` com `*I`) e, por padrão, da mesma entidade (`"por_entidade": false` ignora a entidade). Linhas em notação compacta (com vírgulas, como `9400D, 1-CFU`) não são editadas. No editor visual: **Somar ativos de várias linhas em uma**.
+
+```json acoes
+[{"acao": "somar_linhas", "tabela": "outros", "ativo": ["CFU", "PR"], "por_entidade": false}]
+```
+
 **criar_linha_derivada:** pra cada linha que casar com `de` (um regex, com grupo(s) entre parênteses), cria uma linha
 **nova** logo depois (ou antes) dela — nunca edita a linha original. `ativo_novo` é um texto que pode reusar o que foi
 capturado por `de` com `\1`, `\2`... (o que o grupo 1, grupo 2... capturou NAQUELA linha). Diferente de
