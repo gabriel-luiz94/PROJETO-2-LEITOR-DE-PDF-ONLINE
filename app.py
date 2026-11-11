@@ -39,7 +39,7 @@ from routers import manual, obras, regras, regras_leitor, regras_vinculacao, vin
 
 
 app = FastAPI(
-    title="ReadGrid",
+    title="GridReader",
     version=APP_VERSION,
     description="Sistema profissional de leitura e análise de projetos PDF/DXF",
 )
@@ -470,7 +470,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     is_headless = os.environ.get("HEADLESS", "0") == "1" or APP_MODE == "server"
 
-    logger.info(f"Iniciando ReadGrid v{APP_VERSION} [modo: {APP_MODE}]...")
+    logger.info(f"Iniciando GridReader v{APP_VERSION} [modo: {APP_MODE}]...")
 
     if is_headless:
         # Modo Servidor / Cloud (Deploy sem janela gráfica)
@@ -491,7 +491,7 @@ if __name__ == "__main__":
             import webview
             # TASK-128: a janela abre já com a tela "Iniciando…" e só carrega o login quando o servidor aceita conexões (sem a mensagem "recusou a conectar")
             window = webview.create_window(
-                title=f"ReadGrid v{APP_VERSION}",
+                title=f"GridReader v{APP_VERSION}",
                 html=TELA_INICIAL,
                 width=1320,
                 height=860,

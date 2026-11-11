@@ -737,7 +737,7 @@ namespace OrcamentoNanoCAD
         [CommandMethod("ORC_AJUDA")]
         public void CmdAjuda()
         {
-            Aplicacao.Msg("ReadGrid para nanoCAD " + ObraArquivo.VersaoPlugin + " — desenvolvido por Gabriel Sales — comandos:\n"
+            Aplicacao.Msg("GridReader para nanoCAD " + ObraArquivo.VersaoPlugin + " — desenvolvido por Gabriel Sales — comandos:\n"
                 + "  ORCAMENTO      início (Construir do zero / Ler projeto / Continuar obra salva)\n"
                 + "  ORC_LER  ORC_RELER  ORC_ATUALIZAR  ORC_CONTINUAR  ORC_CONSTRUIR\n"
                 + "  ORC_POSTE  ORC_VAO  ORC_VINCULAR  ORC_EDITAR  ORC_ZOOM\n"

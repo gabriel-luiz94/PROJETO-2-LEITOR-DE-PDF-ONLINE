@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-11 — TASK-135: nome GridReader (era ReadGrid) e sem "Extraia textos…"
+
+- Nome trocado em telas, janela, tela "Iniciando…", confirmação de fechar e plugin ("GridReader para nanoCAD", 0.7.1 — sobe para a atualização automática levar o nome). Cabeçalho "Grid**Reader**". Frase "Extraia textos, fontes, cores e mais com precisão." removida da tela inicial. Perfil da janela em `%APPDATA%\GridReader\janela`, levando junto o `ReadGrid\janela` (senhas salvas). Tarefa: `.ai/tasks/TASK-135-11-11-2026.md`.
+
 ## 2026-11-11 — TASK-134: composto com parâmetros e grupo que chama ativos
 
 - Nome com parênteses antes do `:=` na Base de Orçamento; cálculo por fila; validação e JS em paridade. Tarefa: `.ai/tasks/TASK-134-11-11-2026.md`.
