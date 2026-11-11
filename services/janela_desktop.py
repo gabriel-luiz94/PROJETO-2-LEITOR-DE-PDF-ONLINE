@@ -4,7 +4,7 @@ services/janela_desktop.py — comportamento da janela do programa no computador
 * Fechar a janela pede confirmação (pywebview `confirm_close` com o texto em português) e, confirmado, ENCERRA o servidor local
   (antes o servidor podia continuar rodando em segundo plano e segurar a porta).
 * Senhas salvas: a janela usa um perfil persistente (cookies, senhas e preenchimento automático ficam guardados em
-  %APPDATA%\\ReadGrid\\janela) e liga no WebView2 o salvamento de senhas e o preenchimento automático — o login oferece as senhas
+  %APPDATA%\\GridReader\\janela) e liga no WebView2 o salvamento de senhas e o preenchimento automático — o login oferece as senhas
   já salvas e pergunta se quer salvar uma nova.
 """
 import os
@@ -14,7 +14,7 @@ from config import logger
 
 # textos da janela nativa (pywebview): a confirmação de fechar e os botões
 LOCALIZACAO = {
-    "global.quitConfirmation": "Fechar o ReadGrid? O servidor local também será encerrado.",
+    "global.quitConfirmation": "Fechar o GridReader? O servidor local também será encerrado.",
     "global.ok": "Fechar",
     "global.cancel": "Cancelar",
     "global.quit": "Sair",
@@ -27,7 +27,14 @@ LOCALIZACAO = {
 def pasta_perfil() -> str:
     """Perfil persistente do navegador da janela (senhas salvas, preenchimento automático, cookies)."""
     base = os.environ.get("APPDATA") or os.path.join(os.path.expanduser("~"), ".config")
-    p = os.path.join(base, "ReadGrid", "janela")
+    p = os.path.join(base, "GridReader", "janela")
+    antiga = os.path.join(base, "ReadGrid", "janela")          # TASK-135: o nome anterior; leva junto as senhas já salvas
+    if not os.path.exists(p) and os.path.isdir(antiga):
+        try:
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            os.rename(antiga, p)
+        except OSError:
+            pass
     os.makedirs(p, exist_ok=True)
     return p
 

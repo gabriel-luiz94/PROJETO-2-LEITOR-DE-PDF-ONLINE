@@ -46,3 +46,15 @@ def test_login_preparado_para_senhas_salvas():
     assert 'name="email" autocomplete="username"' in html and 'name="password" autocomplete="current-password"' in html
     js = (RAIZ / "static" / "login.js").read_text(encoding="utf-8")
     assert "navigator.credentials.store" in js and "navigator.credentials.get" in js
+
+
+def test_perfil_do_nome_anterior_e_aproveitado(tmp_path, monkeypatch):
+    """TASK-135: ReadGrid → GridReader sem perder as senhas salvas da janela."""
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    antiga = tmp_path / "ReadGrid" / "janela"
+    antiga.mkdir(parents=True)
+    (antiga / "Login Data").write_text("x")
+    p = Path(jd.pasta_perfil())
+    assert p == tmp_path / "GridReader" / "janela" and (p / "Login Data").read_text() == "x"
+    assert not antiga.exists()
+    assert "GridReader" in jd.LOCALIZACAO["global.quitConfirmation"]

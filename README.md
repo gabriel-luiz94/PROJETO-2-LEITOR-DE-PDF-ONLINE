@@ -1,6 +1,6 @@
-# ReadGrid
+# GridReader
 
-> Desenvolvido por **Gabriel Sales** · (antes: "Leitor de Projetos Pro")
+> Desenvolvido por **Gabriel Sales** · (antes: "Leitor de Projetos Pro" e "ReadGrid")
 
 Sistema para leitura e análise de projetos de rede elétrica a partir de arquivos PDF e DXF, com orçamento automatizado, autenticação, sincronização offline-first com a nuvem e um assistente de IA integrado.
 
