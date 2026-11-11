@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-11 — TASK-138: sugestão de ativos com nome iniciado por número
+
+- `ativo_sugestao.js`: 3+ dígitos sugerem (postes `11200D`); só dígitos casam pelo começo do nome; 1-2 dígitos seguem como quantidade.
+
+---
+
 ## 2026-11-11 — TASK-137: importar base de orçamento em CSV ANSI (Windows-1252)
 
 - `/api/orcamento/upload` e `/api/admin/upload-master` decodificam UTF-8 e, se falhar, Windows-1252 (CSV do Excel). Antes o arquivo em ANSI era recusado com erro de codec.
