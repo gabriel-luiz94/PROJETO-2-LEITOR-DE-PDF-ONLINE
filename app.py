@@ -94,6 +94,11 @@ async def serve_resumo_js():
 async def serve_resumo_layout_js():
     return _serve_js("resumo_layout.js")
 
+@app.get("/static/ativo_sugestao.js")
+async def serve_ativo_sugestao_js():
+    return _serve_js("ativo_sugestao.js")       # TASK-136
+
+
 @app.get("/static/abrir_na_app.js")
 async def serve_abrir_na_app_js():
     return _serve_js("abrir_na_app.js")         # TASK-128

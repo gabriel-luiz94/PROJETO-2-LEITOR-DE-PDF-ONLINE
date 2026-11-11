@@ -316,9 +316,9 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             orcamento_dict[key] = exact_matches
         elif generic_matches:
             orcamento_dict[key] = generic_matches
-        elif fallback_matches:
+        elif fallback_matches and not req_proj:                                # TASK-136: com projeto escolhido, ativo cadastrado só em OUTRO projeto não vale (antes era "achado" sem itens)
             orcamento_dict[key] = fallback_matches
-        else:
+        elif not req_proj:
             orcamento_dict[key] = rows
 
     # ── 2. Extrair tabela interna [ativo, qtd, operacao] ────────────────────
