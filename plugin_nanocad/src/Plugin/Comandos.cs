@@ -95,9 +95,27 @@ namespace OrcamentoNanoCAD
         /// <summary>Regras da aplicação escolhidas: baixa a versão atual (se conectado); sem conexão, fica a do cache.</summary>
         private static RegrasProjeto RegrasFrescas(RegrasProjeto escolhidas, string projeto)
         {
-            if (!escolhidas.DaAplicacao || !Conexao.Logado) return escolhidas;
-            try { return Conexao.BaixarRegras(string.IsNullOrEmpty(projeto) ? escolhidas.Codigo : projeto); }
-            catch (ErroAplicacao e) { Aplicacao.Msg("Usando as regras guardadas da aplicação (" + e.Message + ")."); return escolhidas; }
+            if (!escolhidas.DaAplicacao) return escolhidas;
+            string codigo = string.IsNullOrEmpty(projeto) ? escolhidas.Codigo : projeto;
+            if (Conexao.Logado)
+            {
+                try
+                {
+                    RegrasProjeto r = Conexao.BaixarRegras(codigo);
+                    Aplicacao.Msg("Regras do projeto " + r.Nome + " baixadas da aplicação" + (r.LeituraDaAplicacao ? " (com a configuração de leitura do projeto)." : "."));
+                    return r;
+                }
+                catch (ErroAplicacao e) { Aplicacao.Msg("Não deu para baixar as regras do projeto " + codigo + ": " + e.Message); }
+            }
+            if (escolhidas.Processamento.Count > 0 || escolhidas.Classificacao.Count > 0)
+            {
+                Aplicacao.Msg("Usando a última cópia das regras da aplicação para " + escolhidas.Nome + ".");
+                return escolhidas;
+            }
+            // projeto nunca baixado e sem a aplicação: regras embutidas (Pernambuco para 081, senão o padrão)
+            RegrasProjeto emb = Aplicacao.Regras.FirstOrDefault(x => x.Codigo == codigo) ?? Aplicacao.Regras.FirstOrDefault();
+            Aplicacao.Msg("Sem as regras da aplicação para " + codigo + ": usando as regras embutidas " + (emb != null ? emb.Nome : "") + ".");
+            return emb ?? escolhidas;
         }
 
         private static void Ler(Sessao s, bool manterAjustes, string projeto)
@@ -648,8 +666,19 @@ namespace OrcamentoNanoCAD
             {
                 if (Application.ShowModalDialog(t) != DialogResult.OK || t.Resultado == null) return;
                 s.Regras.Leitura = t.Resultado;
-                ConfigsLocais.Salvar(s.Regras.Codigo, t.Resultado);
-                Aplicacao.Msg("Configuração de leitura salva para " + s.Regras.Nome + ".");
+                ConfigsLocais.Salvar(s.Regras.Codigo, t.Resultado);         // cópia neste computador (vale sem a aplicação)
+                string onde = "neste computador";
+                if (s.Regras.DaAplicacao && Conexao.Logado)
+                {
+                    try
+                    {
+                        string aviso = Conexao.Cliente.SalvarLeitura(s.Regras.Codigo, t.Resultado);
+                        s.Regras.LeituraDaAplicacao = true;
+                        onde = "na aplicação (vale em todos os computadores)" + (string.IsNullOrEmpty(aviso) ? "" : " — " + aviso);
+                    }
+                    catch (ErroAplicacao e) { onde = "só neste computador (a aplicação recusou: " + e.Message + ")"; }
+                }
+                Aplicacao.Msg("Configuração de leitura de " + s.Regras.Nome + " salva " + onde + ".");
             }
             if (s.Obra != null && s.Obra.Modo == "ler") Ler(s, true, null);
             else if (s.Obra == null && Confirmar(s.Doc.Editor, "Ler o projeto agora com essa configuração?")) Ler(s, false, null);

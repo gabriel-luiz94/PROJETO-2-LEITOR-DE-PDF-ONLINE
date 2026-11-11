@@ -137,6 +137,37 @@ namespace OrcamentoNanoCAD
             return l;
         }
 
+        // ── projetos cadastrados na aplicação (TASK-015): a tela inicial lista todos; cache para abrir sem a aplicação ──
+        private static string ArquivoProjetos { get { return Path.Combine(PastaCache, "projetos.json"); } }
+
+        public static List<ProjetoAplicacao> ProjetosEmCache()
+        {
+            List<ProjetoAplicacao> l = new List<ProjetoAplicacao>();
+            try
+            {
+                if (!File.Exists(ArquivoProjetos)) return l;
+                JObj o = Json.Ler(File.ReadAllText(ArquivoProjetos, Encoding.UTF8)) as JObj;
+                foreach (JObj p in (o != null ? o.Lista("projetos") : null) ?? new List<object>())
+                    l.Add(new ProjetoAplicacao { Codigo = p.Str("codigo"), Nome = p.Str("nome"), TemLeitura = p.Bool("tem_leitura", false) });
+            }
+            catch (Exception) { }
+            return l;
+        }
+
+        /// <summary>Consulta a aplicação (bloqueia até o timeout) e atualiza o cache.</summary>
+        public static List<ProjetoAplicacao> BaixarProjetos()
+        {
+            List<ProjetoAplicacao> l = Cliente.Projetos();
+            try
+            {
+                Directory.CreateDirectory(PastaCache);
+                List<object> lista = l.Select(p => (object)new JObj().Set("codigo", p.Codigo).Set("nome", p.Nome).Set("tem_leitura", p.TemLeitura)).ToList();
+                File.WriteAllText(ArquivoProjetos, Json.Escrever(new JObj().Set("projetos", lista), true), new UTF8Encoding(false));
+            }
+            catch (Exception) { }
+            return l;
+        }
+
         /// <summary>Baixa agora (bloqueia até o timeout) as regras do projeto; guarda no cache.</summary>
         public static RegrasProjeto BaixarRegras(string projeto)
         {
@@ -158,6 +189,7 @@ namespace OrcamentoNanoCAD
 
         public static RegrasProjeto Aplicar(RegrasProjeto r)
         {
+            if (r.LeituraDaAplicacao) return r;          // TASK-015: a da aplicação vale (é a mesma em todos os computadores)
             try
             {
                 string f = Arquivo(r.Codigo);

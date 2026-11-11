@@ -70,7 +70,15 @@ namespace OrcamentoNanoCAD.UI
             colProj.Controls.Add(Visual.Rotulo("PROJETO NA APLICAÇÃO", Visual.Secao, Visual.Suave));
             _projeto = new TextBox { Width = 90, Text = s.Obra != null ? s.Obra.Projeto : (s.Regras != null ? s.Regras.Codigo : "") };
             colProj.Controls.Add(_projeto);
-            _regras.SelectedIndexChanged += (o, e) => { RegrasProjeto r = _regras.SelectedItem as RegrasProjeto; if (r != null && r.Codigo.Length > 0) _projeto.Text = r.Codigo; };
+            _regras.SelectedIndexChanged += (o, e) => { RegrasProjeto r = _regras.SelectedItem as RegrasProjeto; if (r != null && r.Codigo.Length > 0 && _projeto.Text != r.Codigo) _projeto.Text = r.Codigo; };
+            // digitou o código de um projeto da aplicação: escolhe as regras dele
+            _projeto.TextChanged += (o, e) =>
+            {
+                string cod = (_projeto.Text ?? "").Trim();
+                foreach (RegrasProjeto r in _regras.Items)
+                    if (r.DaAplicacao && r.Codigo == cod) { if (_regras.SelectedItem != r) _regras.SelectedItem = r; break; }
+            };
+            if (Conexao.Logado) AtualizarProjetos();
             FlowLayoutPanel colSalva = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, Margin = new Padding(12, 0, 0, 0) };
             colSalva.Controls.Add(Visual.Rotulo("OBRA SALVA NESTE DESENHO", Visual.Secao, Visual.Suave));
             colSalva.Controls.Add(Visual.Rotulo(salva == null ? "(nenhuma)" : ((salva.Quando ?? "") + " · " + salva.Onde), Visual.Mono));
@@ -87,6 +95,30 @@ namespace OrcamentoNanoCAD.UI
             raiz.Controls.Add(_status);
             Controls.Add(raiz);
             Visual.Aplicar(this);
+        }
+
+        /// <summary>Busca a lista de projetos da aplicação em segundo plano (a tela abre na hora com a lista guardada).</summary>
+        private void AtualizarProjetos()
+        {
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            {
+                string erro = null;
+                try { Conexao.BaixarProjetos(); }
+                catch (Exception e) { erro = e.Message; }
+                try
+                {
+                    if (IsDisposed || !IsHandleCreated) return;
+                    BeginInvoke((Action)(() =>
+                    {
+                        if (IsDisposed) return;
+                        string cod = (_projeto.Text ?? "").Trim();
+                        PreencherRegras(_regras.SelectedItem as RegrasProjeto);
+                        foreach (RegrasProjeto r in _regras.Items) if (r.DaAplicacao && r.Codigo == cod) { _regras.SelectedItem = r; break; }
+                        if (erro != null) _status.Text = "Lista de projetos da aplicação indisponível (" + erro + "): mostrando a última guardada.";
+                    }));
+                }
+                catch (Exception) { }
+            });
         }
 
         private void PreencherRegras(RegrasProjeto atual)
@@ -152,6 +184,10 @@ namespace OrcamentoNanoCAD.UI
             FlowLayoutPanel f = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false };
             f.Controls.Add(Visual.Rotulo("Onde o plugin procura a rede, os postes e as linhas guias neste padrão de desenho.\n"
                 + "Listas separadas por vírgula; vale quando o nome CONTÉM o trecho (sem diferença de maiúsculas); \"=NOME\" = nome exato (ex.: =0).", Visual.Normal, Visual.Suave));
+            f.Controls.Add(Visual.Rotulo(regras.DaAplicacao && Conexao.Logado
+                ? (regras.LeituraDaAplicacao ? "✔ Guardada na aplicação para este projeto: vale em todos os computadores." : "Ao salvar, fica guardada na aplicação para este projeto (vale em todos os computadores).")
+                : "Guardada só neste computador (para guardar na aplicação: conecte-se e escolha as regras \"Aplicação: …\").",
+                Visual.Normal, regras.LeituraDaAplicacao ? Visual.Ok : Visual.Suave));
             _mt = Campo(f, "Layers da rede de MÉDIA tensão", string.Join(", ", c.LayersRedeMT.ToArray()));
             _bt = Campo(f, "Layers da rede de BAIXA tensão", string.Join(", ", c.LayersRedeBT.ToArray()));
             _cor = new CheckBox { Text = "A cor confirma a layer (vermelho = MT, verde = BT; cor contrária descarta a linha)", Checked = c.CorConfirma, AutoSize = true };

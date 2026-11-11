@@ -14,6 +14,9 @@ regras GRAVADAS AQUI e a conferir a obra contra a Base de Orçamento, sem repeti
                                            PARTICULAR do usuário (a mesma obra a cada envio do mesmo desenho, sem duplicar) e devolve o
                                            link do Resumo que a abre já carregada (/resumo?obra=…&projeto=…).
 
+    GET  /api/plugin/projetos              (TASK-131) projetos cadastrados (o plugin lista todos na tela inicial).
+    GET  /api/plugin/leitura?projeto=081   (TASK-131) configuração de LEITURA do desenho do projeto (layers da rede, blocos de poste,
+    PUT  /api/plugin/leitura?projeto=081   guias, raios) guardada aqui para valer em qualquer computador; também vai em /regras e na versão.
     GET  /api/plugin/atualizacao?alvo=nanocad26          (TASK-130) versão do plugin publicada aqui + SHA-256 + endereço do arquivo.
     GET  /api/plugin/atualizacao/arquivo?alvo=nanocad26  a DLL. As duas são PÚBLICAS (a DLL não tem dados): o plugin se atualiza
                                            sozinho mesmo sem login. A DLL servida é a do repositório (plugin_nanocad/appload/<pasta>/),
@@ -73,6 +76,7 @@ def _fontes(codigo: str, user_id) -> dict:
         "vinculacao_origem": origem,
         "conversao": (get_regras_conversao(codigo) or {}).get("regras") or [dict(REGRA_PADRAO)],
         "base": get_merged_orcamento(user_id),
+        "leitura": leitura_salva(codigo),
     }
 
 
@@ -81,7 +85,7 @@ def _hash(valor) -> str:
 
 
 def _versoes(f: dict) -> dict:
-    partes = {"regras": _hash([f["processamento"], f["classificacao"], f["vinculacao"]]),
+    partes = {"regras": _hash([f["processamento"], f["classificacao"], f["vinculacao"], f.get("leitura")]),
               "conversao": _hash(f["conversao"]), "base": _hash(f["base"])}
     partes["geral"] = _hash(partes)
     return partes
@@ -99,7 +103,124 @@ def regras(request: Request, projeto: str):
     p = _projeto(projeto)
     f = _fontes(p["codigo"], _user_id(request))
     return {"projeto": p, "versao": _versoes(f), "processamento": f["processamento"], "classificacao": f["classificacao"],
-            "vinculacao": f["vinculacao"], "vinculacao_origem": f["vinculacao_origem"]}
+            "vinculacao": f["vinculacao"], "vinculacao_origem": f["vinculacao_origem"], "leitura": f["leitura"]}
+
+
+@router.get("/projetos")
+def projetos():
+    """Todos os projetos cadastrados, para a tela inicial do plugin (com ou sem configuração de leitura guardada)."""
+    conn = database.get_row_connection()
+    try:
+        rows = conn.execute("SELECT codigo, nome FROM projetos WHERE codigo IS NOT NULL AND codigo <> '' ORDER BY nome").fetchall()
+    finally:
+        conn.close()
+    return {"projetos": [{"codigo": r["codigo"], "nome": r["nome"], "tem_leitura": leitura_salva(r["codigo"]) is not None} for r in rows]}
+
+
+# ── configuração de leitura do desenho por projeto (TASK-131) ──
+_LISTAS_LEITURA = ("layers_rede_mt", "layers_rede_bt", "blocos_poste", "layers_poste", "layers_guia")
+_NUMEROS_LEITURA = ("raio_alturas", "guia_max_alturas", "tol_poste_alturas", "guia_toque_alturas", "raio_reserva_alturas")
+
+
+def validar_leitura(cfg) -> dict:
+    """Só os campos que o plugin entende (ConfigLeitura.ParaJson), com tipos e limites; erro → 400 com a lista."""
+    import re
+    if not isinstance(cfg, dict):
+        raise HTTPException(status_code=400, detail={"erros": ["A configuração de leitura tem de ser um objeto."]})
+    erros, ok = [], {}
+    for k in _LISTAS_LEITURA:
+        if k not in cfg:
+            continue
+        v = cfg[k]
+        if not isinstance(v, list) or len(v) > 50 or any(not isinstance(x, str) or len(x) > 120 for x in v):
+            erros.append(f"{k}: lista de até 50 textos")
+        else:
+            ok[k] = [x.strip() for x in v if x.strip()]
+    for k in _NUMEROS_LEITURA:
+        if k not in cfg:
+            continue
+        v = cfg[k]
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not (0 < v <= 1000):
+            erros.append(f"{k}: número entre 0 e 1000")
+        else:
+            ok[k] = v
+    if "cor_confirma" in cfg:
+        if not isinstance(cfg["cor_confirma"], bool):
+            erros.append("cor_confirma: verdadeiro/falso")
+        else:
+            ok["cor_confirma"] = cfg["cor_confirma"]
+    if "placa_regex" in cfg:
+        v = cfg["placa_regex"]
+        try:
+            if not isinstance(v, str) or len(v) > 200:
+                raise ValueError
+            re.compile(v)
+            ok["placa_regex"] = v
+        except (ValueError, re.error):
+            erros.append("placa_regex: expressão regular inválida")
+    if erros:
+        raise HTTPException(status_code=400, detail={"erros": erros})
+    return ok
+
+
+def leitura_salva(projeto_codigo: str):
+    """Configuração de leitura guardada para o projeto (nuvem primeiro, depois local) ou None."""
+    from services.supabase_client import get_supabase
+    supabase = get_supabase()
+    if supabase:
+        try:
+            res = supabase.table("plugin_leitura_config").select("config_json").eq("projeto_codigo", projeto_codigo).execute()
+            if res.data:
+                return json.loads(res.data[0]["config_json"])
+        except Exception as e:
+            from config import logger
+            logger.warning(f"Falha ao buscar plugin_leitura_config no Supabase: {e}")
+    conn = database.get_connection()
+    try:
+        row = conn.execute("SELECT config_json FROM plugin_leitura_config WHERE projeto_codigo = ?", (projeto_codigo,)).fetchone()
+    finally:
+        conn.close()
+    if row:
+        try:
+            v = json.loads(row[0])
+            return v if isinstance(v, dict) else None
+        except ValueError:
+            return None
+    return None
+
+
+class LeituraPayload(BaseModel):
+    leitura: Dict[str, Any]
+
+
+@router.get("/leitura")
+def obter_leitura(projeto: str):
+    p = _projeto(projeto)
+    return {"projeto": p, "leitura": leitura_salva(p["codigo"])}
+
+
+@router.put("/leitura")
+def salvar_leitura(projeto: str, payload: LeituraPayload):
+    """Grava a configuração de leitura do projeto (local + nuvem). Falha na nuvem não perde a gravação local: vira aviso."""
+    from services.supabase_client import get_supabase
+    p = _projeto(projeto)
+    cfg = validar_leitura(payload.leitura)
+    valor = json.dumps(cfg, ensure_ascii=False)
+    conn = database.get_connection()
+    try:
+        conn.execute("INSERT OR REPLACE INTO plugin_leitura_config (projeto_codigo, config_json, updated_at) VALUES (?, ?, datetime('now'))",
+                     (p["codigo"], valor))
+        conn.commit()
+    finally:
+        conn.close()
+    aviso = None
+    supabase = get_supabase()
+    if supabase:
+        try:
+            supabase.table("plugin_leitura_config").upsert({"projeto_codigo": p["codigo"], "config_json": valor}).execute()
+        except Exception as e:
+            aviso = f"Gravada neste servidor, mas não na nuvem (Supabase): {e}"
+    return {"projeto": p, "leitura": cfg, "aviso": aviso}
 
 
 class ConferirPayload(BaseModel):

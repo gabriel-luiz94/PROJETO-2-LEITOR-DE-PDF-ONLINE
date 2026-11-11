@@ -120,6 +120,13 @@ namespace OrcamentoNanoCAD.Nucleo
         }
     }
 
+    public class ProjetoAplicacao
+    {
+        public string Codigo, Nome;
+        public bool TemLeitura;
+        public string Rotulo { get { return "Aplicação: " + Nome + " (" + Codigo + ")"; } }
+    }
+
     public class ErroAplicacao : Exception
     {
         public readonly int Status;
@@ -257,7 +264,26 @@ namespace OrcamentoNanoCAD.Nucleo
                 resposta.Obj("vinculacao"));
             r.Versao = VersaoAplicacao.De(resposta).Regras;
             r.DaAplicacao = true;
+            JObj leitura = resposta.Obj("leitura");
+            if (leitura != null) { r.Leitura = ConfigLeitura.De(leitura); r.LeituraDaAplicacao = true; }
             return r;
+        }
+
+        /// <summary>Projetos cadastrados na aplicação (tela inicial do plugin).</summary>
+        public List<ProjetoAplicacao> Projetos()
+        {
+            JObj r = Chamar("GET", "/api/plugin/projetos", null);
+            List<ProjetoAplicacao> l = new List<ProjetoAplicacao>();
+            foreach (JObj p in (r.Lista("projetos") ?? new List<object>()).OfType<JObj>())
+                if (!string.IsNullOrEmpty(p.Str("codigo"))) l.Add(new ProjetoAplicacao { Codigo = p.Str("codigo"), Nome = p.Str("nome") ?? p.Str("codigo"), TemLeitura = p.Bool("tem_leitura", false) });
+            return l;
+        }
+
+        /// <summary>Grava a configuração de leitura do projeto na aplicação (vale para todos os computadores). Devolve o aviso, se houver.</summary>
+        public string SalvarLeitura(string projeto, ConfigLeitura c)
+        {
+            JObj r = Chamar("PUT", "/api/plugin/leitura?projeto=" + Q(projeto), new JObj().Set("leitura", c.ParaJson()));
+            return r.Str("aviso");
         }
     }
 

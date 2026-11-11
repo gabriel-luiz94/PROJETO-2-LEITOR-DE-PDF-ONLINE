@@ -209,6 +209,14 @@ CREATE TABLE IF NOT EXISTS public.vinculacao_config (
 );
 ALTER TABLE public.vinculacao_config DISABLE ROW LEVEL SECURITY;
 
+-- TASK-131: configuração de leitura do plugin do nanoCAD por projeto (layers da rede, blocos de poste, guias, raios). Um JSON por projeto.
+CREATE TABLE IF NOT EXISTS public.plugin_leitura_config (
+    projeto_codigo TEXT PRIMARY KEY,
+    config_json TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.plugin_leitura_config DISABLE ROW LEVEL SECURITY;
+
 -- TASK-012: prompts de validação das planilhas (ADR-004, camada 3). Um texto (cabeçalho + corpo) por
 -- (projeto, prompt); "DEFAULT" vale para todo projeto sem versão própria. Histórico de versões para
 -- reverter pela UI (admin).
