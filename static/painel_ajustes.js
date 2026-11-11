@@ -26,6 +26,8 @@ const AJ_ACOES = {
         novo: () => ({ acao: 'remover_ativo', tabela: 'outros', ativo: '' }) },
     mesclar_duplicadas: { rot: 'Mesclar ativos repetidos na linha', tabelas: ['outros'], filtros: true,
         novo: () => ({ acao: 'mesclar_duplicadas', tabela: 'outros' }) },
+    somar_linhas: { rot: 'Somar ativos de várias linhas em uma', tabelas: ['outros'], filtros: true,
+        novo: () => ({ acao: 'somar_linhas', tabela: 'outros', ativo: '' }) },
     criar_linha_derivada: { rot: 'Criar linha derivada (regex)', tabelas: ['outros', 'cabos', 'ambos'], filtros: true,
         novo: () => ({ acao: 'criar_linha_derivada', tabela: 'cabos', de: { regex: '' }, ativo_novo: '', posicao: 'depois' }) }
 };
@@ -338,6 +340,12 @@ function ajCamposDaAcao(a, refazer) {
         f.appendChild(ajRotulo('se já existir', ajSelect([['ignorar', 'ignorar'], ['somar', 'somar a quantidade'], ['substituir', 'trocar a quantidade']], a.se_ja_existe || 'ignorar', v => { if (v === 'ignorar') delete a.se_ja_existe; else a.se_ja_existe = v; })));
     } else if (nome === 'remover_ativo') {
         f.appendChild(ajRotulo('ativo', ajInput(rdSelParaTexto(a.ativo), v => { a.ativo = rdTextoParaSel(v); }, 'w-56 font-mono', 'código, curinga, @GRUPO, lista', 'rdSugestoes')));
+    } else if (nome === 'somar_linhas') {
+        // TASK-139: junta, entre linhas, as quantidades dos ativos escolhidos (a soma fica na 1ª linha em que aparecem).
+        f.appendChild(ajRotulo('ativos a somar', ajInput(rdSelParaTexto(a.ativo), v => { a.ativo = rdTextoParaSel(v); }, 'w-56 font-mono', 'código, curinga, @GRUPO, lista', 'rdSugestoes')));
+        const c = document.createElement('input'); c.type = 'checkbox'; c.checked = a.por_entidade !== false;
+        c.onchange = () => { if (c.checked) delete a.por_entidade; else a.por_entidade = false; };
+        f.appendChild(ajRotulo('só juntar linhas da mesma entidade', c));
     } else if (nome === 'criar_linha_derivada') {
         // TASK-053: pra cada linha que casar com o regex, cria uma linha NOVA (não edita a própria),
         // com o texto montado a partir dos grupos capturados NAQUELA linha (\1, \2...).
