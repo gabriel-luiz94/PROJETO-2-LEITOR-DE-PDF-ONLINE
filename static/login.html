@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Leitor de Projetos Pro</title>
+    <title>Login — ReadGrid</title>
     <!-- Tailwind via CDN para prototipagem rápida e visual bonito -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -21,19 +21,19 @@
 <body class="h-screen flex items-center justify-center bg-[#0d1117]">
     <div class="glass p-8 rounded-xl shadow-2xl w-full max-w-md">
         <div class="text-center mb-8">
-            <h1 class="text-2xl font-bold text-[#e6edf3]">Leitor de Projetos Pro</h1>
+            <div data-marca="cabecalho"><h1 class="text-2xl font-bold text-[#e6edf3]">ReadGrid</h1></div>
             <p class="text-[#8b949e] mt-2">Faça login para acessar ou trabalhar offline</p>
         </div>
 
-        <form id="loginForm" class="space-y-6">
+        <form id="loginForm" class="space-y-6" autocomplete="on" method="post" action="/login">
             <div>
                 <label class="block text-sm font-medium text-[#c9d1d9]">Email</label>
-                <input type="email" id="email" autocomplete="username" required class="mt-1 block w-full px-4 py-2 border border-[#30363d] bg-[#0d1117] text-[#e6edf3] rounded-md focus:ring-[#d97706] focus:border-[#d97706]" placeholder="seu@email.com">
+                <input type="email" id="email" name="email" autocomplete="username" required class="mt-1 block w-full px-4 py-2 border border-[#30363d] bg-[#0d1117] text-[#e6edf3] rounded-md focus:ring-[#d97706] focus:border-[#d97706]" placeholder="seu@email.com">
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-[#c9d1d9]">Senha</label>
-                <input type="password" id="password" autocomplete="current-password" required class="mt-1 block w-full px-4 py-2 border border-[#30363d] bg-[#0d1117] text-[#e6edf3] rounded-md focus:ring-[#d97706] focus:border-[#d97706]" placeholder="••••••••">
+                <input type="password" id="password" name="password" autocomplete="current-password" required class="mt-1 block w-full px-4 py-2 border border-[#30363d] bg-[#0d1117] text-[#e6edf3] rounded-md focus:ring-[#d97706] focus:border-[#d97706]" placeholder="••••••••">
                 <div class="mt-2 text-right">
                     <a href="#" onclick="alert('Por favor, contate o Administrador do sistema para redefinir a sua senha.'); return false;" class="text-sm text-[#d97706] hover:text-[#b45309]">Esqueci a Senha?</a>
                 </div>
@@ -76,5 +76,6 @@
         })();
     </script>
     <script src="/static/login.js"></script>
+    <script src="/static/marca.js?v=1"></script>
 </body>
 </html>

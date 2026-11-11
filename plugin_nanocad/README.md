@@ -12,7 +12,10 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 | nanoCAD | Arquivo para o APPLOAD | Como obter |
 |---|---|---|
 | **26** (.NET 6+) | [`appload/nanoCAD26/OrcamentoNanoCAD.dll`](appload/nanoCAD26/) | já vem pronto nesta pasta |
-| **5** (.NET Framework 4) | `appload/nanoCAD5/OrcamentoNanoCAD.dll` | rode `build_nanocad5.bat` no Windows com o nanoCAD 5 instalado (usa o compilador que já vem no Windows e as DLLs do próprio nanoCAD 5) |
+| **5** (.NET Framework 4) | [`appload/nanoCAD5/OrcamentoNanoCAD.dll`](appload/nanoCAD5/) | já vem pronto; o que a API do nanoCAD 5 não oferece é desligado sozinho (`ORC_AJUDA` lista). Se não carregar: `build_nanocad5.bat` no Windows com o nanoCAD 5 instalado (compila contra as DLLs dele) |
+
+**Junto com o programa principal:** o `Leitor_Projetos.exe` traz as duas DLLs e as instala em `%APPDATA%\OrcamentoNanoCAD\plugin\<nanoCAD26|nanoCAD5>\`
+(botão **Plugin nanoCAD** na tela inicial do programa: caminho, versão, instalar agora). No nanoCAD, uma vez: `APPLOAD` → **Inicialização** → adicionar esse arquivo.
 
 1. No nanoCAD: `APPLOAD` (ou `NETLOAD`) → escolha a DLL. Para carregar sempre, adicione-a à lista de inicialização do APPLOAD.
 2. Comando **`ORCAMENTO`** → *Construir do zero*, *Ler projeto* ou *Continuar obra salva*; escolha as regras (ex.: Pernambuco 081).
@@ -48,8 +51,9 @@ Publicar uma versão: `./compilar.sh` (DLL + `appload/nanoCAD26/versao.json`), m
 
 ### Ligado à aplicação (regras e base ao vivo)
 
-Com a aplicação aberta (`http://127.0.0.1:8000` ou o endereço online): `ORC_CONECTAR` → e-mail e senha → Entrar. Na tela
-inicial escolha as regras **"Aplicação: PERNAMBUCO (081)"**. O plugin consulta a aplicação a cada 5 s (ajustável): regras
+Com a aplicação aberta (`http://127.0.0.1:8000` ou o endereço online): `ORC_CONECTAR` → e-mail e senha → Entrar. A tela
+inicial passa a listar **todos os projetos cadastrados** ("Aplicação: PERNAMBUCO (081)"…): as regras do projeto escolhido são baixadas na hora,
+junto com a **configuração de leitura** guardada na aplicação (⚙ Leitura salva lá e vale em qualquer computador). O plugin consulta a aplicação a cada 5 s (ajustável): regras
 do leitor/vínculo mudaram → refaz a obra (mantendo os ajustes); base de orçamento mudou → confere de novo. Estrutura, cabo
 ou poste que **não está na base** vira *Conferir* no painel ("não está na base de orçamento"). Sem a aplicação, segue com a
 última cópia das regras (ou as embutidas). A senha não é guardada; o acesso vale até 30 dias.
@@ -87,6 +91,8 @@ plugin_nanocad/
 ├── src/Plugin/           camada do nanoCAD (comandos, telas, DWG, marcas na tela)
 ├── tests/Nucleo.Testes/  testes xUnit do núcleo (inclui paridade com o JS/Python da aplicação)
 ├── tests/Net40/          confere que o núcleo compila como o nanoCAD 5 exige (.NET 4 / C# 5)
+├── src/nanoCAD5/         projeto da DLL do nanoCAD 5 (.NET 4), mesmo código
+├── src/ApiNanoCAD5/      referências da API (só o que o plugin usa), GERADAS por ferramentas/GerarApiNanoCAD5
 ├── tests/oraculo/        oráculos: rodam o código da APLICAÇÃO para gerar o esperado
 ├── build_nanocad5.bat    compila para o nanoCAD 5 no Windows
 ├── compilar_nanocad26.bat recompila a DLL do nanoCAD 26 (precisa do .NET SDK)

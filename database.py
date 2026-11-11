@@ -320,6 +320,16 @@ def init_db():
         )
     ''')
 
+    # TASK-131: configuração de LEITURA do plugin do nanoCAD por projeto (layers da rede MT/BT, blocos de poste, guias, raios):
+    # um JSON por projeto, para valer em qualquer computador. Sem linha = o plugin usa o padrão / a configuração local.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS plugin_leitura_config (
+            projeto_codigo TEXT PRIMARY KEY,
+            config_json TEXT NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+
     # Atalhos e favoritos dos modais geradores (TASK-068) — um JSON por (projeto, modal). Escopo "Projeto" na nuvem;
     # o escopo "Computador" fica só no localStorage do navegador.
     cursor.execute('''

@@ -22,7 +22,7 @@ namespace OrcamentoNanoCAD
             {
                 Editor ed = Ed();
                 if (ed != null)
-                    ed.WriteMessage("\nOrçamento (Leitor de Projetos) " + ObraArquivo.VersaoPlugin + " carregado. Comando: ORCAMENTO (ajuda: ORC_AJUDA).\n");
+                    ed.WriteMessage("\nReadGrid para nanoCAD " + ObraArquivo.VersaoPlugin + " carregado (desenvolvido por Gabriel Sales). Comando: ORCAMENTO (ajuda: ORC_AJUDA).\n");
             }
             catch (System.Exception) { /* sem documento aberto: tudo bem */ }
             try { AtualizacaoPlugin.Iniciar(); }
@@ -132,22 +132,37 @@ namespace OrcamentoNanoCAD
         public static List<RegrasProjeto> RegrasParaEscolher()
         {
             List<RegrasProjeto> l = new List<RegrasProjeto>();
-            if (Conexao.Logado) l.AddRange(Conexao.RegrasEmCache());
+            if (Conexao.Logado)
+            {
+                List<RegrasProjeto> cache = Conexao.RegrasEmCache();
+                // TASK-015: todos os projetos cadastrados na aplicação; os que ainda não foram baixados entram como "a baixar"
+                foreach (ProjetoAplicacao p in Conexao.ProjetosEmCache())
+                {
+                    RegrasProjeto r = cache.FirstOrDefault(x => x.Codigo == p.Codigo);
+                    if (r != null) { r.Nome = p.Rotulo; l.Add(r); cache.Remove(r); }
+                    else l.Add(new RegrasProjeto { Codigo = p.Codigo, Nome = p.Rotulo, Origem = "a baixar da aplicação", DaAplicacao = true });
+                }
+                l.AddRange(cache);
+            }
             l.AddRange(Regras);
             return l;
         }
 
         // ── sessão por desenho ──
         private const string ChaveSessao = "OrcamentoNanoCAD.Sessao";
+        private static readonly Dictionary<Document, Sessao> _sessoes = new Dictionary<Document, Sessao>();
 
         public static Sessao Sessao(Document doc, bool criar)
         {
             if (doc == null) return null;
-            Sessao s = doc.UserData.ContainsKey(ChaveSessao) ? doc.UserData[ChaveSessao] as Sessao : null;
+            Sessao s = Compat.Tentar("dados do desenho (UserData)", () => doc.UserData.ContainsKey(ChaveSessao) ? doc.UserData[ChaveSessao] as Sessao : null, null);
+            if (s == null) lock (_sessoes) _sessoes.TryGetValue(doc, out s);      // nanoCAD sem UserData: guarda aqui
             if (s == null && criar)
             {
                 s = new Sessao(doc);
-                doc.UserData[ChaveSessao] = s;
+                Sessao nova = s;
+                if (!Compat.Tentar("dados do desenho (UserData)", () => { doc.UserData[ChaveSessao] = nova; }))
+                    lock (_sessoes) _sessoes[doc] = s;
             }
             return s;
         }

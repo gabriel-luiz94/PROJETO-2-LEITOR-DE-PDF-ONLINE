@@ -115,6 +115,13 @@ namespace OrcamentoNanoCAD
             }
             Pendente = versao;
             SalvarEstado();
+            // o programa principal (TASK-131) lê esta versão e não reinstala por cima uma mais velha
+            try
+            {
+                File.WriteAllText(Path.Combine(Path.GetDirectoryName(dll), "versao.json"),
+                    Json.Escrever(new JObj().Set("versao", versao).Set("origem", "atualização automática do plugin"), true), new UTF8Encoding(false));
+            }
+            catch (Exception) { }
             Aplicacao.Log("atualização: versão " + versao + " instalada em " + dll);
             return "Versão " + versao + " do plugin baixada — passa a valer quando você reabrir o nanoCAD.";
         }

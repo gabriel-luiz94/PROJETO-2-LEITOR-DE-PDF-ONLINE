@@ -20,6 +20,7 @@ namespace OrcamentoNanoCAD.Nucleo
 
         // onde estão rede, postes e guias no desenho (padrão = Pernambuco, como services/dxf_geometria.py); editável por projeto
         public ConfigLeitura Leitura = new ConfigLeitura();
+        public bool LeituraDaAplicacao;         // TASK-015: a configuração de leitura veio da aplicação (vale em qualquer computador)
 
         public override string ToString() { return Nome; }
 

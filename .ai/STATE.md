@@ -165,6 +165,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
       ao vivo no plugin; ativos fora da base apontados por linha (mesmo caminho do modo autônomo)
 - [x] "Abrir na aplicação" (TASK-106): `POST /api/plugin/obra` + Resumo abre `/resumo?obra=…` + login volta ao link (`?next=`)
 - [x] Atualização automática do plugin (TASK-130): `/api/plugin/atualizacao` (+ `/arquivo`), públicas, DLL do repositório conferida pelo SHA-256
+- [x] O programa traz o plugin (TASK-131): instala nanoCAD 26 e 5 em `%APPDATA%\OrcamentoNanoCAD\plugin`, botão "Plugin nanoCAD"; projetos e configuração de leitura do plugin guardados na aplicação (`plugin_leitura_config`)
 - [ ] Modo autônomo achar o `.obra.json` e gravar o resultado na pasta do desenho (plugin RQ-40/41)
 
 ---

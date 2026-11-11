@@ -48,14 +48,20 @@ jobs:
           "$h  Leitor_Projetos.exe" | Out-File -Encoding ascii dist\Leitor_Projetos.exe.sha256
           Get-Content dist\Leitor_Projetos.exe.sha256
 
+      - name: DLLs do plugin do nanoCAD (vão junto na Release; o .exe também as traz e instala)
+        shell: bash
+        run: |
+          cp plugin_nanocad/appload/nanoCAD26/OrcamentoNanoCAD.dll dist/OrcamentoNanoCAD_nanoCAD26.dll
+          cp plugin_nanocad/appload/nanoCAD5/OrcamentoNanoCAD.dll dist/OrcamentoNanoCAD_nanoCAD5.dll
+
       - name: Publicar a Release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" dist/Leitor_Projetos.exe dist/Leitor_Projetos.exe.sha256 --clobber
+            gh release upload "$GITHUB_REF_NAME" dist/Leitor_Projetos.exe dist/Leitor_Projetos.exe.sha256 dist/OrcamentoNanoCAD_nanoCAD26.dll dist/OrcamentoNanoCAD_nanoCAD5.dll --clobber
           else
-            gh release create "$GITHUB_REF_NAME" dist/Leitor_Projetos.exe dist/Leitor_Projetos.exe.sha256 \
+            gh release create "$GITHUB_REF_NAME" dist/Leitor_Projetos.exe dist/Leitor_Projetos.exe.sha256 dist/OrcamentoNanoCAD_nanoCAD26.dll dist/OrcamentoNanoCAD_nanoCAD5.dll \
               --title "Leitor de Projetos Pro ${GITHUB_REF_NAME}" --generate-notes
           fi

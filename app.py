@@ -39,7 +39,7 @@ from routers import manual, obras, regras, regras_leitor, regras_vinculacao, vin
 
 
 app = FastAPI(
-    title="Leitor de Projetos Online Pro",
+    title="ReadGrid",
     version=APP_VERSION,
     description="Sistema profissional de leitura e análise de projetos PDF/DXF",
 )
@@ -102,6 +102,16 @@ async def serve_abrir_na_app_js():
 @app.get("/static/campos_segredo.js")
 async def serve_campos_segredo_js():
     return _serve_js("campos_segredo.js")       # TASK-128
+
+
+@app.get("/static/marca.js")
+async def serve_marca_js():
+    return _serve_js("marca.js")                # TASK-132
+
+
+@app.get("/static/plugin_nanocad.js")
+async def serve_plugin_nanocad_js():
+    return _serve_js("plugin_nanocad.js")       # TASK-131
 
 
 @app.get("/static/barra_modais.js")
@@ -398,6 +408,16 @@ def _limpar_residuos_da_atualizacao():
         logger.warning(f"Limpeza da atualização anterior falhou: {e}")
 
 
+# ── Plugin do nanoCAD (TASK-131): o .exe instala/atualiza a DLL do plugin em %APPDATA%\OrcamentoNanoCAD\plugin (em segundo plano) ──
+@app.on_event("startup")
+def _instalar_plugin_nanocad():
+    try:
+        from services import plugin_instalador
+        plugin_instalador.instalar_em_segundo_plano()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Instalação do plugin do nanoCAD não iniciou: {e}")
+
+
 # ── Conectividade com a nuvem (TASK-040): ping periódico + reconexão proativa + indicador online/offline ──
 @app.on_event("startup")
 def _iniciar_monitor_conectividade():
@@ -433,11 +453,16 @@ def _parar_modo_autonomo():
 
 # ── Inicialização Desktop / Servidor ─────────────────────────────────────────
 
+_servidor_uvicorn = None     # TASK-133: guardado para encerrar quando a janela fecha
+
+
 def run_uvicorn(host: str, port: int):
     """Executa o servidor Uvicorn em uma thread separada."""
+    global _servidor_uvicorn
     import uvicorn
     config = uvicorn.Config(app, host=host, port=port, log_level="warning")
     server = uvicorn.Server(config)
+    _servidor_uvicorn = server
     server.run()
 
 
@@ -445,7 +470,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     is_headless = os.environ.get("HEADLESS", "0") == "1" or APP_MODE == "server"
 
-    logger.info(f"Iniciando Leitor de Projetos Pro v{APP_VERSION} [modo: {APP_MODE}]...")
+    logger.info(f"Iniciando ReadGrid v{APP_VERSION} [modo: {APP_MODE}]...")
 
     if is_headless:
         # Modo Servidor / Cloud (Deploy sem janela gráfica)
@@ -466,23 +491,30 @@ if __name__ == "__main__":
             import webview
             # TASK-128: a janela abre já com a tela "Iniciando…" e só carrega o login quando o servidor aceita conexões (sem a mensagem "recusou a conectar")
             window = webview.create_window(
-                title=f"Leitor de Projetos Pro v{APP_VERSION}",
+                title=f"ReadGrid v{APP_VERSION}",
                 html=TELA_INICIAL,
                 width=1320,
                 height=860,
                 min_size=(960, 640),
                 background_color="#0d1117",
                 text_select=True,
-                zoomable=True
+                zoomable=True,
+                confirm_close=True,          # TASK-133: pergunta antes de fechar (texto em janela_desktop.LOCALIZACAO)
             )
+            from services import janela_desktop
 
             def _abrir_quando_pronto(win):
+                janela_desktop.ligar_senhas_salvas(win)      # TASK-133: login oferece as senhas salvas
                 if esperar_servidor("127.0.0.1", port):
                     win.load_url(login_url)
                 else:
                     win.load_html(TELA_ERRO)
 
-            webview.start(_abrir_quando_pronto, window, private_mode=False)
+            # perfil persistente: senhas salvas e preenchimento automático continuam de uma vez para outra
+            webview.start(_abrir_quando_pronto, window, private_mode=False, storage_path=janela_desktop.pasta_perfil(),
+                          localization=janela_desktop.LOCALIZACAO)
+            # a janela fechou (o usuário confirmou): encerra o servidor local junto
+            janela_desktop.encerrar_servidor(_servidor_uvicorn, server_thread)
         except Exception as e:
             logger.warning(f"Janela nativa indisponível ({e}). Abrindo no navegador...")
             esperar_servidor("127.0.0.1", port)

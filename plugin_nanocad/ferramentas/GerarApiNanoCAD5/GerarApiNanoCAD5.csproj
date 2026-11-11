@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Ferramenta de DESENVOLVIMENTO (TASK-014 do plugin): gera o código das referências hostmgd/hostdbmgd para .NET 4 (nanoCAD 5)
+       com SÓ o que o plugin usa da API, lido do próprio código com o Roslyn contra a API do nanoCAD 26. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <WinDesktopRef>6.0.36</WinDesktopRef>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+    <PackageReference Include="ModPlus.nanoCAD.API.26" Version="2.0.0" GeneratePathProperty="true" ExcludeAssets="all" />
+    <PackageDownload Include="Microsoft.WindowsDesktop.App.Ref" Version="[$(WinDesktopRef)]" />
+  </ItemGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="ApiNanoCAD">
+      <_Parameter1>$(PkgModPlus_nanoCAD_API_26)/lib/net6.0</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="WinDesktopRef">
+      <_Parameter1>$(NuGetPackageRoot)microsoft.windowsdesktop.app.ref/$(WinDesktopRef)/ref/net6.0</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+</Project>

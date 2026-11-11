@@ -35,7 +35,7 @@ namespace OrcamentoNanoCAD.UI
             {
                 _aberto = new PainelObra();
                 _aberto.Mostrar(s);
-                HostMgd.ApplicationServices.Application.ShowModelessDialog(_aberto);
+                Visual.MostrarNaoModal(_aberto);
             }
             else
             {

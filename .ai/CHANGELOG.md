@@ -8,6 +8,21 @@
 
 ---
 
+## 2026-11-11 — TASK-133: fechar a janela pede confirmação e encerra o servidor; login com senhas salvas
+
+- `services/janela_desktop.py`: `confirm_close` com texto em português ("Fechar o ReadGrid? O servidor local também será encerrado."); fechada a janela, o uvicorn para e o processo sai (`os._exit`). Perfil persistente da janela (`%APPDATA%\ReadGrid\janela`) e, no WebView2, salvar senhas + preenchimento automático ligados.
+- Login: campos com `name` + `autocomplete`, credencial guardada no gerenciador de senhas ao entrar e preenchida ao abrir (Credential Management API, onde houver). Tarefa: `.ai/tasks/TASK-133-11-11-2026.md`.
+
+## 2026-11-11 — TASK-132: nome ReadGrid e "Desenvolvido por Gabriel Sales"
+
+- `static/marca.js`: cabeçalho com o nome (`data-marca="cabecalho"`) no login e na tela inicial e rodapé "ReadGrid · Desenvolvido por Gabriel Sales" nas telas principais. Títulos das páginas, janela do programa, tela "Iniciando…" e plugin ("ReadGrid para nanoCAD") com o nome novo. Sem logo de empresa (decisão do usuário). Arquivos `Leitor_Projetos.exe` e `OrcamentoNanoCAD.dll` mantidos (atualização automática). Tarefa: `.ai/tasks/TASK-132-11-11-2026.md`.
+
+## 2026-11-11 — TASK-131: o programa traz o plugin do nanoCAD; projetos e configuração de leitura do plugin na aplicação
+
+- `services/plugin_instalador.py` + `build.bat` (DLLs do nanoCAD 26 e 5): o .exe instala/atualiza o plugin em `%APPDATA%\OrcamentoNanoCAD\plugin\<nanoCAD26|nanoCAD5>` ao abrir (sem voltar versão; DLL em uso é renomeada). Botão **Plugin nanoCAD** (`static/plugin_nanocad.js`): versão trazida × instalada, caminho para o APPLOAD, instalar agora, abrir pasta; no online, links de download. Release do GitHub leva as duas DLLs.
+- `GET /api/plugin/projetos`, `GET|PUT /api/plugin/leitura` (tabela `plugin_leitura_config`, local + Supabase): configuração de leitura do desenho por projeto; vai em `/api/plugin/regras` e na versão. `GET|POST /api/plugin/instalacao`, `POST /api/plugin/instalacao/abrir-pasta`.
+- Plugin 0.7.0 (nanoCAD 5 pronto, projetos da aplicação na tela inicial). Tarefa: `.ai/tasks/TASK-131-11-11-2026.md`.
+
 ## 2026-11-10 — TASK-130: atualização automática do plugin do nanoCAD
 
 - `GET /api/plugin/atualizacao` e `/api/plugin/atualizacao/arquivo` (públicas): a aplicação publica a DLL do repositório (`plugin_nanocad/appload/nanoCAD26/` + `versao.json` com SHA-256, gravado pelo `compilar.sh`); manifesto que não confere com a DLL → 503. `build.bat` empacota a DLL no executável. O plugin (0.6.0) baixa, confere e troca a DLL; vale ao reabrir o nanoCAD. Tarefa: `.ai/tasks/TASK-130-10-11-2026.md`.

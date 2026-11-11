@@ -7,14 +7,14 @@ O servidor (uvicorn) só aceita conexões depois de terminar a inicialização (
 import socket
 import time
 
-TELA_INICIAL = """<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><title>Leitor de Projetos Pro</title>
+TELA_INICIAL = """<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><title>ReadGrid</title>
 <style>html,body{height:100%;margin:0;background:#0d1117;color:#e6edf3;font-family:Segoe UI,system-ui,sans-serif}
 .c{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 .s{width:38px;height:38px;border:4px solid #30363d;border-top-color:#d97706;border-radius:50%;animation:g 0.9s linear infinite}
 @keyframes g{to{transform:rotate(360deg)}}</style></head>
-<body><div class="c"><div class="s"></div><div>Iniciando o Leitor de Projetos Pro…</div></div></body></html>"""
+<body><div class="c"><div class="s"></div><div>Iniciando o ReadGrid…<div style="color:#6e7681;font-size:12px;margin-top:6px">Desenvolvido por Gabriel Sales</div></div></div></body></html>"""
 
-TELA_ERRO = """<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><title>Leitor de Projetos Pro</title>
+TELA_ERRO = """<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><title>ReadGrid</title>
 <style>html,body{height:100%;margin:0;background:#0d1117;color:#e6edf3;font-family:Segoe UI,system-ui,sans-serif}
 .c{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px}</style></head>
 <body><div class="c"><div style="font-size:20px">Não foi possível iniciar o servidor do programa.</div>
