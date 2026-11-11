@@ -56,10 +56,19 @@ def test_sugerir_ordem_e_limite():
 
 
 @node
+def test_sugerir_numero_so_pelo_comeco():
+    base = [{"ativo": "11200D, DT11/200", "projeto": "PERNAMBUCO", "origem": ""}, {"ativo": "11400D, DT11/400", "projeto": "PERNAMBUCO", "origem": ""}, {"ativo": "N1", "projeto": "PERNAMBUCO", "origem": ""}]
+    ind = "S.indiceDeNomes(e,'PERNAMBUCO','OUTROS')"
+    assert js(f"S.sugerir('11',{ind}).map(x=>x.nome)", base) == ["11200D", "11400D"]
+    assert js(f"S.sugerir('200',{ind}).map(x=>x.nome)", base) == []                      # número no meio do nome não vale
+    assert js(f"S.sugerir('11300',{ind}).map(x=>x.nome)", base) == []
+
+
+@node
 @pytest.mark.parametrize("texto,cursor,esperado", [
     ("SU", 2, {"inicio": 0, "fim": 2, "query": "SU"}), ("9400D, SU", 9, {"inicio": 7, "fim": 9, "query": "SU"}), ("2-SU", 4, {"inicio": 2, "fim": 4, "query": "SU"}),
     ("*1-SU", 5, {"inicio": 3, "fim": 5, "query": "SU"}), ("1-N1 1-SU", 9, {"inicio": 7, "fim": 9, "query": "SU"}), ("2 SU", 4, {"inicio": 2, "fim": 4, "query": "SU"}),
-    ("N1(D, X", 7, None), ("2", 1, None), ("2 ", 2, None), ("", 0, None), ("[S33", 4, None), ("SUH", 2, {"inicio": 0, "fim": 3, "query": "SU"})])
+    ("N1(D, X", 7, None), ("2", 1, None), ("2 ", 2, None), ("12", 2, None), ("113", 3, {"inicio": 0, "fim": 3, "query": "113"}), ("2-113", 5, {"inicio": 2, "fim": 5, "query": "113"}), ("", 0, None), ("[S33", 4, None), ("SUH", 2, {"inicio": 0, "fim": 3, "query": "SU"})])
 def test_token_atual(texto, cursor, esperado):
     assert js("S.tokenAtual(e.t,e.c)", {"t": texto, "c": cursor}) == esperado
 

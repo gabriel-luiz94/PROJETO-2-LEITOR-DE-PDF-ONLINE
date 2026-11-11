@@ -53,7 +53,7 @@
         const q = /^\*?\d+(?:[.,]\d+)?[-xX]/.exec(seg);                                                  // "2-N1", "*1-N1": a quantidade não é o nome
         const deslocar = q ? q[0].length : 0;
         seg = seg.slice(deslocar);
-        if (!seg || /^\*?\d+(?:[.,]\d+)?$/.test(seg)) return null;                                       // vazio ou só número (quantidade): sem sugestão
+        if (!seg || /^\*?(?:\d{1,2}|\d+[.,]\d+)$/.test(seg)) return null;                                     // vazio ou número curto (quantidade): sem sugestão; 3+ dígitos pode ser o início de um poste (11300D)
         let fim = ate.length;                                                                              // o item vai até o fim da palavra que o cursor está tocando
         while (fim < t.length && !/[\s,()\[\]]/.test(t[fim])) fim++;
         return { inicio: ini + deslocar, fim, query: seg };
@@ -63,10 +63,11 @@
     function sugerir(query, indice, limite) {
         const q = MAIUSC(query).replace(/^\[/, '');
         if (!q) return [];
+        const soNumero = /^\d+$/.test(q);                                                                // só dígitos: só quem COMEÇA com eles (evita sugerir por um pedaço no meio do nome)
         const come = [], contem = [];
         for (const e of indice || []) {
             const n = e.nome.toUpperCase();
-            if (n.startsWith(q)) come.push(e); else if (n.includes(q)) contem.push(e);
+            if (n.startsWith(q)) come.push(e); else if (!soNumero && n.includes(q)) contem.push(e);
         }
         const todos = come.concat(contem);
         if (todos.length === 1 && todos[0].nome.toUpperCase() === q) return [];
