@@ -354,7 +354,16 @@ namespace OrcamentoNanoCAD
             double h = Math.Max(s.Obra != null ? s.Obra.AlturaTexto : 1, 1e-3);
             double minX = pts.Min(q => q.X), maxX = pts.Max(q => q.X), minY = pts.Min(q => q.Y), maxY = pts.Max(q => q.Y);
             double margem = h * 12;
-            Editor ed = s.Doc.Editor;
+            if (Compat.Tentar("zoom pela API", () => ZoomVista(s.Doc.Editor, minX - margem, minY - margem, maxX + margem, maxY + margem))) return;
+            // sem a vista pela API (nanoCAD 5): o próprio comando ZOOM com janela
+            System.Globalization.CultureInfo ci = System.Globalization.CultureInfo.InvariantCulture;
+            s.Doc.SendStringToExecute("_.ZOOM _W " + (minX - margem).ToString(ci) + "," + (minY - margem).ToString(ci) + " "
+                                      + (maxX + margem).ToString(ci) + "," + (maxY + margem).ToString(ci) + "\n", true, false, false);
+        }
+
+        private static void ZoomVista(Editor ed, double x1, double y1, double x2, double y2)
+        {
+            double minX = x1, minY = y1, maxX = x2, maxY = y2, margem = 0;
             ViewTableRecord vista = ed.GetCurrentView();
             double largura = maxX - minX + 2 * margem, altura = maxY - minY + 2 * margem;
             double razao = vista.Width / Math.Max(vista.Height, 1e-9);
@@ -472,7 +481,7 @@ namespace OrcamentoNanoCAD
         {
             if (tela != null && !tela.IsDisposed) tela.Close();
             tela = criar();
-            Application.ShowModelessDialog(tela);
+            Visual.MostrarNaoModal(tela);
         }
 
         [CommandMethod("ORC_VINCULOS")]

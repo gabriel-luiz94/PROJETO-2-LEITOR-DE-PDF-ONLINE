@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="Versao.props" />
   <!--
     Plugin do nanoCAD 26 (APPLOAD/NETLOAD). Gera UMA DLL: núcleo (src/Nucleo) + camada do CAD (src/Plugin) + regras embutidas.
     Compilar:  dotnet build src/OrcamentoNanoCAD.csproj -c Release   (ou compilar.sh / compilar_nanocad26.bat)
@@ -18,7 +19,6 @@
     <PlatformTarget>x64</PlatformTarget>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-    <Version>0.6.0</Version>
     <Product>Orçamento — Leitor de Projetos (plugin nanoCAD)</Product>
     <Deterministic>true</Deterministic>
     <NoWarn>CA1416;SYSLIB0014</NoWarn>

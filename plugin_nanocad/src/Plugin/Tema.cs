@@ -235,6 +235,14 @@ namespace OrcamentoNanoCAD.UI
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hwnd);
 
+        /// <summary>Janela não modal do nanoCAD; onde a API não tem ShowModelessDialog, um Show() comum, sempre por cima.</summary>
+        public static void MostrarNaoModal(Form f)
+        {
+            if (Compat.Tentar("janelas não modais do nanoCAD", () => HostMgd.ApplicationServices.Application.ShowModelessDialog(f))) return;
+            f.TopMost = true;
+            f.Show();
+        }
+
         /// <summary>Manda um comando para o desenho ativo. Termina com Enter (o nanoCAD não aceita só o espaço vindo de janela) e devolve
         /// o foco ao nanoCAD, para os pedidos de seleção aparecerem no desenho. Com um comando em andamento, avisa em vez de atropelar.</summary>
         public static void Executar(string comando)
@@ -242,7 +250,7 @@ namespace OrcamentoNanoCAD.UI
             HostMgd.ApplicationServices.Document d = Aplicacao.Doc();
             if (d == null) return;
             string atual = "";
-            try { atual = d.CommandInProgress ?? ""; } catch (Exception) { }
+            try { atual = Compat.Tentar("comando em andamento", () => d.CommandInProgress ?? "", ""); } catch (Exception) { }
             if (atual.Length > 0 && !atual.StartsWith("ORC_", StringComparison.OrdinalIgnoreCase) && atual != "ORCAMENTO")
             {
                 Aplicacao.Msg("Termine (ou cancele com Esc) o comando " + atual + " antes de usar o painel.");

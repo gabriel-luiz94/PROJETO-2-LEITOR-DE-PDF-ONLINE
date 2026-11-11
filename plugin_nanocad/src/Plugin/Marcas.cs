@@ -36,66 +36,75 @@ namespace OrcamentoNanoCAD
             return normal;
         }
 
-#if SEM_TRANSIENTES
-        // nanoCAD sem TransientManager (build_nanocad5.bat compila assim se a API não tiver): vetores temporários do Editor
-        // (somem no próximo REGEN). Sem os números escritos, só as linhas de vínculo e uma cruz em cada poste.
+        // Dois jeitos de desenhar (TASK-014): gráficos transitórios (TransientManager: números escritos, molduras) e, onde a API não tem
+        // (nanoCAD 5 / build SEM_TRANSIENTES), vetores temporários do Editor (somem no próximo REGEN; sem os números escritos, só
+        // linhas e uma cruz em cada rótulo). A troca é automática na primeira falta (Compat).
+        private const string RecursoTransientes = "gráficos transitórios (números na tela)";
+        private bool _vetores;
+
         public void Limpar()
         {
-            foreach (Entity e in _desenhadas) e.Dispose();
+            List<Entity> l = new List<Entity>(_desenhadas);
             _desenhadas.Clear();
+            if (!_vetores && l.Count > 0 && Compat.Tentar(RecursoTransientes, () => ApagarTransientes(l))) { foreach (Entity e in l) e.Dispose(); return; }
+            foreach (Entity e in l) e.Dispose();
             HostMgd.EditorInput.Editor ed = Aplicacao.Ed();
-            if (ed != null) ed.Regen();
+            if (ed != null) Compat.Tentar("REGEN pelo plugin", () => ed.Regen());
         }
 
         private void Add(Entity e, short cor)
         {
-            HostMgd.EditorInput.Editor ed = Aplicacao.Ed();
+            if (!_vetores && Compat.Tentar(RecursoTransientes, () => AdicionarTransiente(e, cor))) { _desenhadas.Add(e); return; }
+            _vetores = true;
             Line l = e as Line;
-            if (ed != null && l != null) ed.DrawVector(l.StartPoint, l.EndPoint, cor, false);
+            HostMgd.EditorInput.Editor ed = Aplicacao.Ed();
+            if (ed != null && l != null) Compat.Tentar("vetores temporários", () => ed.DrawVector(l.StartPoint, l.EndPoint, cor, false));
             e.Dispose();
         }
 
         private void Rotulo(string texto, Point3d onde, double h, short cor)
         {
+            if (!_vetores && !Compat.Falta(RecursoTransientes))
+            {
+                DBText t = new DBText();
+                t.TextString = texto;
+                t.Height = h;
+                t.Position = onde;
+                Add(t, cor);
+                if (!_vetores)
+                {
+                    // moldura em volta do número (largura aproximada pela quantidade de letras)
+                    double w = h * 0.85 * texto.Length + h * 0.6, m = h * 0.3;
+                    Polyline caixa = new Polyline();
+                    caixa.AddVertexAt(0, new Point2d(onde.X - m, onde.Y - m), 0, 0, 0);
+                    caixa.AddVertexAt(1, new Point2d(onde.X - m + w, onde.Y - m), 0, 0, 0);
+                    caixa.AddVertexAt(2, new Point2d(onde.X - m + w, onde.Y + h + m), 0, 0, 0);
+                    caixa.AddVertexAt(3, new Point2d(onde.X - m, onde.Y + h + m), 0, 0, 0);
+                    caixa.Closed = true;
+                    Add(caixa, cor);
+                    return;
+                }
+            }
             Add(new Line(new Point3d(onde.X - h, onde.Y, 0), new Point3d(onde.X + h, onde.Y, 0)), cor);
             Add(new Line(new Point3d(onde.X, onde.Y - h, 0), new Point3d(onde.X, onde.Y + h, 0)), cor);
         }
-#else
-        public void Limpar()
-        {
-            TransientManager tm = TransientManager.CurrentTransientManager;
-            IntegerCollection vps = new IntegerCollection();
-            foreach (Entity e in _desenhadas)
-            {
-                try { tm.EraseTransient(e, vps); } catch (System.Exception) { }
-                e.Dispose();
-            }
-            _desenhadas.Clear();
-        }
 
-        private void Add(Entity e, short cor)
+#if SEM_TRANSIENTES
+        private static void AdicionarTransiente(Entity e, short cor) { throw new TypeLoadException("build sem TransientManager"); }
+        private static void ApagarTransientes(List<Entity> l) { }
+#else
+        private static void AdicionarTransiente(Entity e, short cor)
         {
             e.Color = Color.FromColorIndex(ColorMethod.ByAci, cor);
             TransientManager.CurrentTransientManager.AddTransient(e, TransientDrawingMode.Main, 128, new IntegerCollection());
-            _desenhadas.Add(e);
         }
 
-        private void Rotulo(string texto, Point3d onde, double h, short cor)
+        private static void ApagarTransientes(List<Entity> l)
         {
-            DBText t = new DBText();
-            t.TextString = texto;
-            t.Height = h;
-            t.Position = onde;
-            Add(t, cor);
-            // moldura em volta do número (largura aproximada pela quantidade de letras)
-            double w = h * 0.85 * texto.Length + h * 0.6, m = h * 0.3;
-            Polyline caixa = new Polyline();
-            caixa.AddVertexAt(0, new Point2d(onde.X - m, onde.Y - m), 0, 0, 0);
-            caixa.AddVertexAt(1, new Point2d(onde.X - m + w, onde.Y - m), 0, 0, 0);
-            caixa.AddVertexAt(2, new Point2d(onde.X - m + w, onde.Y + h + m), 0, 0, 0);
-            caixa.AddVertexAt(3, new Point2d(onde.X - m, onde.Y + h + m), 0, 0, 0);
-            caixa.Closed = true;
-            Add(caixa, cor);
+            TransientManager tm = TransientManager.CurrentTransientManager;
+            IntegerCollection vps = new IntegerCollection();
+            foreach (Entity e in l)
+                try { tm.EraseTransient(e, vps); } catch (System.Exception ex) { if (ex is TypeLoadException || ex is MissingMemberException) throw; }
         }
 #endif
 

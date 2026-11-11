@@ -139,15 +139,19 @@ namespace OrcamentoNanoCAD
 
         // ── sessão por desenho ──
         private const string ChaveSessao = "OrcamentoNanoCAD.Sessao";
+        private static readonly Dictionary<Document, Sessao> _sessoes = new Dictionary<Document, Sessao>();
 
         public static Sessao Sessao(Document doc, bool criar)
         {
             if (doc == null) return null;
-            Sessao s = doc.UserData.ContainsKey(ChaveSessao) ? doc.UserData[ChaveSessao] as Sessao : null;
+            Sessao s = Compat.Tentar("dados do desenho (UserData)", () => doc.UserData.ContainsKey(ChaveSessao) ? doc.UserData[ChaveSessao] as Sessao : null, null);
+            if (s == null) lock (_sessoes) _sessoes.TryGetValue(doc, out s);      // nanoCAD sem UserData: guarda aqui
             if (s == null && criar)
             {
                 s = new Sessao(doc);
-                doc.UserData[ChaveSessao] = s;
+                Sessao nova = s;
+                if (!Compat.Tentar("dados do desenho (UserData)", () => { doc.UserData[ChaveSessao] = nova; }))
+                    lock (_sessoes) _sessoes[doc] = s;
             }
             return s;
         }

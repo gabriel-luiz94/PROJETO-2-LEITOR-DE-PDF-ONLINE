@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Plugin para o nanoCAD 5 (.NET Framework 4, C# 5) — TASK-014. MESMO código do nanoCAD 26 (src/Nucleo + src/Plugin), compilado aqui contra
+    as referências de src/ApiNanoCAD5 (geradas do que o plugin usa da API). No nanoCAD 5 valem as hostmgd/hostdbmgd dele; o que a API
+    dele não tiver é desligado em tempo de execução (Plugin/Compat.cs).
+    Saída: appload/nanoCAD5/OrcamentoNanoCAD.dll. Alternativa no próprio computador: build_nanocad5.bat (com as DLLs do nanoCAD 5 instalado).
+  -->
+  <Import Project="../Versao.props" />
+  <PropertyGroup>
+    <TargetFramework>net40</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>OrcamentoNanoCAD</AssemblyName>
+    <RootNamespace>OrcamentoNanoCAD</RootNamespace>
+    <LangVersion>5</LangVersion>
+    <DefineConstants>$(DefineConstants);NANOCAD5</DefineConstants>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <Nullable>disable</Nullable>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Product>Orçamento — Leitor de Projetos (plugin nanoCAD 5)</Product>
+    <Deterministic>true</Deterministic>
+    <NoWarn>SYSLIB0014;CS1685</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Nucleo/*.cs" />
+    <Compile Include="../Plugin/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../../data/regras_leitor_processamento_pernambuco_seed.json" LogicalName="regras.081.processamento.json" />
+    <EmbeddedResource Include="../../../data/regras_leitor_classificacao_pernambuco_seed.json" LogicalName="regras.081.classificacao.json" />
+    <EmbeddedResource Include="../../../data/vinculacao_pernambuco_seed.json" LogicalName="regras.081.vinculacao.json" />
+    <EmbeddedResource Include="../../../data/regras_leitor_processamento_seed.json" LogicalName="regras.padrao.processamento.json" />
+    <EmbeddedResource Include="../../../data/regras_leitor_classificacao_seed.json" LogicalName="regras.padrao.classificacao.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../ApiNanoCAD5/hostdbmgd/hostdbmgd.csproj" Private="false" />
+    <ProjectReference Include="../ApiNanoCAD5/hostmgd/hostmgd.csproj" Private="false" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Security" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net40" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+  <Target Name="CopiarParaAppload5" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildProjectDirectory)/../../appload/nanoCAD5" />
+  </Target>
+</Project>
