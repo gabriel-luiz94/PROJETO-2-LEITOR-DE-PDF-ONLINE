@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-11 — TASK-141: ordem padrão da visão SAP
+
+- Sem coluna escolhida: M antes de N e código em ordem numérica crescente (ODI e ODD); CÓDIGO passa a ordenar como número. Vale para tela, PDFs e Excel.
+
+---
+
 ## 2026-11-11 — TASK-140: relatórios ODI/ODD em PDF (formato da nota do SAP)
 
 - Novo serviço `exportar_sap_pdf.py` + rota `/api/orcamento/exportar-sap-pdf` + botão/diálogo "Relatórios PDF" na visão SAP do Resultado do Orçamento. Fontes Carlito em `data/fontes/` (fallback da Calibri).
