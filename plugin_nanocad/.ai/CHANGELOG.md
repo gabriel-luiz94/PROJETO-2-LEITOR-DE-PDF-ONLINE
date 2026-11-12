@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-11-12 — TASK-019: cabo lido de texto escolhido — comprimento da linha de baixo na linha do cabo, sem vírgula (0.9.2)
+
+Quando o texto escolhido (+ Cabo / + Outros e + Vão) está numa layer que não é de operação, as regras não CLASSIFICAM, mas o PROCESSAMENTO de
+Pernambuco já monta "3XA35P(7,94)-13,8KV 35 m" (regra "Cabo: label sozinho, comprimento na linha de baixo", janela de 2 linhas). O plugin
+juntava os textos crus com ", " ("3XA35P…, 35 M"). Agora usa o resultado do processamento (`Construtor.AtivoDosTextos`): o comprimento entra na
+linha do cabo e a linha só de comprimento não entra; textos que o processamento não juntou seguem separados por ", ". Sem classificação, um cabo
+com comprimento vai para a Tabela de Cabos. Testes em `LinhaDeTextoTests` (layer de operação, layer 0, mesmo MTEXT, ANOTACOES, + Vão).
+
+---
+
 ## 2026-11-12 — TASK-018: "+ Cabo / + Outros" lendo um TEXT/MTEXT escolhido no desenho (0.9.1)
 
 Na tela de linha nova, "Selecionar texto no desenho (TEXT/MTEXT)…": a tela sai da frente, o usuário escolhe o(s) texto(s) e as regras do leitor

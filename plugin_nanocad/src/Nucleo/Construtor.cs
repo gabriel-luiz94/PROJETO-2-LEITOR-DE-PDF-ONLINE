@@ -40,9 +40,26 @@ namespace OrcamentoNanoCAD.Nucleo
             r.T = primeiro.T;
             r.R = new ResultadoLeitor();
             r.R.Entidade = entidadePadrao;
-            r.R.Ativo = MotorLeitor.LimparTexto(string.Join(", ", lidos.Select(t => t.T.Texto).ToArray()));
+            r.R.Ativo = AtivoDosTextos(lidos);
             r.R.Operacao = primeiro.R.Operacao == "0" || string.IsNullOrEmpty(primeiro.R.Operacao) ? "I" : primeiro.R.Operacao;
             return r;
+        }
+
+        /// <summary>TASK-019: o ativo dos textos escolhidos pelo PROCESSAMENTO das regras do leitor, mesmo quando nenhuma regra de classificação
+        /// os reconhece (ex.: layer que não é de operação). Assim o comprimento da linha de baixo vai para a linha do cabo ("3XA35P… 35 m",
+        /// como a leitura de Pernambuco faz) e a linha só de comprimento, já usada, não entra separada por vírgula. Textos diferentes que o
+        /// processamento não juntou continuam separados por ", " (vários itens de Outros).</summary>
+        public static string AtivoDosTextos(List<TextoLido> lidos)
+        {
+            List<string> partes = new List<string>();
+            foreach (TextoLido t in lidos)
+            {
+                string a = (t.R != null ? t.R.Ativo : null) ?? "";
+                if (a.Trim().Length == 0) continue;                 // usado por outra linha (ex.: comprimento) ou descartado pelas regras
+                if (!partes.Contains(a)) partes.Add(a);
+            }
+            if (partes.Count == 0) partes = lidos.Select(t => t.T.Texto).Where(x => !string.IsNullOrEmpty(x)).ToList();
+            return MotorLeitor.LimparTexto(string.Join(", ", partes.ToArray()));
         }
 
         public static Poste AdicionarPoste(Obra obra, PosteDesenho bloco, List<TextoDesenho> textos, RegrasProjeto regras)
@@ -237,8 +254,11 @@ namespace OrcamentoNanoCAD.Nucleo
                 return r;
             }
             TextoLido primeiro = lidos.Count > 0 ? lidos[0] : null;
-            r.Ativo = MotorLeitor.LimparTexto(string.Join(", ", (lidos.Count > 0 ? lidos.Select(t => t.T.Texto) : textos.Select(t => t.Texto)).ToArray()));
+            r.Ativo = lidos.Count > 0 ? AtivoDosTextos(lidos) : MotorLeitor.LimparTexto(string.Join(", ", textos.Select(t => t.Texto).ToArray()));
             r.Texto = primeiro != null ? primeiro.T : textos[0];
+            // sem classificação: se o texto montado é um cabo com comprimento (como a regra "Cabo (label + comprimento)"), vai para Cabos
+            CaboLido cab = Anotacoes.LerCabo(r.Ativo);
+            if (cab != null && cab.Erro == null && !string.IsNullOrEmpty(cab.Codigo) && cab.Comprimento.HasValue) r.Cabo = true;
             if (primeiro != null && !string.IsNullOrEmpty(primeiro.R.Operacao) && primeiro.R.Operacao != "0") r.Operacao = primeiro.R.Operacao;
             return r;
         }
