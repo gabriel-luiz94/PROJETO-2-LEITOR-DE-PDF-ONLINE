@@ -27,13 +27,14 @@
         const nome = T(r.nome), aps = listaApelidos(r), ps = (r.parametros || []).filter(p => T(p.nome));
         const base = { desc_ativo: T(r.descricao), projeto: T(projeto), origem: '', fator_i: 0, fator_r: 0, formula_i: '', formula_r: '', lv: 'A', arred: 'NORMAL', filtro: '', mdo: '', codigo: '', desc_codigo: '', componente: '' };
         const linhas = [];
-        if (ps.length) linhas.push(Object.assign({}, base, { ativo: `${nome}=${nome}(${ps.map(p => T(p.nome) + (T(p.padrao) ? '=' + T(p.padrao) : '')).join(',')})${aps.length ? ', ' + aps.join(', ') : ''}` }));
-        else if (aps.length) linhas.push(Object.assign({}, base, { ativo: `${nome}, ${aps.join(', ')}` }));
+        const dx = r.declExtra || {};
+        if (ps.length) linhas.push(Object.assign({}, base, dx, { ativo: `${nome}=${nome}(${ps.map(p => T(p.nome) + (T(p.padrao) ? '=' + T(p.padrao) : '')).join(',')})${aps.length ? ', ' + aps.join(', ') : ''}` }));
+        else if (aps.length) linhas.push(Object.assign({}, base, dx, { ativo: `${nome}, ${aps.join(', ')}` }));
         (r.itens || []).filter(itemPreenchido).forEach(it => {
             const cond = T(it.condicao);
             const celula = cond ? `${nome}(${cond})` : nome;
             if (ehChamada(it)) {
-                linhas.push(Object.assign({}, base, { ativo: `${celula}:=${T(it.codigo).slice(2).trim()}` }));
+                linhas.push(Object.assign({}, base, it.extra || {}, { ativo: `${celula}:=${T(it.codigo).slice(2).trim()}` }));
                 return;
             }
             const fi = T(it.fator_i).replace(/^=/, '='), fr = T(it.fator_r);
@@ -122,12 +123,36 @@
         return { erros: unico(erros), avisos: unico(avisos) };
     }
 
+    /** O caminho inverso de gerarLinhas: linhas de UM ativo na base → rascunho (nome, apelidos, parâmetros, itens) para EDITAR o ativo existente. */
+    function rascunhoDeLinhas(linhas) {
+        const r = rascunhoVazio();
+        (linhas || []).forEach(l => {
+            const cel = T(l.ativo);
+            const a = cel ? AP.analisarCelulaBase(cel) : { tipo: 'simples', base: r.nome, apelidos: [] };
+            if (!r.nome && a.base) r.nome = a.base;
+            if (!r.descricao && T(l.desc_ativo)) r.descricao = T(l.desc_ativo);
+            const extra = () => ({ mdo: T(l.mdo), filtro: T(l.filtro), lv: T(l.lv) || 'A', arred: T(l.arred) || 'NORMAL', desc_ativo: T(l.desc_ativo) });     // o que a linha SEM código já tinha (ela é refeita ao publicar)
+            if (a.tipo === 'declaracao') { r.parametros = (a.params || []).map(p => ({ nome: p.nome.toLowerCase(), padrao: p.valor })); r.apelidos = (a.apelidos || []).join(', '); r.declExtra = extra(); return; }
+            if (a.tipo === 'composto' && a.formais && !T(l.codigo)) { r.parametros = a.formais.map(p => ({ nome: p.nome.toLowerCase(), padrao: p.padrao || '' })); }
+            if ((a.apelidos || []).length && !T(l.codigo) && a.tipo !== 'composto') { r.apelidos = a.apelidos.join(', '); r.declExtra = extra(); return; }
+            const it = itemVazio();
+            if (a.tipo === 'composto') { it.condicao = FD.condicaoDe(cel); it.codigo = ':=' + cel.split(':=').slice(1).join(':=').split(/,\s*(?=[A-Za-z_\[])/)[0].trim(); it.extra = extra(); r.itens.push(it); return; }
+            if (!T(l.codigo)) return;
+            it.condicao = a.tipo === 'grupo' ? FD.condicaoDe(cel) : '';
+            it.codigo = T(l.codigo); it.desc_codigo = T(l.desc_codigo); it.mdo = mdoDe(l.mdo) === 'MATERIAL' ? 'M' : 'N';
+            it.fator_i = T(l.formula_i) || String(l.fator_i == null ? '' : l.fator_i); it.fator_r = T(l.formula_r) || String(l.fator_r == null ? '' : l.fator_r);
+            it.lv = lvDe(l.lv); it.filtro = T(l.filtro); it.arred = U(l.arred) || 'NORMAL';
+            r.itens.push(it);
+        });
+        return r;
+    }
+
     /** TSV das linhas geradas (13 colunas da base, sem cabeçalho) para colar numa planilha. */
     function paraTsv(linhas) {
         const f = v => (v === 0 ? '0' : String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' '));
         return linhas.map(l => [l.ativo, l.desc_ativo, l.componente, l.projeto, l.mdo, l.origem, l.codigo, l.desc_codigo, l.formula_i || l.fator_i, l.formula_r || l.fator_r, l.filtro, l.lv, l.arred].map(f).join('\t')).join('\n');
     }
 
-    const api = { rascunhoVazio, itemVazio, ehChamada, gerarLinhas, lerColado, lerCombinacoes, validarLocal, paraTsv, mdoDe };
+    const api = { rascunhoDeLinhas, rascunhoVazio, itemVazio, ehChamada, gerarLinhas, lerColado, lerCombinacoes, validarLocal, paraTsv, mdoDe };
     if (typeof module !== 'undefined' && module.exports) module.exports = api; else raiz.BaseCadastroDados = api;
 })(typeof window !== 'undefined' ? window : globalThis);

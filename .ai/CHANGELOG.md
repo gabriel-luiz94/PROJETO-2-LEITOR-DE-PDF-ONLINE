@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-12 — TASK-145: publicar só o ativo, desfazer e conflito (parte 3)
+
+- `publicar_ativo.py` + rotas `/api/admin/ativo/*`: troca só as linhas do ativo (nuvem primeiro, depois local), prévia com diff, um passo anterior (`ativo_versoes`), aviso de edição simultânea (409). UI: Publicar no passo 3, Editar/Desfazer na ficha.
+
+---
+
 ## 2026-11-12 — TASK-144: cadastro rápido de ativos (parte 2)
 
 - Assistente "+ Novo ativo" na Base de Orçamento (grade estilo Excel, auto-preenchimento por código, colar do Excel/combinações, validação ao vivo e no servidor, simulador do rascunho); novo `rascunho_ativo.py` e `/api/orcamento/rascunho`.

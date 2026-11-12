@@ -107,3 +107,17 @@ def test_ligacoes_na_tela():
         assert t in html, t
     app = open(os.path.join(config.BASE_DIR, "app.py"), encoding="utf-8").read()
     assert "base_cadastro_dados.js" in app and "base_cadastro_ui.js" in app
+
+
+@node
+def test_rascunho_de_linhas_ida_e_volta_mantendo_o_que_a_linha_sem_codigo_ja_tinha():
+    """TASK-145: editar um ativo existente (linhas → rascunho → linhas) não perde MDO/filtro/LV da declaração nem das chamadas."""
+    rows = [{"ativo": "CF=CF(cabo=S04,cabo2=S04), SUH", "desc_ativo": "CHAVE", "mdo": "MATERIAL", "filtro": "6.CHAVE", "lv": "A", "arred": "NORMAL", "codigo": ""},
+            {"ativo": "CF", "desc_ativo": "CHAVE", "mdo": "MATERIAL", "codigo": "500109", "desc_codigo": "CH", "fator_i": 3, "fator_r": 0, "lv": "A", "filtro": "6.CHAVE"},
+            {"ativo": "CF(cabo=%S336%)", "mdo": "MAO-DE-OBRA", "codigo": "9", "desc_codigo": "M", "fator_i": 1, "formula_i": "=NUM(cabo)", "lv": "LM"},
+            {"ativo": "CF(cabo=%,cabo2=%):=3*TERM(cabo)", "mdo": "MATERIAL", "filtro": "9.X", "lv": "LV", "codigo": ""}]
+    ls = js("C.gerarLinhas(C.rascunhoDeLinhas(e.rows),'PE')", rows=rows)
+    assert [l["ativo"] for l in ls] == [r["ativo"] for r in rows]
+    assert (ls[0]["mdo"], ls[0]["filtro"]) == ("MATERIAL", "6.CHAVE") and (ls[3]["filtro"], ls[3]["lv"]) == ("9.X", "LV")
+    assert ls[2]["formula_i"] == "=NUM(cabo)" and ls[2]["mdo"] == "MAO-DE-OBRA" and ls[2]["lv"] == "LM"
+    assert js("C.rascunhoDeLinhas(e.rows).parametros.map(p=>p.nome+'='+p.padrao)", rows=rows) == ["cabo=S04", "cabo2=S04"]

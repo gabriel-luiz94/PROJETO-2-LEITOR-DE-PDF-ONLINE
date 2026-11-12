@@ -1052,11 +1052,14 @@
             }
         });
         BaseGrade.iniciar({ tbody });
-        BaseFicha.iniciar({ tbody, projeto: () => projetoAtual, visao: () => visaoAtual });
+        const ehAdmin = () => localStorage.getItem('is_admin') === 'true';
+        const recarregarBase = async () => { BaseFicha.invalidar(); await carregarDados(); };
+        BaseFicha.iniciar({ tbody, projeto: () => projetoAtual, visao: () => visaoAtual, admin: ehAdmin, recarregar: recarregarBase });
         // TASK-144: cadastro rápido — as linhas geradas entram no fim da tabela do projeto (depois: Salvar Alterações / Sincronizar)
         BaseCadastro.iniciar({
             projeto: () => projetoAtual,
             podeAdicionar: () => visaoAtual === 'projeto' && !!projetoAtual,
+            admin: ehAdmin, recarregar: recarregarBase,
             adicionar: linhas => {
                 Array.from(tbody.querySelectorAll('tr')).filter(tr => tr.querySelectorAll('.cell-input').length < 13).forEach(tr => tr.remove());      // tira a linha "Selecione um projeto…"/"Nenhuma linha…"
                 let primeira = null;

@@ -8,6 +8,7 @@ import io
 import csv
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from database import get_connection, get_row_connection, hash_password
 from services.supabase_client import get_supabase, registrar_falha
@@ -15,6 +16,7 @@ from services.sync_service import (
     validar_linhas_do_projeto, normalizar_projeto, migrar_projetos_compartilhados, espelhar_master_no_pessoal,
 )
 from middleware.auth_middleware import get_current_user_from_state
+from services import publicar_ativo as pub
 from config import logger
 from models import SalvarOrcamentoRequest
 from services.orcamento_lv import normalizar_lv
@@ -650,3 +652,55 @@ def migrar_projetos_compartilhados_endpoint(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
     _audit(admin, "MIGRAR_PROJETOS_COMPARTILHADOS", "tabela_orcamento_master", None, str(resultado))
     return {"status": "ok", **resultado}
+
+
+# ───────────────────────── TASK-145: publicar / desfazer UM ativo ─────────────────────────
+def _erro_pub(e: "pub.ErroPublicacao"):
+    detalhe = {"detail": e.mensagem, **e.extra}
+    return JSONResponse(status_code=e.status, content=detalhe)
+
+
+@router.get("/ativo/versao")
+def ativo_versao(request: Request, projeto: str, nome: str):
+    """(Admin) Linhas atuais do ativo no projeto + assinatura (para detectar edição simultânea) + se há um passo anterior para desfazer."""
+    _require_admin(request)
+    return pub.versao(projeto, nome, get_supabase())
+
+
+@router.post("/ativo/previa")
+async def ativo_previa(request: Request):
+    """(Admin) Prévia da publicação, SEM gravar: validação, diff (novas/alteradas/removidas), quem chama o ativo. Corpo: {projeto, nome, linhas}."""
+    _require_admin(request)
+    corpo = await request.json()
+    try:
+        return pub.previa(corpo.get("projeto", ""), corpo.get("nome", ""), corpo.get("linhas") or [], get_supabase())
+    except pub.ErroPublicacao as e:
+        return _erro_pub(e)
+
+
+@router.post("/ativo/publicar")
+async def ativo_publicar(request: Request):
+    """(Admin) Troca só as linhas do ativo (local + nuvem). Corpo: {projeto, nome, linhas, esperada?, forcar?}. 409 se outro admin alterou o ativo desde a abertura."""
+    admin = _require_admin(request)
+    corpo = await request.json()
+    try:
+        r = pub.publicar(admin, corpo.get("projeto", ""), corpo.get("nome", ""), corpo.get("linhas") or [], corpo.get("esperada"), bool(corpo.get("forcar")))
+    except pub.ErroPublicacao as e:
+        return _erro_pub(e)
+    _audit(admin, "PUBLICAR_ATIVO", "tabela_orcamento_master", f"{(corpo.get('projeto') or '').strip().upper()}|{(corpo.get('nome') or '').strip().upper()}",
+           f"linhas={r['linhas']}, removidas={r['removidas']}, nuvem={r['nuvem']}")
+    return r
+
+
+@router.post("/ativo/desfazer")
+async def ativo_desfazer(request: Request):
+    """(Admin) Volta o ativo ao que havia antes da última publicação (um passo; de novo, refaz). Corpo: {projeto, nome}."""
+    admin = _require_admin(request)
+    corpo = await request.json()
+    try:
+        r = pub.desfazer(admin, corpo.get("projeto", ""), corpo.get("nome", ""))
+    except pub.ErroPublicacao as e:
+        return _erro_pub(e)
+    _audit(admin, "DESFAZER_ATIVO", "tabela_orcamento_master", f"{(corpo.get('projeto') or '').strip().upper()}|{(corpo.get('nome') or '').strip().upper()}",
+           f"linhas={r['linhas']}, removidas={r['removidas']}, nuvem={r['nuvem']}")
+    return r

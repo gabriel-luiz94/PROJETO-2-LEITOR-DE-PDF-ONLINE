@@ -6,7 +6,7 @@
 (function (raiz) {
     'use strict';
     const doc = raiz.document, D = raiz.BaseFichaDados;
-    let cfg = { tbody: null, projeto: () => '', visao: () => 'projeto' };
+    let cfg = { tbody: null, projeto: () => '', visao: () => 'projeto', admin: () => false, recarregar: async () => {} };
     let baseCache = null, baseEm = 0, pilha = [], tabAtual = 'itens', modeloAtual = null;
     const U = v => String(v == null ? '' : v).trim().toUpperCase();
 
@@ -142,8 +142,11 @@
             f.parametros.length ? chip('parâmetros: ' + f.parametros.map(p => p.nome.toLowerCase() + (p.padrao ? '=' + p.padrao : '')).join(' · ')) : null,
             chip(erros ? '✖ ' + erros + ' erro(s)' : avisos ? '⚠ ' + avisos + ' aviso(s)' : '✔ sem problemas', erros ? 'r' : avisos ? 'w' : 'k'),
             el('span', { class: 'bf-sp' }),
+            cfg.admin() && cfg.projeto() && raiz.BaseCadastro ? el('button', { class: 'bf-b', style: 'background:#d97706;border-color:#d97706;color:#111;font-weight:600', text: 'Editar', title: 'Abre o cadastro rápido com a definição atual deste ativo (admin)', onclick: () => { fecharTudo(); raiz.BaseCadastro.abrir({ editar: f.nome }); } }) : null,
+            cfg.admin() && cfg.projeto() ? el('button', { class: 'bf-b', id: 'bf-desfazer', style: 'display:none', text: '↶ Desfazer última publicação', onclick: () => desfazerDaFicha(f.nome) }) : null,
             el('button', { class: 'bf-b', text: 'Ir para a tabela', title: 'Fecha e destaca a primeira linha deste ativo na tabela', onclick: () => { fecharTudo(); irParaLinha(f.nome); } }),
             el('button', { class: 'bf-b', text: '✕', onclick: fecharTudo })]));
+        if (cfg.admin() && cfg.projeto()) raiz.fetch(`/api/admin/ativo/versao?projeto=${encodeURIComponent(cfg.projeto())}&nome=${encodeURIComponent(f.nome)}`, { headers: { Authorization: 'Bearer ' + (raiz.localStorage.getItem('auth_token') || '') } }).then(r => r.json()).then(v => { const b = doc.getElementById('bf-desfazer'); if (b && v.tem_anterior) { b.style.display = ''; b.title = 'Volta ao que o ativo era antes da última publicação' + (v.anterior_por ? ' (por ' + v.anterior_por + ')' : ''); } }).catch(() => {});
         const abas = [['itens', `Itens (${f.nLinhas})`], ['param', 'Parâmetros e variantes'], ['rel', `Chama / É chamado por (${f.chama.length + f.chamadoPor.length})`], ['sim', 'Simulador']];
         const tabs = el('div', { class: 'bf-tabs' }), corpo = el('div', { class: 'bf-body' });
         abas.forEach(([id, rot]) => tabs.appendChild(el('span', { class: 'bf-tab' + (id === tabAtual ? ' a' : ''), text: rot, onclick: () => { tabAtual = id; desenharFicha(m, f); } })));
@@ -242,6 +245,16 @@
         }
         [inp, qtd].forEach(i => i.addEventListener('input', () => { clearTimeout(t); t = setTimeout(calcular, 450); }));
         calcular();
+    }
+
+    async function desfazerDaFicha(nome) {
+        if (!raiz.confirm(`Desfazer a última publicação de "${nome}"? O ativo volta ao que era antes (e dá para refazer pelo mesmo botão).`)) return;
+        const res = await raiz.fetch('/api/admin/ativo/desfazer', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (raiz.localStorage.getItem('auth_token') || '') }, body: JSON.stringify({ projeto: cfg.projeto(), nome }) });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) { raiz.showToast && raiz.showToast(j.detail || 'Falha ao desfazer.'); return; }
+        invalidar(); try { await cfg.recarregar(); } catch (e) { /* a tela recarrega depois */ }
+        raiz.showToast && raiz.showToast(`"${nome}" voltou ao que era antes da última publicação.`);
+        fecharTudo(); abrirFicha(nome);
     }
 
     /* ───────── tabela ───────── */
