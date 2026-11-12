@@ -266,5 +266,5 @@
             if (col === 0) abrirFicha(raiz.AtivoParametros.analisarCelulaBase(v).base || v); else abrirCodigo(v);
         });
     }
-    raiz.BaseFicha = { pesquisaRapida, iniciar, abrirPesquisa, abrirFicha, abrirCodigo, invalidar, fechar: fecharTudo };
+    raiz.BaseFicha = { estilo, modelo, pesquisaRapida, iniciar, abrirPesquisa, abrirFicha, abrirCodigo, invalidar, fechar: fecharTudo };
 })(window);

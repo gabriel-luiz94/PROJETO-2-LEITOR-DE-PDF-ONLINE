@@ -16,6 +16,7 @@ from services.fator_formula import normalizar_fator
 from services.ativo_parametros import preencher_componentes, validar_base, resumo_erros
 from services.exportar_xlsx import ErroExportacao, gerar_xlsx
 from services.exportar_sap_pdf import ErroPdf, gerar_pdf
+from services.rascunho_ativo import avaliar as avaliar_rascunho
 from services.sync_service import (
     get_merged_orcamento, sync_tabela_master, filtrar_linhas_por_categoria,
     validar_linhas_do_projeto,
@@ -304,3 +305,18 @@ async def exportar_sap_pdf(request: Request):
     except ErroPdf as e:
         raise HTTPException(status_code=400, detail=str(e))
     return Response(content=conteudo, media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="SAP.pdf"'})
+
+
+@router.post("/rascunho")
+async def avaliar_rascunho_ativo(request: Request):
+    """TASK-144: avalia um rascunho de ativo (cadastro rápido) SEM gravar. Corpo: {linhas: [...], projeto, simular?: [{ativo}]}.
+    Devolve os erros/avisos NOVOS (os que a base já tinha não entram), as linhas com COMPONENTE preenchido e a simulação pedida."""
+    user = get_current_user_from_state(request)
+    try:
+        corpo = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Corpo inválido.")
+    if not isinstance(corpo, dict):
+        raise HTTPException(status_code=400, detail="Corpo inválido.")
+    base = get_merged_orcamento(user.get("user_id"))
+    return avaliar_rascunho(base, corpo.get("linhas") or [], corpo.get("projeto") or "", corpo.get("simular"))

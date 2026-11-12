@@ -12,6 +12,8 @@
     <script src="/static/ativo_parametros.js"></script>
     <script src="/static/base_ficha_dados.js"></script>
     <script src="/static/base_ficha_ui.js"></script>
+    <script src="/static/base_cadastro_dados.js"></script>
+    <script src="/static/base_cadastro_ui.js"></script>
     <script src="/static/base_grade.js"></script>
     <link rel="stylesheet" href="/static/styles.css">
     <style>
@@ -387,6 +389,9 @@
                     <option value="">Selecione um projeto...</option>
                 </select>
 
+                <button class="btn-action btn-save" onclick="BaseCadastro.abrir()" title="Cadastro rápido de um ativo: nome, parâmetros e itens numa grade (cola do Excel), com validação e simulador antes de gravar">
+                    + Novo ativo
+                </button>
                 <button class="btn-action" onclick="adicionarLinha('acima')" title="Insere uma linha ACIMA da linha selecionada (sem seleção: no fim da tabela)">
                     + Linha acima
                 </button>
@@ -1047,7 +1052,19 @@
             }
         });
         BaseGrade.iniciar({ tbody });
-        BaseFicha.iniciar({ tbody, projeto: () => projetoAtual, visao: () => visaoAtual });      // TASK-143: Ctrl+K e Ctrl+clique
+        BaseFicha.iniciar({ tbody, projeto: () => projetoAtual, visao: () => visaoAtual });
+        // TASK-144: cadastro rápido — as linhas geradas entram no fim da tabela do projeto (depois: Salvar Alterações / Sincronizar)
+        BaseCadastro.iniciar({
+            projeto: () => projetoAtual,
+            podeAdicionar: () => visaoAtual === 'projeto' && !!projetoAtual,
+            adicionar: linhas => {
+                Array.from(tbody.querySelectorAll('tr')).filter(tr => tr.querySelectorAll('.cell-input').length < 13).forEach(tr => tr.remove());      // tira a linha "Selecione um projeto…"/"Nenhuma linha…"
+                let primeira = null;
+                linhas.forEach(r => { const tr = criarLinhaExistente(r); tbody.appendChild(tr); primeira = primeira || tr; });
+                if (primeira) { primeira.scrollIntoView({ block: 'center' }); primeira.classList.add('bf-flash'); setTimeout(() => primeira.classList.remove('bf-flash'), 1800); }
+                showToast(`${linhas.length} linha(s) adicionada(s) no fim da tabela. Revise e use "Salvar Alterações" (e "Sincronizar" para a nuvem).`);
+            }
+        });      // TASK-143: Ctrl+K e Ctrl+clique
     </script>
     <script src="/static/marca.js?v=1"></script>
 </body>

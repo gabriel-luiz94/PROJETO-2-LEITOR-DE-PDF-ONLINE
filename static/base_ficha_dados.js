@@ -69,7 +69,7 @@
                 let c = codigos.get(linha.codigo);
                 if (!c) { c = { codigo: linha.codigo, descricoes: new Set(), usos: [] }; codigos.set(linha.codigo, c); }
                 if (linha.desc_codigo) c.descricoes.add(linha.desc_codigo);
-                c.usos.push({ ativo: nome, fator_i: linha.fator_i, fator_r: linha.fator_r, mdo: linha.mdo, condicao: linha.condicao });
+                c.usos.push({ ativo: nome, fator_i: linha.fator_i, fator_r: linha.fator_r, mdo: linha.mdo, condicao: linha.condicao, filtro: linha.filtro, lv: linha.lv });
             }
         });
         return { ativos, apelidos, codigos, projeto: T(projeto) };
@@ -147,6 +147,15 @@
         return c ? { codigo: c.codigo, descricoes: Array.from(c.descricoes), usos: c.usos.slice() } : null;
     }
 
-    const api = { valeNoProjeto, condicaoDe, nomeDoItem, construir, pesquisar, ficha, usoDoCodigo, resolver };
+    /** O que a base já sabe de um código, para preencher a grade do cadastro: descrição, MDO e filtro mais usados. null se o código não existe. */
+    function infoDoCodigo(m, codigo) {
+        const c = m.codigos.get(T(codigo));
+        if (!c) return null;
+        const maisUsado = campo => { const n = new Map(); c.usos.forEach(u => { if (u[campo]) n.set(u[campo], (n.get(u[campo]) || 0) + 1); }); return Array.from(n.entries()).sort((a, b) => b[1] - a[1])[0]; };
+        const mdo = maisUsado('mdo'), filtro = maisUsado('filtro');
+        return { codigo: c.codigo, descricao: Array.from(c.descricoes)[0] || '', mdo: mdo ? mdo[0] : '', filtro: filtro ? filtro[0] : '', usos: c.usos.length };
+    }
+
+    const api = { infoDoCodigo, valeNoProjeto, condicaoDe, nomeDoItem, construir, pesquisar, ficha, usoDoCodigo, resolver };
     if (typeof module !== 'undefined' && module.exports) module.exports = api; else raiz.BaseFichaDados = api;
 })(typeof window !== 'undefined' ? window : globalThis);

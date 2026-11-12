@@ -265,6 +265,16 @@ async def serve_base_ficha_ui_js():
     return _serve_js("base_ficha_ui.js")
 
 
+@app.get("/static/base_cadastro_dados.js")
+async def serve_base_cadastro_dados_js():
+    return _serve_js("base_cadastro_dados.js")
+
+
+@app.get("/static/base_cadastro_ui.js")
+async def serve_base_cadastro_ui_js():
+    return _serve_js("base_cadastro_ui.js")
+
+
 @app.get("/static/desktop_arquivos.js")
 async def serve_desktop_arquivos_js():
     return _serve_js("desktop_arquivos.js")
