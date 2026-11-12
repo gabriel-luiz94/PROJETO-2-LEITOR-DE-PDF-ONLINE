@@ -717,6 +717,9 @@ namespace OrcamentoNanoCAD
             {
                 if (!PrecisaObra(s)) return;
                 if (string.IsNullOrEmpty(s.Obra.Projeto)) { Aplicacao.Msg("A obra não tem o código do projeto (ORCAMENTO → Projeto na aplicação)."); return; }
+                string chaveObra = string.IsNullOrEmpty(s.Doc.Name) ? s.Obra.Nome : s.Doc.Name;
+                // TASK-016: o GridReader instalado neste computador (aberto: entrega a obra; fechado: abre já com ela)
+                if (ProgramaNoComputador.Abrir(chaveObra, ObraArquivo.Envelope(s.Obra, DateTime.UtcNow))) return;
                 if (!Conexao.Logado)
                 {
                     using (TelaConexao tc = new TelaConexao()) Application.ShowModalDialog(tc);
@@ -727,7 +730,7 @@ namespace OrcamentoNanoCAD
                 {
                     string chave = string.IsNullOrEmpty(s.Doc.Name) ? s.Obra.Nome : s.Doc.Name;
                     string url = Conexao.Cliente.EnviarObra(chave, ObraArquivo.Envelope(s.Obra, DateTime.UtcNow));
-                    Aplicacao.Msg("Obra enviada para a aplicação; abrindo " + url);
+                    Aplicacao.Msg("GridReader não está instalado neste computador: obra enviada para " + Conexao.Dados.Base + "; abrindo no navegador.");
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
                 }
                 catch (ErroAplicacao e) { Aplicacao.Msg("Não abriu na aplicação: " + e.Message); }
@@ -744,7 +747,7 @@ namespace OrcamentoNanoCAD
                 + "  ORC_VINCULOS  ORC_ATIVOS  ORC_SALVAR  ORC_PAINEL  ORC_MARCAS  ORC_REGRAS\n"
                 + "  ORC_CONECTAR   ligar à aplicação (localhost/online): regras e base de orçamento ao vivo\n"
                 + "  ORC_SINCRONIZAR baixar agora as regras da aplicação e conferir a obra com a base\n"
-                + "  ORC_ABRIR_APP  enviar a obra e abrir a aplicação com ela carregada\n"
+                + "  ORC_ABRIR_APP  abrir a obra no GridReader deste computador (aberto ou fechado); sem ele, na aplicação do ORC_CONECTAR\n"
                 + "  ORC_LEITURA    configurar layers da rede, bloco de poste e guias · ORC_DIAGNOSTICO o que foi lido\n"
                 + "  ORC_FECHAR     fechar a obra · log: " + Aplicacao.ArquivoLog + "\n"
                 + "  ORC_ATUALIZAR_PLUGIN conferir agora se há versão nova · ORC_VOLTAR_VERSAO voltar para a anterior\n"

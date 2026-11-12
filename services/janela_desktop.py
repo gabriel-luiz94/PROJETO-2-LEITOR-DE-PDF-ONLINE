@@ -74,3 +74,44 @@ def encerrar_servidor(servidor, thread: threading.Thread, espera: float = 5.0):
         logger.warning(f"Encerramento do servidor: {e}")
     logger.info("Janela fechada: servidor local encerrado.")
     os._exit(0)
+
+
+# ── a janela atende o plugin do nanoCAD (TASK-143): carrega a obra recebida e vem para a frente ──
+_janela = None
+
+
+def vincular(window) -> None:
+    global _janela
+    _janela = window
+
+
+def mostrar(url_relativa: str, porta: int = None) -> bool:
+    """Leva a janela do programa para a URL (ex.: /resumo?plugin_pendente=…) e a traz para a frente. False se não há janela."""
+    if _janela is None:
+        return False
+    try:
+        base = _janela.get_current_url() or ""
+    except Exception:  # noqa: BLE001
+        base = ""
+    if base.startswith("http"):
+        from urllib.parse import urlsplit
+        p = urlsplit(base)
+        destino = f"{p.scheme}://{p.netloc}{url_relativa}"
+    else:
+        destino = f"http://127.0.0.1:{porta or int(os.environ.get('PORT', 8000))}{url_relativa}"
+    try:
+        _janela.load_url(destino)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Janela não carregou a obra do nanoCAD: {e}")
+        return False
+    for passo in (lambda: _janela.restore(), lambda: _janela.show()):
+        try:
+            passo()
+        except Exception:  # noqa: BLE001 — pywebview antigo: segue
+            pass
+    try:                                     # "pisca" no topo para passar na frente do nanoCAD
+        _janela.on_top = True
+        _janela.on_top = False
+    except Exception:  # noqa: BLE001
+        pass
+    return True

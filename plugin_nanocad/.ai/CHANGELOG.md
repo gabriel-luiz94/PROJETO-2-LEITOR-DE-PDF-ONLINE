@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-11-12 — TASK-016: "Abrir na aplicação" no GridReader deste computador (0.8.0)
+
+`ORC_ABRIR_APP` / 🌐: procura o GridReader aberto (porta de `programa.json`, 8000 e a do ORC_CONECTAR local; `GET /api/plugin/desktop`) e entrega a
+obra (`POST /api/plugin/receber`, sem login: só do próprio computador) — a janela dele vem para a frente com a obra. Fechado: grava a obra em
+`%APPDATA%\OrcamentoNanoCAD\obras_para_abrir\` e abre o .exe com `--abrir-obra "<arquivo>"`. Sem o programa instalado: o caminho antigo
+(aplicação do ORC_CONECTAR no navegador). `Nucleo/ProgramaLocal`, `Plugin/ProgramaNoComputador`; testes `ProgramaLocalTests`.
+
+---
+
 ## 2026-11-11 — TASK-014 e TASK-015: nanoCAD 5 pronto; projetos e leitura da aplicação (0.7.0)
 
 **TASK-014 (nanoCAD 5):** `src/nanoCAD5/OrcamentoNanoCAD5.csproj` (.NET 4) compila o MESMO código contra `src/ApiNanoCAD5` (hostmgd/hostdbmgd

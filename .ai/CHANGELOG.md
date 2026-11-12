@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-12 — TASK-143: "Abrir na aplicação" do plugin abre a obra no GridReader instalado (não mais no navegador)
+
+- `services/programa_local.py`: o .exe registra `%APPDATA%\OrcamentoNanoCAD\programa.json` (exe + porta) e aceita `--abrir-obra <arquivo>`. `GET /api/plugin/desktop` (pública) e `POST /api/plugin/receber` (pública, só 127.0.0.1 e só no programa instalado) guardam a obra em memória e trazem a janela para a frente (`janela_desktop.mostrar`) em `/resumo?plugin_pendente=<id>`; o Resumo busca (`GET /api/plugin/pendente/<id>`, com login), grava pelo `POST /api/plugin/obra` e abre. Plugin 0.8.0. Tarefa: `.ai/tasks/TASK-143-12-11-2026.md`.
+
 ## 2026-11-12 — TASK-142: arquivos no executável, barra de modais por projeto e base recarregada
 
 - Ponte de arquivos da janela desktop (`ApiArquivos` + `desktop_arquivos.js`): baixar/importar pelas caixas nativas; `ALLOW_DOWNLOADS`.
