@@ -1,6 +1,6 @@
 # Roteiro de testes no Windows — Modo autônomo (TASK-031)
 
-**Objetivo:** confirmar, no **seu** Windows e com o **executável** (`Leitor_Projetos.exe`), o que só foi provado em Linux: o motor `quickjs`, o processo auxiliar do leitor, mover arquivos, o fluxo completo e a comparação com o modo manual.
+**Objetivo:** confirmar, no **seu** Windows e com o **executável** (`GridR.exe`), o que só foi provado em Linux: o motor `quickjs`, o processo auxiliar do leitor, mover arquivos, o fluxo completo e a comparação com o modo manual.
 **Tempo:** cerca de 1h30 (A–D) + a comparação com um projeto real (E).
 **Regra de ouro:** só marque **OK** se o resultado for **exatamente** o esperado. Em qualquer dúvida, marque **FALHA**, anote o que viu e continue — não tente consertar no meio.
 
@@ -39,8 +39,8 @@ Abra o **Prompt de Comando** na pasta do projeto (onde está o `app.py`).
 | # | O que fazer | Esperado |
 |---|---|---|
 | B1 | Abra o `build.bat` e confira se o caminho do `pyinstaller.exe` (primeira linha longa) existe no seu PC. Já inclui `--hidden-import quickjs --hidden-import _quickjs`. | Caminho válido. |
-| B2 | Execute `build.bat`. | Termina com *"Building EXE ... completed successfully"* e cria `dist\Leitor_Projetos.exe`. Procure no texto da saída por `quickjs` ou `_quickjs` em **WARNING** (ex.: *"Hidden import '_quickjs' not found"*) → anote. |
-| B3 | Copie `dist\Leitor_Projetos.exe` para `C:\TesteAutonomo\app\` (junto, copie a pasta `static`? **não** — o `.exe` já embute tudo). | O `.exe` está na pasta de teste. O banco será criado/lido **ao lado do .exe** (`banco_resumo.db`). Para testar com seus dados reais, copie o seu `banco_resumo.db` para essa pasta. |
+| B2 | Execute `build.bat`. | Termina com *"Building EXE ... completed successfully"* e cria `dist\GridR.exe`. Procure no texto da saída por `quickjs` ou `_quickjs` em **WARNING** (ex.: *"Hidden import '_quickjs' not found"*) → anote. |
+| B3 | Copie `dist\GridR.exe` para `C:\TesteAutonomo\app\` (junto, copie a pasta `static`? **não** — o `.exe` já embute tudo). | O `.exe` está na pasta de teste. O banco será criado/lido **ao lado do .exe** (`banco_resumo.db`). Para testar com seus dados reais, copie o seu `banco_resumo.db` para essa pasta. |
 | B4 | Dê um duplo clique no `.exe`. | A janela abre na tela de login (pode demorar alguns segundos na 1ª vez — anote quantos). |
 
 ## Parte C — Testes no executável (50 min)
@@ -56,7 +56,7 @@ Gere as amostras: `python scripts\autonomo_arquivos_teste.py gerar C:\TesteAuton
 | **C1** | Na tela do modo autônomo: em *Obras geradas em nome de* escolha **Eu mesmo**; *Pasta base* `C:\TesteAutonomo\autonomo`; intervalo `3`; espera `3` → **Salvar configuração**. | Mensagem verde "Configuração salva." As pastas ainda não existem (são criadas ao ligar). | |
 | **C2** | Clique **Ligar**. | Selo **Ligado**. Em `C:\TesteAutonomo\autonomo\` aparecem `entrada`, `processados`, `erros`, `saida`. **Nenhuma janela de console pisca.** | |
 | **C3** | Crie `C:\TesteAutonomo\autonomo\entrada\027\` e **copie** `01_normal.dxf` para dentro. Aguarde ~10 s. | O arquivo some da entrada e aparece em `processados\027\`. No histórico: situação **Concluída** ou **Com pendências** (o importante é ter gerado resultado). Em `saida\027\01_normal-xxxx\` existem `cabos.csv`, `outros.csv`, `tabelas.json`, `orcamento.json`, `orcamento.csv`, `relatorio.json`. Abra os CSV no Excel (acentos corretos, colunas separadas por `;`). | |
-| **C4** | **Gerenciador de Tarefas** (Ctrl+Shift+Esc) → procure `Leitor_Projetos`. | Há **2** processos `Leitor_Projetos.exe` (o programa e o auxiliar do leitor, que sobe ao processar o 1º arquivo). | |
+| **C4** | **Gerenciador de Tarefas** (Ctrl+Shift+Esc) → procure `GridR`. | Há **2** processos `GridR.exe` (o programa e o auxiliar do leitor, que sobe ao processar o 1º arquivo). | |
 | **C5** | Em **Detalhes** da execução do C3, confira a linha **ramais** (a amostra tem "TROCAR 2 RS M AC") e "Ajustes". | Etapas listadas sem `erro`; ramais com 1 item e 2 linhas geradas. | |
 | **T3** | **Cópia lenta:** `python scripts\autonomo_arquivos_teste.py copiar-devagar C:\TesteAutonomo\amostras\07_grande.dxf C:\TesteAutonomo\autonomo\entrada\027\07_grande.dxf --segundos 20` | **Enquanto copia**, o arquivo **não** é processado. Só depois que termina e fica parado ~3 s ele vai para `processados`. Nenhum erro. | |
 | **T4** | **Arquivo em uso:** `python scripts\autonomo_arquivos_teste.py copiar-e-travar "C:\TesteAutonomo\amostras\08_nome com espaço e acentuação ção.dxf" C:\TesteAutonomo\autonomo\entrada\027\08.dxf --segundos 60` (copia o arquivo e o **mantém aberto**). Enquanto isso, tente movê-lo no Explorer. | O Explorer **recusa** mover/apagar. O programa processa o arquivo **uma única vez** (aparece **uma** linha no histórico), mas **não consegue movê-lo** e **não dá erro**: o arquivo fica na entrada, sem virar "duplicado" nem ser processado de novo. Quando o script termina (60 s), o arquivo vai sozinho para `processados\027` e o histórico passa a apontar para o novo local (botão **Reprocessar** funciona). | |
@@ -66,7 +66,7 @@ Gere as amostras: `python scripts\autonomo_arquivos_teste.py gerar C:\TesteAuton
 | **T8** | **Erros:** copie `05_quebrado.dxf`, `06_nota.txt` para `entrada\027`; copie `04_sem_nada_a_excluir.dxf` direto na raiz de `entrada` (solto); e crie a pasta `entrada\ZZZ` com um DXF. | Todos vão para `erros\` (`erros\027`, `erros\sem_projeto`, `erros\ZZZ`), cada um com um `.erro.txt` explicando. Aparecem no histórico como **Erro**. O programa continua normal. | |
 | **T9** | **Reverter e reprocessar:** no histórico, **Reverter** na execução do C3; depois **Reprocessar**. | Reverter → **Revertida**. Reprocessar → nova linha no histórico. | |
 | **T10** | **Religar sozinho:** com o modo **Ligado**, feche o programa (X da janela) e abra de novo. | Ao abrir e ir em Modo autônomo, já está **Ligado**. Um arquivo novo na entrada é processado. | |
-| **T11** | **Encerrar sem órfão:** com o modo ligado e após processar algo, feche o programa. Olhe o Gerenciador de Tarefas por ~10 s. | **Nenhum** `Leitor_Projetos.exe` sobra. (Se sobrar, é o processo auxiliar órfão → **FALHA**.) | |
+| **T11** | **Encerrar sem órfão:** com o modo ligado e após processar algo, feche o programa. Olhe o Gerenciador de Tarefas por ~10 s. | **Nenhum** `GridR.exe` sobra. (Se sobrar, é o processo auxiliar órfão → **FALHA**.) | |
 | **T12** | **Caminho com acento/espaço/rede:** mude a pasta base para `C:\Users\<você>\Área de Trabalho\Autônomo Teste` e repita C3. Se puder, repita com uma pasta de **rede/OneDrive**. | Funciona igual (em rede/OneDrive podem ocorrer atrasos: anote). | |
 | **T13** | **Uso manual junto:** com o modo ligado e um arquivo sendo processado, abra o **Resumo** manual com um arquivo e use Ajustar/Montar Orçamento. | O modo manual funciona normalmente, sem travar. | |
 | **T14** | **Tempo:** anote o tempo do 1º arquivo (inclui o início do auxiliar) e dos seguintes. | Informativo. Se o 1º demorar mais de ~30 s, anote (antivírus escaneando o auxiliar). | |

@@ -55,6 +55,17 @@ def test_perfil_do_nome_anterior_e_aproveitado(tmp_path, monkeypatch):
     antiga.mkdir(parents=True)
     (antiga / "Login Data").write_text("x")
     p = Path(jd.pasta_perfil())
-    assert p == tmp_path / "GridReader" / "janela" and (p / "Login Data").read_text() == "x"
+    assert p == tmp_path / "GridR" / "janela" and (p / "Login Data").read_text() == "x"
     assert not antiga.exists()
-    assert "GridReader" in jd.LOCALIZACAO["global.quitConfirmation"]
+    assert "GridR" in jd.LOCALIZACAO["global.quitConfirmation"]
+
+
+def test_perfil_do_gridreader_vira_gridr(tmp_path, monkeypatch):
+    """TASK-152: GridReader → GridR (as senhas salvas da janela vêm junto)."""
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    antiga = tmp_path / "GridReader" / "janela"
+    antiga.mkdir(parents=True)
+    (antiga / "Login Data").write_text("senha")
+    p = Path(jd.pasta_perfil())
+    assert p == tmp_path / "GridR" / "janela" and (p / "Login Data").read_text() == "senha" and not antiga.exists()
+    assert Path(jd.pasta_perfil()) == p                                   # de novo: nada a migrar, nada quebra

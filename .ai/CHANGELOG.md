@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-12 — TASK-152: nome GridR e ícone
+
+- Programa passa a se chamar GridR (telas, janela, README/manuais) e ganha o ícone (`static/gridr.svg/.ico`, favicon em todas as páginas, `--icon` no build). Release publica `GridR.exe` e a cópia `Leitor_Projetos.exe` (versões antigas continuam atualizando); atualizador aceita os dois nomes; perfil da janela migra para `%APPDATA%\GridR`. O identificador `"app": "GridReader"` da rota do plugin não muda.
+
+---
+
 ## 2026-11-12 — TASK-151: executável salva/preenche senhas no login
 
 - `ligar_senhas_salvas` esperava `CoreWebView2` já pronto e desistia em silêncio; agora aguarda a inicialização (thread) e registra o resultado no log. Não testado em WebView2 real.

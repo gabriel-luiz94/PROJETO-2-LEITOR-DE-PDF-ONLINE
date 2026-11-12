@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app as app_mod
+import config
 from services import auto_updater as au
 
 REPO = au.GITHUB_REPO
@@ -214,3 +215,18 @@ def test_rota_apply_ignora_a_url_do_corpo(monkeypatch):
 
 def test_apply_sem_login_e_recusado():
     assert TestClient(app_mod.app).post("/api/update/apply", json={}).status_code in (401, 403)
+
+
+def test_release_so_com_o_nome_antigo_ainda_oferece_e_traz_as_duas_copias():
+    """TASK-152: GridR.exe é o nome novo; uma Release só com Leitor_Projetos.exe (ou com as duas cópias) continua servindo à atualização."""
+    antigo = {"tag_name": "v9.9.9", "assets": [{"name": au.NOME_EXE_LEGADO, "browser_download_url": BASE + au.NOME_EXE_LEGADO},
+                                              {"name": au.NOME_SHA_LEGADO, "browser_download_url": BASE + au.NOME_SHA_LEGADO}]}
+    d = au._interpretar(antigo)
+    assert d["has_update"] and d["download_url"].endswith("Leitor_Projetos.exe") and d["sha256_url"].endswith("Leitor_Projetos.exe.sha256")
+    ambos = {"tag_name": "v9.9.9", "assets": antigo["assets"] + release()["assets"]}
+    assert au._interpretar(ambos)["download_url"].endswith("GridR.exe")                      # com as duas, vale o nome novo
+    assert au.NOME_EXE == "GridR.exe"
+    fluxo = open(os.path.join(config.BASE_DIR, ".github", "workflows", "release-exe.yml"), encoding="utf-8").read()
+    assert "dist\\GridR.exe" in fluxo and "Leitor_Projetos.exe.sha256" in fluxo and "dist/GridR.exe dist/GridR.exe.sha256 dist/Leitor_Projetos.exe dist/Leitor_Projetos.exe.sha256" in fluxo
+    bat = open(os.path.join(config.BASE_DIR, "build.bat"), encoding="utf-8").read()
+    assert '--name "GridR"' in bat and '--icon "static\\gridr.ico"' in bat

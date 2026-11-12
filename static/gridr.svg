@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 112 112" width="112" height="112" role="img" aria-label="GridR">
+  <rect x="2" y="2" width="108" height="108" rx="24" fill="#0d1117" stroke="#d97706" stroke-width="4"/>
+  <g stroke="#2e384a" stroke-width="3" stroke-linecap="round"><path d="M24 40h64M24 72h64M40 24v64M72 24v64"/></g>
+  <path d="M26 26h30v30h30v30" fill="none" stroke="#d97706" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#e6edf3"><circle cx="26" cy="26" r="8"/><circle cx="56" cy="56" r="8"/><circle cx="86" cy="86" r="8.5"/></g>
+</svg>
