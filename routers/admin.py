@@ -654,7 +654,7 @@ def migrar_projetos_compartilhados_endpoint(request: Request):
     return {"status": "ok", **resultado}
 
 
-# ───────────────────────── TASK-145: publicar / desfazer UM ativo ─────────────────────────
+# ───────────────────────── TASK-148: publicar / desfazer UM ativo ─────────────────────────
 def _erro_pub(e: "pub.ErroPublicacao"):
     detalhe = {"detail": e.mensagem, **e.extra}
     return JSONResponse(status_code=e.status, content=detalhe)

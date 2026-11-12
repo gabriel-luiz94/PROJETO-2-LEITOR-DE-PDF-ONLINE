@@ -681,7 +681,7 @@ def init_db():
             criado_em TEXT DEFAULT (datetime('now')),
             PRIMARY KEY (projeto, ativo)
         )
-    ''')       # TASK-145: UM passo anterior por ativo (o que havia antes da última publicação) — alimenta o "Desfazer"
+    ''')       # TASK-148: UM passo anterior por ativo (o que havia antes da última publicação) — alimenta o "Desfazer"
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -269,6 +269,12 @@ namespace OrcamentoNanoCAD.Nucleo
             return r;
         }
 
+        /// <summary>Base de Orçamento do projeto para o autocompletar (TASK-017): resposta crua de /api/plugin/catalogo.</summary>
+        public JObj CatalogoCru(string projeto)
+        {
+            return Chamar("GET", "/api/plugin/catalogo?projeto=" + Q(projeto), null);
+        }
+
         /// <summary>Projetos cadastrados na aplicação (tela inicial do plugin).</summary>
         public List<ProjetoAplicacao> Projetos()
         {

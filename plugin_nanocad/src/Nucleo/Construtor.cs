@@ -40,9 +40,26 @@ namespace OrcamentoNanoCAD.Nucleo
             r.T = primeiro.T;
             r.R = new ResultadoLeitor();
             r.R.Entidade = entidadePadrao;
-            r.R.Ativo = MotorLeitor.LimparTexto(string.Join(", ", lidos.Select(t => t.T.Texto).ToArray()));
+            r.R.Ativo = AtivoDosTextos(lidos);
             r.R.Operacao = primeiro.R.Operacao == "0" || string.IsNullOrEmpty(primeiro.R.Operacao) ? "I" : primeiro.R.Operacao;
             return r;
+        }
+
+        /// <summary>TASK-019: o ativo dos textos escolhidos pelo PROCESSAMENTO das regras do leitor, mesmo quando nenhuma regra de classificação
+        /// os reconhece (ex.: layer que não é de operação). Assim o comprimento da linha de baixo vai para a linha do cabo ("3XA35P… 35 m",
+        /// como a leitura de Pernambuco faz) e a linha só de comprimento, já usada, não entra separada por vírgula. Textos diferentes que o
+        /// processamento não juntou continuam separados por ", " (vários itens de Outros).</summary>
+        public static string AtivoDosTextos(List<TextoLido> lidos)
+        {
+            List<string> partes = new List<string>();
+            foreach (TextoLido t in lidos)
+            {
+                string a = (t.R != null ? t.R.Ativo : null) ?? "";
+                if (a.Trim().Length == 0) continue;                 // usado por outra linha (ex.: comprimento) ou descartado pelas regras
+                if (!partes.Contains(a)) partes.Add(a);
+            }
+            if (partes.Count == 0) partes = lidos.Select(t => t.T.Texto).Where(x => !string.IsNullOrEmpty(x)).ToList();
+            return MotorLeitor.LimparTexto(string.Join(", ", partes.ToArray()));
         }
 
         public static Poste AdicionarPoste(Obra obra, PosteDesenho bloco, List<TextoDesenho> textos, RegrasProjeto regras)
@@ -149,8 +166,121 @@ namespace OrcamentoNanoCAD.Nucleo
             Recalcular(obra, regras);
         }
 
+        // ── TASK-017: corrigir o ativo, tirar/devolver à obra, linha nova sem desenho ──
+
+        /// <summary>Troca o ativo (o texto da anotação na obra). O do desenho fica guardado (voltar ao lido); o vão relê cabo e metros do texto novo.</summary>
+        public static void TrocarAtivo(Obra obra, Elemento e, string novo, RegrasProjeto regras)
+        {
+            string t = (novo ?? "").Trim();
+            if (t.Length == 0 || t == e.AtivoLido) return;
+            if (e.AtivoDoDesenho == null) e.AtivoDoDesenho = e.AtivoLido ?? "";
+            if (t == e.AtivoDoDesenho) e.AtivoDoDesenho = null;
+            AplicarAtivo(e, t);
+            Recalcular(obra, regras);
+        }
+
+        private static void AplicarAtivo(Elemento e, string ativo)
+        {
+            e.AtivoLido = ativo;
+            Vao v = e as Vao;
+            if (v != null)
+            {
+                v.Cabo = Anotacoes.LerCabo(ativo);
+                v.MetrosLidos = v.Cabo.Comprimento;
+                v.Metros = v.Cabo.Comprimento;
+                v.InfoCabo = null;
+            }
+            Poste p = e as Poste;
+            if (p != null) p.Lido = Anotacoes.LerPoste(ativo);
+        }
+
+        /// <summary>Tira da obra. O que foi montado à mão sai de vez; o que veio do desenho fica marcado (não volta ao Atualizar; Restaurar devolve).</summary>
+        public static void Excluir(Obra obra, Elemento e, RegrasProjeto regras)
+        {
+            if (e.Manual) { Remover(obra, e, regras); return; }
+            e.Excluido = true;
+            Vao v = e as Vao;
+            if (v != null) { v.VinculoA = null; v.VinculoB = null; }
+            Recalcular(obra, regras);
+        }
+
+        public static void Restaurar(Obra obra, Elemento e, RegrasProjeto regras)
+        {
+            e.Excluido = false;
+            Recalcular(obra, regras);
+        }
+
+        /// <summary>Linha nova sem apontar no desenho: vai para a Tabela de Cabos ("CABO") ou de Outros (demais), como as anotações soltas.</summary>
+        public static Avulso NovaLinha(Obra obra, bool cabo, string ativo, string operacao, RegrasProjeto regras)
+        {
+            Avulso a = new Avulso();
+            a.Numero = "L" + Proximo(obra.Avulsos.Cast<Elemento>(), 'L');
+            a.Manual = true;
+            a.Entidade = cabo ? "CABO" : "ESTRUTURA";
+            a.AtivoLido = (ativo ?? "").Trim();
+            a.OperacaoLida = string.IsNullOrEmpty(operacao) ? "I" : operacao;
+            a.Operacao = a.OperacaoLida;
+            a.TextoOriginal = a.AtivoLido;
+            obra.Avulsos.Add(a);
+            Recalcular(obra, regras);
+            return a;
+        }
+
+        /// <summary>TASK-018: o que um texto (TEXT/MTEXT) escolhido no desenho vira na linha nova — pelas regras do leitor.</summary>
+        public class LeituraDeTexto
+        {
+            public string Ativo = "", Operacao = "I", Entidade;
+            public bool Reconhecido;          // alguma regra do leitor entendeu o texto
+            public bool? Cabo;                // pelas regras: CABO → Tabela de Cabos; outra entidade → Outros; null = não se sabe
+            public TextoDesenho Texto;        // o texto usado (ligação com o desenho)
+            public string Lido = "";          // o que foi selecionado, como está no desenho
+        }
+
+        public static LeituraDeTexto LerTextoParaLinha(List<TextoDesenho> textos, RegrasProjeto regras)
+        {
+            LeituraDeTexto r = new LeituraDeTexto();
+            if (textos == null || textos.Count == 0) return r;
+            List<TextoLido> lidos = LeitorProjeto.ClassificarTextos(textos, regras);
+            r.Lido = string.Join(" / ", textos.Select(t => t.Texto).ToArray());
+            TextoLido bom = lidos.FirstOrDefault(t => t.R.Entidade != null && t.R.Entidade != "0" && !string.IsNullOrEmpty(t.R.Ativo));
+            if (bom != null)
+            {
+                r.Reconhecido = true;
+                r.Ativo = bom.R.Ativo;
+                r.Entidade = bom.R.Entidade;
+                r.Cabo = bom.R.Entidade == "CABO";
+                if (!string.IsNullOrEmpty(bom.R.Operacao) && bom.R.Operacao != "0") r.Operacao = bom.R.Operacao;
+                r.Texto = bom.T;
+                return r;
+            }
+            TextoLido primeiro = lidos.Count > 0 ? lidos[0] : null;
+            r.Ativo = lidos.Count > 0 ? AtivoDosTextos(lidos) : MotorLeitor.LimparTexto(string.Join(", ", textos.Select(t => t.Texto).ToArray()));
+            r.Texto = primeiro != null ? primeiro.T : textos[0];
+            // sem classificação: se o texto montado é um cabo com comprimento (como a regra "Cabo (label + comprimento)"), vai para Cabos
+            CaboLido cab = Anotacoes.LerCabo(r.Ativo);
+            if (cab != null && cab.Erro == null && !string.IsNullOrEmpty(cab.Codigo) && cab.Comprimento.HasValue) r.Cabo = true;
+            if (primeiro != null && !string.IsNullOrEmpty(primeiro.R.Operacao) && primeiro.R.Operacao != "0") r.Operacao = primeiro.R.Operacao;
+            return r;
+        }
+
+        /// <summary>Liga a linha ao texto do desenho (localizar, marcas, layer). Se o ativo foi mudado antes de adicionar, o do desenho fica guardado.</summary>
+        public static void LigarTexto(Elemento e, LeituraDeTexto lido)
+        {
+            if (lido == null || lido.Texto == null) return;
+            TextoDesenho t = lido.Texto;
+            e.TextoHandle = t.Handle;
+            e.TextoOriginal = t.Texto;
+            e.TextoLayer = t.Layer;
+            e.TextoCor = t.Cor;
+            e.TextoX = t.X;
+            e.TextoY = t.Y;
+            if (!string.IsNullOrEmpty(lido.Ativo) && lido.Ativo != e.AtivoLido) e.AtivoDoDesenho = lido.Ativo;
+            if (!string.IsNullOrEmpty(lido.Operacao)) e.OperacaoLida = lido.Operacao;
+        }
+
         public static void VoltarAoLido(Obra obra, Elemento e, RegrasProjeto regras)
         {
+            if (e.AtivoDoDesenho != null) { AplicarAtivo(e, e.AtivoDoDesenho); e.AtivoDoDesenho = null; }
             e.Operacao = e.OperacaoLida;
             Vao v = e as Vao;
             if (v != null)
@@ -183,14 +313,20 @@ namespace OrcamentoNanoCAD.Nucleo
             {
                 Poste pn = nova.Postes.FirstOrDefault(x => !string.IsNullOrEmpty(pa.TextoHandle) && x.TextoHandle == pa.TextoHandle)
                         ?? nova.Postes.FirstOrDefault(x => !string.IsNullOrEmpty(pa.Handle) && x.Handle == pa.Handle && x.IrmaoDe == null);
-                if (pn != null && pa.OperacaoAjustada && pn.TextoHandle == pa.TextoHandle) pn.Operacao = pa.Operacao;
+                if (pn == null) continue;
+                if (pa.Excluido) pn.Excluido = true;
+                if (pn.TextoHandle != pa.TextoHandle) continue;
+                LevarAtivo(pa, pn);
+                if (pa.OperacaoAjustada) pn.Operacao = pa.Operacao;
             }
             foreach (Vao va in antiga.Vaos)
             {
                 // pela anotação primeiro (vários vãos "irmãos" dividem a mesma linha), depois pela linha
                 Vao vn = nova.Vaos.FirstOrDefault(x => !string.IsNullOrEmpty(va.TextoHandle) && x.TextoHandle == va.TextoHandle)
                       ?? nova.Vaos.FirstOrDefault(x => x.LinhaHandle == va.LinhaHandle && x.Trecho == va.Trecho && x.IrmaoDe == null);
+                if (vn != null && va.Excluido) vn.Excluido = true;
                 if (vn == null || vn.TextoHandle != va.TextoHandle) continue;
+                LevarAtivo(va, vn);
                 if (va.OperacaoAjustada) vn.Operacao = va.Operacao;
                 if (va.Metros.HasValue && va.Metros != va.MetrosLidos) vn.Metros = va.Metros;
                 foreach (bool a in new[] { true, false })
@@ -205,7 +341,35 @@ namespace OrcamentoNanoCAD.Nucleo
                     if (a) vn.VinculoA = nv; else vn.VinculoB = nv;
                 }
             }
+            foreach (Avulso aa in antiga.Avulsos)
+            {
+                if (aa.Manual)
+                {
+                    // linha adicionada à mão (digitada ou lida de um texto escolhido): volta como estava — a não ser que a leitura
+                    // agora já pegue aquele texto (aí vale a leitura, para não ficar em dobro)
+                    if (!string.IsNullOrEmpty(aa.TextoHandle) && nova.Elementos.Any(x => x.TextoHandle == aa.TextoHandle)) continue;
+                    Avulso c = new Avulso();
+                    c.Numero = aa.Numero; c.Manual = true; c.Entidade = aa.Entidade; c.AtivoLido = aa.AtivoLido; c.TextoOriginal = aa.TextoOriginal;
+                    c.OperacaoLida = aa.OperacaoLida; c.Operacao = aa.Operacao; c.AtivoDoDesenho = aa.AtivoDoDesenho; c.Excluido = aa.Excluido;
+                    c.TextoHandle = aa.TextoHandle; c.TextoLayer = aa.TextoLayer; c.TextoCor = aa.TextoCor; c.TextoX = aa.TextoX; c.TextoY = aa.TextoY;
+                    nova.Avulsos.Add(c);
+                    continue;
+                }
+                Avulso an = nova.Avulsos.FirstOrDefault(x => !string.IsNullOrEmpty(aa.TextoHandle) && x.TextoHandle == aa.TextoHandle);
+                if (an == null) continue;
+                if (aa.Excluido) an.Excluido = true;
+                LevarAtivo(aa, an);
+                if (aa.OperacaoAjustada) an.Operacao = aa.Operacao;
+            }
             Recalcular(nova, regras);
+        }
+
+        /// <summary>Atualizar: a correção do ativo vale enquanto o texto do desenho continuar o mesmo (se mudou no desenho, vale o desenho).</summary>
+        private static void LevarAtivo(Elemento antigo, Elemento novo)
+        {
+            if (antigo.AtivoDoDesenho == null || novo.AtivoLido != antigo.AtivoDoDesenho) return;
+            novo.AtivoDoDesenho = novo.AtivoLido;
+            AplicarAtivo(novo, antigo.AtivoLido);
         }
     }
 }

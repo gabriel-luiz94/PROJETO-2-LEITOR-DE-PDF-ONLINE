@@ -309,7 +309,7 @@ async def exportar_sap_pdf(request: Request):
 
 @router.post("/rascunho")
 async def avaliar_rascunho_ativo(request: Request):
-    """TASK-144: avalia um rascunho de ativo (cadastro rápido) SEM gravar. Corpo: {linhas: [...], projeto, simular?: [{ativo}]}.
+    """TASK-147: avalia um rascunho de ativo (cadastro rápido) SEM gravar. Corpo: {linhas: [...], projeto, simular?: [{ativo}]}.
     Devolve os erros/avisos NOVOS (os que a base já tinha não entram), as linhas com COMPONENTE preenchido e a simulação pedida."""
     user = get_current_user_from_state(request)
     try:

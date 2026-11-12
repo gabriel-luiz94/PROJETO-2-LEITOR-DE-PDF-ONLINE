@@ -6297,6 +6297,33 @@ window.handleTotPaste = function(e, index) {
 
     /* TASK-106: aberto pelo plugin do nanoCAD ("Abrir na aplicação"): /resumo?obra=<id>&projeto=<código>&projeto_nome=<nome>.
        Seleciona o projeto, carrega a obra nas tabelas (como "Carregar") e tira os parâmetros da barra (F5 não recarrega por cima). */
+    /* TASK-143: obra entregue pelo plugin ao programa instalado (/resumo?plugin_pendente=<id>): busca no servidor local, grava para o
+       usuário logado (mesmo caminho do "Abrir na aplicação": POST /api/plugin/obra) e segue para o link de abrir a obra (?obra=…). */
+    (async function receberObraDoPlugin() {
+        const pend = new URLSearchParams(window.location.search).get('plugin_pendente');
+        if (!pend) return;
+        if (!localStorage.getItem('auth_token')) {
+            window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+            return;
+        }
+        try {
+            const r = await fetch(`/api/plugin/pendente/${encodeURIComponent(pend)}`);
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok) { showToast(d.detail || `Não consegui receber a obra do nanoCAD (HTTP ${r.status}).`); return; }
+            const g = await fetch('/api/plugin/obra', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                                       body: JSON.stringify({ chave: d.chave, envelope: d.envelope }) });
+            const o = await g.json().catch(() => ({}));
+            if (!g.ok || !o.url) {
+                const erros = (o.detail && o.detail.erros) ? o.detail.erros.join('; ') : (o.detail || `HTTP ${g.status}`);
+                showToast('Não consegui abrir a obra do nanoCAD: ' + erros);
+                return;
+            }
+            window.location.replace(o.url);
+        } catch (e) {
+            showToast('Não consegui receber a obra do nanoCAD: ' + e.message);
+        }
+    })();
+
     (async function abrirObraDoLink() {
         const q = new URLSearchParams(window.location.search);
         const obraId = q.get('obra');

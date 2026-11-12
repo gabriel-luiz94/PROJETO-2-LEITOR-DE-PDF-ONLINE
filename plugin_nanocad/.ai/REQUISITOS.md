@@ -72,6 +72,10 @@
 | RQ-74 | Tela inicial com todos os projetos da aplicação; regras sempre do projeto escolhido | ✅ · 🟡 CAD | `/api/plugin/projetos`, `RegrasFrescas` |
 | RQ-75 | Configuração de leitura guardada na aplicação por projeto (qualquer computador) | ✅ · 🟡 CAD | `/api/plugin/leitura`, `RegrasDe` |
 | RQ-76 | Instalado junto com o programa principal | ✅ · 🟡 Windows | `services/plugin_instalador.py`, botão "Plugin nanoCAD" |
+| RQ-77 | Editar o ativo no plugin com o autocompletar da Base de Orçamento (como na aplicação) | ✅ · 🟡 CAD | `CampoAtivo`, `Autocompletar`, `/api/plugin/catalogo` |
+| RQ-78 | Excluir qualquer linha da obra (a lida pode ser restaurada) | ✅ · 🟡 CAD | `Construtor.Excluir/Restaurar` |
+| RQ-79 | Adicionar linha sem apontar no desenho (Cabos / Outros) | ✅ · 🟡 CAD | `ORC_NOVO_CABO`, `ORC_NOVO_OUTROS` |
+| RQ-80 | Adicionar linha lendo um TEXT/MTEXT escolhido no desenho (pelas regras do leitor) | ✅ · 🟡 CAD | `TelaNovaLinha`, `Construtor.LerTextoParaLinha` |
 | RQ-67 | Abrir a aplicação já com a obra do plugin carregada | ✅ API · 🟡 CAD | `ORC_ABRIR_APP`, `/api/plugin/obra`, Resumo `?obra=` |
 
 ## RQ — Cálculo (fora do CAD)

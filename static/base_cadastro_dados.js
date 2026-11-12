@@ -1,5 +1,5 @@
 /*
- * base_cadastro_dados.js (TASK-144) — parte PURA do cadastro rápido de ativos: gera as linhas da base (como o usuário escreveria na planilha) a partir do rascunho,
+ * base_cadastro_dados.js (TASK-147) — parte PURA do cadastro rápido de ativos: gera as linhas da base (como o usuário escreveria na planilha) a partir do rascunho,
  * lê o que se cola do Excel e faz a validação local. A validação completa (a mesma da importação da base) e o simulador do rascunho são do servidor
  * (/api/orcamento/rascunho). Testado em Node: tests/test_base_cadastro_144.py.
  */

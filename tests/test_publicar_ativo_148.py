@@ -1,4 +1,4 @@
-"""TASK-145 — publicar / desfazer UM ativo (local + nuvem), prévia com diff, passo anterior e detecção de edição simultânea."""
+"""TASK-148 — publicar / desfazer UM ativo (local + nuvem), prévia com diff, passo anterior e detecção de edição simultânea."""
 import pytest
 
 import database

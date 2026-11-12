@@ -996,7 +996,7 @@
             });
         }
 
-        /* TASK-143: a Consulta Rápida usa a mesma pesquisa da ficha (Ctrl+K); clicar num resultado abre a ficha do ativo ou o uso do código */
+        /* TASK-146: a Consulta Rápida usa a mesma pesquisa da ficha (Ctrl+K); clicar num resultado abre a ficha do ativo ou o uso do código */
         async function quickSearch() {
             const query = document.getElementById('qs-input').value.trim();
             const resDiv = document.getElementById('qs-result');
@@ -1055,7 +1055,7 @@
         const ehAdmin = () => localStorage.getItem('is_admin') === 'true';
         const recarregarBase = async () => { BaseFicha.invalidar(); await carregarDados(); };
         BaseFicha.iniciar({ tbody, projeto: () => projetoAtual, visao: () => visaoAtual, admin: ehAdmin, recarregar: recarregarBase });
-        // TASK-144: cadastro rápido — as linhas geradas entram no fim da tabela do projeto (depois: Salvar Alterações / Sincronizar)
+        // TASK-147: cadastro rápido — as linhas geradas entram no fim da tabela do projeto (depois: Salvar Alterações / Sincronizar)
         BaseCadastro.iniciar({
             projeto: () => projetoAtual,
             podeAdicionar: () => visaoAtual === 'projeto' && !!projetoAtual,
@@ -1067,7 +1067,7 @@
                 if (primeira) { primeira.scrollIntoView({ block: 'center' }); primeira.classList.add('bf-flash'); setTimeout(() => primeira.classList.remove('bf-flash'), 1800); }
                 showToast(`${linhas.length} linha(s) adicionada(s) no fim da tabela. Revise e use "Salvar Alterações" (e "Sincronizar" para a nuvem).`);
             }
-        });      // TASK-143: Ctrl+K e Ctrl+clique
+        });      // TASK-146: Ctrl+K e Ctrl+clique
     </script>
     <script src="/static/marca.js?v=1"></script>
 </body>

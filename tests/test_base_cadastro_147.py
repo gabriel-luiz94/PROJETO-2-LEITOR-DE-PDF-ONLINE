@@ -1,4 +1,4 @@
-"""TASK-144 — cadastro rápido de ativos: geração das linhas, leitura do que se cola do Excel, validação local (JS) e avaliação do rascunho no servidor."""
+"""TASK-147 — cadastro rápido de ativos: geração das linhas, leitura do que se cola do Excel, validação local (JS) e avaliação do rascunho no servidor."""
 import json
 import os
 import subprocess
@@ -111,7 +111,7 @@ def test_ligacoes_na_tela():
 
 @node
 def test_rascunho_de_linhas_ida_e_volta_mantendo_o_que_a_linha_sem_codigo_ja_tinha():
-    """TASK-145: editar um ativo existente (linhas → rascunho → linhas) não perde MDO/filtro/LV da declaração nem das chamadas."""
+    """TASK-148: editar um ativo existente (linhas → rascunho → linhas) não perde MDO/filtro/LV da declaração nem das chamadas."""
     rows = [{"ativo": "CF=CF(cabo=S04,cabo2=S04), SUH", "desc_ativo": "CHAVE", "mdo": "MATERIAL", "filtro": "6.CHAVE", "lv": "A", "arred": "NORMAL", "codigo": ""},
             {"ativo": "CF", "desc_ativo": "CHAVE", "mdo": "MATERIAL", "codigo": "500109", "desc_codigo": "CH", "fator_i": 3, "fator_r": 0, "lv": "A", "filtro": "6.CHAVE"},
             {"ativo": "CF(cabo=%S336%)", "mdo": "MAO-DE-OBRA", "codigo": "9", "desc_codigo": "M", "fator_i": 1, "formula_i": "=NUM(cabo)", "lv": "LM"},

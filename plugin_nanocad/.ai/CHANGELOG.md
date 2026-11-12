@@ -4,6 +4,50 @@
 
 ---
 
+## 2026-11-12 — TASK-019: cabo lido de texto escolhido — comprimento da linha de baixo na linha do cabo, sem vírgula (0.9.2)
+
+Quando o texto escolhido (+ Cabo / + Outros e + Vão) está numa layer que não é de operação, as regras não CLASSIFICAM, mas o PROCESSAMENTO de
+Pernambuco já monta "3XA35P(7,94)-13,8KV 35 m" (regra "Cabo: label sozinho, comprimento na linha de baixo", janela de 2 linhas). O plugin
+juntava os textos crus com ", " ("3XA35P…, 35 M"). Agora usa o resultado do processamento (`Construtor.AtivoDosTextos`): o comprimento entra na
+linha do cabo e a linha só de comprimento não entra; textos que o processamento não juntou seguem separados por ", ". Sem classificação, um cabo
+com comprimento vai para a Tabela de Cabos. Testes em `LinhaDeTextoTests` (layer de operação, layer 0, mesmo MTEXT, ANOTACOES, + Vão).
+
+---
+
+## 2026-11-12 — TASK-018: "+ Cabo / + Outros" lendo um TEXT/MTEXT escolhido no desenho (0.9.1)
+
+Na tela de linha nova, "Selecionar texto no desenho (TEXT/MTEXT)…": a tela sai da frente, o usuário escolhe o(s) texto(s) e as regras do leitor
+leem (`Construtor.LerTextoParaLinha`): ativo, operação e a tabela (CABO → Cabos; outra entidade → Outros). A tela volta preenchida para conferir
+(autocompletar continua valendo) e escolher Cabos/Outros. A linha fica ligada ao texto (`LigarTexto`: localizar, marcas; ativo mudado antes de
+adicionar = correção sobre o lido). ↻ Atualizar: a linha volta, a não ser que a leitura passe a pegar aquele texto (não fica em dobro).
+Testes: `LinhaDeTextoTests` (4).
+
+---
+
+## 2026-11-12 — TASK-017: editar o ativo com autocompletar, excluir qualquer linha, linhas digitadas (0.9.0)
+
+- **Editar o ativo** no pop-up (`ORC_EDITAR` / duplo clique): `CampoAtivo` com o autocompletar da aplicação (`Nucleo/Autocompletar`: sugestões da
+  Base de Orçamento do projeto com descrição e apelidos, dica dos parâmetros dentro de "(", valores do parâmetro atual, `)` automático — porte de
+  `static/ativo_dica.js`). Catálogo de `/api/plugin/catalogo` (`Plugin/Catalogos`, 10 min na memória + cópia em `cache/`). `Construtor.TrocarAtivo`:
+  guarda o do desenho (`AtivoDoDesenho`), o vão relê cabo/metros; "Voltar ao lido" desfaz. O desenho não é alterado.
+- **Excluir qualquer linha** (`Construtor.Excluir`): a lida fica `Excluido` (fora da obra, do vínculo, do .obra.json, das marcas; listada em Ignorados,
+  duplo clique → "Restaurar à obra"); a montada à mão é apagada.
+- **+ Cabo / + Outros** (`ORC_NOVO_CABO`/`ORC_NOVO_OUTROS`, `TelaNovaLinha`): linha digitada (L1, L2…) para a Tabela de Cabos ou de Outros.
+- Correção, exclusão e linhas digitadas sobrevivem ao ↻ Atualizar (`ReaplicarAjustes`; a correção vale enquanto o texto do desenho for o mesmo) e ao
+  Salvar/Continuar (seção `cad`: `ativoDoDesenho`, `excluido`).
+- Testes: `EdicaoTests` (6), `AutocompletarTests` (3).
+
+---
+
+## 2026-11-12 — TASK-016: "Abrir na aplicação" no GridReader deste computador (0.8.0)
+
+`ORC_ABRIR_APP` / 🌐: procura o GridReader aberto (porta de `programa.json`, 8000 e a do ORC_CONECTAR local; `GET /api/plugin/desktop`) e entrega a
+obra (`POST /api/plugin/receber`, sem login: só do próprio computador) — a janela dele vem para a frente com a obra. Fechado: grava a obra em
+`%APPDATA%\OrcamentoNanoCAD\obras_para_abrir\` e abre o .exe com `--abrir-obra "<arquivo>"`. Sem o programa instalado: o caminho antigo
+(aplicação do ORC_CONECTAR no navegador). `Nucleo/ProgramaLocal`, `Plugin/ProgramaNoComputador`; testes `ProgramaLocalTests`.
+
+---
+
 ## 2026-11-11 — TASK-014 e TASK-015: nanoCAD 5 pronto; projetos e leitura da aplicação (0.7.0)
 
 **TASK-014 (nanoCAD 5):** `src/nanoCAD5/OrcamentoNanoCAD5.csproj` (.NET 4) compila o MESMO código contra `src/ApiNanoCAD5` (hostmgd/hostdbmgd

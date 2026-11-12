@@ -19,7 +19,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public const string Formato = "leitor-obra";
         public const int Versao = 1;
         public const int VersaoCad = 1;
-        public const string VersaoPlugin = "0.7.1";
+        public const string VersaoPlugin = "0.9.2";
         private const int MaxPontosGeo = 60;
 
         public static string NomeDoArquivo(string desenho)
@@ -78,9 +78,9 @@ namespace OrcamentoNanoCAD.Nucleo
         {
             cabos = new List<Elemento>();
             outros = new List<Elemento>();
-            foreach (Poste p in obra.Postes) if (p.TemAnotacao) outros.Add(p);
-            foreach (Vao v in obra.Vaos) if (v.TemAnotacao) cabos.Add(v);
-            foreach (Avulso a in obra.Avulsos) (a.Entidade == "CABO" ? cabos : outros).Add(a);
+            foreach (Poste p in obra.Postes) if (p.TemAnotacao && !p.Excluido) outros.Add(p);
+            foreach (Vao v in obra.Vaos) if (v.TemAnotacao && !v.Excluido) cabos.Add(v);
+            foreach (Avulso a in obra.Avulsos) if (!a.Excluido) (a.Entidade == "CABO" ? cabos : outros).Add(a);
         }
 
         public static JObj Dados(Obra obra)
@@ -89,7 +89,7 @@ namespace OrcamentoNanoCAD.Nucleo
             List<object> cabos = new List<object>(), outros = new List<object>();
             foreach (Poste p in obra.Postes)
             {
-                if (!p.TemAnotacao) continue;
+                if (!p.TemAnotacao || p.Excluido) continue;
                 JObj l = LinhaBase(p);
                 l.Set("ativo", p.AtivoLido);
                 l.Set("textoOriginal", p.TextoOriginal);
@@ -99,7 +99,7 @@ namespace OrcamentoNanoCAD.Nucleo
             }
             foreach (Vao v in obra.Vaos)
             {
-                if (!v.TemAnotacao) continue;
+                if (!v.TemAnotacao || v.Excluido) continue;
                 JObj l = LinhaBase(v);
                 l.Set("ativo", v.Ativo);
                 l.Set("textoOriginal", v.TextoOriginal);
@@ -113,6 +113,7 @@ namespace OrcamentoNanoCAD.Nucleo
             }
             foreach (Avulso a in obra.Avulsos)
             {
+                if (a.Excluido) continue;
                 JObj l = LinhaBase(a);
                 l.Set("ativo", a.AtivoLido);
                 l.Set("textoOriginal", a.TextoOriginal);
@@ -160,6 +161,8 @@ namespace OrcamentoNanoCAD.Nucleo
             o.Set("operacaoLida", e.OperacaoLida);
             o.Set("operacao", e.Operacao);
             if (e.Manual) o.Set("manual", true);
+            if (e.AtivoDoDesenho != null) o.Set("ativoDoDesenho", e.AtivoDoDesenho);
+            if (e.Excluido) o.Set("excluido", true);
             if (e.IrmaoDe != null) o.Set("irmaoDe", e.IrmaoDe);
             if (e.MensagensFixas.Count > 0) o.Set("avisosLeitura", e.MensagensFixas.Cast<object>().ToList());
             o.Set("estado", e.Estado);
@@ -265,6 +268,8 @@ namespace OrcamentoNanoCAD.Nucleo
             e.OperacaoLida = o.Str("operacaoLida") ?? "";
             e.Operacao = o.Str("operacao") ?? e.OperacaoLida;
             e.Manual = o.Bool("manual", false);
+            e.AtivoDoDesenho = o.Str("ativoDoDesenho");
+            e.Excluido = o.Bool("excluido", false);
             e.IrmaoDe = o.Str("irmaoDe");
             e.MensagensFixas = Json.ListaDeTextos(o["avisosLeitura"]);
         }

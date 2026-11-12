@@ -1,5 +1,5 @@
 /*
- * base_ficha_ui.js (TASK-143) — pesquisa (Ctrl+K) e FICHA DO ATIVO na tela da Base de Orçamento: mostra tudo do ativo (itens, parâmetros e variantes,
+ * base_ficha_ui.js (TASK-146) — pesquisa (Ctrl+K) e FICHA DO ATIVO na tela da Base de Orçamento: mostra tudo do ativo (itens, parâmetros e variantes,
  * quem ele chama / quem o chama, verificações, simulador) e navega entre ativos (Ctrl+clique no ATIVO/CÓDIGO da tabela, links dentro da ficha).
  * Lê a base inteira do servidor e troca a fatia visível na tela pelas linhas da tela (edições ainda não salvas aparecem). Só leitura: editar continua na tabela.
  */

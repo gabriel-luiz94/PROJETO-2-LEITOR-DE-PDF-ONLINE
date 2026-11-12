@@ -1,5 +1,5 @@
 """
-services/publicar_ativo.py — Publicar (e desfazer) UM ativo na master da Base de Orçamento, local + nuvem (TASK-145).
+services/publicar_ativo.py — Publicar (e desfazer) UM ativo na master da Base de Orçamento, local + nuvem (TASK-148).
 
 Em vez de reenviar a tabela inteira, só as linhas do ativo (no projeto) são trocadas. Antes de gravar: a validação é a da importação da base (`rascunho_ativo.avaliar`), e
 uma ASSINATURA do que o usuário viu detecta edição simultânea por outro admin. A nuvem é gravada PRIMEIRO (insere as novas, depois apaga as antigas; se algo falhar nada

@@ -1,5 +1,5 @@
 /*
- * base_ficha_dados.js (TASK-143) — parte PURA (sem DOM) da pesquisa e da ficha de ativo da Base de Orçamento: monta o modelo a partir das linhas da base,
+ * base_ficha_dados.js (TASK-146) — parte PURA (sem DOM) da pesquisa e da ficha de ativo da Base de Orçamento: monta o modelo a partir das linhas da base,
  * pesquisa (ativo, apelido, código, descrição), monta a ficha (itens, parâmetros e variantes, chama / é chamado por, verificações) e o uso de um código.
  * Testado em Node: tests/test_base_ficha_143.py.
  */

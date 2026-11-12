@@ -1,8 +1,8 @@
 /*
- * base_cadastro_ui.js (TASK-144) — CADASTRO RÁPIDO de ativos na Base de Orçamento: assistente em 3 passos (identidade e parâmetros → itens em grade estilo Excel → revisar).
+ * base_cadastro_ui.js (TASK-147) — CADASTRO RÁPIDO de ativos na Base de Orçamento: assistente em 3 passos (identidade e parâmetros → itens em grade estilo Excel → revisar).
  * Códigos já existentes preenchem descrição/MDO/filtro sozinhos; cola linhas do Excel; valida ao vivo (local) e no servidor (a mesma validação da importação) e simula o ativo
  * ANTES de gravar. "Adicionar à tabela" põe as linhas no fim da tabela do projeto (depois: Salvar Alterações / Sincronizar).
- * TASK-145 (admin): "Publicar" troca SÓ as linhas do ativo (local + nuvem) com diff, validação, impacto e aviso de edição simultânea; "Desfazer" volta UM passo; "Editar" parte do ativo existente.
+ * TASK-148 (admin): "Publicar" troca SÓ as linhas do ativo (local + nuvem) com diff, validação, impacto e aviso de edição simultânea; "Desfazer" volta UM passo; "Editar" parte do ativo existente.
  * Rascunho guardado automaticamente neste computador (localStorage).
  */
 (function (raiz) {

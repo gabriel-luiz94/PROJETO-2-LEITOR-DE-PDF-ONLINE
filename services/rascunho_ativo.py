@@ -1,5 +1,5 @@
 """
-services/rascunho_ativo.py — Avalia um RASCUNHO de ativo (cadastro rápido, TASK-144) contra a base atual, sem gravar nada.
+services/rascunho_ativo.py — Avalia um RASCUNHO de ativo (cadastro rápido, TASK-147) contra a base atual, sem gravar nada.
 
 Recebe as linhas novas (como o usuário as escreveria na planilha), tira da base as linhas antigas do(s) mesmo(s) ativo(s) no projeto, junta, preenche os COMPONENTES e
 roda a MESMA validação da importação da base (`validar_base`). Só devolve os problemas NOVOS (os que a base já tinha antes do rascunho não entram). Opcionalmente simula pedidos
