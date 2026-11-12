@@ -494,6 +494,15 @@ if __name__ == "__main__":
         # Abre sempre na tela de login com ?new_session=1 para limpar sessão anterior
         app_url = f"http://127.0.0.1:{port}"
         login_url = f"{app_url}/login?new_session=1"
+        # TASK-143: o plugin do nanoCAD acha o programa (programa.json) e pode abri-lo já com uma obra (--abrir-obra <arquivo>)
+        from services import programa_local
+        programa_local.registrar(port, APP_VERSION)
+        _arquivo_obra = programa_local.ler_argumento(sys.argv[1:])
+        if _arquivo_obra:
+            _id_obra = programa_local.carregar_arquivo(_arquivo_obra)
+            if _id_obra:
+                from urllib.parse import quote as _quote
+                login_url += "&next=" + _quote(programa_local.url_pendente(_id_obra), safe="")
 
         from services.inicio_janela import TELA_ERRO, TELA_INICIAL, esperar_servidor
 
@@ -520,6 +529,7 @@ if __name__ == "__main__":
             )
             api_arquivos.vincular(window)
             from services import janela_desktop
+            janela_desktop.vincular(window)              # TASK-143: o plugin do nanoCAD traz a janela para a frente com a obra
 
             def _abrir_quando_pronto(win):
                 janela_desktop.ligar_senhas_salvas(win)      # TASK-133: login oferece as senhas salvas

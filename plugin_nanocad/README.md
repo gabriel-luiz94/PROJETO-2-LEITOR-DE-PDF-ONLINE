@@ -34,7 +34,7 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 | `ORC_EDITAR` | pop-up do vão/poste: entrada (lida do desenho), saída (para a obra), ajustes (operação, metros, estrutura do vínculo; troca opcional da layer do texto) |
 | `ORC_VINCULOS`, `ORC_ATIVOS` | tabela de vínculos · ativos com parâmetros (`N4(9400D, P, 3XA35P_7.94_-13.8KV, ?)`) |
 | `ORC_SALVAR` | grava a obra **no DWG** e em **`<desenho>.obra.json`** na pasta do desenho |
-| `ORC_ABRIR_APP` | envia a obra e abre a aplicação com ela carregada (🌐 no painel) |
+| `ORC_ABRIR_APP` | abre a obra no GridReader deste computador: aberto, recebe a obra e vem para a frente; fechado, abre já com ela. Sem ele instalado, na aplicação do `ORC_CONECTAR` (navegador) — 🌐 no painel |
 | `ORC_LEITURA`, `ORC_DIAGNOSTICO` | onde ficam rede, postes e guias neste padrão de desenho · o que o plugin leu em cada texto (arquivo + tabela) |
 | `ORC_FECHAR` | fecha a obra (⌂ Início no painel volta à tela inicial) |
 | `ORC_ATUALIZAR_PLUGIN`, `ORC_VOLTAR_VERSAO` | conferir agora se há versão nova do plugin · voltar para a versão anterior |

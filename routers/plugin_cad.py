@@ -17,6 +17,9 @@ regras GRAVADAS AQUI e a conferir a obra contra a Base de Orçamento, sem repeti
     GET  /api/plugin/projetos              (TASK-131) projetos cadastrados (o plugin lista todos na tela inicial).
     GET  /api/plugin/leitura?projeto=081   (TASK-131) configuração de LEITURA do desenho do projeto (layers da rede, blocos de poste,
     PUT  /api/plugin/leitura?projeto=081   guias, raios) guardada aqui para valer em qualquer computador; também vai em /regras e na versão.
+    GET  /api/plugin/desktop               (TASK-143, pública) "sou o GridReader instalado neste computador?"
+    POST /api/plugin/receber               (TASK-143, pública, só 127.0.0.1 e só no programa instalado) o plugin entrega a obra; a janela
+                                           vem para a frente em /resumo?plugin_pendente=<id> · GET /api/plugin/pendente/<id> (login) a devolve.
     GET  /api/plugin/instalacao            (TASK-131) o programa traz o plugin: versão trazida × instalada e caminho para o APPLOAD
     POST /api/plugin/instalacao            (desktop) instalar/atualizar agora · POST /api/plugin/instalacao/abrir-pasta (desktop)
     GET  /api/plugin/atualizacao?alvo=nanocad26          (TASK-130) versão do plugin publicada aqui + SHA-256 + endereço do arquivo.
@@ -418,3 +421,48 @@ def abrir_pasta_plugin():
         os.startfile(pasta)  # noqa: S606 — pasta fixa do próprio programa
         return {"aberta": True, "pasta": pasta}
     return {"aberta": False, "pasta": pasta}
+
+
+
+# ── o plugin entrega a obra ao programa aberto no computador (TASK-143) ──
+@router.get("/desktop")
+def desktop():
+    from config import APP_VERSION
+    return {"app": "GridReader", "desktop": _desktop(), "versao": APP_VERSION}
+
+
+class ReceberPayload(BaseModel):
+    chave: str = ""
+    envelope: Dict[str, Any]
+
+
+def _do_proprio_computador(request: Request) -> bool:
+    host = (request.client.host if request.client else "") or ""
+    return host in ("127.0.0.1", "::1", "localhost", "testclient")
+
+
+@router.post("/receber")
+def receber_obra(payload: ReceberPayload, request: Request):
+    """Sem login (o plugin não tem o token deste programa), mas só no programa instalado e só do próprio computador:
+    a obra fica em memória até a janela — com o usuário logado — buscá-la e gravá-la para ele."""
+    if not _desktop():
+        raise HTTPException(status_code=403, detail="Só no programa instalado no computador.")
+    if not _do_proprio_computador(request):
+        raise HTTPException(status_code=403, detail="Só o plugin deste computador pode entregar obras.")
+    from services import janela_desktop, programa_local
+    erro = programa_local.validar(payload.chave, payload.envelope)
+    if erro:
+        raise HTTPException(status_code=400, detail=erro)
+    i = programa_local.guardar(payload.chave, payload.envelope)
+    url = programa_local.url_pendente(i)
+    janela = janela_desktop.mostrar(url, request.url.port)
+    return {"id": i, "url": url, "janela": janela}
+
+
+@router.get("/pendente/{i}")
+def obra_pendente(i: str):
+    from services import programa_local
+    v = programa_local.pegar(i)
+    if not v:
+        raise HTTPException(status_code=404, detail="Obra do nanoCAD não encontrada (passou mais de 1 hora ou o programa foi reaberto). Envie de novo pelo plugin.")
+    return {"chave": v["chave"], "envelope": v["envelope"]}
