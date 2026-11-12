@@ -116,7 +116,7 @@ header {
 /* Buttons */
 .btn-primary {
     background: var(--accent-primary);
-    color: #fff;
+    color: #161b22;          /* texto escuro sobre o laranja: 5,4:1 de contraste (o branco dava 3,2:1) — TASK-153 */
     padding: 0.8rem 1.5rem;
     border-radius: 8px;
     font-weight: 600;
@@ -142,9 +142,23 @@ header {
 }
 
 .btn-secondary:hover {
+    color: var(--text-main);
+    border-color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* Botões verdes (fundo escrito direto no elemento) continuam com o texto branco */
+.btn-primary[style*="238636"] { color: #fff; }
+
+/* Ação que apaga ou encerra: vermelho só no texto e na borda; o fundo aparece ao passar o mouse (TASK-153) */
+.btn-danger, .btn-secondary.btn-danger {
+    color: #f85149;
+    border-color: rgba(248, 81, 73, 0.45);
+}
+.btn-danger:hover, .btn-secondary.btn-danger:hover {
     color: #ff7b72;
     border-color: #ff7b72;
-    background: rgba(255, 123, 114, 0.1);
+    background: rgba(248, 81, 73, 0.12);
 }
 
 .btn-cable-preset {
@@ -963,3 +977,17 @@ tr.row-deleted {
 select { color-scheme: dark; }
 select option, select optgroup { background-color: #1c1f26; color: #c9d1d9; }
 select option:checked { background-color: #30363d; color: #ffffff; }
+
+/* ── Topo da tela inicial (TASK-153): duas linhas alinhadas à direita — sessão em cima, projeto e ferramentas embaixo ── */
+.inicio-topo { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 1rem 0; text-align: left; }
+.inicio-acoes { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 0; }
+.inicio-linha { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
+.btn-topo { padding: 0.45rem 0.8rem; font-size: 0.85rem; white-space: nowrap; font-family: inherit; }
+.inicio-sessao .btn-topo { padding: 0.3rem 0.7rem; font-size: 0.78rem; }
+.btn-discreto { color: #6e7681; }
+.inicio-sep { width: 1px; height: 18px; background: var(--border-color); margin: 0 4px; }
+.inicio-projeto { display: flex; align-items: center; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+.inicio-projeto label { font-size: 0.75rem; color: var(--text-muted); margin-right: 6px; }
+.inicio-projeto select { background: transparent; color: #fff; border: none; outline: none; font-size: 0.85rem; cursor: pointer; font-family: inherit; }
+#btn-admin { border-color: rgba(217, 119, 6, 0.5); color: var(--accent-primary); }
+#btn-admin:hover { background: rgba(217, 119, 6, 0.12); border-color: var(--accent-primary); color: #f0883e; }

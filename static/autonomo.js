@@ -31,7 +31,7 @@
         if (!r.ok) throw new Error((dados && (typeof dados.detail === 'string' ? dados.detail : JSON.stringify(dados.detail))) || `Erro ${r.status}`);
         return dados;
     }
-    function aviso(texto) { const a = $('aviso'); a.hidden = !texto; a.textContent = texto || ''; }
+    function aviso(texto, tipo) { const a = $('aviso'); a.hidden = !texto; a.textContent = texto || ''; a.className = 'msg ' + (tipo || 'erro'); }          // tipo 'atencao' = orientação (amarelo), não erro
     function msgCfg(texto, tipo) { const m = $('cfg-msg'); m.hidden = !texto; m.className = 'msg ' + (tipo || 'ok'); m.textContent = texto || ''; }
     async function tentar(fn) { try { aviso(''); return await fn(); } catch (e) { aviso(e.message); } }
 
@@ -53,7 +53,7 @@
             stat(String(s.na_fila), 'Arquivos na pasta'), stat(String(s.processados), 'Processados nesta sessão'), stat(String(st.aguardando_confirmacao), 'Aguardando confirmação'),
             stat(String(s.erros), 'Com erro nesta sessão'));
         $('ultimo-erro').textContent = s.ultimo_erro ? `Último erro: ${s.ultimo_erro}` : '';
-        if (!st.configurado) aviso('Escolha abaixo em nome de quem as obras serão salvas e clique em “Salvar configuração” antes de ligar.');
+        if (!st.configurado) aviso('Para começar: escolha abaixo em nome de quem as obras serão salvas e clique em “Salvar configuração”. Depois é só ligar.', 'atencao');
     }
 
     /* ── pendências de confirmação ── */

@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-12 — TASK-153: usabilidade e design (telas sem internet, hierarquia de botões, menus no Resumo)
+
+- Nenhuma tela busca mais nada fora do programa: Tailwind do login/admin virou `static/tailwind_local.css` (regenerar com `scripts/gerar_tailwind_local.js`) e as fontes vêm de `static/fontes/`; `static/tema.css` (fontes + foco do teclado) entra em todas as telas.
+- Base de Orçamento e Resultado: o `.btn-action` do `styles.css` vazava (degradê) e deixava todos os botões laranja; anulado nas duas páginas. Um principal por área, exclusão em vermelho, ações de administrador agrupadas.
+- Resumo: menus "Mais ▾" e "Exibição ▾" (mesmos ids); "Limpar Tudo" longe de "Salvar no PDF". Tela inicial, Modo autônomo, manual (escuro), Painel Admin e rodapé (`data-rodape`) ajustados. Nome e logo não mudaram.
+
+---
+
 ## 2026-11-12 — TASK-152: nome GridR e ícone
 
 - Programa passa a se chamar GridR (telas, janela, README/manuais) e ganha o ícone (`static/gridr.svg/.ico`, favicon em todas as páginas, `--icon` no build). Release publica `GridR.exe` e a cópia `Leitor_Projetos.exe` (versões antigas continuam atualizando); atualizador aceita os dois nomes; perfil da janela migra para `%APPDATA%\GridR`. O identificador `"app": "GridReader"` da rota do plugin não muda.

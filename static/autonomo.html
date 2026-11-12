@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Modo autônomo</title>
+<title>Modo autônomo — GridR</title>
     <link rel="icon" type="image/svg+xml" href="/static/gridr.svg">
     <link rel="alternate icon" type="image/x-icon" href="/static/gridr.ico">
+    <link rel="stylesheet" href="/static/tema.css?v=1">
 <style>
 select { color-scheme: dark; }
 select option, select optgroup { background-color: #1c1f26; color: #c9d1d9; }
@@ -25,12 +26,12 @@ button:hover { border-color:var(--mut); } button:disabled { opacity:.5; cursor:n
 .primario { background:var(--ac); color:#161b22; border-color:var(--ac); font-weight:600; } .perigo { color:var(--err); } .bom { color:var(--ok); }
 .selo { display:inline-block; padding:2px 10px; border-radius:99px; font-size:.78rem; font-weight:600; border:1px solid var(--line); }
 .selo.on { color:var(--ok); border-color:var(--ok); } .selo.off { color:var(--mut); }
-.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }          /* 130px: os 6 quadros cabem numa linha só (com 150px sobrava um sozinho embaixo) */
 .stat { border:1px solid var(--line); border-radius:8px; padding:8px 10px; } .stat b { display:block; font-size:1.25rem; } .stat span { color:var(--mut); font-size:.78rem; }
 label { display:block; font-size:.8rem; color:var(--mut); margin:10px 0 3px; }
 input, select { width:100%; font:inherit; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:6px 8px; }
 .cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:0 14px; }
-.msg { padding:8px 12px; border-radius:6px; font-size:.85rem; } .msg.erro { background:#3d1418; color:#ffa198; border:1px solid var(--err); } .msg.ok { background:#12261a; color:#7ee787; border:1px solid var(--ok); }
+.msg { padding:8px 12px; border-radius:6px; font-size:.85rem; } .msg.erro { background:#3d1418; color:#ffa198; border:1px solid var(--err); } .msg.ok { background:#12261a; color:#7ee787; border:1px solid var(--ok); } .msg.atencao { background:#2b2111; color:#e3b341; border:1px solid var(--warn); }
 .vazio { color:var(--mut); font-size:.88rem; }
 .pend { border:1px solid var(--warn); border-radius:8px; padding:10px 12px; margin-bottom:10px; }
 .pend h3 { margin:0 0 6px; font-size:.92rem; } .pend .linha { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:6px 0; border-top:1px solid var(--line); }
