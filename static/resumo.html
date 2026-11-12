@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="/static/auth_fetch.js"></script>
+    <script src="/static/desktop_arquivos.js"></script>
     <link rel="stylesheet" href="/static/styles.css">
     <style>
         #btn-ler-projeto.arrastando { outline: 2px dashed #3fb950; background: rgba(35,134,54,.35) !important; }
@@ -731,7 +732,7 @@
                 </div>
                 <div class="painel-corpo">
                     <section class="painel-sec"><h4>Projeto</h4>
-                        <div class="painel-linha"><select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;" onchange="const o=this.options[this.selectedIndex]; const cod=o?.dataset.codigo||''; localStorage.setItem('projeto_selecionado', this.value); localStorage.setItem('projeto_selecionado_codigo', cod); carregarRegras(); carregarRegrasLeitorResumo(cod); carregarRegrasVinculacaoResumo(cod); if (window.ModalMontavelUI) ModalMontavelUI.recarregar(); if (window.carregarContextosAjustes) carregarContextosAjustes(cod);"></select></div>
+                        <div class="painel-linha"><select id="select-projeto" style="background: transparent; color: white; border: none; outline: none; font-size: 0.85rem; cursor: pointer;" onchange="const o=this.options[this.selectedIndex]; const cod=o?.dataset.codigo||''; localStorage.setItem('projeto_selecionado', this.value); localStorage.setItem('projeto_selecionado_codigo', cod); carregarRegras(); carregarRegrasLeitorResumo(cod); carregarRegrasVinculacaoResumo(cod); (async () => { if (window.ModalMontavelUI) await ModalMontavelUI.recarregar(); if (window.BarraModais) await BarraModais.recarregar(); })(); if (window.carregarContextosAjustes) carregarContextosAjustes(cod);"></select></div>
                         <div class="painel-linha"><button id="btn-novo-projeto" class="btn-primary" onclick="abrirModalNovoProjeto()" style="display: none; padding: 2px 8px; font-size: 0.75rem; margin-left: 8px; border-radius: 4px;" title="Cadastrar Novo Projeto">+ Novo</button></div>
                     </section>
                     <section class="painel-sec"><h4>Base de orçamento</h4>

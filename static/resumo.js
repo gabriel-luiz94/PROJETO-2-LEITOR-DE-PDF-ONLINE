@@ -5710,6 +5710,17 @@ function carregarBaseOrcamento() {
     return _basePromessa;
 }
 carregarBaseOrcamento();
+// TASK-142: ao fechar a Tabela de orçamento (moldura do programa) a base é pedida de novo — ativo editado/sincronizado passa a valer na hora na tela de baixo
+document.addEventListener('tela-app-fechada', e => { if (/\/orcamento(\?|$|#)/.test((e.detail && e.detail.url) || '')) carregarBaseOrcamento(); });
+// versão online (a tabela abre em outra aba): ao voltar para esta aba depois de um tempo, também recarrega a base
+(function () {
+    let saiuEm = 0;
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) { saiuEm = Date.now(); return; }
+        if (saiuEm && Date.now() - saiuEm > 15000) carregarBaseOrcamento();
+        saiuEm = 0;
+    });
+})();
 // TASK-136: sugestão de ativos/apelidos do PROJETO ao digitar (Outros e Totalizadora); botão "💡 Sugestões" liga/desliga
 if (window.AtivoSugestao) window.AtivoSugestao.iniciar({
     base: () => orcamentoBaseData,

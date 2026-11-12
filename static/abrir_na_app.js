@@ -17,8 +17,11 @@
 
     function fechar() {
         const ov = doc.getElementById('abrir-na-app-overlay');
+        const url = ov ? ((ov.querySelector('iframe') || {}).src || '') : '';
         if (ov) ov.remove();
         doc.removeEventListener('keydown', aoTeclar, true);
+        // TASK-142: a página de baixo pode ter dados que a tela fechada alterou (ex.: a Tabela de orçamento) — avisa para recarregar
+        if (ov) { try { doc.dispatchEvent(new CustomEvent('tela-app-fechada', { detail: { url } })); } catch (e) { /* navegador antigo */ } }
     }
     function aoTeclar(e) { if (e.key === 'Escape') fechar(); }
 

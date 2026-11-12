@@ -81,6 +81,43 @@ def sync_tabela_master():
         return False
 
 
+def espelhar_master_no_pessoal(user_id, projeto=None) -> int:
+    """TASK-142: depois de gravar/sincronizar a master (local + nuvem), o admin que fez a alteração enxerga o resultado NA HORA.
+    O cálculo e as telas priorizam a cópia pessoal (`tabela_orcamento` do usuário) sobre a master (`get_merged_orcamento`); sem esta cópia a
+    definição antiga do ativo continuava valendo. Só atua se o usuário JÁ tem cópia pessoal (não cria uma — senão ela passaria a esconder a master).
+    Com `projeto`, troca só as linhas desse projeto; sem, a cópia inteira. Devolve quantas linhas foram copiadas (0 = nada a fazer)."""
+    if not user_id:
+        return 0
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM tabela_orcamento WHERE user_id = ?", (user_id,))
+        if not cur.fetchone()[0]:
+            return 0
+        cols = "ativo, desc_ativo, componente, projeto, mdo, codigo, desc_codigo, fator_i, fator_r, filtro, origem, lv, arred, formula_i, formula_r"
+        cur.execute("BEGIN")
+        if projeto is not None:
+            alvo = normalizar_projeto(projeto)
+            cur.execute("DELETE FROM tabela_orcamento WHERE user_id = ? AND UPPER(TRIM(COALESCE(projeto, ''))) = ?", (user_id, alvo))
+            cur.execute(f"INSERT INTO tabela_orcamento (user_id, {cols}) SELECT ?, {cols} FROM tabela_orcamento_master "
+                        "WHERE UPPER(TRIM(COALESCE(projeto, ''))) = ? ORDER BY id", (user_id, alvo))
+        else:
+            cur.execute("DELETE FROM tabela_orcamento WHERE user_id = ?", (user_id,))
+            cur.execute(f"INSERT INTO tabela_orcamento (user_id, {cols}) SELECT ?, {cols} FROM tabela_orcamento_master ORDER BY id", (user_id,))
+        n = cur.rowcount
+        conn.commit()
+        return n
+    except Exception as e:  # noqa: BLE001 — a master já foi gravada; a cópia pessoal é só conveniência
+        try:
+            conn.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+        logger.warning(f"Não foi possível atualizar a cópia pessoal da base: {e}")
+        return 0
+    finally:
+        conn.close()
+
+
 def normalizar_projeto(valor) -> str:
     """TASK-052: mesma normalização usada por `processar_calculo` pra comparar nomes de projeto."""
     return (valor or "").strip().upper()

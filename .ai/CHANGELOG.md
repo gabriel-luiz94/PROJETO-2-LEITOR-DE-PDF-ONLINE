@@ -8,6 +8,13 @@
 
 ---
 
+## 2026-11-12 — TASK-142: arquivos no executável, barra de modais por projeto e base recarregada
+
+- Ponte de arquivos da janela desktop (`ApiArquivos` + `desktop_arquivos.js`): baixar/importar pelas caixas nativas; `ALLOW_DOWNLOADS`.
+- Trocar de projeto no Resumo recarrega a barra de modais; fechar a Tabela de orçamento recarrega a base; sincronizar/importar a master atualiza a cópia pessoal do admin.
+
+---
+
 ## 2026-11-11 — TASK-141: ordem padrão da visão SAP
 
 - Sem coluna escolhida: M antes de N e código em ordem numérica crescente (ODI e ODD); CÓDIGO passa a ordenar como número. Vale para tela, PDFs e Excel.
