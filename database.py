@@ -673,6 +673,16 @@ def init_db():
 
     # ── Tabela de Audit Log (quem fez o quê e quando) ──
     cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ativo_versoes (
+            projeto TEXT NOT NULL,
+            ativo TEXT NOT NULL,
+            linhas_json TEXT NOT NULL,
+            usuario TEXT,
+            criado_em TEXT DEFAULT (datetime('now')),
+            PRIMARY KEY (projeto, ativo)
+        )
+    ''')       # TASK-148: UM passo anterior por ativo (o que havia antes da última publicação) — alimenta o "Desfazer"
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id TEXT,

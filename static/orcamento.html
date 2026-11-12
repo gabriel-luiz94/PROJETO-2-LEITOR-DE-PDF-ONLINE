@@ -9,6 +9,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="/static/auth_fetch.js"></script>
     <script src="/static/desktop_arquivos.js"></script>
+    <script src="/static/ativo_parametros.js"></script>
+    <script src="/static/base_ficha_dados.js"></script>
+    <script src="/static/base_ficha_ui.js"></script>
+    <script src="/static/base_cadastro_dados.js"></script>
+    <script src="/static/base_cadastro_ui.js"></script>
     <script src="/static/base_grade.js"></script>
     <link rel="stylesheet" href="/static/styles.css">
     <style>
@@ -384,6 +389,9 @@
                     <option value="">Selecione um projeto...</option>
                 </select>
 
+                <button class="btn-action btn-save" onclick="BaseCadastro.abrir()" title="Cadastro rápido de um ativo: nome, parâmetros e itens numa grade (cola do Excel), com validação e simulador antes de gravar">
+                    + Novo ativo
+                </button>
                 <button class="btn-action" onclick="adicionarLinha('acima')" title="Insere uma linha ACIMA da linha selecionada (sem seleção: no fim da tabela)">
                     + Linha acima
                 </button>
@@ -458,9 +466,9 @@
     <div id="quick-search">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
             <h4 style="margin:0; color:var(--text-primary); font-size:0.84rem; font-weight:600;">Consulta Rápida</h4>
-            <span style="font-size:0.72rem; color:var(--text-secondary);">Ativo / Comp / Cód</span>
+            <span style="font-size:0.72rem; color:var(--text-secondary);">Ctrl+K: pesquisa completa</span>
         </div>
-        <input type="text" id="qs-input" placeholder="Digite para buscar..." onkeyup="quickSearch()">
+        <input type="text" id="qs-input" placeholder="Ativo, apelido, código ou descrição..." onkeyup="quickSearch()">
         <div id="qs-result" style="font-size: 0.78rem; color: var(--text-secondary); max-height: 160px; overflow-y: auto;">
             <span>Os resultados aparecerão aqui.</span>
         </div>
@@ -839,6 +847,7 @@
                 const data = await res.json();
                 if (res.ok) {
                     showToast("Base de orçamento atualizada com sucesso!");
+                    BaseFicha.invalidar();
                     aposGravarComComponentes(data);
                     mostrarAvisosBase(data);
                 } else {
@@ -928,6 +937,7 @@
                 if (res.ok) {
                     showToast(data.msg || "Nuvem atualizada com sucesso!");
                     alert(data.msg || "Nuvem atualizada com sucesso!");
+                    BaseFicha.invalidar();
                     aposGravarComComponentes(data);
                     mostrarAvisosBase(data);
                 } else {
@@ -986,29 +996,26 @@
             });
         }
 
-        function quickSearch() {
-            const query = document.getElementById('qs-input').value.toUpperCase().trim();
+        /* TASK-146: a Consulta Rápida usa a mesma pesquisa da ficha (Ctrl+K); clicar num resultado abre a ficha do ativo ou o uso do código */
+        async function quickSearch() {
+            const query = document.getElementById('qs-input').value.trim();
             const resDiv = document.getElementById('qs-result');
-            if (!query) { resDiv.innerHTML = '<span style="color:var(--text-secondary)">Os resultados aparecerão aqui.</span>'; return; }
-            
-            let html = "";
-            let matches = 0;
-            tbody.querySelectorAll("tr").forEach(tr => {
-                if (matches > 10) return;
-                const inputs = tr.querySelectorAll(".cell-input");
-                if (inputs.length >= 7 && (inputs[0].value.toUpperCase().includes(query) || inputs[2].value.toUpperCase().includes(query) || inputs[5].value.toUpperCase().includes(query))) {
-                    html += `<div style="border-bottom: 1px solid var(--border-muted); padding-bottom: 5px; margin-bottom: 5px;">
-                                <strong style="color:var(--text-primary)">CÓD: ${inputs[5].value || '-'}</strong> | Atv: ${inputs[0].value || '-'} | Comp: ${inputs[2].value || '-'}<br>
-                                <span style="font-size: 0.74rem; color:var(--text-secondary);">${inputs[6].value || '-'}</span>
-                             </div>`;
-                    matches++;
-                }
+            if (!query) { resDiv.innerHTML = '<span style="color:var(--text-secondary)">Os resultados aparecerão aqui. <b>Ctrl+K</b> abre a pesquisa completa.</span>'; return; }
+            const achados = await BaseFicha.pesquisaRapida(query, 6);
+            if (document.getElementById('qs-input').value.trim() !== query) return;      // a digitação seguiu em frente
+            if (!achados.length) { resDiv.innerHTML = '<span style="color:var(--btn-danger-color)">Nenhum resultado encontrado.</span>'; return; }
+            resDiv.innerHTML = '';
+            achados.forEach(r => {
+                const d = document.createElement('div');
+                d.style.cssText = 'border-bottom:1px solid var(--border-muted); padding:5px 0; cursor:pointer;';
+                const t = document.createElement('strong'); t.style.color = 'var(--text-primary)';
+                t.textContent = r.tipo === 'ativo' ? r.nome : 'CÓD ' + r.codigo;
+                const x = document.createElement('div'); x.style.cssText = 'font-size:0.74rem; color:var(--text-secondary);';
+                x.textContent = r.tipo === 'ativo' ? `${r.via ? 'apelido ' + r.via + ' · ' : ''}${r.linhas} linhas · ${r.codigos} códigos` : `${r.descricao} · usado em ${r.em.join(', ')}`;
+                d.append(t, x);
+                d.onclick = () => (r.tipo === 'ativo' ? BaseFicha.abrirFicha(r.nome) : BaseFicha.abrirCodigo(r.codigo));
+                resDiv.appendChild(d);
             });
-            if (matches === 0) {
-                resDiv.innerHTML = '<span style="color:var(--btn-danger-color)">Nenhum resultado encontrado.</span>';
-            } else {
-                resDiv.innerHTML = html;
-            }
         }
 
         tbody.addEventListener('paste', function(e) {
@@ -1045,6 +1052,22 @@
             }
         });
         BaseGrade.iniciar({ tbody });
+        const ehAdmin = () => localStorage.getItem('is_admin') === 'true';
+        const recarregarBase = async () => { BaseFicha.invalidar(); await carregarDados(); };
+        BaseFicha.iniciar({ tbody, projeto: () => projetoAtual, visao: () => visaoAtual, admin: ehAdmin, recarregar: recarregarBase });
+        // TASK-147: cadastro rápido — as linhas geradas entram no fim da tabela do projeto (depois: Salvar Alterações / Sincronizar)
+        BaseCadastro.iniciar({
+            projeto: () => projetoAtual,
+            podeAdicionar: () => visaoAtual === 'projeto' && !!projetoAtual,
+            admin: ehAdmin, recarregar: recarregarBase,
+            adicionar: linhas => {
+                Array.from(tbody.querySelectorAll('tr')).filter(tr => tr.querySelectorAll('.cell-input').length < 13).forEach(tr => tr.remove());      // tira a linha "Selecione um projeto…"/"Nenhuma linha…"
+                let primeira = null;
+                linhas.forEach(r => { const tr = criarLinhaExistente(r); tbody.appendChild(tr); primeira = primeira || tr; });
+                if (primeira) { primeira.scrollIntoView({ block: 'center' }); primeira.classList.add('bf-flash'); setTimeout(() => primeira.classList.remove('bf-flash'), 1800); }
+                showToast(`${linhas.length} linha(s) adicionada(s) no fim da tabela. Revise e use "Salvar Alterações" (e "Sincronizar" para a nuvem).`);
+            }
+        });      // TASK-146: Ctrl+K e Ctrl+clique
     </script>
     <script src="/static/marca.js?v=1"></script>
 </body>

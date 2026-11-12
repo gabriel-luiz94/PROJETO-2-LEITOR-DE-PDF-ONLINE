@@ -8,6 +8,26 @@
 
 ---
 
+## 2026-11-12 — TASK-148: publicar só o ativo, desfazer e conflito (parte 3)
+
+- `publicar_ativo.py` + rotas `/api/admin/ativo/*`: troca só as linhas do ativo (nuvem primeiro, depois local), prévia com diff, um passo anterior (`ativo_versoes`), aviso de edição simultânea (409). UI: Publicar no passo 3, Editar/Desfazer na ficha.
+
+---
+
+## 2026-11-12 — TASK-147: cadastro rápido de ativos (parte 2)
+
+- Assistente "+ Novo ativo" na Base de Orçamento (grade estilo Excel, auto-preenchimento por código, colar do Excel/combinações, validação ao vivo e no servidor, simulador do rascunho); novo `rascunho_ativo.py` e `/api/orcamento/rascunho`.
+
+---
+
+## 2026-11-12 — TASK-146: pesquisa (Ctrl+K) e ficha do ativo na Base de Orçamento
+
+- Novos `base_ficha_dados.js` (modelo/pesquisa/ficha, puro) e `base_ficha_ui.js` (pesquisa, ficha com abas, simulador, Ctrl+clique). Consulta Rápida usa a mesma pesquisa. Parte 1 do plano (cadastro rápido e publicação por ativo virão depois).
+
+---
+
+---
+
 ## 2026-11-12 — TASK-144: no plugin, editar o ativo com o autocompletar da aplicação, excluir qualquer linha e criar linhas digitadas
 
 - `GET /api/plugin/catalogo?projeto=` (login): a Base de Orçamento do projeto para o autocompletar — nomes válidos no projeto (+ descrição, origem), apelidos e os parâmetros de cada ativo (`services/ativo_parametros`, a mesma lógica da dica da aplicação); a base é filtrada pelo NOME do projeto.
