@@ -676,7 +676,7 @@ As estruturas da tabela Outros aparecem no modal mesmo sem nenhum cabo na tabela
 
 ## Publicar uma nova versão do programa (TASK-127)
 1. Faça o commit das alterações e rode `python scripts/release.py 2.1.0` (atualiza a versão e cria a tag `v2.1.0`).
-2. `git push origin main --tags`. O GitHub Actions compila o `Leitor_Projetos.exe` no Windows e publica a Release (com o arquivo `.sha256`).
+2. `git push origin main --tags`. O GitHub Actions compila o `GridR.exe` no Windows e publica a Release (com o arquivo `.sha256`).
 3. Os programas instalados consultam a Release ao abrir: aparece "Atualização Disponível" e, em **Instalar e Reiniciar**, o programa baixa, confere o SHA-256, troca o `.exe` e reabre sozinho. O banco e o `.env` ficam como estão.
 `ATUALIZADOR=0` no `.env` desliga a verificação.
 
@@ -732,3 +732,7 @@ Ao digitar `(` depois de um ativo, a caixa de parâmetros agora funciona pelo te
 ## Resumo: inverter a ordem das tabelas (TASK-150)
 
 No grupo **Layout**, o botão **⇄ Inverter** põe **Demais ativos (postes) à esquerda** e **Cabos à direita** (nas empilhadas: Demais ativos em cima). Clique de novo para voltar. A escolha fica guardada neste navegador.
+
+## GridR: novo nome e ícone (TASK-152)
+
+O programa passou a se chamar **GridR** e tem ícone próprio (grade com o caminho laranja ligando os nós). Quem já usa o programa **não precisa fazer nada**: a atualização automática continua funcionando, e o arquivo no seu computador pode seguir com o nome antigo (`Leitor_Projetos.exe`) — é o mesmo programa. Os novos downloads vêm como `GridR.exe`. As senhas salvas da janela e os demais dados são preservados.

@@ -14,7 +14,7 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 | **26** (.NET 6+) | [`appload/nanoCAD26/OrcamentoNanoCAD.dll`](appload/nanoCAD26/) | já vem pronto nesta pasta |
 | **5** (.NET Framework 4) | [`appload/nanoCAD5/OrcamentoNanoCAD.dll`](appload/nanoCAD5/) | já vem pronto; o que a API do nanoCAD 5 não oferece é desligado sozinho (`ORC_AJUDA` lista). Se não carregar: `build_nanocad5.bat` no Windows com o nanoCAD 5 instalado (compila contra as DLLs dele) |
 
-**Junto com o programa principal:** o `Leitor_Projetos.exe` traz as duas DLLs e as instala em `%APPDATA%\OrcamentoNanoCAD\plugin\<nanoCAD26|nanoCAD5>\`
+**Junto com o programa principal:** o `GridR.exe` (antes `Leitor_Projetos.exe`) traz as duas DLLs e as instala em `%APPDATA%\OrcamentoNanoCAD\plugin\<nanoCAD26|nanoCAD5>\`
 (botão **Plugin nanoCAD** na tela inicial do programa: caminho, versão, instalar agora). No nanoCAD, uma vez: `APPLOAD` → **Inicialização** → adicionar esse arquivo.
 
 1. No nanoCAD: `APPLOAD` (ou `NETLOAD`) → escolha a DLL. Para carregar sempre, adicione-a à lista de inicialização do APPLOAD.

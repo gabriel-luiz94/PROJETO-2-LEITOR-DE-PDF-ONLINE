@@ -41,12 +41,17 @@ jobs:
           CI: 'true'
         run: build.bat
 
-      - name: SHA-256 do executável
+      - name: SHA-256 do executável (GridR.exe + cópia com o nome antigo)
         shell: pwsh
         run: |
-          $h = (Get-FileHash dist\Leitor_Projetos.exe -Algorithm SHA256).Hash.ToLower()
-          "$h  Leitor_Projetos.exe" | Out-File -Encoding ascii dist\Leitor_Projetos.exe.sha256
-          Get-Content dist\Leitor_Projetos.exe.sha256
+          # TASK-152: o programa passou de Leitor_Projetos.exe para GridR.exe. Quem ainda roda uma versão antiga procura o nome antigo na Release para se atualizar,
+          # então publicamos o MESMO binário com os dois nomes (e um .sha256 para cada). A cópia antiga pode sair em alguma versão futura.
+          Copy-Item dist\GridR.exe dist\Leitor_Projetos.exe
+          foreach ($n in 'GridR.exe', 'Leitor_Projetos.exe') {
+            $h = (Get-FileHash "dist\$n" -Algorithm SHA256).Hash.ToLower()
+            "$h  $n" | Out-File -Encoding ascii "dist\$n.sha256"
+            Get-Content "dist\$n.sha256"
+          }
 
       - name: DLLs do plugin do nanoCAD (vão junto na Release; o .exe também as traz e instala)
         shell: bash
@@ -60,8 +65,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" dist/Leitor_Projetos.exe dist/Leitor_Projetos.exe.sha256 dist/OrcamentoNanoCAD_nanoCAD26.dll dist/OrcamentoNanoCAD_nanoCAD5.dll --clobber
+            gh release upload "$GITHUB_REF_NAME" dist/GridR.exe dist/GridR.exe.sha256 dist/Leitor_Projetos.exe dist/Leitor_Projetos.exe.sha256 dist/OrcamentoNanoCAD_nanoCAD26.dll dist/OrcamentoNanoCAD_nanoCAD5.dll --clobber
           else
-            gh release create "$GITHUB_REF_NAME" dist/Leitor_Projetos.exe dist/Leitor_Projetos.exe.sha256 dist/OrcamentoNanoCAD_nanoCAD26.dll dist/OrcamentoNanoCAD_nanoCAD5.dll \
-              --title "Leitor de Projetos Pro ${GITHUB_REF_NAME}" --generate-notes
+            gh release create "$GITHUB_REF_NAME" dist/GridR.exe dist/GridR.exe.sha256 dist/Leitor_Projetos.exe dist/Leitor_Projetos.exe.sha256 dist/OrcamentoNanoCAD_nanoCAD26.dll dist/OrcamentoNanoCAD_nanoCAD5.dll \
+              --title "GridR ${GITHUB_REF_NAME}" --generate-notes
           fi

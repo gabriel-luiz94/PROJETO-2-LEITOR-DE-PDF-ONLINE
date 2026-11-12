@@ -3,7 +3,8 @@ services/auto_updater.py — Atualização do executável desktop a partir das R
 
 Fluxo:
   1. `check_for_updates()` consulta `releases/latest` do repositório (público, sem token), compara a tag (v2.1.0) com `APP_VERSION` e só oferece a
-     atualização se a Release tiver o `Leitor_Projetos.exe` E o `Leitor_Projetos.exe.sha256` (gerados pelo workflow `.github/workflows/release-exe.yml`).
+     atualização se a Release tiver o `GridR.exe` E o `GridR.exe.sha256` (gerados pelo workflow `.github/workflows/release-exe.yml`). TASK-152: o programa se chamava
+     `Leitor_Projetos.exe`; a Release traz as DUAS cópias (mesmo binário) para quem ainda roda a versão antiga conseguir atualizar, e este código aceita o nome antigo se faltar o novo.
      O resultado fica em cache por 30 min (o limite do GitHub sem token é 60 consultas/hora por IP); offline ou com erro → "sem atualização", em silêncio.
   2. `download_and_install_update()` (1 clique no aviso): baixa o .exe para a pasta do programa, confere o SHA-256 com o da Release, grava um .bat auxiliar
      que espera o programa fechar, guarda o .exe atual como `.antigo`, põe o novo no lugar e reabre. O banco, o .env e as demais pastas ao lado do .exe não são tocados.
@@ -20,8 +21,10 @@ import time
 from config import APP_MODE, APP_VERSION, IS_FROZEN, logger
 
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "gabriel-luiz94/PROJETO-2-LEITOR-DE-PDF-ONLINE")
-NOME_EXE = "Leitor_Projetos.exe"
+NOME_EXE = "GridR.exe"
 NOME_SHA = NOME_EXE + ".sha256"
+NOME_EXE_LEGADO = "Leitor_Projetos.exe"                  # nome até a TASK-152 (versões antigas só procuram por este)
+NOME_SHA_LEGADO = NOME_EXE_LEGADO + ".sha256"
 CACHE_SEGUNDOS = 30 * 60
 TIMEOUT_CONSULTA = 6.0
 TIMEOUT_DOWNLOAD = 60.0
@@ -64,6 +67,8 @@ def _interpretar(release: dict) -> dict:
         return _sem_atualizacao()
     ativos = {a.get("name"): a.get("browser_download_url") for a in release.get("assets") or []}
     url, sha = ativos.get(NOME_EXE), ativos.get(NOME_SHA)
+    if not url or not sha:
+        url, sha = ativos.get(NOME_EXE_LEGADO), ativos.get(NOME_SHA_LEGADO)
     base = _url_permitida()
     if not url or not sha or not str(url).startswith(base) or not str(sha).startswith(base):
         return _sem_atualizacao("a Release não tem o executável e o SHA-256")
