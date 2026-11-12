@@ -110,6 +110,10 @@ namespace OrcamentoNanoCAD.Nucleo
         public List<string> ForaDaBase = new List<string>();       // ativos desta linha que a aplicação não achou na Base de Orçamento
         public List<string> MensagensBase = new List<string>();    // ... e as mensagens (vêm de /api/plugin/conferir)
 
+        public string AtivoDoDesenho;                               // TASK-017: ativo como veio do desenho, quando o usuário corrigiu (null = não corrigido)
+        public bool Excluido;                                       // TASK-017: tirado da obra pelo usuário (fica no desenho; não volta ao Atualizar)
+        public bool AtivoEditado { get { return AtivoDoDesenho != null; } }
+
         public bool TemAnotacao { get { return !string.IsNullOrEmpty(AtivoLido); } }
         public bool OperacaoAjustada { get { return Operacao != OperacaoLida; } }
 
@@ -164,7 +168,7 @@ namespace OrcamentoNanoCAD.Nucleo
             }
         }
 
-        public bool ParticipaVinculo { get { return TemAnotacao && RegrasVinculo.ParticipaVinculo(Operacao); } }
+        public bool ParticipaVinculo { get { return TemAnotacao && !Excluido && RegrasVinculo.ParticipaVinculo(Operacao); } }
 
         public IEnumerable<Vinculo> Vinculos
         {

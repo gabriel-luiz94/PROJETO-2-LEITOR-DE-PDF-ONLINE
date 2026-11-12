@@ -149,8 +149,69 @@ namespace OrcamentoNanoCAD.Nucleo
             Recalcular(obra, regras);
         }
 
+        // ── TASK-017: corrigir o ativo, tirar/devolver à obra, linha nova sem desenho ──
+
+        /// <summary>Troca o ativo (o texto da anotação na obra). O do desenho fica guardado (voltar ao lido); o vão relê cabo e metros do texto novo.</summary>
+        public static void TrocarAtivo(Obra obra, Elemento e, string novo, RegrasProjeto regras)
+        {
+            string t = (novo ?? "").Trim();
+            if (t.Length == 0 || t == e.AtivoLido) return;
+            if (e.AtivoDoDesenho == null) e.AtivoDoDesenho = e.AtivoLido ?? "";
+            if (t == e.AtivoDoDesenho) e.AtivoDoDesenho = null;
+            AplicarAtivo(e, t);
+            Recalcular(obra, regras);
+        }
+
+        private static void AplicarAtivo(Elemento e, string ativo)
+        {
+            e.AtivoLido = ativo;
+            Vao v = e as Vao;
+            if (v != null)
+            {
+                v.Cabo = Anotacoes.LerCabo(ativo);
+                v.MetrosLidos = v.Cabo.Comprimento;
+                v.Metros = v.Cabo.Comprimento;
+                v.InfoCabo = null;
+            }
+            Poste p = e as Poste;
+            if (p != null) p.Lido = Anotacoes.LerPoste(ativo);
+        }
+
+        /// <summary>Tira da obra. O que foi montado à mão sai de vez; o que veio do desenho fica marcado (não volta ao Atualizar; Restaurar devolve).</summary>
+        public static void Excluir(Obra obra, Elemento e, RegrasProjeto regras)
+        {
+            if (e.Manual) { Remover(obra, e, regras); return; }
+            e.Excluido = true;
+            Vao v = e as Vao;
+            if (v != null) { v.VinculoA = null; v.VinculoB = null; }
+            Recalcular(obra, regras);
+        }
+
+        public static void Restaurar(Obra obra, Elemento e, RegrasProjeto regras)
+        {
+            e.Excluido = false;
+            Recalcular(obra, regras);
+        }
+
+        /// <summary>Linha nova sem apontar no desenho: vai para a Tabela de Cabos ("CABO") ou de Outros (demais), como as anotações soltas.</summary>
+        public static Avulso NovaLinha(Obra obra, bool cabo, string ativo, string operacao, RegrasProjeto regras)
+        {
+            Avulso a = new Avulso();
+            a.Numero = "L" + Proximo(obra.Avulsos.Cast<Elemento>(), 'L');
+            a.Manual = true;
+            a.Entidade = cabo ? "CABO" : "ESTRUTURA";
+            a.AtivoLido = (ativo ?? "").Trim();
+            a.OperacaoLida = string.IsNullOrEmpty(operacao) ? "I" : operacao;
+            a.Operacao = a.OperacaoLida;
+            a.TextoOriginal = a.AtivoLido;
+            obra.Avulsos.Add(a);
+            Recalcular(obra, regras);
+            return a;
+        }
+
         public static void VoltarAoLido(Obra obra, Elemento e, RegrasProjeto regras)
         {
+            if (e.AtivoDoDesenho != null) { AplicarAtivo(e, e.AtivoDoDesenho); e.AtivoDoDesenho = null; }
             e.Operacao = e.OperacaoLida;
             Vao v = e as Vao;
             if (v != null)
@@ -183,14 +244,20 @@ namespace OrcamentoNanoCAD.Nucleo
             {
                 Poste pn = nova.Postes.FirstOrDefault(x => !string.IsNullOrEmpty(pa.TextoHandle) && x.TextoHandle == pa.TextoHandle)
                         ?? nova.Postes.FirstOrDefault(x => !string.IsNullOrEmpty(pa.Handle) && x.Handle == pa.Handle && x.IrmaoDe == null);
-                if (pn != null && pa.OperacaoAjustada && pn.TextoHandle == pa.TextoHandle) pn.Operacao = pa.Operacao;
+                if (pn == null) continue;
+                if (pa.Excluido) pn.Excluido = true;
+                if (pn.TextoHandle != pa.TextoHandle) continue;
+                LevarAtivo(pa, pn);
+                if (pa.OperacaoAjustada) pn.Operacao = pa.Operacao;
             }
             foreach (Vao va in antiga.Vaos)
             {
                 // pela anotação primeiro (vários vãos "irmãos" dividem a mesma linha), depois pela linha
                 Vao vn = nova.Vaos.FirstOrDefault(x => !string.IsNullOrEmpty(va.TextoHandle) && x.TextoHandle == va.TextoHandle)
                       ?? nova.Vaos.FirstOrDefault(x => x.LinhaHandle == va.LinhaHandle && x.Trecho == va.Trecho && x.IrmaoDe == null);
+                if (vn != null && va.Excluido) vn.Excluido = true;
                 if (vn == null || vn.TextoHandle != va.TextoHandle) continue;
+                LevarAtivo(va, vn);
                 if (va.OperacaoAjustada) vn.Operacao = va.Operacao;
                 if (va.Metros.HasValue && va.Metros != va.MetrosLidos) vn.Metros = va.Metros;
                 foreach (bool a in new[] { true, false })
@@ -205,7 +272,32 @@ namespace OrcamentoNanoCAD.Nucleo
                     if (a) vn.VinculoA = nv; else vn.VinculoB = nv;
                 }
             }
+            foreach (Avulso aa in antiga.Avulsos)
+            {
+                if (aa.Manual && string.IsNullOrEmpty(aa.TextoHandle))
+                {
+                    // linha digitada (sem desenho): volta como estava
+                    Avulso c = new Avulso();
+                    c.Numero = aa.Numero; c.Manual = true; c.Entidade = aa.Entidade; c.AtivoLido = aa.AtivoLido; c.TextoOriginal = aa.TextoOriginal;
+                    c.OperacaoLida = aa.OperacaoLida; c.Operacao = aa.Operacao; c.AtivoDoDesenho = aa.AtivoDoDesenho; c.Excluido = aa.Excluido;
+                    nova.Avulsos.Add(c);
+                    continue;
+                }
+                Avulso an = nova.Avulsos.FirstOrDefault(x => !string.IsNullOrEmpty(aa.TextoHandle) && x.TextoHandle == aa.TextoHandle);
+                if (an == null) continue;
+                if (aa.Excluido) an.Excluido = true;
+                LevarAtivo(aa, an);
+                if (aa.OperacaoAjustada) an.Operacao = aa.Operacao;
+            }
             Recalcular(nova, regras);
+        }
+
+        /// <summary>Atualizar: a correção do ativo vale enquanto o texto do desenho continuar o mesmo (se mudou no desenho, vale o desenho).</summary>
+        private static void LevarAtivo(Elemento antigo, Elemento novo)
+        {
+            if (antigo.AtivoDoDesenho == null || novo.AtivoLido != antigo.AtivoDoDesenho) return;
+            novo.AtivoDoDesenho = novo.AtivoLido;
+            AplicarAtivo(novo, antigo.AtivoLido);
         }
     }
 }

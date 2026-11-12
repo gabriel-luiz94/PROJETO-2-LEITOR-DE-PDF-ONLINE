@@ -17,6 +17,8 @@ regras GRAVADAS AQUI e a conferir a obra contra a Base de Orçamento, sem repeti
     GET  /api/plugin/projetos              (TASK-131) projetos cadastrados (o plugin lista todos na tela inicial).
     GET  /api/plugin/leitura?projeto=081   (TASK-131) configuração de LEITURA do desenho do projeto (layers da rede, blocos de poste,
     PUT  /api/plugin/leitura?projeto=081   guias, raios) guardada aqui para valer em qualquer computador; também vai em /regras e na versão.
+    GET  /api/plugin/catalogo?projeto=081  (TASK-144) a Base de Orçamento do projeto para o autocompletar do plugin: nomes (+ descrição, origem),
+                                           apelidos e os parâmetros de cada ativo (mesma lógica da dica da aplicação, services/ativo_parametros).
     GET  /api/plugin/desktop               (TASK-143, pública) "sou o GridReader instalado neste computador?"
     POST /api/plugin/receber               (TASK-143, pública, só 127.0.0.1 e só no programa instalado) o plugin entrega a obra; a janela
                                            vem para a frente em /resumo?plugin_pendente=<id> · GET /api/plugin/pendente/<id> (login) a devolve.
@@ -466,3 +468,54 @@ def obra_pendente(i: str):
     if not v:
         raise HTTPException(status_code=404, detail="Obra do nanoCAD não encontrada (passou mais de 1 hora ou o programa foi reaberto). Envie de novo pelo plugin.")
     return {"chave": v["chave"], "envelope": v["envelope"]}
+
+
+
+# ── catálogo para o autocompletar do plugin (TASK-144) ──
+def montar_catalogo(linhas, projeto: str) -> dict:
+    """Mesmo conteúdo que a dica de ativos da aplicação usa (static/ativo_dica.js): nomes válidos no projeto, apelidos e parâmetros."""
+    from services import ativo_parametros as ap
+    p = str(projeto or "").strip().upper()
+    validas = []
+    for l in linhas or []:
+        lp = str(l.get("projeto") or "").strip().upper()
+        if not lp or not p or p in [x.strip() for x in lp.split("/")]:
+            validas.append(l)
+    ativos, vistos = [], {}
+    for l in validas:
+        cel = str(l.get("ativo") or "").strip()
+        if not cel:
+            continue
+        a = ap.analisar_celula_base(cel)
+        if a.get("erro") or not a.get("base"):
+            continue
+        nome = a["base"].upper()
+        origem = str(l.get("origem") or "").strip().upper() or None
+        if nome in vistos:
+            item = ativos[vistos[nome]]
+            if not item["desc"] and l.get("desc_ativo"):
+                item["desc"] = str(l.get("desc_ativo"))
+            continue
+        vistos[nome] = len(ativos)
+        ativos.append({"nome": nome, "desc": str(l.get("desc_ativo") or ""), "origem": origem})
+    apelidos = {str(k).upper(): str(v).upper() for k, v in (ap.apelidos_do_projeto(linhas or [], projeto or "") or {}).items()}
+    parametros = {}
+    for base, sig in (ap.assinaturas_do_projeto(linhas or [], projeto or "") or {}).items():
+        nomes = sig.get("nomes") or []
+        livres = sig.get("livres") or []
+        if not nomes and not livres:
+            continue
+        lista = [{"nome": ap.nome_tela(n), "padrao": (sig.get("padroes") or {}).get(n), "valores": list((sig.get("valores") or {}).get(n) or []),
+                  "mascaras": list((sig.get("mascaras") or {}).get(n) or []), "aberto": n not in (sig.get("fechados") or []), "porNome": False} for n in nomes]
+        lista += [{"nome": ap.nome_tela(n), "padrao": None, "valores": [], "mascaras": [], "aberto": True, "porNome": True} for n in livres]
+        parametros[str(base).upper()] = lista
+    corpo = {"ativos": ativos, "apelidos": apelidos, "parametros": parametros}
+    corpo["versao"] = _hash(corpo)
+    return corpo
+
+
+@router.get("/catalogo")
+def catalogo(request: Request, projeto: str):
+    from services.sync_service import get_merged_orcamento
+    p = _projeto(projeto)
+    return dict(montar_catalogo(get_merged_orcamento(_user_id(request)), p["nome"]), projeto=p)     # a base guarda o NOME do projeto

@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-11-12 — TASK-017: editar o ativo com autocompletar, excluir qualquer linha, linhas digitadas (0.9.0)
+
+- **Editar o ativo** no pop-up (`ORC_EDITAR` / duplo clique): `CampoAtivo` com o autocompletar da aplicação (`Nucleo/Autocompletar`: sugestões da
+  Base de Orçamento do projeto com descrição e apelidos, dica dos parâmetros dentro de "(", valores do parâmetro atual, `)` automático — porte de
+  `static/ativo_dica.js`). Catálogo de `/api/plugin/catalogo` (`Plugin/Catalogos`, 10 min na memória + cópia em `cache/`). `Construtor.TrocarAtivo`:
+  guarda o do desenho (`AtivoDoDesenho`), o vão relê cabo/metros; "Voltar ao lido" desfaz. O desenho não é alterado.
+- **Excluir qualquer linha** (`Construtor.Excluir`): a lida fica `Excluido` (fora da obra, do vínculo, do .obra.json, das marcas; listada em Ignorados,
+  duplo clique → "Restaurar à obra"); a montada à mão é apagada.
+- **+ Cabo / + Outros** (`ORC_NOVO_CABO`/`ORC_NOVO_OUTROS`, `TelaNovaLinha`): linha digitada (L1, L2…) para a Tabela de Cabos ou de Outros.
+- Correção, exclusão e linhas digitadas sobrevivem ao ↻ Atualizar (`ReaplicarAjustes`; a correção vale enquanto o texto do desenho for o mesmo) e ao
+  Salvar/Continuar (seção `cad`: `ativoDoDesenho`, `excluido`).
+- Testes: `EdicaoTests` (6), `AutocompletarTests` (3).
+
+---
+
 ## 2026-11-12 — TASK-016: "Abrir na aplicação" no GridReader deste computador (0.8.0)
 
 `ORC_ABRIR_APP` / 🌐: procura o GridReader aberto (porta de `programa.json`, 8000 e a do ORC_CONECTAR local; `GET /api/plugin/desktop`) e entrega a

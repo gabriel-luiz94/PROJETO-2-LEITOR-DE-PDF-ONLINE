@@ -1,6 +1,6 @@
 <Project>
   <!-- Versão do plugin (nanoCAD 26 e nanoCAD 5): a mesma de src/Nucleo/ObraArquivo.cs:VersaoPlugin (teste confere). -->
   <PropertyGroup>
-    <Version>0.8.0</Version>
+    <Version>0.9.0</Version>
   </PropertyGroup>
 </Project>
