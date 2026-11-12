@@ -95,7 +95,7 @@
 #painel-regras input, #painel-regras select, #painel-regras textarea { background:#0d1117; color:#fff; border:1px solid #30363d; border-radius:6px; }
 #painel-regras input[type=checkbox] { width:auto; }
 #painel-regras button { cursor:pointer; }
-#painel-regras button.btn-primary { background:#d97706; color:#fff; border:none; padding:6px 16px; border-radius:6px; font-size:0.85rem; }
+#painel-regras button.btn-primary { background:#d97706; color:#161b22; border:none; padding:6px 16px; border-radius:6px; font-size:0.85rem; }
 #painel-regras .rp-btn { padding:6px 14px; border-radius:6px; border:1px solid #30363d; background:transparent; color:#c9d1d9; font-size:0.85rem; }
 #painel-regras .rp-btn:hover { background:#21262d; }
 #painel-regras .rp-linha { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; margin-bottom:12px; }

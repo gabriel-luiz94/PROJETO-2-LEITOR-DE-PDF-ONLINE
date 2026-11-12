@@ -117,6 +117,13 @@
         }
         const rec = el.querySelector('.btn-recolher');
         if (rec) rec.textContent = st.recolhida ? '⌃ Mostrar' : '⌄ Ocultar';
+        // TASK-153: os chips ficam dentro do menu "Exibição"; com uma tabela escondida, o botão do menu avisa onde reexibir
+        const bEx = $('btn-menu-exibicao');
+        if (bEx) {
+            const oculta = !estado.cabos.visivel || !estado.outros.visivel;
+            bEx.classList.toggle('tem-oculta', oculta);
+            bEx.textContent = oculta ? 'Exibição • tabela oculta ▾' : 'Exibição ▾';
+        }
     }
     ['cabos', 'outros'].forEach(q => {
         const el = secao[q];
@@ -141,6 +148,29 @@
     if ($('btn-inverter-tabelas')) $('btn-inverter-tabelas').addEventListener('click', () => {
         estado.inverter = !estado.inverter; aplicarLayout(); gravar(); window.dispatchEvent(new Event('resize'));
     });
+
+    /* ── Menus suspensos (TASK-153): [data-menu="id-do-menu"] abre/fecha; fecha ao clicar fora, com Esc ou num item [data-fecha-menu] ── */
+    function fecharMenus(exceto) {
+        document.querySelectorAll('.menu-susp-itens').forEach(m => {
+            if (m === exceto || m.hidden) return;
+            m.hidden = true;
+            const b = document.querySelector('[data-menu="' + m.id + '"]');
+            if (b) b.setAttribute('aria-expanded', 'false');
+        });
+    }
+    document.querySelectorAll('[data-menu]').forEach(b => {
+        const m = $(b.dataset.menu);
+        if (!m) return;
+        b.addEventListener('click', () => {
+            const abrir = m.hidden;
+            fecharMenus(m);
+            m.hidden = !abrir;
+            b.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+        });
+        m.addEventListener('click', e => { if (e.target.closest && e.target.closest('[data-fecha-menu]')) fecharMenus(null); });
+    });
+    document.addEventListener('mousedown', e => { if (!(e.target.closest && e.target.closest('.menu-susp'))) fecharMenus(null); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharMenus(null); });
 
     /* ── Importar JSON: o resumo.js abre o arquivo e mostra o diálogo Carregar / Adicionar / Subtrair (TASK-118) ── */
     const btnImp = $('btn-importar-json'), inpImp = $('input-importar-json');

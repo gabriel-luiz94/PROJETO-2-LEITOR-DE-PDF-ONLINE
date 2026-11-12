@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Admin - Gerenciar Usuários</title>
+    <title>Painel Admin — GridR</title>
     <link rel="icon" type="image/svg+xml" href="/static/gridr.svg">
     <link rel="alternate icon" type="image/x-icon" href="/static/gridr.ico">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/tema.css?v=1">
+    <link rel="stylesheet" href="/static/tailwind_local.css?v=1">
     <script src="/static/auth_fetch.js"></script>
     <script src="/static/desktop_arquivos.js"></script>
     <script src="/static/campos_segredo.js?v=1"></script>
@@ -30,7 +31,7 @@
     </style>
 </head>
 <body class="bg-[#0d1117] h-screen p-8">
-    <div class="max-w-4xl mx-auto glass rounded-xl p-8 shadow-2xl">
+    <div class="max-w-5xl mx-auto glass rounded-xl p-8 shadow-2xl">
         <div class="flex justify-between items-center mb-8 border-b border-[#30363d] pb-4">
             <h1 class="text-2xl font-bold text-[#e6edf3]">Painel Administrativo</h1>
             <a href="/" class="text-sm text-[#8b949e] hover:text-white transition-colors">Voltar ao Início</a>
@@ -50,7 +51,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-[#c9d1d9]">Senha (mínimo 6)</label>
-                        <input type="text" class="campo-segredo" autocomplete="off" id="newPassword" required minlength="6" class="mt-1 block w-full px-3 py-2 border border-[#30363d] bg-[#0d1117] text-white rounded-md focus:ring-[#d97706] focus:border-[#d97706]">
+                        <input type="text" autocomplete="off" id="newPassword" required minlength="6" class="campo-segredo mt-1 block w-full px-3 py-2 border border-[#30363d] bg-[#0d1117] text-white rounded-md focus:ring-[#d97706] focus:border-[#d97706]">
                     </div>
                     <div class="mt-4">
                         <label class="block text-sm font-medium text-[#c9d1d9] mb-1">Nível de Acesso (Role)</label>
@@ -87,7 +88,7 @@
     </div>
 
     <!-- Modo autônomo (TASK-031): tela de controle em /autonomo -->
-    <div class="max-w-4xl mx-auto glass rounded-xl p-6 shadow-2xl mt-8 flex flex-wrap items-center gap-4">
+    <div class="max-w-5xl mx-auto glass rounded-xl p-6 shadow-2xl mt-8 flex flex-wrap items-center gap-4">
         <div class="flex-1 min-w-[240px]">
             <h2 class="text-lg font-semibold mb-1">Modo autônomo</h2>
             <p class="text-sm text-[#8b949e]">Processa sozinho os arquivos de uma pasta (ler, ajustar, orçamento, salvar), sem ninguém na tela. Exclusões sempre pedem a sua confirmação.</p>
@@ -95,8 +96,8 @@
         <a href="/autonomo" class="btn-primary px-4 py-2 rounded-md font-semibold text-sm">Abrir o modo autônomo</a>
     </div>
 
-    <!-- Regras e prompts de validação (TASK-019): agora ficam no Resumo do projeto -->
-    <div class="max-w-4xl mx-auto glass rounded-xl p-6 shadow-2xl mt-8">
+    <!-- Regras e prompts de validação (TASK-019): agora ficam no Resumo do Orçamento -->
+    <div class="max-w-5xl mx-auto glass rounded-xl p-6 shadow-2xl mt-8">
         <h2 class="text-lg font-semibold mb-1">Regras e prompts de validação</h2>
         <p class="text-sm text-[#8b949e]">
             Mudaram de lugar: agora são editados na página <strong>Resumo do Orçamento</strong>, no botão

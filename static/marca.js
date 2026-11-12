@@ -2,7 +2,7 @@
  * marca.js — identidade do GridR (TASK-132; nome GridR e ícone na TASK-152): o nome do programa e "Desenvolvido por Gabriel Sales".
  *
  *   <div data-marca="cabecalho"></div>   ícone + "GridR" + "Leitura de projetos e orçamento de redes" (data-tamanho="compacto" = menor)
- *   rodapé discreto em todas as páginas que carregam este arquivo
+ *   rodapé discreto em todas as páginas que carregam este arquivo (<body data-rodape="fino"|"esquerda"> muda o lugar para não cobrir o conteúdo)
  */
 (function () {
     const NOME = 'GridR';
@@ -24,8 +24,13 @@
         if (document.getElementById('marca-rodape') || document.body.dataset.semRodape === '1') return;
         const f = document.createElement('div');
         f.id = 'marca-rodape';
-        f.style.cssText = 'position:fixed; right:12px; bottom:8px; font-size:0.7rem; color:#6e7681; z-index:5; pointer-events:none; ' +
-                          'background:rgba(13,17,23,0.75); padding:2px 8px; border-radius:6px;';
+        // TASK-153: o rodapé não fica mais por cima do conteúdo — <body data-rodape="fino"> (telas que ocupam a altura toda: cabe na margem de baixo)
+        // e <body data-rodape="esquerda"> (telas com um painel fixo no canto direito). A cor #8b949e dá 6:1 de contraste (a anterior dava 4,1:1).
+        const modo = document.body.dataset.rodape || '';
+        f.style.cssText = 'position:fixed; font-size:0.7rem; color:#8b949e; z-index:5; pointer-events:none; ' +
+                          (modo === 'esquerda' ? 'left:12px; ' : 'right:12px; ') +
+                          (modo === 'fino' ? 'bottom:1px; line-height:16px; font-size:0.66rem; padding:0 4px;'
+                                           : 'bottom:8px; background:rgba(13,17,23,0.75); padding:2px 8px; border-radius:6px;');
         f.textContent = `${NOME} · Desenvolvido por ${AUTOR}`;
         document.body.appendChild(f);
     }

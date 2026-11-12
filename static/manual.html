@@ -3,14 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Manual — regras e ajustes</title>
+<title>Manual: regras e ajustes — GridR</title>
     <link rel="icon" type="image/svg+xml" href="/static/gridr.svg">
     <link rel="alternate icon" type="image/x-icon" href="/static/gridr.ico">
+    <link rel="stylesheet" href="/static/tema.css?v=1">
 <style>
-:root { --bg:#fff; --fg:#1b1f24; --mut:#5b6573; --line:#d8dee6; --code:#f1f4f8; --ac:#1f6feb; }
-@media (prefers-color-scheme: dark) { :root { --bg:#0f1318; --fg:#e4e8ee; --mut:#9aa6b6; --line:#2a323d; --code:#1a212b; --ac:#6ea8ff; } }
+/* Na tela, o manual segue o tema escuro do resto do programa (TASK-153); no papel, fundo branco */
+:root { --bg:#0d1117; --fg:#e6edf3; --mut:#8b949e; --line:#30363d; --code:#161b22; --ac:#f0883e; }
+@media print { :root { --bg:#fff; --fg:#1b1f24; --mut:#5b6573; --line:#d8dee6; --code:#f1f4f8; --ac:#1f6feb; } header.bar { display:none !important; } }
 * { box-sizing: border-box; }
-body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 system-ui,Segoe UI,Roboto,sans-serif; }
+body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 Inter,system-ui,Segoe UI,Roboto,sans-serif; }
 .wrap { max-width: 860px; margin: 0 auto; padding: 16px; }
 header.bar { position: sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line); padding:8px 16px; display:flex; gap:12px; align-items:center; z-index:2; }
 header.bar a, header.bar button { color:var(--ac); background:none; border:1px solid var(--line); border-radius:6px; padding:4px 10px; font:inherit; cursor:pointer; text-decoration:none; }
@@ -25,7 +27,7 @@ th { background:var(--code); }
 </style>
 </head>
 <body>
-<header class="bar"><a href="/resumo">← Voltar ao Resumo</a><button type="button" onclick="window.print()">Imprimir</button></header>
+<header class="bar"><a href="/resumo">← Voltar ao Resumo do Orçamento</a><button type="button" onclick="window.print()">Imprimir</button></header>
 <main class="wrap"><p id="msg">Carregando o manual…</p><article id="conteudo"></article></main>
 <script src="/static/auth_fetch.js"></script>
     <script src="/static/desktop_arquivos.js"></script>

@@ -46,7 +46,7 @@ body { display: block; overflow: hidden; }
 .btn-modal-barra, .barra-modais-itens .btn-secondary { font-size: 0.74rem; padding: 4px 10px; border-color: rgba(217,119,6,0.35); color: #d97706; position: relative; margin: 0; }
 .barra-modais-itens #btn-validacao-opcoes { padding: 3px 7px; margin: 0; }
 #validar-estado { margin: 0 !important; font-size: 0.66rem !important; }
-.btn-modal-barra:hover, .barra-modais-itens .btn-secondary:hover { background: rgba(217,119,6,0.12); }
+.btn-modal-barra:hover, .barra-modais-itens .btn-secondary:hover { background: rgba(217,119,6,0.12); color: #f0883e; border-color: #d97706; }
 #barra-modais-montaveis { display: contents; }
 .ctx-grupo { display: inline-flex; align-items: center; gap: 5px; border: 1px solid rgba(217,119,6,0.35); border-radius: 6px; padding: 2px 8px; }
 .ctx-rotulo { font-size: 0.68rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -72,6 +72,26 @@ body { display: block; overflow: hidden; }
 .rc-lbl { font-size: 0.66rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }
 .rc-item .resumo-rede-valor { font-size: 0.82rem !important; font-weight: 700; color: #e6edf3; }
 .ctlbar #btn-limpar-tabelas, .ctlbar #btn-salvar-alteracoes, .ctlbar #btn-gerar-totalizadora { padding: 4px 10px; font-size: 0.76rem; margin: 0 !important; }
+
+/* ── Menus suspensos (TASK-153): "Mais ▾" na barra de título e "Exibição ▾" na barra de controles ── */
+.menu-susp { position: relative; display: inline-flex; }
+.menu-susp-itens {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; min-width: 190px; display: flex; flex-direction: column; gap: 2px;
+    background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.menu-susp-itens[hidden] { display: none; }
+.titlebar .menu-susp-itens .btn-secondary {
+    display: block; width: 100%; text-align: left; border: 0; border-radius: 5px; padding: 7px 10px; font-size: 0.8rem; color: #c9d1d9; background: transparent;
+}
+.titlebar .menu-susp-itens .btn-secondary:hover { background: rgba(255,255,255,0.07); color: #e6edf3; }
+[data-menu][aria-expanded="true"] { background: rgba(255,255,255,0.08); color: #e6edf3; border-color: #8b949e; }
+.menu-exibicao { min-width: 330px; padding: 10px 12px; gap: 6px; }
+.menu-exibicao .seg-layout button { white-space: nowrap; flex: 1; }
+.menu-exibicao .ctl-rotulo { margin-top: 4px; }
+.menu-exibicao .ctl-rotulo:first-child { margin-top: 0; }
+.menu-linha { display: flex; flex-wrap: wrap; gap: 6px; }
+.ctlbar #btn-menu-exibicao { padding: 4px 10px; font-size: 0.76rem; margin: 0; }
+#btn-menu-exibicao.tem-oculta { border-color: #d29922; color: #d29922; }          /* há tabela escondida: o botão avisa onde reexibir */
 
 /* ── Área de trabalho: painéis + centro ── */
 .work { flex: 1; display: flex; min-height: 0; position: relative; }
@@ -113,7 +133,7 @@ body { display: block; overflow: hidden; }
 /* ── Tabelas ── */
 #view-padrao { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 #view-padrao.hidden { display: none !important; }
-.tables-row { display: flex !important; flex: 1; min-height: 0; gap: 10px; padding: 0 12px 12px; align-items: stretch; }
+.tables-row { display: flex !important; flex: 1; min-height: 0; gap: 10px; padding: 0 12px 18px; align-items: stretch; }          /* 18px embaixo: cabe o rodapé do marca.js sem cobrir a tabela */
 .tables-row.empilhadas { flex-direction: column; }
 .tables-row.invertidas #section-outros { order: 1; }          /* TASK-150: ⇄ Inverter */
 .tables-row.invertidas #section-cabos { order: 2; }
