@@ -706,3 +706,9 @@ O ativo composto (`NOME:=item + qtd*item`) aceita **parênteses no nome**:
 ## Relatórios ODI e ODD em PDF (TASK-140)
 
 Na tela **Resultado do Orçamento**, na visão **SAP**, o botão **Relatórios PDF** abre um diálogo para preencher o cabeçalho (título, nº da nota, nº SAP, bairro, município, UTD, UTEP, projetista, data e ID de investimento) e salva dois arquivos, `NOTA_<nº>_ODI.pdf` e `NOTA_<nº>_ODD.pdf`, no mesmo formato da nota do SAP (tabela com título verde, Calibri 11, rodapé "Internal Use"). Entram os itens **visíveis** de cada tabela (filtros valem). O ID de investimento do ODD, se vazio, repete o do ODI. Projetista, UTD, UTEP, município e IDs ficam lembrados neste computador.
+
+Na visão SAP, enquanto você não clicar em nenhum título de coluna, cada tabela (ODI e ODD) é exibida com **material (M) primeiro e mão de obra (N) depois**, e em cada grupo o **código em ordem crescente** (os numéricos como número, ex.: `500109` antes de `3481046`; os com letra em ordem natural). Os PDFs e o Excel seguem essa ordem. Clicar no título da coluna ordena de outro jeito; CÓDIGO também ordena como número.
+
+## Executável: baixar e importar arquivos (TASK-142)
+
+No programa instalado (janela própria, fora do navegador) os botões de baixar e de importar arquivo usam as caixas nativas do Windows (**Salvar como** e **Abrir**). Ao baixar, o programa avisa onde o arquivo foi salvo. Na versão online, no navegador, nada mudou. Ao trocar de projeto em **Configurações**, a barra de modais passa a mostrar os modais (e a ordem) do projeto escolhido. Ao fechar a **Tabela de orçamento**, o Resumo recarrega a base: um ativo editado e sincronizado com a nuvem já vale na hora.

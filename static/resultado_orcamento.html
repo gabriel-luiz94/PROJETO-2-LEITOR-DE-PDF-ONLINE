@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="/static/auth_fetch.js"></script>
+    <script src="/static/desktop_arquivos.js"></script>
     <link rel="stylesheet" href="/static/styles.css">
     <style>
         :root {
@@ -2018,7 +2019,7 @@
             const { odi, odd } = SAP.separar(lerLinhasRec());
             [['odi', odi], ['odd', odd]].forEach(([tipo, linhasBrutas]) => {
                 const o = sapOrdem[tipo];
-                const linhas = o.col ? SAP.ordenar(linhasBrutas, o.col, o.asc) : linhasBrutas;
+                const linhas = o.col ? SAP.ordenar(linhasBrutas, o.col, o.asc) : SAP.ordenarPadrao(linhasBrutas);      // TASK-141: sem coluna escolhida, M antes de N e códigos em ordem numérica
                 const tb = sapBody(tipo), card = tb.closest('.sap-card');
                 const sel = card.querySelector('select[data-f="filtro"]'), atual = sel.value;
                 sel.innerHTML = '<option value="">Todos</option>' + SAP.valoresUnicos(linhasBrutas, 'filtro').map(v => `<option>${v.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</option>`).join('');
@@ -2431,7 +2432,7 @@
             objetoDeFantasma(f) { return { mdo: f.mdo, operacao: f.operacao, desc: f.desc, codigo: f.codigo, qtd: '0,00', filtro: f.filtro || '' }; },
             cmp() {
                 const o = sapOrdem[tipo];
-                return o.col ? ((a, b) => SAP.compararColuna(a, b, o.col, o.asc)) : CMP.comparadorPadrao;
+                return o.col ? ((a, b) => SAP.compararColuna(a, b, o.col, o.asc)) : SAP.comparadorPadrao;
             }
         });
 

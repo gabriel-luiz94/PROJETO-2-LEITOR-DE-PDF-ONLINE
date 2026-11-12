@@ -255,6 +255,11 @@ async def serve_orcamento_sap_js():
 async def serve_orcamento_comparar_js():
     return _serve_js("orcamento_comparar.js")
 
+@app.get("/static/desktop_arquivos.js")
+async def serve_desktop_arquivos_js():
+    return _serve_js("desktop_arquivos.js")
+
+
 @app.get("/static/auth_fetch.js")
 async def serve_auth_fetch_js():
     return _serve_js("auth_fetch.js")
@@ -494,6 +499,12 @@ if __name__ == "__main__":
 
         try:
             import webview
+            try:
+                webview.settings['ALLOW_DOWNLOADS'] = True          # TASK-142: sem isto o WebView2 cancela qualquer download (a ponte de arquivos abaixo cobre os blobs)
+            except Exception:  # noqa: BLE001 — pywebview antigo, sem essa opção
+                pass
+            from services.arquivos_desktop import ApiArquivos
+            api_arquivos = ApiArquivos()
             # TASK-128: a janela abre já com a tela "Iniciando…" e só carrega o login quando o servidor aceita conexões (sem a mensagem "recusou a conectar")
             window = webview.create_window(
                 title=f"GridReader v{APP_VERSION}",
@@ -505,7 +516,9 @@ if __name__ == "__main__":
                 text_select=True,
                 zoomable=True,
                 confirm_close=True,          # TASK-133: pergunta antes de fechar (texto em janela_desktop.LOCALIZACAO)
+                js_api=api_arquivos,         # TASK-142: salvar/abrir arquivos pelas caixas nativas (static/desktop_arquivos.js)
             )
+            api_arquivos.vincular(window)
             from services import janela_desktop
 
             def _abrir_quando_pronto(win):

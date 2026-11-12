@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from database import get_connection, get_row_connection, hash_password
 from services.supabase_client import get_supabase, registrar_falha
 from services.sync_service import (
-    validar_linhas_do_projeto, normalizar_projeto, migrar_projetos_compartilhados,
+    validar_linhas_do_projeto, normalizar_projeto, migrar_projetos_compartilhados, espelhar_master_no_pessoal,
 )
 from middleware.auth_middleware import get_current_user_from_state
 from config import logger
@@ -372,6 +372,7 @@ def add_master_row(req: MasterRowCreate, request: Request):
     conn.commit()
     row_id = cur.lastrowid
     conn.close()
+    espelhar_master_no_pessoal(admin.get("user_id"), req.projeto.strip())          # TASK-142: a nova linha já vale na cópia pessoal do admin
 
     supabase = get_supabase()
     if supabase:
@@ -495,6 +496,7 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...), proj
 
         conn.commit()
         conn.close()
+        espelhar_master_no_pessoal(admin.get("user_id"), projeto if projeto else None)          # TASK-142: o que acabou de importar já vale na cópia pessoal
 
         supabase = get_supabase()
         if supabase and rows_to_insert:
@@ -608,6 +610,7 @@ def sync_master_all(req: SalvarOrcamentoRequest, request: Request):
 
     cur.execute("COMMIT")
     conn.close()
+    espelhar_master_no_pessoal(admin.get("user_id"), req.projeto if req.projeto else None)          # TASK-142: banco local sincronizado na hora (cópia pessoal = master)
 
     supabase = get_supabase()
     if supabase and rows_to_insert:

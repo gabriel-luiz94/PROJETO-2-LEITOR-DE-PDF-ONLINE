@@ -52,10 +52,29 @@
         }
     }
 
+    /** Códigos: só dígitos comparam como NÚMERO (500109 vem antes de 3481046) e antes dos que têm letra; os demais em ordem natural (SDEVU2 antes de SDEVU10). */
+    function compararCodigo(x, y) {
+        const a = String(x == null ? '' : x).trim(), b = String(y == null ? '' : y).trim();
+        const na = /^\d+$/.test(a), nb = /^\d+$/.test(b);
+        if (na && nb) return (Number(a) - Number(b)) || a.localeCompare(b);
+        if (na !== nb) return na ? -1 : 1;
+        return a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' });
+    }
+
+    /** Ordem padrão da visão SAP (TASK-141): material (M) antes de mão de obra (N); em cada grupo, o código do menor para o maior. */
+    function comparadorPadrao(a, b) {
+        const rank = l => { const m = rotuloMdo(l.mdo); return m === 'M' ? 0 : m === 'N' ? 1 : 2; };
+        return (rank(a) - rank(b)) || compararCodigo(a.codigo, b.codigo);
+    }
+    function ordenarPadrao(linhas) {
+        return linhas.map((l, i) => ({ l, i })).sort((a, b) => comparadorPadrao(a.l, b.l) || (a.i - b.i)).map(x => x.l);
+    }
+
     /** Comparador de duas linhas por coluna (texto A-Z, quantidade numérica). Positivo = a depois de b (no sentido `asc`). */
     function compararColuna(a, b, coluna, asc) {
         const dir = asc ? 1 : -1;
         const r = coluna === 'qtd' ? numeroPtBr(a.qtd) - numeroPtBr(b.qtd)
+            : coluna === 'codigo' ? compararCodigo(a.codigo, b.codigo)
             : textoDaColuna(a, coluna).localeCompare(textoDaColuna(b, coluna), 'pt-BR');
         return r * dir;
     }
@@ -121,7 +140,7 @@
         return Array.from(new Set(linhas.map(l => textoDaColuna(l, coluna).trim()).filter(Boolean))).sort();
     }
 
-    const api = { COLUNAS_COPIA, tsvDeMatriz, chaveMarca, marcaValida, compararColuna, centroDe, rotuloMdo, mdoDeRotulo, separar, numeroPtBr, ordenar, passaFiltro, tsv, paraExcel, valoresUnicos };
+    const api = { compararCodigo, comparadorPadrao, ordenarPadrao, COLUNAS_COPIA, tsvDeMatriz, chaveMarca, marcaValida, compararColuna, centroDe, rotuloMdo, mdoDeRotulo, separar, numeroPtBr, ordenar, passaFiltro, tsv, paraExcel, valoresUnicos };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     raiz.OrcamentoSap = api;
 })(typeof window !== 'undefined' ? window : globalThis);

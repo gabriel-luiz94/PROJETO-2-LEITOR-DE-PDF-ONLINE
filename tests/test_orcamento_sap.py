@@ -97,3 +97,18 @@ def test_filtro_por_centro_e_busca_global_acha_o_centro():
 
 def test_valores_unicos():
     assert js("S.valoresUnicos(e.l,'filtro')", l=[L(filtro="B"), L(filtro="A"), L(filtro=""), L(filtro="B")]) == ["A", "B"]
+
+
+def test_ordem_padrao_m_antes_de_n_e_codigo_numerico():
+    """TASK-141: sem coluna escolhida, M primeiro e N depois; em cada grupo o código do menor para o maior (numérico, não texto)."""
+    mat = ["2203008", "2402000", "3481046", "500109", "5040005", "7511022", "2418089", "5040045"]
+    linhas = [L(mdo="MAO-DE-OBRA", cod="SDEVU3602II", uid="n2"), L(cod="7511022", uid="a")] + [L(cod=c, uid=c) for c in mat] + [L(mdo="MAO-DE-OBRA", cod="SDEVU1434II", uid="n1")]
+    r = [x["codigo"] for x in js("S.ordenarPadrao(e.l)", l=linhas)]
+    assert r == ["500109", "2203008", "2402000", "2418089", "3481046", "5040005", "5040045", "7511022", "7511022", "SDEVU1434II", "SDEVU3602II"]
+    assert [x["codigo"] for x in js("S.ordenarPadrao(e.l)", l=[L(mdo="MAO-DE-OBRA", cod="SDEVU10"), L(mdo="MAO-DE-OBRA", cod="SDEVU2"), L(cod="9"), L(cod="10")])] == ["9", "10", "SDEVU2", "SDEVU10"]
+
+
+def test_clicar_em_codigo_ordena_como_numero():
+    linhas = [L(cod="3481046"), L(cod="500109"), L(cod="abc")]
+    assert [x["codigo"] for x in js("S.ordenar(e.l,'codigo',true)", l=linhas)] == ["500109", "3481046", "abc"]
+    assert [x["codigo"] for x in js("S.ordenar(e.l,'codigo',false)", l=linhas)] == ["abc", "3481046", "500109"]
