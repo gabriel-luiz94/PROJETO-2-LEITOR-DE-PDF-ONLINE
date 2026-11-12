@@ -112,14 +112,14 @@ namespace OrcamentoNanoCAD.UI
             _botoesLer = Linha();
             _botoesLer.Controls.Add(Visual.Botao("Reler (do zero)", (o, e) => Visual.Executar("ORC_RELER"), true, "reler"));
             _botoesLer.Controls.Add(Visual.Botao("Atualizar (mantém ajustes)", (o, e) => Visual.Executar("ORC_ATUALIZAR"), false, "atualizar"));
-            _botoesLer.Controls.Add(Visual.Botao("+ Cabo (digitar)", (o, e) => Visual.Executar("ORC_NOVO_CABO"), false, "cabos"));
-            _botoesLer.Controls.Add(Visual.Botao("+ Outros (digitar)", (o, e) => Visual.Executar("ORC_NOVO_OUTROS"), false, "ativos"));
+            _botoesLer.Controls.Add(Visual.Botao("+ Cabo", (o, e) => Visual.Executar("ORC_NOVO_CABO"), false, "cabos"));
+            _botoesLer.Controls.Add(Visual.Botao("+ Outros", (o, e) => Visual.Executar("ORC_NOVO_OUTROS"), false, "ativos"));
             _botoesConstruir = Linha();
             _botoesConstruir.Controls.Add(Visual.Botao("Poste (bloco + anotação)", (o, e) => Visual.Executar("ORC_POSTE"), true, "poste"));
             _botoesConstruir.Controls.Add(Visual.Botao("Vão (linha + anotação)", (o, e) => Visual.Executar("ORC_VAO"), true, "vao"));
             _botoesConstruir.Controls.Add(Visual.Botao("Vincular automático", (o, e) => Visual.Executar("ORC_VINCULAR"), false, "vincular"));
-            _botoesConstruir.Controls.Add(Visual.Botao("+ Cabo (digitar)", (o, e) => Visual.Executar("ORC_NOVO_CABO"), false, "cabos"));
-            _botoesConstruir.Controls.Add(Visual.Botao("+ Outros (digitar)", (o, e) => Visual.Executar("ORC_NOVO_OUTROS"), false, "ativos"));
+            _botoesConstruir.Controls.Add(Visual.Botao("+ Cabo", (o, e) => Visual.Executar("ORC_NOVO_CABO"), false, "cabos"));
+            _botoesConstruir.Controls.Add(Visual.Botao("+ Outros", (o, e) => Visual.Executar("ORC_NOVO_OUTROS"), false, "ativos"));
             topo.Controls.Add(_botoesLer);
             topo.Controls.Add(_botoesConstruir);
 

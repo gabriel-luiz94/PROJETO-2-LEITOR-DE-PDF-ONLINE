@@ -75,6 +75,7 @@
 | RQ-77 | Editar o ativo no plugin com o autocompletar da Base de Orçamento (como na aplicação) | ✅ · 🟡 CAD | `CampoAtivo`, `Autocompletar`, `/api/plugin/catalogo` |
 | RQ-78 | Excluir qualquer linha da obra (a lida pode ser restaurada) | ✅ · 🟡 CAD | `Construtor.Excluir/Restaurar` |
 | RQ-79 | Adicionar linha sem apontar no desenho (Cabos / Outros) | ✅ · 🟡 CAD | `ORC_NOVO_CABO`, `ORC_NOVO_OUTROS` |
+| RQ-80 | Adicionar linha lendo um TEXT/MTEXT escolhido no desenho (pelas regras do leitor) | ✅ · 🟡 CAD | `TelaNovaLinha`, `Construtor.LerTextoParaLinha` |
 | RQ-67 | Abrir a aplicação já com a obra do plugin carregada | ✅ API · 🟡 CAD | `ORC_ABRIR_APP`, `/api/plugin/obra`, Resumo `?obra=` |
 
 ## RQ — Cálculo (fora do CAD)
