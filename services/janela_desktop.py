@@ -9,6 +9,7 @@ services/janela_desktop.py — comportamento da janela do programa no computador
 """
 import os
 import threading
+import time
 
 from config import logger
 
@@ -39,28 +40,45 @@ def pasta_perfil() -> str:
     return p
 
 
-def ligar_senhas_salvas(window) -> bool:
-    """WebView2 (Windows): liga 'salvar senhas' e 'preenchimento automático' (vêm desligados no controle). Outros motores: nada a fazer."""
-    try:
-        form = window.native
-        browser = getattr(form, "browser", None)
-        webview2 = getattr(browser, "webview", None)
-        if webview2 is None:
+def ligar_senhas_salvas(window, tentativas: int = 80, intervalo: float = 0.25) -> bool:
+    """WebView2 (Windows): liga 'salvar senhas' e 'preenchimento automático' (vêm desligados no controle). Outros motores: nada a fazer.
+
+    TASK-151: o WebView2 inicializa em segundo plano — logo depois de abrir a janela `CoreWebView2` ainda é None e antes a função desistia em silêncio (e as senhas nunca eram
+    salvas nem preenchidas). Agora espera o controle ficar pronto (até ~20 s) e só então aplica; devolve True quando aplicou. Rode em uma thread (não bloqueia a abertura)."""
+    ultimo = None
+    for _ in range(max(1, tentativas)):
+        try:
+            form = window.native
+            browser = getattr(form, "browser", None)
+            webview2 = getattr(browser, "webview", None)
+            if webview2 is None:
+                ultimo = "controle do navegador ainda não existe (ou não é WebView2)"
+            else:
+                from System import Action  # pythonnet (só no Windows)
+                resultado = []
+
+                def ligar():
+                    core = webview2.CoreWebView2
+                    if core is None:
+                        resultado.append(False)
+                        return
+                    core.Settings.IsPasswordAutosaveEnabled = True
+                    core.Settings.IsGeneralAutofillEnabled = True
+                    resultado.append(True)
+
+                form.Invoke(Action(ligar))
+                if resultado and resultado[0]:
+                    logger.info("Senhas salvas e preenchimento automático ligados na janela.")
+                    return True
+                ultimo = "WebView2 ainda inicializando"
+        except (AttributeError, ImportError) as e:      # runtime sem essa configuração / não é Windows: tentar de novo não adianta
+            logger.info(f"Senhas salvas na janela indisponíveis neste computador: {e}")
             return False
-        from System import Action  # pythonnet (só no Windows)
-
-        def ligar():
-            core = webview2.CoreWebView2
-            if core is None:
-                return
-            core.Settings.IsPasswordAutosaveEnabled = True
-            core.Settings.IsGeneralAutofillEnabled = True
-
-        form.Invoke(Action(ligar))
-        return True
-    except Exception as e:  # noqa: BLE001 — sem isso o login funciona igual, só não oferece as senhas salvas
-        logger.info(f"Senhas salvas na janela indisponíveis neste computador: {e}")
-        return False
+        except Exception as e:  # noqa: BLE001 — a janela ainda pode estar abrindo
+            ultimo = str(e)
+        time.sleep(intervalo)
+    logger.info(f"Senhas salvas na janela não foram ligadas ({ultimo}).")
+    return False
 
 
 def encerrar_servidor(servidor, thread: threading.Thread, espera: float = 5.0):
