@@ -8,6 +8,11 @@
 
 ---
 
+## 2026-11-12 — TASK-144: no plugin, editar o ativo com o autocompletar da aplicação, excluir qualquer linha e criar linhas digitadas
+
+- `GET /api/plugin/catalogo?projeto=` (login): a Base de Orçamento do projeto para o autocompletar — nomes válidos no projeto (+ descrição, origem), apelidos e os parâmetros de cada ativo (`services/ativo_parametros`, a mesma lógica da dica da aplicação); a base é filtrada pelo NOME do projeto.
+- Plugin 0.9.0 (TASK-017): ativo editável no pop-up, Excluir/Restaurar em qualquer linha, + Cabo / + Outros sem desenho. Tarefa: `.ai/tasks/TASK-144-12-11-2026.md`.
+
 ## 2026-11-12 — TASK-143: "Abrir na aplicação" do plugin abre a obra no GridReader instalado (não mais no navegador)
 
 - `services/programa_local.py`: o .exe registra `%APPDATA%\OrcamentoNanoCAD\programa.json` (exe + porta) e aceita `--abrir-obra <arquivo>`. `GET /api/plugin/desktop` (pública) e `POST /api/plugin/receber` (pública, só 127.0.0.1 e só no programa instalado) guardam a obra em memória e trazem a janela para a frente (`janela_desktop.mostrar`) em `/resumo?plugin_pendente=<id>`; o Resumo busca (`GET /api/plugin/pendente/<id>`, com login), grava pelo `POST /api/plugin/obra` e abre. Plugin 0.8.0. Tarefa: `.ai/tasks/TASK-143-12-11-2026.md`.

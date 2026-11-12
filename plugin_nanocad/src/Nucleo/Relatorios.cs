@@ -37,7 +37,7 @@ namespace OrcamentoNanoCAD.Nucleo
         /// rede existente e poste sem anotação ficam ocultos. Construir (e o que foi montado à mão): tudo, sem filtro das regras.</summary>
         public static bool Visivel(Obra obra, Elemento e)
         {
-            return obra.Modo == "construir" || e.Manual || e.TemAnotacao;
+            return !e.Excluido && (obra.Modo == "construir" || e.Manual || e.TemAnotacao);
         }
 
         public static string PainelDe(Elemento e)
@@ -58,7 +58,9 @@ namespace OrcamentoNanoCAD.Nucleo
         }
 
         /// <summary>Elementos que a leitura achou mas o painel não mostra (sem anotação classificada pelo leitor).</summary>
-        public static int Ocultos(Obra obra) { return obra.Elementos.Count(e => !Visivel(obra, e)); }
+        public static int Ocultos(Obra obra) { return obra.Elementos.Count(e => !e.Excluido && !Visivel(obra, e)); }
+
+        public static int Excluidos(Obra obra) { return obra.Elementos.Count(e => e.Excluido); }
 
         public static readonly string[] ColunasCabos = { "", "Nº", "Rede", "Op", "Anotação", "m", "Postes", "Observação" };
         public static readonly string[] ColunasOutros = { "", "Nº", "Tipo", "Op", "Anotação", "Placa", "Observação" };
@@ -110,6 +112,7 @@ namespace OrcamentoNanoCAD.Nucleo
         {
             List<string> l = new List<string>(e.Mensagens);
             if (e.IrmaoDe != null) l.Insert(0, "junto com " + e.IrmaoDe);
+            if (e.AtivoEditado) l.Insert(0, "✎ corrigido (desenho: " + e.AtivoDoDesenho + ")");
             if (e.Manual) l.Insert(0, "✋ manual");
             return string.Join("; ", l.ToArray());
         }
@@ -138,7 +141,14 @@ namespace OrcamentoNanoCAD.Nucleo
         /// <summary>Textos que as regras descartaram (chave "H:&lt;handle&gt;" para localizar no desenho).</summary>
         public static List<LinhaTabela> TextosIgnorados(Obra obra)
         {
-            return obra.Ignorados.Select(t => new LinhaTabela { Chave = "H:" + t.Handle, Celulas = new[] { t.Texto, t.Layer, t.Cor, t.Motivo }, Estado = Estados.Ok }).ToList();
+            // TASK-017: primeiro as linhas que VOCÊ tirou da obra (duplo clique → Restaurar), depois os textos que as regras descartaram
+            List<LinhaTabela> r = obra.Elementos.Where(e => e.Excluido).Select(e => new LinhaTabela
+            {
+                Chave = e.Numero, Estado = Estados.Conferir,
+                Celulas = new[] { e.Numero + " · " + (e is Vao ? (((Vao)e).Ativo) : e.AtivoLido), e.TextoLayer ?? "", e.TextoCor ?? "", "excluído por você — duplo clique para restaurar" },
+            }).ToList();
+            r.AddRange(obra.Ignorados.Select(t => new LinhaTabela { Chave = "H:" + t.Handle, Celulas = new[] { t.Texto, t.Layer, t.Cor, t.Motivo }, Estado = Estados.Ok }));
+            return r;
         }
 
         public static readonly string[] ColunasDiagnostico = { "Texto", "Tipo", "Layer", "Cor", "Entidade", "Op", "Ativo", "Destino" };
@@ -221,7 +231,7 @@ namespace OrcamentoNanoCAD.Nucleo
             List<LinhaTabela> r = new List<LinhaTabela>();
             foreach (Vao v in obra.Vaos)
             {
-                if (!v.TemAnotacao) continue;
+                if (!v.TemAnotacao || v.Excluido) continue;
                 LinhaTabela l = new LinhaTabela();
                 l.Chave = v.Numero;
                 string rotulo = v.Cabo != null && !string.IsNullOrEmpty(v.Cabo.Rotulo) ? v.Cabo.Rotulo : v.Ativo;
@@ -233,6 +243,7 @@ namespace OrcamentoNanoCAD.Nucleo
             }
             foreach (Poste p in obra.Postes)
             {
+                if (p.Excluido) continue;
                 for (int k = 0; k < p.Lido.Estruturas.Count; k++)
                 {
                     string pars;
@@ -249,7 +260,7 @@ namespace OrcamentoNanoCAD.Nucleo
             }
             foreach (Poste p in obra.Postes)
             {
-                if (p.Lido.CodigoPoste == null) continue;
+                if (p.Lido.CodigoPoste == null || p.Excluido) continue;
                 LinhaTabela l = new LinhaTabela();
                 l.Chave = p.Numero;
                 string oficial = Anotacoes.PosteOficial(p.Lido.CodigoPoste);

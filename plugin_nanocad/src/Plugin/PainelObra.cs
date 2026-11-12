@@ -112,10 +112,14 @@ namespace OrcamentoNanoCAD.UI
             _botoesLer = Linha();
             _botoesLer.Controls.Add(Visual.Botao("Reler (do zero)", (o, e) => Visual.Executar("ORC_RELER"), true, "reler"));
             _botoesLer.Controls.Add(Visual.Botao("Atualizar (mantém ajustes)", (o, e) => Visual.Executar("ORC_ATUALIZAR"), false, "atualizar"));
+            _botoesLer.Controls.Add(Visual.Botao("+ Cabo (digitar)", (o, e) => Visual.Executar("ORC_NOVO_CABO"), false, "cabos"));
+            _botoesLer.Controls.Add(Visual.Botao("+ Outros (digitar)", (o, e) => Visual.Executar("ORC_NOVO_OUTROS"), false, "ativos"));
             _botoesConstruir = Linha();
             _botoesConstruir.Controls.Add(Visual.Botao("Poste (bloco + anotação)", (o, e) => Visual.Executar("ORC_POSTE"), true, "poste"));
             _botoesConstruir.Controls.Add(Visual.Botao("Vão (linha + anotação)", (o, e) => Visual.Executar("ORC_VAO"), true, "vao"));
             _botoesConstruir.Controls.Add(Visual.Botao("Vincular automático", (o, e) => Visual.Executar("ORC_VINCULAR"), false, "vincular"));
+            _botoesConstruir.Controls.Add(Visual.Botao("+ Cabo (digitar)", (o, e) => Visual.Executar("ORC_NOVO_CABO"), false, "cabos"));
+            _botoesConstruir.Controls.Add(Visual.Botao("+ Outros (digitar)", (o, e) => Visual.Executar("ORC_NOVO_OUTROS"), false, "ativos"));
             topo.Controls.Add(_botoesLer);
             topo.Controls.Add(_botoesConstruir);
 
@@ -140,6 +144,8 @@ namespace OrcamentoNanoCAD.UI
             _listaIgnorados = Visual.Lista(Relatorios.ColunasIgnorados);
             _listaIgnorados.Visible = false;
             Ligar(_listaIgnorados, false);
+            // TASK-017: as linhas excluídas aparecem aqui; duplo clique abre o pop-up com "Restaurar à obra"
+            _listaIgnorados.ItemActivate += (o, e) => { string n = Selecionado(_listaIgnorados); if (n != null && !n.StartsWith("H:")) Visual.Executar("ORC_EDITAR " + n); };
 
             _rodape = Visual.Rotulo("", Visual.Normal, Visual.Suave);
             _rodape.Dock = DockStyle.Bottom; _rodape.AutoSize = false; _rodape.Height = 58; _rodape.Padding = new Padding(10, 6, 10, 6);
@@ -194,7 +200,7 @@ namespace OrcamentoNanoCAD.UI
             _ok.Text = "Ok " + Relatorios.Contar(o, null, Estados.Ok);
             _conf.Text = "Conferir " + Relatorios.Contar(o, null, Estados.Conferir);
             _erro.Text = "Erro " + Relatorios.Contar(o, null, Estados.Erro);
-            _ign.Text = "Ignorados " + o.Ignorados.Count;
+            _ign.Text = "Ignorados " + (o.Ignorados.Count + Relatorios.Excluidos(o));
             int ocultos = Relatorios.Ocultos(o);
             _rodape.Text = Relatorios.Resumo(o) + "\nClique numa linha para localizar no desenho; duplo clique abre o pop-up de ajuste. "
                            + (construir ? "Construir: você escolhe poste/vão e anotação — as regras do leitor não filtram nada aqui."

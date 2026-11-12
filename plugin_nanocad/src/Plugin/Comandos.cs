@@ -426,8 +426,17 @@ namespace OrcamentoNanoCAD
             Poste p = e as Poste;
             if (t.Acao == AcaoPopup.Excluir)
             {
-                Construtor.Remover(s.Obra, e, s.Regras);
-                Aplicacao.Msg(e.Numero + " excluído da obra (o desenho não foi alterado).");
+                bool manual = e.Manual;
+                Construtor.Excluir(s.Obra, e, s.Regras);
+                Aplicacao.Msg(e.Numero + " excluído da obra (o desenho não foi alterado)."
+                              + (manual ? "" : " Fica em Ignorados: duplo clique → Restaurar à obra."));
+                Mudou(s, true);
+                return;
+            }
+            if (t.Acao == AcaoPopup.Restaurar)
+            {
+                Construtor.Restaurar(s.Obra, e, s.Regras);
+                Aplicacao.Msg(e.Numero + " voltou para a obra.");
                 Mudou(s, true);
                 return;
             }
@@ -440,6 +449,11 @@ namespace OrcamentoNanoCAD
                 return;
             }
             string antes = e.Operacao;
+            if (t.AtivoNovo != null)
+            {
+                Construtor.TrocarAtivo(s.Obra, e, t.AtivoNovo, s.Regras);
+                Aplicacao.Msg(e.Numero + ": ativo corrigido para " + e.AtivoLido + (e.AtivoEditado ? " (o desenho continua com " + e.AtivoDoDesenho + ")" : ""));
+            }
             if (v != null)
             {
                 Construtor.AjustarVao(s.Obra, v, t.Operacao, t.Metros, s.Regras);
@@ -587,6 +601,25 @@ namespace OrcamentoNanoCAD
                 Sincronizador.Agora();
                 UI.PainelObra.AtualizarStatusConexao();
             });
+        }
+
+        // ── TASK-017: linha nova sem apontar no desenho ──
+        [CommandMethod("ORC_NOVO_CABO")]
+        public void CmdNovoCabo() { Rodar("ORC_NOVO_CABO", s => NovaLinha(s, true)); }
+
+        [CommandMethod("ORC_NOVO_OUTROS")]
+        public void CmdNovoOutros() { Rodar("ORC_NOVO_OUTROS", s => NovaLinha(s, false)); }
+
+        private static void NovaLinha(Sessao s, bool cabo)
+        {
+            if (s.Obra == null) PrepararConstrucao(s);
+            using (TelaNovaLinha t = new TelaNovaLinha(s.Obra.Projeto, s.Regras, cabo))
+            {
+                if (Application.ShowModalDialog(t) != DialogResult.OK) return;
+                Avulso a = Construtor.NovaLinha(s.Obra, cabo, t.Ativo, t.Operacao, s.Regras);
+                Aplicacao.Msg(a.Numero + " adicionado à Tabela de " + (cabo ? "Cabos" : "Outros") + ": " + a.AtivoLido + " [" + a.Operacao + "]");
+                Mudou(s, true);
+            }
         }
 
         [CommandMethod("ORC_ATUALIZAR_PLUGIN")]
@@ -747,6 +780,7 @@ namespace OrcamentoNanoCAD
                 + "  ORC_VINCULOS  ORC_ATIVOS  ORC_SALVAR  ORC_PAINEL  ORC_MARCAS  ORC_REGRAS\n"
                 + "  ORC_CONECTAR   ligar à aplicação (localhost/online): regras e base de orçamento ao vivo\n"
                 + "  ORC_SINCRONIZAR baixar agora as regras da aplicação e conferir a obra com a base\n"
+                + "  ORC_NOVO_CABO  ORC_NOVO_OUTROS  linha nova sem apontar no desenho (com o autocompletar da base)\n"
                 + "  ORC_ABRIR_APP  abrir a obra no GridReader deste computador (aberto ou fechado); sem ele, na aplicação do ORC_CONECTAR\n"
                 + "  ORC_LEITURA    configurar layers da rede, bloco de poste e guias · ORC_DIAGNOSTICO o que foi lido\n"
                 + "  ORC_FECHAR     fechar a obra · log: " + Aplicacao.ArquivoLog + "\n"
