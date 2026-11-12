@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-11-12 — TASK-018: "+ Cabo / + Outros" lendo um TEXT/MTEXT escolhido no desenho (0.9.1)
+
+Na tela de linha nova, "Selecionar texto no desenho (TEXT/MTEXT)…": a tela sai da frente, o usuário escolhe o(s) texto(s) e as regras do leitor
+leem (`Construtor.LerTextoParaLinha`): ativo, operação e a tabela (CABO → Cabos; outra entidade → Outros). A tela volta preenchida para conferir
+(autocompletar continua valendo) e escolher Cabos/Outros. A linha fica ligada ao texto (`LigarTexto`: localizar, marcas; ativo mudado antes de
+adicionar = correção sobre o lido). ↻ Atualizar: a linha volta, a não ser que a leitura passe a pegar aquele texto (não fica em dobro).
+Testes: `LinhaDeTextoTests` (4).
+
+---
+
 ## 2026-11-12 — TASK-017: editar o ativo com autocompletar, excluir qualquer linha, linhas digitadas (0.9.0)
 
 - **Editar o ativo** no pop-up (`ORC_EDITAR` / duplo clique): `CampoAtivo` com o autocompletar da aplicação (`Nucleo/Autocompletar`: sugestões da

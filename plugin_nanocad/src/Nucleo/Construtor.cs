@@ -209,6 +209,55 @@ namespace OrcamentoNanoCAD.Nucleo
             return a;
         }
 
+        /// <summary>TASK-018: o que um texto (TEXT/MTEXT) escolhido no desenho vira na linha nova — pelas regras do leitor.</summary>
+        public class LeituraDeTexto
+        {
+            public string Ativo = "", Operacao = "I", Entidade;
+            public bool Reconhecido;          // alguma regra do leitor entendeu o texto
+            public bool? Cabo;                // pelas regras: CABO → Tabela de Cabos; outra entidade → Outros; null = não se sabe
+            public TextoDesenho Texto;        // o texto usado (ligação com o desenho)
+            public string Lido = "";          // o que foi selecionado, como está no desenho
+        }
+
+        public static LeituraDeTexto LerTextoParaLinha(List<TextoDesenho> textos, RegrasProjeto regras)
+        {
+            LeituraDeTexto r = new LeituraDeTexto();
+            if (textos == null || textos.Count == 0) return r;
+            List<TextoLido> lidos = LeitorProjeto.ClassificarTextos(textos, regras);
+            r.Lido = string.Join(" / ", textos.Select(t => t.Texto).ToArray());
+            TextoLido bom = lidos.FirstOrDefault(t => t.R.Entidade != null && t.R.Entidade != "0" && !string.IsNullOrEmpty(t.R.Ativo));
+            if (bom != null)
+            {
+                r.Reconhecido = true;
+                r.Ativo = bom.R.Ativo;
+                r.Entidade = bom.R.Entidade;
+                r.Cabo = bom.R.Entidade == "CABO";
+                if (!string.IsNullOrEmpty(bom.R.Operacao) && bom.R.Operacao != "0") r.Operacao = bom.R.Operacao;
+                r.Texto = bom.T;
+                return r;
+            }
+            TextoLido primeiro = lidos.Count > 0 ? lidos[0] : null;
+            r.Ativo = MotorLeitor.LimparTexto(string.Join(", ", (lidos.Count > 0 ? lidos.Select(t => t.T.Texto) : textos.Select(t => t.Texto)).ToArray()));
+            r.Texto = primeiro != null ? primeiro.T : textos[0];
+            if (primeiro != null && !string.IsNullOrEmpty(primeiro.R.Operacao) && primeiro.R.Operacao != "0") r.Operacao = primeiro.R.Operacao;
+            return r;
+        }
+
+        /// <summary>Liga a linha ao texto do desenho (localizar, marcas, layer). Se o ativo foi mudado antes de adicionar, o do desenho fica guardado.</summary>
+        public static void LigarTexto(Elemento e, LeituraDeTexto lido)
+        {
+            if (lido == null || lido.Texto == null) return;
+            TextoDesenho t = lido.Texto;
+            e.TextoHandle = t.Handle;
+            e.TextoOriginal = t.Texto;
+            e.TextoLayer = t.Layer;
+            e.TextoCor = t.Cor;
+            e.TextoX = t.X;
+            e.TextoY = t.Y;
+            if (!string.IsNullOrEmpty(lido.Ativo) && lido.Ativo != e.AtivoLido) e.AtivoDoDesenho = lido.Ativo;
+            if (!string.IsNullOrEmpty(lido.Operacao)) e.OperacaoLida = lido.Operacao;
+        }
+
         public static void VoltarAoLido(Obra obra, Elemento e, RegrasProjeto regras)
         {
             if (e.AtivoDoDesenho != null) { AplicarAtivo(e, e.AtivoDoDesenho); e.AtivoDoDesenho = null; }
@@ -274,12 +323,15 @@ namespace OrcamentoNanoCAD.Nucleo
             }
             foreach (Avulso aa in antiga.Avulsos)
             {
-                if (aa.Manual && string.IsNullOrEmpty(aa.TextoHandle))
+                if (aa.Manual)
                 {
-                    // linha digitada (sem desenho): volta como estava
+                    // linha adicionada à mão (digitada ou lida de um texto escolhido): volta como estava — a não ser que a leitura
+                    // agora já pegue aquele texto (aí vale a leitura, para não ficar em dobro)
+                    if (!string.IsNullOrEmpty(aa.TextoHandle) && nova.Elementos.Any(x => x.TextoHandle == aa.TextoHandle)) continue;
                     Avulso c = new Avulso();
                     c.Numero = aa.Numero; c.Manual = true; c.Entidade = aa.Entidade; c.AtivoLido = aa.AtivoLido; c.TextoOriginal = aa.TextoOriginal;
                     c.OperacaoLida = aa.OperacaoLida; c.Operacao = aa.Operacao; c.AtivoDoDesenho = aa.AtivoDoDesenho; c.Excluido = aa.Excluido;
+                    c.TextoHandle = aa.TextoHandle; c.TextoLayer = aa.TextoLayer; c.TextoCor = aa.TextoCor; c.TextoX = aa.TextoX; c.TextoY = aa.TextoY;
                     nova.Avulsos.Add(c);
                     continue;
                 }

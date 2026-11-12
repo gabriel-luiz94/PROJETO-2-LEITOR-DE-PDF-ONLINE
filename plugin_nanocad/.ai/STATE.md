@@ -5,7 +5,7 @@
 
 ## Versão
 
-`0.9.0` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
+`0.9.1` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
 
 Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
@@ -41,6 +41,9 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 - [x] Gravar/ler a obra no DWG (NOD) e em `<desenho>.obra.json`
 - [x] Trocar a layer da anotação ao mudar a operação (opção do pop-up; layer tirada das regras)
 - [x] Regras embutidas (081 e padrão) + pasta `regras\<codigo>\` ao lado da DLL
+
+### Linha nova lida de um texto do desenho (TASK-018, 0.9.1) — ✅ núcleo · 🟡 CAD
+- [x] "Selecionar texto no desenho (TEXT/MTEXT)…" na tela de + Cabo / + Outros; regras do leitor preenchem ativo, operação e tabela
 
 ### Edição no plugin (TASK-017, 0.9.0) — ✅ núcleo e API · 🟡 CAD
 - [x] Ativo editável com o autocompletar da aplicação; Excluir/Restaurar qualquer linha; + Cabo / + Outros sem desenho
@@ -116,7 +119,7 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
 | Suíte | Comando | Resultado (31/10/2026) |
 |---|---|---|
-| Núcleo (xUnit, net8.0) | `dotnet test tests/Nucleo.Testes` | 63 ✅ (ponta a ponta com `APP_URL`/`APP_EMAIL`/`APP_SENHA`) |
+| Núcleo (xUnit, net8.0) | `dotnet test tests/Nucleo.Testes` | 67 ✅ (ponta a ponta com `APP_URL`/`APP_EMAIL`/`APP_SENHA`) |
 | Núcleo em .NET 4 / C# 5 | `dotnet build tests/Net40` | compila ✅ |
 | DLL nanoCAD 26 | `dotnet build src/OrcamentoNanoCAD.csproj -c Release` | compila ✅ (18 comandos, ExtensionApplication, 5 recursos de regras) |
 | Contrato com a aplicação | `pytest tests/test_plugin_nanocad_contrato.py` (raiz) | 5 ✅ |

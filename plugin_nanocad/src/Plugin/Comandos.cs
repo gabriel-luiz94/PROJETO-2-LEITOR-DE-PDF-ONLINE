@@ -613,12 +613,33 @@ namespace OrcamentoNanoCAD
         private static void NovaLinha(Sessao s, bool cabo)
         {
             if (s.Obra == null) PrepararConstrucao(s);
-            using (TelaNovaLinha t = new TelaNovaLinha(s.Obra.Projeto, s.Regras, cabo))
+            string ativo = "", operacao = null;
+            Construtor.LeituraDeTexto lido = null;
+            while (true)
             {
-                if (Application.ShowModalDialog(t) != DialogResult.OK) return;
-                Avulso a = Construtor.NovaLinha(s.Obra, cabo, t.Ativo, t.Operacao, s.Regras);
-                Aplicacao.Msg(a.Numero + " adicionado à Tabela de " + (cabo ? "Cabos" : "Outros") + ": " + a.AtivoLido + " [" + a.Operacao + "]");
-                Mudou(s, true);
+                using (TelaNovaLinha t = new TelaNovaLinha(s.Obra.Projeto, s.Regras, cabo, ativo, operacao, lido))
+                {
+                    DialogResult r = Application.ShowModalDialog(t);
+                    if (t.SelecionarTexto)
+                    {
+                        // TASK-018: a tela sai da frente, o usuário escolhe TEXT/MTEXT e as regras do leitor leem; a tela volta preenchida
+                        cabo = t.Cabo;
+                        List<TextoDesenho> textos = SelecionarTextos(s, "\nSelecione o texto (TEXT/MTEXT) da linha e Enter: ");
+                        if (textos.Count == 0) { ativo = t.Ativo; operacao = t.Operacao; continue; }
+                        lido = Construtor.LerTextoParaLinha(textos, s.Regras);
+                        ativo = lido.Ativo;
+                        operacao = lido.Operacao;
+                        if (lido.Cabo.HasValue) cabo = lido.Cabo.Value;
+                        continue;
+                    }
+                    if (r != DialogResult.OK) return;
+                    Avulso a = Construtor.NovaLinha(s.Obra, t.Cabo, t.Ativo, t.Operacao, s.Regras);
+                    Construtor.LigarTexto(a, lido);
+                    Aplicacao.Msg(a.Numero + " adicionado à Tabela de " + (t.Cabo ? "Cabos" : "Outros") + ": " + a.AtivoLido + " [" + a.Operacao + "]"
+                                  + (lido != null ? " — lido do texto \"" + Relatorios.Resumir(lido.Lido, 60) + "\"" : ""));
+                    Mudou(s, true);
+                    return;
+                }
             }
         }
 
@@ -780,7 +801,7 @@ namespace OrcamentoNanoCAD
                 + "  ORC_VINCULOS  ORC_ATIVOS  ORC_SALVAR  ORC_PAINEL  ORC_MARCAS  ORC_REGRAS\n"
                 + "  ORC_CONECTAR   ligar à aplicação (localhost/online): regras e base de orçamento ao vivo\n"
                 + "  ORC_SINCRONIZAR baixar agora as regras da aplicação e conferir a obra com a base\n"
-                + "  ORC_NOVO_CABO  ORC_NOVO_OUTROS  linha nova sem apontar no desenho (com o autocompletar da base)\n"
+                + "  ORC_NOVO_CABO  ORC_NOVO_OUTROS  linha nova: digitada (com o autocompletar da base) ou lida de um TEXT/MTEXT escolhido no desenho\n"
                 + "  ORC_ABRIR_APP  abrir a obra no GridReader deste computador (aberto ou fechado); sem ele, na aplicação do ORC_CONECTAR\n"
                 + "  ORC_LEITURA    configurar layers da rede, bloco de poste e guias · ORC_DIAGNOSTICO o que foi lido\n"
                 + "  ORC_FECHAR     fechar a obra · log: " + Aplicacao.ArquivoLog + "\n"

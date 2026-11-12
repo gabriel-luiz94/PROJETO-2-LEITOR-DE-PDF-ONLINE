@@ -516,12 +516,16 @@ namespace OrcamentoNanoCAD.UI
     public class TelaNovaLinha : Form
     {
         public string Ativo, Operacao;
+        public bool Cabo;
+        public bool SelecionarTexto;                   // TASK-018: o usuário pediu para escolher o texto no desenho (a tela fecha e volta preenchida)
         private readonly CampoAtivo _ativo;
         private readonly ComboBox _op;
+        private readonly RadioButton _rCabo, _rOutros;
 
-        public TelaNovaLinha(string projeto, RegrasProjeto regras, bool cabo)
+        /// <param name="lido">o que foi lido do texto escolhido no desenho (null = nada escolhido ainda)</param>
+        public TelaNovaLinha(string projeto, RegrasProjeto regras, bool cabo, string ativo, string operacao, Construtor.LeituraDeTexto lido)
         {
-            Text = cabo ? "Nova linha — Tabela de Cabos" : "Nova linha — Tabela de Outros";
+            Text = "Nova linha da obra";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -529,20 +533,47 @@ namespace OrcamentoNanoCAD.UI
             Font = Visual.Normal;
             Padding = new Padding(14);
             FlowLayoutPanel f = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false };
-            f.Controls.Add(Visual.Rotulo(cabo ? "Cabo que não está desenhado (ex.: 3xA35P(7,94)-13,8kV 40 m)" : "Item que não está no desenho (ex.: N1(9200D, P), 2-U3)", Visual.Normal, Visual.Suave));
-            FlowLayoutPanel l = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
-            l.Controls.Add(Visual.Rotulo("Operação", Visual.Normal));
+
+            FlowLayoutPanel tipo = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+            tipo.Controls.Add(Visual.Rotulo("Vai para a tabela", Visual.Normal));
+            _rCabo = new RadioButton { Text = "Cabos", AutoSize = true, Checked = cabo, Margin = new Padding(10, 3, 0, 0) };
+            _rOutros = new RadioButton { Text = "Outros (postes, estruturas, equipamentos…)", AutoSize = true, Checked = !cabo, Margin = new Padding(10, 3, 0, 0) };
+            tipo.Controls.Add(_rCabo);
+            tipo.Controls.Add(_rOutros);
+            f.Controls.Add(tipo);
+
+            // ler de um texto do desenho
+            FlowLayoutPanel sel = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 6, 0, 2) };
+            sel.Controls.Add(Visual.Botao("Selecionar texto no desenho (TEXT/MTEXT)…", (o, e) => { Guardar(); SelecionarTexto = true; DialogResult = DialogResult.Retry; Close(); }, lido == null, "diagnostico"));
+            f.Controls.Add(sel);
+            if (lido != null)
+            {
+                string info = "Lido do desenho: \"" + Relatorios.Resumir(lido.Lido, 90) + "\"" + (lido.Texto != null ? "  (layer " + lido.Texto.Layer + ")" : "")
+                              + "\n" + (lido.Reconhecido ? "→ pelas regras do leitor: " + (lido.Entidade ?? "") + " · operação " + lido.Operacao + ". Confira e ajuste abaixo."
+                                                          : "→ nenhuma regra do leitor reconheceu o texto: entra como está (ajuste abaixo se precisar).");
+                Label l = Visual.Rotulo(info, Visual.Normal, lido.Reconhecido ? Visual.Ok : Visual.Conferir);
+                l.MaximumSize = new Size(560, 0);
+                f.Controls.Add(l);
+            }
+            else
+                f.Controls.Add(Visual.Rotulo("ou digite o ativo (ex.: cabo 3xA35P(7,94)-13,8kV 40 m · outros N1(9200D, P), 2-U3)", Visual.Normal, Visual.Suave));
+
+            FlowLayoutPanel l2 = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 6, 0, 0) };
+            l2.Controls.Add(Visual.Rotulo("Operação", Visual.Normal));
             _op = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
             foreach (string op in regras.Operacoes()) _op.Items.Add(op);
             if (_op.Items.Count == 0) _op.Items.Add("I");
-            _op.SelectedItem = _op.Items.Contains("I") ? (object)"I" : _op.Items[0];
-            l.Controls.Add(_op);
-            f.Controls.Add(l);
+            string opInicial = string.IsNullOrEmpty(operacao) ? "I" : operacao;
+            if (!_op.Items.Contains(opInicial)) _op.Items.Add(opInicial);
+            _op.SelectedItem = opInicial;
+            l2.Controls.Add(_op);
+            f.Controls.Add(l2);
             f.Controls.Add(Visual.Rotulo("Ativo", Visual.Normal));
-            _ativo = new CampoAtivo("", cabo, 560);
+            _ativo = new CampoAtivo(ativo ?? "", cabo, 560);
             f.Controls.Add(_ativo);
+            _rCabo.CheckedChanged += (o, e) => { };       // o tipo vale ao adicionar
             FlowLayoutPanel b = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 8, 0, 0) };
-            Button ok = Visual.Botao("Adicionar à obra", (o, e) => Confirmar(), true);
+            Button ok = Visual.Botao("Adicionar à obra", (o, e) => Confirmar(), lido != null || !string.IsNullOrEmpty(ativo));
             b.Controls.Add(ok);
             b.Controls.Add(Visual.Botao("Cancelar", (o, e) => { DialogResult = DialogResult.Cancel; Close(); }));
             f.Controls.Add(b);
@@ -551,6 +582,7 @@ namespace OrcamentoNanoCAD.UI
             Shown += (o, e) =>
             {
                 _ativo.Caixa.Focus();
+                _ativo.Caixa.SelectionStart = _ativo.Caixa.Text.Length;
                 CatalogoBase c = Catalogos.Obter(projeto, this, (novo, erro) => { if (novo != null) _ativo.DefinirCatalogo(novo); });
                 if (c != null) _ativo.DefinirCatalogo(c);
                 else if (!Conexao.Logado) _ativo.Situacao("Autocompletar: conecte-se à aplicação (🔗) para usar a Base de Orçamento do projeto.");
@@ -558,11 +590,17 @@ namespace OrcamentoNanoCAD.UI
             Visual.Aplicar(this);
         }
 
-        private void Confirmar()
+        private void Guardar()
         {
             Ativo = _ativo.Texto;
-            if (Ativo.Length == 0) { MessageBox.Show(this, "Digite o ativo.", "GridReader", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             Operacao = _op.SelectedItem as string ?? "I";
+            Cabo = _rCabo.Checked;
+        }
+
+        private void Confirmar()
+        {
+            Guardar();
+            if (Ativo.Length == 0) { MessageBox.Show(this, "Digite o ativo ou selecione um texto no desenho.", "GridReader", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             DialogResult = DialogResult.OK;
             Close();
         }
