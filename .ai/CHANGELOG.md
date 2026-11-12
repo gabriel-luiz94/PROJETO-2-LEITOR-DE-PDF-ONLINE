@@ -8,6 +8,19 @@
 
 ---
 
+## 2026-11-12 — TASK-151: executável salva/preenche senhas no login
+
+- `ligar_senhas_salvas` esperava `CoreWebView2` já pronto e desistia em silêncio; agora aguarda a inicialização (thread) e registra o resultado no log. Não testado em WebView2 real.
+
+---
+
+## 2026-11-12 — TASK-149/150: teclado na dica de parâmetros (Outros) e botão Inverter no layout do Resumo
+
+- Outros: ↓/↑ escolhem o valor, Enter/Tab inserem com ", " e vão ao próximo parâmetro (último fecha o ")"); máscaras simples viram valores. Cabos não mudou.
+- Resumo: botão "⇄ Inverter" (Demais ativos à esquerda/em cima, Cabos à direita/embaixo), lembrado no navegador.
+
+---
+
 ## 2026-11-12 — TASK-148: publicar só o ativo, desfazer e conflito (parte 3)
 
 - `publicar_ativo.py` + rotas `/api/admin/ativo/*`: troca só as linhas do ativo (nuvem primeiro, depois local), prévia com diff, um passo anterior (`ativo_versoes`), aviso de edição simultânea (409). UI: Publicar no passo 3, Editar/Desfazer na ficha.

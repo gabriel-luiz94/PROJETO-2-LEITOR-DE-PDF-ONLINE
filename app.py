@@ -552,7 +552,7 @@ if __name__ == "__main__":
             janela_desktop.vincular(window)              # TASK-143: o plugin do nanoCAD traz a janela para a frente com a obra
 
             def _abrir_quando_pronto(win):
-                janela_desktop.ligar_senhas_salvas(win)      # TASK-133: login oferece as senhas salvas
+                threading.Thread(target=janela_desktop.ligar_senhas_salvas, args=(win,), daemon=True).start()      # TASK-133/151: login oferece as senhas salvas (espera o WebView2 ficar pronto, sem travar a abertura)
                 if esperar_servidor("127.0.0.1", port):
                     win.load_url(login_url)
                 else:

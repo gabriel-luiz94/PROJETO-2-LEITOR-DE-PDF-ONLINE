@@ -12,6 +12,7 @@
         ia: { aberto: false, fixado: false },
         modaisRecolhida: false,
         layout: 'lado',
+        inverter: false,
         cabos: { visivel: true, recolhida: false },
         outros: { visivel: true, recolhida: false }
     };
@@ -25,6 +26,7 @@
                 ['config', 'ia', 'cabos', 'outros'].forEach(k => { if (salvo[k] && typeof salvo[k] === 'object') Object.assign(e[k], salvo[k]); });
                 if (typeof salvo.modaisRecolhida === 'boolean') e.modaisRecolhida = salvo.modaisRecolhida;
                 if (salvo.layout === 'lado' || salvo.layout === 'empilhadas') e.layout = salvo.layout;
+                if (typeof salvo.inverter === 'boolean') e.inverter = salvo.inverter;
             }
         } catch (err) { /* sem armazenamento: usa o padrão */ }
         return e;
@@ -97,7 +99,11 @@
 
     function aplicarLayout() {
         if (linhaTabelas) linhaTabelas.classList.toggle('empilhadas', estado.layout === 'empilhadas');
-        document.querySelectorAll('#seg-layout button').forEach(b => b.classList.toggle('on', b.dataset.layout === estado.layout));
+        document.querySelectorAll('#seg-layout button[data-layout]').forEach(b => b.classList.toggle('on', b.dataset.layout === estado.layout));
+        // TASK-150: "⇄ Inverter" — Demais ativos (postes) primeiro (esquerda / em cima) e Cabos depois (direita / embaixo)
+        if (linhaTabelas) linhaTabelas.classList.toggle('invertidas', !!estado.inverter);
+        const inv = $('btn-inverter-tabelas');
+        if (inv) { inv.classList.toggle('on', !!estado.inverter); inv.setAttribute('aria-pressed', estado.inverter ? 'true' : 'false'); }
     }
     function aplicarTabela(qual) {
         const el = secao[qual], st = estado[qual];
@@ -129,9 +135,12 @@
             aplicarTabela(q); gravar(); window.dispatchEvent(new Event('resize'));
         });
     });
-    document.querySelectorAll('#seg-layout button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#seg-layout button[data-layout]').forEach(b => b.addEventListener('click', () => {
         estado.layout = b.dataset.layout; aplicarLayout(); gravar(); window.dispatchEvent(new Event('resize'));
     }));
+    if ($('btn-inverter-tabelas')) $('btn-inverter-tabelas').addEventListener('click', () => {
+        estado.inverter = !estado.inverter; aplicarLayout(); gravar(); window.dispatchEvent(new Event('resize'));
+    });
 
     /* ── Importar JSON: o resumo.js abre o arquivo e mostra o diálogo Carregar / Adicionar / Subtrair (TASK-118) ── */
     const btnImp = $('btn-importar-json'), inpImp = $('input-importar-json');
