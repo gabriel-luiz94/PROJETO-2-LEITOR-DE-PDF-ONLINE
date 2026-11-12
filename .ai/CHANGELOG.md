@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-12 — TASK-143: pesquisa (Ctrl+K) e ficha do ativo na Base de Orçamento
+
+- Novos `base_ficha_dados.js` (modelo/pesquisa/ficha, puro) e `base_ficha_ui.js` (pesquisa, ficha com abas, simulador, Ctrl+clique). Consulta Rápida usa a mesma pesquisa. Parte 1 do plano (cadastro rápido e publicação por ativo virão depois).
+
+---
+
 ## 2026-11-12 — TASK-142: arquivos no executável, barra de modais por projeto e base recarregada
 
 - Ponte de arquivos da janela desktop (`ApiArquivos` + `desktop_arquivos.js`): baixar/importar pelas caixas nativas; `ALLOW_DOWNLOADS`.
