@@ -724,3 +724,11 @@ Na tela **Base de Orçamento**, **Ctrl+K** abre a pesquisa: digite parte do ativ
 ## Base de Orçamento: publicar só o ativo (TASK-148, administradores)
 
 No passo **3 · Revisar** do cadastro rápido (ou ao **Editar** um ativo pela ficha), o botão **Publicar no <projeto>** troca **só as linhas daquele ativo**, na base local e na nuvem, sem reenviar a tabela inteira. Antes, a revisão mostra o que muda (**novas**, **alteradas** com o valor antigo → novo, **removidas**), a validação (a mesma da importação; erro recusa a publicação), os **ativos que chamam este** e o simulador. Ao publicar, fica guardado **um passo anterior** daquele ativo: **Desfazer esta publicação** (no painel de sucesso ou na ficha: **↶ Desfazer última publicação**) volta ao que era antes; usar de novo refaz. Se outro administrador alterar o ativo depois que você o abriu, o programa **avisa** (quem e quando) e você escolhe **recarregar a versão atual** ou **publicar mesmo assim**. Se a nuvem falhar, nada é alterado. A tabela da tela é recarregada depois de publicar (edições ainda não salvas nela se perdem — o programa pergunta antes).
+
+## Tabela Outros: escolher parâmetros pelo teclado (TASK-149)
+
+Ao digitar `(` depois de um ativo, a caixa de parâmetros agora funciona pelo teclado: **↓/↑** realçam um valor do parâmetro da vez, **Enter ou Tab** inserem o valor, acrescentam a vírgula e já mostram as opções do **próximo** parâmetro; no **último**, o `)` é fechado sozinho. Sem valor realçado, Enter e Tab fazem o de sempre. Clicar num valor também avança. As máscaras simples cadastradas (`%S336%`) aparecem como valor (`S336`).
+
+## Resumo: inverter a ordem das tabelas (TASK-150)
+
+No grupo **Layout**, o botão **⇄ Inverter** põe **Demais ativos (postes) à esquerda** e **Cabos à direita** (nas empilhadas: Demais ativos em cima). Clique de novo para voltar. A escolha fica guardada neste navegador.

@@ -62,11 +62,14 @@
         const base = (ctx.apelidos && ctx.apelidos[n]) || n;
         const sig = (ctx.assinaturas || {})[base];
         if (sig && ((sig.nomes && sig.nomes.length) || (sig.livres && sig.livres.length))) {
-            const params = (sig.nomes || []).map(nm => ({
-                nome: nm, padrao: (sig.padroes || {})[nm] == null ? null : (sig.padroes || {})[nm],
-                valores: ((sig.valores || {})[nm] || []).slice(), mascaras: ((sig.mascaras || {})[nm] || []).slice(),
-                aberto: !(sig.fechados || []).includes(nm), porNome: false
-            }));
+            const params = (sig.nomes || []).map(nm => {
+                const valores = ((sig.valores || {})[nm] || []).slice(), mascaras = ((sig.mascaras || {})[nm] || []).slice();
+                mascaras.forEach(m => {                                                // TASK-149: máscara "%S336%" também vira o valor selecionável "S336" (um miolo só, sem outro % nem !)
+                    const miolo = /^!/.test(m) ? null : String(m).replace(/^%+|%+$/g, '');
+                    if (miolo && miolo.indexOf('%') === -1 && miolo.indexOf('|') === -1 && !valores.includes(miolo)) valores.push(miolo);
+                });
+                return { nome: nm, padrao: (sig.padroes || {})[nm] == null ? null : (sig.padroes || {})[nm], valores, mascaras, aberto: !(sig.fechados || []).includes(nm), porNome: false };
+            });
             (sig.livres || []).forEach(nm => params.push({ nome: nm, padrao: null, valores: [], mascaras: [], aberto: true, porNome: true }));
             return { tipo: 'parametros', ativo: base, params };
         }
@@ -88,19 +91,56 @@
         return t.replace(/[,\s]+$/, '') + ')'.repeat(abertos);
     }
 
-    const api = { contextoDoParentese, construirContexto, dica, completarParenteses };
+    /** TASK-149: os parâmetros POSICIONAIS (na ordem) e o índice do parâmetro da vez; `atual` = o parâmetro (por posição ou pelo nome já digitado) ou null. */
+    function parametroAtual(c, d) {
+        if (!d || d.tipo !== 'parametros') return { pos: [], i: -1, atual: null };
+        const pos = d.params.filter(p => !p.porNome);
+        let i = c.nomeParam ? pos.findIndex(p => p.nome.toUpperCase() === c.nomeParam) : c.indice;
+        if (i < 0 || i >= pos.length) i = -1;
+        return { pos, i, atual: i === -1 ? null : pos[i] };
+    }
+
+    /** Valores selecionáveis (cadastrados) do parâmetro da vez. */
+    function valoresDoAtual(c, d) { const a = parametroAtual(c, d).atual; return a ? a.valores.slice() : []; }
+
+    /**
+     * Inserir um valor do parâmetro da vez e AVANÇAR: troca o texto do parâmetro (do início do valor até a próxima "," ou ")") por `valor` e acrescenta ", " — ou ")" se for o
+     * último parâmetro. Se a "," / ")" já existe logo depois, só pula por cima dela. Devolve {inicio, fim, inserir, cursor}: substituir [inicio, fim) por `inserir` e pôr o cursor em `cursor`.
+     */
+    function planoDeInsercao(texto, cursor, c, d, valor) {
+        const t = String(texto == null ? '' : texto), { pos, i } = parametroAtual(c, d);
+        const ult = i === -1 || i >= pos.length - 1;
+        let fim = cursor, prof = 0;
+        for (let k = cursor; k < t.length; k++) {                       // fim do parâmetro: próxima "," ou ")" do mesmo nível
+            const ch = t[k];
+            if (ch === '(') prof++;
+            else if (ch === ')') { if (prof === 0) { fim = k; break; } prof--; }
+            else if (ch === ',' && prof === 0) { fim = k; break; }
+            fim = k + 1;
+        }
+        const resto = t.slice(fim);
+        const base = { inicio: c.inicioParcial, fim, inserir: String(valor) };
+        if (!ult) {
+            if (resto[0] === ',') { const extra = resto[1] === ' ' ? 2 : 1; return Object.assign(base, { cursor: c.inicioParcial + base.inserir.length + extra }); }
+            return Object.assign(base, { inserir: base.inserir + ', ', cursor: c.inicioParcial + base.inserir.length + 2 });
+        }
+        if (resto[0] === ')') return Object.assign(base, { cursor: c.inicioParcial + base.inserir.length + 1 });
+        return Object.assign(base, { inserir: base.inserir + ')', cursor: c.inicioParcial + base.inserir.length + 1 });
+    }
+
+    const api = { contextoDoParentese, construirContexto, dica, completarParenteses, parametroAtual, valoresDoAtual, planoDeInsercao };
     if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
     /* ───────────────────────── tela ───────────────────────── */
     const doc = raiz.document;
-    let cfg = null, caixa = null, ctxCache = null, alvo = null, carregando = false;
+    let cfg = null, caixa = null, ctxCache = null, alvo = null, carregando = false, selecionado = -1, chaveParam = '', valoresVez = [], ctxVez = null, dicaVez = null;
 
     const CSS = '.dica-param{position:fixed;z-index:9000;min-width:260px;max-width:520px;max-height:280px;overflow:auto;background:#161b22;color:#e6edf3;border:1px solid #30363d;border-radius:8px;padding:8px 10px;font:12px Inter,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5)}'
         + '.dica-param .dp-tit{font-weight:700;margin-bottom:4px}.dica-param .dp-aviso{color:#d29922}.dica-param .dp-erro{color:#f85149}'
         + '.dica-param .dp-lin{padding:3px 4px;border-radius:5px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}.dica-param .dp-lin.atual{background:rgba(217,119,6,.16);outline:1px solid rgba(217,119,6,.5)}'
         + '.dica-param .dp-nome{font-weight:600;min-width:64px}.dica-param .dp-pad{color:#8b949e;font-size:11px}'
         + '.dica-param button.dp-val{background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:5px;padding:1px 7px;font-size:11px;cursor:pointer}'
-        + '.dica-param button.dp-val:hover{border-color:#d97706;color:#d97706}.dica-param .dp-mask{color:#8b949e;font-size:11px}.dica-param .dp-rod{color:#6e7681;font-size:10px;margin-top:4px}';
+        + '.dica-param button.dp-val:hover,.dica-param button.dp-val.sel{border-color:#d97706;color:#d97706}.dica-param button.dp-val.sel{background:rgba(217,119,6,.22)}.dica-param .dp-mask{color:#8b949e;font-size:11px}.dica-param .dp-rod{color:#6e7681;font-size:10px;margin-top:4px}';
 
     const ehCampo = el => el && el.matches && el.matches('#body-outros .inp-ativo, #body-outros-vazio .inp-ativo-vazio');
 
@@ -114,18 +154,24 @@
 
     function fechar() { if (caixa) { caixa.remove(); caixa = null; } alvo = null; }
 
-    function inserir(input, c, valor) {
+    /** TASK-149: insere o valor e avança para o próximo parâmetro (", ") ou fecha o ")" no último. */
+    function inserir(input, c, valor, d) {
+        const plano = planoDeInsercao(input.value, input.selectionStart, c, d, valor);
         input.focus();
-        input.setSelectionRange(c.inicioParcial, input.selectionStart);
+        input.setSelectionRange(plano.inicio, plano.fim);
         let ok = false;
-        try { ok = doc.execCommand('insertText', false, valor); } catch (e) { ok = false; }
+        try { ok = doc.execCommand('insertText', false, plano.inserir); } catch (e) { ok = false; }
         if (!ok) {
-            const fim = input.selectionStart;
-            input.value = input.value.slice(0, c.inicioParcial) + valor + input.value.slice(fim);
-            input.setSelectionRange(c.inicioParcial + valor.length, c.inicioParcial + valor.length);
+            input.value = input.value.slice(0, plano.inicio) + plano.inserir + input.value.slice(plano.fim);
             input.dispatchEvent(new Event('input', { bubbles: true }));
         }
+        input.setSelectionRange(plano.cursor, plano.cursor);
+        selecionado = -1;
         atualizar(input);
+    }
+    function marcarSelecionado() {
+        if (!caixa) return;
+        caixa.querySelectorAll('button.dp-val').forEach((b, i) => { b.classList.toggle('sel', i === selecionado); if (i === selecionado && b.scrollIntoView) b.scrollIntoView({ block: 'nearest' }); });
     }
 
     function desenhar(input, c, d) {
@@ -153,13 +199,18 @@
                 p.valores.forEach(v => {
                     if (!atual) { const t = doc.createElement('span'); t.className = 'dp-mask'; t.textContent = v; lin.appendChild(t); return; }      // só o parâmetro da posição atual insere valor
                     const b = doc.createElement('button'); b.type = 'button'; b.className = 'dp-val'; b.textContent = v;
-                    b.addEventListener('click', () => inserir(input, c, v)); lin.appendChild(b);
+                    b.addEventListener('click', () => inserir(input, c, v, d)); lin.appendChild(b);
                 });
-                if (p.mascaras.length) { const m = doc.createElement('span'); m.className = 'dp-mask'; m.title = '% = qualquer texto'; m.textContent = 'também: ' + p.mascaras.join('  '); lin.appendChild(m); }
+                const outras = p.mascaras.filter(m => !p.valores.includes(String(m).replace(/^%+|%+$/g, '')));            // as máscaras simples já viraram botões
+                if (outras.length) { const m = doc.createElement('span'); m.className = 'dp-mask'; m.title = '% = qualquer texto'; m.textContent = 'também: ' + outras.join('  '); lin.appendChild(m); }
                 caixa.appendChild(lin);
             });
-            const rod = doc.createElement('div'); rod.className = 'dp-rod'; rod.textContent = 'Clique num valor do parâmetro destacado para inserir · valores na ordem, separados por vírgula · Esc fecha'; caixa.appendChild(rod);
+            const rod = doc.createElement('div'); rod.className = 'dp-rod'; rod.textContent = '↑↓ escolher · Enter/Tab insere e vai ao próximo parâmetro · ou clique no valor · Esc fecha'; caixa.appendChild(rod);
         }
+        ctxVez = c; dicaVez = d; valoresVez = valoresDoAtual(c, d);
+        const chave = d.ativo + '|' + parametroAtual(c, d).i + '|' + (c.nomeParam || '');
+        if (chave !== chaveParam) { chaveParam = chave; selecionado = -1; }                // trocou de parâmetro: sem valor realçado
+        marcarSelecionado();
         const r = input.getBoundingClientRect();
         caixa.style.left = Math.max(4, Math.min(r.left, raiz.innerWidth - 300)) + 'px';
         caixa.style.top = (r.bottom + 3) + 'px';
@@ -184,6 +235,18 @@
 
     function iniciar(opcoes) {
         cfg = opcoes || {};
+        // TASK-149: teclado dentro dos parênteses (em captura e ANTES dos demais tratadores, que o consumido não pode alcançar)
+        doc.addEventListener('keydown', e => {
+            if (!caixa || !ehCampo(e.target) || e.isComposing || !dicaVez || dicaVez.tipo !== 'parametros' || !valoresVez.length) return;
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault(); e.stopImmediatePropagation();
+                selecionado = e.key === 'ArrowDown' ? Math.min(selecionado + 1, valoresVez.length - 1) : Math.max(selecionado - 1, 0);
+                marcarSelecionado();
+            } else if ((e.key === 'Enter' || e.key === 'Tab') && selecionado >= 0 && valoresVez[selecionado] != null && !e.shiftKey) {
+                e.preventDefault(); e.stopImmediatePropagation();
+                inserir(e.target, ctxVez, valoresVez[selecionado], dicaVez);
+            }
+        }, true);
         doc.addEventListener('input', e => { if (ehCampo(e.target)) atualizar(e.target); });
         doc.addEventListener('keyup', e => { if (ehCampo(e.target) && e.key !== 'Escape') atualizar(e.target); });
         doc.addEventListener('click', e => { if (ehCampo(e.target)) atualizar(e.target); });
