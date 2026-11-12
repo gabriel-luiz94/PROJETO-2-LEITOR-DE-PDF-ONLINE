@@ -72,5 +72,38 @@ namespace OrcamentoNanoCAD.Testes
             Construtor.ReaplicarAjustes(nova, o, Apoio.Pernambuco);
             Assert.DoesNotContain(nova.Avulsos, x => x.Manual && x.TextoHandle == v1.TextoHandle);
         }
+
+        // TASK-019: comprimento na linha de baixo vai para a linha do cabo, sem vírgula — também fora das layers de operação
+        private static List<TextoDesenho> Cabo(string layer, string cor, bool mtext, params string[] linhas)
+        {
+            List<TextoDesenho> l = new List<TextoDesenho>();
+            for (int k = 0; k < linhas.Length; k++)
+                l.Add(mtext ? new TextoDesenho { Handle = "M1", Parte = k, Tipo = "MTEXT", Texto = linhas[k], Layer = layer, Cor = cor, X = 0, Y = 10 }
+                            : new TextoDesenho { Handle = "T" + k, Texto = linhas[k], Layer = layer, Cor = cor, X = 0, Y = 10 - 2 * k });
+            return l;
+        }
+
+        [Theory]
+        [InlineData("01_INSTALANDO", "#000000", false)]
+        [InlineData("0", "#FFFFFF", false)]            // layer que não é de operação: as regras não classificam, mas o processamento junta
+        [InlineData("0", "#FFFFFF", true)]             // as duas linhas no mesmo MTEXT
+        [InlineData("ANOTACOES", "#FF0000", true)]
+        public void Comprimento_da_linha_de_baixo_entra_na_linha_do_cabo_sem_virgula(string layer, string cor, bool mtext)
+        {
+            Construtor.LeituraDeTexto r = Construtor.LerTextoParaLinha(Cabo(layer, cor, mtext, "3XA35P(7,94)-13,8KV", "35 M"), Apoio.Pernambuco);
+            Assert.Equal("3XA35P(7,94)-13,8KV 35 m", r.Ativo);
+            Assert.DoesNotContain(",  ", r.Ativo);
+            Assert.True(r.Cabo.Value);
+            TextoLido v = Construtor.LerAnotacao(Cabo(layer, cor, mtext, "3XA35P(7,94)-13,8KV", "35,5 m"), Apoio.Pernambuco, "CABO");    // "+ Vão"
+            Assert.Equal("3XA35P(7,94)-13,8KV 35,5 m", v.R.Ativo);
+        }
+
+        [Fact]
+        public void Linha_de_baixo_que_nao_e_comprimento_nao_entra_no_cabo()
+        {
+            Construtor.LeituraDeTexto r = Construtor.LerTextoParaLinha(Cabo("0", "#FFFFFF", false, "3XA35P(7,94)-13,8KV", "RUA DAS FLORES"), Apoio.Pernambuco);
+            Assert.DoesNotContain(" m", r.Ativo.Replace("RUA", ""));
+            Assert.StartsWith("3XA35P(7,94)-13,8KV", r.Ativo);
+        }
     }
 }
