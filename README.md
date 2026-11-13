@@ -1,6 +1,6 @@
-# GridR
+# OrçaCore
 
-> Desenvolvido por **Gabriel Sales** · (antes: "Leitor de Projetos Pro", "ReadGrid" e "GridReader")
+> Desenvolvido por **Gabriel Sales** · (antes: "Leitor de Projetos Pro", "ReadGrid", "GridReader" e "GridR")
 
 Sistema para leitura e análise de projetos de rede elétrica a partir de arquivos PDF e DXF, com orçamento automatizado, autenticação, sincronização offline-first com a nuvem e um assistente de IA integrado.
 

@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-13 — TASK-156: nome OrçaCore (logo mantido)
+
+- GridR → **OrçaCore** nas telas, janela, README e manuais; arquivos/pastas usam `OrcaCore` (sem acento): `OrcaCore.exe`, `%APPDATA%\OrcaCore\janela`. A Release publica `OrcaCore.exe` + cópias `GridR.exe`/`Leitor_Projetos.exe` (cada uma com `.sha256`) para as versões antigas se atualizarem; `auto_updater` aceita os três nomes. `"app": "GridReader"` do plugin do nanoCAD e o ícone não mudam; o código do plugin não foi tocado.
+
+---
+
 ## 2026-11-13 — TASK-155: botão Colar SAP (JSON do Atlas)
 
 - `GridRProjeto.interpretarSap`/`colarSap` (`static/projeto.js`): aceita só `atlas-projeto-rede` v1; `odiCodigo`/`oddCodigo` viram os IDs de investimento; `titulo`/`nota` viram nome e número do projeto. Botão em Novo/Propriedades do projeto, na caixinha do SAP e no relatório PDF (avisa se a nota difere do projeto).
