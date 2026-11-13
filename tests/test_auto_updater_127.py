@@ -202,13 +202,13 @@ def test_rota_check_desktop(monkeypatch):
 def test_rota_apply_ignora_a_url_do_corpo(monkeypatch):
     recebido = []
     monkeypatch.setattr("routers.update.APP_MODE", "desktop")
-    monkeypatch.setattr("routers.update.download_and_install_update", lambda *a: recebido.append(a) or True)
+    monkeypatch.setattr("routers.update.iniciar_atualizacao", lambda *a: recebido.append(a) or True)
     from middleware.auth_middleware import create_jwt_token
     c = TestClient(app_mod.app)
     h = {"Authorization": "Bearer " + create_jwt_token("u1", "a@x.com", "admin")}
     r = c.post("/api/update/apply", json={"download_url": "https://malicioso.exemplo/x.exe"}, headers=h)
     assert r.status_code == 200 and recebido == [()]
-    monkeypatch.setattr("routers.update.download_and_install_update", lambda *a: (_ for _ in ()).throw(RuntimeError("só no executável")))
+    monkeypatch.setattr("routers.update.iniciar_atualizacao", lambda *a: (_ for _ in ()).throw(RuntimeError("só no executável")))
     r = c.post("/api/update/apply", json={}, headers=h)
     assert r.status_code == 400 and "só no executável" in r.json()["detail"]
 

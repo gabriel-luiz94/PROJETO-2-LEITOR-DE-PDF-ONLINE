@@ -10,26 +10,63 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('update-notes').textContent = d.release_notes || '';
                     notif.classList.remove('hidden');
                     
-                    document.getElementById('btn-apply-update').onclick = () => {
-                        document.getElementById('btn-apply-update').textContent = 'Baixando...';
+                    // TASK-159: o servidor baixa em segundo plano; aqui aparece a barra de progresso e o botão Cancelar
+                    const $ = id => document.getElementById(id);
+                    const btnInstalar = $('btn-apply-update'), btnCancelar = $('btn-cancel-update'), caixa = $('update-progress'), barra = $('update-bar'), texto = $('update-progress-text');
+                    const mb = n => (n / 1048576).toFixed(n >= 104857600 ? 0 : 1).replace('.', ',') + ' MB';
+                    let acompanhando = null, tinhaProgresso = false;
+                    function mostrar(msg, pct) {
+                        caixa.style.display = 'block'; texto.textContent = msg;
+                        barra.style.width = (pct == null ? 8 : Math.max(2, Math.min(100, pct))) + '%';
+                    }
+                    function restaurar(msg) {
+                        clearInterval(acompanhando); acompanhando = null;
+                        btnInstalar.disabled = false; btnInstalar.textContent = 'Instalar e Reiniciar'; btnCancelar.style.display = 'none'; btnCancelar.disabled = false; btnCancelar.textContent = 'Cancelar';
+                        if (msg) { caixa.style.display = 'block'; barra.style.width = '0'; texto.textContent = msg; } else caixa.style.display = 'none';
+                    }
+                    function aplicarStatus(s) {
+                        if (s.fase === 'verificando') { mostrar('Verificando a atualização…', null); }
+                        else if (s.fase === 'baixando') {
+                            tinhaProgresso = true;
+                            mostrar(s.percentual != null ? `Baixando… ${String(s.percentual).replace('.', ',')}% (${mb(s.baixado)} de ${mb(s.total)})` : `Baixando… ${mb(s.baixado)}`, s.percentual);
+                        }
+                        else if (s.fase === 'conferindo') { mostrar('Conferindo a integridade do arquivo (SHA-256)…', 100); btnCancelar.style.display = 'none'; }
+                        else if (s.fase === 'pronto') {
+                            clearInterval(acompanhando); acompanhando = null; btnCancelar.style.display = 'none'; btnInstalar.textContent = 'Reiniciando...';
+                            mostrar('Atualização baixada. O programa vai fechar e abrir na versão nova.', 100);
+                            setTimeout(() => window.location.reload(), 8000);
+                        }
+                        else if (s.fase === 'cancelado') { restaurar('Atualização cancelada. Nada foi alterado no programa.'); }
+                        else if (s.fase === 'erro') { restaurar(null); alert('Erro: ' + (s.erro || 'Desconhecido')); }
+                    }
+                    function acompanhar() {
+                        btnInstalar.disabled = true; btnInstalar.textContent = 'Baixando...'; btnCancelar.style.display = ''; mostrar('Iniciando…', null);
+                        clearInterval(acompanhando);
+                        acompanhando = setInterval(() => {
+                            fetch('/api/update/status').then(r => r.json()).then(aplicarStatus).catch(() => { /* o programa pode estar fechando para trocar o .exe */ });
+                        }, 700);
+                    }
+                    btnInstalar.onclick = () => {
+                        btnInstalar.disabled = true; btnInstalar.textContent = 'Baixando...'; tinhaProgresso = false;
                         fetch('/api/update/apply', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ download_url: d.download_url })
                         }).then(async r => {
-                            const res = await r.json();
-                            if (r.ok) {
-                                document.getElementById('btn-apply-update').textContent = 'Reiniciando...';
-                                setTimeout(() => window.location.reload(), 3000); // Tenta recarregar após um tempo
-                            } else {
-                                alert('Erro: ' + (res.detail || 'Desconhecido'));
-                                document.getElementById('btn-apply-update').textContent = 'Instalar e Reiniciar';
-                            }
+                            const res = await r.json().catch(() => ({}));
+                            if (r.ok) acompanhar();
+                            else { alert('Erro: ' + (res.detail || 'Desconhecido')); restaurar(null); }
                         }).catch(e => {
                             alert('Erro de conexão ao atualizar.');
-                            document.getElementById('btn-apply-update').textContent = 'Instalar e Reiniciar';
+                            restaurar(null);
                         });
                     };
+                    btnCancelar.onclick = () => {
+                        btnCancelar.disabled = true; btnCancelar.textContent = 'Cancelando…'; texto.textContent = 'Cancelando…';
+                        fetch('/api/update/cancel', { method: 'POST' }).catch(() => {});
+                    };
+                    // se a página foi recarregada no meio da atualização, volta a mostrar o andamento
+                    fetch('/api/update/status').then(r => r.json()).then(s => { if (['verificando', 'baixando', 'conferindo'].includes(s.fase)) { acompanhar(); aplicarStatus(s); } }).catch(() => {});
                 }
             }
         })

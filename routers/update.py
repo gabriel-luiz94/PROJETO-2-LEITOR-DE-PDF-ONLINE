@@ -7,7 +7,7 @@ A rota /apply (POST) é usada pelo cliente desktop para baixar e instalar a nova
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from config import APP_VERSION, APP_MODE
-from services.auto_updater import check_for_updates, download_and_install_update
+from services.auto_updater import cancelar_atualizacao, check_for_updates, estado_atualizacao, iniciar_atualizacao
 
 router = APIRouter(prefix="/api/update", tags=["update"])
 
@@ -53,14 +53,27 @@ def check_update():
 
 @router.post("/apply")
 def apply_update(req: UpdateRequest):
-    """(Apenas Desktop) Baixa a Release mais recente do GitHub (conferindo o SHA-256) e reinicia o app. O corpo do pedido não decide o que é baixado."""
+    """(Apenas Desktop) Começa a baixar a Release mais recente do GitHub em segundo plano (conferindo o SHA-256) e reiniciar o app. O corpo do pedido não decide
+    o que é baixado. A resposta é imediata; o andamento vem de GET /status e dá para cancelar em POST /cancel (TASK-159)."""
     if APP_MODE == "server":
         raise HTTPException(status_code=400, detail="Esta rota só funciona no cliente Desktop.")
 
     try:
-        download_and_install_update()
-        return {"status": "ok", "msg": "Atualização baixada. O aplicativo será reiniciado."}
+        iniciar_atualizacao()
+        return {"status": "iniciada", "msg": "Atualização iniciada."}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao aplicar atualização: {e}")
+
+
+@router.get("/status")
+def status_update():
+    """Andamento da atualização: fase (ocioso | verificando | baixando | conferindo | pronto | cancelado | erro), bytes baixados, total e percentual."""
+    return estado_atualizacao()
+
+
+@router.post("/cancel")
+def cancelar_update():
+    """Cancela a atualização em andamento (o .exe atual não é tocado e o arquivo parcial é apagado)."""
+    return {"cancelado": cancelar_atualizacao()}
