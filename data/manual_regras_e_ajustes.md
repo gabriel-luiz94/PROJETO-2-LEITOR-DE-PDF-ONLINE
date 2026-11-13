@@ -715,7 +715,7 @@ No programa instalado (janela própria, fora do navegador) os botões de baixar 
 
 ## Base de Orçamento: pesquisa e ficha do ativo (TASK-146)
 
-Na tela **Base de Orçamento**, **Ctrl+K** abre a pesquisa: digite parte do ativo, do apelido, do código ou da descrição, use ↑/↓ e **Enter** para abrir a **ficha do ativo**. A ficha mostra: **Itens** (comuns e por parâmetro, com os códigos clicáveis e, ao lado, onde cada código é usado), **Parâmetros e variantes** (padrões e máscaras usadas), **Chama / É chamado por** (links para as fichas dos outros ativos) e **Simulador** (digite `ATIVO(parâmetros)` e veja os códigos e quantidades, calculados com a base já salva). Na lateral, as **verificações** apontam: chamada a ativo que não existe, código sem descrição, código com descrições diferentes em ativos diferentes e ativo sem itens. **Ctrl+clique** numa célula ATIVO ou CÓDIGO da tabela abre a ficha/o uso do código; **Ir para a tabela** destaca a linha do ativo. A ficha mostra as edições da tela mesmo antes de salvar. A **Consulta Rápida** (canto da tela) usa a mesma pesquisa.
+Na tela **Base de Orçamento**, a **barra de pesquisa fixa no topo** (atalho **Ctrl+K**, que leva o cursor para ela) procura ativos e códigos: digite parte do ativo, do apelido, do código ou da descrição, use ↑/↓ e **Enter** para abrir a **ficha do ativo**. A ficha mostra: **Itens** (comuns e por parâmetro, com os códigos clicáveis e, ao lado, onde cada código é usado), **Parâmetros e variantes** (padrões e máscaras usadas), **Chama / É chamado por** (links para as fichas dos outros ativos) e **Simulador** (digite `ATIVO(parâmetros)` e veja os códigos e quantidades, calculados com a base já salva). Na lateral, as **verificações** apontam: chamada a ativo que não existe, código sem descrição, código com descrições diferentes em ativos diferentes e ativo sem itens. **Ctrl+clique** numa célula ATIVO ou CÓDIGO da tabela abre a ficha/o uso do código; **Ir para a tabela** destaca a linha do ativo. A ficha mostra as edições da tela mesmo antes de salvar. A **Consulta Rápida** (canto da tela) usa a mesma pesquisa.
 
 ## Base de Orçamento: cadastro rápido de ativos (TASK-147)
 
@@ -776,4 +776,8 @@ Ao clicar em **Instalar e Reiniciar** no aviso de atualização, aparece uma **b
 ## Relatório SAP em PDF único (TASK-161)
 
 O botão **Relatórios PDF** do Resultado agora gera **um PDF só**, `NOTA_<nº>_ODI_ODD.pdf`: o ODI primeiro e o ODD depois, cada um começando em página nova com o cabeçalho (se só um deles tiver itens, o arquivo leva só ele: `NOTA_<nº>_ODI.pdf` ou `_ODD.pdf`). Como no relatório do ICP, as páginas de continuação não repetem o cabeçalho nem a linha verde, a primeira página comporta 48 linhas e as quantidades saem sempre com duas casas. A ordem é a da visão SAP (material antes de mão de obra, por código).
+
+## Base de Orçamento: barra de pesquisa fixa (TASK-162)
+
+A pesquisa da Base de Orçamento agora é uma **barra fixa no topo da tela** (ela acompanha a rolagem). **Ctrl+K** leva o cursor para ela de qualquer lugar da tela. Os resultados aparecem logo abaixo da barra: ↑/↓ escolhem, **Enter** abre a ficha do ativo (ou o uso do código), **Esc** fecha a lista e o **✕** limpa o texto. O painel flutuante "Consulta Rápida" foi removido: a barra o substitui.
 

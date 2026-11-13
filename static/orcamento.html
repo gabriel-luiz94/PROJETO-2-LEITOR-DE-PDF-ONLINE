@@ -325,39 +325,6 @@
             color: var(--btn-danger-color);
         }
 
-        /* Quick Search Floater */
-        #quick-search {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: var(--bg-surface);
-            border: 1px solid var(--border-default);
-            padding: 14px;
-            border-radius: 6px;
-            width: 340px;
-            max-width: 90vw;
-            backdrop-filter: blur(8px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-            z-index: 100;
-        }
-
-        #qs-input {
-            width: 100%;
-            padding: 6px 9px;
-            border-radius: 5px;
-            border: 1px solid var(--border-default);
-            background-color: var(--bg-canvas);
-            color: #fff;
-            margin-bottom: 8px;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.8rem;
-            outline: none;
-            box-sizing: border-box;
-        }
-        #qs-input:focus {
-            border-color: var(--btn-neutral-hover-border);
-        }
-
         #toast {
             position: fixed;
             bottom: 20px;
@@ -391,17 +358,14 @@
                 width: 100%;
                 justify-content: flex-start;
             }
-            #quick-search {
-                bottom: 10px;
-                right: 10px;
-                width: calc(100vw - 20px);
-            }
         }
     </style>
 <script>/* TASK-128: dentro da moldura do programa o Voltar fecha a moldura; fora dela volta ao início */function voltarOuFechar(){ if (window.self !== window.top) window.parent.postMessage({ tipo: 'fechar-tela-app' }, location.origin); else window.location.href = '/'; }</script>
 </head>
 <body data-rodape="esquerda">
     <div class="container-base">
+        <!-- TASK-162: barra de pesquisa FIXA no topo (substitui o painel flutuante de consulta e o pop-up do Ctrl+K; Ctrl+K leva o cursor para ela) -->
+        <div id="barra-pesquisa" role="search"></div>
         <header class="page-header-card">
             <div class="header-title-group">
                 <button class="btn-nav-back" onclick="voltarOuFechar()" title="Voltar">
@@ -508,17 +472,6 @@
                 </table>
             </div>
         </main>
-    </div>
-
-    <div id="quick-search">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-            <h4 style="margin:0; color:var(--text-primary); font-size:0.84rem; font-weight:600;">Consulta Rápida</h4>
-            <span style="font-size:0.72rem; color:var(--text-secondary);">Ctrl+K: pesquisa completa</span>
-        </div>
-        <input type="text" id="qs-input" placeholder="Ativo, apelido, código ou descrição..." onkeyup="quickSearch()">
-        <div id="qs-result" style="font-size: 0.78rem; color: var(--text-secondary); max-height: 160px; overflow-y: auto;">
-            <span>Os resultados aparecerão aqui.</span>
-        </div>
     </div>
 
     <div id="toast"></div>
@@ -1043,28 +996,6 @@
             });
         }
 
-        /* TASK-146: a Consulta Rápida usa a mesma pesquisa da ficha (Ctrl+K); clicar num resultado abre a ficha do ativo ou o uso do código */
-        async function quickSearch() {
-            const query = document.getElementById('qs-input').value.trim();
-            const resDiv = document.getElementById('qs-result');
-            if (!query) { resDiv.innerHTML = '<span style="color:var(--text-secondary)">Os resultados aparecerão aqui. <b>Ctrl+K</b> abre a pesquisa completa.</span>'; return; }
-            const achados = await BaseFicha.pesquisaRapida(query, 6);
-            if (document.getElementById('qs-input').value.trim() !== query) return;      // a digitação seguiu em frente
-            if (!achados.length) { resDiv.innerHTML = '<span style="color:var(--btn-danger-color)">Nenhum resultado encontrado.</span>'; return; }
-            resDiv.innerHTML = '';
-            achados.forEach(r => {
-                const d = document.createElement('div');
-                d.style.cssText = 'border-bottom:1px solid var(--border-muted); padding:5px 0; cursor:pointer;';
-                const t = document.createElement('strong'); t.style.color = 'var(--text-primary)';
-                t.textContent = r.tipo === 'ativo' ? r.nome : 'CÓD ' + r.codigo;
-                const x = document.createElement('div'); x.style.cssText = 'font-size:0.74rem; color:var(--text-secondary);';
-                x.textContent = r.tipo === 'ativo' ? `${r.via ? 'apelido ' + r.via + ' · ' : ''}${r.linhas} linhas · ${r.codigos} códigos` : `${r.descricao} · usado em ${r.em.join(', ')}`;
-                d.append(t, x);
-                d.onclick = () => (r.tipo === 'ativo' ? BaseFicha.abrirFicha(r.nome) : BaseFicha.abrirCodigo(r.codigo));
-                resDiv.appendChild(d);
-            });
-        }
-
         tbody.addEventListener('paste', function(e) {
             e.preventDefault();
             const text = (e.originalEvent || e).clipboardData.getData('text/plain');
@@ -1101,7 +1032,7 @@
         BaseGrade.iniciar({ tbody });
         const ehAdmin = () => localStorage.getItem('is_admin') === 'true';
         const recarregarBase = async () => { BaseFicha.invalidar(); await carregarDados(); };
-        BaseFicha.iniciar({ tbody, projeto: () => projetoAtual, visao: () => visaoAtual, admin: ehAdmin, recarregar: recarregarBase });
+        BaseFicha.iniciar({ tbody, barra: document.getElementById('barra-pesquisa'), projeto: () => projetoAtual, visao: () => visaoAtual, admin: ehAdmin, recarregar: recarregarBase });
         // TASK-147: cadastro rápido — as linhas geradas entram no fim da tabela do projeto (depois: Salvar Alterações / Sincronizar)
         BaseCadastro.iniciar({
             projeto: () => projetoAtual,
@@ -1114,7 +1045,7 @@
                 if (primeira) { primeira.scrollIntoView({ block: 'center' }); primeira.classList.add('bf-flash'); setTimeout(() => primeira.classList.remove('bf-flash'), 1800); }
                 showToast(`${linhas.length} linha(s) adicionada(s) no fim da tabela. Revise e use "Salvar Alterações" (e "Sincronizar" para a nuvem).`);
             }
-        });      // TASK-146: Ctrl+K e Ctrl+clique
+        });      // TASK-146/162: Ctrl+K foca a barra de pesquisa; Ctrl+clique abre a ficha
     </script>
     <script src="/static/marca.js?v=1"></script>
 </body>
