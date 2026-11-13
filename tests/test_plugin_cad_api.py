@@ -102,9 +102,9 @@ def test_conferir_ignora_campos_estranhos_e_limita_tamanho(client):
     assert client.post("/api/plugin/conferir", json={"projeto": "081", "dados": grande}, headers=cab()).status_code == 413
 
 
-# ── TASK-106 → TASK-162: o plugin NÃO grava mais a obra no banco ──────────────
+# ── TASK-106 → TASK-163: o plugin NÃO grava mais a obra no banco ──────────────
 def test_plugin_nao_grava_mais_a_obra_no_banco(client):
-    """O POST /api/plugin/obra (TASK-106) foi removido: a obra do desenho é o projeto <desenho>.obra aberto no OrçaCore (TASK-162)."""
+    """O POST /api/plugin/obra (TASK-106) foi removido: a obra do desenho é o projeto <desenho>.obra aberto no OrçaCore (TASK-163)."""
     r = client.post("/api/plugin/obra", json={"chave": r"C:\Projetos\Rua.dwg", "envelope": EXEMPLO}, headers=cab("u1"))
     assert r.status_code in (404, 405)
     assert client.get("/api/obras?projeto=081", headers=cab("u1")).json() == []

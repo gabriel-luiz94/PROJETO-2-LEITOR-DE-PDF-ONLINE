@@ -1,4 +1,4 @@
-// Nucleo/ProjetoArquivo.cs — o PROJETO DE TRABALHO do OrçaCore (TASK-020 do plugin / TASK-162 do principal).
+// Nucleo/ProjetoArquivo.cs — o PROJETO DE TRABALHO do OrçaCore (TASK-020 do plugin / TASK-163 do principal).
 // O Salvar do plugin grava "<desenho>.obra" na pasta do desenho: o mesmo envelope do .obra.json (dados + cad) mais o bloco
 // "projeto_trabalho" {nome, numero_obra, sap, resultado, salvo_em} do programa. O OrçaCore abre esse arquivo em 📁 Projeto → Abrir e, ao
 // gravar, PRESERVA a seção "cad" (services/projeto_obra.py). Divisão: linhas (dados) e cad = o desenho (plugin); SAP e resultado = o

@@ -1,4 +1,4 @@
-"""TASK-162 — integração do plugin do nanoCAD com o PROJETO DE TRABALHO (.obra): o plugin grava `<desenho>.obra` (com a seção `cad`) e o
+"""TASK-163 — integração do plugin do nanoCAD com o PROJETO DE TRABALHO (.obra): o plugin grava `<desenho>.obra` (com a seção `cad`) e o
 OrçaCore abre esse projeto; gravar no programa preserva a `cad`; nada vai para o banco."""
 import json
 from pathlib import Path

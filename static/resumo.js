@@ -6297,7 +6297,7 @@ window.handleTotPaste = function(e, index) {
 
     /* TASK-106: aberto pelo plugin do nanoCAD ("Abrir na aplicação"): /resumo?obra=<id>&projeto=<código>&projeto_nome=<nome>.
        Seleciona o projeto, carrega a obra nas tabelas (como "Carregar") e tira os parâmetros da barra (F5 não recarrega por cima). */
-    /* TASK-162: projeto entregue pelo plugin do nanoCAD (/resumo?plugin_pendente=<id>). O plugin grava o projeto de trabalho `<desenho>.obra`
+    /* TASK-163: projeto entregue pelo plugin do nanoCAD (/resumo?plugin_pendente=<id>). O plugin grava o projeto de trabalho `<desenho>.obra`
        na pasta do desenho e entrega o CAMINHO; aqui ele é aberto como em 📁 Projeto → Abrir (static/projeto.js: abrirDoPlugin). Nada vai para o banco.
        Plugin antigo (só a obra, sem caminho): as linhas aparecem na tela, sem gravar no banco. */
     (async function receberObraDoPlugin() {

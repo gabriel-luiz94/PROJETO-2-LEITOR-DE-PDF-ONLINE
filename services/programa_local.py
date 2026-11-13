@@ -9,7 +9,7 @@ Antes, "Abrir na aplicação" abria uma aba no navegador. Agora:
   * Programa FECHADO: ao abrir, o .exe registra onde está e em que porta (%APPDATA%\\OrcamentoNanoCAD\\programa.json). O plugin grava a obra
     num arquivo e abre o .exe com "--abrir-obra <arquivo>"; a janela começa no login e, depois de entrar, abre a obra.
 
-TASK-162 (integração com o PROJETO DE TRABALHO): o plugin grava o projeto `<desenho>.obra` na pasta do desenho e entrega só o CAMINHO
+TASK-163 (integração com o PROJETO DE TRABALHO): o plugin grava o projeto `<desenho>.obra` na pasta do desenho e entrega só o CAMINHO
 (POST /api/plugin/receber {chave, caminho} · ou "--abrir-projeto <caminho>" com o programa fechado). A janela abre esse projeto pelo
 mesmo caminho do menu 📁 Projeto → Abrir (Abrir/Mesclar/Sobrescrever); nada é gravado no banco.
 """

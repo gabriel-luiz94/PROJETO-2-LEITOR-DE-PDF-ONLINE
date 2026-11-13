@@ -92,7 +92,7 @@ namespace OrcamentoNanoCAD.Testes
         [Fact]
         public void Exemplo_de_projeto_versionado_esta_em_dia()
         {
-            // o mesmo arquivo é aberto pelo OrçaCore nos testes da aplicação (tests/test_plugin_projeto_162.py)
+            // o mesmo arquivo é aberto pelo OrçaCore nos testes da aplicação (tests/test_plugin_projeto_163.py)
             string caminho = Path.Combine(Apoio.Plugin, "exemplos", "Projeto_Rua_das_Flores.obra");
             Obra o = Ler();
             o.SalvoEm = "31/10/2026 09:00";

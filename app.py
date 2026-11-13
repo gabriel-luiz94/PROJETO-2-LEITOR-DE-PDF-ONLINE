@@ -524,7 +524,7 @@ if __name__ == "__main__":
         programa_local.registrar(port, APP_VERSION)
         _arquivo_obra = programa_local.ler_argumento(sys.argv[1:])
         _id_obra = ""
-        _projeto_cad = programa_local.ler_argumento_projeto(sys.argv[1:])      # TASK-162: o projeto <desenho>.obra gravado pelo plugin
+        _projeto_cad = programa_local.ler_argumento_projeto(sys.argv[1:])      # TASK-163: o projeto <desenho>.obra gravado pelo plugin
         if _projeto_cad:
             _caminho_cad, _codigo_cad, _erro_cad = programa_local.validar_projeto(_projeto_cad)
             if _erro_cad:

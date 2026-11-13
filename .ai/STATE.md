@@ -144,6 +144,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
       aparece na Totalizadora (diferente de `CABOS`/`OUTROS`, que sempre mantêm o item original).
       Ver `.ai/tasks/TASK-034-02-10-2026.md`.
 
+- [x] Barra de pesquisa fixa na Base de Orçamento (TASK-162, 2026-11-13): Ctrl+K foca a barra do topo; saíram o pop-up e a Consulta Rápida. Ver `.ai/tasks/TASK-162-13-11-2026.md`.
 - [x] Relatório SAP no formato do ICP (TASK-161, 2026-11-13): PDF único com ODI e ODD, continuação sem cabeçalho, 48 linhas na 1ª página. Ver `.ai/tasks/TASK-161-13-11-2026.md`.
 - [x] Etiqueta com estado do automático + fim do alarme falso + leitor de PDF com ODI e ODD juntos (TASK-160, 2026-11-13). O formato de saída no padrão do ICP saiu na TASK-161. Ver `.ai/tasks/TASK-160-13-11-2026.md`.
 - [x] Atualização automática com progresso e Cancelar (TASK-159, 2026-11-13): download em segundo plano, `/api/update/status` e `/api/update/cancel`, barra com MB/percentual na tela inicial. Ver `.ai/tasks/TASK-159-13-11-2026.md`.
@@ -178,7 +179,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 - [x] "Abrir na aplicação" (TASK-106): `POST /api/plugin/obra` + Resumo abre `/resumo?obra=…` + login volta ao link (`?next=`)
 - [x] Atualização automática do plugin (TASK-130): `/api/plugin/atualizacao` (+ `/arquivo`), públicas, DLL do repositório conferida pelo SHA-256
 - [x] O programa traz o plugin (TASK-131): instala nanoCAD 26 e 5 em `%APPDATA%\OrcamentoNanoCAD\plugin`, botão "Plugin nanoCAD"; projetos e configuração de leitura do plugin guardados na aplicação (`plugin_leitura_config`)
-- [x] Plugin integrado ao projeto de trabalho (TASK-162): o plugin grava `<desenho>.obra`, o OrçaCore abre/preserva a `cad`; sem gravação no banco
+- [x] Plugin integrado ao projeto de trabalho (TASK-163): o plugin grava `<desenho>.obra`, o OrçaCore abre/preserva a `cad`; sem gravação no banco
 - [ ] Modo autônomo achar o `.obra.json` e gravar o resultado na pasta do desenho (plugin RQ-40/41)
 
 ---

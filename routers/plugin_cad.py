@@ -10,7 +10,7 @@ regras GRAVADAS AQUI e a conferir a obra contra a Base de Orçamento, sem repeti
     POST /api/plugin/conferir              {"projeto", "dados": {"cabos", "outros"}} (as linhas do .obra.json) → para cada linha, os
                                            ativos que a Totalizadora gera e se cada um existe na Base de Orçamento do projeto
                                            (mesmo caminho do modo autônomo: montar_totalizadora → processar_calculo, RN-06).
-    (TASK-162: o POST /api/plugin/obra, que gravava a obra do plugin no banco, foi removido — ver /api/plugin/receber.)
+    (TASK-163: o POST /api/plugin/obra, que gravava a obra do plugin no banco, foi removido — ver /api/plugin/receber.)
 
     GET  /api/plugin/projetos              (TASK-131) projetos cadastrados (o plugin lista todos na tela inicial).
     GET  /api/plugin/leitura?projeto=081   (TASK-131) configuração de LEITURA do desenho do projeto (layers da rede, blocos de poste,
@@ -19,7 +19,7 @@ regras GRAVADAS AQUI e a conferir a obra contra a Base de Orçamento, sem repeti
                                            apelidos e os parâmetros de cada ativo (mesma lógica da dica da aplicação, services/ativo_parametros).
     GET  /api/plugin/desktop               (TASK-143, pública) "sou o OrçaCore (antes GridReader) instalado neste computador?"
     POST /api/plugin/receber               (TASK-143, pública, só 127.0.0.1 e só no programa instalado) o plugin entrega o PROJETO
-                                           {chave, caminho: "<desenho>.obra"} (TASK-162; plugin antigo: {chave, envelope}); a janela vem para a frente
+                                           {chave, caminho: "<desenho>.obra"} (TASK-163; plugin antigo: {chave, envelope}); a janela vem para a frente
                                            em /resumo?plugin_pendente=<id> e abre o projeto · GET /api/plugin/pendente/<id> (login) o devolve.
     GET  /api/plugin/instalacao            (TASK-131) o programa traz o plugin: versão trazida × instalada e caminho para o APPLOAD
     POST /api/plugin/instalacao            (desktop) instalar/atualizar agora · POST /api/plugin/instalacao/abrir-pasta (desktop)
@@ -290,7 +290,7 @@ def conferir(payload: ConferirPayload, request: Request):
     return resposta
 
 
-# TASK-162: o antigo POST /api/plugin/obra (TASK-106: o plugin gravava a obra no BANCO como obra particular) foi REMOVIDO. A obra do desenho
+# TASK-163: o antigo POST /api/plugin/obra (TASK-106: o plugin gravava a obra no BANCO como obra particular) foi REMOVIDO. A obra do desenho
 # agora é o projeto de trabalho `<desenho>.obra` na pasta do desenho, aberto no OrçaCore deste computador (POST /api/plugin/receber).
 
 
@@ -403,7 +403,7 @@ def desktop():
 
 class ReceberPayload(BaseModel):
     chave: str = ""
-    caminho: Optional[str] = None                 # TASK-162: o projeto `<desenho>.obra` que o plugin gravou
+    caminho: Optional[str] = None                 # TASK-163: o projeto `<desenho>.obra` que o plugin gravou
     envelope: Optional[Dict[str, Any]] = None     # plugin antigo (até 0.9.x): a obra inteira — só aparece na tela, sem gravar no banco
 
 

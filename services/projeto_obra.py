@@ -5,7 +5,7 @@ O `.obra` é o mesmo envelope do `.obra.json` (formato "leitor-obra", versão 1:
 mais o bloco `projeto_trabalho` com o que só existe quando se trabalha dentro de um projeto:
     {"nome": "...", "numero_obra": "...", "sap": {bairro, municipio, utd, ...}, "resultado": {"assinatura": "...", "linhas": [...]}, "salvo_em": "..."}
 Um `.obra`/`.obra.json` ANTIGO (sem esse bloco) abre normalmente: o nome vem do envelope e o resto fica vazio.
-TASK-162: o plugin do nanoCAD grava o MESMO arquivo (`<desenho>.obra`, na pasta do desenho) com a seção `cad` (a obra dele: geometria,
+TASK-163: o plugin do nanoCAD grava o MESMO arquivo (`<desenho>.obra`, na pasta do desenho) com a seção `cad` (a obra dele: geometria,
 vínculos, ajustes). Este programa não usa a `cad`, mas a PRESERVA ao gravar — senão o plugin perderia a obra dele.
 Programas antigos abrem o `.obra` novo como uma obra comum (ignoram o bloco extra).
 Tudo que vem de arquivo é tratado como não confiável (tamanho, tipos, campos). Não registrar o conteúdo em log.
@@ -102,7 +102,7 @@ def montar(parcial: dict, existente: dict = None, projeto_codigo: str = "") -> s
         trabalho["resultado"] = resultado
     envelope = {"formato": obras_arquivo.FORMATO, "versao": obras_arquivo.VERSAO, "exportado_em": trabalho["salvo_em"], "tipo": "obra",
                 "nome": nome, "projeto": codigo, "dados": dados, "projeto_trabalho": trabalho}
-    if isinstance(existente.get("cad"), dict):                 # TASK-162: a obra do plugin do nanoCAD fica como está
+    if isinstance(existente.get("cad"), dict):                 # TASK-163: a obra do plugin do nanoCAD fica como está
         envelope["cad"] = existente["cad"]
     texto = json.dumps(envelope, ensure_ascii=False, separators=(",", ":"))
     if len(texto.encode("utf-8")) > LIMITE_BYTES:

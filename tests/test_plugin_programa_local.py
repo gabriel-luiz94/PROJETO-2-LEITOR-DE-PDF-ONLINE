@@ -48,7 +48,7 @@ def test_plugin_antigo_so_com_a_obra_ainda_e_recebido_sem_gravar_no_banco(client
     assert client.get(f"/api/plugin/pendente/{i}").status_code == 401                                 # a janela busca com login
     d = client.get(f"/api/plugin/pendente/{i}", headers=cab()).json()
     assert d["chave"] == "C:/obras/rua.dwg" and d["envelope"]["tipo"] == "obra"
-    assert client.get("/api/obras?projeto=081", headers=cab()).json() == []                           # TASK-162: nada no banco
+    assert client.get("/api/obras?projeto=081", headers=cab()).json() == []                           # TASK-163: nada no banco
 
 
 def test_so_no_programa_instalado_e_so_do_proprio_computador(client, monkeypatch):

@@ -17,7 +17,7 @@
   projeto fica na pasta do desenho.
 - Nome: **OrçaCore para nanoCAD** (o programa mudou de nome na TASK-156 do principal).
 - Testes: `ProjetoArquivoTests` (6), `ProgramaLocalTests` (+1); exemplo `exemplos/Projeto_Rua_das_Flores.obra` aberto pela aplicação
-  (`tests/test_plugin_projeto_162.py`).
+  (`tests/test_plugin_projeto_163.py`).
 
 ---
 

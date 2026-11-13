@@ -1,5 +1,5 @@
 /*
- * base_ficha_ui.js (TASK-146) — pesquisa (Ctrl+K) e FICHA DO ATIVO na tela da Base de Orçamento: mostra tudo do ativo (itens, parâmetros e variantes,
+ * base_ficha_ui.js (TASK-146) — barra de pesquisa fixa no topo (Ctrl+K foca nela) e FICHA DO ATIVO na tela da Base de Orçamento: mostra tudo do ativo (itens, parâmetros e variantes,
  * quem ele chama / quem o chama, verificações, simulador) e navega entre ativos (Ctrl+clique no ATIVO/CÓDIGO da tabela, links dentro da ficha).
  * Lê a base inteira do servidor e troca a fatia visível na tela pelas linhas da tela (edições ainda não salvas aparecem). Só leitura: editar continua na tabela.
  */
@@ -27,6 +27,12 @@
     .bf-in{background:var(--bg-canvas,#090d12);border:1px solid var(--border-default,#262e3d);color:var(--text-primary,#e6edf3);border-radius:6px;padding:8px 12px;font:inherit;width:100%;box-sizing:border-box}
     .bf-res{padding:7px 12px;display:flex;gap:8px;align-items:center;cursor:pointer}.bf-res.a,.bf-res:hover{background:var(--bg-hover,#242c3d)}
     .bf-ok{color:#7ee787}.bf-av{color:#e3b341}.bf-er{color:#ff938a}
+    .bf-bar{position:sticky;top:0;z-index:8500;background:var(--bg-surface,#12171f);border:1px solid var(--border-default,#262e3d);border-radius:8px;box-shadow:0 4px 14px #0006}
+    .bf-bar:focus-within{border-color:#d97706}.bf-bar-in{display:flex;align-items:center;gap:10px;padding:5px 12px}.bf-bar-ic{opacity:.75;font-size:14px}
+    .bf-bar-inp{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--text-primary,#e6edf3);font:inherit;font-size:14px;padding:7px 0}.bf-bar-inp::placeholder{color:var(--text-secondary,#919bb0)}
+    .bf-bar-k{font:11px Consolas,monospace;color:var(--text-secondary,#919bb0);border:1px solid var(--border-default,#262e3d);border-radius:4px;padding:1px 6px;background:var(--bg-subtle,#1a202c)}
+    .bf-bar-x{background:transparent;border:0;color:var(--text-secondary,#919bb0);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px}.bf-bar-x:hover{color:var(--text-primary,#e6edf3);background:var(--bg-hover,#242c3d)}
+    .bf-drop{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--bg-surface,#12171f);border:1px solid var(--border-default,#262e3d);border-radius:8px;max-height:min(60vh,520px);overflow:auto;box-shadow:0 14px 40px #000a}
     .bf-flash td{animation:bfpisca 1.6s ease-out}@keyframes bfpisca{0%,40%{background:#3b2a0a}100%{background:transparent}}`;
     function estilo() { if (doc.getElementById('bf-css')) return; const s = doc.createElement('style'); s.id = 'bf-css'; s.textContent = css; doc.head.appendChild(s); }
 
@@ -61,7 +67,6 @@
         return modeloAtual;
     }
     function invalidar() { baseCache = null; }
-    async function pesquisaRapida(consulta, limite) { const m = await modelo(); return D.pesquisar(m, consulta, limite || 8); }
 
     /* ───────── janela ───────── */
     function limparJanelas() { doc.querySelectorAll('.bf-ov').forEach(o => o.remove()); doc.removeEventListener('keydown', aoTeclar, true); }
@@ -75,39 +80,50 @@
         return md;
     }
 
-    /* ───────── pesquisa (Ctrl+K) ───────── */
-    async function abrirPesquisa(consulta) {
-        const m = await modelo();
-        pilha = [];
-        const md = janela('min(680px,94vw)', '60px'); md.style.maxHeight = '78vh';
-        const inp = el('input', { class: 'bf-in', placeholder: 'Pesquisar ativo, apelido, código ou descrição…', style: 'font-size:15px;padding:11px 14px;border-radius:8px 8px 0 0;border-width:0 0 1px 0' });
-        const dica = el('div', { class: 'bf-mut', style: 'padding:6px 12px;font-size:11px', text: '↑↓ navegar · Enter abre · Esc fecha' });
-        const lista = el('div', { style: 'overflow:auto' });
-        md.append(inp, dica, lista);
-        let itens = [], sel = 0;
-        const abrir = r => { if (!r) return; if (r.tipo === 'ativo') abrirFicha(r.nome); else abrirCodigo(r.codigo); };
+    /* ───────── barra de pesquisa FIXA no topo da tela (Ctrl+K leva o cursor para ela) ───────── */
+    let barra = null;
+    function montarBarra(host) {
+        estilo();
+        host.className = 'bf-bar'; host.innerHTML = '';
+        const inp = el('input', { class: 'bf-bar-inp', type: 'text', placeholder: 'Pesquisar ativo, apelido, código ou descrição…', autocomplete: 'off', spellcheck: 'false', 'aria-label': 'Pesquisar na Base de Orçamento' });
+        const limpar = el('button', { class: 'bf-bar-x', type: 'button', title: 'Limpar a pesquisa', text: '✕', style: 'display:none' });
+        const drop = el('div', { class: 'bf-drop', style: 'display:none' });
+        host.append(el('div', { class: 'bf-bar-in' }, [el('span', { class: 'bf-bar-ic', text: '🔍' }), inp, limpar, el('kbd', { class: 'bf-bar-k', text: 'Ctrl+K' })]), drop);
+        let m = null, itens = [], sel = 0, seq = 0;
+        const fechar = () => { drop.style.display = 'none'; };
+        const atualizar = () => { limpar.style.display = inp.value ? '' : 'none'; };
+        async function carregar() { const meu = ++seq; const novo = await modelo(); if (meu === seq) m = novo; return m; }      // base e linhas da tela de agora (edições ainda não salvas entram)
+        const abrir = r => { if (!r) return; fechar(); if (r.tipo === 'ativo') abrirFicha(r.nome); else abrirCodigo(r.codigo); };
         function desenhar() {
-            lista.innerHTML = '';
+            drop.innerHTML = ''; drop.style.display = '';
+            if (!m) { drop.appendChild(el('div', { class: 'bf-mut', style: 'padding:12px', text: 'Carregando a base…' })); return; }
+            if (!inp.value.trim()) { drop.appendChild(el('div', { class: 'bf-mut', style: 'padding:12px', text: 'Digite para pesquisar na base' + (m.projeto ? ' do projeto ' + m.projeto : '') + ' (e nas linhas comuns). ↑↓ navegam, Enter abre, Esc fecha.' })); itens = []; return; }
             itens = D.pesquisar(m, inp.value, 14);
-            if (!inp.value.trim()) { lista.appendChild(el('div', { class: 'bf-mut', style: 'padding:14px 12px', text: 'Digite para pesquisar na base' + (m.projeto ? ' do projeto ' + m.projeto : '') + ' (e nas linhas comuns).' })); return; }
-            if (!itens.length) { lista.appendChild(el('div', { class: 'bf-er', style: 'padding:14px 12px', text: 'Nada encontrado.' })); return; }
+            if (!itens.length) { drop.appendChild(el('div', { class: 'bf-er', style: 'padding:12px', text: 'Nada encontrado.' })); return; }
             sel = Math.min(sel, itens.length - 1);
             itens.forEach((r, i) => {
                 const linha = r.tipo === 'ativo'
                     ? el('div', { class: 'bf-res' + (i === sel ? ' a' : '') }, [el('b', { text: r.nome }), ...r.projetos.slice(0, 1).map(p => chip(p, 'o')), r.via ? chip('apelido: ' + r.via) : null, el('span', { class: 'bf-mut', text: r.descricao }), el('span', { class: 'bf-sp' }), el('span', { class: 'bf-mut', text: `${r.linhas} linhas · ${r.codigos} códigos` })])
                     : el('div', { class: 'bf-res' + (i === sel ? ' a' : '') }, [el('span', { class: 'bf-mut', text: 'código' }), el('b', { class: 'bf-mono', text: r.codigo }), el('span', { text: r.descricao }), el('span', { class: 'bf-sp' }), el('span', { class: 'bf-mut', text: `usado em ${r.em.join(', ')}${r.usos > r.em.length ? '…' : ''}` })]);
-                linha.addEventListener('click', () => abrir(r));
-                lista.appendChild(linha);
+                linha.addEventListener('mousedown', e => { e.preventDefault(); abrir(r); });
+                drop.appendChild(linha);
             });
+            const ativa = drop.querySelector('.bf-res.a'); if (ativa && ativa.scrollIntoView) ativa.scrollIntoView({ block: 'nearest' });
         }
-        inp.addEventListener('input', () => { sel = 0; desenhar(); });
+        inp.addEventListener('focus', () => { desenhar(); carregar().then(desenhar); });
+        inp.addEventListener('input', () => { sel = 0; atualizar(); if (m) desenhar(); else { desenhar(); carregar().then(desenhar); } });
         inp.addEventListener('keydown', e => {
-            if (e.key === 'ArrowDown') { e.preventDefault(); sel = Math.min(sel + 1, itens.length - 1); desenhar(); }
+            if (e.key === 'ArrowDown') { e.preventDefault(); if (drop.style.display === 'none') desenhar(); sel = Math.min(sel + 1, Math.max(itens.length - 1, 0)); desenhar(); }
             else if (e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(sel - 1, 0); desenhar(); }
             else if (e.key === 'Enter') { e.preventDefault(); abrir(itens[sel]); }
+            else if (e.key === 'Escape') { e.stopPropagation(); if (drop.style.display !== 'none') fechar(); else inp.blur(); }
         });
-        inp.value = consulta || ''; desenhar(); inp.focus(); inp.select();
+        limpar.addEventListener('mousedown', e => { e.preventDefault(); inp.value = ''; sel = 0; atualizar(); inp.focus(); desenhar(); });
+        doc.addEventListener('mousedown', e => { if (!host.contains(e.target)) fechar(); });
+        barra = { focar(consulta) { if (consulta != null) { inp.value = consulta; sel = 0; atualizar(); } inp.focus(); inp.select(); } };
     }
+    /** Ctrl+K: leva o cursor para a barra do topo (com `consulta`, já preenche o texto). */
+    function abrirPesquisa(consulta) { if (barra) barra.focar(consulta); }
 
     /* ───────── código ───────── */
     async function abrirCodigo(codigo) {
@@ -267,7 +283,8 @@
     }
     function iniciar(opcoes) {
         cfg = Object.assign(cfg, opcoes || {});
-        doc.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); abrirPesquisa(''); } });
+        if (opcoes && opcoes.barra) montarBarra(opcoes.barra);
+        doc.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); abrirPesquisa(); } });
         // Ctrl+clique no ATIVO ou no CÓDIGO da tabela abre a ficha / o uso do código
         if (cfg.tbody) cfg.tbody.addEventListener('mousedown', e => {
             if (!(e.ctrlKey || e.metaKey) || !e.target.classList || !e.target.classList.contains('cell-input')) return;
@@ -279,5 +296,5 @@
             if (col === 0) abrirFicha(raiz.AtivoParametros.analisarCelulaBase(v).base || v); else abrirCodigo(v);
         });
     }
-    raiz.BaseFicha = { estilo, modelo, pesquisaRapida, iniciar, abrirPesquisa, abrirFicha, abrirCodigo, invalidar, fechar: fecharTudo };
+    raiz.BaseFicha = { estilo, modelo, iniciar, abrirPesquisa, abrirFicha, abrirCodigo, invalidar, fechar: fecharTudo };
 })(window);

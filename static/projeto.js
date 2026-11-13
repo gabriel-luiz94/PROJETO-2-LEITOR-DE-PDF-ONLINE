@@ -413,7 +413,7 @@
         return true;
     }
 
-    /* ── TASK-162: projeto entregue pelo plugin do nanoCAD (<desenho>.obra, gravado por ele na pasta do desenho) ── */
+    /* ── TASK-163: projeto entregue pelo plugin do nanoCAD (<desenho>.obra, gravado por ele na pasta do desenho) ── */
     const mesmoArquivo = (a, b) => String(a || '').replace(/\//g, '\\').toLowerCase() === String(b || '').replace(/\//g, '\\').toLowerCase();
     /** Abre o projeto que o plugin gravou. Se ele já é o projeto aberto, relê do arquivo (o desenho atualizou as linhas); senão, o mesmo
      *  caminho do menu Abrir (pergunta Abrir/Mesclar/Sobrescrever se o Resumo já tem dados). Devolve true se abriu. */
