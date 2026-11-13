@@ -26,17 +26,18 @@ def ler(*partes):
 # ───────── leitura do PDF SAP ─────────
 def test_le_o_pdf_gerado_pelo_programa_odi_e_odd():
     r = isp.ler_pdf(gerar_pdf(CAB, "ODI", LINHAS))
-    assert r["tipo"] == "ODI" and r["nota"] == "9101578720"
-    assert [(l["mdo"], l["codigo"], l["qtd"], l["centro"]) for l in r["linhas"]] == [("MATERIAL", "500109", 3.0, "1600"), ("MATERIAL", "2203008", 1.95, "1600"),
+    assert [x["tipo"] for x in r["secoes"]] == ["ODI"] and r["nota"] == "9101578720"
+    assert [(l["mdo"], l["codigo"], l["qtd"], l["centro"]) for l in r["secoes"][0]["linhas"]] == [("MATERIAL", "500109", 3.0, "1600"), ("MATERIAL", "2203008", 1.95, "1600"),
                                                                                          ("MAO-DE-OBRA", "SDEVU3602II", 1234.5, "1000")]
-    assert r["linhas"][2]["desc"] == "INST CHAVE FACA UNIPOLAR - LV - (PA)"
-    assert isp.ler_pdf(gerar_pdf(CAB, "ODD", LINHAS))["tipo"] == "ODD"
+    assert r["secoes"][0]["linhas"][2]["desc"] == "INST CHAVE FACA UNIPOLAR - LV - (PA)"
+    assert isp.ler_pdf(gerar_pdf(CAB, "ODD", LINHAS))["secoes"][0]["tipo"] == "ODD"
 
 
 def test_le_pdf_com_varias_paginas_e_descricao_longa():
     muitas = [{"mdo": "M", "codigo": str(1000000 + i), "desc": f"MATERIAL NUMERO {i} " + "X" * 60, "qtd": i + 0.5} for i in range(130)]
     r = isp.ler_pdf(gerar_pdf(CAB, "ODI", muitas))
-    assert len(r["linhas"]) == 130 and r["linhas"][129]["codigo"] == "1000129" and r["linhas"][129]["qtd"] == 129.5 and r["linhas"][0]["desc"].startswith("MATERIAL NUMERO 0 ")
+    linhas = r["secoes"][0]["linhas"]
+    assert len(r["secoes"]) == 1 and len(linhas) == 130 and linhas[129]["codigo"] == "1000129" and linhas[129]["qtd"] == 129.5 and linhas[0]["desc"].startswith("MATERIAL NUMERO 0 ")
 
 
 def pdf_de_fora(linhas_texto):
@@ -57,11 +58,38 @@ def test_le_pdf_feito_por_fora_no_mesmo_formato():
               "M", "2402000", "6,00", "1600", "CARTUCHO AZUL     FERRAMENTA AMPACT",
               "N", "SDEVU1434II", "5,62", "1000", "INST COND NU LINHA VIVA - (PA)", "#Internal Use"]
     r = isp.ler_pdf(pdf_de_fora(textos))
-    assert r["tipo"] == "ODD" and len(r["linhas"]) == 3
-    assert r["linhas"][1]["desc"] == "CARTUCHO AZUL FERRAMENTA AMPACT" and r["linhas"][2]["codigo"] == "SDEVU1434II" and r["linhas"][2]["qtd"] == 5.62
-    assert "Internal" not in r["linhas"][2]["desc"]
+    linhas = r["secoes"][0]["linhas"]
+    assert r["secoes"][0]["tipo"] == "ODD" and len(linhas) == 3
+    assert linhas[1]["desc"] == "CARTUCHO AZUL FERRAMENTA AMPACT" and linhas[2]["codigo"] == "SDEVU1434II" and linhas[2]["qtd"] == 5.62
+    assert "Internal" not in linhas[2]["desc"]
     for h in "-\u2010\u2011\u2013\u2212":                                                       # o PDF SAP traz hífen "bonito" (U+2010) no cabeçalho
         assert isp._RE_TIPO_ORDEM.search(f"TIPO DE ORDEM  {h}  ODI").group(1) == "ODI"
+
+
+def pdf_icp_combinado():
+    """Como o relatório do ICP: ODI em duas páginas (a 2ª só com a continuação da tabela, sem cabeçalho) e o ODD numa 3ª página com cabeçalho. Quantidades 'soltas' (3, 5,2)."""
+    doc = fitz.open()
+
+    def pagina(textos):
+        pg = doc.new_page(width=595, height=842)
+        for i, t in enumerate(textos):
+            pg.insert_text((20, 20 + i * 11), t, fontsize=9)
+    pagina(["TÍTULO:", "-PO RL U B088255 RECIFE", "Nº NOTA:", "9101578718", "TIPO DE ORDEM  -  ODI", "TIPO", "CÓDIGO", "QTD", "CENTRO", "DESCRIÇÃO DO MATERIAL",
+            "M", "2201014", "0,45", "1600", "FIO COBRE NU", "N", "SDEVU1434II", "15,91", "1000", "INST COND NU  LINHA VIVA  - (PA)", "#Internal Use"])
+    pagina(["M", "3419284", "6,00", "1600", "SUPORTE P/EQUIP CHAVE", "M", "2212022", "3", "1600", "CABO ALUM XLPE", "M", "2206000", "5,2", "1600", "CABO NU ACO-COBRE 2 AWG", "#Internal Use"])
+    pagina(["TÍTULO:", "Nº NOTA:", "9101578718", "TIPO DE ORDEM  -  ODD", "TIPO", "CÓDIGO", "QTD", "CENTRO", "DESCRIÇÃO DO MATERIAL",
+            "M", "7910008", "13,95", "1600", "SUCATA CABO/FIO COBRE NU", "N", "SDEVU3203RD", "1,00", "1000", "RETIRAR EST CRUZ", "#Internal Use"])
+    return doc.tobytes()
+
+
+def test_um_pdf_com_odi_e_odd_vira_duas_secoes():
+    r = isp.ler_pdf(pdf_icp_combinado())
+    assert [(x["tipo"], len(x["linhas"])) for x in r["secoes"]] == [("ODI", 5), ("ODD", 2)] and r["nota"] == "9101578718"    # a 2ª página (sem cabeçalho) continua o ODI
+    assert [l["qtd"] for l in r["secoes"][0]["linhas"]] == [0.45, 15.91, 6.0, 3.0, 5.2]                                     # 3 e 5,2 sem casas decimais fixas
+    res = isp.para_resultado([r])
+    assert [x["operacao"] for x in res] == ["I"] * 5 + ["R"] * 2 and res[-1]["codigo"] == "SDEVU3203RD"
+    with pytest.raises(isp.ErroSapPdf, match="dois PDFs ODD"):                                                              # o ODD do combinado + um ODD solto
+        isp.para_resultado([r, isp.ler_pdf(gerar_pdf(CAB, "ODD", LINHAS))])
 
 
 def test_recusa_o_que_nao_e_pdf_sap():
@@ -125,3 +153,13 @@ def test_comparar_pede_o_formato_e_importar_pdfs_tem_pb_e_sap():
         assert trecho in h, trecho
     assert 'id="imp-fmt-pb"' in h and 'id="imp-fmt-sap"' in h and 'id="file-pdf-sap"' in h and "importarPdfsSap" in h and "Este .obra não tem resultado de orçamento gravado" in h
     assert "document.getElementById('file-rec-comparar').click()" not in h.split("function abrirComparar")[0].split('<div class="barra-comparar"')[1][:600]
+
+
+def test_rota_le_um_pdf_com_odi_e_odd_juntos(client):
+    r = client.post("/api/importar-sap-pdf", files=[("arquivos", ("RELATORIO_ICP.pdf", pdf_icp_combinado(), "application/pdf"))], headers=adm())
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert [(a["nome"], a["tipo"], a["itens"]) for a in d["arquivos"]] == [("RELATORIO_ICP.pdf", "ODI", 5), ("RELATORIO_ICP.pdf", "ODD", 2)]
+    assert [x["operacao"] for x in d["resultado"]] == ["I"] * 5 + ["R"] * 2
+    dois = client.post("/api/importar-sap-pdf", files=[("arquivos", ("a.pdf", pdf_icp_combinado(), "application/pdf")), ("arquivos", ("b.pdf", gerar_pdf(CAB, "ODD", LINHAS), "application/pdf"))], headers=adm())
+    assert dois.status_code == 400 and "dois PDFs ODD" in dois.json()["detail"]

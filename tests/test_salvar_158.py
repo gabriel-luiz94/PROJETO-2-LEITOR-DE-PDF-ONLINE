@@ -54,7 +54,7 @@ def test_ponte_expoe_os_metodos_de_rascunho():
 def test_barra_com_salvar_salvar_como_e_automatico():
     js = ler(config.STATIC_DIR, "projeto.js")
     for trecho in ("btn-projeto-salvar", "btn-projeto-menu", "Salvar como…", "Salvamento automático", "Ctrl+Shift+S", "Recuperar rascunho do default…",
-                   "gridr_auto_default", "auto: !!auto", "Salvar alterações em", "beforeunload", "alterado por fora — clique para resolver", "Não salvo", "atualizarEstado"):
+                   "gridr_auto_default", "auto: !!auto", "Salvar alterações em", "beforeunload", "Arquivo alterado por fora — resolver", "Não salvo", "atualizarEstado"):
         assert trecho in js, trecho
     assert "auto: copia ? !!(atual && atual.auto === true) : true" in js          # projeto novo: ligado; salvar como mantém
     assert "definirProjeto(r, false)" in js                                          # projeto aberto: desligado
@@ -68,3 +68,30 @@ def test_resultado_registra_coletor_e_nao_guarda_assinatura_velha():
     assert "__registrarColetor(entregar)" in js and "__pendenteResultado" in js
     assert "atualizarEstado({ assinatura: r.assinatura })" in js                     # a assinatura é sempre atualizada sobre o estado ATUAL (sem corrida)
     assert "e.assinatura = r.assinatura; gravarEstado(e)" not in js
+
+
+# ───────── TASK-160: etiqueta sempre com o estado do automático; alarme falso por assinatura velha ─────────
+def test_gravacao_tolera_assinatura_velha_quando_o_arquivo_e_o_da_ultima_gravacao(tmp_path):
+    """A tela pode perder a resposta de uma gravação (fechou no meio): a assinatura que ela guardou fica velha, mas o arquivo é o que ESTE processo gravou."""
+    r = pd.criar(str(tmp_path), {"nome": "P", "numero_obra": "1", "dados": DADOS}, "081")
+    g1 = pd.gravar(r["caminho"], {"numero_obra": "2"}, r["assinatura"], False, "081")
+    assert g1["ok"]
+    g2 = pd.gravar(r["caminho"], {"numero_obra": "3"}, r["assinatura"], False, "081")          # assinatura velha (a de antes da g1): não é alteração por fora
+    assert g2["ok"] and pd.abrir(r["caminho"], "081")["projeto"]["numero_obra"] == "3"
+
+
+def test_conflito_real_informa_quando_o_arquivo_foi_modificado(tmp_path):
+    r = pd.criar(str(tmp_path), {"nome": "P", "numero_obra": "1"}, "081")
+    conteudo = json.loads(open(r["caminho"], encoding="utf-8").read()); conteudo["projeto_trabalho"]["numero_obra"] = "FORA"
+    with open(r["caminho"], "w", encoding="utf-8") as f:
+        json.dump(conteudo, f)
+    g = pd.gravar(r["caminho"], {"numero_obra": "MEU"}, r["assinatura"], False, "081")
+    assert g["conflito"] is True and g["modificado_em"][:4].isdigit() and "T" in g["modificado_em"]
+
+
+def test_etiqueta_sempre_mostra_o_automatico_e_o_alarme_e_separado():
+    js = ler(config.STATIC_DIR, "projeto.js")
+    assert "'Automático ligado' : 'Automático desligado'" in js
+    for trecho in ("' · ' + auto", "Não gravado · ", "ui.alerta.style.display", "⚠ Arquivo alterado por fora — resolver", "foi modificado em", "o que está no disco ao abrir a tela é o ponto de partida"):
+        assert trecho in js, trecho
+    assert "Arquivo alterado por fora — clique para resolver', cor: '#f85149'" not in js          # o alarme não substitui mais a etiqueta de estado

@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-13 — TASK-160: etiqueta com o estado do automático, fim do alarme falso e PDF com ODI+ODD juntos
+
+- Etiqueta do projeto sempre mostra "Automático ligado/desligado"; o aviso de arquivo alterado é uma etiqueta à parte. A assinatura do arquivo guardada na tela podia ficar velha se a janela fechasse no meio de uma gravação (alarme falso): agora o disco ao abrir é o ponto de partida e o servidor local tolera a assinatura da própria última gravação. O leitor de PDF SAP lê o ODI e o ODD de um mesmo PDF (relatório do ICP); antes jogava o ODD como ODI.
+
+---
+
 ## 2026-11-13 — TASK-159: atualização automática com barra de progresso e botão Cancelar
 
 - O download do `.exe` roda em segundo plano (`iniciar_atualizacao`); `GET /api/update/status` dá fase, MB e percentual e `POST /api/update/cancel` cancela (apaga o parcial, não toca no `.exe`). Para se ficar 20 s sem receber dados e tem tempo máximo de 30 min. `POST /api/update/apply` agora só inicia.

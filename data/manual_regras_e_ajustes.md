@@ -768,3 +768,8 @@ Na barra do Resumo ficam o nome do projeto, o botão **💾 Salvar ▾** e uma e
 
 Ao clicar em **Instalar e Reiniciar** no aviso de atualização, aparece uma **barra de progresso** com a porcentagem e os MB baixados (ex.: "Baixando… 36% (54,0 MB de 150 MB)"). O botão **Cancelar** para o download a qualquer momento antes da troca: o arquivo parcial é apagado e o programa continua exatamente como estava. Se a conexão ficar parada por 20 segundos ou o download passar de 30 minutos, o programa avisa o erro. Se você recarregar a página no meio, a barra volta. Depois de conferir o arquivo (SHA-256), o programa fecha sozinho e abre na versão nova.
 
+## Etiqueta de estado do projeto e PDF SAP com ODI e ODD juntos (TASK-160)
+
+- A etiqueta ao lado do **Salvar** sempre diz o estado do salvamento automático: "Salvo às 14:32 · Automático ligado", "Não salvo · Automático desligado", "Rascunho gravado às … · Automático ligado" (projeto default). Se o arquivo do projeto mudar no disco, aparece à parte a etiqueta vermelha **⚠ Arquivo alterado por fora — resolver**; ao clicar, a janela mostra quando o arquivo foi modificado e deixa escolher Sobrescrever, Recarregar ou Decidir depois.
+- Ao ler um PDF SAP (Importar PDFs e Comparar), um mesmo arquivo pode trazer o **ODI e o ODD** (como o relatório do ICP): o programa separa as duas partes pelo "TIPO DE ORDEM" de cada página (páginas sem cabeçalho continuam a parte anterior).
+

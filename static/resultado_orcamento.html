@@ -2719,7 +2719,7 @@
                     const fd = new FormData(); arqs.forEach(a => fd.append('arquivos', a));
                     const res = await fetch('/api/importar-sap-pdf', { method: 'POST', body: fd }), data = await res.json().catch(() => ({}));
                     if (!res.ok) { alert('Erro ao ler o PDF SAP: ' + (typeof data.detail === 'string' ? data.detail : 'Erro')); return; }
-                    fecharComparar(); await definirReferenciaDeLinhas(data.resultado, data.arquivos.map(a => a.nome).join(' + '));
+                    fecharComparar(); await definirReferenciaDeLinhas(data.resultado, Array.from(new Set(data.arquivos.map(a => a.nome))).join(' + '));
                 }
             } catch (e) { alert('Erro ao ler a referência: ' + e.message); }
             finally { btn.disabled = false; if (cmpPasso !== 'formato') btn.textContent = texto; }
