@@ -746,4 +746,5 @@ No aplicativo (não na versão online) a barra do Resumo tem o menu **📁 Proje
 - O número de obra vem do projeto; ao exportar o REC aparece um pop-up para confirmar o número (vale só para aquela exportação). Relatórios e exportações abrem a caixa "Salvar como" na pasta do projeto, e você pode escolher outro destino.
 - Importar/exportar JSON continua: dentro de um projeto só carrega ou exporta as tabelas do Resumo; título e demais informações só vêm ao abrir o `.obra`.
 - A gravação é automática (2 s depois da última edição, ao ir para o Resultado/Tabela de orçamento/Totalizadora e ao voltar ao default). Se outro computador alterar o mesmo arquivo, o programa avisa antes de gravar.
+- **📋 Colar SAP**: copie o JSON do Atlas e clique no botão na janela do projeto (preenche nome, número de obra e dados do SAP), na janela "Informações do relatório SAP" ou na janela dos relatórios ODI/ODD. Se o sistema não deixar ler a área de transferência, cole o texto na caixinha que abre. O ID de investimento vem do `odiCodigo` (e `oddCodigo` para o ODD). No relatório, se a nota colada for diferente do número do projeto, o programa avisa e usa a colada só naquele relatório.
 

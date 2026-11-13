@@ -37,7 +37,32 @@
         const lista = t => (Array.isArray(t) ? t : (t && Array.isArray(t.data) ? t.data : []));
         return ['cabos', 'outros', 'totalizadora'].some(k => lista(dados && dados[k]).some(r => r && (String(r.ativo || '').trim() || String(r.texto || '').trim())));
     }
-    const api = { hashTexto, pastaDoCaminho, temDados, CAMPOS_SAP, CHAVE };
+    /** Lê o JSON copiado do Atlas ("atlas-projeto-rede", versão 1). Devolve {ok, campos} (só campos preenchidos; vazio nunca apaga) ou {ok: false, erro}.
+     *  Mapa: titulo, nota, sap, bairro, municipio, utd, utep, projetista, data → mesmos nomes; odiCodigo → id_investimento; oddCodigo → id_investimento_odd. */
+    function interpretarSap(texto) {
+        let t = String(texto == null ? '' : texto).replace(/^\uFEFF/, '').trim();
+        const cerca = t.match(/^```[a-z]*\s*([\s\S]*?)\s*```$/i);              // veio dentro de um bloco de código markdown
+        if (cerca) t = cerca[1].trim();
+        if (!t) return { ok: false, erro: 'Não há nada copiado.' };
+        let o;
+        try { o = JSON.parse(t); } catch (e) { return { ok: false, erro: 'O texto copiado não é um JSON do Atlas.' }; }
+        if (!o || typeof o !== 'object' || Array.isArray(o)) return { ok: false, erro: 'O texto copiado não é um JSON do Atlas.' };
+        if (o.source !== 'atlas-projeto-rede') return { ok: false, erro: 'O texto copiado não é do Atlas (campo "source" diferente de "atlas-projeto-rede").' };
+        if (o.version !== 1) return { ok: false, erro: 'Versão ' + String(o.version).slice(0, 10) + ' do Atlas não é suportada (esperado 1). Atualize o programa.' };
+        const limpo = v => (typeof v === 'string' || (typeof v === 'number' && isFinite(v)) ? String(v).replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, 120) : '');
+        const campos = {};
+        ['titulo', 'nota', 'sap', 'bairro', 'municipio', 'utd', 'utep', 'projetista', 'data'].forEach(k => { const v = limpo(o[k]); if (v) campos[k] = v; });
+        if (campos.data) { const m = campos.data.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) campos.data = m[3] + '/' + m[2] + '/' + m[1]; }
+        let idi = limpo(o.odiCodigo);
+        if (!idi) { const m = limpo(o.odi).match(/^([0-9][0-9.]*)/); if (m) idi = m[1]; }           // sem o código: pega o número do começo de "8.2 Melhoramento"
+        if (idi) campos.id_investimento = idi;
+        let idd = limpo(o.oddCodigo);
+        if (!idd) { const m = limpo(o.odd).match(/^([0-9][0-9.]*)/); if (m) idd = m[1]; }
+        if (idd) campos.id_investimento_odd = idd;
+        if (!Object.keys(campos).length) return { ok: false, erro: 'O JSON do Atlas não traz nenhum dado para preencher.' };
+        return { ok: true, campos };
+    }
+    const api = { hashTexto, pastaDoCaminho, temDados, interpretarSap, CAMPOS_SAP, CHAVE };
     if (typeof document === 'undefined') { if (typeof module !== 'undefined' && module.exports) module.exports = api; return; }
     if (raiz.GridRProjeto) return;
 
@@ -109,6 +134,30 @@
             aoFechar.observe(doc.body, { childList: true });
         });
     }
+
+    /** Botão "Colar SAP": lê a área de transferência (se o sistema deixar) ou abre uma caixinha para colar com Ctrl+V.
+     *  Resolve com {ok: true, campos} ou null (cancelou). Erro de formato é mostrado na própria caixinha. */
+    async function colarSap() {
+        let texto = '', negado = false;
+        try { texto = await raiz.navigator.clipboard.readText(); } catch (x) { negado = true; }
+        const r = interpretarSap(texto);
+        if (r.ok) return r;
+        return new Promise(resolve => {
+            const j = janela('Colar dados do SAP (Atlas)', 520);
+            const caixa = el('textarea', ESTILO_CAMPO + 'height:170px;resize:vertical;font-family:Consolas,monospace;font-size:12px;');
+            caixa.placeholder = 'Cole aqui (Ctrl+V) o JSON copiado do Atlas';
+            const aviso = el('div', 'font-size:12px;color:#f85149;min-height:16px;', negado ? 'O sistema não deixou ler a área de transferência: cole o texto aqui.' : r.erro);
+            j.corpo.append(caixa, aviso);
+            let feito = false;
+            const sair = v => { if (feito) return; feito = true; j.fechar(); resolve(v); };
+            const usar = () => { const x = interpretarSap(caixa.value); if (x.ok) sair(x); else aviso.textContent = x.erro; };
+            caixa.addEventListener('input', () => { if (interpretarSap(caixa.value).ok) usar(); });
+            j.rodape.append(botao('Cancelar', false, () => sair(null)), botao('Usar', true, usar));
+            j.fundo.addEventListener('mousedown', e => { if (e.target === j.fundo) sair(null); });
+            caixa.focus();
+        });
+    }
+    const ROTULOS = { titulo: 'título', nota: 'nº da nota', sap: 'Nº SAP', bairro: 'bairro', municipio: 'município', utd: 'UTD', utep: 'UTEP', projetista: 'projetista', data: 'data', id_investimento: 'ID investimento (ODI)', id_investimento_odd: 'ID investimento (ODD)' };
 
     /* ── Gravação ── */
     let resumo = null;                 // ganchos do Resumo (registrarResumo)
@@ -242,6 +291,12 @@
         const campos = {};
         CAMPOS_SAP.forEach(([k, rot]) => { const c = campo(rot, (valores || {})[k] || ''); if (k === 'id_investimento_odd') c.bloco.style.gridColumn = '1 / -1'; campos[k] = c.input; grade.appendChild(c.bloco); });
         j.corpo.appendChild(el('div', 'font-size:12px;color:#8b949e;', 'O título do relatório é o nome do projeto e o nº da nota é o número da obra. Estes dados vão preenchidos ao gerar os relatórios ODI e ODD.'));
+        j.corpo.appendChild(el('div', '', null, [botao('📋 Colar SAP', false, async () => {
+            const r = await colarSap();
+            if (!r) return;
+            CAMPOS_SAP.forEach(([k]) => { if (r.campos[k]) campos[k].value = r.campos[k]; });
+            avisar('Preenchido: ' + CAMPOS_SAP.filter(([k]) => r.campos[k]).map(([k]) => ROTULOS[k]).join(', ') + '.');
+        })]));
         j.corpo.appendChild(grade);
         j.rodape.append(botao('Cancelar', false, j.fechar), botao('OK', true, () => {
             const v = {}; CAMPOS_SAP.forEach(([k]) => { v[k] = campos[k].value.trim(); });
@@ -270,7 +325,17 @@
         j.corpo.append(cNome.bloco, cNum.bloco);
         if (modo === 'novo') j.corpo.appendChild(cPasta.bloco);
         else j.corpo.appendChild(el('div', 'font-size:12px;color:#8b949e;word-break:break-all;', 'Arquivo: ' + (modo === 'abrir' ? aberto.caminho : (atual ? atual.caminho : ''))));
-        j.corpo.appendChild(el('div', '', null, [btnSap]));
+        const btnColar = botao('📋 Colar SAP', false, async () => {
+            const r = await colarSap();
+            if (!r) return;
+            const c = r.campos;
+            if (c.titulo) cNome.input.value = c.titulo;                                   // o título do SAP vira o nome do projeto
+            if (c.nota) cNum.input.value = c.nota;                                        // e a nota, o número de obra
+            sap = Object.assign({}, sap); CAMPOS_SAP.forEach(([k]) => { if (c[k]) sap[k] = c[k]; });
+            mudou();
+            avisar('Preenchido: ' + Object.keys(c).map(k => ROTULOS[k]).join(', ') + '.');
+        });
+        j.corpo.appendChild(el('div', 'display:flex;gap:8px;flex-wrap:wrap;', null, [btnColar, btnSap]));
         const bAplicar = botao('Aplicar', false, () => aplicar(false)), bCriar = botao('Criar', true, criar), bOk = botao('OK', true, () => aplicar(true));
         j.rodape.append(...(modo === 'novo' ? [bAplicar, bCriar, bOk] : [botao('Cancelar', false, j.fechar), bAplicar, bOk]));
         const nomeOk = () => cNome.input.value.trim().length > 0;
@@ -448,7 +513,7 @@
     Object.assign(api, {
         ativo, estado, pasta: () => { const e = estado(); return e ? pastaDoCaminho(e.caminho) : ''; }, numeroObra: () => { const e = estado(); return e ? (e.numero || '') : ''; },
         nome: () => { const e = estado(); return e ? e.nome : ''; }, sap: () => { const e = estado(); return e && e.sap ? e.sap : {}; },
-        registrarResumo, marcarSujo, salvarAgora, abrirJanela, voltarAoDefault, carregarResultado, acompanharResultado, confirmarNumeroObra, salvarSap,
+        registrarResumo, marcarSujo, colarSap, ROTULOS, salvarAgora, abrirJanela, voltarAoDefault, carregarResultado, acompanharResultado, confirmarNumeroObra, salvarSap,
         __enviar: enviarLocal
     });
     raiz.GridRProjeto = api;
