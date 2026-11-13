@@ -209,3 +209,59 @@ def test_projeto_so_aparece_no_aplicativo_desktop():
     js = ler("projeto.js")
     assert "if (!host || host.dataset.pronto || !ponte()) return;" in js                    # sem a ponte (navegador/online) o menu nem é criado
     assert "if (!ativo()) return;" in js and "pywebview.api.projeto_criar" in js
+
+
+# ───────── Colar SAP (JSON do Atlas) ─────────
+ATLAS = {"source": "atlas-projeto-rede", "version": 1, "titulo": "OLCF -INST SECCION  U B088237 RECIFE", "nota": "9101578720", "sap": "E0483118",
+         "bairro": "BREJO DA GUABIRABA", "municipio": "RECIFE", "utd": "CASA FORTE", "utep": "METROPOLITANO", "projetista": "GABRIEL SALES",
+         "data": "11/11/2026", "odi": "8.2 Melhoramento", "odiCodigo": "8.2", "odd": "", "oddCodigo": ""}
+
+
+def interpretar(texto):
+    mod = os.path.join(config.STATIC_DIR, "projeto.js")
+    codigo = f"const P=require({json.dumps(mod)});console.log(JSON.stringify(P.interpretarSap({json.dumps(texto)})));"
+    saida = subprocess.run([NODE, "-e", codigo], capture_output=True, text=True, timeout=30)
+    assert saida.returncode == 0, saida.stderr
+    return json.loads(saida.stdout)
+
+
+@pytest.mark.skipif(not NODE, reason="node não instalado")
+def test_colar_sap_mapeia_os_campos_do_atlas():
+    r = interpretar(json.dumps(ATLAS))
+    assert r["ok"] and r["campos"] == {"titulo": "OLCF -INST SECCION  U B088237 RECIFE", "nota": "9101578720", "sap": "E0483118", "bairro": "BREJO DA GUABIRABA",
+                                       "municipio": "RECIFE", "utd": "CASA FORTE", "utep": "METROPOLITANO", "projetista": "GABRIEL SALES", "data": "11/11/2026",
+                                       "id_investimento": "8.2"}            # odiCodigo vira o ID de investimento; odd/oddCodigo vazios não aparecem (não apagam nada)
+    assert "id_investimento_odd" not in r["campos"]
+
+
+@pytest.mark.skipif(not NODE, reason="node não instalado")
+def test_colar_sap_casos_de_borda():
+    com_odd = interpretar(json.dumps({**ATLAS, "oddCodigo": "9.1"}))["campos"]
+    assert com_odd["id_investimento_odd"] == "9.1"
+    sem_codigo = interpretar(json.dumps({**ATLAS, "odiCodigo": "", "odi": "8.2 Melhoramento"}))["campos"]
+    assert sem_codigo["id_investimento"] == "8.2"                                               # tira o número do começo da descrição
+    assert interpretar(json.dumps({**ATLAS, "data": "2026-11-11"}))["campos"]["data"] == "11/11/2026"
+    cercado = interpretar("```json\n" + json.dumps(ATLAS) + "\n```")
+    assert cercado["ok"] and cercado["campos"]["nota"] == "9101578720"
+    assert interpretar("\ufeff " + json.dumps(ATLAS))["ok"]
+    longo = interpretar(json.dumps({**ATLAS, "titulo": "x" * 500, "bairro": "a\nb\u0000c"}))["campos"]
+    assert len(longo["titulo"]) == 120 and "\n" not in longo["bairro"] and "\x00" not in longo["bairro"]
+
+
+@pytest.mark.skipif(not NODE, reason="node não instalado")
+def test_colar_sap_recusa_o_que_nao_e_do_atlas():
+    for texto, trecho in (("", "nada copiado"), ("abc", "não é um JSON"), ("[1]", "não é um JSON"), (json.dumps({"titulo": "x"}), "não é do Atlas"),
+                          (json.dumps({**ATLAS, "version": 2}), "não é suportada"), (json.dumps({"source": "atlas-projeto-rede", "version": 1}), "nenhum dado"),
+                          (json.dumps({**ATLAS, "titulo": 5, "nota": {"a": 1}, "sap": None, "bairro": "", "municipio": "", "utd": "", "utep": "", "projetista": "", "data": "",
+                                       "odiCodigo": "", "odi": ""}), "")):
+        r = interpretar(texto)
+        if trecho:
+            assert r["ok"] is False and trecho in r["erro"], (texto, r)
+    assert interpretar(json.dumps({**ATLAS, "titulo": 5, "nota": {"a": 1}}))["campos"]["titulo"] == "5"      # número vira texto; objeto é ignorado
+    assert "nota" not in interpretar(json.dumps({**ATLAS, "nota": {"a": 1}}))["campos"]
+
+
+def test_botoes_colar_sap_nas_telas():
+    js, resultado = ler("projeto.js"), ler("resultado_orcamento.html")
+    assert js.count("📋 Colar SAP") == 2 and "colarSap" in js                                   # janela do projeto e janela das informações do SAP
+    assert 'id="rel-colar-sap"' in resultado and "colarSapNoRelatorio" in resultado and "é diferente do número do projeto" in resultado

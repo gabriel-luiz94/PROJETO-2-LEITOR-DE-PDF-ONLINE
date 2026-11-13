@@ -1067,6 +1067,10 @@
                 <button class="modal-close-btn" onclick="fecharRelatorioPdf()">✕</button>
             </div>
             <div class="modal-body">
+                <div style="margin-bottom:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <button type="button" class="btn-action" id="rel-colar-sap" onclick="colarSapNoRelatorio()" title="Preenche o cabeçalho com o JSON copiado do Atlas">📋 Colar SAP</button>
+                    <span id="rel-colar-aviso" style="font-size:0.76rem; color:#d29922;"></span>
+                </div>
                 <div id="rel-campos" style="display:grid; grid-template-columns:1fr 1fr; gap:10px 14px;"></div>
                 <p style="margin:12px 0 0; font-size:0.76rem; color:var(--text-secondary);">Gera dois arquivos, <b>NOTA_&lt;nº&gt;_ODI.pdf</b> e <b>NOTA_&lt;nº&gt;_ODD.pdf</b>, com os itens visíveis da visão SAP. Os dados do projetista, UTD, UTEP e município ficam lembrados para a próxima vez.</p>
             </div>
@@ -2288,6 +2292,19 @@
             });
             document.getElementById('modal-relatorio-pdf').style.display = 'flex';
             document.getElementById('rel-titulo').focus();
+        }
+        /* Colar SAP: preenche o cabeçalho com o JSON do Atlas (vale só para este relatório; vazio no JSON não apaga o que já está escrito) */
+        async function colarSapNoRelatorio() {
+            const aviso = document.getElementById('rel-colar-aviso'); aviso.textContent = '';
+            if (!window.GridRProjeto) return;
+            const r = await GridRProjeto.colarSap();
+            if (!r) return;
+            REL_CAMPOS.forEach(([k]) => { if (r.campos[k]) { const i = document.getElementById('rel-' + k); if (i) i.value = r.campos[k]; } });
+            const numero = window.GridRProjeto.ativo() ? GridRProjeto.numeroObra() : '';
+            if (numero && r.campos.nota && r.campos.nota !== numero) {
+                aviso.textContent = `Atenção: a nota colada (${r.campos.nota}) é diferente do número do projeto (${numero}). Vale só para este relatório.`;
+            }
+            log('Cabeçalho preenchido com os dados do SAP.');
         }
         function fecharRelatorioPdf() { document.getElementById('modal-relatorio-pdf').style.display = 'none'; }
         async function gerarRelatoriosPdf() {

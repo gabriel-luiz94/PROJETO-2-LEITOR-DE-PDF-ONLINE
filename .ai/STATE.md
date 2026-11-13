@@ -144,6 +144,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
       aparece na Totalizadora (diferente de `CABOS`/`OUTROS`, que sempre mantêm o item original).
       Ver `.ai/tasks/TASK-034-02-10-2026.md`.
 
+- [x] Colar SAP (TASK-155, 2026-11-13): botão que preenche nome/número do projeto e o cabeçalho do SAP com o JSON do Atlas (projeto, caixinha do SAP e relatório PDF). Ver `.ai/tasks/TASK-155-13-11-2026.md`.
 - [x] Projeto de trabalho (TASK-154, 2026-11-13): menu 📁 Projeto no aplicativo desktop (Novo/Abrir/Propriedades/Voltar ao default); `.obra` numa pasta com gravação automática (nome, número de obra, SAP, Resumo, Resultado); Abrir/Mesclar/Sobrescrever; REC confirma o número; relatórios na pasta do projeto. Ver `.ai/tasks/TASK-154-13-11-2026.md`.
 - [x] Usabilidade e design (TASK-153, 2026-11-12): telas abrem com estilo sem internet (`tailwind_local.css`,
       `static/fontes/`, `tema.css`); hierarquia de botões na Base de Orçamento e no Resultado; menus "Mais ▾" e

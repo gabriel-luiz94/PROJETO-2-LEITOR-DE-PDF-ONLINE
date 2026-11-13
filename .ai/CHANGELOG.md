@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-13 — TASK-155: botão Colar SAP (JSON do Atlas)
+
+- `GridRProjeto.interpretarSap`/`colarSap` (`static/projeto.js`): aceita só `atlas-projeto-rede` v1; `odiCodigo`/`oddCodigo` viram os IDs de investimento; `titulo`/`nota` viram nome e número do projeto. Botão em Novo/Propriedades do projeto, na caixinha do SAP e no relatório PDF (avisa se a nota difere do projeto).
+
+---
+
 ## 2026-11-13 — TASK-154: projeto de trabalho (`.obra` numa pasta, gravação automática)
 
 - Menu 📁 Projeto (só no aplicativo desktop): Novo/Abrir/Propriedades/Voltar ao default. O `.obra` é o envelope do `.obra.json` + `projeto_trabalho` (nome, número de obra, cabeçalho SAP, resultado do orçamento). Gravação parcial e atômica (`services/projeto_desktop.py`), conflito por SHA-1, fila única em `static/projeto.js`. Número de obra, título e SAP vêm do projeto; REC pede confirmação do número; relatórios abrem na pasta do projeto. Abrir com o Resumo preenchido: Abrir / Mesclar / Sobrescrever. Default = funcionamento de antes.
