@@ -223,5 +223,5 @@ def test_textos_sem_jargao_e_nomes_iguais():
     assert "Nenhum orçamento montado ainda." in ler("resultado_orcamento.html")
     manual = open(os.path.join(config.BASE_DIR, "data", "manual_regras_e_ajustes.md"), encoding="utf-8").read()
     assert "Leitor de Projetos" not in manual and "Resumo do projeto" not in manual
-    for nome, titulo in (("admin.html", "Painel Admin — GridR"), ("autonomo.html", "Modo autônomo — GridR"), ("manual.html", "Manual: regras e ajustes — GridR")):
+    for nome, titulo in (("admin.html", "Painel Admin — OrçaCore"), ("autonomo.html", "Modo autônomo — OrçaCore"), ("manual.html", "Manual: regras e ajustes — OrçaCore")):
         assert f"<title>{titulo}</title>" in ler(nome), nome

@@ -152,7 +152,7 @@ class ApiProjeto(ApiArquivos):
             if self._janela is None:
                 return {"ok": False, "erro": "janela indisponível"}
             r = _escolhido(self._janela.create_file_dialog(self._dialogo("OPEN"), allow_multiple=False,
-                                                           file_types=("Projeto GridR (*.obra;*.json)", "Todos os arquivos (*.*)")))
+                                                           file_types=("Projeto OrçaCore (*.obra;*.json)", "Todos os arquivos (*.*)")))
             return abrir(r[0], projeto_selecionado) if r else {"cancelado": True}
         except Exception as e:  # noqa: BLE001
             return _falha(e)

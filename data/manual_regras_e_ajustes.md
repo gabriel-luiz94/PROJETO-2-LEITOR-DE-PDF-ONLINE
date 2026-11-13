@@ -1,6 +1,6 @@
 # Manual: regras de validação e ajustes
 
-Este manual explica, passo a passo, como cadastrar **regras de validação** e **ajustes** no GridR. Não é preciso saber programar: quase tudo é feito pelo editor visual. Os exemplos em formato de código (JSON) são para quem preferir editar direto, e cada um deles é testado automaticamente.
+Este manual explica, passo a passo, como cadastrar **regras de validação** e **ajustes** no OrçaCore. Não é preciso saber programar: quase tudo é feito pelo editor visual. Os exemplos em formato de código (JSON) são para quem preferir editar direto, e cada um deles é testado automaticamente.
 
 ## 1. Visão geral
 
@@ -676,7 +676,7 @@ As estruturas da tabela Outros aparecem no modal mesmo sem nenhum cabo na tabela
 
 ## Publicar uma nova versão do programa (TASK-127)
 1. Faça o commit das alterações e rode `python scripts/release.py 2.1.0` (atualiza a versão e cria a tag `v2.1.0`).
-2. `git push origin main --tags`. O GitHub Actions compila o `GridR.exe` no Windows e publica a Release (com o arquivo `.sha256`).
+2. `git push origin main --tags`. O GitHub Actions compila o `OrcaCore.exe` no Windows e publica a Release (com o arquivo `.sha256`).
 3. Os programas instalados consultam a Release ao abrir: aparece "Atualização Disponível" e, em **Instalar e Reiniciar**, o programa baixa, confere o SHA-256, troca o `.exe` e reabre sozinho. O banco e o `.env` ficam como estão.
 `ATUALIZADOR=0` no `.env` desliga a verificação.
 
@@ -733,9 +733,9 @@ Ao digitar `(` depois de um ativo, a caixa de parâmetros agora funciona pelo te
 
 No grupo **Layout**, o botão **⇄ Inverter** põe **Demais ativos (postes) à esquerda** e **Cabos à direita** (nas empilhadas: Demais ativos em cima). Clique de novo para voltar. A escolha fica guardada neste navegador.
 
-## GridR: novo nome e ícone (TASK-152)
+## OrçaCore: novo nome (TASK-156; antes GridR, TASK-152)
 
-O programa passou a se chamar **GridR** e tem ícone próprio (grade com o caminho laranja ligando os nós). Quem já usa o programa **não precisa fazer nada**: a atualização automática continua funcionando, e o arquivo no seu computador pode seguir com o nome antigo (`Leitor_Projetos.exe`) — é o mesmo programa. Os novos downloads vêm como `GridR.exe`. As senhas salvas da janela e os demais dados são preservados.
+O programa passou a se chamar **GridR** e tem ícone próprio (grade com o caminho laranja ligando os nós). Quem já usa o programa **não precisa fazer nada**: a atualização automática continua funcionando, e o arquivo no seu computador pode seguir com o nome antigo (`Leitor_Projetos.exe`) — é o mesmo programa. (Na TASK-152 os downloads passaram a vir como `GridR.exe`; hoje vêm como `OrcaCore.exe`, ver abaixo.) As senhas salvas da janela e os demais dados são preservados.
 
 ## Projeto de trabalho (TASK-154, aplicativo desktop)
 
@@ -748,3 +748,4 @@ No aplicativo (não na versão online) a barra do Resumo tem o menu **📁 Proje
 - A gravação é automática (2 s depois da última edição, ao ir para o Resultado/Tabela de orçamento/Totalizadora e ao voltar ao default). Se outro computador alterar o mesmo arquivo, o programa avisa antes de gravar.
 - **📋 Colar SAP**: copie o JSON do Atlas e clique no botão na janela do projeto (preenche nome, número de obra e dados do SAP), na janela "Informações do relatório SAP" ou na janela dos relatórios ODI/ODD. Se o sistema não deixar ler a área de transferência, cole o texto na caixinha que abre. O ID de investimento vem do `odiCodigo` (e `oddCodigo` para o ODD). No relatório, se a nota colada for diferente do número do projeto, o programa avisa e usa a colada só naquele relatório.
 
+O programa agora se chama **OrçaCore** (o ícone continua o mesmo). Quem já usa **não precisa fazer nada**: a atualização automática continua funcionando e o arquivo no seu computador pode seguir com o nome antigo (`GridR.exe` ou `Leitor_Projetos.exe`) — é o mesmo programa. Os novos downloads vêm como `OrcaCore.exe` (sem acento, por ser nome de arquivo). As senhas salvas da janela e os demais dados são preservados.

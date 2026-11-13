@@ -19,7 +19,7 @@ regras GRAVADAS AQUI e a conferir a obra contra a Base de Orçamento, sem repeti
     PUT  /api/plugin/leitura?projeto=081   guias, raios) guardada aqui para valer em qualquer computador; também vai em /regras e na versão.
     GET  /api/plugin/catalogo?projeto=081  (TASK-144) a Base de Orçamento do projeto para o autocompletar do plugin: nomes (+ descrição, origem),
                                            apelidos e os parâmetros de cada ativo (mesma lógica da dica da aplicação, services/ativo_parametros).
-    GET  /api/plugin/desktop               (TASK-143, pública) "sou o GridR (antes GridReader) instalado neste computador?"
+    GET  /api/plugin/desktop               (TASK-143, pública) "sou o OrçaCore (antes GridReader) instalado neste computador?"
     POST /api/plugin/receber               (TASK-143, pública, só 127.0.0.1 e só no programa instalado) o plugin entrega a obra; a janela
                                            vem para a frente em /resumo?plugin_pendente=<id> · GET /api/plugin/pendente/<id> (login) a devolve.
     GET  /api/plugin/instalacao            (TASK-131) o programa traz o plugin: versão trazida × instalada e caminho para o APPLOAD
@@ -430,8 +430,8 @@ def abrir_pasta_plugin():
 @router.get("/desktop")
 def desktop():
     from config import APP_VERSION
-    # "app" continua "GridReader": é o identificador que o plugin do nanoCAD já instalado confere (TASK-152: o nome visível passou a ser GridR; "nome" é o novo)
-    return {"app": "GridReader", "nome": "GridR", "desktop": _desktop(), "versao": APP_VERSION}
+    # "app" continua "GridReader": é o identificador que o plugin do nanoCAD já instalado confere (TASK-152: o nome visível passou a ser GridR e depois OrçaCore; "nome" é o novo)
+    return {"app": "GridReader", "nome": "OrçaCore", "desktop": _desktop(), "versao": APP_VERSION}
 
 
 class ReceberPayload(BaseModel):

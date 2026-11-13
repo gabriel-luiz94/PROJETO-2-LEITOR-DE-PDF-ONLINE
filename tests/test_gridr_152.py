@@ -1,4 +1,4 @@
-"""TASK-152 — o programa passa a se chamar GridR e ganha o ícone (grade com o caminho laranja ligando os nós)."""
+"""TASK-152 — ícone (grade com o caminho laranja ligando os nós). O NOME passou de GridR para OrçaCore na TASK-156 (tests/test_orcacore_156.py); o ícone não mudou."""
 import glob
 import os
 import struct
@@ -33,20 +33,17 @@ def test_paginas_com_icone_e_nome_novo():
         html = ler(p)
         assert "/static/gridr.svg" in html and "/static/gridr.ico" in html, p
         assert "GridReader" not in html, p
-    assert "<title>Login — GridR</title>" in ler(ESTATICOS, "login.html")
     marca = ler(ESTATICOS, "marca.js")
-    assert "const NOME = 'GridR';" in marca and "/static/gridr.svg" in marca and "window.GridR = window.GridReader" in marca
+    assert "/static/gridr.svg" in marca and "window.GridR = window.GridReader" in marca
 
 
 def test_nome_na_janela_e_no_build():
     app = ler(config.BASE_DIR, "app.py")
-    assert 'title="GridR",' in app and 'title=f"GridR v{APP_VERSION}"' in app
-    assert 'GridR' in ler(config.BASE_DIR, "services", "inicio_janela.py")
     bat = ler(config.BASE_DIR, "build.bat")
-    assert '--name "GridR"' in bat and '--icon "static\\gridr.ico"' in bat and "dist\\GridR.exe" in bat
+    assert '--icon "static\\gridr.ico"' in bat
 
 
 def test_plugin_continua_reconhecendo_o_programa(client_plugin=None):
     """O plugin do nanoCAD já instalado confere "app" == "GridReader": o identificador não muda, só ganha "nome"."""
     src = ler(config.BASE_DIR, "routers", "plugin_cad.py")
-    assert '{"app": "GridReader", "nome": "GridR"' in src
+    assert '"app": "GridReader"' in src

@@ -224,9 +224,9 @@ def test_release_so_com_o_nome_antigo_ainda_oferece_e_traz_as_duas_copias():
     d = au._interpretar(antigo)
     assert d["has_update"] and d["download_url"].endswith("Leitor_Projetos.exe") and d["sha256_url"].endswith("Leitor_Projetos.exe.sha256")
     ambos = {"tag_name": "v9.9.9", "assets": antigo["assets"] + release()["assets"]}
-    assert au._interpretar(ambos)["download_url"].endswith("GridR.exe")                      # com as duas, vale o nome novo
-    assert au.NOME_EXE == "GridR.exe"
+    assert au._interpretar(ambos)["download_url"].endswith("OrcaCore.exe")                    # com o nome novo, vale o novo
+    assert au.NOME_EXE == "OrcaCore.exe"
     fluxo = open(os.path.join(config.BASE_DIR, ".github", "workflows", "release-exe.yml"), encoding="utf-8").read()
-    assert "dist\\GridR.exe" in fluxo and "Leitor_Projetos.exe.sha256" in fluxo and "dist/GridR.exe dist/GridR.exe.sha256 dist/Leitor_Projetos.exe dist/Leitor_Projetos.exe.sha256" in fluxo
+    assert "dist\\OrcaCore.exe" in fluxo and "Leitor_Projetos.exe.sha256" in fluxo and "dist/OrcaCore.exe dist/OrcaCore.exe.sha256 dist/GridR.exe dist/GridR.exe.sha256 dist/Leitor_Projetos.exe dist/Leitor_Projetos.exe.sha256" in fluxo
     bat = open(os.path.join(config.BASE_DIR, "build.bat"), encoding="utf-8").read()
-    assert '--name "GridR"' in bat and '--icon "static\\gridr.ico"' in bat
+    assert '--name "OrcaCore"' in bat and '--icon "static\\gridr.ico"' in bat
