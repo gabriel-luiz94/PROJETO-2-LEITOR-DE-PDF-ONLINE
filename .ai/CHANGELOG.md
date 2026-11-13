@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-13 — TASK-157: Comparar com .obra / PDFs PB / PDF SAP e Importar PDFs com SAP
+
+- Comparar abre a escolha de formato (REC, .obra, PDFs PB, PDF SAP). Novo `services/importar_sap_pdf.py` + `POST /api/importar-sap-pdf` lêem o PDF SAP (gerado aqui ou feito por fora): ODI → I, ODD → R. Importar PDFs tem o seletor PB | SAP. `.obra` usa só `projeto_trabalho.resultado`.
+
+---
+
 ## 2026-11-13 — TASK-156: nome OrçaCore (logo mantido)
 
 - GridR → **OrçaCore** nas telas, janela, README e manuais; arquivos/pastas usam `OrcaCore` (sem acento): `OrcaCore.exe`, `%APPDATA%\OrcaCore\janela`. A Release publica `OrcaCore.exe` + cópias `GridR.exe`/`Leitor_Projetos.exe` (cada uma com `.sha256`) para as versões antigas se atualizarem; `auto_updater` aceita os três nomes. `"app": "GridReader"` do plugin do nanoCAD e o ícone não mudam; o código do plugin não foi tocado.

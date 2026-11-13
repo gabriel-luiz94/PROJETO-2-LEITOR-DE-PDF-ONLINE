@@ -9,9 +9,12 @@ import tempfile
 import pymupdf
 import ezdxf
 import re
-from fastapi import APIRouter, Request, UploadFile, File
+from typing import List
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File
+from starlette.concurrency import run_in_threadpool
 from database import get_connection
 from services.pdf_service import extract_pdf_content
+from services import importar_sap_pdf
 from services.dxf_service import extract_dxf_content
 from services.cloudconvert_service import ErroConversaoDwg, converter_dwg_para_dxf
 from websocket_manager import manager
@@ -254,3 +257,31 @@ async def importar_rec_pdf(orcamento: UploadFile = File(...), lista: UploadFile 
 async def trigger_file(path: str):
     await manager.broadcast(json.dumps({"type": "load_file", "path": path}))
     return {"status": "success"}
+
+
+LIMITE_PDF_SAP = 20 * 1024 * 1024
+
+
+@router.post("/api/importar-sap-pdf")
+async def importar_sap_pdf_rota(arquivos: List[UploadFile] = File(...)):
+    """TASK-157: lê o PDF SAP (ODI e/ou ODD, o gerado pelo programa ou o feito por fora no mesmo formato) e devolve as linhas no formato do
+    Resultado do orçamento (ODI → I, ODD → R). Usado pelo Importar PDFs e pelo Comparar."""
+    if not 1 <= len(arquivos) <= 2:
+        raise HTTPException(status_code=400, detail="Escolha 1 ou 2 PDFs SAP (um ODI e/ou um ODD).")
+    lidos, resumo = [], []
+    for arq in arquivos:
+        nome = os.path.basename(arq.filename or "arquivo.pdf")
+        conteudo = await arq.read(LIMITE_PDF_SAP + 1)
+        if len(conteudo) > LIMITE_PDF_SAP:
+            raise HTTPException(status_code=413, detail=f"{nome}: arquivo grande demais (máx. {LIMITE_PDF_SAP // (1024 * 1024)} MB).")
+        try:
+            lido = await run_in_threadpool(importar_sap_pdf.ler_pdf, conteudo)
+        except importar_sap_pdf.ErroSapPdf as e:
+            raise HTTPException(status_code=400, detail=f"{nome}: {e}")
+        lidos.append(lido)
+        resumo.append({"nome": nome, "tipo": lido["tipo"], "nota": lido["nota"], "itens": len(lido["linhas"])})
+    try:
+        resultado = importar_sap_pdf.para_resultado(lidos)
+    except importar_sap_pdf.ErroSapPdf as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"resultado": resultado, "arquivos": resumo}

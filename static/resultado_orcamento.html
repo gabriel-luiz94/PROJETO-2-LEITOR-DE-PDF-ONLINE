@@ -865,7 +865,7 @@
                     - Subtrair REC
                 </button>
 
-                <button class="btn-action" onclick="document.getElementById('file-rec-comparar').click()" title="Comparar com um arquivo .REC (modo comparação: referência × atual)">
+                <button class="btn-action" onclick="abrirComparar()" title="Comparar com um REC, um projeto .obra, PDFs PB ou PDF SAP (modo comparação: referência × atual)">
                     ⇄ Comparar
                 </button>
 
@@ -942,7 +942,7 @@
             <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="cmp-ativo"> Comparação ativa</label>
             <span>Referência: <span class="cmp-nome" id="cmp-nome"></span></span>
             <button class="btn-action" onclick="abrirModalRecs()" title="Escolher outro REC do banco como referência">Trocar</button>
-            <button class="btn-action" onclick="document.getElementById('file-rec-comparar').click()" title="Usar um arquivo .REC como referência">Arquivo…</button>
+            <button class="btn-action" onclick="abrirComparar()" title="Usar um arquivo (REC, .obra, PDFs PB ou PDF SAP) como referência">Arquivo…</button>
             <button class="btn-action" onclick="removerReferencia()" title="Remover a referência e sair do modo comparação">✕ Remover</button>
             <select id="cmp-filtro-status" title="Mostrar só um tipo de diferença">
                 <option value="">Todos os itens</option>
@@ -1081,24 +1081,69 @@
         </div>
     </div>
 
+    <!-- Modal Comparar com… (TASK-157): escolha do formato da referência -->
+    <div id="modal-comparar" class="modal-backdrop">
+        <div class="modal-card" style="max-width: 480px;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="cmp-modal-titulo">Comparar com…</h2>
+                <button class="modal-close-btn" onclick="fecharComparar()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="cmp-passo-formato" style="display:flex; flex-direction:column; gap:8px;"></div>
+                <div id="cmp-passo-obra" style="display:none;">
+                    <div class="form-group"><label for="cmp-file-obra">Projeto .obra:</label><input type="file" id="cmp-file-obra" accept=".obra,.json,application/json" class="form-file-input"></div>
+                    <p id="cmp-info-obra" style="font-size:0.8rem; color:var(--text-secondary); margin:8px 0 0; line-height:1.4;">A comparação usa só o resultado do orçamento gravado no projeto (o Resumo e a visão SAP não entram).</p>
+                </div>
+                <div id="cmp-passo-pb" style="display:none;">
+                    <div class="form-group"><label for="cmp-file-pb-orc">PDF do Orçamento:</label><input type="file" id="cmp-file-pb-orc" accept=".pdf" class="form-file-input"></div>
+                    <div class="form-group"><label for="cmp-file-pb-lista">PDF da Lista de Materiais:</label><input type="file" id="cmp-file-pb-lista" accept=".pdf" class="form-file-input"></div>
+                </div>
+                <div id="cmp-passo-sap" style="display:none;">
+                    <div class="form-group"><label for="cmp-file-sap">PDF(s) SAP (ODI e/ou ODD):</label><input type="file" id="cmp-file-sap" accept=".pdf" multiple class="form-file-input"></div>
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin:8px 0 0; line-height:1.4;">O programa identifica ODI (instalação, I) e ODD (retirada, R) pelo "TIPO DE ORDEM" dentro do PDF, não pelo nome do arquivo. Serve para o PDF gerado aqui e para o feito por fora.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-action" id="cmp-btn-voltar" onclick="comparaVoltar()" style="display:none;">Voltar</button>
+                <button class="btn-action" onclick="fecharComparar()">Cancelar</button>
+                <button class="btn-action btn-save" id="cmp-btn-ok" onclick="comparaAvancar()">Continuar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Importar PDFs -->
     <div id="modal-importar-pdfs" class="modal-backdrop">
         <div class="modal-card" style="max-width: 460px;">
             <div class="modal-header">
-                <h2 class="modal-title">Importar Orçamento e Lista (PDF)</h2>
+                <h2 class="modal-title">Importar PDFs</h2>
                 <button class="modal-close-btn" onclick="document.getElementById('modal-importar-pdfs').style.display='none'">✕</button>
             </div>
             <div class="modal-body">
-                <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 8px 0; line-height: 1.4;">
-                    Selecione os arquivos PDF para mesclar automaticamente os itens na tabela.
-                </p>
-                <div class="form-group">
-                    <label for="file-pdf-orcamento">PDF do Orçamento:</label>
-                    <input type="file" id="file-pdf-orcamento" accept=".pdf" class="form-file-input">
+                <div id="imp-formato" style="display:flex; border:1px solid var(--border-default); border-radius:8px; overflow:hidden; margin-bottom:10px;" role="group" aria-label="Formato dos PDFs">
+                    <button type="button" id="imp-fmt-pb" class="btn-action" onclick="definirFormatoImportar('pb')" style="flex:1; border:0; border-radius:0; font-weight:700;">PB (Orçamento + Lista)</button>
+                    <button type="button" id="imp-fmt-sap" class="btn-action" onclick="definirFormatoImportar('sap')" style="flex:1; border:0; border-radius:0;">SAP (ODI / ODD)</button>
                 </div>
-                <div class="form-group">
-                    <label for="file-pdf-lista">PDF da Lista de Materiais:</label>
-                    <input type="file" id="file-pdf-lista" accept=".pdf" class="form-file-input">
+                <div id="imp-bloco-pb">
+                    <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 8px 0; line-height: 1.4;">
+                        Selecione os arquivos PDF para mesclar automaticamente os itens na tabela.
+                    </p>
+                    <div class="form-group">
+                        <label for="file-pdf-orcamento">PDF do Orçamento:</label>
+                        <input type="file" id="file-pdf-orcamento" accept=".pdf" class="form-file-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="file-pdf-lista">PDF da Lista de Materiais:</label>
+                        <input type="file" id="file-pdf-lista" accept=".pdf" class="form-file-input">
+                    </div>
+                </div>
+                <div id="imp-bloco-sap" style="display:none;">
+                    <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 8px 0; line-height: 1.4;">
+                        Escolha o PDF do <b>ODI</b>, o do <b>ODD</b> ou os dois (o programa identifica pelo "TIPO DE ORDEM" dentro do PDF). Serve para o PDF gerado aqui e para o feito por fora no mesmo formato. As linhas do ODI entram como instalação (I) e as do ODD como retirada (R).
+                    </p>
+                    <div class="form-group">
+                        <label for="file-pdf-sap">PDF(s) SAP (ODI e/ou ODD):</label>
+                        <input type="file" id="file-pdf-sap" accept=".pdf" multiple class="form-file-input">
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1796,13 +1841,51 @@
             }
         }
 
+        /* TASK-157: o Importar PDFs escolhe entre PB (Orçamento + Lista) e SAP (ODI / ODD) */
+        let impFormato = 'pb';
+        function definirFormatoImportar(f) {
+            impFormato = f === 'sap' ? 'sap' : 'pb';
+            document.getElementById('imp-bloco-pb').style.display = impFormato === 'pb' ? '' : 'none';
+            document.getElementById('imp-bloco-sap').style.display = impFormato === 'sap' ? '' : 'none';
+            [['imp-fmt-pb', 'pb'], ['imp-fmt-sap', 'sap']].forEach(([id, k]) => {
+                const b = document.getElementById(id), on = impFormato === k;
+                b.style.background = on ? '#d97706' : ''; b.style.color = on ? '#1a1100' : ''; b.style.fontWeight = on ? '700' : '500'; b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+        }
         function abrirModalImportarPdfs() {
             document.getElementById('modal-importar-pdfs').style.display = 'flex';
             document.getElementById('file-pdf-orcamento').value = '';
             document.getElementById('file-pdf-lista').value = '';
+            document.getElementById('file-pdf-sap').value = '';
+            definirFormatoImportar(impFormato);
+        }
+        /** Junta linhas novas à tabela do Resultado (consolida repetidas) — usado pela importação SAP. */
+        function mesclarNovosItens(novos) {
+            const firstRow = tbody.querySelector("tr");
+            if (firstRow && (firstRow.innerText.includes("Calculando") || firstRow.innerText.includes("Nenhum") || firstRow.innerText.includes("Tabela vazia"))) tbody.innerHTML = '';
+            renderRowsData(consolidateData(getRowsData().concat(novos)));
+        }
+        async function importarPdfsSap() {
+            const arquivos = Array.from(document.getElementById('file-pdf-sap').files);
+            if (!arquivos.length) { alert('Escolha o PDF do ODI e/ou o do ODD.'); return; }
+            if (arquivos.length > 2) { alert('Escolha no máximo 2 PDFs: um ODI e um ODD.'); return; }
+            const btn = document.getElementById('btn-importar-pdfs'), textoOriginal = btn.innerText;
+            btn.innerText = 'Processando...'; btn.disabled = true;
+            try {
+                log('Lendo o(s) PDF(s) SAP...', true);
+                const fd = new FormData(); arquivos.forEach(a => fd.append('arquivos', a));
+                const res = await fetch('/api/importar-sap-pdf', { method: 'POST', body: fd });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) { alert('Erro ao ler o PDF SAP: ' + (typeof data.detail === 'string' ? data.detail : 'Erro')); log('Erro na leitura do PDF SAP.'); return; }
+                mesclarNovosItens(data.resultado);
+                log(`+${data.resultado.length} itens do PDF SAP (` + data.arquivos.map(a => `${a.tipo}: ${a.itens}`).join(', ') + ').');
+                document.getElementById('modal-importar-pdfs').style.display = 'none';
+            } catch (e) { alert('Erro ao conectar ao servidor.'); log('Erro de conexão.'); }
+            finally { btn.innerText = textoOriginal; btn.disabled = false; }
         }
 
         async function importarPdfs() {
+            if (impFormato === 'sap') return importarPdfsSap();
             const fileOrc = document.getElementById('file-pdf-orcamento').files[0];
             const fileList = document.getElementById('file-pdf-lista').files[0];
             
@@ -2528,12 +2611,18 @@
         }
 
         async function definirReferencia(texto, nome) {
-            const itens = CMP.parseRec(texto);
-            if (!itens.length) { alert('Arquivo REC vazio ou em formato inválido.'); return; }
+            return definirReferenciaItens(CMP.parseRec(texto), nome, 'Arquivo REC vazio ou em formato inválido.');
+        }
+        /** TASK-157: referência vinda de linhas do Resultado (.obra, PDFs PB ou PDF SAP). */
+        async function definirReferenciaDeLinhas(linhas, nome, msgVazio) {
+            return definirReferenciaItens(CMP.itensDeLinhas(linhas), nome, msgVazio || 'Nenhum item encontrado na referência.');
+        }
+        async function definirReferenciaItens(itens, nome, msgVazio) {
+            if (!itens.length) { alert(msgVazio); return; }
             log('Buscando descrições da referência...', true);
             const det = await buscarDetalhesCodigos(itens.map(i => i.codigo));
-            itens.forEach(i => {                                                    // TASK-129: descrição e filtro da referência vêm da Base de Orçamento
-                i.desc = (det[i.codigo] && det[i.codigo].desc_codigo) || 'Descrição indisponível';
+            itens.forEach(i => {                                                    // TASK-129: descrição e filtro da referência vêm da Base de Orçamento (na falta, a do PDF)
+                i.desc = (det[i.codigo] && det[i.codigo].desc_codigo) || i.desc || 'Descrição indisponível';
                 i.filtro = (det[i.codigo] && det[i.codigo].filtro) || '';
             });
             cmp.ref = { nome, itens };
@@ -2550,6 +2639,90 @@
                 const data = await res.json();
                 await definirReferencia(data.dados_json, 'Obra ' + numObra);
             } catch (e) { alert('Erro ao carregar a obra do banco.'); log('Erro ao carregar a referência.'); }
+        }
+        /* ── TASK-157: Comparar com… (REC, .obra, PDFs PB, PDF SAP) ── */
+        const CMP_FORMATOS = [['rec', 'Arquivo .REC', 'Como é hoje (.rec ou .json).'], ['obra', 'Arquivo .obra', 'Usa só o resultado do orçamento gravado no projeto.'],
+            ['pb', 'PDFs PB', 'Orçamento + Lista de materiais (os mesmos do Importar PDFs).'], ['sap', 'PDF SAP (ODI / ODD)', 'Reconhece o PDF gerado pelo programa e o feito por fora.']];
+        const CMP_TITULOS = { obra: 'Comparar com .obra', pb: 'Comparar com PDFs PB', sap: 'Comparar com PDF SAP' };
+        let cmpFormatoEscolhido = 'rec', cmpObraLinhas = null, cmpPasso = 'formato';
+        function abrirComparar() {
+            const box = document.getElementById('cmp-passo-formato'); box.innerHTML = '';
+            CMP_FORMATOS.forEach(([k, titulo, desc]) => {
+                const rotulo = document.createElement('label');
+                rotulo.style.cssText = 'display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border:1px solid var(--border-default); border-radius:8px; cursor:pointer;';
+                const r = document.createElement('input'); r.type = 'radio'; r.name = 'cmp-formato'; r.value = k; r.checked = k === cmpFormatoEscolhido; r.style.marginTop = '3px';
+                r.addEventListener('change', () => { cmpFormatoEscolhido = k; marcarFormato(); });
+                const t = document.createElement('div'); const b = document.createElement('b'); b.textContent = titulo; b.style.cssText = 'display:block; font-size:0.9rem;';
+                const d = document.createElement('span'); d.textContent = desc; d.style.cssText = 'font-size:0.78rem; color:var(--text-secondary);';
+                t.append(b, d); rotulo.append(r, t); rotulo.dataset.k = k; box.appendChild(rotulo);
+            });
+            marcarFormato(); mostrarPassoComparar('formato');
+            ['cmp-file-obra', 'cmp-file-pb-orc', 'cmp-file-pb-lista', 'cmp-file-sap'].forEach(id => { document.getElementById(id).value = ''; });
+            cmpObraLinhas = null; document.getElementById('cmp-info-obra').textContent = 'A comparação usa só o resultado do orçamento gravado no projeto (o Resumo e a visão SAP não entram).';
+            document.getElementById('modal-comparar').style.display = 'flex';
+        }
+        function marcarFormato() {
+            document.querySelectorAll('#cmp-passo-formato label').forEach(l => { const on = l.dataset.k === cmpFormatoEscolhido; l.style.borderColor = on ? '#d97706' : ''; l.style.background = on ? 'rgba(217,119,6,0.10)' : ''; });
+        }
+        function mostrarPassoComparar(passo) {
+            cmpPasso = passo;
+            ['formato', 'obra', 'pb', 'sap'].forEach(p => { document.getElementById('cmp-passo-' + p).style.display = p === passo ? (p === 'formato' ? 'flex' : 'block') : 'none'; });
+            document.getElementById('cmp-modal-titulo').textContent = passo === 'formato' ? 'Comparar com…' : CMP_TITULOS[passo];
+            document.getElementById('cmp-btn-voltar').style.display = passo === 'formato' ? 'none' : '';
+            document.getElementById('cmp-btn-ok').textContent = passo === 'formato' ? 'Continuar' : 'Comparar';
+        }
+        function fecharComparar() { document.getElementById('modal-comparar').style.display = 'none'; }
+        function comparaVoltar() { mostrarPassoComparar('formato'); }
+        function comparaAvancar() {
+            if (cmpPasso === 'formato') {
+                if (cmpFormatoEscolhido === 'rec') { fecharComparar(); document.getElementById('file-rec-comparar').click(); return; }      // REC: como sempre foi
+                mostrarPassoComparar(cmpFormatoEscolhido); return;
+            }
+            executarComparar();
+        }
+        /** Lê o .obra escolhido e mostra quantos itens de resultado ele tem gravados. */
+        document.getElementById('cmp-file-obra').addEventListener('change', async e => {
+            const info = document.getElementById('cmp-info-obra'); cmpObraLinhas = null;
+            const arq = e.target.files[0]; if (!arq) return;
+            try {
+                const dados = JSON.parse(await arq.text());
+                const pt = dados && dados.projeto_trabalho, res = pt && pt.resultado;
+                if (res && Array.isArray(res.linhas) && res.linhas.length) {
+                    cmpObraLinhas = res.linhas;
+                    const quando = pt.salvo_em ? new Date(pt.salvo_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+                    info.style.color = '#3fb950'; info.textContent = `✔ Resultado gravado: ${res.linhas.length} itens${quando ? ' (projeto salvo em ' + quando + ')' : ''}. A comparação usa só esse resultado.`;
+                } else {
+                    info.style.color = '#f85149';
+                    info.textContent = (pt ? 'Este .obra não tem resultado de orçamento gravado.' : 'Este arquivo não é um projeto .obra com resultado gravado.') + ' Abra o projeto no programa, vá ao Resultado do orçamento (para o resultado ser gravado) e tente de novo.';
+                }
+            } catch (x) { info.style.color = '#f85149'; info.textContent = 'Não consegui ler o arquivo: não é um .obra válido.'; }
+        });
+        async function executarComparar() {
+            const btn = document.getElementById('cmp-btn-ok'), texto = btn.textContent;
+            try {
+                btn.disabled = true; btn.textContent = 'Processando...';
+                if (cmpPasso === 'obra') {
+                    if (!cmpObraLinhas) { alert('Escolha um .obra que tenha resultado gravado.'); return; }
+                    fecharComparar(); await definirReferenciaDeLinhas(cmpObraLinhas, document.getElementById('cmp-file-obra').files[0].name, 'O .obra não tem itens no resultado.');
+                } else if (cmpPasso === 'pb') {
+                    const orc = document.getElementById('cmp-file-pb-orc').files[0], lista = document.getElementById('cmp-file-pb-lista').files[0];
+                    if (!orc || !lista) { alert('Escolha os dois PDFs: Orçamento e Lista de materiais.'); return; }
+                    log('Lendo os PDFs PB...', true);
+                    const fd = new FormData(); fd.append('orcamento', orc); fd.append('lista', lista);
+                    const res = await fetch('/api/importar-rec-pdf', { method: 'POST', body: fd }), data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.resultado) { alert('Erro ao ler os PDFs: ' + (data.error || data.detail || 'Erro')); return; }
+                    fecharComparar(); await definirReferenciaDeLinhas(data.resultado, orc.name + ' + ' + lista.name, 'Nenhum dado válido extraído dos PDFs.');
+                } else if (cmpPasso === 'sap') {
+                    const arqs = Array.from(document.getElementById('cmp-file-sap').files);
+                    if (!arqs.length || arqs.length > 2) { alert('Escolha o PDF do ODI e/ou o do ODD (no máximo 2).'); return; }
+                    log('Lendo o(s) PDF(s) SAP...', true);
+                    const fd = new FormData(); arqs.forEach(a => fd.append('arquivos', a));
+                    const res = await fetch('/api/importar-sap-pdf', { method: 'POST', body: fd }), data = await res.json().catch(() => ({}));
+                    if (!res.ok) { alert('Erro ao ler o PDF SAP: ' + (typeof data.detail === 'string' ? data.detail : 'Erro')); return; }
+                    fecharComparar(); await definirReferenciaDeLinhas(data.resultado, data.arquivos.map(a => a.nome).join(' + '));
+                }
+            } catch (e) { alert('Erro ao ler a referência: ' + e.message); }
+            finally { btn.disabled = false; if (cmpPasso !== 'formato') btn.textContent = texto; }
         }
         function carregarRecComparar(event) {
             const file = event.target.files[0];

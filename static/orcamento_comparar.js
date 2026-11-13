@@ -39,6 +39,22 @@
         return Array.from(mapa.values());
     }
 
+    /** Linhas do Resultado ({operacao, mdo, codigo, desc_codigo|desc, total|qtd}) -> itens consolidados por chave (mesma forma do parseRec).
+     *  Serve às referências que não são .rec: .obra, PDFs PB e PDF SAP (TASK-157). */
+    function itensDeLinhas(linhas) {
+        const mapa = new Map();
+        (Array.isArray(linhas) ? linhas : []).forEach(l => {
+            if (!l) return;
+            const codigo = String(l.codigo == null ? '' : l.codigo).trim();
+            if (!codigo) return;
+            const operacao = normOp(l.operacao), mdo = normMdo(l.mdo), qtd = qtdPtBr(l.total != null ? l.total : l.qtd);
+            const k = chave(operacao, mdo, codigo);
+            if (mapa.has(k)) mapa.get(k).qtd = Math.round((mapa.get(k).qtd + qtd) * 100) / 100;
+            else mapa.set(k, { chave: k, operacao, mdo, codigo, qtd: Math.round(qtd * 100) / 100, desc: String(l.desc_codigo || l.desc || '') });
+        });
+        return Array.from(mapa.values());
+    }
+
     /**
      * atual: [{operacao, mdo, codigo, qtd (número)}] na ordem da tela; referencia: [{operacao, mdo, codigo, qtd, desc}] (parseRec).
      * -> { linhas:[{status, ref}], fantasmas:[item da referência], contagem:{igual,diferente,so_atual,so_referencia} }.
@@ -85,7 +101,7 @@
     const STATUS_CLASSE = { igual: 'cmp-igual', diferente: 'cmp-diferente', so_atual: 'cmp-so-atual', so_referencia: 'cmp-so-ref' };
     const STATUS_ROTULO = { igual: 'iguais', diferente: 'diferentes', so_atual: 'só no atual', so_referencia: 'só na referência' };
 
-    const api = { normOp, normMdo, chave, igualQtd, qtdPtBr, parseRec, comparar, comparadorPadrao, posicaoInsercao, STATUS_CLASSE, STATUS_ROTULO };
+    const api = { normOp, normMdo, chave, igualQtd, qtdPtBr, parseRec, itensDeLinhas, comparar, comparadorPadrao, posicaoInsercao, STATUS_CLASSE, STATUS_ROTULO };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     raiz.OrcamentoComparar = api;
 })(typeof window !== 'undefined' ? window : globalThis);
