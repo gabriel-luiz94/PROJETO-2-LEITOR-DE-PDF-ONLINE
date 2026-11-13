@@ -1,0 +1,170 @@
+"""
+services/projeto_desktop.py — Projeto de trabalho (`.obra` numa pasta) na janela desktop (pywebview), TASK-154.
+
+`ApiProjeto` estende a ponte de arquivos: o JavaScript chama `pywebview.api.projeto_*`. Toda a lógica está em funções de módulo
+(`criar`, `gravar`, `abrir`, `assinatura_atual`) para testar sem janela. Nenhuma função levanta exceção: devolve {ok: False, erro}.
+Escrita atômica (arquivo temporário + os.replace) e trava por caminho; só grava arquivos `.obra`.
+"""
+import json
+import os
+import threading
+
+from config import logger
+from services import projeto_obra
+from services.arquivos_desktop import ApiArquivos, _escolhido
+
+_travas: dict = {}
+_travas_mestre = threading.Lock()
+
+
+def _trava(caminho: str) -> threading.Lock:
+    with _travas_mestre:
+        return _travas.setdefault(os.path.normcase(os.path.abspath(caminho)), threading.Lock())
+
+
+def _caminho_valido(caminho) -> str:
+    if not isinstance(caminho, str) or not caminho.lower().endswith(projeto_obra.EXTENSAO):
+        raise projeto_obra.ErroProjeto(["O projeto precisa ser um arquivo .obra."])
+    return os.path.abspath(caminho)
+
+
+def _carregar_json(caminho: str):
+    with open(caminho, "rb") as f:
+        bruto = f.read(projeto_obra.LIMITE_BYTES + 1)
+    if len(bruto) > projeto_obra.LIMITE_BYTES:
+        raise projeto_obra.ErroProjeto([f"Arquivo grande demais (máx. {projeto_obra.LIMITE_BYTES // (1024 * 1024)} MB)."])
+    return bruto
+
+
+def _gravar_atomico(caminho: str, texto: str) -> str:
+    dados = texto.encode("utf-8")
+    temporario = caminho + ".tmp"
+    with open(temporario, "wb") as f:
+        f.write(dados)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(temporario, caminho)
+    return projeto_obra.assinatura(dados)
+
+
+def _falha(e) -> dict:
+    if isinstance(e, projeto_obra.ErroProjeto):
+        return {"ok": False, "erro": " ".join(e.mensagens)}
+    logger.warning(f"projeto: operação falhou ({type(e).__name__})")          # sem o conteúdo do projeto no log
+    return {"ok": False, "erro": f"Não foi possível acessar o arquivo ({type(e).__name__})."}
+
+
+def criar(pasta: str, parcial: dict, projeto_codigo: str = "") -> dict:
+    """Cria a pasta (se faltar) e `<nome>.obra` nela. Recusa se o arquivo já existe."""
+    try:
+        if not isinstance(pasta, str) or not pasta.strip():
+            raise projeto_obra.ErroProjeto(["Escolha a pasta do projeto."])
+        texto = projeto_obra.montar(parcial, None, projeto_codigo)
+        pasta = os.path.abspath(pasta.strip())
+        os.makedirs(pasta, exist_ok=True)
+        caminho = os.path.join(pasta, projeto_obra.nome_arquivo(parcial.get("nome")))
+        with _trava(caminho):
+            if os.path.exists(caminho):
+                return {"ok": False, "existe": True, "caminho": caminho, "erro": "Já existe um projeto com esse nome nessa pasta."}
+            return {"ok": True, "caminho": caminho, "assinatura": _gravar_atomico(caminho, texto)}
+    except Exception as e:  # noqa: BLE001 — a ponte nunca derruba a janela
+        return _falha(e)
+
+
+def gravar(caminho: str, parcial: dict, esperada: str = "", forcar: bool = False, projeto_codigo: str = "") -> dict:
+    """Atualiza o `.obra` com o que mudou (o resto é mantido). Se o arquivo foi alterado por fora (assinatura diferente da esperada),
+    devolve {conflito: True} sem gravar — a tela decide; `forcar` grava mesmo assim."""
+    try:
+        caminho = _caminho_valido(caminho)
+        with _trava(caminho):
+            existente, atual = None, ""
+            if os.path.exists(caminho):
+                bruto = _carregar_json(caminho)
+                atual = projeto_obra.assinatura(bruto)
+                if esperada and atual != esperada and not forcar:
+                    return {"ok": False, "conflito": True, "assinatura_atual": atual,
+                            "erro": "O arquivo do projeto foi alterado por outro programa ou computador."}
+                try:
+                    existente = json.loads(bruto.decode("utf-8-sig"))
+                except (ValueError, UnicodeDecodeError):
+                    existente = None
+            elif not os.path.isdir(os.path.dirname(caminho)):
+                raise projeto_obra.ErroProjeto(["A pasta do projeto não existe mais."])
+            texto = projeto_obra.montar(parcial, existente, projeto_codigo)
+            return {"ok": True, "caminho": caminho, "assinatura": _gravar_atomico(caminho, texto)}
+    except Exception as e:  # noqa: BLE001
+        return _falha(e)
+
+
+def abrir(caminho: str, projeto_selecionado: str) -> dict:
+    """Lê e valida o `.obra` (ou `.obra.json` antigo): {ok, caminho, assinatura, projeto: {nome, numero_obra, sap, dados, resultado, legado}}."""
+    try:
+        if not isinstance(caminho, str) or not os.path.isfile(caminho):
+            raise projeto_obra.ErroProjeto(["O arquivo do projeto não foi encontrado."])
+        bruto = _carregar_json(caminho)
+        return {"ok": True, "caminho": os.path.abspath(caminho), "assinatura": projeto_obra.assinatura(bruto),
+                "projeto": projeto_obra.ler(bruto, projeto_selecionado)}
+    except Exception as e:  # noqa: BLE001
+        return _falha(e)
+
+
+def assinatura_atual(caminho: str) -> dict:
+    try:
+        caminho = _caminho_valido(caminho)
+        if not os.path.isfile(caminho):
+            return {"ok": True, "existe": False}
+        return {"ok": True, "existe": True, "assinatura": projeto_obra.assinatura(_carregar_json(caminho))}
+    except Exception as e:  # noqa: BLE001
+        return _falha(e)
+
+
+def _parcial(meta_json) -> dict:
+    try:
+        meta = json.loads(meta_json) if isinstance(meta_json, str) else meta_json
+    except ValueError:
+        raise projeto_obra.ErroProjeto(["Dados do projeto inválidos."])
+    if not isinstance(meta, dict):
+        raise projeto_obra.ErroProjeto(["Dados do projeto inválidos."])
+    return meta
+
+
+class ApiProjeto(ApiArquivos):
+    """js_api da janela: arquivos (TASK-142) + projeto de trabalho. Só métodos públicos aparecem para o JavaScript."""
+
+    def projeto_escolher_pasta(self, inicial=""):
+        try:
+            if self._janela is None:
+                return {"ok": False, "erro": "janela indisponível"}
+            r = _escolhido(self._janela.create_file_dialog(self._dialogo("FOLDER"), directory=inicial if isinstance(inicial, str) and os.path.isdir(inicial) else ""))
+            return {"ok": True, "pasta": r[0]} if r else {"cancelado": True}
+        except Exception as e:  # noqa: BLE001
+            return _falha(e)
+
+    def projeto_criar(self, pasta, meta_json, projeto_codigo=""):
+        try:
+            return criar(pasta, _parcial(meta_json), projeto_codigo)
+        except Exception as e:  # noqa: BLE001
+            return _falha(e)
+
+    def projeto_escolher_arquivo(self, projeto_selecionado=""):
+        """Caixa "Abrir" (.obra e .obra.json antigo) e já lê o escolhido."""
+        try:
+            if self._janela is None:
+                return {"ok": False, "erro": "janela indisponível"}
+            r = _escolhido(self._janela.create_file_dialog(self._dialogo("OPEN"), allow_multiple=False,
+                                                           file_types=("Projeto GridR (*.obra;*.json)", "Todos os arquivos (*.*)")))
+            return abrir(r[0], projeto_selecionado) if r else {"cancelado": True}
+        except Exception as e:  # noqa: BLE001
+            return _falha(e)
+
+    def projeto_abrir(self, caminho, projeto_selecionado=""):
+        return abrir(caminho, projeto_selecionado)
+
+    def projeto_gravar(self, caminho, meta_json, assinatura_esperada="", forcar=False, projeto_codigo=""):
+        try:
+            return gravar(caminho, _parcial(meta_json), assinatura_esperada, bool(forcar), projeto_codigo)
+        except Exception as e:  # noqa: BLE001
+            return _falha(e)
+
+    def projeto_assinatura(self, caminho):
+        return assinatura_atual(caminho)

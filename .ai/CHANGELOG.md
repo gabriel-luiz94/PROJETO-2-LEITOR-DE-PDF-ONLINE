@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-13 — TASK-154: projeto de trabalho (`.obra` numa pasta, gravação automática)
+
+- Menu 📁 Projeto (só no aplicativo desktop): Novo/Abrir/Propriedades/Voltar ao default. O `.obra` é o envelope do `.obra.json` + `projeto_trabalho` (nome, número de obra, cabeçalho SAP, resultado do orçamento). Gravação parcial e atômica (`services/projeto_desktop.py`), conflito por SHA-1, fila única em `static/projeto.js`. Número de obra, título e SAP vêm do projeto; REC pede confirmação do número; relatórios abrem na pasta do projeto. Abrir com o Resumo preenchido: Abrir / Mesclar / Sobrescrever. Default = funcionamento de antes.
+
+---
+
 ## 2026-11-12 — TASK-153: usabilidade e design (telas sem internet, hierarquia de botões, menus no Resumo)
 
 - Nenhuma tela busca mais nada fora do programa: Tailwind do login/admin virou `static/tailwind_local.css` (regenerar com `scripts/gerar_tailwind_local.js`) e as fontes vêm de `static/fontes/`; `static/tema.css` (fontes + foco do teclado) entra em todas as telas.

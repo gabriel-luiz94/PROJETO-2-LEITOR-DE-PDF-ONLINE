@@ -614,6 +614,7 @@
                 <label for="input-num-obra">Obra nº</label>
                 <input type="text" id="input-num-obra" placeholder="Nº da Obra" title="Número da Obra" style="padding: 6px 10px; border-radius: 5px; border: 1px solid var(--border-default); background: var(--bg-canvas); color: var(--text-primary); font-family: 'Inter', sans-serif; font-size: 0.9rem; width: 140px; outline: none;">
             </div>
+            <span id="projeto-menu-host" title="Projeto de trabalho: grava tudo num arquivo .obra"></span>
             <button class="btn-secondary" id="btn-ler-projeto" title="Ler um PDF/DXF/DWG e processar aqui mesmo (clique ou arraste o arquivo)" style="padding: 6px 12px; font-size: 0.8rem; background: rgba(35, 134, 54, 0.15); border: 1px solid rgba(35, 134, 54, 0.5); color: #3fb950;">
                             Ler projeto
                         </button>
@@ -1746,7 +1747,8 @@
     <script src="/static/ativo_sugestao.js?v=1"></script>
     <script src="/static/campos_segredo.js?v=1"></script>
     <script src="/static/barra_modais.js?v=1"></script>
-    <script src="/static/resumo.js?v=5.3"></script>
+    <script src="/static/projeto.js?v=1"></script>
+    <script src="/static/resumo.js?v=5.4"></script>
     <script src="/static/resumo_layout.js?v=2"></script>
     <script src="/static/painel_regras.js"></script>
     <script src="/static/voz.js"></script>
@@ -1755,11 +1757,14 @@
         (function() {
             const inp = document.getElementById('input-num-obra');
             if (!inp) return;
-            // Carrega valor salvo
+            // Carrega valor salvo (TASK-154: com projeto aberto, o número é o do projeto e o campo é só leitura)
             const saved = localStorage.getItem('numero_obra');
-            if (saved) inp.value = saved;
+            const doProjeto = window.GridRProjeto && GridRProjeto.ativo();
+            if (doProjeto) { inp.value = GridRProjeto.numeroObra(); inp.readOnly = true; }
+            else if (saved) inp.value = saved;
             // Salva ao digitar
             inp.addEventListener('input', function() {
+                if (inp.readOnly) return;
                 localStorage.setItem('numero_obra', inp.value);
             });
         })();

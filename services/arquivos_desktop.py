@@ -53,7 +53,7 @@ class ApiArquivos:
         fd = getattr(webview, "FileDialog", None)                       # pywebview 5+; antes eram as constantes SAVE_DIALOG/OPEN_DIALOG
         return getattr(fd, tipo) if fd is not None and hasattr(fd, tipo) else getattr(webview, tipo + "_DIALOG")
 
-    def salvar_arquivo(self, nome, dados_base64, aceita=""):
+    def salvar_arquivo(self, nome, dados_base64, aceita="", diretorio=""):
         """Abre o "Salvar como" e grava os bytes. → {ok, caminho} | {cancelado: True} | {ok: False, erro}."""
         try:
             if self._janela is None:
@@ -67,7 +67,7 @@ class ApiArquivos:
                 return {"ok": False, "erro": "arquivo grande demais"}
             ext = os.path.splitext(nome)[1]
             filtros = filtros_de_arquivo(aceita or ext, "Arquivo")
-            r = _escolhido(self._janela.create_file_dialog(self._dialogo("SAVE"), directory="", save_filename=nome, file_types=filtros))
+            r = _escolhido(self._janela.create_file_dialog(self._dialogo("SAVE"), directory=diretorio if isinstance(diretorio, str) and os.path.isdir(diretorio) else "", save_filename=nome, file_types=filtros))
             if not r:
                 return {"cancelado": True}
             caminho = r[0]

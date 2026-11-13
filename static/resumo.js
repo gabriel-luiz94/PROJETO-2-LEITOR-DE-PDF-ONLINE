@@ -6353,6 +6353,23 @@ window.handleTotPaste = function(e, index) {
         }
     })();
 
+    /* TASK-154: PROJETO DE TRABALHO (.obra) — ganchos do Resumo para static/projeto.js (grava Cabos/Outros/Totalizadora no arquivo do projeto) */
+    (function ligarProjeto() {
+        if (!window.GridRProjeto) return;
+        const lista = k => tableStates[k].data.filter(Boolean);
+        const sync = window.syncTotalizadora;
+        if (typeof sync === 'function') {                                   // ir para a Totalizadora / recalculá-la também grava
+            window.syncTotalizadora = async function () { const r = await sync.apply(this, arguments); GridRProjeto.marcarSujo(true); return r; };
+        }
+        document.querySelectorAll('input[name="view_mode"]').forEach(r => r.addEventListener('change', () => GridRProjeto.marcarSujo(true)));
+        GridRProjeto.registrarResumo({
+            coletar: () => ({ cabos: lista('cabos').map(deepClone), outros: lista('outros').map(deepClone), totalizadora: lista('totalizadora').map(deepClone) }),
+            carregar: dados => restoreObraSnapshot(dados),
+            mesclar: dados => adicionarObraAoProjeto(dados),
+            temDados: () => GridRProjeto.temDados({ cabos: lista('cabos'), outros: lista('outros'), totalizadora: lista('totalizadora') })
+        });
+    })();
+
 }); // end DOMContentLoaded
 
 // ==========================================

@@ -736,3 +736,14 @@ No grupo **Layout**, o botão **⇄ Inverter** põe **Demais ativos (postes) à 
 ## GridR: novo nome e ícone (TASK-152)
 
 O programa passou a se chamar **GridR** e tem ícone próprio (grade com o caminho laranja ligando os nós). Quem já usa o programa **não precisa fazer nada**: a atualização automática continua funcionando, e o arquivo no seu computador pode seguir com o nome antigo (`Leitor_Projetos.exe`) — é o mesmo programa. Os novos downloads vêm como `GridR.exe`. As senhas salvas da janela e os demais dados são preservados.
+
+## Projeto de trabalho (TASK-154, aplicativo desktop)
+
+No aplicativo (não na versão online) a barra do Resumo tem o menu **📁 Projeto**:
+- **Novo projeto…**: informe o nome, o número de obra e a pasta, e clique em **Criar**. O programa cria `<nome>.obra` na pasta e passa a gravar tudo nele sozinho (Aplicar e OK só ficam ativos depois de criar). O botão **Informações do relatório SAP…** guarda o cabeçalho dos relatórios ODI/ODD no projeto.
+- **Abrir projeto…**: escolha um `.obra` (os `.obra.json` antigos também abrem). Se o Resumo já tiver dados, escolha **Abrir** (apaga a tela e usa o projeto), **Mesclar** (junta) ou **Sobrescrever** (a tela vale e vai por cima do projeto).
+- **Propriedades do projeto…**: muda nome, número e cabeçalho SAP. **Voltar ao projeto default**: volta a trabalhar como antes, sem arquivo.
+- O número de obra vem do projeto; ao exportar o REC aparece um pop-up para confirmar o número (vale só para aquela exportação). Relatórios e exportações abrem a caixa "Salvar como" na pasta do projeto, e você pode escolher outro destino.
+- Importar/exportar JSON continua: dentro de um projeto só carrega ou exporta as tabelas do Resumo; título e demais informações só vêm ao abrir o `.obra`.
+- A gravação é automática (2 s depois da última edição, ao ir para o Resultado/Tabela de orçamento/Totalizadora e ao voltar ao default). Se outro computador alterar o mesmo arquivo, o programa avisa antes de gravar.
+
