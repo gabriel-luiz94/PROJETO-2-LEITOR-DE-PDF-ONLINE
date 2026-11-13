@@ -8,6 +8,7 @@ Escrita atômica (arquivo temporário + os.replace) e trava por caminho; só gra
 import json
 import os
 import threading
+from datetime import datetime
 
 import config
 from config import logger
@@ -15,12 +16,17 @@ from services import projeto_obra
 from services.arquivos_desktop import ApiArquivos, _escolhido
 
 _travas: dict = {}
+_ultimas: dict = {}                    # caminho → assinatura da última gravação FEITA POR ESTE PROCESSO (a tela pode perder a resposta ao fechar no meio de uma gravação)
 _travas_mestre = threading.Lock()
 
 
 def _trava(caminho: str) -> threading.Lock:
     with _travas_mestre:
         return _travas.setdefault(os.path.normcase(os.path.abspath(caminho)), threading.Lock())
+
+
+def _chave(caminho: str) -> str:
+    return os.path.normcase(os.path.abspath(caminho))
 
 
 def _caminho_valido(caminho) -> str:
@@ -48,6 +54,13 @@ def _gravar_atomico(caminho: str, texto: str) -> str:
     return projeto_obra.assinatura(dados)
 
 
+def _modificado_em(caminho: str) -> str:
+    try:
+        return datetime.fromtimestamp(os.path.getmtime(caminho)).isoformat(timespec="seconds")
+    except OSError:
+        return ""
+
+
 def _falha(e) -> dict:
     if isinstance(e, projeto_obra.ErroProjeto):
         return {"ok": False, "erro": " ".join(e.mensagens)}
@@ -67,7 +80,9 @@ def criar(pasta: str, parcial: dict, projeto_codigo: str = "") -> dict:
         with _trava(caminho):
             if os.path.exists(caminho):
                 return {"ok": False, "existe": True, "caminho": caminho, "erro": "Já existe um projeto com esse nome nessa pasta."}
-            return {"ok": True, "caminho": caminho, "assinatura": _gravar_atomico(caminho, texto)}
+            assin = _gravar_atomico(caminho, texto)
+            _ultimas[_chave(caminho)] = assin
+            return {"ok": True, "caminho": caminho, "assinatura": assin}
     except Exception as e:  # noqa: BLE001 — a ponte nunca derruba a janela
         return _falha(e)
 
@@ -82,8 +97,8 @@ def gravar(caminho: str, parcial: dict, esperada: str = "", forcar: bool = False
             if os.path.exists(caminho):
                 bruto = _carregar_json(caminho)
                 atual = projeto_obra.assinatura(bruto)
-                if esperada and atual != esperada and not forcar:
-                    return {"ok": False, "conflito": True, "assinatura_atual": atual,
+                if esperada and atual != esperada and atual != _ultimas.get(_chave(caminho)) and not forcar:       # igual à última gravação deste processo = não houve mudança por fora
+                    return {"ok": False, "conflito": True, "assinatura_atual": atual, "modificado_em": _modificado_em(caminho),
                             "erro": "O arquivo do projeto foi alterado por outro programa ou computador."}
                 try:
                     existente = json.loads(bruto.decode("utf-8-sig"))
@@ -92,7 +107,9 @@ def gravar(caminho: str, parcial: dict, esperada: str = "", forcar: bool = False
             elif not os.path.isdir(os.path.dirname(caminho)):
                 raise projeto_obra.ErroProjeto(["A pasta do projeto não existe mais."])
             texto = projeto_obra.montar(parcial, existente, projeto_codigo)
-            return {"ok": True, "caminho": caminho, "assinatura": _gravar_atomico(caminho, texto)}
+            assin = _gravar_atomico(caminho, texto)
+            _ultimas[_chave(caminho)] = assin
+            return {"ok": True, "caminho": caminho, "assinatura": assin}
     except Exception as e:  # noqa: BLE001
         return _falha(e)
 

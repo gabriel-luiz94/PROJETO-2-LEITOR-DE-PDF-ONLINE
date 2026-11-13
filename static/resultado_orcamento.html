@@ -1072,7 +1072,7 @@
                     <span id="rel-colar-aviso" style="font-size:0.76rem; color:#d29922;"></span>
                 </div>
                 <div id="rel-campos" style="display:grid; grid-template-columns:1fr 1fr; gap:10px 14px;"></div>
-                <p style="margin:12px 0 0; font-size:0.76rem; color:var(--text-secondary);">Gera dois arquivos, <b>NOTA_&lt;nº&gt;_ODI.pdf</b> e <b>NOTA_&lt;nº&gt;_ODD.pdf</b>, com os itens visíveis da visão SAP. Os dados do projetista, UTD, UTEP e município ficam lembrados para a próxima vez.</p>
+                <p style="margin:12px 0 0; font-size:0.76rem; color:var(--text-secondary);">Gera um PDF só, <b>NOTA_&lt;nº&gt;_ODI_ODD.pdf</b> (o ODI e depois o ODD, cada um começando em página nova), com os itens visíveis da visão SAP. Os dados do projetista, UTD, UTEP e município ficam lembrados para a próxima vez.</p>
             </div>
             <div class="modal-footer">
                 <button onclick="fecharRelatorioPdf()" class="btn-action">Cancelar</button>
@@ -2397,22 +2397,21 @@
             if (window.GridRProjeto && GridRProjeto.ativo()) GridRProjeto.salvarSap(cab);              // TASK-154: o cabeçalho fica no projeto
             const nota = cab.nota.replace(/[^A-Za-z0-9_.-]+/g, '_');
             const btn = document.getElementById('rel-gerar'); btn.disabled = true;
-            let feitos = 0;
             try {
-                for (const tipo of ['odi', 'odd']) {
-                    const linhas = linhasVisiveisSap(tipo);
-                    if (!linhas.length) { log('Relatório ' + tipo.toUpperCase() + ' não gerado: sem itens.'); continue; }
-                    log('Gerando o PDF ' + tipo.toUpperCase() + '...', true);
-                    const res = await fetch('/api/orcamento/exportar-sap-pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tipo: tipo.toUpperCase(), cabecalho: cab, linhas: SAP.paraExcel(linhas) }) });
-                    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.detail || ('HTTP ' + res.status)); }
-                    const blob = await res.blob(), url = URL.createObjectURL(blob), a = document.createElement('a');
-                    a.href = url; a.download = `NOTA_${nota}_${tipo.toUpperCase()}.pdf`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                    setTimeout(() => URL.revokeObjectURL(url), 10000); feitos++;
-                    await new Promise(r => setTimeout(r, 500));                  // dá tempo ao navegador de iniciar o 1º download antes do 2º
-                }
+                // TASK-161: ODI e ODD saem num PDF só (ODI primeiro); sem itens num deles, só o outro
+                const odi = linhasVisiveisSap('odi'), odd = linhasVisiveisSap('odd');
+                if (!odi.length && !odd.length) { fecharRelatorioPdf(); log('Nenhum relatório gerado (ODI e ODD sem itens).'); return; }
+                if (!odi.length) log('ODI sem itens: o relatório leva só o ODD.'); else if (!odd.length) log('ODD sem itens: o relatório leva só o ODI.');
+                log('Gerando o PDF do relatório SAP...', true);
+                const res = await fetch('/api/orcamento/exportar-sap-pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cabecalho: cab, odi: SAP.paraExcel(odi), odd: SAP.paraExcel(odd) }) });
+                if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.detail || ('HTTP ' + res.status)); }
+                const sufixo = odi.length && odd.length ? 'ODI_ODD' : (odi.length ? 'ODI' : 'ODD');
+                const blob = await res.blob(), url = URL.createObjectURL(blob), a = document.createElement('a');
+                a.href = url; a.download = `NOTA_${nota}_${sufixo}.pdf`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 10000);
                 fecharRelatorioPdf();
-                log(feitos ? `Relatórios PDF gerados: ${feitos} arquivo(s).` : 'Nenhum relatório gerado (ODI e ODD sem itens).');
+                log(`Relatório PDF gerado: NOTA_${nota}_${sufixo}.pdf`);
             } catch (err) { console.error(err); log('Erro ao gerar o PDF.'); alert('Erro ao gerar o PDF: ' + err.message); }
             finally { btn.disabled = false; }
         }
@@ -2719,7 +2718,7 @@
                     const fd = new FormData(); arqs.forEach(a => fd.append('arquivos', a));
                     const res = await fetch('/api/importar-sap-pdf', { method: 'POST', body: fd }), data = await res.json().catch(() => ({}));
                     if (!res.ok) { alert('Erro ao ler o PDF SAP: ' + (typeof data.detail === 'string' ? data.detail : 'Erro')); return; }
-                    fecharComparar(); await definirReferenciaDeLinhas(data.resultado, data.arquivos.map(a => a.nome).join(' + '));
+                    fecharComparar(); await definirReferenciaDeLinhas(data.resultado, Array.from(new Set(data.arquivos.map(a => a.nome))).join(' + '));
                 }
             } catch (e) { alert('Erro ao ler a referência: ' + e.message); }
             finally { btn.disabled = false; if (cmpPasso !== 'formato') btn.textContent = texto; }

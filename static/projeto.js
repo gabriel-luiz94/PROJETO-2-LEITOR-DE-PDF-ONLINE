@@ -180,22 +180,24 @@
         gravarEstado({ caminho: r.caminho, nome: pr.nome, numero: pr.numero_obra, sap: pr.sap, assinatura: r.assinatura, projeto: pr.projeto, auto: !!auto });
     }
 
-    /** Texto e cor da etiqueta de estado (um só lugar para ler o que está acontecendo). */
+    /** Texto e cor da etiqueta de estado: SEMPRE diz se o salvamento automático está ligado ou desligado. O aviso de arquivo alterado por fora é uma etiqueta à parte. */
     function rotuloEstado() {
         const e = estado();
-        if (!e) return autoDefaultLigado() ? { t: ultimaGravacao ? 'Rascunho gravado às ' + hora(ultimaGravacao) : 'Rascunho · automático ligado', cor: '#d97706' } : { t: 'Automático desligado', cor: '#8b949e' };
-        if (suspenso) return { t: 'Arquivo alterado por fora — clique para resolver', cor: '#f85149', clic: true };
-        if (gravando) return { t: 'Gravando…', cor: '#d97706' };
-        if (temPendencias()) return autoLigado() ? { t: 'Gravando em instantes…', cor: '#d97706' } : { t: 'Não salvo', cor: '#d29922' };
-        return { t: (ultimaGravacao ? 'Salvo às ' + hora(ultimaGravacao) : 'Salvo') + (autoLigado() ? ' · automático ligado' : ''), cor: '#3fb950' };
+        const auto = autoLigado() ? 'Automático ligado' : 'Automático desligado';
+        if (!e) return autoDefaultLigado() ? { t: (ultimaGravacao ? 'Rascunho gravado às ' + hora(ultimaGravacao) : 'Rascunho') + ' · ' + auto, cor: '#d97706' } : { t: 'Sem rascunho · ' + auto, cor: '#8b949e' };
+        if (suspenso) return { t: 'Não gravado · ' + auto, cor: '#d29922' };
+        if (gravando) return { t: 'Gravando… · ' + auto, cor: '#d97706' };
+        if (temPendencias()) return autoLigado() ? { t: 'Gravando em instantes… · ' + auto, cor: '#d97706' } : { t: 'Não salvo · ' + auto, cor: '#d29922' };
+        return { t: (ultimaGravacao ? 'Salvo às ' + hora(ultimaGravacao) : 'Salvo') + ' · ' + auto, cor: '#3fb950' };
     }
     function atualizarMenu() {
         if (!ui) return;
         const e = estado(), r = rotuloEstado();
         ui.chip.textContent = e ? '📁 ' + e.nome : '📁 Projeto default';
         ui.chip.title = e ? e.caminho : 'Projeto default: o programa guarda um rascunho do que você faz. Salve para criar um projeto.';
-        ui.dot.style.background = r.cor; ui.txt.textContent = r.t; ui.txt.style.color = r.clic ? '#f85149' : '#e6edf3';
-        ui.pill.style.cursor = r.clic ? 'pointer' : 'default'; ui.pill.title = r.clic ? 'Clique para decidir o que fazer com o arquivo alterado' : '';
+        ui.dot.style.background = r.cor; ui.txt.textContent = r.t;
+        ui.pill.title = 'Salvamento automático: ' + (autoLigado() ? 'ligado' : 'desligado') + (e ? ' · ' + e.caminho : ' · projeto default (rascunho)');
+        ui.alerta.style.display = e && suspenso ? 'inline-flex' : 'none';
         const destaque = !!e && temPendencias() && !autoLigado();
         ui.salvar.style.color = destaque ? '#d97706' : '#e6edf3'; ui.split.style.borderColor = destaque ? '#d97706' : '#30363d';
         const lig = autoLigado();
@@ -204,9 +206,11 @@
                                 : (lig ? 'Ligado: guarda um rascunho do que você faz, para recuperar depois.' : 'Desligado: nada é guardado até você salvar.');
     }
 
-    async function conflito() {
+    async function conflito(modificadoEm) {
+        const fmt = d => d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+        const quando = modificadoEm && !isNaN(new Date(modificadoEm)) ? ' O arquivo foi modificado em ' + fmt(new Date(modificadoEm)) + (ultimaGravacao ? '; a sua última gravação nesta sessão foi às ' + hora(ultimaGravacao) : '') + '.' : '';
         const r = await perguntar('Projeto alterado por fora',
-            'O arquivo do projeto foi modificado por outro programa ou computador depois da sua última gravação. O que fazer?',
+            'O arquivo do projeto foi modificado por outro programa ou computador depois da sua última gravação.' + quando + ' O que fazer?',
             [{ texto: 'Sobrescrever com o que está na tela', valor: 'sobrescrever', ok: true, descricao: 'Grava o que está na tela por cima do arquivo (o que mudou por fora nos mesmos dados é perdido).' },
              { texto: 'Recarregar do arquivo', valor: 'recarregar', descricao: 'Descarta o que está na tela e usa o arquivo atual.' },
              { texto: 'Decidir depois', valor: 'depois', descricao: 'Nada é gravado até você decidir (clique no aviso vermelho ao lado do Salvar).' }]);
@@ -219,7 +223,7 @@
         if (r && r.ok) {
             atualizarEstado({ assinatura: r.assinatura }); ultimaGravacao = new Date(); suspenso = false; erroAvisado = false;
         } else if (r && r.conflito) {
-            const escolha = await conflito();
+            const escolha = await conflito(r.modificado_em);
             if (escolha === 'sobrescrever') return escrever(parcial, true);
             if (escolha === 'recarregar') { await recarregarDoArquivo(); return; }
             suspenso = true; pendente = Object.assign({}, parcial, pendente || {});
@@ -567,6 +571,9 @@
         pill.id = 'projeto-status';
         const dot = el('span', 'width:8px;height:8px;border-radius:50%;display:inline-block;background:#8b949e;'), txt = el('span', 'color:#e6edf3;');
         pill.append(dot, txt);
+        const alerta = el('button', 'display:none;align-items:center;gap:5px;font:inherit;font-size:0.72rem;padding:3px 10px;border-radius:12px;border:1px solid #f85149;background:#f8514922;color:#f85149;cursor:pointer;white-space:nowrap;', '⚠ Arquivo alterado por fora — resolver');
+        alerta.type = 'button'; alerta.title = 'O arquivo do projeto mudou no disco depois da sua última gravação. Clique para escolher o que fazer.';
+        alerta.addEventListener('click', () => { if (suspenso) resolverConflito(); });
         const menu = el('div', 'position:absolute;top:100%;left:0;margin-top:4px;min-width:300px;background:#21262d;border:1px solid #30363d;border-radius:6px;padding:4px 0;z-index:9000;display:none;box-shadow:0 8px 24px #0008;');
         const fechaMenu = () => { menu.style.display = 'none'; };
         const item = (rotulo, atalho, aoClicar, visivel) => {
@@ -590,10 +597,9 @@
         const alterna = ev => { ev.stopPropagation(); itens.forEach(i => { if (i.__visivel) i.style.display = i.__visivel() ? 'flex' : 'none'; }); atualizarMenu(); menu.style.display = menu.style.display === 'none' ? 'block' : 'none'; };
         chip.addEventListener('click', alterna); seta.addEventListener('click', alterna);
         salvarBtn.addEventListener('click', ev => { ev.stopPropagation(); fechaMenu(); salvarClick(); });
-        pill.addEventListener('click', () => { if (suspenso) resolverConflito(); });
         doc.addEventListener('click', fechaMenu);
-        host.append(chip, split, pill, menu);
-        ui = { chip, split, salvar: salvarBtn, pill, dot, txt, sw, knob, hint, menu };
+        host.append(chip, split, pill, alerta, menu);
+        ui = { chip, split, salvar: salvarBtn, pill, dot, txt, alerta, sw, knob, hint, menu };
         atualizarMenu();
     }
 
@@ -614,6 +620,7 @@
             avisar('O projeto “' + e.nome + '” não foi encontrado. Voltando ao projeto default.');
             return;
         }
+        atualizarEstado({ assinatura: existe.assinatura });                  // o que está no disco ao abrir a tela é o ponto de partida: a assinatura guardada pode ser de uma gravação cuja resposta se perdeu ao fechar
         if (resumo && !resumo.temDados()) {                                  // continua de onde parou
             const r = await p.projeto_abrir(e.caminho, codigoRegras());
             if (r && r.ok) {

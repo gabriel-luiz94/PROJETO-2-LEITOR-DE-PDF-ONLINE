@@ -34,7 +34,9 @@ def _comeca_linha(t: list, j: int) -> bool:
             and _RE_QTD.match(t[j + 2]) is not None and _RE_CENTRO.match(t[j + 3]) is not None)
 
 
-def _linhas_da_pagina(textos: list) -> list:
+def _linhas_da_pagina(textos: list, pos: list = None) -> list:
+    """Linhas de material de uma página. `textos` = linhas de texto na ordem do PDF; `pos` (opcional) = [(x, y)] de cada uma. Com `pos`, uma linha só continua a
+    descrição se estiver na mesma coluna da 1ª linha dela e logo abaixo — assim o título do cabeçalho que o PDF escreve depois da tabela não entra na descrição."""
     saida, i = [], 0
     while i < len(textos):
         if not _comeca_linha(textos, i):
@@ -42,16 +44,32 @@ def _linhas_da_pagina(textos: list) -> list:
             continue
         j, desc = i + 4, []
         while j < len(textos) and not _comeca_linha(textos, j) and textos[j].upper() not in _CABECALHO:
+            if pos is not None and desc and not (abs(pos[j][0] - pos[i + 4][0]) <= 3 and 0 <= pos[j][1] - pos[j - 1][1] <= 20):
+                break
             desc.append(textos[j])
             j += 1
-        saida.append({"mdo": _MDO[textos[i]], "codigo": (textos[i + 1].lstrip("0") or "0") if textos[i + 1].isdigit() else textos[i + 1].upper(), "qtd": round(_numero(textos[i + 2]), 4),
-                      "centro": textos[i + 3], "desc": re.sub(r"\s+", " ", " ".join(desc)).strip()})
+        saida.append({"mdo": _MDO[textos[i]], "codigo": (textos[i + 1].lstrip("0") or "0") if textos[i + 1].isdigit() else textos[i + 1].upper(),
+                      "qtd": round(_numero(textos[i + 2]), 4), "centro": textos[i + 3], "desc": re.sub(r"\s+", " ", " ".join(desc)).strip()})
         i = j
     return saida
 
 
+def _linhas_com_posicao(pagina) -> tuple:
+    """(textos, posições) de uma página do PyMuPDF: uma entrada por linha de texto, na ordem do PDF."""
+    textos, pos = [], []
+    for bloco in pagina.get_text("dict").get("blocks", []):
+        for linha in bloco.get("lines", []):
+            t = "".join(sp.get("text", "") for sp in linha.get("spans", [])).strip()
+            if t and linha.get("spans"):
+                textos.append(t)
+                pos.append((linha["spans"][0]["origin"][0], linha["spans"][0]["origin"][1]))
+    return textos, pos
+
+
 def ler_pdf(conteudo: bytes) -> dict:
-    """→ {tipo: 'ODI'|'ODD', nota, linhas: [{mdo, codigo, qtd, centro, desc}]}. Levanta ErroSapPdf."""
+    """→ {nota, secoes: [{tipo: 'ODI'|'ODD', linhas: [{mdo, codigo, qtd, centro, desc}]}]}. Levanta ErroSapPdf.
+    Um PDF pode trazer o ODI e o ODD juntos (como o relatório do ICP: ODI nas primeiras páginas e o ODD depois). Uma página que traz
+    "TIPO DE ORDEM - ODI|ODD" abre uma seção nova quando o tipo muda; páginas sem cabeçalho (continuação da tabela) seguem na seção atual."""
     try:
         doc = pymupdf.open(stream=conteudo, filetype="pdf")
     except Exception:  # noqa: BLE001 — qualquer defeito do arquivo vira mensagem
@@ -59,38 +77,43 @@ def ler_pdf(conteudo: bytes) -> dict:
     try:
         if doc.page_count > LIMITE_PAGINAS:
             raise ErroSapPdf(f"PDF com páginas demais (máx. {LIMITE_PAGINAS}).")
-        tipo, nota, linhas = "", "", []
+        nota, secoes, total = "", [], 0
         for pagina in doc:
-            textos = [t.strip() for t in pagina.get_text("text").splitlines() if t.strip()]
-            if not tipo:
-                m = _RE_TIPO_ORDEM.search(" ".join(textos))
-                if m:
-                    tipo = m.group(1).upper()
+            textos, pos = _linhas_com_posicao(pagina)
+            m = _RE_TIPO_ORDEM.search(" ".join(textos))
+            if m and (not secoes or secoes[-1]["tipo"] != m.group(1).upper()):
+                secoes.append({"tipo": m.group(1).upper(), "linhas": []})
             if not nota:
                 for k, t in enumerate(textos):
                     if re.match(r"^N[º°o]\s*NOTA", t, re.I) and k + 1 < len(textos) and _RE_NOTA.match(textos[k + 1]):
                         nota = textos[k + 1]
                         break
-            linhas += _linhas_da_pagina(textos)
-            if len(linhas) > LIMITE_LINHAS:
+            linhas = _linhas_da_pagina(textos, pos)
+            if linhas and secoes:
+                secoes[-1]["linhas"] += linhas
+            total += len(linhas)
+            if total > LIMITE_LINHAS:
                 raise ErroSapPdf(f"PDF com linhas demais (máx. {LIMITE_LINHAS}).")
     finally:
         doc.close()
-    if not tipo:
+    if not secoes:
         raise ErroSapPdf('Não encontrei "TIPO DE ORDEM - ODI/ODD" no PDF: não parece um PDF SAP.')
-    if not linhas:
+    secoes = [x for x in secoes if x["linhas"]]
+    if not secoes:
         raise ErroSapPdf("Não encontrei linhas de material no PDF (se ele for uma imagem escaneada, não dá para ler).")
-    return {"tipo": tipo, "nota": nota, "linhas": linhas}
+    return {"nota": nota, "secoes": secoes}
 
 
 def para_resultado(lidos: list) -> list:
-    """Vários PDFs lidos (um ODI e/ou um ODD) → linhas no formato do Resultado do orçamento: {operacao, mdo, codigo, desc_codigo, filtro, total}.
-    Levanta ErroSapPdf se o mesmo tipo vier duas vezes."""
-    tipos = [x["tipo"] for x in lidos]
+    """Vários PDFs lidos (cada um com uma ou duas seções) → linhas no formato do Resultado do orçamento: {operacao, mdo, codigo, desc_codigo, filtro, total}.
+    ODI → I, ODD → R. Levanta ErroSapPdf se o mesmo tipo vier duas vezes (no mesmo PDF ou em PDFs diferentes)."""
+    tipos = [sec["tipo"] for x in lidos for sec in x["secoes"]]
     if len(set(tipos)) != len(tipos):
-        raise ErroSapPdf(f"Foram escolhidos dois PDFs {tipos[0]}. Escolha um ODI e/ou um ODD.")
+        repetido = next(t for t in tipos if tipos.count(t) > 1)
+        raise ErroSapPdf(f"Foram escolhidos dois PDFs {repetido}. Escolha um ODI e/ou um ODD.")
     saida = []
     for x in lidos:
-        op = "I" if x["tipo"] == "ODI" else "R"
-        saida += [{"operacao": op, "mdo": l["mdo"], "codigo": l["codigo"], "desc_codigo": l["desc"], "filtro": "", "total": l["qtd"]} for l in x["linhas"]]
+        for sec in x["secoes"]:
+            op = "I" if sec["tipo"] == "ODI" else "R"
+            saida += [{"operacao": op, "mdo": l["mdo"], "codigo": l["codigo"], "desc_codigo": l["desc"], "filtro": "", "total": l["qtd"]} for l in sec["linhas"]]
     return saida

@@ -1,6 +1,8 @@
 """
 services/exportar_sap_pdf.py — Relatórios ODI e ODD em PDF no formato da "NOTA ... ORÇAMENTO" do SAP (TASK-140).
 
+TASK-161: ODI e ODD saem num PDF só (cada um começa em página nova, com o cabeçalho); as páginas de continuação não repetem o cabeçalho nem a linha verde
+(como o relatório do ICP); 48 linhas na 1ª página; quantidades sempre com 2 casas.
 Folha A4 retrato: bloco de cabeçalho (TÍTULO, Nº NOTA, BAIRRO, UTD, PROJETISTA | Nº SAP, MUNICIPIO, UTEP, DATA | ID INVESTIMENTO, TIPO DE ORDEM),
 tabela TIPO · CÓDIGO · QTD · CENTRO · DESCRIÇÃO DO MATERIAL com o título em verde (#00A443, texto branco) e grade preta fina, Calibri 11 e o rodapé "Internal Use"
 em verde. Medidas (em pontos) lidas do PDF de referência. Fonte: Calibri do Windows se existir; senão a Carlito empacotada (mesmas métricas, licença OFL).
@@ -33,7 +35,8 @@ TOPO_TAB = 107.4
 BASE_DENTRO = 10.92                                             # linha de base dentro da linha de dados
 BASE_CAB = 11.04
 RODAPE = "Internal Use"
-LIMITE_Y = 800.0                                                # a tabela não passa daqui (o rodapé fica em 837)
+LIMITE_Y = 819.5                                                # a tabela não passa daqui (o rodapé fica em 837): 48 linhas na 1ª página, como no relatório do ICP
+TOPO_CONT = 14.7                                                # nas páginas de continuação a grade recomeça no topo da folha, SEM cabeçalho nem linha verde (TASK-161)
 
 
 class ErroPdf(ValueError):
@@ -101,10 +104,27 @@ def _cabecalho(c, tipo):
 
 def gerar_pdf(cabecalho: dict, tipo: str, linhas: list) -> bytes:
     """PDF (bytes) do relatório `tipo` ('ODI'|'ODD'). `linhas`: [{mdo, codigo, desc, qtd}]. O cabeçalho vem do diálogo."""
-    tipo = str(tipo).upper()
-    if tipo not in ("ODI", "ODD"):
-        raise ErroPdf("Tipo precisa ser ODI ou ODD.")
-    dados, cab = _linhas(tipo, linhas), _cabecalho(cabecalho, tipo)
+    return gerar_relatorio(cabecalho, [(tipo, linhas)])
+
+
+def gerar_pdf_unico(cabecalho: dict, odi: list, odd: list) -> bytes:
+    """TASK-161: um PDF só com o ODI e depois o ODD (a seção sem itens é omitida; é preciso ter itens em pelo menos uma)."""
+    secoes = [(t, l) for t, l in (("ODI", odi), ("ODD", odd)) if isinstance(l, list) and l]
+    if not secoes:
+        raise ErroPdf("Não há itens no ODI nem no ODD para gerar o relatório.")
+    return gerar_relatorio(cabecalho, secoes)
+
+
+def gerar_relatorio(cabecalho: dict, secoes: list) -> bytes:
+    """PDF com uma ou mais seções [(tipo, linhas)], cada uma começando em página nova com o cabeçalho completo (TIPO DE ORDEM - ODI|ODD)."""
+    preparadas = []
+    for tipo, linhas in secoes:
+        tipo = str(tipo).upper()
+        if tipo not in ("ODI", "ODD"):
+            raise ErroPdf("Tipo precisa ser ODI ou ODD.")
+        preparadas.append((tipo, _linhas(tipo, linhas), _cabecalho(cabecalho, tipo)))
+    if not preparadas:
+        raise ErroPdf("Informe ao menos uma seção (ODI ou ODD).")
     reg, neg = _fontes()
     doc = fitz.open()
     pg = [None]
@@ -145,46 +165,51 @@ def gerar_pdf(cabecalho: dict, tipo: str, linhas: list) -> bytes:
         texto(p, COLUNAS[3] + 1.8, b, "CENTRO", True, branco)
         texto(p, COLUNAS[4] + 1.8, b, "DESCRIÇÃO DO MATERIAL", True, branco)
 
-    def grade(p, topo, n):
-        base = topo + ALT_CAB_TAB + n * ALT_LINHA
-        ys = [topo, topo + ALT_CAB_TAB] + [topo + ALT_CAB_TAB + (i + 1) * ALT_LINHA for i in range(n)]
+    def grade(p, y0, n, topo_cab=None):
+        """Grade das `n` linhas que começam em `y0`; com `topo_cab` inclui também a linha do título (1ª página da seção)."""
+        base = y0 + n * ALT_LINHA
+        ys = ([topo_cab] if topo_cab is not None else []) + [y0 + i * ALT_LINHA for i in range(n + 1)]
         for y in ys:
             p.draw_rect(fitz.Rect(X_TAB, y - LINHA_ESP / 2, COLUNAS[-1] + LINHA_ESP, y + LINHA_ESP / 2), color=None, fill=(0, 0, 0))
         for x in COLUNAS:
-            p.draw_rect(fitz.Rect(x - LINHA_ESP / 2, topo, x + LINHA_ESP / 2, base), color=None, fill=(0, 0, 0))
+            p.draw_rect(fitz.Rect(x - LINHA_ESP / 2, topo_cab if topo_cab is not None else y0, x + LINHA_ESP / 2, base), color=None, fill=(0, 0, 0))
 
-    p = nova_pagina()
-    esq, dir_ = 18.4, 88.4
-    l = [TOPO_BLOCO + i * ALT_LINHA for i in range(5)]
-    for rot, val, y in (("TÍTULO:", cab["titulo"], l[0]), ("Nº NOTA:", cab["nota"], l[1]), ("BAIRRO", cab["bairro"], l[2]),
-                        ("UTD:", cab["utd"], l[3]), ("PROJETISTA:", cab["projetista"], l[4])):
-        texto(p, esq, y, rot, True)
-        texto(p, dir_, y, val)
-    for rot, val, y in (("Nº SAP:", cab["sap"], l[1]), ("MUNICIPIO:", cab["municipio"], l[2]), ("UTEP:", cab["utep"], l[3]), ("DATA:", cab["data"], l[4])):
-        texto(p, 235.9, y, rot, True)
-        texto(p, 300.4, y, val)
-    texto(p, 443.5, l[1], f"ID INVESTIMENTO - {cab['id']}", True, CINZA_TXT)
-    texto(p, 443.5, l[2], f"TIPO DE ORDEM  -  {tipo}", True, CINZA_TXT)
-
-    topo, i = TOPO_TAB, 0
-    while True:
-        cabecalho_tabela(p, topo)
-        y0 = topo + ALT_CAB_TAB
-        cabem = max(1, int((LIMITE_Y - y0) // ALT_LINHA))
-        parte = dados[i:i + cabem]
-        for k, (mdo, cod, qtd, centro, desc) in enumerate(parte):
-            b = y0 + k * ALT_LINHA + BASE_DENTRO
-            centrado(p, COLUNAS[0], COLUNAS[1], b, mdo)
-            centrado(p, COLUNAS[1], COLUNAS[2], b, cod)
-            centrado(p, COLUNAS[2], COLUNAS[3], b, qtd)
-            centrado(p, COLUNAS[3], COLUNAS[4], b, centro)
-            ajustado(p, COLUNAS[4] + 1.8, COLUNAS[5], b - 0.12, desc)
-        grade(p, topo, len(parte))
-        i += len(parte)
-        if i >= len(dados):
-            break
+    for tipo, dados, cab in preparadas:
         p = nova_pagina()
-        topo = 20.4
+        esq, dir_ = 18.4, 88.4
+        l = [TOPO_BLOCO + i * ALT_LINHA for i in range(5)]
+        for rot, val, y in (("TÍTULO:", cab["titulo"], l[0]), ("Nº NOTA:", cab["nota"], l[1]), ("BAIRRO", cab["bairro"], l[2]),
+                            ("UTD:", cab["utd"], l[3]), ("PROJETISTA:", cab["projetista"], l[4])):
+            texto(p, esq, y, rot, True)
+            texto(p, dir_, y, val)
+        for rot, val, y in (("Nº SAP:", cab["sap"], l[1]), ("MUNICIPIO:", cab["municipio"], l[2]), ("UTEP:", cab["utep"], l[3]), ("DATA:", cab["data"], l[4])):
+            texto(p, 235.9, y, rot, True)
+            texto(p, 300.4, y, val)
+        texto(p, 443.5, l[1], f"ID INVESTIMENTO - {cab['id']}", True, CINZA_TXT)
+        texto(p, 443.5, l[2], f"TIPO DE ORDEM  -  {tipo}", True, CINZA_TXT)
+
+        i, primeira = 0, True
+        while True:
+            if primeira:
+                cabecalho_tabela(p, TOPO_TAB)
+                y0 = TOPO_TAB + ALT_CAB_TAB
+            else:
+                y0 = TOPO_CONT                                              # continuação: só a grade, a partir do topo da folha
+            cabem = max(1, int((LIMITE_Y - y0) // ALT_LINHA))
+            parte = dados[i:i + cabem]
+            for k, (mdo, cod, qtd, centro, desc) in enumerate(parte):
+                b = y0 + k * ALT_LINHA + BASE_DENTRO
+                centrado(p, COLUNAS[0], COLUNAS[1], b, mdo)
+                centrado(p, COLUNAS[1], COLUNAS[2], b, cod)
+                centrado(p, COLUNAS[2], COLUNAS[3], b, qtd)
+                centrado(p, COLUNAS[3], COLUNAS[4], b, centro)
+                ajustado(p, COLUNAS[4] + 1.8, COLUNAS[5], b - 0.12, desc)
+            grade(p, y0, len(parte), TOPO_TAB if primeira else None)
+            i += len(parte)
+            if i >= len(dados):
+                break
+            p = nova_pagina()
+            primeira = False
     out = doc.tobytes(garbage=3, deflate=True)
     doc.close()
     return out

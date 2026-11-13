@@ -279,7 +279,7 @@ async def importar_sap_pdf_rota(arquivos: List[UploadFile] = File(...)):
         except importar_sap_pdf.ErroSapPdf as e:
             raise HTTPException(status_code=400, detail=f"{nome}: {e}")
         lidos.append(lido)
-        resumo.append({"nome": nome, "tipo": lido["tipo"], "nota": lido["nota"], "itens": len(lido["linhas"])})
+        resumo += [{"nome": nome, "tipo": sec["tipo"], "nota": lido["nota"], "itens": len(sec["linhas"])} for sec in lido["secoes"]]       # um PDF pode ter ODI e ODD
     try:
         resultado = importar_sap_pdf.para_resultado(lidos)
     except importar_sap_pdf.ErroSapPdf as e:
