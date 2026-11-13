@@ -29,10 +29,44 @@ NOMES_EXE_ANTIGOS = ("GridR.exe", NOME_EXE_LEGADO)       # TASK-156: a Release t
 CACHE_SEGUNDOS = 30 * 60
 TIMEOUT_CONSULTA = 6.0
 TIMEOUT_DOWNLOAD = 60.0
+TIMEOUT_LEITURA = 20.0                                   # TASK-159: sem receber nenhum byte por tanto tempo = download parado (também limita a demora do Cancelar)
+MAX_DOWNLOAD_SEGUNDOS = 30 * 60                          # TASK-159: tempo máximo total do download
 URL_RELEASE = "https://api.github.com/repos/{repo}/releases/latest"
 
 _cache = {"t": 0.0, "dados": None}
 _aplicando = threading.Lock()
+
+# TASK-159: andamento da atualização (a tela consulta /api/update/status e pode cancelar em /api/update/cancel)
+FASES_ATIVAS = ("verificando", "baixando", "conferindo")
+_estado = {"fase": "ocioso", "baixado": 0, "total": 0, "erro": ""}
+_estado_trava = threading.Lock()
+_cancelar = threading.Event()
+
+
+class AtualizacaoCancelada(RuntimeError):
+    """O usuário cancelou a atualização."""
+
+
+def _definir(**campos):
+    with _estado_trava:
+        _estado.update(campos)
+
+
+def estado_atualizacao() -> dict:
+    """{fase: ocioso|verificando|baixando|conferindo|pronto|cancelado|erro, baixado, total, percentual (0-100 ou None), erro}."""
+    with _estado_trava:
+        e = dict(_estado)
+    e["percentual"] = round(min(100.0, e["baixado"] * 100.0 / e["total"]), 1) if e["total"] > 0 else None
+    return e
+
+
+def cancelar_atualizacao() -> bool:
+    """Pede para parar a atualização em andamento (vale a qualquer momento antes da troca do .exe). False se não havia nada a cancelar."""
+    with _estado_trava:
+        ativa = _estado["fase"] in FASES_ATIVAS
+    if ativa:
+        _cancelar.set()
+    return ativa
 
 
 def _url_permitida() -> str:
@@ -108,16 +142,29 @@ def check_for_updates(forcar: bool = False) -> dict:
 
 
 # ─────────────────────────── download e troca do .exe ───────────────────────────
-def _baixar(url: str, destino: str) -> str:
-    """Baixa `url` para `destino` (em streaming) e devolve o SHA-256 (hex minúsculo) do que foi gravado."""
+def _baixar(url: str, destino: str, progresso=None) -> str:
+    """Baixa `url` para `destino` (em streaming) e devolve o SHA-256 (hex minúsculo) do que foi gravado.
+    `progresso(baixado, total)` é chamado a cada bloco (total = 0 se o servidor não informar o tamanho). Respeita o cancelamento e o tempo máximo."""
     import httpx
     h = hashlib.sha256()
-    with httpx.stream("GET", url, headers={"User-Agent": "LeitorPro-Updater"}, timeout=TIMEOUT_DOWNLOAD, follow_redirects=True) as r:
+    inicio, baixado = time.monotonic(), 0
+    limites = httpx.Timeout(TIMEOUT_DOWNLOAD, read=TIMEOUT_LEITURA)
+    with httpx.stream("GET", url, headers={"User-Agent": "LeitorPro-Updater"}, timeout=limites, follow_redirects=True) as r:
         r.raise_for_status()
+        total = int(r.headers.get("content-length") or 0)
+        if progresso:
+            progresso(0, total)
         with open(destino, "wb") as f:
             for bloco in r.iter_bytes(1024 * 256):
+                if _cancelar.is_set():
+                    raise AtualizacaoCancelada("Atualização cancelada.")
+                if time.monotonic() - inicio > MAX_DOWNLOAD_SEGUNDOS:
+                    raise RuntimeError("O download passou do tempo máximo (30 minutos). Verifique a conexão e tente de novo.")
                 h.update(bloco)
                 f.write(bloco)
+                baixado += len(bloco)
+                if progresso:
+                    progresso(baixado, total)
     return h.hexdigest()
 
 
@@ -183,14 +230,17 @@ def _iniciar_script(bat: str):
 
 
 def download_and_install_update(download_url=None) -> bool:
-    """Baixa a Release mais recente (a URL do pedido é IGNORADA), confere o SHA-256, grava o .bat auxiliar e agenda o fechamento do programa."""
+    """Baixa a Release mais recente (a URL do pedido é IGNORADA), confere o SHA-256, grava o .bat auxiliar e agenda o fechamento do programa.
+    Atualiza o andamento (`estado_atualizacao`) e pode ser cancelada (`cancelar_atualizacao` → AtualizacaoCancelada)."""
     if desligado():
         raise RuntimeError("As atualizações automáticas só funcionam no aplicativo desktop.")
     if not IS_FROZEN:
         raise RuntimeError("Atualização automática só no executável (.exe); em desenvolvimento use git pull.")
     if not _aplicando.acquire(blocking=False):
         raise RuntimeError("Já existe uma atualização em andamento.")
+    novo = ""
     try:
+        _definir(fase="verificando", baixado=0, total=0, erro="")
         info = check_for_updates(forcar=True)
         if not info.get("has_update"):
             raise RuntimeError("Não há atualização disponível.")
@@ -198,24 +248,56 @@ def download_and_install_update(download_url=None) -> bool:
         pasta = os.path.dirname(alvo)
         novo, antigo = alvo + ".novo", alvo + ".antigo"
         esperado = _sha_esperado(info["sha256_url"])
+        if _cancelar.is_set():
+            raise AtualizacaoCancelada("Atualização cancelada.")
         logger.info(f"Baixando a versão {info['latest_version']}...")
-        try:
-            obtido = _baixar(info["download_url"], novo)
-        except Exception:
-            _remover(novo)
-            raise
+        _definir(fase="baixando")
+        obtido = _baixar(info["download_url"], novo, lambda b, t: _definir(baixado=b, total=t))
+        _definir(fase="conferindo")
         if obtido != esperado:
-            _remover(novo)
             raise RuntimeError("O arquivo baixado não confere com o SHA-256 da Release; a atualização foi cancelada.")
         bat = os.path.join(pasta, "atualizar_leitor.bat")
         with open(bat, "w", encoding="utf-8", newline="\r\n") as f:
             f.write(gerar_script(os.getpid(), alvo, novo, antigo))
         _iniciar_script(bat)
         logger.info("Atualização baixada e conferida; o programa vai fechar e reabrir na nova versão.")
+        _definir(fase="pronto")
         threading.Timer(1.5, _encerrar).start()           # deixa a resposta HTTP sair antes de fechar
         return True
+    except AtualizacaoCancelada:
+        if novo:
+            _remover(novo)
+        _definir(fase="cancelado", erro="")
+        raise
+    except Exception as e:
+        if novo:
+            _remover(novo)
+        _definir(fase="erro", erro=str(e))
+        raise
     finally:
+        _cancelar.clear()
         _aplicando.release()
+
+
+def iniciar_atualizacao():
+    """Começa a atualização em segundo plano e volta na hora (a tela acompanha por `estado_atualizacao`). Levanta RuntimeError se não puder começar."""
+    if desligado():
+        raise RuntimeError("As atualizações automáticas só funcionam no aplicativo desktop.")
+    if not IS_FROZEN:
+        raise RuntimeError("Atualização automática só no executável (.exe); em desenvolvimento use git pull.")
+    with _estado_trava:
+        if _estado["fase"] in FASES_ATIVAS + ("pronto",):
+            raise RuntimeError("Já existe uma atualização em andamento.")
+        _estado.update(fase="verificando", baixado=0, total=0, erro="")
+    _cancelar.clear()
+
+    def _executar():
+        try:
+            download_and_install_update()
+        except Exception as e:  # noqa: BLE001 — o motivo já ficou em `_estado`; aqui só garante que nenhuma exceção escapa da thread
+            logger.info(f"Atualização não concluída: {type(e).__name__}")
+
+    threading.Thread(target=_executar, daemon=True).start()
 
 
 def _remover(caminho):

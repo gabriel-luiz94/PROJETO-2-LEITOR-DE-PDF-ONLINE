@@ -764,3 +764,7 @@ Na barra do Resumo ficam o nome do projeto, o botão **💾 Salvar ▾** e uma e
 - Ao voltar ao default, abrir outro projeto ou criar um novo com alterações não salvas (automático desligado), o programa pergunta se quer salvar.
 - O aviso vermelho "Arquivo alterado por fora" só aparece quando o programa vai gravar e o arquivo mudou no disco; clique nele para escolher Sobrescrever, Recarregar ou Decidir depois.
 
+## Atualização automática: progresso e cancelar (TASK-159)
+
+Ao clicar em **Instalar e Reiniciar** no aviso de atualização, aparece uma **barra de progresso** com a porcentagem e os MB baixados (ex.: "Baixando… 36% (54,0 MB de 150 MB)"). O botão **Cancelar** para o download a qualquer momento antes da troca: o arquivo parcial é apagado e o programa continua exatamente como estava. Se a conexão ficar parada por 20 segundos ou o download passar de 30 minutos, o programa avisa o erro. Se você recarregar a página no meio, a barra volta. Depois de conferir o arquivo (SHA-256), o programa fecha sozinho e abre na versão nova.
+

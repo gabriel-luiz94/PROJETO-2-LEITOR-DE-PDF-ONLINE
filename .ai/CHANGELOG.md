@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-13 — TASK-159: atualização automática com barra de progresso e botão Cancelar
+
+- O download do `.exe` roda em segundo plano (`iniciar_atualizacao`); `GET /api/update/status` dá fase, MB e percentual e `POST /api/update/cancel` cancela (apaga o parcial, não toca no `.exe`). Para se ficar 20 s sem receber dados e tem tempo máximo de 30 min. `POST /api/update/apply` agora só inicia.
+
+---
+
 ## 2026-11-13 — TASK-158: Salvar / Salvar como / salvamento automático e rascunho do default
 
 - Botão dividido "💾 Salvar ▾" + chave "Salvamento automático" + etiqueta de estado no Resumo. Projeto novo: automático ligado; aberto: desligado (só Salvar grava, inclusive o Resultado); default: ligado e grava rascunho (`rascunhos/` junto do app) recuperável. Salvar como cria cópia. Pergunta ao sair com pendências. Corrigida a corrida que gerava o alarme falso "alterado por fora" (assinatura sempre gravada sobre o estado atual).

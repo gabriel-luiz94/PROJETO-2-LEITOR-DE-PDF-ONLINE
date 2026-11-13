@@ -15,12 +15,20 @@
 <body>
     <!-- Notificação de Update (Auto-Updater Desktop) -->
     <div id="update-notification" class="hidden" style="background-color: #d97706; color: #161b22; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; position: fixed; top: 0; left: 0; right: 0;">
-        <div>
+        <div style="flex: 1; min-width: 0;">
             <strong>Atualização Disponível (<span id="update-version"></span>)!</strong>
             <span id="update-notes" style="margin-left: 10px; opacity: 0.9; font-size: 0.9em;"></span>
+            <!-- TASK-159: andamento do download -->
+            <div id="update-progress" style="display: none; margin-top: 6px; max-width: 520px;" role="status" aria-live="polite">
+                <div style="background: rgba(22, 27, 34, 0.25); border-radius: 4px; height: 8px; overflow: hidden;">
+                    <div id="update-bar" style="height: 8px; width: 0; background: #161b22; transition: width 0.3s;"></div>
+                </div>
+                <div id="update-progress-text" style="font-size: 0.8em; margin-top: 3px;"></div>
+            </div>
         </div>
         <div>
             <button id="btn-apply-update" style="background: #161b22; color: #d97706; border: none; padding: 5px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">Instalar e Reiniciar</button>
+            <button id="btn-cancel-update" style="display: none; background: transparent; border: 1px solid #161b22; color: #161b22; padding: 5px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">Cancelar</button>
             <button onclick="document.getElementById('update-notification').style.display='none'" style="background: transparent; border: 1px solid #161b22; color: #161b22; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 10px;">Depois</button>
         </div>
     </div>
