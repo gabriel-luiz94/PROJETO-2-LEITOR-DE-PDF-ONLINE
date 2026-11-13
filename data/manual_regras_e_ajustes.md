@@ -749,3 +749,9 @@ No aplicativo (não na versão online) a barra do Resumo tem o menu **📁 Proje
 - **📋 Colar SAP**: copie o JSON do Atlas e clique no botão na janela do projeto (preenche nome, número de obra e dados do SAP), na janela "Informações do relatório SAP" ou na janela dos relatórios ODI/ODD. Se o sistema não deixar ler a área de transferência, cole o texto na caixinha que abre. O ID de investimento vem do `odiCodigo` (e `oddCodigo` para o ODD). No relatório, se a nota colada for diferente do número do projeto, o programa avisa e usa a colada só naquele relatório.
 
 O programa agora se chama **OrçaCore** (o ícone continua o mesmo). Quem já usa **não precisa fazer nada**: a atualização automática continua funcionando e o arquivo no seu computador pode seguir com o nome antigo (`GridR.exe` ou `Leitor_Projetos.exe`) — é o mesmo programa. Os novos downloads vêm como `OrcaCore.exe` (sem acento, por ser nome de arquivo). As senhas salvas da janela e os demais dados são preservados.
+
+## Resultado do orçamento: Comparar por formato e Importar PDFs SAP (TASK-157)
+
+- **⇄ Comparar** (e **Arquivo…** na barra de comparação) pergunta o formato da referência: **.REC** (como sempre), **.obra** (usa só o resultado do orçamento que ficou gravado no projeto; se o arquivo não tiver, o programa explica como gerar), **PDFs PB** (Orçamento + Lista de materiais, os mesmos do Importar PDFs) ou **PDF SAP** (escolha o ODI, o ODD ou os dois; vale o PDF gerado pelo programa e o feito por fora no mesmo formato).
+- **Importar PDFs** tem o seletor **PB | SAP**. Em SAP, as linhas do ODI entram como instalação (I) e as do ODD como retirada (R), mescladas na tabela do Resultado. O programa descobre se é ODI ou ODD pelo "TIPO DE ORDEM" dentro do PDF, não pelo nome do arquivo. PDF escaneado como imagem não pode ser lido.
+
