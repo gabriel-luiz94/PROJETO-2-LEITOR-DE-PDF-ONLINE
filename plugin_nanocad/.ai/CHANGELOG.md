@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-11-13 — TASK-020: integração com o projeto de trabalho do OrçaCore; sem gravação no banco (0.10.0)
+
+- **Salvar** (`ORC_SALVAR`) grava `<desenho>.obra` na pasta do desenho no formato do 📁 Projeto do OrçaCore (`Nucleo/ProjetoArquivo`): envelope +
+  `cad` + `projeto_trabalho` (SAP, resultado e o que o programa guardou ficam; nome e número de obra vêm da obra). `cad.assinaturaLinhas` = impressão
+  das linhas gravadas; se o arquivo tiver outras linhas (editadas no OrçaCore) ou for um projeto só do programa, pergunta antes de gravar por cima.
+  Gravação atômica. A cópia no DWG continua. O `.obra.json` antigo ainda é lido no Continuar (o `.obra` vale primeiro).
+- **Nome e número de obra** (`ORC_PROJETO`, `TelaProjeto`, botão no painel; perguntado no primeiro Salvar): `Obra.NumeroObra`; o Continuar lê o que
+  o programa guardou em `projeto_trabalho`.
+- **🌐 Abrir na aplicação** (`ORC_ABRIR_APP`): salva e entrega o CAMINHO ao OrçaCore deste computador (`ProgramaLocal.EntregarProjeto`; fechado:
+  `--abrir-projeto "<caminho>"`). **Removido** o envio para o banco (`ClienteAplicacao.EnviarObra`, `POST /api/plugin/obra`). Sem o programa: o
+  projeto fica na pasta do desenho.
+- Nome: **OrçaCore para nanoCAD** (o programa mudou de nome na TASK-156 do principal).
+- Testes: `ProjetoArquivoTests` (6), `ProgramaLocalTests` (+1); exemplo `exemplos/Projeto_Rua_das_Flores.obra` aberto pela aplicação
+  (`tests/test_plugin_projeto_162.py`).
+
+---
+
 ## 2026-11-12 — TASK-019: cabo lido de texto escolhido — comprimento da linha de baixo na linha do cabo, sem vírgula (0.9.2)
 
 Quando o texto escolhido (+ Cabo / + Outros e + Vão) está numa layer que não é de operação, as regras não CLASSIFICAM, mas o PROCESSAMENTO de

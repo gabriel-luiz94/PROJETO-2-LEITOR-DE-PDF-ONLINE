@@ -413,6 +413,35 @@
         return true;
     }
 
+    /* ── TASK-162: projeto entregue pelo plugin do nanoCAD (<desenho>.obra, gravado por ele na pasta do desenho) ── */
+    const mesmoArquivo = (a, b) => String(a || '').replace(/\//g, '\\').toLowerCase() === String(b || '').replace(/\//g, '\\').toLowerCase();
+    /** Abre o projeto que o plugin gravou. Se ele já é o projeto aberto, relê do arquivo (o desenho atualizou as linhas); senão, o mesmo
+     *  caminho do menu Abrir (pergunta Abrir/Mesclar/Sobrescrever se o Resumo já tem dados). Devolve true se abriu. */
+    async function abrirDoPlugin(caminho, projetoCodigo) {
+        const p = ponte();
+        if (!p) return false;
+        const r = await p.projeto_abrir(caminho, projetoCodigo || codigoRegras());
+        if (!r || !r.ok) {
+            await perguntar('Projeto do nanoCAD', 'Não foi possível abrir o projeto do desenho: ' + ((r && r.erro) || 'erro ao ler o arquivo.'), [{ texto: 'Entendi', valor: 'ok', ok: true }]);
+            return false;
+        }
+        const e = estado();
+        if (e && mesmoArquivo(e.caminho, r.caminho)) {
+            if (temPendencias()) {
+                const v = await perguntar('Projeto atualizado pelo nanoCAD', 'O desenho gravou linhas novas em “' + r.projeto.nome + '”, mas a tela tem alterações não salvas.',
+                    [{ texto: 'Usar o do desenho', valor: 'desenho', ok: true, descricao: 'Recarrega o projeto do arquivo (as alterações da tela se perdem).' },
+                     { texto: 'Manter a tela', valor: 'tela', descricao: 'Não recarrega agora; ao salvar, o programa avisa que o arquivo mudou.' }]);
+                if (v !== 'desenho') return false;
+            }
+            definirProjeto(r, e.auto === true);
+            if (resumo) { resumo.carregar(r.projeto.dados); dadosProntos = true; sujo = false; }
+            suspenso = false; pendente = null; aplicarNumero(); atualizarMenu();
+            avisar('Projeto “' + r.projeto.nome + '” atualizado pelo nanoCAD.');
+            return true;
+        }
+        return ativarAberto(r);
+    }
+
     /* ── Janela do projeto (Novo / Abrir / Propriedades / Salvar como) ── */
     function abrirJanelaSap(valores, aoAplicar) {
         const j = janela('Informações do relatório SAP', 520);
@@ -705,7 +734,7 @@
     Object.assign(api, {
         ativo, estado, pasta: () => { const e = estado(); return e ? pastaDoCaminho(e.caminho) : ''; }, numeroObra: () => { const e = estado(); return e ? (e.numero || '') : ''; },
         nome: () => { const e = estado(); return e ? e.nome : ''; }, sap: () => { const e = estado(); return e && e.sap ? e.sap : {}; },
-        registrarResumo, marcarSujo, colarSap, ROTULOS, salvarAgora: salvarAutomatico, abrirJanela, voltarAoDefault, carregarResultado, acompanharResultado, confirmarNumeroObra, salvarSap,
+        registrarResumo, marcarSujo, colarSap, ROTULOS, abrirDoPlugin, temPonte: () => !!ponte(), salvarAgora: salvarAutomatico, abrirJanela, voltarAoDefault, carregarResultado, acompanharResultado, confirmarNumeroObra, salvarSap,
         salvar: salvarClick, salvarComo: salvarComoClick, definirAuto, recuperarRascunho, autoLigado, temPendencias,
         __enviar: enviarLocal, __enviarAgora: enviarAgoraLocal, __salvarClick: salvarClick, __salvarComoClick: salvarComoClick,
         __registrarColetor: fn => { coletorResultado = fn; }, __pendenteResultado: () => (pendente && pendente.resultado) || null

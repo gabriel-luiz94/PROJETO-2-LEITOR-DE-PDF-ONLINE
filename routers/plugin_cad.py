@@ -10,9 +10,7 @@ regras GRAVADAS AQUI e a conferir a obra contra a Base de Orçamento, sem repeti
     POST /api/plugin/conferir              {"projeto", "dados": {"cabos", "outros"}} (as linhas do .obra.json) → para cada linha, os
                                            ativos que a Totalizadora gera e se cada um existe na Base de Orçamento do projeto
                                            (mesmo caminho do modo autônomo: montar_totalizadora → processar_calculo, RN-06).
-    POST /api/plugin/obra                  {"chave", "envelope"} (TASK-106): "Abrir na aplicação" — grava a obra do desenho como obra
-                                           PARTICULAR do usuário (a mesma obra a cada envio do mesmo desenho, sem duplicar) e devolve o
-                                           link do Resumo que a abre já carregada (/resumo?obra=…&projeto=…).
+    (TASK-162: o POST /api/plugin/obra, que gravava a obra do plugin no banco, foi removido — ver /api/plugin/receber.)
 
     GET  /api/plugin/projetos              (TASK-131) projetos cadastrados (o plugin lista todos na tela inicial).
     GET  /api/plugin/leitura?projeto=081   (TASK-131) configuração de LEITURA do desenho do projeto (layers da rede, blocos de poste,
@@ -20,8 +18,9 @@ regras GRAVADAS AQUI e a conferir a obra contra a Base de Orçamento, sem repeti
     GET  /api/plugin/catalogo?projeto=081  (TASK-144) a Base de Orçamento do projeto para o autocompletar do plugin: nomes (+ descrição, origem),
                                            apelidos e os parâmetros de cada ativo (mesma lógica da dica da aplicação, services/ativo_parametros).
     GET  /api/plugin/desktop               (TASK-143, pública) "sou o OrçaCore (antes GridReader) instalado neste computador?"
-    POST /api/plugin/receber               (TASK-143, pública, só 127.0.0.1 e só no programa instalado) o plugin entrega a obra; a janela
-                                           vem para a frente em /resumo?plugin_pendente=<id> · GET /api/plugin/pendente/<id> (login) a devolve.
+    POST /api/plugin/receber               (TASK-143, pública, só 127.0.0.1 e só no programa instalado) o plugin entrega o PROJETO
+                                           {chave, caminho: "<desenho>.obra"} (TASK-162; plugin antigo: {chave, envelope}); a janela vem para a frente
+                                           em /resumo?plugin_pendente=<id> e abre o projeto · GET /api/plugin/pendente/<id> (login) o devolve.
     GET  /api/plugin/instalacao            (TASK-131) o programa traz o plugin: versão trazida × instalada e caminho para o APPLOAD
     POST /api/plugin/instalacao            (desktop) instalar/atualizar agora · POST /api/plugin/instalacao/abrir-pasta (desktop)
     GET  /api/plugin/atualizacao?alvo=nanocad26          (TASK-130) versão do plugin publicada aqui + SHA-256 + endereço do arquivo.
@@ -291,40 +290,8 @@ def conferir(payload: ConferirPayload, request: Request):
     return resposta
 
 
-class ObraPluginPayload(BaseModel):
-    chave: str                      # identifica o desenho (o plugin manda o caminho do DWG; aqui só entra no hash do id)
-    envelope: Dict[str, Any]        # o mesmo conteúdo do .obra.json
-
-
-@router.post("/obra")
-def enviar_obra(payload: ObraPluginPayload, request: Request):
-    """Grava (cria ou atualiza) a obra do desenho para o usuário e devolve o link que a abre no Resumo (TASK-106)."""
-    from routers.obras import _existente, gravar_obra
-    from middleware.auth_middleware import get_current_user_from_state
-    user = get_current_user_from_state(request)
-    env = payload.envelope if isinstance(payload.envelope, dict) else {}
-    p = _projeto(str(env.get("projeto") or ""))
-    if len(json.dumps(env, ensure_ascii=False)) > obras_arquivo.LIMITE_BYTES:
-        raise HTTPException(status_code=413, detail={"erros": ["Obra grande demais."]})
-    try:
-        pronta = obras_arquivo.validar_importacao(env, p["codigo"])
-    except obras_arquivo.ErroArquivoObra as e:
-        raise HTTPException(status_code=400, detail={"erros": e.mensagens})
-    if pronta["tipo"] != "obra":
-        raise HTTPException(status_code=400, detail={"erros": ["O plugin só envia obras (não modelos)."]})
-    chave = (payload.chave or "").strip()
-    if not chave:
-        raise HTTPException(status_code=400, detail={"erros": ["Falta a chave do desenho."]})
-    obra_id = "plugin_" + hashlib.sha256(f"{user['user_id']}|{chave.lower()}".encode("utf-8")).hexdigest()[:20]
-    existe, dono, _, _ = _existente(obra_id)
-    if existe and dono and dono != user["user_id"]:
-        raise HTTPException(status_code=403, detail={"erros": ["Essa obra pertence a outro usuário."]})
-    nome = (pronta["nome"] + " (nanoCAD)")[:120]
-    gravar_obra(user, {"id": obra_id, "nome": nome, "data": datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
-                       "dados_json": obras_arquivo.dados_json_para_gravar(pronta["dados"]), "projeto": p["codigo"], "publica": False, "tipo": "obra"})
-    url = f"/resumo?obra={quote(obra_id)}&projeto={quote(p['codigo'])}&projeto_nome={quote(p['nome'])}"
-    return {"id": obra_id, "nome": nome, "projeto": p, "url": url, "atualizada": existe,
-            "cabos": len(pronta["dados"]["cabos"]), "outros": len(pronta["dados"]["outros"])}
+# TASK-162: o antigo POST /api/plugin/obra (TASK-106: o plugin gravava a obra no BANCO como obra particular) foi REMOVIDO. A obra do desenho
+# agora é o projeto de trabalho `<desenho>.obra` na pasta do desenho, aberto no OrçaCore deste computador (POST /api/plugin/receber).
 
 
 # ── atualização automática do plugin (TASK-130) ──
@@ -436,7 +403,8 @@ def desktop():
 
 class ReceberPayload(BaseModel):
     chave: str = ""
-    envelope: Dict[str, Any]
+    caminho: Optional[str] = None                 # TASK-162: o projeto `<desenho>.obra` que o plugin gravou
+    envelope: Optional[Dict[str, Any]] = None     # plugin antigo (até 0.9.x): a obra inteira — só aparece na tela, sem gravar no banco
 
 
 def _do_proprio_computador(request: Request) -> bool:
@@ -453,10 +421,16 @@ def receber_obra(payload: ReceberPayload, request: Request):
     if not _do_proprio_computador(request):
         raise HTTPException(status_code=403, detail="Só o plugin deste computador pode entregar obras.")
     from services import janela_desktop, programa_local
-    erro = programa_local.validar(payload.chave, payload.envelope)
-    if erro:
-        raise HTTPException(status_code=400, detail=erro)
-    i = programa_local.guardar(payload.chave, payload.envelope)
+    if payload.caminho:
+        caminho, codigo, erro = programa_local.validar_projeto(payload.caminho)
+        if erro:
+            raise HTTPException(status_code=400, detail=erro)
+        i = programa_local.guardar_projeto(payload.chave, caminho, codigo)
+    else:
+        erro = programa_local.validar(payload.chave, payload.envelope)
+        if erro:
+            raise HTTPException(status_code=400, detail=erro)
+        i = programa_local.guardar(payload.chave, payload.envelope)
     url = programa_local.url_pendente(i)
     janela = janela_desktop.mostrar(url, request.url.port)
     return {"id": i, "url": url, "janela": janela}
@@ -468,6 +442,12 @@ def obra_pendente(i: str):
     v = programa_local.pegar(i)
     if not v:
         raise HTTPException(status_code=404, detail="Obra do nanoCAD não encontrada (passou mais de 1 hora ou o programa foi reaberto). Envie de novo pelo plugin.")
+    if v.get("caminho"):
+        try:
+            p = _projeto(v.get("projeto") or "")
+        except HTTPException:
+            p = {"codigo": v.get("projeto") or "", "nome": ""}
+        return {"chave": v["chave"], "caminho": v["caminho"], "projeto": p}
     return {"chave": v["chave"], "envelope": v["envelope"]}
 
 

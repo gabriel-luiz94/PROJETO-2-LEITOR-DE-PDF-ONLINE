@@ -16,7 +16,7 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <Nullable>disable</Nullable>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <Product>GridReader para nanoCAD 5</Product>
+    <Product>OrçaCore para nanoCAD 5</Product>
     <Authors>Gabriel Sales</Authors>
     <Deterministic>true</Deterministic>
     <NoWarn>SYSLIB0014;CS1685</NoWarn>

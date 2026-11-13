@@ -19,7 +19,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-    <Product>GridReader para nanoCAD</Product>
+    <Product>OrçaCore para nanoCAD</Product>
     <Authors>Gabriel Sales</Authors>
     <Deterministic>true</Deterministic>
     <NoWarn>CA1416;SYSLIB0014</NoWarn>

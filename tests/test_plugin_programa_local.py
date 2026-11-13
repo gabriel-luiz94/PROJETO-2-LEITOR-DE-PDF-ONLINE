@@ -38,7 +38,7 @@ def test_programa_se_apresenta_sem_login(client, monkeypatch):
     assert client.get("/api/plugin/desktop").json()["desktop"] is False
 
 
-def test_recebe_a_obra_traz_a_janela_e_o_resumo_grava_para_o_usuario(client, monkeypatch):
+def test_plugin_antigo_so_com_a_obra_ainda_e_recebido_sem_gravar_no_banco(client, monkeypatch):
     urls = []
     monkeypatch.setattr(janela_desktop, "mostrar", lambda url, porta=None: urls.append(url) or True)
     r = client.post("/api/plugin/receber", json={"chave": "C:/obras/rua.dwg", "envelope": ENV})       # sem token: é o plugin
@@ -48,8 +48,7 @@ def test_recebe_a_obra_traz_a_janela_e_o_resumo_grava_para_o_usuario(client, mon
     assert client.get(f"/api/plugin/pendente/{i}").status_code == 401                                 # a janela busca com login
     d = client.get(f"/api/plugin/pendente/{i}", headers=cab()).json()
     assert d["chave"] == "C:/obras/rua.dwg" and d["envelope"]["tipo"] == "obra"
-    o = client.post("/api/plugin/obra", json=d, headers=cab()).json()                                  # o que o Resumo faz em seguida
-    assert o["url"].startswith("/resumo?obra=plugin_")
+    assert client.get("/api/obras?projeto=081", headers=cab()).json() == []                           # TASK-162: nada no banco
 
 
 def test_so_no_programa_instalado_e_so_do_proprio_computador(client, monkeypatch):

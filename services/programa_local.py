@@ -8,6 +8,10 @@ Antes, "Abrir na aplicação" abria uma aba no navegador. Agora:
     /resumo?plugin_pendente=<id>; o Resumo, já com o usuário logado, grava a obra para ele (POST /api/plugin/obra) e a abre.
   * Programa FECHADO: ao abrir, o .exe registra onde está e em que porta (%APPDATA%\\OrcamentoNanoCAD\\programa.json). O plugin grava a obra
     num arquivo e abre o .exe com "--abrir-obra <arquivo>"; a janela começa no login e, depois de entrar, abre a obra.
+
+TASK-162 (integração com o PROJETO DE TRABALHO): o plugin grava o projeto `<desenho>.obra` na pasta do desenho e entrega só o CAMINHO
+(POST /api/plugin/receber {chave, caminho} · ou "--abrir-projeto <caminho>" com o programa fechado). A janela abre esse projeto pelo
+mesmo caminho do menu 📁 Projeto → Abrir (Abrir/Mesclar/Sobrescrever); nada é gravado no banco.
 """
 import json
 import os
@@ -65,6 +69,46 @@ def guardar(chave: str, envelope: dict) -> str:
         i = uuid.uuid4().hex
         _pendentes[i] = {"chave": chave.strip(), "envelope": envelope, "quando": agora}
     return i
+
+
+def validar_projeto(caminho) -> tuple:
+    """(caminho absoluto, código do projeto de regras, '') ou (None, None, erro): `.obra` existente e legível no formato do programa."""
+    from services import projeto_obra
+    if not isinstance(caminho, str) or not caminho.lower().endswith(projeto_obra.EXTENSAO):
+        return None, None, "o projeto precisa ser um arquivo .obra"
+    caminho = os.path.abspath(caminho)
+    if not os.path.isfile(caminho):
+        return None, None, "o arquivo do projeto não existe"
+    try:
+        with open(caminho, "rb") as f:
+            bruto = f.read(projeto_obra.LIMITE_BYTES + 1)
+        carga = json.loads(bruto.decode("utf-8-sig"))
+        codigo = str(carga.get("projeto") or "").strip()
+        projeto_obra.ler(bruto, codigo)                              # mesmo exame do menu Abrir
+        return caminho, codigo, ""
+    except projeto_obra.ErroProjeto as e:
+        return None, None, " ".join(e.mensagens)
+    except (OSError, ValueError, UnicodeDecodeError, AttributeError):
+        return None, None, "o arquivo do projeto está ilegível"
+
+
+def guardar_projeto(chave: str, caminho: str, codigo: str) -> str:
+    """Guarda o pedido de abrir o projeto `caminho` até a janela buscá-lo; devolve o id."""
+    agora = time.time()
+    with _trava:
+        i = uuid.uuid4().hex
+        _pendentes[i] = {"chave": (chave or "").strip(), "caminho": caminho, "projeto": codigo, "quando": agora}
+    return i
+
+
+def ler_argumento_projeto(argv) -> str:
+    """'--abrir-projeto <caminho.obra>' na linha de comando do .exe (aberto pelo plugin com o programa fechado)."""
+    for k, a in enumerate(argv):
+        if a == "--abrir-projeto" and k + 1 < len(argv):
+            return argv[k + 1]
+        if a.startswith("--abrir-projeto="):
+            return a.split("=", 1)[1]
+    return ""
 
 
 def pegar(i: str):

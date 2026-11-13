@@ -1,5 +1,6 @@
 // Plugin/PersistenciaDwg.cs — a obra guardada nos DOIS lugares: dentro do DWG (dicionário de objetos nomeados → Xrecord, em pedaços
-// de texto) e no arquivo "<desenho>.obra.json" na pasta do desenho. Os dois têm o MESMO conteúdo (o envelope leitor-obra).
+// de texto) e no projeto de trabalho "<desenho>.obra" na pasta do desenho (TASK-020; antes "<desenho>.obra.json", ainda lido).
+// Os dois têm o MESMO conteúdo (o envelope leitor-obra + projeto_trabalho). O OrçaCore abre e grava o .obra preservando a seção "cad".
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -88,8 +89,23 @@ namespace OrcamentoNanoCAD
             string noDwg = null, noArquivo = null;
             try { noDwg = LerDoDwg(s.Doc); } catch (System.Exception) { }
             string arq = s.ArquivoObra;
-            try { if (arq != null && File.Exists(arq)) noArquivo = File.ReadAllText(arq, Encoding.UTF8); } catch (System.Exception) { }
-            string escolhido = noDwg ?? noArquivo;
+            // o projeto .obra vale primeiro (o OrçaCore pode ter mudado nome e número); depois a cópia no DWG; por último o .obra.json antigo
+            try
+            {
+                if (arq != null && File.Exists(arq))
+                {
+                    string t = File.ReadAllText(arq, Encoding.UTF8);
+                    JObj env = Json.Ler(t) as JObj;
+                    if (env != null && env.Obj("cad") != null) noArquivo = t;
+                }
+                if (noArquivo == null && noDwg == null && s.ArquivoObraAntigo != null && File.Exists(s.ArquivoObraAntigo))
+                {
+                    arq = s.ArquivoObraAntigo;
+                    noArquivo = File.ReadAllText(arq, Encoding.UTF8);
+                }
+            }
+            catch (System.Exception) { }
+            string escolhido = noArquivo ?? noDwg;
             if (escolhido == null) return null;
             ObraSalva r = new ObraSalva();
             r.Json = escolhido;

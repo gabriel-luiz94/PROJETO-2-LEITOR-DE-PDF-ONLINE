@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-13 — TASK-162: plugin do nanoCAD integrado ao projeto de trabalho; sem gravação no banco
+
+- O plugin grava `<desenho>.obra` (formato do 📁 Projeto, com a seção `cad` dele) na pasta do desenho. `services/projeto_obra.montar` PRESERVA a `cad` ao gravar.
+- `POST /api/plugin/receber {chave, caminho}` (só 127.0.0.1, só no programa instalado) e `--abrir-projeto <caminho>` no `.exe`: a janela vai para `/resumo?plugin_pendente=<id>` e abre o projeto por `GridRProjeto.abrirDoPlugin` (mesmo caminho do menu Abrir: Abrir/Mesclar/Sobrescrever; se já é o projeto aberto, relê do arquivo). `GET /api/plugin/pendente/<id>` devolve `{caminho, projeto}`.
+- **Removido** `POST /api/plugin/obra` (TASK-106: o plugin gravava a obra no banco). Plugin antigo que só manda a obra: as linhas aparecem na tela, sem gravar. Plugin 0.10.0 (TASK-020). Tarefa: `.ai/tasks/TASK-162-13-11-2026.md`.
+
 ## 2026-11-13 — TASK-161: relatório SAP no formato do ICP (PDF único)
 
 - "Relatórios PDF" gera um arquivo só (ODI e depois ODD, cada um em página nova com cabeçalho); páginas de continuação sem cabeçalho nem linha verde; 48 linhas na 1ª página; duas casas nas quantidades. A leitura de PDF SAP passou a usar a posição do texto (o título que o ICP escreve depois da tabela não vira descrição).

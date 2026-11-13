@@ -4,6 +4,8 @@
 //   2. Programa FECHADO: o .exe registra onde está em %APPDATA%\OrcamentoNanoCAD\programa.json; o plugin grava {chave, envelope} num arquivo e
 //      abre o .exe com --abrir-obra "<arquivo>" (camada do CAD).
 //   3. Sem programa instalado: o caminho antigo (aplicação do ORC_CONECTAR, no navegador).
+// TASK-020: o plugin entrega o PROJETO "<desenho>.obra" ({chave, caminho}; programa fechado: --abrir-projeto "<caminho>"); o OrçaCore o abre
+// como em 📁 Projeto → Abrir. Nada é gravado no banco; sem o programa instalado, o projeto fica na pasta do desenho.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -62,6 +64,23 @@ namespace OrcamentoNanoCAD.Nucleo
             string det = o != null ? (o.Str("detail") ?? "") : "";
             return r.Status == 0 ? (r.Erro ?? "sem resposta") : "HTTP " + r.Status + (det.Length > 0 ? ": " + det : "");
         }
+
+        public const string ArgumentoProjeto = "--abrir-projeto";
+
+        /// <summary>Entrega o projeto ao programa aberto: ele vem para a frente e abre o arquivo. null = ok; senão o motivo.</summary>
+        public static string EntregarProjeto(ITransporteHttp http, int porta, string chave, string caminho)
+        {
+            JObj corpo = new JObj().Set("chave", chave ?? "").Set("caminho", caminho ?? "");
+            RespostaHttp r = http.Enviar("POST", Base(porta) + "/api/plugin/receber", Json.Escrever(corpo, false), null, 30000);
+            if (r.Status == 200) return null;
+            JObj o = Json.Ler(r.Corpo ?? "") as JObj;
+            string det = o != null ? (Json.ComoTexto(o["detail"]) ?? "") : "";
+            if (r.Status == 422) return "o OrçaCore aberto é de uma versão antiga (não recebe projetos): atualize o programa";
+            return r.Status == 0 ? (r.Erro ?? "sem resposta") : "HTTP " + r.Status + (det.Length > 0 ? ": " + det : "");
+        }
+
+        /// <summary>Argumentos para abrir o .exe já com o projeto.</summary>
+        public static string ArgumentosProjeto(string caminho) { return ArgumentoProjeto + " \"" + (caminho ?? "").Replace("\"", "") + "\""; }
 
         /// <summary>O que vai no arquivo (programa fechado) e no POST (programa aberto).</summary>
         public static JObj Pacote(string chave, JObj envelope) { return new JObj().Set("chave", chave ?? "").Set("envelope", envelope); }

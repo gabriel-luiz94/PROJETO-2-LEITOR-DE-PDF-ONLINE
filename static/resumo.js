@@ -6297,8 +6297,9 @@ window.handleTotPaste = function(e, index) {
 
     /* TASK-106: aberto pelo plugin do nanoCAD ("Abrir na aplicação"): /resumo?obra=<id>&projeto=<código>&projeto_nome=<nome>.
        Seleciona o projeto, carrega a obra nas tabelas (como "Carregar") e tira os parâmetros da barra (F5 não recarrega por cima). */
-    /* TASK-143: obra entregue pelo plugin ao programa instalado (/resumo?plugin_pendente=<id>): busca no servidor local, grava para o
-       usuário logado (mesmo caminho do "Abrir na aplicação": POST /api/plugin/obra) e segue para o link de abrir a obra (?obra=…). */
+    /* TASK-162: projeto entregue pelo plugin do nanoCAD (/resumo?plugin_pendente=<id>). O plugin grava o projeto de trabalho `<desenho>.obra`
+       na pasta do desenho e entrega o CAMINHO; aqui ele é aberto como em 📁 Projeto → Abrir (static/projeto.js: abrirDoPlugin). Nada vai para o banco.
+       Plugin antigo (só a obra, sem caminho): as linhas aparecem na tela, sem gravar no banco. */
     (async function receberObraDoPlugin() {
         const pend = new URLSearchParams(window.location.search).get('plugin_pendente');
         if (!pend) return;
@@ -6309,18 +6310,32 @@ window.handleTotPaste = function(e, index) {
         try {
             const r = await fetch(`/api/plugin/pendente/${encodeURIComponent(pend)}`);
             const d = await r.json().catch(() => ({}));
-            if (!r.ok) { showToast(d.detail || `Não consegui receber a obra do nanoCAD (HTTP ${r.status}).`); return; }
-            const g = await fetch('/api/plugin/obra', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                                       body: JSON.stringify({ chave: d.chave, envelope: d.envelope }) });
-            const o = await g.json().catch(() => ({}));
-            if (!g.ok || !o.url) {
-                const erros = (o.detail && o.detail.erros) ? o.detail.erros.join('; ') : (o.detail || `HTTP ${g.status}`);
-                showToast('Não consegui abrir a obra do nanoCAD: ' + erros);
+            if (!r.ok) { showToast(d.detail || `Não consegui receber o projeto do nanoCAD (HTTP ${r.status}).`); return; }
+            try { history.replaceState(null, '', window.location.pathname); } catch (e) { /* navegador antigo */ }
+            const proj = d.projeto || {};
+            if (proj.codigo) localStorage.setItem('projeto_selecionado_codigo', proj.codigo);
+            if (proj.nome) {
+                localStorage.setItem('projeto_selecionado', proj.nome);
+                const sel = document.getElementById('select-projeto');
+                if (sel) sel.value = proj.nome;
+            }
+            if (d.caminho) {
+                // a ponte do aplicativo (pywebview) chega logo depois da página: espera até ~10 s
+                for (let k = 0; k < 40 && !(window.GridRProjeto && window.GridRProjeto.temPonte && window.GridRProjeto.temPonte()); k++) await new Promise(ok => setTimeout(ok, 250));
+                if (!(window.GridRProjeto && window.GridRProjeto.temPonte && window.GridRProjeto.temPonte())) {
+                    showToast('O projeto do nanoCAD só abre no OrçaCore instalado. Arquivo: ' + d.caminho);
+                    return;
+                }
+                await window.GridRProjeto.abrirDoPlugin(d.caminho, proj.codigo);
                 return;
             }
-            window.location.replace(o.url);
+            const env = d.envelope || {};
+            if (env.dados) {
+                restoreObraSnapshot(env.dados);
+                showToast('Obra do nanoCAD na tela (não foi gravada). Atualize o plugin para abrir como projeto.');
+            }
         } catch (e) {
-            showToast('Não consegui receber a obra do nanoCAD: ' + e.message);
+            showToast('Não consegui receber o projeto do nanoCAD: ' + e.message);
         }
     })();
 

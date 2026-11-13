@@ -26,7 +26,7 @@ namespace OrcamentoNanoCAD.UI
         public TelaInicio(Sessao s, PersistenciaDwg.ObraSalva salva)
         {
             _s = s;
-            Text = "GridReader — orçamento no nanoCAD";
+            Text = "OrçaCore — orçamento no nanoCAD";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -93,7 +93,7 @@ namespace OrcamentoNanoCAD.UI
             _status.MaximumSize = new Size(700, 0);
             _status.Margin = new Padding(0, 10, 0, 0);
             raiz.Controls.Add(_status);
-            Label credito = Visual.Rotulo("GridReader " + ObraArquivo.VersaoPlugin + " · Desenvolvido por Gabriel Sales", Visual.Normal, Visual.Suave);
+            Label credito = Visual.Rotulo("OrçaCore " + ObraArquivo.VersaoPlugin + " · Desenvolvido por Gabriel Sales", Visual.Normal, Visual.Suave);
             credito.Margin = new Padding(0, 8, 0, 0);
             raiz.Controls.Add(credito);
             Controls.Add(raiz);
@@ -600,7 +600,57 @@ namespace OrcamentoNanoCAD.UI
         private void Confirmar()
         {
             Guardar();
-            if (Ativo.Length == 0) { MessageBox.Show(this, "Digite o ativo ou selecione um texto no desenho.", "GridReader", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            if (Ativo.Length == 0) { MessageBox.Show(this, "Digite o ativo ou selecione um texto no desenho.", "OrçaCore", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            DialogResult = DialogResult.OK;
+            Close();
+        }
+    }
+
+    // ── TASK-020: nome e número de obra do projeto de trabalho (<desenho>.obra) ──
+    public class TelaProjeto : Form
+    {
+        public string Nome, Numero;
+        private readonly TextBox _nome, _numero;
+
+        public TelaProjeto(Obra obra, string caminho)
+        {
+            Text = "Projeto do OrçaCore";
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false; MinimizeBox = false;
+            StartPosition = FormStartPosition.CenterScreen;
+            AutoSize = true; AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            Font = Visual.Normal;
+            Padding = new Padding(14);
+            FlowLayoutPanel f = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false };
+            Label ex = Visual.Rotulo("A obra deste desenho é salva como projeto de trabalho do OrçaCore, na pasta do desenho. O OrçaCore abre o mesmo "
+                + "arquivo em 📁 Projeto → Abrir; lá ficam o SAP e o resultado do orçamento.", Visual.Normal, Visual.Suave);
+            ex.MaximumSize = new Size(460, 0);
+            f.Controls.Add(ex);
+            f.Controls.Add(Visual.Rotulo("Arquivo do projeto", Visual.Secao, Visual.Suave));
+            Label arq = Visual.Rotulo(string.IsNullOrEmpty(caminho) ? "(salve o DWG para o projeto ter arquivo)" : caminho, Visual.Mono);
+            arq.MaximumSize = new Size(460, 0);
+            f.Controls.Add(arq);
+            f.Controls.Add(Visual.Rotulo("Nome do projeto", Visual.Secao, Visual.Suave));
+            _nome = new TextBox { Width = 460, Text = obra.Nome ?? "" };
+            f.Controls.Add(_nome);
+            f.Controls.Add(Visual.Rotulo("Número de obra (vai para o REC)", Visual.Secao, Visual.Suave));
+            _numero = new TextBox { Width = 200, Text = obra.NumeroObra ?? "" };
+            f.Controls.Add(_numero);
+            FlowLayoutPanel b = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 10, 0, 0) };
+            Button ok = Visual.Botao("OK", (o, e) => Confirmar(), true);
+            b.Controls.Add(ok);
+            b.Controls.Add(Visual.Botao("Cancelar", (o, e) => { DialogResult = DialogResult.Cancel; Close(); }));
+            f.Controls.Add(b);
+            Controls.Add(f);
+            AcceptButton = ok;
+            Visual.Aplicar(this);
+        }
+
+        private void Confirmar()
+        {
+            Nome = (_nome.Text ?? "").Trim();
+            Numero = (_numero.Text ?? "").Trim();
+            if (Nome.Length == 0) { MessageBox.Show(this, "Informe o nome do projeto.", "OrçaCore", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             DialogResult = DialogResult.OK;
             Close();
         }
@@ -616,7 +666,7 @@ namespace OrcamentoNanoCAD.UI
 
         public TelaConexao()
         {
-            Text = "🔗 Ligação com o GridReader";
+            Text = "🔗 Ligação com o OrçaCore";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
