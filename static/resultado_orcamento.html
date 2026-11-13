@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="/static/auth_fetch.js"></script>
     <script src="/static/desktop_arquivos.js"></script>
+    <script src="/static/projeto.js?v=1"></script>
     <link rel="stylesheet" href="/static/styles.css">
     <style>
         :root {
@@ -1359,6 +1360,20 @@
                 }
 
                 const payload = JSON.parse(payloadStr);
+                // TASK-154: com projeto aberto, o Resultado (inclusive as edições) volta como foi gravado, se o cálculo é o mesmo
+                const projetoAtivo = window.GridRProjeto && GridRProjeto.ativo();
+                const assinaturaCalculo = projetoAtivo ? GridRProjeto.hashTexto(payloadStr) : '';
+                if (projetoAtivo) {
+                    const salvo = await GridRProjeto.carregarResultado(assinaturaCalculo);
+                    if (salvo) {
+                        tbody.innerHTML = '';
+                        sapCopiadas.clear();
+                        renderRowsData(salvo.linhas);
+                        log(`Resultado restaurado do projeto: ${salvo.linhas.length} item(ns).`);
+                        GridRProjeto.acompanharResultado(tbody, getRowsData, assinaturaCalculo);
+                        return;
+                    }
+                }
                 log('Calculando orçamento com a base técnica...', true);
 
                 const res = await fetch('/api/orcamento/calcular', {
@@ -1391,6 +1406,7 @@
                         sapCopiadas.clear();              // outro cálculo: as marcações de "já copiado" recomeçam
                         log(`Orçamento gerado: ${data.resultado.length} item(ns) encontrado(s).`);
                         renderRowsData(data.resultado);
+                        if (projetoAtivo) GridRProjeto.acompanharResultado(tbody, getRowsData, assinaturaCalculo);
                     } else {
                         log('Cálculo finalizado. Nenhum item encontrado.');
                         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum código encontrado na base para os itens selecionados.</td></tr>';
@@ -1412,9 +1428,15 @@
         if (savedObra && numObraInput) {
             numObraInput.value = savedObra;
         }
+        // TASK-154: com um projeto aberto, o número de obra é o do projeto (na exportação do REC um pop-up pede a confirmação)
+        if (numObraInput && window.GridRProjeto && GridRProjeto.ativo() && GridRProjeto.numeroObra()) {
+            numObraInput.value = GridRProjeto.numeroObra();
+            numObraInput.title = 'Número de obra do projeto "' + GridRProjeto.nome() + '"';
+        }
 
         if (numObraInput) {
             numObraInput.addEventListener('input', (e) => {
+                if (window.GridRProjeto && GridRProjeto.ativo()) return;      // TASK-154: o número do projeto não é sobrescrito por aqui
                 localStorage.setItem('numero_obra', e.target.value);
             });
         }
@@ -1541,7 +1563,12 @@
         }
 
         async function baixarRecExterno() {
-            const numObra = document.getElementById("obra-numero").value.trim() || "EXPORT";
+            let numObra = document.getElementById("obra-numero").value.trim() || "EXPORT";
+            if (window.GridRProjeto && GridRProjeto.ativo()) {            // TASK-154: projeto aberto → confirma o número de obra antes de exportar
+                const confirmado = await GridRProjeto.confirmarNumeroObra(GridRProjeto.numeroObra() || (numObra !== "EXPORT" ? numObra : ""));
+                if (!confirmado) { log('Exportação cancelada.'); return; }
+                numObra = confirmado;
+            }
             const selectUf = document.getElementById("obra-uf");
             const prefix = selectUf.options[selectUf.selectedIndex]?.dataset.codigo || "000";
             const conteudo = gerarConteudoRec();
@@ -2246,14 +2273,15 @@
         function abrirRelatorioPdf() {
             const odi = linhasVisiveisSap('odi'), odd = linhasVisiveisSap('odd');
             if (!odi.length && !odd.length) return alert('Não há dados para gerar o relatório.');
-            const lembrado = relLer(), hoje = new Date().toLocaleDateString('pt-BR');
+            const projetoAtivo = window.GridRProjeto && GridRProjeto.ativo();                          // TASK-154: título, nota e cabeçalho vêm do projeto
+            const lembrado = Object.assign({}, relLer(), projetoAtivo ? GridRProjeto.sap() : {}), hoje = new Date().toLocaleDateString('pt-BR');
             const box = document.getElementById('rel-campos'); box.innerHTML = '';
             REL_CAMPOS.forEach(([k, rot, larg]) => {
                 const d = document.createElement('div'); if (larg === 2) d.style.gridColumn = '1 / -1';
                 const l = document.createElement('label'); l.textContent = rot; l.style.cssText = 'display:block; font-size:0.72rem; color:var(--text-secondary); margin-bottom:3px;';
                 const i = document.createElement('input'); i.type = 'text'; i.id = 'rel-' + k; i.style.cssText = 'width:100%; box-sizing:border-box; padding:7px 9px; background:var(--bg-canvas); color:var(--text-primary); border:1px solid var(--border-default); border-radius:6px; font:inherit; font-size:0.85rem; outline:none;';
                 i.onfocus = () => { i.style.borderColor = '#f97316'; }; i.onblur = () => { i.style.borderColor = ''; };
-                i.autocomplete = 'off'; i.value = k === 'nota' ? (document.getElementById('obra-numero').value.trim() || '') : k === 'data' ? hoje : (lembrado[k] || '');
+                i.autocomplete = 'off'; i.value = k === 'nota' ? ((projetoAtivo && GridRProjeto.numeroObra()) || document.getElementById('obra-numero').value.trim() || '') : k === 'titulo' && projetoAtivo ? GridRProjeto.nome() : k === 'data' ? (lembrado.data || hoje) : (lembrado[k] || '');
                 d.append(l, i); box.appendChild(d);
             });
             document.getElementById('modal-relatorio-pdf').style.display = 'flex';
@@ -2264,6 +2292,7 @@
             const cab = {}; REL_CAMPOS.forEach(([k]) => { cab[k] = document.getElementById('rel-' + k).value.trim(); });
             if (!cab.nota) { alert('Informe o número da nota.'); return; }
             const lembrar = {}; REL_LEMBRAR.forEach(k => { lembrar[k] = cab[k]; }); relGravar(lembrar);
+            if (window.GridRProjeto && GridRProjeto.ativo()) GridRProjeto.salvarSap(cab);              // TASK-154: o cabeçalho fica no projeto
             const nota = cab.nota.replace(/[^A-Za-z0-9_.-]+/g, '_');
             const btn = document.getElementById('rel-gerar'); btn.disabled = true;
             let feitos = 0;

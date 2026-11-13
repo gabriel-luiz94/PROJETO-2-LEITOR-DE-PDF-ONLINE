@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-13 — TASK-154: projeto de trabalho (`.obra` numa pasta, gravação automática)
+
+- Menu 📁 Projeto (só no aplicativo desktop): Novo/Abrir/Propriedades/Voltar ao default. O `.obra` é o envelope do `.obra.json` + `projeto_trabalho` (nome, número de obra, cabeçalho SAP, resultado do orçamento). Gravação parcial e atômica (`services/projeto_desktop.py`), conflito por SHA-1, fila única em `static/projeto.js`. Número de obra, título e SAP vêm do projeto; REC pede confirmação do número; relatórios abrem na pasta do projeto. Abrir com o Resumo preenchido: Abrir / Mesclar / Sobrescrever. Default = funcionamento de antes.
+
+---
+
 ## 2026-11-12 — TASK-152: nome GridR e ícone
 
 - Programa passa a se chamar GridR (telas, janela, README/manuais) e ganha o ícone (`static/gridr.svg/.ico`, favicon em todas as páginas, `--icon` no build). Release publica `GridR.exe` e a cópia `Leitor_Projetos.exe` (versões antigas continuam atualizando); atualizador aceita os dois nomes; perfil da janela migra para `%APPDATA%\GridR`. O identificador `"app": "GridReader"` da rota do plugin não muda.

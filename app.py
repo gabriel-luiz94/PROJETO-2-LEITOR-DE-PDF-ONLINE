@@ -99,6 +99,11 @@ async def serve_ativo_sugestao_js():
     return _serve_js("ativo_sugestao.js")       # TASK-136
 
 
+@app.get("/static/projeto.js")
+async def serve_projeto_js():
+    return _serve_js("projeto.js")              # TASK-154
+
+
 @app.get("/static/abrir_na_app.js")
 async def serve_abrir_na_app_js():
     return _serve_js("abrir_na_app.js")         # TASK-128
@@ -532,8 +537,8 @@ if __name__ == "__main__":
                 webview.settings['ALLOW_DOWNLOADS'] = True          # TASK-142: sem isto o WebView2 cancela qualquer download (a ponte de arquivos abaixo cobre os blobs)
             except Exception:  # noqa: BLE001 — pywebview antigo, sem essa opção
                 pass
-            from services.arquivos_desktop import ApiArquivos
-            api_arquivos = ApiArquivos()
+            from services.projeto_desktop import ApiProjeto           # TASK-154: arquivos nativos (TASK-142) + projeto de trabalho (.obra)
+            api_arquivos = ApiProjeto()
             # TASK-128: a janela abre já com a tela "Iniciando…" e só carrega o login quando o servidor aceita conexões (sem a mensagem "recusou a conectar")
             window = webview.create_window(
                 title=f"GridR v{APP_VERSION}",

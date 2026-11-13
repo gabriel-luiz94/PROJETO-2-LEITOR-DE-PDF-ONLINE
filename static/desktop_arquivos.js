@@ -34,9 +34,18 @@
     }
     const avisar = m => { try { if (raiz.showToast) raiz.showToast(m); } catch (e) { /* sem toast */ } };
 
+    /** TASK-154: com um projeto aberto, a caixa "Salvar como" já abre na pasta do projeto (o usuário pode escolher outro destino). */
+    function pastaDoProjeto() {
+        try {
+            const e = JSON.parse(raiz.localStorage.getItem('gridr_projeto') || 'null');
+            const c = e && e.caminho ? String(e.caminho) : '';
+            const i = Math.max(c.lastIndexOf('\\'), c.lastIndexOf('/'));
+            return i > 0 ? c.slice(0, i) : '';
+        } catch (x) { return ''; }
+    }
     async function salvarBlob(blob, nome) {
         const p = ponte();
-        const r = await p.salvar_arquivo(nome || 'arquivo', paraBase64(await blob.arrayBuffer()), '');
+        const r = await p.salvar_arquivo(nome || 'arquivo', paraBase64(await blob.arrayBuffer()), '', pastaDoProjeto());
         if (r && r.ok) avisar('Arquivo salvo em: ' + r.caminho);
         else if (r && !r.cancelado) avisar('Não foi possível salvar o arquivo' + (r.erro ? ': ' + r.erro : '.'));
         return r || {};
