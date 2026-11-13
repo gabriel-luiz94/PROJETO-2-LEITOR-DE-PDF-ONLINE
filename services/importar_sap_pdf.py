@@ -34,7 +34,9 @@ def _comeca_linha(t: list, j: int) -> bool:
             and _RE_QTD.match(t[j + 2]) is not None and _RE_CENTRO.match(t[j + 3]) is not None)
 
 
-def _linhas_da_pagina(textos: list) -> list:
+def _linhas_da_pagina(textos: list, pos: list = None) -> list:
+    """Linhas de material de uma página. `textos` = linhas de texto na ordem do PDF; `pos` (opcional) = [(x, y)] de cada uma. Com `pos`, uma linha só continua a
+    descrição se estiver na mesma coluna da 1ª linha dela e logo abaixo — assim o título do cabeçalho que o PDF escreve depois da tabela não entra na descrição."""
     saida, i = [], 0
     while i < len(textos):
         if not _comeca_linha(textos, i):
@@ -42,12 +44,26 @@ def _linhas_da_pagina(textos: list) -> list:
             continue
         j, desc = i + 4, []
         while j < len(textos) and not _comeca_linha(textos, j) and textos[j].upper() not in _CABECALHO:
+            if pos is not None and desc and not (abs(pos[j][0] - pos[i + 4][0]) <= 3 and 0 <= pos[j][1] - pos[j - 1][1] <= 20):
+                break
             desc.append(textos[j])
             j += 1
-        saida.append({"mdo": _MDO[textos[i]], "codigo": (textos[i + 1].lstrip("0") or "0") if textos[i + 1].isdigit() else textos[i + 1].upper(), "qtd": round(_numero(textos[i + 2]), 4),
-                      "centro": textos[i + 3], "desc": re.sub(r"\s+", " ", " ".join(desc)).strip()})
+        saida.append({"mdo": _MDO[textos[i]], "codigo": (textos[i + 1].lstrip("0") or "0") if textos[i + 1].isdigit() else textos[i + 1].upper(),
+                      "qtd": round(_numero(textos[i + 2]), 4), "centro": textos[i + 3], "desc": re.sub(r"\s+", " ", " ".join(desc)).strip()})
         i = j
     return saida
+
+
+def _linhas_com_posicao(pagina) -> tuple:
+    """(textos, posições) de uma página do PyMuPDF: uma entrada por linha de texto, na ordem do PDF."""
+    textos, pos = [], []
+    for bloco in pagina.get_text("dict").get("blocks", []):
+        for linha in bloco.get("lines", []):
+            t = "".join(sp.get("text", "") for sp in linha.get("spans", [])).strip()
+            if t and linha.get("spans"):
+                textos.append(t)
+                pos.append((linha["spans"][0]["origin"][0], linha["spans"][0]["origin"][1]))
+    return textos, pos
 
 
 def ler_pdf(conteudo: bytes) -> dict:
@@ -63,7 +79,7 @@ def ler_pdf(conteudo: bytes) -> dict:
             raise ErroSapPdf(f"PDF com páginas demais (máx. {LIMITE_PAGINAS}).")
         nota, secoes, total = "", [], 0
         for pagina in doc:
-            textos = [t.strip() for t in pagina.get_text("text").splitlines() if t.strip()]
+            textos, pos = _linhas_com_posicao(pagina)
             m = _RE_TIPO_ORDEM.search(" ".join(textos))
             if m and (not secoes or secoes[-1]["tipo"] != m.group(1).upper()):
                 secoes.append({"tipo": m.group(1).upper(), "linhas": []})
@@ -72,7 +88,7 @@ def ler_pdf(conteudo: bytes) -> dict:
                     if re.match(r"^N[º°o]\s*NOTA", t, re.I) and k + 1 < len(textos) and _RE_NOTA.match(textos[k + 1]):
                         nota = textos[k + 1]
                         break
-            linhas = _linhas_da_pagina(textos)
+            linhas = _linhas_da_pagina(textos, pos)
             if linhas and secoes:
                 secoes[-1]["linhas"] += linhas
             total += len(linhas)

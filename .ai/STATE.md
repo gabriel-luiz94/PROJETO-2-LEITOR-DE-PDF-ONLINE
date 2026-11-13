@@ -144,7 +144,8 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
       aparece na Totalizadora (diferente de `CABOS`/`OUTROS`, que sempre mantêm o item original).
       Ver `.ai/tasks/TASK-034-02-10-2026.md`.
 
-- [x] Etiqueta com estado do automático + fim do alarme falso + leitor de PDF com ODI e ODD juntos (TASK-160, 2026-11-13). **Pendente:** formato de saída do PDF no padrão do ICP (um PDF só, continuação sem cabeçalho, 48 linhas) aguardando o usuário. Ver `.ai/tasks/TASK-160-13-11-2026.md`.
+- [x] Relatório SAP no formato do ICP (TASK-161, 2026-11-13): PDF único com ODI e ODD, continuação sem cabeçalho, 48 linhas na 1ª página. Ver `.ai/tasks/TASK-161-13-11-2026.md`.
+- [x] Etiqueta com estado do automático + fim do alarme falso + leitor de PDF com ODI e ODD juntos (TASK-160, 2026-11-13). O formato de saída no padrão do ICP saiu na TASK-161. Ver `.ai/tasks/TASK-160-13-11-2026.md`.
 - [x] Atualização automática com progresso e Cancelar (TASK-159, 2026-11-13): download em segundo plano, `/api/update/status` e `/api/update/cancel`, barra com MB/percentual na tela inicial. Ver `.ai/tasks/TASK-159-13-11-2026.md`.
 - [x] Salvar / Salvar como / automático ligado-desligado + rascunho do default (TASK-158, 2026-11-13): botão "Salvar ▾" + chave + etiqueta de estado; projeto aberto vem desligado, novo ligado, default grava rascunho em `rascunhos/`. Ver `.ai/tasks/TASK-158-13-11-2026.md`.
 - [x] Comparar por formato + Importar PDFs SAP (TASK-157, 2026-11-13): Comparar com REC/.obra/PDFs PB/PDF SAP; Importar PDFs PB|SAP; leitura do PDF SAP em `services/importar_sap_pdf.py`. Ver `.ai/tasks/TASK-157-13-11-2026.md`.

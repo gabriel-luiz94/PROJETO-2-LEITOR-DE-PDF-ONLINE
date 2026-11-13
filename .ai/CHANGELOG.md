@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-13 — TASK-161: relatório SAP no formato do ICP (PDF único)
+
+- "Relatórios PDF" gera um arquivo só (ODI e depois ODD, cada um em página nova com cabeçalho); páginas de continuação sem cabeçalho nem linha verde; 48 linhas na 1ª página; duas casas nas quantidades. A leitura de PDF SAP passou a usar a posição do texto (o título que o ICP escreve depois da tabela não vira descrição).
+
+---
+
 ## 2026-11-13 — TASK-160: etiqueta com o estado do automático, fim do alarme falso e PDF com ODI+ODD juntos
 
 - Etiqueta do projeto sempre mostra "Automático ligado/desligado"; o aviso de arquivo alterado é uma etiqueta à parte. A assinatura do arquivo guardada na tela podia ficar velha se a janela fechasse no meio de uma gravação (alarme falso): agora o disco ao abrir é o ponto de partida e o servidor local tolera a assinatura da própria última gravação. O leitor de PDF SAP lê o ODI e o ODD de um mesmo PDF (relatório do ICP); antes jogava o ODD como ODI.

@@ -773,3 +773,7 @@ Ao clicar em **Instalar e Reiniciar** no aviso de atualização, aparece uma **b
 - A etiqueta ao lado do **Salvar** sempre diz o estado do salvamento automático: "Salvo às 14:32 · Automático ligado", "Não salvo · Automático desligado", "Rascunho gravado às … · Automático ligado" (projeto default). Se o arquivo do projeto mudar no disco, aparece à parte a etiqueta vermelha **⚠ Arquivo alterado por fora — resolver**; ao clicar, a janela mostra quando o arquivo foi modificado e deixa escolher Sobrescrever, Recarregar ou Decidir depois.
 - Ao ler um PDF SAP (Importar PDFs e Comparar), um mesmo arquivo pode trazer o **ODI e o ODD** (como o relatório do ICP): o programa separa as duas partes pelo "TIPO DE ORDEM" de cada página (páginas sem cabeçalho continuam a parte anterior).
 
+## Relatório SAP em PDF único (TASK-161)
+
+O botão **Relatórios PDF** do Resultado agora gera **um PDF só**, `NOTA_<nº>_ODI_ODD.pdf`: o ODI primeiro e o ODD depois, cada um começando em página nova com o cabeçalho (se só um deles tiver itens, o arquivo leva só ele: `NOTA_<nº>_ODI.pdf` ou `_ODD.pdf`). Como no relatório do ICP, as páginas de continuação não repetem o cabeçalho nem a linha verde, a primeira página comporta 48 linhas e as quantidades saem sempre com duas casas. A ordem é a da visão SAP (material antes de mão de obra, por código).
+

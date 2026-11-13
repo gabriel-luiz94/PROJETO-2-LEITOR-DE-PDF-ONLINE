@@ -15,7 +15,7 @@ from services.orcamento_arred import normalizar_arred
 from services.fator_formula import normalizar_fator
 from services.ativo_parametros import preencher_componentes, validar_base, resumo_erros
 from services.exportar_xlsx import ErroExportacao, gerar_xlsx
-from services.exportar_sap_pdf import ErroPdf, gerar_pdf
+from services.exportar_sap_pdf import ErroPdf, gerar_pdf, gerar_pdf_unico
 from services.rascunho_ativo import avaliar as avaliar_rascunho
 from services.sync_service import (
     get_merged_orcamento, sync_tabela_master, filtrar_linhas_por_categoria,
@@ -293,7 +293,8 @@ async def exportar_xlsx(request: Request):
 
 @router.post("/exportar-sap-pdf")
 async def exportar_sap_pdf(request: Request):
-    """TASK-140: relatório ODI ou ODD em PDF (formato da nota do SAP). Corpo: {tipo: "ODI"|"ODD", cabecalho: {...}, linhas: [{mdo, codigo, desc, qtd}]}."""
+    """TASK-140/161: relatório em PDF no formato da nota do SAP. Corpo: {cabecalho: {...}, odi: [...], odd: [...]} → UM PDF com o ODI e depois o ODD (seção sem itens é omitida),
+    ou o formato antigo {tipo: "ODI"|"ODD", cabecalho, linhas}. Cada linha: {mdo, codigo, desc, qtd}."""
     try:
         corpo = await request.json()
     except Exception:
@@ -301,7 +302,10 @@ async def exportar_sap_pdf(request: Request):
     if not isinstance(corpo, dict):
         raise HTTPException(status_code=400, detail="Corpo inválido.")
     try:
-        conteudo = gerar_pdf(corpo.get("cabecalho") or {}, corpo.get("tipo", ""), corpo.get("linhas", []))
+        if "odi" in corpo or "odd" in corpo:
+            conteudo = gerar_pdf_unico(corpo.get("cabecalho") or {}, corpo.get("odi") or [], corpo.get("odd") or [])
+        else:
+            conteudo = gerar_pdf(corpo.get("cabecalho") or {}, corpo.get("tipo", ""), corpo.get("linhas", []))
     except ErroPdf as e:
         raise HTTPException(status_code=400, detail=str(e))
     return Response(content=conteudo, media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="SAP.pdf"'})

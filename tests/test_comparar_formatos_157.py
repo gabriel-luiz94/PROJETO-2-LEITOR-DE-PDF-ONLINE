@@ -163,3 +163,18 @@ def test_rota_le_um_pdf_com_odi_e_odd_juntos(client):
     assert [x["operacao"] for x in d["resultado"]] == ["I"] * 5 + ["R"] * 2
     dois = client.post("/api/importar-sap-pdf", files=[("arquivos", ("a.pdf", pdf_icp_combinado(), "application/pdf")), ("arquivos", ("b.pdf", gerar_pdf(CAB, "ODD", LINHAS), "application/pdf"))], headers=adm())
     assert dois.status_code == 400 and "dois PDFs ODD" in dois.json()["detail"]
+
+
+def test_titulo_escrito_depois_da_tabela_nao_entra_na_descricao():
+    """O PDF do ICP escreve o valor do TÍTULO depois da tabela: a leitura por posição não deixa esse texto virar parte da descrição da última linha."""
+    doc = fitz.open()
+    pg = doc.new_page(width=595, height=842)
+    colunas = (47, 116, 199, 255, 300)
+    pg.insert_text((20, 20), "TIPO DE ORDEM  -  ODD", fontsize=9)
+    for i, (mdo, cod, qtd, centro, desc) in enumerate([("M", "7910008", "13,95", "1600", "SUCATA CABO/FIO COBRE NU"), ("N", "SDEVU3203RD", "1,00", "1000", "RETIRAR EST CRUZ SIMP ISOL PINO/PILAR LV")]):
+        for x, t in zip(colunas, (mdo, cod, qtd, centro, desc)):
+            pg.insert_text((x, 133 + i * 14.5), t, fontsize=9)
+    pg.insert_text((88.4, 31.4), "-PO RL  U B088255 RECIFE", fontsize=9)                 # no texto do PDF isto vem DEPOIS da tabela
+    pg.insert_text((267, 837), "#Internal Use", fontsize=9)
+    r = isp.ler_pdf(doc.tobytes())
+    assert [l["desc"] for l in r["secoes"][0]["linhas"]] == ["SUCATA CABO/FIO COBRE NU", "RETIRAR EST CRUZ SIMP ISOL PINO/PILAR LV"]
