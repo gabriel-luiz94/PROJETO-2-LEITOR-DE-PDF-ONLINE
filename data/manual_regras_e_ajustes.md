@@ -755,3 +755,12 @@ O programa agora se chama **OrçaCore** (o ícone continua o mesmo). Quem já us
 - **⇄ Comparar** (e **Arquivo…** na barra de comparação) pergunta o formato da referência: **.REC** (como sempre), **.obra** (usa só o resultado do orçamento que ficou gravado no projeto; se o arquivo não tiver, o programa explica como gerar), **PDFs PB** (Orçamento + Lista de materiais, os mesmos do Importar PDFs) ou **PDF SAP** (escolha o ODI, o ODD ou os dois; vale o PDF gerado pelo programa e o feito por fora no mesmo formato).
 - **Importar PDFs** tem o seletor **PB | SAP**. Em SAP, as linhas do ODI entram como instalação (I) e as do ODD como retirada (R), mescladas na tabela do Resultado. O programa descobre se é ODI ou ODD pelo "TIPO DE ORDEM" dentro do PDF, não pelo nome do arquivo. PDF escaneado como imagem não pode ser lido.
 
+## Salvar, Salvar como e salvamento automático (TASK-158, aplicativo desktop)
+
+Na barra do Resumo ficam o nome do projeto, o botão **💾 Salvar ▾** e uma etiqueta de estado (Salvo às 14:32 · Não salvo · Gravando… · Rascunho gravado…).
+- **Salvar** (Ctrl+S) grava tudo no `.obra`: Resumo, resultado do orçamento (com as edições), dados do SAP, nome e número. **Salvar como…** (Ctrl+Shift+S, no ▾) grava uma cópia com outro nome ou pasta e passa a trabalhar nela.
+- **Salvamento automático** (chave no ▾): **novo projeto** nasce ligado; **projeto aberto** vem desligado (você decide quando gravar; a etiqueta mostra "Não salvo" e o Salvar fica laranja). Ao ligar a chave, o que estava pendente é gravado na hora.
+- **Projeto default**: o automático fica ligado e guarda um **rascunho** do Resumo na pasta `rascunhos` ao lado do programa. Para trazê-lo de volta: ▾ → **Recuperar rascunho do default…** (o mais recente ou o da sessão anterior). Salvar ou Salvar como no default abre direto "Novo projeto".
+- Ao voltar ao default, abrir outro projeto ou criar um novo com alterações não salvas (automático desligado), o programa pergunta se quer salvar.
+- O aviso vermelho "Arquivo alterado por fora" só aparece quando o programa vai gravar e o arquivo mudou no disco; clique nele para escolher Sobrescrever, Recarregar ou Decidir depois.
+

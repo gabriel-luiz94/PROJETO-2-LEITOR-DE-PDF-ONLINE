@@ -144,6 +144,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
       aparece na Totalizadora (diferente de `CABOS`/`OUTROS`, que sempre mantêm o item original).
       Ver `.ai/tasks/TASK-034-02-10-2026.md`.
 
+- [x] Salvar / Salvar como / automático ligado-desligado + rascunho do default (TASK-158, 2026-11-13): botão "Salvar ▾" + chave + etiqueta de estado; projeto aberto vem desligado, novo ligado, default grava rascunho em `rascunhos/`. Ver `.ai/tasks/TASK-158-13-11-2026.md`.
 - [x] Comparar por formato + Importar PDFs SAP (TASK-157, 2026-11-13): Comparar com REC/.obra/PDFs PB/PDF SAP; Importar PDFs PB|SAP; leitura do PDF SAP em `services/importar_sap_pdf.py`. Ver `.ai/tasks/TASK-157-13-11-2026.md`.
 - [x] Novo nome OrçaCore (TASK-156, 2026-11-13): GridR → OrçaCore (logo mantido); arquivos `OrcaCore.exe`/`%APPDATA%\OrcaCore`; Release com cópias `GridR.exe` e `Leitor_Projetos.exe`. Ver `.ai/tasks/TASK-156-13-11-2026.md`.
 - [x] Colar SAP (TASK-155, 2026-11-13): botão que preenche nome/número do projeto e o cabeçalho do SAP com o JSON do Atlas (projeto, caixinha do SAP e relatório PDF). Ver `.ai/tasks/TASK-155-13-11-2026.md`.

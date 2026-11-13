@@ -159,32 +159,57 @@
     }
     const ROTULOS = { titulo: 'título', nota: 'nº da nota', sap: 'Nº SAP', bairro: 'bairro', municipio: 'município', utd: 'UTD', utep: 'UTEP', projetista: 'projetista', data: 'data', id_investimento: 'ID investimento (ODI)', id_investimento_odd: 'ID investimento (ODD)' };
 
-    /* ── Gravação ── */
+    /* ── Gravação ──
+       Projeto aberto: o salvamento automático pode estar LIGADO (grava 2 s depois de cada alteração e ao trocar de tela) ou DESLIGADO (só o botão Salvar grava).
+       Novo projeto nasce ligado; projeto aberto vem desligado. Projeto default: o automático (ligado por padrão) guarda um RASCUNHO fixo para recuperar depois. */
     let resumo = null;                 // ganchos do Resumo (registrarResumo)
     let dadosProntos = false;          // só grava Resumo depois de carregar o projeto (ou de a tela ter dados): nunca sobrescreve com a tela vazia
     let sujo = false, temporizador = null, pendente = null, gravando = null, suspenso = false, ultimaGravacao = null, erroAvisado = false;
+    let coletorResultado = null;       // o Resultado (na moldura) registra como entregar as linhas dele quando o usuário clica em Salvar
+    let rascunhoSessao = false, temporizadorRascunho = null;
+    let ui = null;                     // elementos do menu (montarMenu)
 
-    function statusTexto() {
+    const autoDefaultLigado = () => { try { return raiz.localStorage.getItem('gridr_auto_default') !== '0'; } catch (x) { return true; } };
+    const autoLigado = () => { const e = estado(); return e ? e.auto === true : autoDefaultLigado(); };
+    /** Lê o estado ATUAL, mescla `patch` e grava (leitura+escrita sem pausa: nunca guarda assinatura velha nem apaga o que outra parte mudou). */
+    function atualizarEstado(patch) { const e = estado(); if (!e) return null; const n = Object.assign({}, e, patch); gravarEstado(n); return n; }
+    const temPendencias = () => !!(sujo || (pendente && Object.keys(pendente).length));
+    const hora = d => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    function definirProjeto(r, auto) {
+        const pr = r.projeto;
+        gravarEstado({ caminho: r.caminho, nome: pr.nome, numero: pr.numero_obra, sap: pr.sap, assinatura: r.assinatura, projeto: pr.projeto, auto: !!auto });
+    }
+
+    /** Texto e cor da etiqueta de estado (um só lugar para ler o que está acontecendo). */
+    function rotuloEstado() {
         const e = estado();
-        if (!e) return '';
-        if (suspenso) return 'não gravado — arquivo alterado por fora';
-        if (!ultimaGravacao) return '';
-        return 'gravado às ' + ultimaGravacao.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' ✔';
+        if (!e) return autoDefaultLigado() ? { t: ultimaGravacao ? 'Rascunho gravado às ' + hora(ultimaGravacao) : 'Rascunho · automático ligado', cor: '#d97706' } : { t: 'Automático desligado', cor: '#8b949e' };
+        if (suspenso) return { t: 'Arquivo alterado por fora — clique para resolver', cor: '#f85149', clic: true };
+        if (gravando) return { t: 'Gravando…', cor: '#d97706' };
+        if (temPendencias()) return autoLigado() ? { t: 'Gravando em instantes…', cor: '#d97706' } : { t: 'Não salvo', cor: '#d29922' };
+        return { t: (ultimaGravacao ? 'Salvo às ' + hora(ultimaGravacao) : 'Salvo') + (autoLigado() ? ' · automático ligado' : ''), cor: '#3fb950' };
     }
     function atualizarMenu() {
-        const botaoMenu = doc.getElementById('btn-projeto'), status = doc.getElementById('projeto-status');
-        if (!botaoMenu) return;
-        const e = estado();
-        botaoMenu.textContent = e ? '📁 ' + e.nome : '📁 Projeto';
-        botaoMenu.title = e ? e.caminho : 'Projeto default (nada é gravado em arquivo). Crie ou abra um projeto para gravar tudo numa pasta.';
-        if (status) { status.textContent = statusTexto(); status.style.color = suspenso ? '#f85149' : '#8b949e'; }
+        if (!ui) return;
+        const e = estado(), r = rotuloEstado();
+        ui.chip.textContent = e ? '📁 ' + e.nome : '📁 Projeto default';
+        ui.chip.title = e ? e.caminho : 'Projeto default: o programa guarda um rascunho do que você faz. Salve para criar um projeto.';
+        ui.dot.style.background = r.cor; ui.txt.textContent = r.t; ui.txt.style.color = r.clic ? '#f85149' : '#e6edf3';
+        ui.pill.style.cursor = r.clic ? 'pointer' : 'default'; ui.pill.title = r.clic ? 'Clique para decidir o que fazer com o arquivo alterado' : '';
+        const destaque = !!e && temPendencias() && !autoLigado();
+        ui.salvar.style.color = destaque ? '#d97706' : '#e6edf3'; ui.split.style.borderColor = destaque ? '#d97706' : '#30363d';
+        const lig = autoLigado();
+        ui.sw.style.background = lig ? '#3fb950' : '#484f58'; ui.knob.style.left = lig ? '18px' : '2px';
+        ui.hint.textContent = e ? (lig ? 'Ligado: grava 2 s depois de cada alteração.' : 'Desligado: você decide quando gravar (Salvar / Ctrl+S).')
+                                : (lig ? 'Ligado: guarda um rascunho do que você faz, para recuperar depois.' : 'Desligado: nada é guardado até você salvar.');
     }
-    async function conflito(parcial) {
+
+    async function conflito() {
         const r = await perguntar('Projeto alterado por fora',
             'O arquivo do projeto foi modificado por outro programa ou computador depois da sua última gravação. O que fazer?',
             [{ texto: 'Sobrescrever com o que está na tela', valor: 'sobrescrever', ok: true, descricao: 'Grava o que está na tela por cima do arquivo (o que mudou por fora nos mesmos dados é perdido).' },
              { texto: 'Recarregar do arquivo', valor: 'recarregar', descricao: 'Descarta o que está na tela e usa o arquivo atual.' },
-             { texto: 'Decidir depois', valor: 'depois', descricao: 'Nada é gravado até você decidir (menu Projeto → Propriedades → OK).' }]);
+             { texto: 'Decidir depois', valor: 'depois', descricao: 'Nada é gravado até você decidir (clique no aviso vermelho ao lado do Salvar).' }]);
         return r || 'depois';
     }
     async function escrever(parcial, forcar) {
@@ -192,50 +217,151 @@
         if (!e || !p) return;
         const r = await p.projeto_gravar(e.caminho, JSON.stringify(parcial), forcar ? '' : (e.assinatura || ''), !!forcar, e.projeto || '');
         if (r && r.ok) {
-            e.assinatura = r.assinatura; gravarEstado(e); ultimaGravacao = new Date(); suspenso = false; erroAvisado = false; atualizarMenu();
+            atualizarEstado({ assinatura: r.assinatura }); ultimaGravacao = new Date(); suspenso = false; erroAvisado = false;
         } else if (r && r.conflito) {
-            const escolha = await conflito(parcial);
+            const escolha = await conflito();
             if (escolha === 'sobrescrever') return escrever(parcial, true);
             if (escolha === 'recarregar') { await recarregarDoArquivo(); return; }
-            suspenso = true; pendente = Object.assign({}, parcial, pendente || {}); atualizarMenu();
+            suspenso = true; pendente = Object.assign({}, parcial, pendente || {});
         } else {
             if (!erroAvisado) { erroAvisado = true; avisar('Projeto não gravado: ' + ((r && r.erro) || 'erro desconhecido')); }
             pendente = Object.assign({}, parcial, pendente || {});
-            suspenso = true; atualizarMenu();
+            suspenso = true;
         }
+        atualizarMenu();
     }
-    /** Envia (mescla) o que mudou e grava em segundo plano, uma gravação por vez. */
-    function enviar(parcial) {
+    /** Grava o que estiver pendente, uma gravação por vez (junta o que chegar enquanto grava). */
+    function drenar() {
+        if (!gravando) {
+            gravando = (async () => {
+                try {
+                    while (pendente && !suspenso) { const p = pendente; pendente = null; atualizarMenu(); await escrever(p, false); }
+                } catch (x) { avisar('Projeto não gravado: ' + x.message); }
+                finally { gravando = null; atualizarMenu(); }
+            })();
+            atualizarMenu();
+        }
+        return gravando;
+    }
+    function enviar(parcial) {                                 // com o automático ligado grava; desligado só guarda como pendente ("Não salvo")
         const d = dono();
-        if (d) return d.__enviar(parcial);
-        return enviarLocal(parcial);
+        return d ? d.__enviar(parcial) : enviarLocal(parcial);
     }
     function enviarLocal(parcial) {
         if (!ativo()) return Promise.resolve();
         pendente = Object.assign(pendente || {}, parcial);
-        if (suspenso) return Promise.resolve();
-        if (!gravando) {
-            gravando = (async () => {
-                try {
-                    while (pendente && !suspenso) { const p = pendente; pendente = null; await escrever(p, false); }
-                } catch (x) { avisar('Projeto não gravado: ' + x.message); }
-                finally { gravando = null; }
-            })();
-        }
-        return gravando;
+        if (!autoLigado() || suspenso) { atualizarMenu(); return Promise.resolve(); }
+        return drenar();
+    }
+    function enviarAgora(parcial) {                            // ação explícita (Aplicar/OK nas propriedades): grava mesmo com o automático desligado
+        const d = dono();
+        if (d) return d.__enviarAgora(parcial);
+        return enviarAgoraLocal(parcial);
+    }
+    function enviarAgoraLocal(parcial) {
+        if (!ativo()) return Promise.resolve();
+        pendente = Object.assign(pendente || {}, parcial); suspenso = false;
+        return drenar();
     }
     function marcarSujo(imediato) {
-        if (!ativo() || !resumo) return;
-        sujo = true;
-        clearTimeout(temporizador);
-        temporizador = setTimeout(() => { salvarAgora(); }, imediato ? 0 : ESPERA_MS);
+        if (!resumo) return;
+        if (estado()) {
+            if (!ativo()) return;
+            sujo = true; atualizarMenu();
+            if (autoLigado()) { clearTimeout(temporizador); temporizador = setTimeout(salvarAutomatico, imediato ? 0 : ESPERA_MS); }
+        } else if (ponte() && autoDefaultLigado()) {
+            clearTimeout(temporizadorRascunho); temporizadorRascunho = setTimeout(gravarRascunho, imediato ? 0 : ESPERA_MS);
+        }
     }
-    /** Grava já o que estiver pendente (troca de tela, voltar ao default, fechar). Resolve quando terminar. */
-    async function salvarAgora() {
+    /** Salvamento automático (só com ele ligado): grava o Resumo alterado. Troca de tela, voltar ao default e fechar também chamam. */
+    async function salvarAutomatico() {
         clearTimeout(temporizador);
-        if (!ativo()) return;
+        if (!ativo() || !autoLigado()) return;
         if (resumo && dadosProntos && sujo) { sujo = false; await enviar({ dados: resumo.coletar() }); }
         else if (gravando) await gravando;
+    }
+    /** Botão Salvar do projeto aberto: grava tudo agora (Resumo, Resultado, SAP, nome/número), com o automático ligado ou não. Resolve true se gravou. */
+    async function salvar(manual) {
+        if (!ativo()) return false;
+        clearTimeout(temporizador);
+        const parcial = {};
+        if (resumo && (sujo || manual)) {
+            if (dadosProntos) parcial.dados = resumo.coletar();
+            else if (manual) avisar('O Resumo não foi gravado: o projeto não foi carregado. Abra o projeto de novo.');
+        }
+        if (coletorResultado) { try { const r = coletorResultado(); if (r) parcial.resultado = r; } catch (x) { /* a tela do Resultado segue valendo */ } }
+        sujo = false; suspenso = false;
+        pendente = Object.assign(pendente || {}, parcial);
+        await drenar();
+        const ok = !suspenso;
+        if (manual && ok) avisar('Projeto salvo.');
+        return ok;
+    }
+    async function definirAuto(ligar) {
+        if (estado()) {
+            atualizarEstado({ auto: !!ligar }); atualizarMenu();
+            if (ligar) { await salvar(false); avisar('Salvamento automático ligado.'); }
+            else avisar('Salvamento automático desligado: use Salvar (Ctrl+S) para gravar.');
+        } else {
+            try { raiz.localStorage.setItem('gridr_auto_default', ligar ? '1' : '0'); } catch (x) { /* sem storage */ }
+            atualizarMenu();
+            if (ligar) gravarRascunho();
+        }
+    }
+    /** Antes de sair do projeto aberto (abrir outro, criar novo, voltar ao default): com o automático desligado e pendências, pergunta. true = pode seguir. */
+    async function confirmarSaida() {
+        const e = estado();
+        if (!e) return true;
+        if (autoLigado()) { await salvarAutomatico(); return true; }
+        if (!temPendencias()) return true;
+        const r = await perguntar('Salvar alterações em “' + e.nome + '”?', 'Há alterações que ainda não foram gravadas no arquivo do projeto.',
+            [{ texto: 'Salvar', valor: 'salvar', ok: true }, { texto: 'Não salvar', valor: 'nao', descricao: 'As alterações não gravadas serão perdidas.' }]);
+        if (!r) return false;
+        return r === 'salvar' ? await salvar(true) : true;
+    }
+    function salvarClick() {
+        if (!ponte()) return Promise.resolve();
+        if (!resumo) { const d = dono(); if (d) return d.__salvarClick(); }
+        if (!estado()) { abrirJanela('novo'); return Promise.resolve(); }       // no default, Salvar cria o projeto
+        return salvar(true);
+    }
+    function salvarComoClick() {
+        if (!ponte()) return;
+        if (!resumo) { const d = dono(); if (d) { d.__salvarComoClick(); return; } }
+        abrirJanela(estado() ? 'salvarcomo' : 'novo');
+    }
+    async function resolverConflito() { suspenso = false; atualizarMenu(); await salvar(true); }
+
+    /* ── Rascunho do projeto default ── */
+    async function gravarRascunho() {
+        const p = ponte();
+        if (!p || estado() || !resumo || !autoDefaultLigado() || !resumo.temDados()) return;      // nunca grava a tela vazia por cima do rascunho
+        const r = await p.projeto_rascunho_gravar(JSON.stringify({ dados: resumo.coletar() }), codigoRegras(), !rascunhoSessao);
+        if (r && r.ok) { rascunhoSessao = true; ultimaGravacao = new Date(); }
+        atualizarMenu();
+    }
+    async function recuperarRascunho() {
+        const p = ponte();
+        if (!p || !resumo) return;
+        const info = await p.projeto_rascunho_info();
+        const lista = (info && info.ok && info.rascunhos) || [];
+        if (!lista.length) { await perguntar('Recuperar rascunho', 'Ainda não há rascunho do projeto default. Ele é gravado quando o salvamento automático está ligado e há dados no Resumo.', [{ texto: 'Entendi', valor: 'ok', ok: true }]); return; }
+        const fmt = x => (x.salvo_em ? new Date(x.salvo_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '') + ' · ' + x.itens + ' linha(s)';
+        const rotulos = { atual: 'Rascunho mais recente', anterior: 'Rascunho da sessão anterior' };
+        const id = await perguntar('Recuperar rascunho do projeto default', 'Escolha o rascunho a recuperar para o Resumo.', lista.map((x, i) => ({ texto: rotulos[x.id] || x.id, valor: x.id, ok: i === 0, descricao: fmt(x) })));
+        if (!id) return;
+        const r = await p.projeto_rascunho_ler(id, codigoRegras());
+        if (!r || !r.ok) { avisar('Não foi possível recuperar o rascunho: ' + ((r && r.erro) || '')); return; }
+        let modo = 'abrir';
+        if (resumo.temDados()) {
+            modo = await perguntar('Recuperar rascunho', 'O Resumo já tem dados. O que deseja fazer?',
+                [{ texto: 'Substituir', valor: 'abrir', ok: true, descricao: 'Apaga o que está na tela e usa o rascunho.' }, { texto: 'Mesclar', valor: 'mesclar', descricao: 'Junta o que está na tela com o rascunho.' }]);
+            if (!modo) return;
+        }
+        if (modo === 'abrir') resumo.carregar(r.projeto.dados); else resumo.mesclar(r.projeto.dados);
+        dadosProntos = true;
+        if (estado()) marcarSujo(true); else gravarRascunho();
+        avisar('Rascunho recuperado.');
     }
 
     /* ── Aplicar o projeto na tela ── */
@@ -252,39 +378,38 @@
         if (!e || !p) return;
         const r = await p.projeto_abrir(e.caminho, codigoRegras());
         if (!r || !r.ok) { avisar('Não foi possível recarregar o projeto: ' + ((r && r.erro) || '')); return; }
-        const pr = r.projeto;
-        gravarEstado({ caminho: r.caminho, nome: pr.nome, numero: pr.numero_obra, sap: pr.sap, assinatura: r.assinatura, projeto: pr.projeto });
-        if (resumo) { resumo.carregar(pr.dados); dadosProntos = true; sujo = false; }
+        definirProjeto(r, e.auto === true);
+        if (resumo) { resumo.carregar(r.projeto.dados); dadosProntos = true; sujo = false; }
         suspenso = false; pendente = null; aplicarNumero(); atualizarMenu();
         avisar('Projeto recarregado do arquivo.');
     }
 
-    /** Vincula a pasta/arquivo `r` ({caminho, assinatura, projeto}) como projeto atual; pergunta Abrir/Mesclar/Sobrescrever se o Resumo já tem dados. */
+    /** Vincula o arquivo `r` ({caminho, assinatura, projeto}) como projeto atual (com o salvamento automático DESLIGADO); pergunta Abrir/Mesclar/Sobrescrever se o Resumo já tem dados. */
     async function ativarAberto(r) {
         const pr = r.projeto;
+        if (!(await confirmarSaida())) return false;                          // havia outro projeto com alterações não salvas
         let modo = 'abrir';
         if (resumo && resumo.temDados()) {
             modo = await perguntar('Abrir “' + pr.nome + '”', 'O Resumo já tem dados. O que deseja fazer?',
                 [{ texto: 'Abrir', valor: 'abrir', ok: true, descricao: 'Apaga o que está na tela e usa o que está no projeto.' },
                  { texto: 'Mesclar', valor: 'mesclar', descricao: 'Junta o que está na tela com o que vem do projeto.' },
-                 { texto: 'Sobrescrever', valor: 'sobrescrever', descricao: 'Mantém o que está na tela e grava por cima do projeto.' }]);
+                 { texto: 'Sobrescrever', valor: 'sobrescrever', descricao: 'Mantém o que está na tela e grava por cima do projeto (na próxima vez que você salvar).' }]);
             if (!modo) return false;
         }
-        gravarEstado({ caminho: r.caminho, nome: pr.nome, numero: pr.numero_obra, sap: pr.sap, assinatura: r.assinatura, projeto: pr.projeto });
-        suspenso = false; pendente = null; ultimaGravacao = null;
+        definirProjeto(r, false);
+        suspenso = false; pendente = null; ultimaGravacao = null; sujo = false;
         if (resumo) {
-            if (modo === 'abrir') { resumo.carregar(pr.dados); sujo = false; }
+            if (modo === 'abrir') resumo.carregar(pr.dados);
             else if (modo === 'mesclar') { resumo.mesclar(pr.dados); sujo = true; }
-            else sujo = true;                                   // sobrescrever: a tela vale e vai por cima do arquivo
+            else sujo = true;                                   // sobrescrever: a tela vale e vai por cima do arquivo quando salvar
             dadosProntos = true;
-            if (sujo) marcarSujo(true);
         }
         aplicarNumero(); atualizarMenu();
-        avisar(pr.legado ? 'Projeto antigo aberto. Informe o número da obra em Projeto → Propriedades.' : 'Projeto “' + pr.nome + '” aberto.');
+        avisar(pr.legado ? 'Projeto antigo aberto. Informe o número da obra em Projeto → Propriedades.' : 'Projeto “' + pr.nome + '” aberto. Salvamento automático desligado: use Salvar (Ctrl+S).');
         return true;
     }
 
-    /* ── Janela do projeto (Novo / Abrir / Propriedades) ── */
+    /* ── Janela do projeto (Novo / Abrir / Propriedades / Salvar como) ── */
     function abrirJanelaSap(valores, aoAplicar) {
         const j = janela('Informações do relatório SAP', 520);
         const grade = el('div', 'display:grid;grid-template-columns:1fr 1fr;gap:10px;');
@@ -303,18 +428,30 @@
             j.fechar(); aoAplicar(v);
         }));
     }
-    /** modo: 'novo' | 'abrir' (com `aberto` = retorno do projeto_abrir) | 'propriedades' */
+    /** Resultado gravado no projeto atual (pendente em memória ou o do arquivo), para o "Salvar como" levar junto. */
+    async function resultadoAtual() {
+        if (coletorResultado) { try { const r = coletorResultado(); if (r && r.linhas && r.linhas.length) return r; } catch (x) { /* segue */ } }
+        if (pendente && pendente.resultado) return pendente.resultado;
+        const e = estado(), p = ponte();
+        if (!e || !p) return null;
+        const r = await p.projeto_abrir(e.caminho, e.projeto || codigoRegras());
+        return (r && r.ok && r.projeto && r.projeto.resultado) || null;
+    }
+    /** modo: 'novo' | 'abrir' (com `aberto` = retorno do projeto_abrir) | 'propriedades' | 'salvarcomo' */
     function abrirJanela(modo, aberto) {
         const p = ponte();
         if (!p) return;
         const atual = estado();
-        const origem = modo === 'abrir' ? aberto.projeto : (modo === 'propriedades' && atual ? { nome: atual.nome, numero_obra: atual.numero, sap: atual.sap || {} } : { nome: '', numero_obra: '', sap: {} });
-        const titulo = modo === 'novo' ? 'Novo projeto' : (modo === 'abrir' ? 'Abrir projeto' : 'Projeto: ' + (atual ? atual.nome : ''));
+        const copia = modo === 'salvarcomo';
+        const origem = modo === 'abrir' ? aberto.projeto
+            : ((modo === 'propriedades' || copia) && atual ? { nome: copia ? atual.nome + ' (cópia)' : atual.nome, numero_obra: atual.numero, sap: atual.sap || {} } : { nome: '', numero_obra: '', sap: {} });
+        const titulo = modo === 'novo' ? 'Novo projeto' : (copia ? 'Salvar como…' : (modo === 'abrir' ? 'Abrir projeto' : 'Projeto: ' + (atual ? atual.nome : '')));
         const j = janela(titulo, 460);
-        let criado = modo !== 'novo', sap = Object.assign({}, origem.sap || {}), alterado = false, pasta = '', ativado = modo === 'propriedades';
+        const criaArquivo = modo === 'novo' || copia;
+        let criado = !criaArquivo, sap = Object.assign({}, origem.sap || {}), alterado = false, pasta = copia && atual ? pastaDoCaminho(atual.caminho) : '', ativado = modo === 'propriedades';
         const cNome = campo('Nome do projeto', origem.nome), cNum = campo('Número de obra (usado na exportação do REC)', origem.numero_obra);
         const dica = el('span', 'font-size:12px;color:#8b949e;display:block;margin-top:4px;', '');
-        const cPasta = campo('Pasta do projeto', '', dica);
+        const cPasta = campo('Pasta do projeto', pasta, dica);
         const btnEscolher = botao('Escolher…', false, async () => {
             const r = await p.projeto_escolher_pasta(pasta);
             if (r && r.ok) { pasta = r.pasta; cPasta.input.value = pasta; mudou(); }
@@ -323,7 +460,7 @@
         const linhaPasta = el('div', 'display:flex;gap:8px;'); cPasta.bloco.insertBefore(linhaPasta, cPasta.input); linhaPasta.appendChild(cPasta.input); linhaPasta.appendChild(btnEscolher);
         const btnSap = botao('📋 Informações do relatório SAP…', false, () => abrirJanelaSap(sap, v => { sap = v; mudou(); }));
         j.corpo.append(cNome.bloco, cNum.bloco);
-        if (modo === 'novo') j.corpo.appendChild(cPasta.bloco);
+        if (criaArquivo) j.corpo.appendChild(cPasta.bloco);
         else j.corpo.appendChild(el('div', 'font-size:12px;color:#8b949e;word-break:break-all;', 'Arquivo: ' + (modo === 'abrir' ? aberto.caminho : (atual ? atual.caminho : ''))));
         const btnColar = botao('📋 Colar SAP', false, async () => {
             const r = await colarSap();
@@ -336,16 +473,18 @@
             avisar('Preenchido: ' + Object.keys(c).map(k => ROTULOS[k]).join(', ') + '.');
         });
         j.corpo.appendChild(el('div', 'display:flex;gap:8px;flex-wrap:wrap;', null, [btnColar, btnSap]));
-        const bAplicar = botao('Aplicar', false, () => aplicar(false)), bCriar = botao('Criar', true, criar), bOk = botao('OK', true, () => aplicar(true));
-        j.rodape.append(...(modo === 'novo' ? [bAplicar, bCriar, bOk] : [botao('Cancelar', false, j.fechar), bAplicar, bOk]));
+        if (modo === 'novo' && resumo && resumo.temDados()) j.corpo.appendChild(el('div', 'font-size:12px;color:#8b949e;', 'O que está na tela será salvo no projeto novo. O salvamento automático começa ligado.'));
+        if (copia) j.corpo.appendChild(el('div', 'font-size:12px;color:#8b949e;', 'O projeto atual continua como está no disco; a tela passa a ser este novo arquivo.'));
+        const bAplicar = botao('Aplicar', false, () => aplicar(false)), bCriar = botao(copia ? 'Salvar como' : 'Criar', true, criar), bOk = botao('OK', true, () => aplicar(true));
+        j.rodape.append(...(modo === 'novo' ? [bAplicar, bCriar, bOk] : (copia ? [botao('Cancelar', false, j.fechar), bCriar] : [botao('Cancelar', false, j.fechar), bAplicar, bOk])));
         const nomeOk = () => cNome.input.value.trim().length > 0;
         function mudou() {
             alterado = true;
-            if (modo === 'novo' && !criado) dica.textContent = pasta && nomeOk() ? 'Será criado: ' + pasta + (pasta.indexOf('/') >= 0 && pasta.indexOf('\\') < 0 ? '/' : '\\') + cNome.input.value.trim() + '.obra' : '';
+            if (criaArquivo && !criado) dica.textContent = pasta && nomeOk() ? 'Será criado: ' + pasta + (pasta.indexOf('/') >= 0 && pasta.indexOf('\\') < 0 ? '/' : '\\') + cNome.input.value.trim() + '.obra' : '';
             estados();
         }
         function estados() {
-            habilitar(bCriar, modo === 'novo' && !criado && nomeOk() && !!pasta);
+            habilitar(bCriar, criaArquivo && !criado && nomeOk() && !!pasta);
             habilitar(bAplicar, criado && ativado && alterado && nomeOk());
             habilitar(bOk, criado && nomeOk() && (modo === 'abrir' || ativado || modo === 'propriedades'));
             if (modo === 'abrir') habilitar(bAplicar, nomeOk());
@@ -353,19 +492,23 @@
         [cNome.input, cNum.input].forEach(i => i.addEventListener('input', () => mudou()));
         async function criar() {
             habilitar(bCriar, false);
+            if (!copia && !(await confirmarSaida())) { estados(); return; }          // criar um projeto novo deixa o aberto: pergunta se há pendências
             const meta = { nome: cNome.input.value.trim(), numero_obra: cNum.input.value.trim(), sap };
-            if (resumo && resumo.temDados()) meta.dados = resumo.coletar();            // o que já está na tela vai para o projeto novo
+            if (resumo && (copia ? dadosProntos : resumo.temDados())) meta.dados = resumo.coletar();            // o que já está na tela vai para o projeto novo
+            if (copia) { const res = await resultadoAtual(); if (res) meta.resultado = res; }
             let r = await p.projeto_criar(pasta, JSON.stringify(meta), codigoRegras());
             if (r && r.existe) {
-                const o = await perguntar('Projeto já existe', 'Já existe “' + meta.nome + '.obra” nessa pasta. Escolha outro nome ou outra pasta.', [{ texto: 'Entendi', valor: 'ok', ok: true }]);
-                void o; estados(); return;
+                await perguntar('Projeto já existe', 'Já existe “' + meta.nome + '.obra” nessa pasta. Escolha outro nome ou outra pasta.', [{ texto: 'Entendi', valor: 'ok', ok: true }]);
+                estados(); return;
             }
             if (!r || !r.ok) { avisar('Não foi possível criar o projeto: ' + ((r && r.erro) || '')); estados(); return; }
-            gravarEstado({ caminho: r.caminho, nome: meta.nome, numero: meta.numero_obra, sap: meta.sap, assinatura: r.assinatura, projeto: codigoRegras() });
-            criado = true; ativado = true; alterado = false; suspenso = false; pendente = null; ultimaGravacao = new Date();
-            if (resumo) { dadosProntos = true; sujo = false; }
+            gravarEstado({ caminho: r.caminho, nome: meta.nome, numero: meta.numero_obra, sap: meta.sap, assinatura: r.assinatura, projeto: codigoRegras(),
+                           auto: copia ? !!(atual && atual.auto === true) : true });          // novo: automático ligado; salvar como: mantém o que estava
+            criado = true; ativado = true; alterado = false; suspenso = false; pendente = null; sujo = false; ultimaGravacao = new Date();
+            if (resumo) dadosProntos = true;
             aplicarNumero(); atualizarMenu(); estados();
-            avisar('Projeto criado: ' + r.caminho);
+            avisar((copia ? 'Projeto salvo como: ' : 'Projeto criado: ') + r.caminho);
+            if (copia) j.fechar();
         }
         async function aplicar(fechar) {
             if (modo === 'abrir' && !ativado) {
@@ -376,18 +519,16 @@
             }
             const e = estado();
             if (e && alterado) {
-                e.nome = cNome.input.value.trim(); e.numero = cNum.input.value.trim(); e.sap = sap; gravarEstado(e);
-                suspenso = false; await enviarLocalOuDono({ nome: e.nome, numero_obra: e.numero, sap });
-                if (resumo && sujo) await salvarAgora();
+                atualizarEstado({ nome: cNome.input.value.trim(), numero: cNum.input.value.trim(), sap });
+                await enviarAgora({ nome: cNome.input.value.trim(), numero_obra: cNum.input.value.trim(), sap });
                 aplicarNumero(); atualizarMenu();
-            } else if (suspenso) { suspenso = false; await enviarLocalOuDono({}); }
+            } else if (suspenso) { await resolverConflito(); }
             alterado = false; estados();
             if (fechar) j.fechar();
         }
         mudou(); alterado = false; estados();
         cNome.input.focus();
     }
-    const enviarLocalOuDono = parcial => enviar(parcial);
 
     async function abrirArquivo() {
         const p = ponte();
@@ -398,29 +539,61 @@
         abrirJanela('abrir', r);
     }
     async function voltarAoDefault() {
-        await salvarAgora();
+        if (!(await confirmarSaida())) return;
         gravarEstado(null); pendente = null; sujo = false; suspenso = false; ultimaGravacao = null;
         aplicarNumero(); atualizarMenu();
         avisar('Voltou ao projeto default.');
+        gravarRascunho();                                                      // o que está na tela passa a ser guardado como rascunho
     }
 
-    /* ── Menu na barra de título (host: #projeto-menu-host) ── */
+    /* ── Barra do Resumo (host: #projeto-menu-host): 📁 projeto · [💾 Salvar | ▾] · etiqueta de estado ── */
+    const DISCO = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 3h11l4 4v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M7.5 3v5h7.5V3M7.5 21v-7h9v7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+    const SETA = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const SINCRONIA = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M20 12a8 8 0 0 0-13.7-5.6M4 12a8 8 0 0 0 13.7 5.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M6.8 2.8 6 7l4.2-.8M17.2 21.2 18 17l-4.2.8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     function montarMenu() {
         const host = doc.getElementById('projeto-menu-host');
         if (!host || host.dataset.pronto || !ponte()) return;
         host.dataset.pronto = '1';
         host.style.cssText = 'position:relative;display:inline-flex;align-items:center;gap:8px;';
-        const b = el('button', 'padding:6px 12px;border-radius:6px;border:1px solid #1f6feb;background:#1f6feb22;color:#e6edf3;font:inherit;font-size:0.82rem;cursor:pointer;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;', '📁 Projeto');
-        b.id = 'btn-projeto'; b.type = 'button';
-        const status = el('span', 'font-size:0.72rem;color:#8b949e;white-space:nowrap;'); status.id = 'projeto-status';
-        const menu = el('div', 'position:absolute;top:100%;left:0;margin-top:4px;min-width:230px;background:#21262d;border:1px solid #30363d;border-radius:6px;padding:4px 0;z-index:9000;display:none;box-shadow:0 8px 24px #0008;');
-        const item = (txt, aoClicar, visivel) => { const d = el('div', 'padding:7px 14px;cursor:pointer;font-size:0.85rem;color:#e6edf3;', txt); d.addEventListener('mouseenter', () => { d.style.background = '#30363d'; }); d.addEventListener('mouseleave', () => { d.style.background = ''; }); d.addEventListener('click', () => { menu.style.display = 'none'; aoClicar(); }); d.__visivel = visivel; return d; };
-        const itens = [item('Novo projeto…', () => abrirJanela('novo')), item('Abrir projeto…', abrirArquivo),
-            item('Propriedades do projeto…', () => abrirJanela('propriedades'), () => !!estado()), item('Voltar ao projeto default', voltarAoDefault, () => !!estado())];
+        const chip = el('button', 'padding:6px 12px;border-radius:6px;border:1px solid #1f6feb;background:#1f6feb22;color:#e6edf3;font:inherit;font-size:0.82rem;cursor:pointer;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;', '📁 Projeto default');
+        chip.id = 'btn-projeto'; chip.type = 'button';
+        const split = el('span', 'display:inline-flex;border:1px solid #30363d;border-radius:6px;overflow:hidden;background:#21262d;');
+        const salvarBtn = el('button', 'display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:0;background:transparent;color:#e6edf3;font:inherit;font-size:0.82rem;cursor:pointer;');
+        salvarBtn.id = 'btn-projeto-salvar'; salvarBtn.type = 'button'; salvarBtn.title = 'Salvar (Ctrl+S)'; salvarBtn.innerHTML = DISCO; salvarBtn.appendChild(doc.createTextNode('Salvar'));
+        const seta = el('button', 'display:inline-flex;align-items:center;padding:5px 6px;border:0;border-left:1px solid #30363d;background:transparent;color:#8b949e;font:inherit;cursor:pointer;');
+        seta.id = 'btn-projeto-menu'; seta.type = 'button'; seta.title = 'Salvar como, salvamento automático e projetos'; seta.innerHTML = SETA;
+        split.append(salvarBtn, seta);
+        const pill = el('span', 'display:inline-flex;align-items:center;gap:6px;font-size:0.72rem;padding:3px 10px;border-radius:12px;border:1px solid #30363d;background:#21262d;white-space:nowrap;');
+        pill.id = 'projeto-status';
+        const dot = el('span', 'width:8px;height:8px;border-radius:50%;display:inline-block;background:#8b949e;'), txt = el('span', 'color:#e6edf3;');
+        pill.append(dot, txt);
+        const menu = el('div', 'position:absolute;top:100%;left:0;margin-top:4px;min-width:300px;background:#21262d;border:1px solid #30363d;border-radius:6px;padding:4px 0;z-index:9000;display:none;box-shadow:0 8px 24px #0008;');
+        const fechaMenu = () => { menu.style.display = 'none'; };
+        const item = (rotulo, atalho, aoClicar, visivel) => {
+            const d = el('div', 'padding:7px 14px;cursor:pointer;font-size:0.85rem;color:#e6edf3;display:flex;justify-content:space-between;gap:14px;', null, [el('span', '', rotulo), el('small', 'color:#8b949e;', atalho || '')]);
+            d.addEventListener('mouseenter', () => { d.style.background = '#30363d'; }); d.addEventListener('mouseleave', () => { d.style.background = ''; });
+            d.addEventListener('click', () => { fechaMenu(); aoClicar(); }); d.__visivel = visivel; return d;
+        };
+        const linha = () => el('div', 'border-top:1px solid #30363d;margin:4px 0;');
+        // Salvamento automático: chave liga/desliga (não fecha o menu)
+        const swBox = el('div', 'padding:7px 14px 2px;cursor:pointer;font-size:0.85rem;color:#e6edf3;display:flex;justify-content:space-between;align-items:center;gap:14px;');
+        const rotAuto = el('span', 'display:inline-flex;align-items:center;gap:8px;'); const icoAuto = el('span', 'color:#3fb950;display:inline-flex;'); icoAuto.innerHTML = SINCRONIA;
+        rotAuto.append(icoAuto, el('span', '', 'Salvamento automático'));
+        const sw = el('span', 'width:34px;height:18px;border-radius:9px;background:#484f58;position:relative;display:inline-block;flex:none;transition:background .15s;');
+        const knob = el('span', 'position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .15s;'); sw.appendChild(knob);
+        const hint = el('div', 'padding:0 14px 6px 40px;font-size:0.72rem;color:#8b949e;');
+        swBox.append(rotAuto, sw); swBox.addEventListener('click', ev => { ev.stopPropagation(); definirAuto(!autoLigado()); });
+        const itens = [item('💾 Salvar', 'Ctrl+S', () => salvarClick()), item('💾 Salvar como…', 'Ctrl+Shift+S', () => salvarComoClick()), linha(), swBox, hint, linha(),
+            item('📁 Novo projeto…', '', () => abrirJanela('novo')), item('📂 Abrir projeto…', '', abrirArquivo), item('⚙ Propriedades do projeto…', '', () => abrirJanela('propriedades'), () => !!estado()),
+            item('🕘 Recuperar rascunho do default…', '', recuperarRascunho), item('↩ Voltar ao projeto default', '', voltarAoDefault, () => !!estado())];
         itens.forEach(i => menu.appendChild(i));
-        b.addEventListener('click', ev => { ev.stopPropagation(); itens.forEach(i => { i.style.display = !i.__visivel || i.__visivel() ? '' : 'none'; }); menu.style.display = menu.style.display === 'none' ? 'block' : 'none'; });
-        doc.addEventListener('click', () => { menu.style.display = 'none'; });
-        host.append(b, status, menu);
+        const alterna = ev => { ev.stopPropagation(); itens.forEach(i => { if (i.__visivel) i.style.display = i.__visivel() ? 'flex' : 'none'; }); atualizarMenu(); menu.style.display = menu.style.display === 'none' ? 'block' : 'none'; };
+        chip.addEventListener('click', alterna); seta.addEventListener('click', alterna);
+        salvarBtn.addEventListener('click', ev => { ev.stopPropagation(); fechaMenu(); salvarClick(); });
+        pill.addEventListener('click', () => { if (suspenso) resolverConflito(); });
+        doc.addEventListener('click', fechaMenu);
+        host.append(chip, split, pill, menu);
+        ui = { chip, split, salvar: salvarBtn, pill, dot, txt, sw, knob, hint, menu };
         atualizarMenu();
     }
 
@@ -429,12 +602,12 @@
         montarMenu();
         const p = ponte(), e = estado();
         if (!p) return;
-        if (raiz.AbrirNaApp && !raiz.AbrirNaApp.__projeto) {                // grava antes de abrir Resultado / Tabela de orçamento
+        if (raiz.AbrirNaApp && !raiz.AbrirNaApp.__projeto) {                // grava antes de abrir Resultado / Tabela de orçamento (só com o automático ligado)
             const original = raiz.AbrirNaApp.abrir;
-            raiz.AbrirNaApp.abrir = function () { salvarAgora(); return original.apply(this, arguments); };
+            raiz.AbrirNaApp.abrir = function () { salvarAutomatico(); return original.apply(this, arguments); };
             raiz.AbrirNaApp.__projeto = true;
         }
-        if (!e) { aplicarNumero(); return; }
+        if (!e) { aplicarNumero(); atualizarMenu(); return; }
         const existe = await p.projeto_assinatura(e.caminho);
         if (!existe || !existe.ok || !existe.existe) {
             gravarEstado(null); aplicarNumero(); atualizarMenu();
@@ -444,9 +617,8 @@
         if (resumo && !resumo.temDados()) {                                  // continua de onde parou
             const r = await p.projeto_abrir(e.caminho, codigoRegras());
             if (r && r.ok) {
-                const pr = r.projeto;
-                gravarEstado({ caminho: r.caminho, nome: pr.nome, numero: pr.numero_obra, sap: pr.sap, assinatura: r.assinatura, projeto: pr.projeto });
-                resumo.carregar(pr.dados); dadosProntos = true; sujo = false;
+                definirProjeto(r, e.auto === true);
+                resumo.carregar(r.projeto.dados); dadosProntos = true; sujo = false;
             } else {
                 avisar('Projeto “' + e.nome + '” não foi carregado: ' + ((r && r.erro) || '') + ' A gravação do Resumo fica suspensa até você abrir o projeto de novo.');
             }
@@ -460,24 +632,29 @@
 
     /* ── Resultado do orçamento ── */
     let observador = null, termoResultado = null;
-    /** As linhas do Resultado gravadas no projeto, se foram calculadas com o mesmo payload (`assinatura`); senão null. */
+    /** As linhas do Resultado do projeto (pendentes em memória ou gravadas no arquivo), se foram calculadas com o mesmo payload (`assinatura`); senão null. */
     async function carregarResultado(assinatura) {
         const e = estado(), p = ponte();
         if (!e || !p || !assinatura) return null;
+        const d = dono(), pend = d ? d.__pendenteResultado() : ((pendente && pendente.resultado) || null);
+        if (pend && pend.assinatura === assinatura && Array.isArray(pend.linhas) && pend.linhas.length) return pend;      // com o automático desligado, as edições ainda estão só em memória
         const r = await p.projeto_abrir(e.caminho, e.projeto || codigoRegras());
         const res = r && r.ok && r.projeto && r.projeto.resultado;
         return res && res.assinatura === assinatura && Array.isArray(res.linhas) && res.linhas.length ? res : null;
     }
-    /** Passa a gravar no projeto as linhas do Resultado sempre que a tabela mudar. */
+    /** Acompanha a tabela do Resultado: as linhas vão para o projeto (grava com o automático ligado; senão ficam pendentes até o Salvar). */
     function acompanharResultado(tbody, coletar, assinatura) {
         if (!ativo() || !tbody) return;
         if (observador) observador.disconnect();
-        const gravar = () => { try { if (ativo()) enviar({ resultado: { assinatura, linhas: coletar() } }); } catch (x) { /* a tela segue valendo */ } };
+        const entregar = () => ({ assinatura, linhas: coletar() });
+        const gravar = () => { try { if (ativo()) enviar({ resultado: entregar() }); } catch (x) { /* a tela segue valendo */ } };
         const agendar = () => { clearTimeout(termoResultado); termoResultado = setTimeout(gravar, ESPERA_MS); };
         observador = new MutationObserver(agendar);
         observador.observe(tbody, { childList: true, subtree: true, characterData: true });
+        const dn = dono() || api;
+        dn.__registrarColetor(entregar);                                       // o botão Salvar (na janela principal) pede as linhas atuais
         agendar();
-        raiz.addEventListener('pagehide', () => { clearTimeout(termoResultado); gravar(); });
+        raiz.addEventListener('pagehide', () => { clearTimeout(termoResultado); gravar(); dn.__registrarColetor(null); });
     }
     /** Pop-up de confirmação do número da obra na exportação do REC; resolve com o número ou null (cancelou). Não altera o projeto. */
     function confirmarNumeroObra(atual) {
@@ -495,16 +672,24 @@
         });
     }
     function salvarSap(cab) {
-        const e = estado();
-        if (!e || !cab) return Promise.resolve();
+        if (!estado() || !cab) return Promise.resolve();
         const sap = {}; CAMPOS_SAP.forEach(([k]) => { if (typeof cab[k] === 'string') sap[k] = cab[k].trim(); });
-        e.sap = sap; gravarEstado(e);
+        atualizarEstado({ sap });
         return enviar({ sap });
     }
 
     // Fechar o programa / trocar de página: grava o que estiver pendente (melhor esforço; a gravação automática já cobre quase tudo)
-    raiz.addEventListener('pagehide', () => { if (resumo) salvarAgora(); });
-    doc.addEventListener('visibilitychange', () => { if (doc.visibilityState === 'hidden' && resumo) salvarAgora(); });
+    raiz.addEventListener('pagehide', () => { if (resumo) { salvarAutomatico(); if (!estado()) gravarRascunho(); } });
+    doc.addEventListener('visibilitychange', () => { if (doc.visibilityState === 'hidden' && resumo) { salvarAutomatico(); if (!estado()) gravarRascunho(); } });
+    // Com projeto aberto e o automático DESLIGADO, avisa ao fechar a janela com alterações não salvas
+    raiz.addEventListener('beforeunload', e => { if (resumo && ponte() && estado() && !autoLigado() && temPendencias()) { e.preventDefault(); e.returnValue = ''; } });
+    // Ctrl+S salva, Ctrl+Shift+S salva como (só no aplicativo desktop)
+    doc.addEventListener('keydown', e => {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey || String(e.key).toLowerCase() !== 's' || !ponte()) return;
+        if (!resumo && !dono()) return;
+        e.preventDefault();
+        if (e.shiftKey) salvarComoClick(); else salvarClick();
+    }, true);
     // Qualquer edição na página marca o projeto como alterado; a gravação espera 2 s de pausa
     ['input', 'change', 'paste', 'cut'].forEach(ev => doc.addEventListener(ev, e => { if (resumo && !(e.target && e.target.closest && e.target.closest('[data-gridr-projeto]'))) marcarSujo(false); }, true));
     raiz.addEventListener('pywebviewready', () => { montarMenu(); });
@@ -513,8 +698,10 @@
     Object.assign(api, {
         ativo, estado, pasta: () => { const e = estado(); return e ? pastaDoCaminho(e.caminho) : ''; }, numeroObra: () => { const e = estado(); return e ? (e.numero || '') : ''; },
         nome: () => { const e = estado(); return e ? e.nome : ''; }, sap: () => { const e = estado(); return e && e.sap ? e.sap : {}; },
-        registrarResumo, marcarSujo, colarSap, ROTULOS, salvarAgora, abrirJanela, voltarAoDefault, carregarResultado, acompanharResultado, confirmarNumeroObra, salvarSap,
-        __enviar: enviarLocal
+        registrarResumo, marcarSujo, colarSap, ROTULOS, salvarAgora: salvarAutomatico, abrirJanela, voltarAoDefault, carregarResultado, acompanharResultado, confirmarNumeroObra, salvarSap,
+        salvar: salvarClick, salvarComo: salvarComoClick, definirAuto, recuperarRascunho, autoLigado, temPendencias,
+        __enviar: enviarLocal, __enviarAgora: enviarAgoraLocal, __salvarClick: salvarClick, __salvarComoClick: salvarComoClick,
+        __registrarColetor: fn => { coletorResultado = fn; }, __pendenteResultado: () => (pendente && pendente.resultado) || null
     });
     raiz.GridRProjeto = api;
 })(typeof window !== 'undefined' ? window : globalThis);

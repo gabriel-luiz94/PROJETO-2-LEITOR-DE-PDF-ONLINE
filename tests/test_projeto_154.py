@@ -172,7 +172,7 @@ def test_salvar_arquivo_abre_na_pasta_do_projeto(tmp_path, webview_falso):
 def test_api_projeto_so_expoe_metodos_publicos_esperados():
     publicos = sorted(n for n in dir(pd.ApiProjeto()) if not n.startswith("_"))
     assert publicos == ["abrir_arquivos", "projeto_abrir", "projeto_assinatura", "projeto_criar", "projeto_escolher_arquivo", "projeto_escolher_pasta",
-                        "projeto_gravar", "salvar_arquivo", "vincular"]
+                        "projeto_gravar", "projeto_rascunho_gravar", "projeto_rascunho_info", "projeto_rascunho_ler", "salvar_arquivo", "vincular"]
 
 
 def test_app_usa_a_ponte_do_projeto():
