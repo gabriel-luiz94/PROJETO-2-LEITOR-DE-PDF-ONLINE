@@ -89,8 +89,9 @@ namespace OrcamentoNanoCAD.UI
             barra.Controls.Add(Visual.BotaoIcone("leitura", "Configurar leitura: layers da rede, blocos de poste, guias (ORC_LEITURA)", (o, e) => Visual.Executar("ORC_LEITURA"), _dicas));
             barra.Controls.Add(Visual.BotaoIcone("diagnostico", "Diagnóstico: o que o plugin leu em cada texto (ORC_DIAGNOSTICO)", (o, e) => Visual.Executar("ORC_DIAGNOSTICO"), _dicas));
             barra.Controls.Add(Separador());
-            barra.Controls.Add(Visual.BotaoIcone("salvar", "Salvar no DWG e em <desenho>.obra.json (ORC_SALVAR)", (o, e) => Visual.Executar("ORC_SALVAR"), _dicas));
-            barra.Controls.Add(Visual.BotaoIcone("app", "Abrir na aplicação com a obra carregada (ORC_ABRIR_APP)", (o, e) => Visual.Executar("ORC_ABRIR_APP"), _dicas));
+            barra.Controls.Add(Visual.BotaoIcone("salvar", "Salvar o projeto <desenho>.obra (o mesmo do 📁 Projeto do OrçaCore) e a cópia no DWG (ORC_SALVAR)", (o, e) => Visual.Executar("ORC_SALVAR"), _dicas));
+            barra.Controls.Add(Visual.BotaoIcone("ativos", "Projeto: nome e número de obra (ORC_PROJETO)", (o, e) => Visual.Executar("ORC_PROJETO"), _dicas));
+            barra.Controls.Add(Visual.BotaoIcone("app", "Salvar e abrir o projeto no OrçaCore deste computador (ORC_ABRIR_APP)", (o, e) => Visual.Executar("ORC_ABRIR_APP"), _dicas));
             barra.Controls.Add(Visual.BotaoIcone("vinculos", "Tabela de vínculos cabo ⇄ estrutura (ORC_VINCULOS)", (o, e) => Visual.Executar("ORC_VINCULOS"), _dicas));
             barra.Controls.Add(Visual.BotaoIcone("ativos", "Ativos com parâmetros (ORC_ATIVOS)", (o, e) => Visual.Executar("ORC_ATIVOS"), _dicas));
             barra.Controls.Add(Visual.BotaoIcone("marcas", "Mostrar/ocultar números e vínculos no desenho (ORC_MARCAS)", (o, e) => Visual.Executar("ORC_MARCAS"), _dicas));
@@ -192,7 +193,7 @@ namespace OrcamentoNanoCAD.UI
             if (o == null) return;
             bool construir = o.Modo == "construir";
             _titulo.Text = (construir ? "Construir do zero" : "Projeto lido — conferência") + (s.Modificada ? "  •" : "");
-            _subtitulo.Text = o.Nome + " · projeto " + (string.IsNullOrEmpty(o.Projeto) ? "(sem código)" : o.Projeto) + " · " + (s.Regras != null ? s.Regras.Nome : "")
+            _subtitulo.Text = o.Nome + (string.IsNullOrEmpty(o.NumeroObra) ? "" : " · obra nº " + o.NumeroObra) + " · projeto " + (string.IsNullOrEmpty(o.Projeto) ? "(sem código)" : o.Projeto) + " · " + (s.Regras != null ? s.Regras.Nome : "")
                               + (s.Modificada ? " · mudanças não salvas" : (o.SalvoEm != null ? " · salvo " + o.SalvoEm : ""));
             _botoesLer.Visible = !construir;
             _botoesConstruir.Visible = construir;

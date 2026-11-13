@@ -5,7 +5,7 @@
 
 ## Versão
 
-`0.9.2` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
+`0.10.0` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
 
 Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
@@ -41,6 +41,11 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 - [x] Gravar/ler a obra no DWG (NOD) e em `<desenho>.obra.json`
 - [x] Trocar a layer da anotação ao mudar a operação (opção do pop-up; layer tirada das regras)
 - [x] Regras embutidas (081 e padrão) + pasta `regras\<codigo>\` ao lado da DLL
+
+### Projeto de trabalho do OrçaCore (TASK-020, 0.10.0) — ✅ núcleo, aplicação e contrato · 🟡 CAD/Windows
+- [x] Salvar grava `<desenho>.obra` (formato do 📁 Projeto), com aviso se as linhas foram alteradas no OrçaCore; número de obra (`ORC_PROJETO`)
+- [x] 🌐 entrega o caminho ao OrçaCore (aberto ou fechado); sem gravação no banco
+- [ ] Testar no Windows: salvar no nanoCAD, 🌐 com o OrçaCore aberto e fechado, editar no programa e salvar de novo no plugin (aviso)
 
 ### Cabo lido de texto: comprimento da linha de baixo sem vírgula (TASK-019, 0.9.2) — ✅ núcleo · 🟡 CAD
 
@@ -121,7 +126,7 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
 | Suíte | Comando | Resultado (31/10/2026) |
 |---|---|---|
-| Núcleo (xUnit, net8.0) | `dotnet test tests/Nucleo.Testes` | 72 ✅ (ponta a ponta com `APP_URL`/`APP_EMAIL`/`APP_SENHA`) |
+| Núcleo (xUnit, net8.0) | `dotnet test tests/Nucleo.Testes` | 78 ✅ (ponta a ponta com `APP_URL`/`APP_EMAIL`/`APP_SENHA`) |
 | Núcleo em .NET 4 / C# 5 | `dotnet build tests/Net40` | compila ✅ |
 | DLL nanoCAD 26 | `dotnet build src/OrcamentoNanoCAD.csproj -c Release` | compila ✅ (18 comandos, ExtensionApplication, 5 recursos de regras) |
 | Contrato com a aplicação | `pytest tests/test_plugin_nanocad_contrato.py` (raiz) | 5 ✅ |

@@ -189,6 +189,7 @@ namespace OrcamentoNanoCAD.Nucleo
     public class Obra
     {
         public string Nome = "obra";
+        public string NumeroObra;     // TASK-020: número de obra do projeto de trabalho (REC); null = ainda não informado (fica o do arquivo)
         public string Projeto = "081";
         public string NomeRegras = "";
         public string Desenho = "";

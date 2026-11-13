@@ -76,6 +76,8 @@
 | RQ-78 | Excluir qualquer linha da obra (a lida pode ser restaurada) | ✅ · 🟡 CAD | `Construtor.Excluir/Restaurar` |
 | RQ-79 | Adicionar linha sem apontar no desenho (Cabos / Outros) | ✅ · 🟡 CAD | `ORC_NOVO_CABO`, `ORC_NOVO_OUTROS` |
 | RQ-80 | Adicionar linha lendo um TEXT/MTEXT escolhido no desenho (pelas regras do leitor) | ✅ · 🟡 CAD | `TelaNovaLinha`, `Construtor.LerTextoParaLinha` |
+| RQ-81 | A obra do desenho é o projeto de trabalho do OrçaCore (`<desenho>.obra`), aberto pelo programa; nada no banco | ✅ · 🟡 CAD | `ProjetoArquivo`, `ORC_SALVAR`, `ORC_ABRIR_APP` |
+| RQ-82 | Nome e número de obra do projeto no plugin | ✅ · 🟡 CAD | `ORC_PROJETO`, `TelaProjeto` |
 | RQ-67 | Abrir a aplicação já com a obra do plugin carregada | ✅ API · 🟡 CAD | `ORC_ABRIR_APP`, `/api/plugin/obra`, Resumo `?obra=` |
 
 ## RQ — Cálculo (fora do CAD)

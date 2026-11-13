@@ -48,5 +48,21 @@ namespace OrcamentoNanoCAD.Testes
             Assert.Equal("HTTP 403: Só no programa instalado no computador.", ProgramaLocal.Entregar(recusa, 8000, "a", env));
             Assert.Equal("--abrir-obra \"C:\\x\\obra.json\"", ProgramaLocal.Argumentos("C:\\x\\obra.json"));
         }
+
+        [Fact]
+        public void Entrega_o_caminho_do_projeto_e_abre_o_exe_com_ele()
+        {
+            TransporteFalso t = new TransporteFalso();
+            string corpo = null;
+            t.Rotas["POST /api/plugin/receber"] = (c, tok) => { corpo = c; return TransporteFalso.Ok("{\"id\":\"x\"}"); };
+            Assert.Null(ProgramaLocal.EntregarProjeto(t, 8000, @"C:\obras\Rua.dwg", @"C:\obras\Rua.obra"));
+            JObj enviado = (JObj)Json.Ler(corpo);
+            Assert.Equal(@"C:\obras\Rua.obra", enviado.Str("caminho"));
+            Assert.Null(enviado["envelope"]);                                            // TASK-020: só o caminho, nada para o banco
+            TransporteFalso antigo = new TransporteFalso();
+            antigo.Rotas["POST /api/plugin/receber"] = (c, tok) => new RespostaHttp { Status = 422, Corpo = "{\"detail\":[]}" };
+            Assert.Contains("versão antiga", ProgramaLocal.EntregarProjeto(antigo, 8000, "a", "b.obra"));
+            Assert.Equal("--abrir-projeto \"C:\\x\\Rua.obra\"", ProgramaLocal.ArgumentosProjeto(@"C:\x\Rua.obra"));
+        }
     }
 }

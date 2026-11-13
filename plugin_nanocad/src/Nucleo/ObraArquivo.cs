@@ -19,7 +19,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public const string Formato = "leitor-obra";
         public const int Versao = 1;
         public const int VersaoCad = 1;
-        public const string VersaoPlugin = "0.9.2";
+        public const string VersaoPlugin = "0.10.0";
         private const int MaxPontosGeo = 60;
 
         public static string NomeDoArquivo(string desenho)
@@ -299,6 +299,7 @@ namespace OrcamentoNanoCAD.Nucleo
             obra.Modo = cad.Str("modo") ?? "ler";
             obra.SalvoEm = cad.Str("salvo_em");
             obra.AlturaTexto = cad.Num("altura_texto") ?? 1;
+            ProjetoArquivo.LerTrabalho(env, obra);           // TASK-020: nome e número de obra do projeto de trabalho (.obra)
             foreach (JObj o in (cad.Lista("postes") ?? new List<object>()).OfType<JObj>())
             {
                 Poste p = new Poste();

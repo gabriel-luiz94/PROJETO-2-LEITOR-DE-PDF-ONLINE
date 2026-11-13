@@ -3,6 +3,7 @@
 //   GET  /api/plugin/versao?projeto=             impressões digitais das regras / conversão / base (consultado a cada poucos segundos)
 //   GET  /api/plugin/regras?projeto=             regras do leitor + regras de vínculo gravadas na aplicação
 //   POST /api/plugin/conferir                    a obra (linhas do .obra.json) conferida contra a Base de Orçamento
+//   (a obra NÃO é gravada no banco: "Abrir na aplicação" usa o projeto <desenho>.obra — TASK-020)
 // O transporte HTTP fica atrás de ITransporteHttp para os testes rodarem sem rede. Sem dependências: HttpWebRequest existe no .NET 4.
 using System;
 using System.Collections.Generic;
@@ -245,13 +246,8 @@ namespace OrcamentoNanoCAD.Nucleo
             return ConferenciaBase.De(Chamar("POST", "/api/plugin/conferir", corpo));
         }
 
-        /// <summary>"Abrir na aplicação": grava a obra do desenho (a mesma a cada envio) e devolve o link COMPLETO que a abre no Resumo.</summary>
-        public string EnviarObra(string chaveDoDesenho, JObj envelope)
-        {
-            JObj r = Chamar("POST", "/api/plugin/obra", new JObj().Set("chave", chaveDoDesenho ?? "").Set("envelope", envelope));
-            string url = r.Str("url") ?? "/resumo";
-            return url.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? url : Conexao.Base + url;
-        }
+        // TASK-020: o antigo EnviarObra (POST /api/plugin/obra: gravava a obra no BANCO da aplicação) foi removido. "Abrir na aplicação" grava o
+        // projeto <desenho>.obra na pasta do desenho e o abre no OrçaCore deste computador (ProgramaLocal / Plugin/ProgramaNoComputador).
 
         /// <summary>Resposta de /api/plugin/regras → regras do projeto (origem = endereço da aplicação).</summary>
         public static RegrasProjeto RegrasDe(JObj resposta, string origem)

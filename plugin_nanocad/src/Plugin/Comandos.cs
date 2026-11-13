@@ -547,19 +547,64 @@ namespace OrcamentoNanoCAD
             Rodar("ORC_SALVAR", s =>
             {
                 if (!PrecisaObra(s)) return;
-                s.Obra.SalvoEm = Agora();
-                if (string.IsNullOrEmpty(s.Obra.Desenho) || s.DesenhoSalvo) s.Obra.Desenho = s.Doc.Name;
-                string json = ObraArquivo.Gerar(s.Obra, DateTime.UtcNow);
-                PersistenciaDwg.GravarNoDwg(s.Doc, json);
-                string arq = s.ArquivoObra;
-                if (arq != null)
+                SalvarProjeto(s);
+            });
+        }
+
+        /// <summary>TASK-020: grava a obra no DWG e o PROJETO DE TRABALHO "<desenho>.obra" na pasta do desenho (formato do OrçaCore; SAP,
+        /// resultado e o resto do que o programa guardou ficam). Se as linhas do projeto foram alteradas no OrçaCore, pergunta antes.
+        /// Devolve o caminho do projeto (null = não gravou o arquivo).</summary>
+        private static string SalvarProjeto(Sessao s)
+        {
+            s.Obra.SalvoEm = Agora();
+            if (string.IsNullOrEmpty(s.Obra.Desenho) || s.DesenhoSalvo) s.Obra.Desenho = s.Doc.Name;
+            string arq = s.ArquivoObra;
+            JObj existente = ProjetoArquivo.LerArquivo(arq);
+            if (existente != null && s.Obra.NumeroObra == null) ProjetoArquivo.LerTrabalho(existente, s.Obra);   // nome/número que o programa guardou
+            if (arq != null && s.Obra.NumeroObra == null)
+            {
+                // primeira vez: nome e número de obra do projeto (o número vai para o REC)
+                using (TelaProjeto t = new TelaProjeto(s.Obra, arq))
+                    if (Application.ShowModalDialog(t) == DialogResult.OK) { s.Obra.Nome = t.Nome; s.Obra.NumeroObra = t.Numero; }
+                    else s.Obra.NumeroObra = s.Obra.NumeroObra ?? "";
+            }
+            string conflito = ProjetoArquivo.Conflito(existente);
+            if (conflito != null && MessageBox.Show(conflito + "\n\nGravar as linhas do desenho no projeto? (SAP, resultado, nome e número do projeto continuam.)",
+                                                    "OrçaCore — salvar projeto", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+            {
+                Aplicacao.Msg("Projeto não gravado (as linhas do OrçaCore foram mantidas).");
+                return null;
+            }
+            JObj env = ProjetoArquivo.Montar(s.Obra, existente, DateTime.UtcNow);
+            string json = Json.Escrever(env, true);
+            PersistenciaDwg.GravarNoDwg(s.Doc, json);
+            s.Modificada = false;
+            s.Atualizar();
+            if (arq == null)
+            {
+                Aplicacao.Msg("Obra salva no DWG. O desenho ainda não tem arquivo: salve o DWG e salve de novo para gerar o projeto .obra.");
+                return null;
+            }
+            ProjetoArquivo.GravarAtomico(arq, json + "\n");
+            Aplicacao.Msg("Projeto salvo em " + arq + " (abra no OrçaCore em 📁 Projeto → Abrir, ou use 🌐). Salve o DWG para guardar a cópia interna.");
+            return arq;
+        }
+
+        [CommandMethod("ORC_PROJETO")]
+        public void CmdProjeto()
+        {
+            Rodar("ORC_PROJETO", s =>
+            {
+                if (!PrecisaObra(s)) return;
+                if (s.Obra.NumeroObra == null) { JObj ex = ProjetoArquivo.LerArquivo(s.ArquivoObra); if (ex != null) ProjetoArquivo.LerTrabalho(ex, s.Obra); }
+                using (TelaProjeto t = new TelaProjeto(s.Obra, s.ArquivoObra))
                 {
-                    PersistenciaDwg.GravarArquivo(arq, json);
-                    Aplicacao.Msg("Obra salva no DWG e em " + arq + " (salve o DWG para guardar a cópia interna).");
+                    if (Application.ShowModalDialog(t) != DialogResult.OK) return;
+                    s.Obra.Nome = t.Nome;
+                    s.Obra.NumeroObra = t.Numero;
+                    Aplicacao.Msg("Projeto: " + t.Nome + " · obra nº " + (t.Numero.Length > 0 ? t.Numero : "(sem número)") + ". Vale ao salvar.");
+                    Mudou(s, true);
                 }
-                else Aplicacao.Msg("Obra salva no DWG. O desenho ainda não tem arquivo: salve o DWG e rode ORC_SALVAR de novo para gerar o .obra.json.");
-                s.Modificada = false;
-                s.Atualizar();
             });
         }
 
@@ -771,30 +816,18 @@ namespace OrcamentoNanoCAD
             {
                 if (!PrecisaObra(s)) return;
                 if (string.IsNullOrEmpty(s.Obra.Projeto)) { Aplicacao.Msg("A obra não tem o código do projeto (ORCAMENTO → Projeto na aplicação)."); return; }
-                string chaveObra = string.IsNullOrEmpty(s.Doc.Name) ? s.Obra.Nome : s.Doc.Name;
-                // TASK-016: o GridReader instalado neste computador (aberto: entrega a obra; fechado: abre já com ela)
-                if (ProgramaNoComputador.Abrir(chaveObra, ObraArquivo.Envelope(s.Obra, DateTime.UtcNow))) return;
-                if (!Conexao.Logado)
-                {
-                    using (TelaConexao tc = new TelaConexao()) Application.ShowModalDialog(tc);
-                    if (!Conexao.Logado) { Aplicacao.Msg("Sem ligação com a aplicação: conecte em 🔗 Aplicação e tente de novo."); return; }
-                    Sincronizador.Agora();
-                }
-                try
-                {
-                    string chave = string.IsNullOrEmpty(s.Doc.Name) ? s.Obra.Nome : s.Doc.Name;
-                    string url = Conexao.Cliente.EnviarObra(chave, ObraArquivo.Envelope(s.Obra, DateTime.UtcNow));
-                    Aplicacao.Msg("GridReader não está instalado neste computador: obra enviada para " + Conexao.Dados.Base + "; abrindo no navegador.");
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
-                }
-                catch (ErroAplicacao e) { Aplicacao.Msg("Não abriu na aplicação: " + e.Message); }
+                // TASK-020: grava o projeto <desenho>.obra e o abre no OrçaCore deste computador. Nada vai para o banco da aplicação.
+                if (!s.DesenhoSalvo) { Aplicacao.Msg("Salve o DWG primeiro: o projeto do OrçaCore fica na pasta do desenho (<desenho>.obra)."); return; }
+                string caminho = SalvarProjeto(s);
+                if (caminho == null) return;
+                ProgramaNoComputador.AbrirProjeto(s.Doc.Name, caminho);
             });
         }
 
         [CommandMethod("ORC_AJUDA")]
         public void CmdAjuda()
         {
-            Aplicacao.Msg("GridReader para nanoCAD " + ObraArquivo.VersaoPlugin + " — desenvolvido por Gabriel Sales — comandos:\n"
+            Aplicacao.Msg("OrçaCore para nanoCAD " + ObraArquivo.VersaoPlugin + " — desenvolvido por Gabriel Sales — comandos:\n"
                 + "  ORCAMENTO      início (Construir do zero / Ler projeto / Continuar obra salva)\n"
                 + "  ORC_LER  ORC_RELER  ORC_ATUALIZAR  ORC_CONTINUAR  ORC_CONSTRUIR\n"
                 + "  ORC_POSTE  ORC_VAO  ORC_VINCULAR  ORC_EDITAR  ORC_ZOOM\n"
@@ -802,7 +835,9 @@ namespace OrcamentoNanoCAD
                 + "  ORC_CONECTAR   ligar à aplicação (localhost/online): regras e base de orçamento ao vivo\n"
                 + "  ORC_SINCRONIZAR baixar agora as regras da aplicação e conferir a obra com a base\n"
                 + "  ORC_NOVO_CABO  ORC_NOVO_OUTROS  linha nova: digitada (com o autocompletar da base) ou lida de um TEXT/MTEXT escolhido no desenho\n"
-                + "  ORC_ABRIR_APP  abrir a obra no GridReader deste computador (aberto ou fechado); sem ele, na aplicação do ORC_CONECTAR\n"
+                + "  ORC_SALVAR     grava o projeto <desenho>.obra (o mesmo arquivo do 📁 Projeto do OrçaCore) e a cópia no DWG\n"
+                + "  ORC_PROJETO    nome e número de obra do projeto (o número vai para o REC)\n"
+                + "  ORC_ABRIR_APP  salva e abre o projeto no OrçaCore deste computador (aberto ou fechado)\n"
                 + "  ORC_LEITURA    configurar layers da rede, bloco de poste e guias · ORC_DIAGNOSTICO o que foi lido\n"
                 + "  ORC_FECHAR     fechar a obra · log: " + Aplicacao.ArquivoLog + "\n"
                 + "  ORC_ATUALIZAR_PLUGIN conferir agora se há versão nova · ORC_VOLTAR_VERSAO voltar para a anterior\n"

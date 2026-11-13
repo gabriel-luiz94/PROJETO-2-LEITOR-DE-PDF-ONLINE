@@ -1,7 +1,8 @@
 # Plugin nanoCAD — Orçamento (Leitor de Projetos)
 
 Subproduto do **Leitor de Projetos Pro**: um plugin C# (.NET) que roda **dentro do nanoCAD**, lê o desenho da rede
-(postes, vãos e anotações) e produz uma **obra totalmente parametrizada** (`<desenho>.obra.json`), que a aplicação
+(postes, vãos e anotações) e produz uma **obra totalmente parametrizada**, gravada como **projeto de trabalho do OrçaCore**
+(`<desenho>.obra`, na pasta do desenho — o mesmo arquivo do 📁 Projeto do programa), que a aplicação
 importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçamento. O cálculo **não** roda no CAD.
 
 > Documentação para IA/desenvolvimento: [`.ai/`](.ai/) — requisitos, estado, arquitetura, regras e tarefas do plugin.
@@ -24,7 +25,8 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
    anotação ficam ocultos); em *Construir do zero* aparece tudo o que você montou. Ajuste no pop-up (duplo clique ou `ORC_EDITAR`): corrija o ativo
    com o autocompletar da Base de Orçamento, exclua (a linha lida fica em **Ignorados** e volta com "Restaurar") ou crie linhas digitadas
    (**+ Cabo** / **+ Outros**). Tudo isso sobrevive ao ↻ Atualizar. Depois **Salvar**.
-4. Na aplicação: selecione o mesmo projeto (ex.: 081) → Carregar Obra → importar o `.obra.json` da pasta do desenho.
+4. **🌐 Abrir na aplicação** (`ORC_ABRIR_APP`): salva o projeto e o abre no OrçaCore deste computador (aberto: a janela vem para a frente
+   com o projeto; fechado: o programa abre já com ele). Ou, no OrçaCore: 📁 Projeto → Abrir → `<desenho>.obra`. Nada é gravado no banco.
 
 ### Comandos
 
@@ -36,8 +38,9 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 | `ORC_EDITAR` | pop-up do vão/poste: entrada (lida do desenho), saída (para a obra), ajustes — **ativo editável com o autocompletar da Base de Orçamento** (sugestões, parâmetros, `)` automático; não altera o desenho), operação, metros, estrutura do vínculo, troca opcional da layer do texto, **Excluir da obra / Restaurar** |
 | `ORC_NOVO_CABO`, `ORC_NOVO_OUTROS` | linha nova (+ Cabo / + Outros no painel): digitada com o autocompletar, ou **lida de um TEXT/MTEXT escolhido no desenho** pelas regras do leitor |
 | `ORC_VINCULOS`, `ORC_ATIVOS` | tabela de vínculos · ativos com parâmetros (`N4(9400D, P, 3XA35P_7.94_-13.8KV, ?)`) |
-| `ORC_SALVAR` | grava a obra **no DWG** e em **`<desenho>.obra.json`** na pasta do desenho |
-| `ORC_ABRIR_APP` | abre a obra no GridReader deste computador: aberto, recebe a obra e vem para a frente; fechado, abre já com ela. Sem ele instalado, na aplicação do `ORC_CONECTAR` (navegador) — 🌐 no painel |
+| `ORC_SALVAR` | grava o **projeto `<desenho>.obra`** na pasta do desenho (formato do 📁 Projeto do OrçaCore: linhas + a obra do plugin; SAP e resultado do programa ficam) e a cópia **no DWG**. Se as linhas foram alteradas no OrçaCore, pergunta antes de gravar por cima |
+| `ORC_PROJETO` | nome e número de obra do projeto (o número vai para o REC) |
+| `ORC_ABRIR_APP` | salva o projeto e o abre no OrçaCore deste computador: aberto, recebe o projeto e vem para a frente (Abrir/Mesclar/Sobrescrever se a tela já tem dados); fechado, abre já com ele — 🌐 no painel. Sem o programa instalado, o projeto fica na pasta do desenho |
 | `ORC_LEITURA`, `ORC_DIAGNOSTICO` | onde ficam rede, postes e guias neste padrão de desenho · o que o plugin leu em cada texto (arquivo + tabela) |
 | `ORC_FECHAR` | fecha a obra (⌂ Início no painel volta à tela inicial) |
 | `ORC_ATUALIZAR_PLUGIN`, `ORC_VOLTAR_VERSAO` | conferir agora se há versão nova do plugin · voltar para a versão anterior |
@@ -88,7 +91,7 @@ plugin_nanocad/
 ├── .ai/                  requisitos, estado, arquitetura, regras, decisões e tarefas DO PLUGIN
 ├── appload/nanoCAD26/    DLL pronta para o APPLOAD (nanoCAD 26)
 ├── appload/nanoCAD5/     saída do build_nanocad5.bat
-├── exemplos/             .obra.json gerado pelo núcleo (é o que o teste de contrato da aplicação importa)
+├── exemplos/             .obra (projeto) e .obra.json gerados pelo núcleo (os testes de contrato da aplicação abrem/importam)
 ├── referencias/          mockups e arquivos do resultado esperado (DWG/DXF, imagens…)
 ├── src/Nucleo/           lógica SEM CAD (leitura, regras, vínculo, .obra.json) — testável no Linux
 ├── src/Plugin/           camada do nanoCAD (comandos, telas, DWG, marcas na tela)
@@ -107,7 +110,7 @@ plugin_nanocad/
 ```bash
 cd plugin_nanocad
 ./compilar.sh                         # testes do núcleo + net40 + appload/nanoCAD26/OrcamentoNanoCAD.dll
-ATUALIZAR_EXEMPLOS=1 ./compilar.sh    # também regrava exemplos/Projeto_Rua_das_Flores.obra.json
+ATUALIZAR_EXEMPLOS=1 ./compilar.sh    # também regrava exemplos/Projeto_Rua_das_Flores.obra(.json)
 cd .. && python -m pytest tests/test_plugin_nanocad_contrato.py   # contrato com a aplicação
 ```
 

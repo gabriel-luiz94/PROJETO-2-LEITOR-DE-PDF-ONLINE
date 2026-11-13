@@ -22,7 +22,7 @@ namespace OrcamentoNanoCAD
             {
                 Editor ed = Ed();
                 if (ed != null)
-                    ed.WriteMessage("\nGridReader para nanoCAD " + ObraArquivo.VersaoPlugin + " carregado (desenvolvido por Gabriel Sales). Comando: ORCAMENTO (ajuda: ORC_AJUDA).\n");
+                    ed.WriteMessage("\nOrçaCore para nanoCAD " + ObraArquivo.VersaoPlugin + " carregado (desenvolvido por Gabriel Sales). Comando: ORCAMENTO (ajuda: ORC_AJUDA).\n");
             }
             catch (System.Exception) { /* sem documento aberto: tudo bem */ }
             try { AtualizacaoPlugin.Iniciar(); }
@@ -204,7 +204,10 @@ namespace OrcamentoNanoCAD
             }
         }
 
-        public string ArquivoObra { get { return DesenhoSalvo ? ObraArquivo.NomeDoArquivo(Arquivo) : null; } }
+        /// <summary>TASK-020: o projeto de trabalho do OrçaCore, "<desenho>.obra" na pasta do desenho.</summary>
+        public string ArquivoObra { get { return DesenhoSalvo ? ProjetoArquivo.Caminho(Arquivo) : null; } }
+        /// <summary>O arquivo das versões anteriores ("<desenho>.obra.json"): ainda é lido no Continuar.</summary>
+        public string ArquivoObraAntigo { get { return DesenhoSalvo ? ObraArquivo.NomeDoArquivo(Arquivo) : null; } }
 
         /// <summary>Depois de qualquer mudança: marcas e painel em dia.</summary>
         public void Atualizar()
