@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-13 — TASK-158: Salvar / Salvar como / salvamento automático e rascunho do default
+
+- Botão dividido "💾 Salvar ▾" + chave "Salvamento automático" + etiqueta de estado no Resumo. Projeto novo: automático ligado; aberto: desligado (só Salvar grava, inclusive o Resultado); default: ligado e grava rascunho (`rascunhos/` junto do app) recuperável. Salvar como cria cópia. Pergunta ao sair com pendências. Corrigida a corrida que gerava o alarme falso "alterado por fora" (assinatura sempre gravada sobre o estado atual).
+
+---
+
 ## 2026-11-13 — TASK-157: Comparar com .obra / PDFs PB / PDF SAP e Importar PDFs com SAP
 
 - Comparar abre a escolha de formato (REC, .obra, PDFs PB, PDF SAP). Novo `services/importar_sap_pdf.py` + `POST /api/importar-sap-pdf` lêem o PDF SAP (gerado aqui ou feito por fora): ODI → I, ODD → R. Importar PDFs tem o seletor PB | SAP. `.obra` usa só `projeto_trabalho.resultado`.

@@ -9,6 +9,7 @@ import json
 import os
 import threading
 
+import config
 from config import logger
 from services import projeto_obra
 from services.arquivos_desktop import ApiArquivos, _escolhido
@@ -118,6 +119,61 @@ def assinatura_atual(caminho: str) -> dict:
         return _falha(e)
 
 
+# ───────── rascunho do projeto default (TASK-158) ─────────
+# No projeto default o salvamento automático grava um rascunho numa pasta fixa junto do aplicativo, para o usuário recuperar depois.
+# `atual` = o que está sendo feito; `anterior` = o último estado da sessão anterior (guardado quando uma nova sessão começa a gravar).
+RASCUNHOS = {"atual": "rascunho_default.obra", "anterior": "rascunho_default_anterior.obra"}
+
+
+def pasta_rascunho() -> str:
+    return os.path.join(config.BASE_DIR, "rascunhos")
+
+
+def rascunho_gravar(parcial: dict, projeto_codigo: str = "", nova_sessao: bool = False, pasta: str = "") -> dict:
+    """Grava o rascunho do default (só Resumo). `nova_sessao`: guarda antes o rascunho atual como "anterior"."""
+    try:
+        if not str(projeto_codigo or "").strip():
+            raise projeto_obra.ErroProjeto(["Projeto de regras não informado."])                # sem ele o arquivo não poderia ser aberto depois
+        pasta = pasta or pasta_rascunho()
+        os.makedirs(pasta, exist_ok=True)
+        atual, anterior = os.path.join(pasta, RASCUNHOS["atual"]), os.path.join(pasta, RASCUNHOS["anterior"])
+        texto = projeto_obra.montar({"nome": "Rascunho (projeto default)", "dados": (parcial or {}).get("dados") or {}}, None, projeto_codigo)
+        with _trava(atual):
+            if nova_sessao and os.path.isfile(atual):
+                os.replace(atual, anterior)
+            return {"ok": True, "caminho": atual, "assinatura": _gravar_atomico(atual, texto)}
+    except Exception as e:  # noqa: BLE001
+        return _falha(e)
+
+
+def rascunho_info(pasta: str = "") -> dict:
+    """Rascunhos que existem: [{id, salvo_em, itens}] (mais recente primeiro)."""
+    try:
+        pasta = pasta or pasta_rascunho()
+        saida = []
+        for id_, nome in RASCUNHOS.items():
+            caminho = os.path.join(pasta, nome)
+            if not os.path.isfile(caminho):
+                continue
+            try:
+                carga = json.loads(_carregar_json(caminho).decode("utf-8-sig"))
+                dados = carga.get("dados") or {}
+                itens = sum(len(dados.get(k) or []) for k in ("cabos", "outros"))
+                saida.append({"id": id_, "salvo_em": (carga.get("projeto_trabalho") or {}).get("salvo_em", ""), "itens": itens})
+            except (ValueError, OSError, UnicodeDecodeError):
+                continue
+        return {"ok": True, "rascunhos": saida}
+    except Exception as e:  # noqa: BLE001
+        return _falha(e)
+
+
+def rascunho_ler(id_: str, projeto_selecionado: str, pasta: str = "") -> dict:
+    nome = RASCUNHOS.get(id_)
+    if not nome:
+        return {"ok": False, "erro": "Rascunho desconhecido."}
+    return abrir(os.path.join(pasta or pasta_rascunho(), nome), projeto_selecionado)
+
+
 def _parcial(meta_json) -> dict:
     try:
         meta = json.loads(meta_json) if isinstance(meta_json, str) else meta_json
@@ -168,3 +224,15 @@ class ApiProjeto(ApiArquivos):
 
     def projeto_assinatura(self, caminho):
         return assinatura_atual(caminho)
+
+    def projeto_rascunho_gravar(self, meta_json, projeto_codigo="", nova_sessao=False):
+        try:
+            return rascunho_gravar(_parcial(meta_json), projeto_codigo, bool(nova_sessao))
+        except Exception as e:  # noqa: BLE001
+            return _falha(e)
+
+    def projeto_rascunho_info(self):
+        return rascunho_info()
+
+    def projeto_rascunho_ler(self, id_rascunho, projeto_selecionado=""):
+        return rascunho_ler(id_rascunho, projeto_selecionado)
