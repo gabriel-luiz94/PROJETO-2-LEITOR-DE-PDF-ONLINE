@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-13 — TASK-162: barra de pesquisa fixa na Base de Orçamento
+
+- O Ctrl+K da Base de Orçamento deixou de abrir pop-up: a pesquisa é uma barra `sticky` no topo da tela (Ctrl+K leva o cursor para ela; resultados num painel abaixo, ↑↓/Enter/Esc). A "Consulta Rápida" flutuante e `BaseFicha.pesquisaRapida` foram removidas.
+
+---
+
 ## 2026-11-13 — TASK-161: relatório SAP no formato do ICP (PDF único)
 
 - "Relatórios PDF" gera um arquivo só (ODI e depois ODD, cada um em página nova com cabeçalho); páginas de continuação sem cabeçalho nem linha verde; 48 linhas na 1ª página; duas casas nas quantidades. A leitura de PDF SAP passou a usar a posição do texto (o título que o ICP escreve depois da tabela não vira descrição).

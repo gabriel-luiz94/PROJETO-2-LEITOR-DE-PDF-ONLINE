@@ -70,7 +70,7 @@ def test_verificacao_de_descricao_divergente_e_uso_do_codigo():
 
 def test_ligacoes_na_tela_da_base():
     html = open(os.path.join(config.STATIC_DIR, "orcamento.html"), encoding="utf-8").read()
-    for trecho in ("/static/base_ficha_dados.js", "/static/base_ficha_ui.js", "BaseFicha.iniciar(", "BaseFicha.invalidar()", "BaseFicha.pesquisaRapida"):
+    for trecho in ("/static/base_ficha_dados.js", "/static/base_ficha_ui.js", "BaseFicha.iniciar(", "BaseFicha.invalidar()"):
         assert trecho in html, trecho
     app = open(os.path.join(config.BASE_DIR, "app.py"), encoding="utf-8").read()
     assert "base_ficha_dados.js" in app and "base_ficha_ui.js" in app
