@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Gaveta "Regras de validação" do Resumo do projeto (TASK-019).
+   Gaveta "Regras de validação" do Resumo do Orçamento (TASK-019).
    Monta a gaveta, as abas (Regras · Grupos · Prompts da IA · Testar) e carrega sob demanda o editor
    (regras_editor.js) e os prompts (painel_prompts.js). Segue o projeto de #select-projeto; o padrão de todos os
    projetos é uma opção dentro do painel. Só admin edita (o backend também exige); operador vê Regras/Grupos em leitura.
@@ -203,7 +203,7 @@
         montado = true;
         if (!document.getElementById('painel-regras-css')) {
             const l = document.createElement('link');
-            l.rel = 'stylesheet'; l.href = '/static/painel_regras.css?v=2'; l.id = 'painel-regras-css';
+            l.rel = 'stylesheet'; l.href = '/static/painel_regras.css?v=3'; l.id = 'painel-regras-css';
             document.head.appendChild(l);
         }
         const d = no('aside', ''); d.id = 'painel-regras'; d.setAttribute('aria-label', 'Regras de validação');

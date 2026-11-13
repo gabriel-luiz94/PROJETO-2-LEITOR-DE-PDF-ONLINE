@@ -144,6 +144,11 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
       aparece na Totalizadora (diferente de `CABOS`/`OUTROS`, que sempre mantêm o item original).
       Ver `.ai/tasks/TASK-034-02-10-2026.md`.
 
+- [x] Projeto de trabalho (TASK-154, 2026-11-13): menu 📁 Projeto no aplicativo desktop (Novo/Abrir/Propriedades/Voltar ao default); `.obra` numa pasta com gravação automática (nome, número de obra, SAP, Resumo, Resultado); Abrir/Mesclar/Sobrescrever; REC confirma o número; relatórios na pasta do projeto. Ver `.ai/tasks/TASK-154-13-11-2026.md`.
+- [x] Usabilidade e design (TASK-153, 2026-11-12): telas abrem com estilo sem internet (`tailwind_local.css`,
+      `static/fontes/`, `tema.css`); hierarquia de botões na Base de Orçamento e no Resultado; menus "Mais ▾" e
+      "Exibição ▾" no Resumo; foco do teclado visível; rodapé fora do conteúdo. Ver `.ai/tasks/TASK-153-12-11-2026.md`.
+
 ### Empacotamento e deploy
 - [x] Modo desktop com janela nativa (pywebview) e fallback para navegador
 - [x] Modo servidor headless
@@ -597,6 +602,12 @@ arquivo em `.ai/tasks/`.
     (2026-10-05):** o loop principal é capturado uma vez no startup e usado com
     `asyncio.run_coroutine_threadsafe`; o monitor agora roda de fato (desktop e servidor).
 
+33. **Não corrigido.** Achado na TASK-153 (2026-11-12): a interface ainda usa ~100 `alert()` e ~50 `confirm()`
+    nativos e mais de 100 cores diferentes escritas direto nos elementos (só os botões foram padronizados).
+    Ao criar tela ou botão novo: usar as classes já existentes (`.btn-primary`, `.btn-secondary`, `.btn-danger`;
+    nas telas Base/Resultado, `.btn-action` + `.btn-save`/`.btn-destaque`/`.btn-danger`) e **não** linkar CDN
+    nem fonte de fora (`tests/test_usabilidade_153.py` barra).
+
 ### Dados
 24. O repositório continha PDFs, DXFs e o `banco_resumo.db` com dados reais de obra, versionados
     antes das regras do `.gitignore`. **Removidos no commit `530d5cc`**; o histórico do Git ainda os
@@ -694,7 +705,11 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-11-02
+**Data:** 2026-11-12
+**Motivo:** TASK-153 — usabilidade e design (telas sem internet, hierarquia de botões, menus no Resumo). As tarefas
+TASK-107 a TASK-152 estão no `CHANGELOG.md` e em `.ai/tasks/` (esta seção não foi atualizada nelas).
+
+**Anterior — Data:** 2026-11-02
 **Motivo:** TASK-106 — "Abrir na aplicação" para o plugin do nanoCAD (e plugin 0.3.0: TASK-004 a 010). Suíte: 1220 passed, 11 skipped.
 
 **Anterior — Data:** 2026-10-31

@@ -51,7 +51,7 @@ def test_campos_de_chave_usam_campo_segredo():
     for i in ("input-apikey", "input-apikey-openai", "input-apikey-claude"):
         assert re.search(rf'class="campo-segredo"[^>]*id="{i}"', resumo)
     assert 'class="campo-segredo"' in index and 'id="input-cloudconvert-key"' in index
-    assert 'class="campo-segredo"' in admin and 'id="newPassword"' in admin
+    assert re.search(r'id="newPassword"[^>]*class="campo-segredo[ "]', admin)          # TASK-153: a tag tinha class= duas vezes (o 2º era ignorado); agora é um só, com as classes de estilo junto
     for pag in (resumo, index, admin):
         assert "/static/campos_segredo.js" in pag
 

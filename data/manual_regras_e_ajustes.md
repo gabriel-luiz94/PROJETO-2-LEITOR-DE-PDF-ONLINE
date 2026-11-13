@@ -1,6 +1,6 @@
 # Manual: regras de validação e ajustes
 
-Este manual explica, passo a passo, como cadastrar **regras de validação** e **ajustes** no Leitor de Projetos. Não é preciso saber programar: quase tudo é feito pelo editor visual. Os exemplos em formato de código (JSON) são para quem preferir editar direto, e cada um deles é testado automaticamente.
+Este manual explica, passo a passo, como cadastrar **regras de validação** e **ajustes** no GridR. Não é preciso saber programar: quase tudo é feito pelo editor visual. Os exemplos em formato de código (JSON) são para quem preferir editar direto, e cada um deles é testado automaticamente.
 
 ## 1. Visão geral
 
@@ -19,7 +19,7 @@ Cada camada pode ser ligada ou desligada na aba **Execução**.
 
 ## 2. Abrindo a gaveta
 
-No **Resumo do projeto**, clique em **Regras de validação**. A gaveta lateral tem as abas:
+No **Resumo do Orçamento**, clique em **Regras de validação**. A gaveta lateral tem as abas:
 
 | Aba | Para que serve |
 |---|---|

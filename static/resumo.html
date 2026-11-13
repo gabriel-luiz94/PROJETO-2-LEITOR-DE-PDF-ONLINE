@@ -6,12 +6,10 @@
     <title>Resumo do Orçamento — GridR</title>
     <link rel="icon" type="image/svg+xml" href="/static/gridr.svg">
     <link rel="alternate icon" type="image/x-icon" href="/static/gridr.ico">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/tema.css?v=1">
     <script src="/static/auth_fetch.js"></script>
     <script src="/static/desktop_arquivos.js"></script>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css?v=2">
     <style>
         #btn-ler-projeto.arrastando { outline: 2px dashed #3fb950; background: rgba(35,134,54,.35) !important; }
         /* ── Layout Geral ── */
@@ -604,9 +602,9 @@
             color: #d97706;
         }
     </style>
-    <link rel="stylesheet" href="/static/resumo_layout.css?v=2">
+    <link rel="stylesheet" href="/static/resumo_layout.css?v=3">
 </head>
-<body>
+<body data-rodape="fino">
     <div class="app-shell" id="app-shell">
 
         <!-- ═══ BARRA DE TÍTULO (TASK-111) ═══ -->
@@ -631,12 +629,19 @@
             <button class="btn-primary" id="btn-save-obra" title="Salvar Obra na Memória">
                         Salvar Obra
                     </button>
-            <button class="btn-secondary" id="btn-save-modelo" title="Salva as tabelas como MODELO: quantidades escritas V (ou V(nome)) viram variáveis pedidas a quem usar o modelo">
+            <!-- Menu "Mais" (TASK-153): ações da obra usadas de vez em quando saem da barra; os ids e os comportamentos são os mesmos -->
+            <span class="menu-susp">
+                <button class="btn-secondary" id="btn-menu-obra" type="button" data-menu="menu-obra-itens" aria-haspopup="true" aria-expanded="false" title="Mais ações da obra: salvar como modelo, importar/exportar JSON e imprimir">Mais ▾</button>
+                <div class="menu-susp-itens" id="menu-obra-itens" role="menu" hidden>
+                    <button class="btn-secondary" id="btn-save-modelo" data-fecha-menu role="menuitem" title="Salva as tabelas como MODELO: quantidades escritas V (ou V(nome)) viram variáveis pedidas a quem usar o modelo">
                         Salvar como modelo
                     </button>
-            <button class="btn-secondary" id="btn-importar-json" type="button" title="Abre um arquivo .obra.json e pergunta se é para Carregar (substituir), Adicionar ou Subtrair da obra na tela">⤒ Importar JSON</button>
+                    <button class="btn-secondary" id="btn-importar-json" data-fecha-menu role="menuitem" type="button" title="Abre um arquivo .obra.json e pergunta se é para Carregar (substituir), Adicionar ou Subtrair da obra na tela">⤒ Importar JSON</button>
+                    <button class="btn-secondary" id="btn-exportar-json" data-fecha-menu role="menuitem" type="button" title="Exporta a obra que está na tela como arquivo .obra.json">⤓ Exportar JSON</button>
+                    <button class="btn-secondary" id="btn-imprimir" data-fecha-menu role="menuitem" type="button" onclick="window.print()" title="Imprimir PDF">🖨 Imprimir</button>
+                </div>
+            </span>
             <input type="file" id="input-importar-json" accept=".json,application/json" style="display:none">
-            <button class="btn-secondary" id="btn-exportar-json" type="button" title="Exporta a obra que está na tela como arquivo .obra.json">⤓ Exportar JSON</button>
             <span id="modelo-editando-aviso" style="display:none; font-size:0.75rem; color:#d29922;"></span>
             <span class="tb-flex"></span>
             <span class="chip-projeto" id="chip-projeto" title="Projeto selecionado (troque no painel Configurações)">Projeto: —</span>
@@ -653,7 +658,6 @@
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10H8a5 5 0 0 0 0 10h8"/><polyline points="17 6 21 10 17 14"/></svg>
                 </button>
             <span id="history-info" class="history-info"></span>
-            <button class="btn-secondary btn-ico" onclick="window.print()" title="Imprimir PDF">🖨</button>
             <span class="tb-sep"></span>
             <button class="btn-secondary btn-painel" id="btn-toggle-config" type="button" aria-pressed="false" title="Abrir/ocultar o painel de Configurações">⚙ Configurações</button>
             <button class="btn-secondary btn-painel" id="btn-toggle-ia" type="button" aria-pressed="false" title="Abrir/ocultar o Assistente de IA">✨ Assistente IA</button>
@@ -701,18 +705,27 @@
                 <label><input type="radio" name="view_mode" value="totalizadora" onchange="toggleViewMode()"> Totalizadora</label>
             </div>
             <span class="tb-sep"></span>
-            <span class="ctl-rotulo">Tabelas</span>
-            <button class="chip-toggle on" id="chip-tabela-cabos" type="button" data-tabela="cabos" aria-pressed="true" title="Mostrar/ocultar a tabela de Cabos">👁 Cabos</button>
-            <button class="chip-toggle on" id="chip-tabela-outros" type="button" data-tabela="outros" aria-pressed="true" title="Mostrar/ocultar a tabela de Demais ativos">👁 Demais ativos</button>
-            <span class="tb-sep"></span>
-            <button class="chip-toggle on" id="chip-sugestoes" type="button" aria-pressed="true" title="Sugestões de ativos ao digitar (só ativos e apelidos do projeto)">💡 Sugestões</button>
-            <span class="tb-sep"></span>
-            <span class="ctl-rotulo">Layout</span>
-            <div class="seg-layout" id="seg-layout">
-                <button type="button" data-layout="lado" class="on" title="Tabelas lado a lado">▥ Lado a lado</button>
-                <button type="button" data-layout="empilhadas" title="Tabelas empilhadas (uma sobre a outra)">☰ Empilhadas</button>
-                <button type="button" id="btn-inverter-tabelas" aria-pressed="false" title="Inverter a ordem: Demais ativos (postes) à esquerda/em cima e Cabos à direita/embaixo">⇄ Inverter</button>
-            </div>
+            <!-- Menu "Exibição" (TASK-153): preferências de tela (mexe-se pouco) saem da barra; os ids são os mesmos -->
+            <span class="menu-susp">
+                <button class="btn-secondary" id="btn-menu-exibicao" type="button" data-menu="menu-exibicao-itens" aria-haspopup="true" aria-expanded="false" title="O que aparece na tela: tabelas visíveis, sugestões ao digitar e layout">Exibição ▾</button>
+                <div class="menu-susp-itens menu-exibicao" id="menu-exibicao-itens" hidden>
+                    <span class="ctl-rotulo">Tabelas</span>
+                    <div class="menu-linha">
+                        <button class="chip-toggle on" id="chip-tabela-cabos" type="button" data-tabela="cabos" aria-pressed="true" title="Mostrar/ocultar a tabela de Cabos">👁 Cabos</button>
+                        <button class="chip-toggle on" id="chip-tabela-outros" type="button" data-tabela="outros" aria-pressed="true" title="Mostrar/ocultar a tabela de Demais ativos">👁 Demais ativos</button>
+                    </div>
+                    <span class="ctl-rotulo">Ao digitar</span>
+                    <div class="menu-linha">
+                        <button class="chip-toggle on" id="chip-sugestoes" type="button" aria-pressed="true" title="Sugestões de ativos ao digitar (só ativos e apelidos do projeto)">💡 Sugestões</button>
+                    </div>
+                    <span class="ctl-rotulo">Layout</span>
+                    <div class="seg-layout" id="seg-layout">
+                        <button type="button" data-layout="lado" class="on" title="Tabelas lado a lado">▥ Lado a lado</button>
+                        <button type="button" data-layout="empilhadas" title="Tabelas empilhadas (uma sobre a outra)">☰ Empilhadas</button>
+                        <button type="button" id="btn-inverter-tabelas" aria-pressed="false" title="Inverter a ordem: Demais ativos (postes) à esquerda/em cima e Cabos à direita/embaixo">⇄ Inverter</button>
+                    </div>
+                </div>
+            </span>
             <span class="tb-sep"></span>
             <div class="resumo-compacto" id="resumo-compacto" title="Resumo da rede (só linhas instalando)">
                 <span class="rc-item"><span class="rc-lbl">Postes</span><span class="resumo-rede-valor" id="resumo-rede-postes">0</span></span>
@@ -720,9 +733,9 @@
                 <span class="rc-item"><span class="rc-lbl">Baixa</span><span class="resumo-rede-valor" id="resumo-rede-baixa">0 m</span></span>
                 <span class="rc-item"><span class="rc-lbl">Equip.</span><span class="resumo-rede-valor" id="resumo-rede-equipamentos">0</span></span>
             </div>
+            <button class="btn-secondary btn-danger" id="btn-limpar-tabelas" title="Limpa as tabelas e os modais da obra (pede confirmação; desfaz com Ctrl+Z)">Limpar Tudo</button>
             <span class="tb-flex"></span>
             <button class="btn-secondary" id="btn-gerar-totalizadora" style="color: #3fb950; margin-right: 10px; display: none;" onclick="syncTotalizadora(true)">Gerar / Atualizar Tabela</button>
-            <button class="btn-secondary" id="btn-limpar-tabelas" style="color: #f85149; margin-right: 10px;">Limpar Tudo</button>
             <button class="btn-primary" id="btn-salvar-alteracoes">Salvar no PDF</button>
         </div>
 
@@ -1736,7 +1749,7 @@
     <script src="/static/barra_modais.js?v=1"></script>
     <script src="/static/projeto.js?v=1"></script>
     <script src="/static/resumo.js?v=5.4"></script>
-    <script src="/static/resumo_layout.js?v=1"></script>
+    <script src="/static/resumo_layout.js?v=2"></script>
     <script src="/static/painel_regras.js"></script>
     <script src="/static/voz.js"></script>
     <script>

@@ -6,13 +6,11 @@
     <title>Resultado do Orçamento — GridR</title>
     <link rel="icon" type="image/svg+xml" href="/static/gridr.svg">
     <link rel="alternate icon" type="image/x-icon" href="/static/gridr.ico">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/tema.css?v=1">
     <script src="/static/auth_fetch.js"></script>
     <script src="/static/desktop_arquivos.js"></script>
     <script src="/static/projeto.js?v=1"></script>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css?v=2">
     <style>
         :root {
             --bg-canvas: #090d12;
@@ -25,7 +23,7 @@
             --text-secondary: #919bb0;
             --text-muted: #656f84;
             --btn-primary-bg: #d97706;
-            --btn-primary-text: #ffffff;
+            --btn-primary-text: #161b22;          /* escuro sobre o laranja: 5,4:1 (o branco dava 3,2:1) */
             --btn-primary-hover: #b45309;
             --btn-neutral-bg: #161c26;
             --btn-neutral-border: #262e3d;
@@ -228,11 +226,15 @@
             font-family: 'Inter', sans-serif;
             white-space: nowrap;
             user-select: none;
+            background-image: none;          /* o .btn-action do styles.css (botão "Extrair" da tela inicial) tem degradê e sombra: sem isto, TODOS os botões daqui ficavam laranja (TASK-153) */
+            box-shadow: none;
         }
         .btn-action:hover {
             background-color: var(--btn-neutral-hover);
             border-color: var(--btn-neutral-hover-border);
             color: var(--text-primary);
+            transform: none;
+            box-shadow: none;
         }
         .btn-action:active {
             transform: scale(0.99);
@@ -1353,7 +1355,7 @@
                 log('Lendo dados para cálculo do orçamento...', true);
                 const payloadStr = localStorage.getItem('orcamentoPayload');
                 if (!payloadStr) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum payload encontrado. Volte na tela de Resumo e clique em "Montar Orçamento".</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum orçamento montado ainda.<br>Abra o Resumo do Orçamento e clique em "Montar Orçamento", ou use "RECs do Banco" acima para abrir um orçamento salvo.<br><button class="btn-action" style="margin-top:14px;" onclick="if (window.self !== window.top) voltarOuFechar(); else window.location.href=\'/resumo\'">Ir para o Resumo do Orçamento</button></td></tr>';
                     log('Nenhum dado ativo no momento.');
                     updateStats([]);
                     return;

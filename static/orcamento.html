@@ -6,9 +6,7 @@
     <title>Base de Orçamento — GridR</title>
     <link rel="icon" type="image/svg+xml" href="/static/gridr.svg">
     <link rel="alternate icon" type="image/x-icon" href="/static/gridr.ico">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/tema.css?v=1">
     <script src="/static/auth_fetch.js"></script>
     <script src="/static/desktop_arquivos.js"></script>
     <script src="/static/ativo_parametros.js"></script>
@@ -17,7 +15,7 @@
     <script src="/static/base_cadastro_dados.js"></script>
     <script src="/static/base_cadastro_ui.js"></script>
     <script src="/static/base_grade.js"></script>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css?v=2">
     <style>
         :root {
             --bg-canvas: #090d12;
@@ -30,7 +28,7 @@
             --text-secondary: #919bb0;
             --text-muted: #656f84;
             --btn-primary-bg: #d97706;
-            --btn-primary-text: #ffffff;
+            --btn-primary-text: #161b22;          /* escuro sobre o laranja: 5,4:1 (o branco dava 3,2:1) */
             --btn-primary-hover: #b45309;
             --btn-neutral-bg: #161c26;
             --btn-neutral-border: #262e3d;
@@ -140,11 +138,15 @@
             font-family: 'Inter', sans-serif;
             white-space: nowrap;
             user-select: none;
+            background-image: none;          /* o .btn-action do styles.css (botão "Extrair" da tela inicial) tem degradê e sombra: sem isto, TODOS os botões daqui ficavam laranja (TASK-153) */
+            box-shadow: none;
         }
         .btn-action:hover {
             background-color: var(--btn-neutral-hover);
             border-color: var(--btn-neutral-hover-border);
             color: var(--text-primary);
+            transform: none;
+            box-shadow: none;
         }
         .btn-action:active {
             transform: scale(0.99);
@@ -173,6 +175,34 @@
             border-color: #43516c;
             color: #ffffff;
         }
+
+        /* Destaque sem preenchimento: ação importante que não é a principal da tela */
+        .btn-action.btn-destaque {
+            border-color: rgba(217, 119, 6, 0.55);
+            color: #f0883e;
+            font-weight: 600;
+        }
+        .btn-action.btn-destaque:hover {
+            background-color: rgba(217, 119, 6, 0.12);
+            border-color: var(--btn-primary-bg);
+            color: #f0883e;
+        }
+
+        /* Ação que apaga: vermelho discreto */
+        .btn-action.btn-danger {
+            border-color: var(--btn-danger-border);
+            color: var(--btn-danger-color);
+        }
+        .btn-action.btn-danger:hover {
+            background-color: #261617;
+            border-color: #592529;
+            color: #ffa3a3;
+        }
+
+        .toolbar-sep { width: 1px; height: 20px; background-color: var(--border-default); margin: 0 4px; flex: none; }
+        .grupo-admin { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 3px 6px; border: 1px dashed #323d52; border-radius: 6px; }
+        .grupo-admin:not(:has(button:not(.hidden))) { display: none; }          /* sem nenhum botão de administrador à vista, o grupo some */
+        .grupo-admin-rotulo { font-size: 0.66rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
         .btn-action.aba-ativa {
             background-color: var(--btn-primary-bg);
@@ -370,7 +400,7 @@
     </style>
 <script>/* TASK-128: dentro da moldura do programa o Voltar fecha a moldura; fora dela volta ao início */function voltarOuFechar(){ if (window.self !== window.top) window.parent.postMessage({ tipo: 'fechar-tela-app' }, location.origin); else window.location.href = '/'; }</script>
 </head>
-<body>
+<body data-rodape="esquerda">
     <div class="container-base">
         <header class="page-header-card">
             <div class="header-title-group">
@@ -390,8 +420,10 @@
                 <select id="select-projeto" class="btn-action" style="min-width: 160px;" onchange="trocarProjetoSelecionado()" title="Projeto cuja fatia da base está sendo vista/editada">
                     <option value="">Selecione um projeto...</option>
                 </select>
+                <span class="toolbar-sep"></span>
 
-                <button class="btn-action btn-save" onclick="BaseCadastro.abrir()" title="Cadastro rápido de um ativo: nome, parâmetros e itens numa grade (cola do Excel), com validação e simulador antes de gravar">
+                <!-- Linhas -->
+                <button class="btn-action btn-destaque" onclick="BaseCadastro.abrir()" title="Cadastro rápido de um ativo: nome, parâmetros e itens numa grade (cola do Excel), com validação e simulador antes de gravar">
                     + Novo ativo
                 </button>
                 <button class="btn-action" onclick="adicionarLinha('acima')" title="Insere uma linha ACIMA da linha selecionada (sem seleção: no fim da tabela)">
@@ -401,29 +433,42 @@
                     + Linha abaixo
                 </button>
                 <button class="btn-action" onclick="BaseGrade.duplicar()" title="Duplica a(s) linha(s) selecionada(s)">Duplicar</button>
-                <button class="btn-action" onclick="BaseGrade.excluirSelecionadas()" title="Remove da tela a(s) linha(s) selecionada(s) (vale após Salvar Alterações)">Excluir selecionadas</button>
+                <button class="btn-action btn-danger" onclick="BaseGrade.excluirSelecionadas()" title="Remove da tela a(s) linha(s) selecionada(s) (vale após Salvar Alterações)">Excluir selecionadas</button>
+                <span class="toolbar-sep"></span>
+
+                <!-- Colunas -->
                 <button class="btn-action" onclick="BaseGrade.ajustarColunas()" title="Ajusta a largura de cada coluna ao conteúdo (duplo clique na borda de um título ajusta só ela)">↔ Ajustar colunas</button>
                 <button class="btn-action" onclick="BaseGrade.restaurarColunas()" title="Volta às larguras originais">Restaurar larguras</button>
-                <button id="btn-admin-add" class="btn-action btn-master hidden" onclick="adicionarLinhaMaster()" title="Adiciona para TODOS os usuários (Nuvem)">
-                    + Nova Linha Master
-                </button>
-                <button class="btn-action btn-save" onclick="salvarAlteracoes()" title="Salva alterações na sua tabela local">
-                    Salvar Alterações
-                </button>
+                <span class="toolbar-sep"></span>
+
+                <!-- Arquivo -->
                 <button class="btn-action" onclick="document.getElementById('file-upload').click()" title="Sobrescreve a sua tabela local">
                     Importar CSV Local
-                </button>
-                <button id="btn-admin-csv" class="btn-action btn-master hidden" onclick="document.getElementById('file-upload-master').click()" title="Com um projeto selecionado, substitui só as linhas desse projeto. Sem projeto selecionado (visão Comuns/Não reconhecido), substitui TODOS os projetos.">
-                    Importar CSV Master
                 </button>
                 <button class="btn-action" onclick="exportarCSV()" title="Exporta a tabela atual como CSV (pode ser importado depois)">
                     &#x2193; Exportar CSV
                 </button>
-                <button id="btn-admin-sync-all" class="btn-action btn-master hidden" onclick="sincronizarTudoNuvem()" title="Com um projeto selecionado, sincroniza só esse projeto. Sem projeto selecionado, sincroniza TODOS os projetos.">
-                    Sincronizar Tudo com a Nuvem
-                </button>
-                <button id="btn-admin-migrar" class="btn-action btn-master hidden" onclick="migrarProjetosCompartilhados()" title="Ação única: divide toda linha que hoje vale para mais de um projeto (ex. PARAIBA/PARAIBANOVO) em uma cópia exclusiva por projeto">
-                    Migrar linhas compartilhadas
+
+                <!-- Só o administrador vê: mexem na base de TODOS os usuários (nuvem) -->
+                <span class="grupo-admin" title="Ações do administrador: valem para todos os usuários (nuvem)">
+                    <span class="grupo-admin-rotulo">Nuvem · admin</span>
+                    <button id="btn-admin-add" class="btn-action btn-master hidden" onclick="adicionarLinhaMaster()" title="Adiciona para TODOS os usuários (Nuvem)">
+                        + Nova Linha Master
+                    </button>
+                    <button id="btn-admin-csv" class="btn-action btn-master hidden" onclick="document.getElementById('file-upload-master').click()" title="Com um projeto selecionado, substitui só as linhas desse projeto. Sem projeto selecionado (visão Comuns/Não reconhecido), substitui TODOS os projetos.">
+                        Importar CSV Master
+                    </button>
+                    <button id="btn-admin-sync-all" class="btn-action btn-master hidden" onclick="sincronizarTudoNuvem()" title="Com um projeto selecionado, sincroniza só esse projeto. Sem projeto selecionado, sincroniza TODOS os projetos.">
+                        Sincronizar Tudo com a Nuvem
+                    </button>
+                    <button id="btn-admin-migrar" class="btn-action btn-master hidden" onclick="migrarProjetosCompartilhados()" title="Ação única: divide toda linha que hoje vale para mais de um projeto (ex. PARAIBA/PARAIBANOVO) em uma cópia exclusiva por projeto">
+                        Migrar linhas compartilhadas
+                    </button>
+                </span>
+
+                <!-- A ação principal da tela -->
+                <button class="btn-action btn-save" onclick="salvarAlteracoes()" title="Salva alterações na sua tabela local">
+                    Salvar Alterações
                 </button>
             </div>
         </header>

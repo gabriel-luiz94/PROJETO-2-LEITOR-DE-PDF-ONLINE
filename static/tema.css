@@ -1,0 +1,19 @@
+/* tema.css (TASK-153) — o que é comum a TODAS as telas do GridR: as fontes (locais, para o programa abrir igual sem internet)
+   e o contorno de foco do teclado. Cada tela continua com o seu próprio estilo; aqui só entra o que precisa ser igual em todas. */
+
+@font-face {
+    font-family: 'Inter'; font-style: normal; font-weight: 100 900; font-display: swap;
+    src: url('/static/fontes/inter-latin.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono'; font-style: normal; font-weight: 100 800; font-display: swap;
+    src: url('/static/fontes/jetbrains-mono-latin.woff2') format('woff2');
+}
+
+/* Foco do teclado (Tab): só nos controles que não são campo de texto — os campos das grades têm o próprio destaque de borda.
+   :focus-visible não aparece no clique do mouse. O !important vence os "outline: none" escritos direto nos elementos. */
+button:focus-visible, a:focus-visible, select:focus-visible, summary:focus-visible, [role="button"]:focus-visible,
+input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible, input[type="file"]:focus-visible, label[for]:focus-visible {
+    outline: 2px solid #58a6ff !important;
+    outline-offset: 2px;
+}
