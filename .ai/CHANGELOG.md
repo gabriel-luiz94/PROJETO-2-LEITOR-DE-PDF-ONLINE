@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-14 — TASK-164: visão SAP estilo Excel, cópia idêntica à do Excel e cópia em blocos
+
+- `static/resultado_orcamento.html` (SAP): célula só edita com 2 cliques/F2/Enter/digitar (sem `contenteditable` fixo); 1 clique seleciona, arrastar/Shift/setas ampliam, coluna `#` (nº da linha, não copiável) seleciona a linha; Esc cancela edição; Ctrl+A.
+- Cópia agora é idêntica à do Excel: texto TSV com CRLF em TODA linha (inclusive a última) + tabela HTML (`ClipboardItem`; evento `copy` usa `setData`). Antes era LF sem quebra final, o que fazia a aplicação de destino perder a coluna CENTRO. Formato escolhível (Excel / Só texto / LF) e colunas da cópia (padrão TIPO MDO, CÓDIGO, QUANTIDADE, CENTRO), guardados em `localStorage`.
+- Contador de selecionadas/faltam e cópia em blocos de N (padrão 10, editável) com progresso, ◀ bloco anterior e Recomeçar. Helpers puros em `static/orcamento_sap.js` (`textoCopia`, `htmlCopia`, `andamentoBlocos`, `blocoAnterior`, `colunasDaCopia`). Tarefa: `.ai/tasks/TASK-164-14-11-2026.md`.
+
+---
+
 ## 2026-11-13 — TASK-163: plugin do nanoCAD integrado ao projeto de trabalho; sem gravação no banco
 
 - O plugin grava `<desenho>.obra` (formato do 📁 Projeto, com a seção `cad` dele) na pasta do desenho. `services/projeto_obra.montar` PRESERVA a `cad` ao gravar.

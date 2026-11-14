@@ -17,6 +17,8 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] **TASK-164** — Resultado › SAP estilo Excel: seleção por clique/arraste, edição com 2 cliques/F2, coluna `#` não copiável, contador selecionadas/faltam, cópia em blocos de N (padrão 10) com progresso, cópia no formato Excel (CRLF + HTML) com colunas/formato escolhíveis (`orcamento_sap.js`, `resultado_orcamento.html`)
+
 ### Extração
 - [x] Extração de PDF com texto, página, fonte, tamanho, **cor** e flags (`pdf_service.py`)
 - [x] Extração de DXF com TEXT/MTEXT/ATTRIB e entidades dentro de blocos INSERT (`dxf_service.py`)
