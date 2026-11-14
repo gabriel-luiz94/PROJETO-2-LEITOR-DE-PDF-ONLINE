@@ -78,6 +78,26 @@
     }
     const ativo = () => !!(ponte() && estado());
     const codigoRegras = () => { try { return raiz.localStorage.getItem('projeto_selecionado_codigo') || '229'; } catch (x) { return '229'; } };
+    /* ── TASK-165: o contexto selecionado (Ajustes por contexto) vai no .obra e volta ao abrir ── */
+    function contextoAtual() {
+        try {
+            if (raiz.document.getElementById('select-contexto') && raiz.contextoSelecionado) return raiz.contextoSelecionado() || '';
+            return raiz.localStorage.getItem('contexto_selecionado_' + codigoRegras()) || '';
+        } catch (x) { return ''; }
+    }
+    /** Seleciona o contexto da obra aberta: existindo no projeto, seleciona (e guarda no navegador); senão avisa e fica em Nenhum. Sem contexto no arquivo (obra antiga): nada muda. */
+    async function aplicarContexto(nome) {
+        nome = String(nome || '').trim();
+        if (!nome) return;
+        const cod = codigoRegras();
+        let lista = [];
+        try { const r = await raiz.fetch('/api/validacao/ajustes/contextos?projeto_codigo=' + encodeURIComponent(cod)); lista = r.ok ? ((await r.json()).contextos || []) : []; } catch (x) { return; }
+        const existe = lista.indexOf(nome) >= 0;
+        try { raiz.localStorage.setItem('contexto_selecionado_' + cod, existe ? nome : ''); } catch (x) { /* sem storage */ }
+        if (!existe) avisar("O contexto '" + nome + "' desta obra não existe neste projeto");
+        if (raiz.carregarContextosAjustes) await raiz.carregarContextosAjustes(cod);
+        if (raiz.ajCarregar) raiz.ajCarregar();
+    }
     const avisar = m => { try { if (raiz.showToast) raiz.showToast(m); else if (raiz.parent && raiz.parent !== raiz && raiz.parent.showToast) raiz.parent.showToast(m); } catch (x) { /* sem toast */ } };
     /** Quem grava de fato é a instância da janela principal (uma fila só, mesmo com o Resultado numa moldura). */
     function dono() { try { if (raiz.top !== raiz && raiz.top.GridRProjeto && raiz.top.GridRProjeto.__enviar) return raiz.top.GridRProjeto; } catch (x) { /* outra origem */ } return null; }
@@ -219,6 +239,7 @@
     async function escrever(parcial, forcar) {
         const e = estado(), p = ponte();
         if (!e || !p) return;
+        parcial = Object.assign({ contexto: contextoAtual() }, parcial);                               // TASK-165
         const r = await p.projeto_gravar(e.caminho, JSON.stringify(parcial), forcar ? '' : (e.assinatura || ''), !!forcar, e.projeto || '');
         if (r && r.ok) {
             atualizarEstado({ assinatura: r.assinatura }); ultimaGravacao = new Date(); suspenso = false; erroAvisado = false;
@@ -385,6 +406,7 @@
         definirProjeto(r, e.auto === true);
         if (resumo) { resumo.carregar(r.projeto.dados); dadosProntos = true; sujo = false; }
         suspenso = false; pendente = null; aplicarNumero(); atualizarMenu();
+        await aplicarContexto(r.projeto.contexto);
         avisar('Projeto recarregado do arquivo.');
     }
 
@@ -403,7 +425,7 @@
         definirProjeto(r, false);
         suspenso = false; pendente = null; ultimaGravacao = null; sujo = false;
         if (resumo) {
-            if (modo === 'abrir') resumo.carregar(pr.dados);
+            if (modo === 'abrir') { resumo.carregar(pr.dados); await aplicarContexto(pr.contexto); }          // TASK-165: Abrir seleciona o contexto da obra; Mesclar e Sobrescrever mantêm o atual
             else if (modo === 'mesclar') { resumo.mesclar(pr.dados); sujo = true; }
             else sujo = true;                                   // sobrescrever: a tela vale e vai por cima do arquivo quando salvar
             dadosProntos = true;
@@ -436,6 +458,7 @@
             definirProjeto(r, e.auto === true);
             if (resumo) { resumo.carregar(r.projeto.dados); dadosProntos = true; sujo = false; }
             suspenso = false; pendente = null; aplicarNumero(); atualizarMenu();
+            await aplicarContexto(r.projeto.contexto);
             avisar('Projeto “' + r.projeto.nome + '” atualizado pelo nanoCAD.');
             return true;
         }
@@ -526,7 +549,7 @@
         async function criar() {
             habilitar(bCriar, false);
             if (!copia && !(await confirmarSaida())) { estados(); return; }          // criar um projeto novo deixa o aberto: pergunta se há pendências
-            const meta = { nome: cNome.input.value.trim(), numero_obra: cNum.input.value.trim(), sap };
+            const meta = { nome: cNome.input.value.trim(), numero_obra: cNum.input.value.trim(), sap, contexto: contextoAtual() };
             if (resumo && (copia ? dadosProntos : resumo.temDados())) meta.dados = resumo.coletar();            // o que já está na tela vai para o projeto novo
             if (copia) { const res = await resultadoAtual(); if (res) meta.resultado = res; }
             let r = await p.projeto_criar(pasta, JSON.stringify(meta), codigoRegras());
@@ -734,7 +757,7 @@
     Object.assign(api, {
         ativo, estado, pasta: () => { const e = estado(); return e ? pastaDoCaminho(e.caminho) : ''; }, numeroObra: () => { const e = estado(); return e ? (e.numero || '') : ''; },
         nome: () => { const e = estado(); return e ? e.nome : ''; }, sap: () => { const e = estado(); return e && e.sap ? e.sap : {}; },
-        registrarResumo, marcarSujo, colarSap, ROTULOS, abrirDoPlugin, temPonte: () => !!ponte(), salvarAgora: salvarAutomatico, abrirJanela, voltarAoDefault, carregarResultado, acompanharResultado, confirmarNumeroObra, salvarSap,
+        registrarResumo, marcarSujo, colarSap, ROTULOS, abrirDoPlugin, aplicarContexto, contextoAtual, temPonte: () => !!ponte(), salvarAgora: salvarAutomatico, abrirJanela, voltarAoDefault, carregarResultado, acompanharResultado, confirmarNumeroObra, salvarSap,
         salvar: salvarClick, salvarComo: salvarComoClick, definirAuto, recuperarRascunho, autoLigado, temPendencias,
         __enviar: enviarLocal, __enviarAgora: enviarAgoraLocal, __salvarClick: salvarClick, __salvarComoClick: salvarComoClick,
         __registrarColetor: fn => { coletorResultado = fn; }, __pendenteResultado: () => (pendente && pendente.resultado) || null

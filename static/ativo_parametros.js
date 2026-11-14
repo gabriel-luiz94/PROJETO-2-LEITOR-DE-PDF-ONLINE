@@ -337,9 +337,12 @@
         return saida;
     }
 
-    function resolverPedido(texto, assinaturas) {
+    const ehObra = nome => String(nome == null ? '' : nome).toUpperCase().startsWith('OBRA.');           // TASK-165: parâmetro de obra (OBRA.*) — o programa preenche, o pedido não
+    /** `obra` = {'OBRA.X': valor} (ativo_obra.js montar). null/undefined = chamador sem obra: padrão sem aviso; {} = obra sem o dado: padrão + r.avisos. */
+    function resolverPedido(texto, assinaturas, obra) {
+        if (obra === undefined) obra = null;
         const a = analisarAtivo(texto);
-        const r = { base: a.base, texto: a.base, params: {}, faltando: [], erros: [], com_assinatura: false };
+        const r = { base: a.base, texto: a.base, params: {}, faltando: [], erros: [], com_assinatura: false, avisos: [], obra: {} };
         if (a.erro) { r.erros.push(a.erro); r.texto = a.texto.toUpperCase(); return r; }
         if (a.tipo === 'declaracao') { r.erros.push('declaração não pode ser usada como pedido'); return r; }
         const sig = (assinaturas || {})[a.base];
@@ -349,13 +352,15 @@
         }
         r.com_assinatura = true;
         const nomes = sig.nomes, dados = {}, livres = (sig.livres || []).slice(), dadosLivres = {};           // TASK-113: livres = parâmetros só da fórmula do fator
+        const nomesObra = nomes.filter(ehObra), nomesPedido = nomes.filter(n => !ehObra(n));
         let pos = 0;
         for (const p of a.params) {
+            if (ehObra(p.nome)) { r.erros.push(`${p.nome} vem do cabeçalho da obra; não informe no pedido`); continue; }
             if (p.nome === null) {
-                while (pos < nomes.length && nomes[pos] in dados) pos++;
+                while (pos < nomes.length && (nomes[pos] in dados || ehObra(nomes[pos]))) pos++;
                 if (pos >= nomes.length) {
                     if (livres.length && !nomes.length) r.erros.push(`os parâmetros de ${a.base} precisam do nome: ${a.base}(${livres[0].toLowerCase()}=valor)`);
-                    else r.erros.push(`parâmetros demais para ${a.base} (esperado: ${nomes.map(nomeTela).join(', ')})`);
+                    else r.erros.push(`parâmetros demais para ${a.base} (esperado: ${nomesPedido.map(nomeTela).join(', ')})`);
                     continue;
                 }
                 dados[nomes[pos]] = p.valor; pos++;
@@ -366,22 +371,32 @@
             else if (p.nome in dados) r.erros.push(`parâmetro ${p.nome} repetido`);
             else dados[p.nome] = p.valor;
         }
+        const origemObra = {};
+        for (const n of nomesObra) {                                                                           // TASK-165: obra → padrão da declaração (+ aviso quando a obra não tem o dado)
+            if (obra && obra[n]) { dados[n] = obra[n]; origemObra[n] = 'obra'; }
+            else if (n in sig.padroes) {
+                dados[n] = sig.padroes[n]; origemObra[n] = 'padrao';
+                if (obra !== null) r.avisos.push(`${n} não informado na obra; usando ${sig.padroes[n]}`);
+            }
+        }
         for (const n of nomes) if (!(n in dados) && n in sig.padroes) dados[n] = sig.padroes[n];
         for (const n of nomes) {
             if (n in dados) {
                 if (sig.fechados.includes(n)) {
                     const uniao = obj => { const irmaos = nomes.filter(x => familia(x) === familia(n)); return irmaos.length > 1 ? [].concat(...irmaos.map(x => obj[x] || [])) : (obj[n] || []); };      // parâmetro repetido: vale o que qualquer irmão aceita (a ordem não importa)
                     const exatos = uniao(sig.valores), mascaras = uniao(sig.mascaras);
-                    if (!exatos.includes(dados[n]) && !mascaras.some(m => casarPadrao(m, dados[n]))) r.erros.push(`${nomeTela(n)}=${dados[n]} não cadastrado em ${a.base} (existem: ${exatos.concat(mascaras).join(', ')})`);
+                    if (!exatos.includes(dados[n]) && !mascaras.some(m => casarPadrao(m, dados[n]))) r.erros.push(`${nomeTela(n)}=${dados[n]}${origemObra[n] === 'obra' ? ' (da obra)' : ''} não cadastrado em ${a.base} (existem: ${exatos.concat(mascaras).join(', ')})`);
                 }
             } else r.faltando.push(n);
         }
         for (const n of nomes) if (n in dados) r.params[n] = dados[n];
         Object.keys(dadosLivres).forEach(n => { r.params[n] = dadosLivres[n]; });
+        for (const n of nomesObra) if (n in dados && n in origemObra) r.obra[n] = { valor: dados[n], origem: origemObra[n] };
         const extras = Object.keys(dadosLivres).map(n => `${nomeTela(n)}=${dadosLivres[n]}`);
-        if (!nomes.length) r.texto = extras.length ? `${a.base}(${extras.join(',')})` : a.base;
-        else if (!r.faltando.length) r.texto = `${a.base}(${nomes.map(n => dados[n]).concat(extras).join(',')})`;
-        else if (Object.keys(dados).length || extras.length) r.texto = `${a.base}(${nomes.filter(n => n in dados).map(n => nomeTela(n) + '=' + dados[n]).concat(extras).join(',')})`;
+        const pdados = {}; for (const n of Object.keys(dados)) if (!ehObra(n)) pdados[n] = dados[n];             // o texto só leva o que o pedido liga (OBRA.* não entra)
+        if (!nomesPedido.length) r.texto = extras.length ? `${a.base}(${extras.join(',')})` : a.base;
+        else if (!r.faltando.filter(f => !ehObra(f)).length) r.texto = `${a.base}(${nomesPedido.map(n => pdados[n]).concat(extras).join(',')})`;
+        else if (Object.keys(pdados).length || extras.length) r.texto = `${a.base}(${nomesPedido.filter(n => n in pdados).map(n => nomeTela(n) + '=' + pdados[n]).concat(extras).join(',')})`;
         return r;
     }
 

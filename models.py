@@ -42,6 +42,7 @@ class OrcamentoRequest(BaseModel):
     cabos: List[Dict[str, Any]]
     outros: List[Dict[str, Any]]
     projeto: Optional[str] = None
+    obra: Optional[Dict[str, Any]] = None        # TASK-165: {municipio, bairro, utd, utep, contexto} da obra aberta (parâmetros OBRA.*)
 
 
 class PayloadCalculo(BaseModel):

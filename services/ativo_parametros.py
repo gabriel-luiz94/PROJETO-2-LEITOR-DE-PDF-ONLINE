@@ -38,6 +38,8 @@ Este arquivo tem a MESMA lógica de static/ativo_parametros.js (paridade testada
 """
 import re
 
+from services.obra_params import NOMES as _NOMES_OBRA
+
 # TASK-096: valores aceitam também "/" (cabos como S1/0). O MESMO nome pode se repetir (N4(cabo, cabo) = dois cabos): a repetição k vira CABO#k por dentro e, na tela, de novo CABO.
 _RE_ID = re.compile(r"^[A-Z0-9_.]+$")
 _RE_VAL = re.compile(r"^[A-Z0-9_./-]+$")                 # TASK-100: "-" também (descrição do cabo: 3XS04-7.97KV)
@@ -509,14 +511,21 @@ def montar_assinaturas(celulas) -> dict:
     return saida
 
 
-def resolver_pedido(texto, assinaturas) -> dict:
+def _eh_obra(nome) -> bool:
+    """TASK-165: parâmetro de obra (OBRA.*) — preenchido pelo programa, nunca pelo pedido."""
+    return str(nome or "").upper().startswith("OBRA.")
+
+
+def resolver_pedido(texto, assinaturas, obra=None) -> dict:
     """Normaliza um pedido ("N1", "N1(ALUM)", "N1(poste=CC,cabo=COBRE)").
 
     Retorna {"base", "texto" (forma normalizada), "params" {NOME: VALOR} (informados + padrões), "faltando" [nomes],
     "erros" [msgs], "com_assinatura" bool}. Completo → "N1(XLPE,DT)"; incompleto → "N1(CABO=ALUM)" (só os informados, com nome).
-    O valor precisa ser igual a um valor cadastrado ou casar um padrão (%) do parâmetro; parâmetro só com "!=" aceita qualquer valor."""
+    O valor precisa ser igual a um valor cadastrado ou casar um padrão (%) do parâmetro; parâmetro só com "!=" aceita qualquer valor.
+    TASK-165: ``obra`` = {"OBRA.X": valor} (services/obra_params.montar). Parâmetros OBRA.* não são do pedido: ordem pedido → obra → padrão da declaração; ``obra=None``
+    (chamador sem obra) usa o padrão sem aviso; com ``obra`` ({} inclusive) o valor ausente usa o padrão e entra em r["avisos"]. r["obra"] = {nome: {"valor","origem"}}."""
     a = analisar_ativo(texto)
-    r = {"base": a["base"], "texto": a["base"], "params": {}, "faltando": [], "erros": [], "com_assinatura": False}
+    r = {"base": a["base"], "texto": a["base"], "params": {}, "faltando": [], "erros": [], "com_assinatura": False, "avisos": [], "obra": {}}
     if a["erro"]:
         r["erros"].append(a["erro"])
         r["texto"] = a["texto"].upper()
@@ -532,18 +541,23 @@ def resolver_pedido(texto, assinaturas) -> dict:
         return r
     r["com_assinatura"] = True
     nomes = sig["nomes"]
+    nomes_obra = [n for n in nomes if _eh_obra(n)]
+    nomes_pedido = [n for n in nomes if not _eh_obra(n)]       # a ligação posicional e a mensagem de "parâmetros demais" só enxergam estes
     livres = list(sig.get("livres") or [])                   # TASK-113: parâmetros que só existem na fórmula do fator
     dados, dados_livres = {}, {}
     pos = 0
     for p in a["params"]:
+        if _eh_obra(p["nome"]):
+            r["erros"].append(f"{p['nome']} vem do cabeçalho da obra; não informe no pedido")
+            continue
         if p["nome"] is None:
-            while pos < len(nomes) and nomes[pos] in dados:
+            while pos < len(nomes) and (nomes[pos] in dados or _eh_obra(nomes[pos])):
                 pos += 1
             if pos >= len(nomes):
                 if livres and not nomes:
                     r["erros"].append(f"os parâmetros de {a['base']} precisam do nome: {a['base']}({livres[0].lower()}=valor)")
                 else:
-                    r["erros"].append(f"parâmetros demais para {a['base']} (esperado: {', '.join(nome_tela(n) for n in nomes)})")
+                    r["erros"].append(f"parâmetros demais para {a['base']} (esperado: {', '.join(nome_tela(n) for n in nomes_pedido)})")
                 continue
             dados[nomes[pos]] = p["valor"]
             pos += 1
@@ -561,6 +575,14 @@ def resolver_pedido(texto, assinaturas) -> dict:
                 r["erros"].append(f"parâmetro {p['nome']} repetido")
             else:
                 dados[p["nome"]] = p["valor"]
+    origem_obra = {}
+    for n in nomes_obra:                                                       # TASK-165: obra → padrão da declaração (+ aviso quando a obra não tem o dado)
+        if obra and obra.get(n):
+            dados[n], origem_obra[n] = obra[n], "obra"
+        elif n in sig["padroes"]:
+            dados[n], origem_obra[n] = sig["padroes"][n], "padrao"
+            if obra is not None:
+                r["avisos"].append(f"{n} não informado na obra; usando {sig['padroes'][n]}")
     for n in nomes:
         if n not in dados and n in sig["padroes"]:
             dados[n] = sig["padroes"][n]
@@ -571,17 +593,20 @@ def resolver_pedido(texto, assinaturas) -> dict:
                 exatos = [v for x in irmaos for v in sig["valores"].get(x, [])] if len(irmaos) > 1 else sig["valores"].get(n, [])
                 mascaras = [v for x in irmaos for v in sig["mascaras"].get(x, [])] if len(irmaos) > 1 else sig["mascaras"].get(n, [])
                 if dados[n] not in exatos and not any(casar_padrao(m, dados[n]) for m in mascaras):
-                    r["erros"].append(f"{nome_tela(n)}={dados[n]} não cadastrado em {a['base']} (existem: {', '.join(exatos + mascaras)})")
+                    de = " (da obra)" if origem_obra.get(n) == "obra" else ""
+                    r["erros"].append(f"{nome_tela(n)}={dados[n]}{de} não cadastrado em {a['base']} (existem: {', '.join(exatos + mascaras)})")
         else:
             r["faltando"].append(n)
     r["params"] = {**{n: dados[n] for n in nomes if n in dados}, **dados_livres}
+    r["obra"] = {n: {"valor": dados[n], "origem": origem_obra[n]} for n in nomes_obra if n in dados and n in origem_obra}
     extras = [f"{n}={v}" for n, v in dados_livres.items()]
-    if not nomes:
+    pdados = {n: v for n, v in dados.items() if not _eh_obra(n)}                # o texto normalizado só leva o que o pedido liga (OBRA.* não entra: reentrar no resolver o pularia)
+    if not nomes_pedido:
         r["texto"] = f"{a['base']}({','.join(extras)})" if extras else a["base"]
-    elif not r["faltando"]:
-        r["texto"] = f"{a['base']}({','.join([dados[n] for n in nomes] + extras)})"
-    elif dados or extras:
-        r["texto"] = f"{a['base']}({','.join([nome_tela(n) + '=' + dados[n] for n in nomes if n in dados] + extras)})"
+    elif not [f for f in r["faltando"] if not _eh_obra(f)]:
+        r["texto"] = f"{a['base']}({','.join([pdados[n] for n in nomes_pedido] + extras)})"
+    elif pdados or extras:
+        r["texto"] = f"{a['base']}({','.join([nome_tela(n) + '=' + pdados[n] for n in nomes_pedido if n in pdados] + extras)})"
     return r
 
 
@@ -818,6 +843,10 @@ def validar_base(linhas) -> dict:
             continue
         if a["tipo"] == "grupo" and any(p["nome"] is None for p in a["params"]):
             erros.append(f"Linha {n}: ativo '{cel}': na base os parâmetros levam nome (cabo=XLPE).")
+            continue
+        desconhecidos = sorted({p["nome"] for p in a["params"] if _eh_obra(p["nome"]) and nome_tela(p["nome"]) not in _NOMES_OBRA})          # TASK-165: lista fechada de OBRA.*
+        if desconhecidos:
+            erros.append(f"Linha {n}: ativo '{cel}': {', '.join(desconhecidos)} não é parâmetro de obra (existem: {', '.join(_NOMES_OBRA)}).")
             continue
         analises.append((n, linha, a))
 

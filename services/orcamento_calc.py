@@ -8,6 +8,7 @@ from services.orcamento_lv import operacao_viva, passa_lv
 from services.orcamento_arred import aplicar_arred
 from services.fator_formula import FormulaErro, avaliar
 from services.anotacao_outros import contexto_da_base, interpretar_linha
+from services.obra_params import montar as montar_obra
 from services.ativo_parametros import (
     analisar_celula_base, assinaturas_das_linhas, compostos_do_projeto, compostos_parametrizados, linha_vale, montar_assinaturas, nome_base, nome_tela, resolver_pedido,
     restricoes_do_grupo, sem_colchetes, substituir_variaveis,
@@ -166,7 +167,14 @@ def _valores_por_nome(nomes, params) -> dict:
     return saida
 
 
-def _expandir_compostos(itens, compostos, avisos, profundidade_max=10, formais=None, assinaturas=None, nao_encontrados=None, nivel0=0) -> list:
+def _avisos_do_pedido(avisos, ped):
+    """TASK-165: avisos de parâmetro de obra (uma vez por parâmetro e valor)."""
+    for m in ped.get("avisos") or []:
+        if m not in avisos:
+            avisos.append(m)
+
+
+def _expandir_compostos(itens, compostos, avisos, profundidade_max=10, formais=None, assinaturas=None, nao_encontrados=None, nivel0=0, obra=None) -> list:
     """TASK-110: cada pedido de um ativo composto (``3-N1C``) vira os itens dele (``3-N1(C)``, ``6-N2(C)``), com a quantidade multiplicada pela do item;
     compostos dentro de compostos expandem em cadeia. Ciclo ou cadeia funda demais: avisa e o composto não conta.
     TASK-134: composto com PARÂMETROS (``formais`` = {NOME: {nomes, padroes, itens}}): o pedido ``CF(S04,A35P)`` (ou ``CF``, com os padrões) é resolvido pela assinatura do
@@ -181,7 +189,8 @@ def _expandir_compostos(itens, compostos, avisos, profundidade_max=10, formais=N
             if base in pilha or nivel >= profundidade_max:
                 avisos.append(f"Composto {base} se referencia em ciclo ({' → '.join(pilha + (base,))}): não foi calculado.")
                 return
-            ped = resolver_pedido(sem_colchetes(av["ativo"]), assinaturas or {})
+            ped = resolver_pedido(sem_colchetes(av["ativo"]), assinaturas or {}, obra)
+            _avisos_do_pedido(avisos, ped)
             if ped["erros"]:
                 if nao_encontrados is not None:
                     nao_encontrados.append(f"{sem_colchetes(av['ativo'])} ({'; '.join(ped['erros'])})")
@@ -278,8 +287,9 @@ def _preparar_parametros(orcamento_rows, req_proj):
     return linhas, assinaturas, grupos
 
 
-def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcamento_rows: list) -> dict:
+def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcamento_rows: list, obra=None) -> dict:
     req_proj = (req_projeto or "").strip().upper()
+    valores_obra = montar_obra(obra, req_proj)                          # TASK-165: OBRA.MUNICIPIO/BAIRRO/UTD/UTEP/REGIAO/CONTEXTO ({} quando a obra não tem nada)
     compostos = compostos_do_projeto(orcamento_rows, req_proj)          # TASK-110: N1C:=N1(C) + 2*N2(C)
     _param = compostos_parametrizados(orcamento_rows, req_proj)         # TASK-134: CF(cabo,cabo2):=… e CHAVE_FACA(cabo=%S04%):=…
     compostos_formais, compostos_de_grupo = _param["formais"], _param["grupos"]
@@ -340,7 +350,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
 
     nao_encontrados_compostos = []
     if compostos or compostos_formais:
-        ativos_qtd = _expandir_compostos(ativos_qtd, compostos, avisos, formais=compostos_formais, assinaturas=assinaturas, nao_encontrados=nao_encontrados_compostos)
+        ativos_qtd = _expandir_compostos(ativos_qtd, compostos, avisos, formais=compostos_formais, assinaturas=assinaturas, nao_encontrados=nao_encontrados_compostos, obra=valores_obra)
 
     # ── 3. Cross-reference: Ativo → 1º match → Componente → todos os Códigos ─
     
@@ -458,7 +468,8 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
 
         if base in assinaturas or "(" in nome_ativo:
             # TASK-079: ativo com parâmetros → grupo comum + grupos que valem para os parâmetros pedidos
-            pedido = resolver_pedido(nome_ativo, assinaturas)
+            pedido = resolver_pedido(nome_ativo, assinaturas, valores_obra)
+            _avisos_do_pedido(avisos, pedido)
             if pedido["erros"]:
                 nao_encontrados.append(f"{nome_ativo} ({'; '.join(pedido['erros'])})")
                 continue
@@ -487,7 +498,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
                             avisos.append(f"{pedido['texto']}: o item {it['ativo']} não foi calculado (faltou informar {', '.join(faltando)}).")
                             continue
                         fila.extend(_expandir_compostos([dict(av, ativo=texto, qtd=av["qtd"] * it["qtd"])], compostos, avisos, formais=compostos_formais, assinaturas=assinaturas,
-                                                        nao_encontrados=nao_encontrados, nivel0=nivel))
+                                                        nao_encontrados=nao_encontrados, nivel0=nivel, obra=valores_obra))
             if not achou:
                 nao_encontrados.append(f"{nome_ativo} ({dica or 'variante não cadastrada'})")
             continue

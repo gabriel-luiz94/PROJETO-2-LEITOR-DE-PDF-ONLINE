@@ -266,12 +266,19 @@ def get_detalhes_codigos(req: DetalhesRequest):
     return detalhes_por_codigo(get_merged_orcamento(None), req.codigos, req.projeto)
 
 
+@router.get("/regionais")
+def get_regionais(projeto: str = ""):
+    """TASK-165: tabela regional (município/UTD → regional) do projeto, para o navegador derivar OBRA.REGIAO como o cálculo; {} se o projeto não tem."""
+    from services.obra_params import tabela_regional
+    return tabela_regional(projeto)
+
+
 @router.post("/calcular")
 def calcular_orcamento(req: OrcamentoRequest, request: Request):
     user = getattr(request.state, "user", None)
     user_id = user["user_id"] if user else None
     merged_rows = get_merged_orcamento(user_id)
-    return processar_calculo(req.cabos, req.outros, req.projeto, merged_rows)
+    return processar_calculo(req.cabos, req.outros, req.projeto, merged_rows, obra=req.obra)
 
 
 @router.post("/exportar-xlsx")

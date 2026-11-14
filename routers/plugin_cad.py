@@ -233,6 +233,7 @@ class ConferirPayload(BaseModel):
     projeto: str
     dados: Dict[str, Any] = {}
     incluir_totalizadora: Optional[bool] = False
+    obra: Optional[Dict[str, Any]] = None          # TASK-165: cabeçalho/contexto do .obra ({municipio, bairro, utd, utep, contexto}) para os parâmetros OBRA.*
 
 
 def _qtd(q):
@@ -256,9 +257,9 @@ def conferir(payload: ConferirPayload, request: Request):
         raise HTTPException(status_code=413, detail=f"Linhas demais (máx. {LIMITE_LINHAS} por tabela).")
     f = _fontes(p["codigo"], _user_id(request))
     tot = montar_totalizadora(cabos, outros, f["conversao"], f["base"], p["nome"],
-                              itens_vinculo=itens_vinculo_para_totalizadora(cabos, outros), cfg_vinculo=normalizar_config(f["vinculacao"]))
+                              itens_vinculo=itens_vinculo_para_totalizadora(cabos, outros), cfg_vinculo=normalizar_config(f["vinculacao"]), obra=payload.obra)
     calc = payload_calculo(tot)
-    nao_encontrados = list(processar_calculo(calc["cabos"], calc["outros"], p["nome"], f["base"])["nao_encontrados"])
+    nao_encontrados = list(processar_calculo(calc["cabos"], calc["outros"], p["nome"], f["base"], obra=payload.obra)["nao_encontrados"])
 
     def nao_achado(ativo):
         a = str(ativo or "")
@@ -487,8 +488,10 @@ def montar_catalogo(linhas, projeto: str) -> dict:
         if not nomes and not livres:
             continue
         lista = [{"nome": ap.nome_tela(n), "padrao": (sig.get("padroes") or {}).get(n), "valores": list((sig.get("valores") or {}).get(n) or []),
-                  "mascaras": list((sig.get("mascaras") or {}).get(n) or []), "aberto": n not in (sig.get("fechados") or []), "porNome": False} for n in nomes]
+                  "mascaras": list((sig.get("mascaras") or {}).get(n) or []), "aberto": n not in (sig.get("fechados") or []), "porNome": False} for n in nomes if not ap._eh_obra(n)]          # TASK-165: OBRA.* vem da obra (o plugin não preenche)
         lista += [{"nome": ap.nome_tela(n), "padrao": None, "valores": [], "mascaras": [], "aberto": True, "porNome": True} for n in livres]
+        if not lista:
+            continue
         parametros[str(base).upper()] = lista
     corpo = {"ativos": ativos, "apelidos": apelidos, "parametros": parametros}
     corpo["versao"] = _hash(corpo)

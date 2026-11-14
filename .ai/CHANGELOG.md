@@ -8,6 +8,13 @@
 
 ---
 
+## 2026-11-14 — TASK-165: parâmetros de obra (`OBRA.*`) e contexto no `.obra`
+
+- Parâmetro de ativo `OBRA.MUNICIPIO|BAIRRO|UTD|UTEP|REGIAO|CONTEXTO` é preenchido pelo programa (cabeçalho da obra, contexto, tabela regional `data/regionais_pernambuco.json` para `OBRA.REGIAO`), nunca pelo pedido (erro) e pulado na ligação posicional. Ordem: pedido → obra → padrão da declaração (+ aviso `OBRA.X não informado na obra; usando …`). `services/obra_params.py`; `resolver_pedido(..., obra)` Python/JS.
+- Payload `POST /api/orcamento/calcular` ganha `obra` (opcional); plugin (`/conferir`) e Totalizadora também. `.obra` guarda `projeto_trabalho.contexto` (salvar/abrir/recarregar; Mesclar mantém). Formato da base não muda. Tarefa: `.ai/tasks/TASK-165-14-11-2026.md`.
+
+---
+
 ## 2026-11-14 — TASK-164: visão SAP estilo Excel, cópia idêntica à do Excel e cópia em blocos
 
 - `static/resultado_orcamento.html` (SAP): célula só edita com 2 cliques/F2/Enter/digitar (sem `contenteditable` fixo); 1 clique seleciona, arrastar/Shift/setas ampliam, coluna `#` (nº da linha, não copiável) seleciona a linha; Esc cancela edição; Ctrl+A.

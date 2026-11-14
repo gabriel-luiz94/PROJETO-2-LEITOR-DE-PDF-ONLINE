@@ -169,7 +169,8 @@ def _com_param(ativo, nome, valor, assinaturas, k=0):
     itens = [x.strip() for x in ativo[i + 1:-1].split(",") if x.strip()]
     if sum(1 for x in itens if x.upper().startswith(nome + "=")) > k:
         return ativo
-    if not any("=" in x for x in itens) and len(itens) > sig["nomes"].index(alvo):
+    nomes_pedido = [n for n in sig["nomes"] if not n.startswith("OBRA.")]          # TASK-165: a ligação posicional pula os parâmetros de obra
+    if not any("=" in x for x in itens) and len(itens) > nomes_pedido.index(alvo):
         return ativo                                                  # pedido posicional que já traz o parâmetro
     return f"{ativo[:-1]},{nome}={valor})"
 

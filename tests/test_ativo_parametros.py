@@ -67,7 +67,7 @@ def test_resolver_com_padrao():
     assert f("N1(ALUM,CC)")["params"] == {"CABO": "ALUM", "POSTE": "CC"}
     assert f("N1(XLIPE)")["erros"] and "XLPE, ALUM, COBRE" in f("N1(XLIPE)")["erros"][0]
     assert f("N1(A,B,C)")["erros"] and f("N1(cabo=X,cabo=Y)")["erros"]
-    assert f("P50") == {"base": "P50", "texto": "P50", "params": {}, "faltando": [], "erros": [], "com_assinatura": False}
+    assert f("P50") == {"base": "P50", "texto": "P50", "params": {}, "faltando": [], "erros": [], "com_assinatura": False, "avisos": [], "obra": {}}
     assert f("P50(X)")["erros"] == ["P50 não tem variantes cadastradas"]
 
 
