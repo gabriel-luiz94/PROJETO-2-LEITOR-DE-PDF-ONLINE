@@ -19,6 +19,8 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 
 ## Implementado
 
+- [x] (aplicação, TASK-166) o programa refaz o vínculo cabo ⇄ estrutura **por poste** ao abrir o `.obra` do plugin (usa `_geo` do vão e `_poste`); o vínculo guloso do `Vinculador.cs` fica como pré-visão no CAD. ⏳ Portar o algoritmo por poste para o C# (precisa de .NET no ambiente).
+
 ### Núcleo (sem CAD) — ✅
 - [x] Motor do leitor portado (`MotorLeitor`), paridade com o JS em 39 casos (Pernambuco 081 + padrão)
 - [x] Cor/MTEXT como o leitor de DXF (`Cores`): ACI, layer `TXT_RRGGBB`, parágrafos com cor herdada/local

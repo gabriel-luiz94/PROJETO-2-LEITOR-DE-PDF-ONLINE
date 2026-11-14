@@ -6384,6 +6384,14 @@ window.handleTotPaste = function(e, index) {
             coletar: () => ({ cabos: lista('cabos').map(deepClone), outros: lista('outros').map(deepClone), totalizadora: lista('totalizadora').map(deepClone) }),
             carregar: dados => restoreObraSnapshot(dados),
             mesclar: dados => adicionarObraAoProjeto(dados),
+            vincularPorPoste: async () => {                                  // TASK-166: obra do plugin (com geometria) abre já vinculada pelo que chega em cada poste
+                if (!window.__vinculacaoConfig && window.carregarRegrasVinculacaoResumo) await window.carregarRegrasVinculacaoResumo(localStorage.getItem('projeto_selecionado_codigo') || '');
+                const cfg = window.__vinculacaoConfig;
+                if (!cfg || typeof VinculacaoRegras === 'undefined') return null;
+                const r = VinculacaoRegras.vincularPorPoste(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo, undefined, true);
+                try { renderTable('outros'); atualizarResumoRedeUI(); } catch (e) { /* tela ainda carregando */ }
+                return r;
+            },
             temDados: () => GridRProjeto.temDados({ cabos: lista('cabos'), outros: lista('outros'), totalizadora: lista('totalizadora') })
         });
     })();

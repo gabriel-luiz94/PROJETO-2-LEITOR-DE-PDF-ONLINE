@@ -596,6 +596,157 @@ def achados(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> list:
     return saida
 
 
+# ── vinculação POR POSTE (TASK-166) ─────────────────────────────────────────────────────────────────
+# O vão (cabo) tem 2 pontas e cada ponta termina em UM poste (`_geo`: 1º e último ponto; o poste está em `_poste` na linha de Outros). Por isso o problema se separa por poste:
+# cada estrutura do poste procura, entre os cabos que CHEGAM nele, os que cumprem as validações dela (cabos aceitos, operação, lados iguais, quantidade) e consome UMA ponta de cada.
+# B1MT (2 cabos MT iguais): se o poste tem 2 cabos MT iguais chegando, a B1MT liga nos dois e cada cabo ganha a ponta daquele poste.
+# Prioridade entre estruturas que disputam o mesmo cabo: a ordem da Tabela de Estruturas (primeira regra), depois a ordem da estrutura na linha do poste.
+RAIO_POSTE_PADRAO = 5.0
+
+
+def _par(p):
+    try:
+        if isinstance(p, (list, tuple)) and len(p) >= 2 and not isinstance(p[0], bool):
+            return float(p[0]), float(p[1])
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
+def _extremos(cabo):
+    g = cabo.get("_geo")
+    if not isinstance(g, (list, tuple)) or len(g) < 2:
+        return None
+    a, b = _par(g[0]), _par(g[-1])
+    return (a, b) if a and b else None
+
+
+def _poste_mais_perto(pt, postes, raio):
+    melhor, dmin = None, None
+    for linha, pos in postes:
+        d = ((pt[0] - pos[0]) ** 2 + (pt[1] - pos[1]) ** 2) ** 0.5
+        if d <= raio and (dmin is None or d < dmin):
+            melhor, dmin = linha, d
+    return melhor
+
+
+def vincular_por_poste(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None, raio=RAIO_POSTE_PADRAO, aplicar=False) -> dict:
+    """Vincula cabos às estruturas dos postes pelo que CHEGA em cada poste. Vínculo marcado `vinculoOrigem == "manual"` é mantido (e ocupa a estrutura); os demais são refeitos.
+    Cabo sem `_geo` não é tocado. `aplicar=True` grava `vinculoEstruturas` (+ `vinculoOrigem = "poste"`) nos cabos. Devolve {"vinculos", "achados", "resumo"}."""
+    virt, id_de, cabos_v, codigo_v = _expandir(cabos, outros, _com_linha(codigo_fn), codigos_fn)
+    r = _vincular_por_poste_base(cabos_v, virt, cfg, prefixo_fn, codigo_v, raio if isinstance(raio, (int, float)) and raio > 0 else RAIO_POSTE_PADRAO)
+    for v in r["vinculos"]:
+        v["estruturas"] = [id_de[j] for j in v["estruturas"]]
+    for a in r["achados"]:
+        if a.get("estrutura") is not None:
+            a["estrutura"] = id_de[a["estrutura"]]
+    if aplicar:
+        for v in r["vinculos"]:
+            cabos[v["cabo"]]["vinculoEstruturas"] = list(v["estruturas"])
+            if v["estruturas"]:
+                cabos[v["cabo"]]["vinculoOrigem"] = "poste"
+            else:
+                cabos[v["cabo"]].pop("vinculoOrigem", None)
+    return r
+
+
+def _vincular_por_poste_base(cabos, outros, cfg, prefixo_fn, codigo_fn, raio) -> dict:
+    cfg = normalizar_config(cfg)
+    ests = estruturas_disponiveis(outros)
+    info_e = {ie: info_estrutura(codigo_fn(outros[ie].get("ativo"), outros[ie]), cfg) for ie in ests}
+    info_c = {ic: info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg, extra_cabo(c)) for ic, c in enumerate(cabos) if _eh_cabo_valido(c)}
+    por_linha = {}
+    for ie in ests:
+        por_linha.setdefault(outros[ie].get("_linha"), []).append(ie)
+    postes = [(linha, _par(outros[ies[0]].get("_poste"))) for linha, ies in sorted(por_linha.items(), key=lambda x: (x[0] is None, x[0]))]
+    postes = [(linha, pos) for linha, pos in postes if pos]
+    fict = {ie: [_trim(x).upper() for x in (outros[ie].get("cabosFicticios") or []) if _trim(x)] for ie in ests}
+    manuais = {ic for ic in info_c if cabos[ic].get("vinculoOrigem") == "manual" and (cabos[ic].get("vinculoEstruturas") or [])}
+    ocup = {ie: [] for ie in ests}                               # cabos ligados à estrutura (manuais primeiro; depois os que este algoritmo liga)
+    for ic in sorted(manuais):
+        for ie in cabos[ic]["vinculoEstruturas"]:
+            if ie in ocup:
+                ocup[ie].append(ic)
+    ligados, restante, chegadas, soltas, sem_geo = {}, {}, {}, [], []
+    saida = {"vinculos": [], "achados": [], "resumo": {}}
+    for ic in sorted(info_c):
+        c = info_c[ic]
+        if not c["vincula"] or ic in manuais:
+            continue
+        fim = _extremos(cabos[ic])
+        if fim is None:
+            sem_geo.append(ic)
+            continue
+        ligados[ic] = []
+        restante[ic] = max(0, c["pontas"] - len(estruturas_ficticias_de(cabos[ic])))
+        for k, pt in enumerate(fim):
+            linha = _poste_mais_perto(pt, postes, raio)
+            if linha is None:
+                soltas.append((ic, k))
+            else:
+                chegadas.setdefault(linha, []).append(ic)
+
+    def nome_poste(linha):
+        return f"poste da linha {linha + 1} ({outros[por_linha[linha][0]].get('ativo')})"
+
+    def add(tipo, msg, linha=None, cabo=None, estrutura=None):
+        saida["achados"].append({"tipo": tipo, "poste": linha, "cabo": cabo, "estrutura": estrutura, "mensagem": msg})
+    estr_incompletas = 0
+    for linha, _pos in postes:
+        pend = list(chegadas.get(linha, []))
+        unidades = sorted(por_linha[linha], key=lambda ie: ((info_e[ie]["regra"] if info_e[ie]["regra"] is not None else 10 ** 6), por_linha[linha].index(ie)))
+        for ie in unidades:
+            e = info_e[ie]
+            if e["regra"] is None or e["qtd"] is None:
+                continue                                          # estrutura sem regra/quantidade na Tabela de Estruturas: não exige cabo
+            ocupantes = [{"info": info_c[x], "ficticio": False} for x in ocup[ie]] + [{"info": info_cabo(cod, op_ficticio(e), cfg), "ficticio": True} for cod in fict[ie]]
+            falta = e["qtd"] - len(ocupantes)
+            if falta > 0:
+                cands = []
+                for ic in pend:
+                    if restante.get(ic, 0) > 0 and pode_vincular(info_c[ic], e)[0] and ic not in cands:
+                        cands.append(ic)
+                if e["lados"] == "IGUAIS" and cands and not ocupantes:
+                    grupos = {}
+                    for ic in cands:
+                        grupos.setdefault(_chave_lado(info_c[ic]), []).append(ic)
+                    cands = max(grupos.values(), key=lambda g: min(len(g), falta))              # o grupo de cabos iguais que mais enche a estrutura (empate: o 1º)
+                escolhidos = []
+                for ic in cands:
+                    if len(escolhidos) >= falta:
+                        break
+                    if pode_com_ocupantes(info_c[ic], e, ocupantes)[0]:
+                        ocupantes.append({"info": info_c[ic], "ficticio": False})
+                        escolhidos.append(ic)
+                if len(cands) > len(escolhidos) and escolhidos:
+                    add("escolha", f"{e['codigo']} no {nome_poste(linha)}: {len(cands)} cabos servem, ligados os {len(escolhidos)} primeiros (ordem da tabela de cabos).", linha, escolhidos[0], ie)
+                for ic in escolhidos:
+                    ocup[ie].append(ic)
+                    ligados[ic].append(ie)
+                    restante[ic] -= 1
+                    pend.remove(ic)
+            tem = len(ocup[ie]) + len(fict[ie])
+            if e["qtd_min"] is not None and tem < e["qtd_min"]:
+                estr_incompletas += 1
+                add("incompleta", f"{e['codigo']} no {nome_poste(linha)}: precisa de {e['qtd_min']} cabo(s) e só chegaram {tem} que ela aceita.", linha, None, ie)
+        for ic in pend:
+            if restante.get(ic, 0) > 0:
+                add("sobra", f"Cabo {info_c[ic]['codigo']} (linha {ic + 1}) chega ao {nome_poste(linha)} e nenhuma estrutura o usou.", linha, ic, None)
+    for ic, k in soltas:
+        add("ponta_solta", f"Cabo {info_c[ic]['codigo']} (linha {ic + 1}): a ponta {'A' if k == 0 else 'B'} não toca nenhum poste (raio {raio:g}).", None, ic, None)
+    for ic in sem_geo:
+        add("sem_geometria", f"Cabo {info_c[ic]['codigo']} (linha {ic + 1}) sem geometria (_geo): vínculo não alterado.", None, ic, None)
+    completos = 0
+    for ic in sorted(ligados):
+        full = len(ligados[ic]) >= max(0, info_c[ic]["pontas"] - len(estruturas_ficticias_de(cabos[ic])))
+        completos += 1 if full and ligados[ic] else 0
+        saida["vinculos"].append({"cabo": ic, "estruturas": list(ligados[ic]), "completo": bool(full and ligados[ic])})
+    saida["resumo"] = {"cabos": len(ligados), "completos": completos, "parciais": sum(1 for v in saida["vinculos"] if v["estruturas"] and not v["completo"]),
+                       "sem_vinculo": sum(1 for v in saida["vinculos"] if not v["estruturas"]), "estruturas_incompletas": estr_incompletas,
+                       "pontas_soltas": len(soltas), "manuais_mantidos": len(manuais), "sem_geometria": len(sem_geo)}
+    return saida
+
+
 # ── script de vinculação automática (TASK-084, entrega 2) ───────────────────────────────────────────
 MODOS_SCRIPT = ("proximidade", "sequencia", "aleatorio")
 CONFLITOS_SCRIPT = ("avisar", "ignorar", "parar")

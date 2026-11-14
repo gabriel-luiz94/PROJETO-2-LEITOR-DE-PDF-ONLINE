@@ -8,6 +8,13 @@
 
 ---
 
+## 2026-11-14 — TASK-166: vinculação por poste (obra do plugin abre já vinculada)
+
+- `vincular_por_poste` (`services/vinculacao_regras.py` + espelho JS): cada estrutura do poste liga nos cabos que CHEGAM nele (ponta do vão `_geo` × `_poste`), respeitando as Tabelas de Cabos/Estruturas; B1MT = 2 cabos iguais, cada cabo ganha a ponta do poste. Escolhe e avisa quando sobra; prioridade pela ordem da Tabela de Estruturas; manual mantido (`vinculoOrigem`), automático refeito (`"poste"`).
+- Roda ao abrir `.obra` com `cad` (`projeto_obra.ler` → `cad`), no botão do modal Vinculação › Script e em `/api/plugin/conferir`. Plugin C# não alterado (o `.obra` já leva a geometria). Tarefa: `.ai/tasks/TASK-166-14-11-2026.md`.
+
+---
+
 ## 2026-11-14 — TASK-165: parâmetros de obra (`OBRA.*`) e contexto no `.obra`
 
 - Parâmetro de ativo `OBRA.MUNICIPIO|BAIRRO|UTD|UTEP|REGIAO|CONTEXTO` é preenchido pelo programa (cabeçalho da obra, contexto, tabela regional `data/regionais_pernambuco.json` para `OBRA.REGIAO`), nunca pelo pedido (erro) e pulado na ligação posicional. Ordem: pedido → obra → padrão da declaração (+ aviso `OBRA.X não informado na obra; usando …`). `services/obra_params.py`; `resolver_pedido(..., obra)` Python/JS.

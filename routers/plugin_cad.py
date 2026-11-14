@@ -256,6 +256,10 @@ def conferir(payload: ConferirPayload, request: Request):
     if len(cabos) > LIMITE_LINHAS or len(outros) > LIMITE_LINHAS:
         raise HTTPException(status_code=413, detail=f"Linhas demais (máx. {LIMITE_LINHAS} por tabela).")
     f = _fontes(p["codigo"], _user_id(request))
+    from services.autonomo.montagem import prefixo_cabo
+    from services.autonomo.vinculacao import codigo_estrutura, codigos_estrutura
+    from services.vinculacao_regras import vincular_por_poste
+    vincular_por_poste(cabos, outros, normalizar_config(f["vinculacao"]), prefixo_cabo, codigo_estrutura, codigos_estrutura, aplicar=True)      # TASK-166: o mesmo vínculo por poste da aplicação (geometria _geo × _poste)
     tot = montar_totalizadora(cabos, outros, f["conversao"], f["base"], p["nome"],
                               itens_vinculo=itens_vinculo_para_totalizadora(cabos, outros), cfg_vinculo=normalizar_config(f["vinculacao"]), obra=payload.obra)
     calc = payload_calculo(tot)

@@ -138,4 +138,5 @@ def ler(texto, projeto_selecionado: str) -> dict:
             "sap": sap_limpo(trabalho.get("sap")) if trabalho else {},
             "contexto": _texto(trabalho.get("contexto"), LIMITE_CONTEXTO) if trabalho else "",
             "resultado": resultado_limpo(trabalho.get("resultado")) if trabalho else None,
-            "dados": pronta["dados"], "projeto": pronta["projeto"], "legado": trabalho is None}
+            "dados": pronta["dados"], "projeto": pronta["projeto"], "legado": trabalho is None,
+            "cad": isinstance(carga.get("cad"), dict)}          # TASK-166: veio do plugin do nanoCAD (tem geometria): o programa vincula por poste ao abrir

@@ -477,8 +477,10 @@
         const acoes = el('div', { style: 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap' }, [
             el('button', { class: 'vz-btn b', text: '▶ Pré-visualizar', onclick: () => { st.previa = rodar(false); render(); } }),
             el('button', { class: 'vz-btn', text: 'Aplicar só os completos', onclick: () => aplicarScript(true) }),
-            el('button', { class: 'vz-btn p', text: 'Aplicar tudo', onclick: () => aplicarScript(false) })]);
+            el('button', { class: 'vz-btn p', text: 'Aplicar tudo', onclick: () => aplicarScript(false) }),
+            el('button', { class: 'vz-btn b', text: '🏗️ Vincular por poste (desenho)', title: 'Cada estrutura do poste liga nos cabos que CHEGAM nele (pela geometria do desenho do plugin), respeitando as Tabelas de Cabos e de Estruturas. Vínculo manual é mantido; os demais são refeitos.', onclick: () => aplicarPorPoste() })]);
         painel.appendChild(acoes);
+        painel.appendChild(previaPosteHtml());
         painel.appendChild(el('div', { class: 'vz-nota', style: 'margin-top:12px', html: 'O script usa as duas tabelas (o que cada lado aceita) e as <b>coordenadas</b> do DXF (<code>_x/_y</code>). Vínculo manual existente nunca é sobrescrito, a menos que o passo diga <code>"substituir": true</code>. Aplicado, cada vínculo fica marcado como <b>script</b> e pode ser desfeito um a um (Ctrl+Z desfaz tudo).' }));
         corpo.appendChild(el('div', { class: 'vz-grid2', style: 'flex:1;min-height:0;overflow:auto' }, [el('div', { style: 'min-height:0' }, [ta, erro]), painel]));
     }
@@ -500,6 +502,26 @@
         const n = r.vinculos.filter(v => !soCompletos || v.completo).length;
         toast(`${n} cabo(s) vinculado(s) pelo script (Ctrl+Z desfaz).`);
         st.previa = null; st.aba = 'vinculo'; render();
+    }
+
+    // TASK-166: vinculação por poste — cada estrutura liga nos cabos que chegam no poste (geometria `_geo` do vão × `_poste`)
+    function aplicarPorPoste() {
+        host.antes();
+        const r = VR.vincularPorPoste(cabos(), outros(), st.cfg, host.prefixoCabo, host.codigoEstrutura, host.codigosEstrutura, undefined, true);
+        st.resultadoPoste = r;
+        const s = r.resumo;
+        toast(`Por poste: ${s.completos} cabo(s) completo(s), ${s.parciais} parcial(is), ${s.sem_vinculo} sem vínculo; ${s.estruturas_incompletas} estrutura(s) incompleta(s) (Ctrl+Z desfaz).`);
+        render();
+    }
+
+    function previaPosteHtml() {
+        const r = st.resultadoPoste;
+        if (!r) return el('div', { style: 'color:#8b949e;margin-top:10px', text: 'Vincular por poste usa a geometria do desenho (obra vinda do plugin do nanoCAD).' });
+        const s = r.resumo, rot = { incompleta: 'Estrutura incompleta', sobra: 'Cabo sobrando no poste', ponta_solta: 'Ponta solta', escolha: 'Escolhido e avisado', sem_geometria: 'Sem geometria' };
+        const lista = r.achados.slice(0, 40).map(a => `• ${rot[a.tipo] || a.tipo}: ${a.mensagem}`).join('\n') + (r.achados.length > 40 ? `\n… e mais ${r.achados.length - 40}` : '');
+        return el('div', { style: 'margin-top:12px' }, [
+            el('div', { style: 'color:#8b949e', html: `Por poste: <b style="color:#3fb950">${s.completos}</b> completo(s) · <b style="color:#a371f7">${s.parciais}</b> parcial(is) · ${s.sem_vinculo} sem vínculo · ${s.estruturas_incompletas} estrutura(s) incompleta(s) · ${s.pontas_soltas} ponta(s) solta(s) · ${s.manuais_mantidos} manual(is) mantido(s)` }),
+            r.achados.length ? el('div', { class: 'vz-erro', style: 'white-space:pre-wrap;max-height:220px;overflow:auto', text: lista }) : null]);
     }
 
     function previaHtml() {
