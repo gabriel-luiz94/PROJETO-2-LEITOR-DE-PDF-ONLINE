@@ -1,0 +1,2715 @@
+{
+ "formato": "regionais-pernambuco",
+ "versao": 1,
+ "fonte": "ICP V1.62 (abas MUNICÍPIO_UTD e CENTRO DE CUSTO POR UTD; DASHBORD!H4)",
+ "normalizacao": "chaves em maiúsculas, sem acento, espaços simples; valores de região com espaço trocado por _",
+ "regioes": [
+  "CENTRO",
+  "CENTRO_OESTE",
+  "METROPOLITANO",
+  "NORTE",
+  "OESTE",
+  "RECIFE",
+  "SUL"
+ ],
+ "por_utd": {
+  "AFOG INGAZ": "CENTRO_OESTE",
+  "ARARIPINA": "OESTE",
+  "ARCOVERDE": "CENTRO_OESTE",
+  "BELO JARDIM": "CENTRO",
+  "BOA VIAGEM": "METROPOLITANO",
+  "BOM CONSELHO": "CENTRO_OESTE",
+  "BONGI": "METROPOLITANO",
+  "CABO S AGOST": "SUL",
+  "CAMARAGIBE": "NORTE",
+  "CARPINA": "NORTE",
+  "CARUARU": "CENTRO",
+  "CASA FORTE": "METROPOLITANO",
+  "FLORESTA": "CENTRO_OESTE",
+  "GARANHUNS": "CENTRO_OESTE",
+  "GOIANA": "NORTE",
+  "JAB GUARARAPES": "SUL",
+  "NPPE": "RECIFE",
+  "OLINDA": "METROPOLITANO",
+  "OURICURI": "OESTE",
+  "PALMARES": "CENTRO",
+  "PAULISTA": "NORTE",
+  "PETROLINA": "OESTE",
+  "PIEDADE": "SUL",
+  "RIBEIRAO": "SUL",
+  "SERRA TALHADA": "OESTE",
+  "STA C CAPIBARIBE": "CENTRO",
+  "STA M BOA VISTA": "OESTE",
+  "SURUBIM": "CENTRO",
+  "TIMBAUBA": "NORTE",
+  "VARZEA": "METROPOLITANO",
+  "VIT STO ANTAO": "SUL"
+ },
+ "por_municipio": {
+  "ABREU E LIMA": "NORTE",
+  "AFOGADOS DA INGAZEIRA": "CENTRO_OESTE",
+  "AFRANIO": "OESTE",
+  "AGRESTINA": "CENTRO",
+  "AGUA PRETA": "CENTRO",
+  "AGUAS BELAS": "CENTRO_OESTE",
+  "ALAGOINHA": "CENTRO_OESTE",
+  "ALIANCA": "NORTE",
+  "ALTINHO": "CENTRO",
+  "AMARAJI": "SUL",
+  "ANGELIM": "CENTRO_OESTE",
+  "ARACOIABA": "NORTE",
+  "ARARIPINA": "OESTE",
+  "ARCOVERDE": "CENTRO_OESTE",
+  "BARRA DE GUABIRABA": "CENTRO",
+  "BARREIROS": "SUL",
+  "BELEM DE MARIA": "CENTRO",
+  "BELEM DE SAO FRANCISCO": "CENTRO_OESTE",
+  "BELO JARDIM": "CENTRO",
+  "BETANIA": "CENTRO_OESTE",
+  "BEZERROS": "CENTRO",
+  "BODOCO": "OESTE",
+  "BOM CONSELHO": "CENTRO_OESTE",
+  "BOM JARDIM": "CENTRO",
+  "BONITO": "CENTRO",
+  "BREJAO": "CENTRO_OESTE",
+  "BREJINHO": "CENTRO_OESTE",
+  "BREJO DA MADRE DE DEUS": "CENTRO",
+  "BUENOS AIRES": "NORTE",
+  "BUIQUE": "CENTRO_OESTE",
+  "CABO DE SANTO AGOSTINHO": "SUL",
+  "CABROBO": "CENTRO_OESTE",
+  "CACHOEIRINHA": "CENTRO_OESTE",
+  "CAETES": "CENTRO_OESTE",
+  "CALCADO": "CENTRO_OESTE",
+  "CALUMBI": "OESTE",
+  "CAMARAGIBE": "NORTE",
+  "CAMOCIM DE SAO FELIX": "CENTRO",
+  "CAMUTANGA": "NORTE",
+  "CANHOTINHO": "CENTRO_OESTE",
+  "CAPOEIRAS": "CENTRO_OESTE",
+  "CARNAIBA": "CENTRO_OESTE",
+  "CARNAUBEIRA DA PENHA": "OESTE",
+  "CARPINA": "NORTE",
+  "CARUARU": "CENTRO",
+  "CASINHAS": "CENTRO",
+  "CATENDE": "CENTRO",
+  "CEDRO": "OESTE",
+  "CHA DE ALEGRIA": "NORTE",
+  "CHA GRANDE": "SUL",
+  "CONDADO": "NORTE",
+  "CORRENTES": "CENTRO_OESTE",
+  "CORTES": "SUL",
+  "CUMARU": "CENTRO",
+  "CUPIRA": "CENTRO",
+  "CUSTODIA": "CENTRO_OESTE",
+  "DORMENTES": "OESTE",
+  "ESCADA": "SUL",
+  "EXU": "OESTE",
+  "FEIRA NOVA": "SUL",
+  "FERNANDO DE NORONHA": "METROPOLITANO",
+  "FERREIROS": "NORTE",
+  "FLORES": "CENTRO_OESTE",
+  "FLORESTA": "CENTRO_OESTE",
+  "FREI MIGUELINHO": "CENTRO",
+  "GAMELEIRA": "SUL",
+  "GARANHUNS": "CENTRO_OESTE",
+  "GLORIA DO GOITA": "SUL",
+  "GOIANA": "NORTE",
+  "GRANITO": "OESTE",
+  "GRAVATA": "SUL",
+  "IATI": "CENTRO_OESTE",
+  "IBIMIRIM": "CENTRO_OESTE",
+  "IBIRAJUBA": "CENTRO_OESTE",
+  "IGARASSU": "NORTE",
+  "IGUARACI": "CENTRO_OESTE",
+  "INAJA": "CENTRO_OESTE",
+  "INGAZEIRA": "CENTRO_OESTE",
+  "IPOJUCA": "SUL",
+  "IPUBI": "OESTE",
+  "ITACURUBA": "CENTRO_OESTE",
+  "ITAIBA": "CENTRO_OESTE",
+  "ITAMARACA": "NORTE",
+  "ITAMBE": "NORTE",
+  "ITAPETIM": "CENTRO_OESTE",
+  "ITAPISSUMA": "NORTE",
+  "ITAQUITINGA": "NORTE",
+  "JABOATAO DOS GUARARAPES": "SUL",
+  "JAQUEIRA": "CENTRO",
+  "JATAUBA": "CENTRO",
+  "JATOBA": "CENTRO_OESTE",
+  "JOAO ALFREDO": "CENTRO",
+  "JOAQUIM NABUCO": "CENTRO",
+  "JUCATI": "CENTRO_OESTE",
+  "JUPI": "CENTRO_OESTE",
+  "JUREMA": "CENTRO_OESTE",
+  "LAGOA DE ITAENGA": "NORTE",
+  "LAGOA DO CARRO": "NORTE",
+  "LAGOA DO OURO": "CENTRO_OESTE",
+  "LAGOA DOS GATOS": "CENTRO",
+  "LAGOA GRANDE": "OESTE",
+  "LAJEDO": "CENTRO_OESTE",
+  "LIMOEIRO": "NORTE",
+  "MACAPARANA": "NORTE",
+  "MACHADOS": "CENTRO",
+  "MANARI": "CENTRO_OESTE",
+  "MARAIAL": "CENTRO",
+  "MIRANDIBA": "OESTE",
+  "MOREILANDIA": "OESTE",
+  "MORENO": "SUL",
+  "NAZARE DA MATA": "NORTE",
+  "OLINDA": "METROPOLITANO",
+  "OROBO": "CENTRO",
+  "OROCO": "OESTE",
+  "OURICURI": "OESTE",
+  "PALMARES": "CENTRO",
+  "PALMEIRINA": "CENTRO_OESTE",
+  "PANELAS": "CENTRO",
+  "PARANATAMA": "CENTRO_OESTE",
+  "PARNAMIRIM": "OESTE",
+  "PASSIRA": "NORTE",
+  "PAUDALHO": "NORTE",
+  "PAULISTA": "NORTE",
+  "PEDRA": "CENTRO_OESTE",
+  "PEDRAS DE FOGO": "NORTE",
+  "PESQUEIRA": "CENTRO_OESTE",
+  "PETROLANDIA": "CENTRO_OESTE",
+  "PETROLINA": "OESTE",
+  "POCAO": "CENTRO_OESTE",
+  "POMBOS": "SUL",
+  "PRIMAVERA": "SUL",
+  "QUIPAPA": "CENTRO_OESTE",
+  "QUIXABA": "CENTRO_OESTE",
+  "RECIFE": "METROPOLITANO",
+  "RIACHO DAS ALMAS": "CENTRO",
+  "RIBEIRAO": "SUL",
+  "RIO FORMOSO": "SUL",
+  "SAIRE": "CENTRO",
+  "SALGADINHO": "NORTE",
+  "SALGUEIRO": "OESTE",
+  "SALOA": "CENTRO_OESTE",
+  "SANHARO": "CENTRO",
+  "SANTA CRUZ": "OESTE",
+  "SANTA CRUZ DA BAIXA VERDE": "OESTE",
+  "SANTA CRUZ DO CAPIBARIBE": "CENTRO",
+  "SANTA FILOMENA": "OESTE",
+  "SANTA MARIA DA BOA VISTA": "OESTE",
+  "SANTA MARIA DO CAMBUCA": "CENTRO",
+  "SANTA TEREZINHA": "CENTRO_OESTE",
+  "SAO BENEDITO DO SUL": "CENTRO_OESTE",
+  "SAO BENTO DO UNA": "CENTRO",
+  "SAO CAETANO": "CENTRO",
+  "SAO JOAO": "CENTRO_OESTE",
+  "SAO JOAQUIM DO MONTE": "CENTRO",
+  "SAO JOSE DA COROA GRANDE": "SUL",
+  "SAO JOSE DO BELMONTE": "OESTE",
+  "SAO JOSE DO EGITO": "CENTRO_OESTE",
+  "SAO LOURENCO DA MATA": "NORTE",
+  "SAO VICENTE FERRER": "NORTE",
+  "SERRA TALHADA": "OESTE",
+  "SERRITA": "OESTE",
+  "SERTANIA": "CENTRO_OESTE",
+  "SIRINHAEM": "SUL",
+  "SOLIDAO": "CENTRO_OESTE",
+  "SURUBIM": "CENTRO",
+  "TABIRA": "CENTRO_OESTE",
+  "TACAIMBO": "CENTRO",
+  "TACARATU": "CENTRO_OESTE",
+  "TAMANDARE": "SUL",
+  "TAQUARITINGA DO NORTE": "CENTRO",
+  "TEREZINHA": "CENTRO_OESTE",
+  "TERRA NOVA": "OESTE",
+  "TIMBAUBA": "NORTE",
+  "TORITAMA": "CENTRO",
+  "TRACUNHAEM": "NORTE",
+  "TRINDADE": "OESTE",
+  "TRIUNFO": "OESTE",
+  "TUPANATINGA": "CENTRO_OESTE",
+  "TUPARETAMA": "CENTRO_OESTE",
+  "VARZEA": "METROPOLITANO",
+  "VENTUROSA": "CENTRO_OESTE",
+  "VERDEJANTE": "OESTE",
+  "VERTENTE DO LERIO": "CENTRO",
+  "VERTENTES": "CENTRO",
+  "VICENCIA": "NORTE",
+  "VITORIA DE SANTO ANTAO": "SUL",
+  "XEXEU": "CENTRO"
+ },
+ "por_municipio_bairro": {
+  "ABREU E LIMA|ABREU E LIMA": {
+   "utd": "PAULISTA",
+   "regiao": "NORTE"
+  },
+  "AFOGADOS DA INGAZEIRA|AFOGADOS DA INGAZEIRA": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "AFRANIO|AFRANIO": {
+   "utd": "STA M BOA VISTA",
+   "regiao": "OESTE"
+  },
+  "AGRESTINA|AGRESTINA": {
+   "utd": "BELO JARDIM",
+   "regiao": "CENTRO"
+  },
+  "AGUA PRETA|AGUA PRETA": {
+   "utd": "PALMARES",
+   "regiao": "CENTRO"
+  },
+  "AGUAS BELAS|AGUAS BELAS": {
+   "utd": "BOM CONSELHO",
+   "regiao": "CENTRO_OESTE"
+  },
+  "ALAGOINHA|ALAGOINHA": {
+   "utd": "ARCOVERDE",
+   "regiao": "CENTRO_OESTE"
+  },
+  "ALIANCA|ALIANCA": {
+   "utd": "TIMBAUBA",
+   "regiao": "NORTE"
+  },
+  "ALTINHO|ALTINHO": {
+   "utd": "BELO JARDIM",
+   "regiao": "CENTRO"
+  },
+  "AMARAJI|AMARAJI": {
+   "utd": "RIBEIRAO",
+   "regiao": "SUL"
+  },
+  "ANGELIM|ANGELIM (GAR)": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "ARACOIABA|ARACOIABA": {
+   "utd": "CARPINA",
+   "regiao": "NORTE"
+  },
+  "ARARIPINA|ARARIPINA": {
+   "utd": "ARARIPINA",
+   "regiao": "OESTE"
+  },
+  "ARCOVERDE|ARCOVERDE": {
+   "utd": "ARCOVERDE",
+   "regiao": "CENTRO_OESTE"
+  },
+  "BARRA DE GUABIRABA|BARRA DE GUABIRABA (PAL)": {
+   "utd": "PALMARES",
+   "regiao": "CENTRO"
+  },
+  "BARREIROS|BARREIROS": {
+   "utd": "RIBEIRAO",
+   "regiao": "SUL"
+  },
+  "BELEM DE MARIA|BELEM DE MARIA": {
+   "utd": "PALMARES",
+   "regiao": "CENTRO"
+  },
+  "BELEM DE SAO FRANCISCO|BELEM DE SAO FRANCISCO": {
+   "utd": "FLORESTA",
+   "regiao": "CENTRO_OESTE"
+  },
+  "BELO JARDIM|BELO JARDIM": {
+   "utd": "BELO JARDIM",
+   "regiao": "CENTRO"
+  },
+  "BETANIA|BETANIA": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "BEZERROS|BEZERROS": {
+   "utd": "PALMARES",
+   "regiao": "CENTRO"
+  },
+  "BODOCO|BODOCO": {
+   "utd": "OURICURI",
+   "regiao": "OESTE"
+  },
+  "BOM CONSELHO|BOM CONSELHO": {
+   "utd": "BOM CONSELHO",
+   "regiao": "CENTRO_OESTE"
+  },
+  "BOM JARDIM|BOM JARDIM": {
+   "utd": "SURUBIM",
+   "regiao": "CENTRO"
+  },
+  "BONITO|BONITO": {
+   "utd": "PALMARES",
+   "regiao": "CENTRO"
+  },
+  "BREJAO|BREJAO": {
+   "utd": "BOM CONSELHO",
+   "regiao": "CENTRO_OESTE"
+  },
+  "BREJINHO|BREJINHO": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "BREJO DA MADRE DE DEUS|BREJO DA MADRE DE DEUS": {
+   "utd": "STA C CAPIBARIBE",
+   "regiao": "CENTRO"
+  },
+  "BUENOS AIRES|BUENOS AIRES": {
+   "utd": "TIMBAUBA",
+   "regiao": "NORTE"
+  },
+  "BUIQUE|BUIQUE": {
+   "utd": "ARCOVERDE",
+   "regiao": "CENTRO_OESTE"
+  },
+  "CABO DE SANTO AGOSTINHO|CABO DE SANTO AGOSTINHO": {
+   "utd": "CABO S AGOST",
+   "regiao": "SUL"
+  },
+  "CABROBO|CABROBO": {
+   "utd": "FLORESTA",
+   "regiao": "CENTRO_OESTE"
+  },
+  "CACHOEIRINHA|CACHOEIRINHA": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "CAETES|CAETES": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "CALCADO|CALCADO": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "CALUMBI|CALUMBI": {
+   "utd": "SERRA TALHADA",
+   "regiao": "OESTE"
+  },
+  "CAMARAGIBE|CAMARAGIBE": {
+   "utd": "CAMARAGIBE",
+   "regiao": "NORTE"
+  },
+  "CAMOCIM DE SAO FELIX|CAMOCIM DE SAO FELIX": {
+   "utd": "PALMARES",
+   "regiao": "CENTRO"
+  },
+  "CAMUTANGA|CAMUTANGA": {
+   "utd": "TIMBAUBA",
+   "regiao": "NORTE"
+  },
+  "CANHOTINHO|CANHOTINHO": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "CAPOEIRAS|CAPOEIRAS": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "CARNAIBA|CARNAIBA": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "CARNAUBEIRA DA PENHA|CARNAUBEIRA DA PENHA": {
+   "utd": "SERRA TALHADA",
+   "regiao": "OESTE"
+  },
+  "CARPINA|CARPINA": {
+   "utd": "CARPINA",
+   "regiao": "NORTE"
+  },
+  "CARUARU|CARUARU": {
+   "utd": "CARUARU",
+   "regiao": "CENTRO"
+  },
+  "CASINHAS|CASINHAS": {
+   "utd": "SURUBIM",
+   "regiao": "CENTRO"
+  },
+  "CATENDE|CATENDE": {
+   "utd": "PALMARES",
+   "regiao": "CENTRO"
+  },
+  "CEDRO|CEDRO": {
+   "utd": "SERRA TALHADA",
+   "regiao": "OESTE"
+  },
+  "CHA DE ALEGRIA|CHA DE ALEGRIA": {
+   "utd": "CARPINA",
+   "regiao": "NORTE"
+  },
+  "CHA GRANDE|CHA GRANDE": {
+   "utd": "VIT STO ANTAO",
+   "regiao": "SUL"
+  },
+  "CONDADO|CONDADO": {
+   "utd": "GOIANA",
+   "regiao": "NORTE"
+  },
+  "CORRENTES|CORRENTES": {
+   "utd": "BOM CONSELHO",
+   "regiao": "CENTRO_OESTE"
+  },
+  "CORTES|CORTES": {
+   "utd": "RIBEIRAO",
+   "regiao": "SUL"
+  },
+  "CUMARU|CUMARU": {
+   "utd": "SURUBIM",
+   "regiao": "CENTRO"
+  },
+  "CUPIRA|CUPIRA": {
+   "utd": "BELO JARDIM",
+   "regiao": "CENTRO"
+  },
+  "CUSTODIA|CUSTODIA": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "DORMENTES|DORMENTES": {
+   "utd": "STA M BOA VISTA",
+   "regiao": "OESTE"
+  },
+  "ESCADA|ESCADA": {
+   "utd": "RIBEIRAO",
+   "regiao": "SUL"
+  },
+  "EXU|EXU": {
+   "utd": "OURICURI",
+   "regiao": "OESTE"
+  },
+  "FEIRA NOVA|FEIRA NOVA": {
+   "utd": "VIT STO ANTAO",
+   "regiao": "SUL"
+  },
+  "FERNANDO DE NORONHA|ALTO FLORESTA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|BASINHA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|BOLDRO": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|CENTRO (FER)": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|CONCEICAO": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|COREIA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|DPV": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|FERNANDO DE NORONHA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|FLORESTA (FER)": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|FLORESTA NOVA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|FLORESTA VELHA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|ITAUCABLE": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|MORRO FRANCES - FERNANDO": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|PAU DO MEIO": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|PORTO": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|PORTO STO ANTONIO": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|PRAIA DO BODE": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|QUIXABA (FER)": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|RURAL (FER)": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|SAO PEDRO (FER)": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|SUESTE": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|TRES PAUS": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|VACARIA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|VILA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|VILA DO BOLDRO": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|VILA DPV": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|VILA PORTO": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|VILA QUIXABA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|VILA REMEDIOS": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|VILA TRES PAUS": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERNANDO DE NORONHA|VILA TRINTA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "FERREIROS|FERREIROS": {
+   "utd": "TIMBAUBA",
+   "regiao": "NORTE"
+  },
+  "FLORESTA|FLORESTA (FLO)": {
+   "utd": "FLORESTA",
+   "regiao": "CENTRO_OESTE"
+  },
+  "FLORES|FLORES": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "FREI MIGUELINHO|FREI MIGUELINHO": {
+   "utd": "SURUBIM",
+   "regiao": "CENTRO"
+  },
+  "GAMELEIRA|GAMELEIRA": {
+   "utd": "RIBEIRAO",
+   "regiao": "SUL"
+  },
+  "GARANHUNS|GARANHUNS": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "GLORIA DO GOITA|GLORIA DO GOITA": {
+   "utd": "VIT STO ANTAO",
+   "regiao": "SUL"
+  },
+  "GOIANA|GOIANA": {
+   "utd": "GOIANA",
+   "regiao": "NORTE"
+  },
+  "GRANITO|GRANITO": {
+   "utd": "OURICURI",
+   "regiao": "OESTE"
+  },
+  "GRAVATA|GRAVATA": {
+   "utd": "VIT STO ANTAO",
+   "regiao": "SUL"
+  },
+  "IATI|IATI": {
+   "utd": "BOM CONSELHO",
+   "regiao": "CENTRO_OESTE"
+  },
+  "IBIMIRIM|IBIMIRIM": {
+   "utd": "ARCOVERDE",
+   "regiao": "CENTRO_OESTE"
+  },
+  "IBIRAJUBA|IBIRAJUBA": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "IGARASSU|IGARASSU": {
+   "utd": "GOIANA",
+   "regiao": "NORTE"
+  },
+  "IGUARACI|IGUARACI": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "INAJA|INAJA": {
+   "utd": "FLORESTA",
+   "regiao": "CENTRO_OESTE"
+  },
+  "INGAZEIRA|INGAZEIRA": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "IPOJUCA|IPOJUCA": {
+   "utd": "CABO S AGOST",
+   "regiao": "SUL"
+  },
+  "IPUBI|IPUBI": {
+   "utd": "ARARIPINA",
+   "regiao": "OESTE"
+  },
+  "ITACURUBA|ITACURUBA": {
+   "utd": "FLORESTA",
+   "regiao": "CENTRO_OESTE"
+  },
+  "ITAIBA|ITAIBA": {
+   "utd": "BOM CONSELHO",
+   "regiao": "CENTRO_OESTE"
+  },
+  "ITAMARACA|ITAMARACA": {
+   "utd": "GOIANA",
+   "regiao": "NORTE"
+  },
+  "ITAMBE|ITAMBE": {
+   "utd": "GOIANA",
+   "regiao": "NORTE"
+  },
+  "ITAPETIM|ITAPETIM": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "ITAPISSUMA|ITAPISSUMA": {
+   "utd": "GOIANA",
+   "regiao": "NORTE"
+  },
+  "ITAQUITINGA|ITAQUITINGA": {
+   "utd": "GOIANA",
+   "regiao": "NORTE"
+  },
+  "JABOATAO DOS GUARARAPES|13 DE MAIO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO B HORIZONTE": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO BELA VISTA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO DA BATALHA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO DA COLINA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO DA FABRICA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO DA GOIABEIRA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO DA SANTA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO DO CRISTO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO DO DENDE": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO DO RAPOSO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO GOABA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO QUITANDIN": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO S ANTONIO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO S BENTO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ALTO SAO SEBASTIAO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|AMERICANO": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ANGELIM (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|AREA VERDE": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ASA BRANCA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|BAR. DE MORENO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|BARRA DE JANGADA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|BARRAGEM DUAS UNAS": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|BARRO (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|BATOREL": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|BEIRA RIO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|BELA VISTA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|BELO HORIZONTE": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|BOA ESPERANCA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|BOA VISTA (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|BOM JESUS": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|BOM PASTOR": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|BOMBA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|BULHOES": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CAJUEIRO SECO": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CAMACARI": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CAMPO DO MONTA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CANAA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CANDEIAS": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CAPIVARA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CAROLINAS": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CASCATA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CAVALEIRO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CENTRO (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|COHAB II": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|COLONIA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|COLONIA DOS PADRES": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|COMPORTA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CONJ MARCOS FREIRE": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CONJ MURIBECA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CONS RURAL": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CORREGO DA BATALHA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CORREGO DA GAMELEIRA - JA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|COVA DE ONCA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CRISTO REDENTOR": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CUCURANA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CURADO (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CURADO I": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CURADO II": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CURADO III": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CURADO IV": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|CURADO V": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|DOIS CARNEIROS": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|DOIS RIOS (JAB)": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|DOM HELDER": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|DUAS UNAS": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ENG CACANDUNBA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ENG. CAMACARI": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ENG. VELHO": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ENGENHO CACHITO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ENGENHO CANANDUBA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ENGENHO CORVETA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ENGENHO GOIABEIRA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ENGENHO PALMEIRA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ENGENHO SANTANA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ENGENHO VELHO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ENTRE RIOS": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ESPIRITO SANTO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ESTRADA DE BULHOES": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|FLORIANO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|GARAPEIRA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|GOIABEIRA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|GUARARAPES": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|GUARARAPES - JABOATAO": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|GURUGI": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|IBURA (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|IBURA DE CIMA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|IBURA UR 11 - JABOATAO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|IBURA(UR 05)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|INT. MURIBECA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ITAITUBA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|J B HORIZONTE": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JABOATAO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JANGADINHA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JARDIM BULHOES": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JARDIM CAJUEIRO": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JARDIM COPACABANA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JARDIM COQUEIRAL": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JARDIM DO NAUTICO": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JARDIM FELIZ": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JARDIM GUARARAPES": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JARDIM JORDAO": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JARDIM MANASSU": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JARDIM MURIBECA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JARDIM PIEDADE": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JARDIM PLANALTO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JARDIM QUITANDINHA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JD. PRAZERES": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JOAO DE DEUS": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JORDAO (JAB)": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JORDAO ALTO": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|JORDAO BAIXO": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LAGOA GARCAS": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LAGOA GRANDE (JAB)": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LAGOA NAUTICO": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LINHA FERREA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOT 92": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOT 96": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOT GRANDE RECIFE": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOT MURIBECA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOT PORTAL DE PRAZERES -": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOT. BULHOES": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOT. COLONIA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOT. JARDIM PROGRESSO": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOT. NILTON CARNEIRO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOT. PE": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOT. SAO JOSE": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOTE 02": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOTE 06": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOTE 19": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOTE 23": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOTE 31": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOTE 56": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOTE 64": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOTE 66": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOTE 89": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LOTE 92": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LT. SANTA LUZIA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|LUIZ GONZAGA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MACAXEIRA (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MACUJE": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MACUJE - JABOATAO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MALVINA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MANASSU": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MARCOS FREIRE": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MASSANGANA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MASSARANDUBA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MOENDA BRONZE": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MONTE JUNIOR": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MONTE NEBLINA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MONTE VERDE": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MORENO (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MUNDO NOVO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MURIBECA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MURIBECA (RUR)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MURIBECA I": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MURIBECA II": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MURIBEQUINHA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|MUSSAIBA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|N. SA. DA ESPERANCA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|NASSAU": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|NOVA ALIANCA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|NOVA DIVINEIA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|NOVA ESPERANCA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|NOVA ESPERANCA II": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|NOVA JERUSALEM": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|NOVA MURIBECA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|NOVO HORIZONTE": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|PACHECO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|PALMARES (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|PAU FERRO": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|PE ROMA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|PENADUBINHA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|PIEDADE": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|PORTA LARGA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|PRAZERES": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|QUADRO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|RIO DAS ILHAS": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|RIO DAS VELHAS": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ROCHA NEGRA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|RURAL (JAB": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|SANTANA (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|SANTO ALEIXO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|SAO JOSE (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|SAO MIGUEL": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|SAO PEDRO (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|SAO SEBASTIAO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|SOCORRO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|SOTAVE": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|SOVACO DE COBRA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|STA. LUZIA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|STA. MARTA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|STA. RITA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|STO AMARO (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|STO. ALEIXO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|STO. ANDRE": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|STO. ANTONIO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|SUCUPIRA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|TEJIPIO (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|TOTO (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|USINA BULHOES": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|USINA JABOATAO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VAQUEJADA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VARGEM FRIA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VARZEA (JAB)": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VENDA GRANDE": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VERA LUCIA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VILA DOIS CARNEIROS": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VILA FABRICA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VILA JOAO DE DEUS": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VILA NOVA": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VILA PALMARES": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VILA PEDRO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VILA PIEDADE": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VILA RICA": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VILA SOTAVE": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VILA TOPAZIO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VILA UNIAO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VISTA ALEGRE": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|VL SOCIAL": {
+   "utd": "PIEDADE",
+   "regiao": "SUL"
+  },
+  "JABOATAO DOS GUARARAPES|ZUMBI DO PACHECO": {
+   "utd": "JAB GUARARAPES",
+   "regiao": "SUL"
+  },
+  "JAQUEIRA|JAQUEIRA (PAL)": {
+   "utd": "PALMARES",
+   "regiao": "CENTRO"
+  },
+  "JATAUBA|JATAUBA": {
+   "utd": "STA C CAPIBARIBE",
+   "regiao": "CENTRO"
+  },
+  "JATOBA|JATOBA (FLO)": {
+   "utd": "FLORESTA",
+   "regiao": "CENTRO_OESTE"
+  },
+  "JOAO ALFREDO|JOAO ALFREDO": {
+   "utd": "SURUBIM",
+   "regiao": "CENTRO"
+  },
+  "JOAQUIM NABUCO|JOAQUIM NABUCO": {
+   "utd": "PALMARES",
+   "regiao": "CENTRO"
+  },
+  "JUCATI|JUCATI": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "JUPI|JUPI": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "JUREMA|JUREMA": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "LAGOA DE ITAENGA|LAGOA DE ITAENGA": {
+   "utd": "CARPINA",
+   "regiao": "NORTE"
+  },
+  "LAGOA DO CARRO|LAGOA DO CARRO": {
+   "utd": "CARPINA",
+   "regiao": "NORTE"
+  },
+  "LAGOA DO OURO|LAGOA DO OURO": {
+   "utd": "BOM CONSELHO",
+   "regiao": "CENTRO_OESTE"
+  },
+  "LAGOA DOS GATOS|LAGOA DOS GATOS": {
+   "utd": "BELO JARDIM",
+   "regiao": "CENTRO"
+  },
+  "LAGOA GRANDE|LAGOA GRANDE (SMBV)": {
+   "utd": "STA M BOA VISTA",
+   "regiao": "OESTE"
+  },
+  "LAJEDO|LAJEDO": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "LIMOEIRO|LIMOEIRO": {
+   "utd": "CARPINA",
+   "regiao": "NORTE"
+  },
+  "MACAPARANA|MACAPARANA": {
+   "utd": "TIMBAUBA",
+   "regiao": "NORTE"
+  },
+  "MACHADOS|MACHADOS": {
+   "utd": "SURUBIM",
+   "regiao": "CENTRO"
+  },
+  "MANARI|MANARI": {
+   "utd": "FLORESTA",
+   "regiao": "CENTRO_OESTE"
+  },
+  "MARAIAL|MARAIAL": {
+   "utd": "PALMARES",
+   "regiao": "CENTRO"
+  },
+  "MIRANDIBA|MIRANDIBA": {
+   "utd": "SERRA TALHADA",
+   "regiao": "OESTE"
+  },
+  "MOREILANDIA|MOREILANDIA": {
+   "utd": "OURICURI",
+   "regiao": "OESTE"
+  },
+  "MORENO|MORENO (VIT)": {
+   "utd": "VIT STO ANTAO",
+   "regiao": "SUL"
+  },
+  "NAZARE DA MATA|NAZARE DA MATA": {
+   "utd": "TIMBAUBA",
+   "regiao": "NORTE"
+  },
+  "OLINDA|7 RO": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|ALTO DA CONQUISTA": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|BAIRRO NOVO": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|BULTRINS": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|CAIXA D'AGUA": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|CASA CAIADA": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|CIDADE TABAJARA": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|FRAGOSO": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|JARDIM ATLANTICO": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|JARDIM BRASIL II": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|JATOBA (OLI)": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|OLINDA": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|OURO PRETO": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|PEIXINHOS": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|RIO DOCE": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|SITIO NOVO": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|TABAJARA": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OLINDA|VARADOURO": {
+   "utd": "OLINDA",
+   "regiao": "METROPOLITANO"
+  },
+  "OROBO|OROBO": {
+   "utd": "SURUBIM",
+   "regiao": "CENTRO"
+  },
+  "OROCO|OROCO": {
+   "utd": "STA M BOA VISTA",
+   "regiao": "OESTE"
+  },
+  "OURICURI|OURICURI": {
+   "utd": "OURICURI",
+   "regiao": "OESTE"
+  },
+  "PALMARES|PALMARES (PAL)": {
+   "utd": "PALMARES",
+   "regiao": "CENTRO"
+  },
+  "PALMEIRINA|PALMEIRINA": {
+   "utd": "BOM CONSELHO",
+   "regiao": "CENTRO_OESTE"
+  },
+  "PANELAS|PANELAS": {
+   "utd": "BELO JARDIM",
+   "regiao": "CENTRO"
+  },
+  "PARANATAMA|PARANATAMA": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "PARNAMIRIM|PARNAMIRIM (OUR)": {
+   "utd": "OURICURI",
+   "regiao": "OESTE"
+  },
+  "PASSIRA|PASSIRA": {
+   "utd": "CARPINA",
+   "regiao": "NORTE"
+  },
+  "PAUDALHO|PAUDALHO": {
+   "utd": "CARPINA",
+   "regiao": "NORTE"
+  },
+  "PAULISTA|PAULISTA": {
+   "utd": "PAULISTA",
+   "regiao": "NORTE"
+  },
+  "PEDRAS DE FOGO|PEDRAS DE FOGO": {
+   "utd": "GOIANA",
+   "regiao": "NORTE"
+  },
+  "PEDRA|PEDRA": {
+   "utd": "ARCOVERDE",
+   "regiao": "CENTRO_OESTE"
+  },
+  "PESQUEIRA|PESQUEIRA": {
+   "utd": "ARCOVERDE",
+   "regiao": "CENTRO_OESTE"
+  },
+  "PETROLANDIA|PETROLANDIA": {
+   "utd": "FLORESTA",
+   "regiao": "CENTRO_OESTE"
+  },
+  "PETROLINA|PETROLINA": {
+   "utd": "PETROLINA",
+   "regiao": "OESTE"
+  },
+  "POCAO|POCAO": {
+   "utd": "ARCOVERDE",
+   "regiao": "CENTRO_OESTE"
+  },
+  "POMBOS|POMBOS": {
+   "utd": "VIT STO ANTAO",
+   "regiao": "SUL"
+  },
+  "PRIMAVERA|PRIMAVERA": {
+   "utd": "RIBEIRAO",
+   "regiao": "SUL"
+  },
+  "QUIPAPA|QUIPAPA": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "QUIXABA|QUIXABA (AFI)": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "RECIFE|AFLITOS": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|AFOGADOS": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|AGUA FRIA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ALTO DA BICA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ALTO DA BONDADE": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ALTO DA FAVELA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ALTO DO BURITI - RECIFE": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ALTO DO CAPITAO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ALTO DO CEU": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ALTO DO MANDU": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ALTO DO MARACANA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ALTO DO PASCOAL": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ALTO JOSE BONIFACIO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ALTO JOSE DO PINHO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ALTO SANTA ISABEL": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ALTO SANTA TEREZINHA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ALTO STA TEREZINHA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|APIPUCOS": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|AREIAS": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ARRUDA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|BARRA DA GUABIRABA (REC)": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|BARRO (REC)": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|BEBERIBE": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|BENFICA": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|BOA VIAGEM": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|BOA VISTA (REC)": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|BOMBA DO HEMETERIO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|BONGI": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|BRASILIA TEIMOSA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|BRASILIT": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|BREJO DA GUABIRABA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|BREJO DE BEBERIBE": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|BREJO DO BEBERIBE": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|BRUM": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CABANGA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CACOTE": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CAIS DO APOLO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CAJUEIRO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CAMPINA DO BARRETO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CAMPO GRANDE": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CAPUNGA": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CASA AMARELA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CASA FORTE": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CAXANGA": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CEASA": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CHAO DE ESTRELAS": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CIDADE UNIVERSITARIA": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|COELHOS": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|COHAB": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|COQUE": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|COQUEIRAL": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CORDEIRO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CORREGO DA AREIA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CORREGO DEODATO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CORREGO DO EUCLIDES": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CORREGO DO JENIPAPO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|COVA DE ONCA": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CRUZEIRO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|CURADO (REC)": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|DERBY": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|DOIS IRMAOS": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|DOIS RIOS (REC)": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|DOIS UNIDOS": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ENCRUZILHADA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ENGENHO DO MEIO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ESPINHEIRO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ESTANCIA": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|FICTICIO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|FUNDAO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|FUNDAO DE FORA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|GRACAS": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|GUABIRABA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|HIPODROMO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IBURA (REC)": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IBURA BAIXO": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IBURA DE BAIXO": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IBURA UR 01": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IBURA UR 02": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IBURA UR 03": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IBURA UR 04": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IBURA UR 05": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IBURA UR 06": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IBURA UR 10": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IBURA UR 12": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IBURA UR-11": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ILHA DE DEUS": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ILHA DO LEITE": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ILHA DO RETIRO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ILHA JOANA BEZERRA": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ILZA ZULEIDE": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IMBIRIBEIRA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IPIRANGA": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IPSEP": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|IPUTINGA": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|JAQUEIRA (REC)": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|JARDIM SAO PAULO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|JD. BEIRA RIO": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|JD. PLANALTO": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|JD. SAO PAULO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|JD. UCHOA": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|JIQUIA": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|JORDAO (REC)": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|JOSE BONIFACIO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|LAGOA ENCANTADA": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|LINHA DO TIRO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|LOTTO STOS COSME E DAMIAO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|MACAXEIRA (REC)": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|MADALENA": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|MANGABEIRA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|MANGUEIRA": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|MILAGRES": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|MONSENHOR FABRICIO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|MONTEIRO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|MORRO DA CONCEICAO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|MUSTARDINHA": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|NOVA DESCOBERTA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|PAISSANDU": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|PARNAMIRIM (REC)": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|PARQUE AMORIM": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|PASSARINHO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|PINA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|PIRACICABA": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|POCO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|POCO DA PANELA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|PONTO DE PARADA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|PORTO DA MADEIRA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|PRADO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|RECIFE": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|RECIFE ANTIGO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|RIO BRANCO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|RODA DE FOGO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ROSARINHO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|SAN MARTIN": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|SANCHO": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|SANTANA (REC)": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|SANTO ANTONIO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|SAO JOSE (REC)": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|SETUBAL": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|SIT. DOS PINTOS": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|SITIO GRANDE": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|SOLEDADE": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|STA TEREZINHA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|STO AMARO (REC)": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|STO ANTONIO": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|TAMARINEIRA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|TEJIPIO (REC)": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|TORRE": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|TORREAO": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|TORROES": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|TOTO (REC)": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|TRES CARNEIROS": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|UR 01": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|UR 02": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|UR-03": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|UR-05": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|UR-06": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|UR-10": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|UR-11": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|VASCO DA GAMA": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|VILA DA SUDENE": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|VILA DO SESI": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|VILA DOS MILAGRES": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|VILA MAURICEIA": {
+   "utd": "BOA VIAGEM",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|VILA NOSSA SENHORA DA CON": {
+   "utd": "CASA FORTE",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|VILA TAMANDARE": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RECIFE|ZUMBI": {
+   "utd": "BONGI",
+   "regiao": "METROPOLITANO"
+  },
+  "RIACHO DAS ALMAS|RIACHO DAS ALMAS": {
+   "utd": "CARUARU",
+   "regiao": "CENTRO"
+  },
+  "RIBEIRAO|RIBEIRAO": {
+   "utd": "RIBEIRAO",
+   "regiao": "SUL"
+  },
+  "RIO FORMOSO|RIO FORMOSO": {
+   "utd": "RIBEIRAO",
+   "regiao": "SUL"
+  },
+  "SAIRE|SAIRE": {
+   "utd": "PALMARES",
+   "regiao": "CENTRO"
+  },
+  "SALGADINHO|SALGADINHO": {
+   "utd": "CARPINA",
+   "regiao": "NORTE"
+  },
+  "SALGUEIRO|SALGUEIRO": {
+   "utd": "SERRA TALHADA",
+   "regiao": "OESTE"
+  },
+  "SALOA|SALOA": {
+   "utd": "BOM CONSELHO",
+   "regiao": "CENTRO_OESTE"
+  },
+  "SANHARO|SANHARO": {
+   "utd": "BELO JARDIM",
+   "regiao": "CENTRO"
+  },
+  "SANTA CRUZ DA BAIXA VERDE|SANTA CRUZ DA BAIXA VERDE": {
+   "utd": "SERRA TALHADA",
+   "regiao": "OESTE"
+  },
+  "SANTA CRUZ DO CAPIBARIBE|SANTA CRUZ DO CAPIBARIBE": {
+   "utd": "STA C CAPIBARIBE",
+   "regiao": "CENTRO"
+  },
+  "SANTA CRUZ|SANTA CRUZ": {
+   "utd": "OURICURI",
+   "regiao": "OESTE"
+  },
+  "SANTA FILOMENA|SANTA FILOMENA": {
+   "utd": "OURICURI",
+   "regiao": "OESTE"
+  },
+  "SANTA MARIA DA BOA VISTA|SANTA MARIA DA BOA VISTA": {
+   "utd": "STA M BOA VISTA",
+   "regiao": "OESTE"
+  },
+  "SANTA MARIA DO CAMBUCA|SANTA MARIA DO CAMBUCA": {
+   "utd": "SURUBIM",
+   "regiao": "CENTRO"
+  },
+  "SANTA TEREZINHA|SANTA TEREZINHA": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "SAO BENEDITO DO SUL|SAO BENEDITO DO SUL": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "SAO BENTO DO UNA|SAO BENTO DO UNA": {
+   "utd": "BELO JARDIM",
+   "regiao": "CENTRO"
+  },
+  "SAO CAETANO|SAO CAETANO": {
+   "utd": "BELO JARDIM",
+   "regiao": "CENTRO"
+  },
+  "SAO JOAO|SAO JOAO": {
+   "utd": "GARANHUNS",
+   "regiao": "CENTRO_OESTE"
+  },
+  "SAO JOAQUIM DO MONTE|SAO JOAQUIM DO MONTE": {
+   "utd": "BELO JARDIM",
+   "regiao": "CENTRO"
+  },
+  "SAO JOSE DA COROA GRANDE|SAO JOSE DA COROA GRANDE": {
+   "utd": "RIBEIRAO",
+   "regiao": "SUL"
+  },
+  "SAO JOSE DO BELMONTE|SAO JOSE DO BELMONTE": {
+   "utd": "SERRA TALHADA",
+   "regiao": "OESTE"
+  },
+  "SAO JOSE DO EGITO|SAO JOSE DO EGITO": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "SAO LOURENCO DA MATA|SAO LOURENCO DA MATA": {
+   "utd": "CAMARAGIBE",
+   "regiao": "NORTE"
+  },
+  "SAO VICENTE FERRER|SAO VICENTE FERRER": {
+   "utd": "TIMBAUBA",
+   "regiao": "NORTE"
+  },
+  "SERRA TALHADA|SERRA TALHADA": {
+   "utd": "SERRA TALHADA",
+   "regiao": "OESTE"
+  },
+  "SERRITA|SERRITA": {
+   "utd": "SERRA TALHADA",
+   "regiao": "OESTE"
+  },
+  "SERTANIA|SERTANIA": {
+   "utd": "ARCOVERDE",
+   "regiao": "CENTRO_OESTE"
+  },
+  "SIRINHAEM|SIRINHAEM": {
+   "utd": "RIBEIRAO",
+   "regiao": "SUL"
+  },
+  "SOLIDAO|SOLIDAO": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "SURUBIM|SURUBIM": {
+   "utd": "SURUBIM",
+   "regiao": "CENTRO"
+  },
+  "TABIRA|TABIRA": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "TACAIMBO|TACAIMBO": {
+   "utd": "BELO JARDIM",
+   "regiao": "CENTRO"
+  },
+  "TACARATU|TACARATU": {
+   "utd": "FLORESTA",
+   "regiao": "CENTRO_OESTE"
+  },
+  "TAMANDARE|TAMANDARE": {
+   "utd": "RIBEIRAO",
+   "regiao": "SUL"
+  },
+  "TAQUARITINGA DO NORTE|TAQUARITINGA DO NORTE": {
+   "utd": "STA C CAPIBARIBE",
+   "regiao": "CENTRO"
+  },
+  "TEREZINHA|TEREZINHA": {
+   "utd": "BOM CONSELHO",
+   "regiao": "CENTRO_OESTE"
+  },
+  "TERRA NOVA|TERRA NOVA": {
+   "utd": "SERRA TALHADA",
+   "regiao": "OESTE"
+  },
+  "TIMBAUBA|TIMBAUBA": {
+   "utd": "TIMBAUBA",
+   "regiao": "NORTE"
+  },
+  "TORITAMA|TORITAMA": {
+   "utd": "STA C CAPIBARIBE",
+   "regiao": "CENTRO"
+  },
+  "TRACUNHAEM|TRACUNHAEM": {
+   "utd": "CARPINA",
+   "regiao": "NORTE"
+  },
+  "TRINDADE|TRINDADE": {
+   "utd": "ARARIPINA",
+   "regiao": "OESTE"
+  },
+  "TRIUNFO|TRIUNFO": {
+   "utd": "SERRA TALHADA",
+   "regiao": "OESTE"
+  },
+  "TUPANATINGA|TUPANATINGA": {
+   "utd": "ARCOVERDE",
+   "regiao": "CENTRO_OESTE"
+  },
+  "TUPARETAMA|TUPARETAMA": {
+   "utd": "AFOG INGAZ",
+   "regiao": "CENTRO_OESTE"
+  },
+  "VARZEA|VARZEA (REC)": {
+   "utd": "VARZEA",
+   "regiao": "METROPOLITANO"
+  },
+  "VENTUROSA|VENTUROSA": {
+   "utd": "ARCOVERDE",
+   "regiao": "CENTRO_OESTE"
+  },
+  "VERDEJANTE|VERDEJANTE": {
+   "utd": "SERRA TALHADA",
+   "regiao": "OESTE"
+  },
+  "VERTENTE DO LERIO|VERTENTE DO LERIO": {
+   "utd": "SURUBIM",
+   "regiao": "CENTRO"
+  },
+  "VERTENTES|VERTENTES": {
+   "utd": "SURUBIM",
+   "regiao": "CENTRO"
+  },
+  "VICENCIA|VICENCIA": {
+   "utd": "TIMBAUBA",
+   "regiao": "NORTE"
+  },
+  "VITORIA DE SANTO ANTAO|VITORIA DE SANTO ANTAO": {
+   "utd": "VIT STO ANTAO",
+   "regiao": "SUL"
+  },
+  "XEXEU|XEXEU": {
+   "utd": "PALMARES",
+   "regiao": "CENTRO"
+  }
+ }
+}

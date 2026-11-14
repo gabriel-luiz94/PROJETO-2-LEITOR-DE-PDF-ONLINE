@@ -208,6 +208,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 Apenas o que está explicitamente marcado como pendente no próprio projeto:
 
+- [ ] **TASK-165** (pedido de 2026-11-14): parâmetros de obra `OBRA.*` preenchidos pelo cabeçalho/contexto (região derivada por `data/regionais_pernambuco.json`) e `.obra` guardando o contexto. Em PLANEJAMENTO. Ver `.ai/tasks/TASK-165-14-11-2026.md`.
 - [ ] Conectar os dois workers de background restantes acima (fila offline, sync em tempo real) ou decidir removê-los
 - [ ] Implementar o botão "LINHA VIVA" (marcado como "Função futura" na UI)
 - [ ] Completar `scripts/release.py:push_to_cloud` (código de referência já está comentado no arquivo)
