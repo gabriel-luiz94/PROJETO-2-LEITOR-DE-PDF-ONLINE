@@ -122,6 +122,43 @@
     /** Matriz de textos (linhas × colunas) -> TSV. Usado na cópia de um intervalo selecionado. */
     function tsvDeMatriz(matriz) { return matriz.map(r => r.join('\t')).join('\n'); }
 
+    /* ── TASK-163: texto/HTML que vão para a área de transferência, cópia em blocos ── */
+    const COLUNAS_COPIAVEIS = ['mdo', 'codigo', 'qtd', 'centro', 'desc', 'filtro'];            // ordem da visão SAP
+    const FORMATOS_COPIA = ['excel', 'texto', 'lf'];
+    const formatoValido = f => (FORMATOS_COPIA.indexOf(f) >= 0 ? f : 'excel');
+    /** Colunas escolhidas para a cópia (na ordem da tela). Vazio/inválido volta ao padrão: TIPO MDO, CÓDIGO, QUANTIDADE e CENTRO (sem descrição). */
+    function colunasDaCopia(escolhidas) {
+        const set = new Set(Array.isArray(escolhidas) ? escolhidas : []);
+        const cols = COLUNAS_COPIAVEIS.filter(c => set.has(c));
+        return cols.length ? cols : COLUNAS_COPIA.slice();
+    }
+    const limpaCelula = v => String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ').trim();        // tab ou quebra dentro da célula quebraria a tabela colada
+    /** Texto da cópia. excel/texto: CRLF em TODA linha, inclusive a última (como o Excel faz); lf: como era antes (LF, sem quebra no fim). */
+    function textoCopia(matriz, formato) {
+        const m = (matriz || []).map(r => r.map(limpaCelula));
+        if (formatoValido(formato) === 'lf') return m.map(r => r.join('\t')).join('\n');
+        return m.length ? m.map(r => r.join('\t')).join('\r\n') + '\r\n' : '';
+    }
+    const escHtml = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    /** Tabela HTML da cópia (só no formato "excel"): aplicativos que leem a área de transferência como o Excel recebem as células separadas. */
+    function htmlCopia(matriz) {
+        const linhas = (matriz || []).map(r => '<tr>' + r.map(v => '<td>' + escHtml(limpaCelula(v)) + '</td>').join('') + '</tr>').join('');
+        return '<html><body><!--StartFragment--><table>' + linhas + '</table><!--EndFragment--></body></html>';
+    }
+    const formatoUsaHtml = f => formatoValido(f) === 'excel';
+    /** Blocos de `tam` linhas: dado o total, o tamanho e quantas já foram copiadas, o próximo bloco e o andamento. */
+    function andamentoBlocos(total, tam, copiadas) {
+        total = Math.max(0, total | 0); tam = Math.max(1, tam | 0); copiadas = Math.min(total, Math.max(0, copiadas | 0));
+        const blocos = Math.ceil(total / tam);
+        const ini = copiadas, fim = Math.min(total, ini + tam);
+        return { total, tam, blocos, copiadas, faltam: total - copiadas, bloco: copiadas ? Math.ceil(copiadas / tam) : 0, ini, fim, terminou: total > 0 && copiadas >= total, percentual: total ? Math.round(copiadas * 100 / total) : 0 };
+    }
+    /** Bloco anterior ao último copiado (`ini` = início do último bloco copiado): [max(0, ini - tam), ini). null se não houver. */
+    function blocoAnterior(ini, tam) {
+        ini = Math.max(0, ini | 0); tam = Math.max(1, tam | 0);
+        return ini > 0 ? { ini: Math.max(0, ini - tam), fim: ini } : null;
+    }
+
     /** Chave da marca "já copiado": tabela + item (MDO|código) + coluna. Não depende do id da linha (que muda ao refazer a tela). */
     function chaveMarca(tipo, l, coluna) {
         return tipo + '|' + rotuloMdo(l.mdo) + '|' + String(l.codigo == null ? '' : l.codigo).trim().toUpperCase() + '|' + coluna;
@@ -140,7 +177,7 @@
         return Array.from(new Set(linhas.map(l => textoDaColuna(l, coluna).trim()).filter(Boolean))).sort();
     }
 
-    const api = { compararCodigo, comparadorPadrao, ordenarPadrao, COLUNAS_COPIA, tsvDeMatriz, chaveMarca, marcaValida, compararColuna, centroDe, rotuloMdo, mdoDeRotulo, separar, numeroPtBr, ordenar, passaFiltro, tsv, paraExcel, valoresUnicos };
+    const api = { compararCodigo, comparadorPadrao, ordenarPadrao, COLUNAS_COPIA, COLUNAS_COPIAVEIS, FORMATOS_COPIA, formatoValido, colunasDaCopia, textoCopia, htmlCopia, formatoUsaHtml, andamentoBlocos, blocoAnterior, tsvDeMatriz, chaveMarca, marcaValida, compararColuna, centroDe, rotuloMdo, mdoDeRotulo, separar, numeroPtBr, ordenar, passaFiltro, tsv, paraExcel, valoresUnicos };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     raiz.OrcamentoSap = api;
 })(typeof window !== 'undefined' ? window : globalThis);
