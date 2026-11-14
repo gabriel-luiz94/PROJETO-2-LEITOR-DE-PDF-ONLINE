@@ -22,6 +22,7 @@ LIMITE_BYTES = 60 * 1024 * 1024
 LIMITE_NOME = 120
 LIMITE_NUMERO = 40
 LIMITE_TEXTO = 300
+LIMITE_CONTEXTO = 80                                 # TASK-165: contexto selecionado (parâmetro OBRA.CONTEXTO)
 LIMITE_LINHAS_RESULTADO = 20000
 # Campos da caixinha "Informações do relatório SAP" (título e nota vêm do nome e do número da obra)
 CAMPOS_SAP = ("sap", "bairro", "municipio", "utd", "utep", "projetista", "data", "id_investimento", "id_investimento_odd")
@@ -88,6 +89,7 @@ def montar(parcial: dict, existente: dict = None, projeto_codigo: str = "") -> s
         raise ErroProjeto(["Informe o nome do projeto."])
     numero = _texto(parcial.get("numero_obra"), LIMITE_NUMERO) if "numero_obra" in parcial else _texto(pt_antigo.get("numero_obra"), LIMITE_NUMERO)
     sap = sap_limpo(parcial.get("sap")) if "sap" in parcial else sap_limpo(pt_antigo.get("sap"))
+    contexto = _texto(parcial.get("contexto"), LIMITE_CONTEXTO) if "contexto" in parcial else _texto(pt_antigo.get("contexto"), LIMITE_CONTEXTO)          # TASK-165: sem "contexto" no parcial preserva o do arquivo
     if "dados" in parcial:
         dados = obras_arquivo.normalizar_dados(parcial.get("dados"))
     else:
@@ -98,6 +100,8 @@ def montar(parcial: dict, existente: dict = None, projeto_codigo: str = "") -> s
         resultado = resultado_limpo(pt_antigo.get("resultado"))
     codigo = _texto(projeto_codigo, 40) or _texto(existente.get("projeto"), 40)
     trabalho = {"nome": nome, "numero_obra": numero, "sap": sap, "salvo_em": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    if contexto:
+        trabalho["contexto"] = contexto
     if resultado is not None:
         trabalho["resultado"] = resultado
     envelope = {"formato": obras_arquivo.FORMATO, "versao": obras_arquivo.VERSAO, "exportado_em": trabalho["salvo_em"], "tipo": "obra",
@@ -132,5 +136,6 @@ def ler(texto, projeto_selecionado: str) -> dict:
     return {"nome": (_texto(trabalho.get("nome"), LIMITE_NOME) if trabalho else "") or pronta["nome"],
             "numero_obra": _texto(trabalho.get("numero_obra"), LIMITE_NUMERO) if trabalho else "",
             "sap": sap_limpo(trabalho.get("sap")) if trabalho else {},
+            "contexto": _texto(trabalho.get("contexto"), LIMITE_CONTEXTO) if trabalho else "",
             "resultado": resultado_limpo(trabalho.get("resultado")) if trabalho else None,
             "dados": pronta["dados"], "projeto": pronta["projeto"], "legado": trabalho is None}

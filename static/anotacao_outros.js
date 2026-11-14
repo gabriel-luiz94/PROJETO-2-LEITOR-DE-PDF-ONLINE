@@ -102,7 +102,7 @@
         if (!ativo.endsWith(')')) return ativo;
         const itens = ativo.slice(i + 1, -1).split(',').map(x => x.trim()).filter(x => x);
         if (itens.filter(x => x.toUpperCase().startsWith(nome + '=')).length > k) return ativo;
-        if (!itens.some(x => x.includes('=')) && itens.length > sig.nomes.indexOf(alvo)) return ativo;
+        if (!itens.some(x => x.includes('=')) && itens.length > sig.nomes.filter(n => !n.startsWith('OBRA.')).indexOf(alvo)) return ativo;          // TASK-165: OBRA.* não entra na posição
         return `${ativo.slice(0, -1)},${nome}=${valor})`;
     }
 

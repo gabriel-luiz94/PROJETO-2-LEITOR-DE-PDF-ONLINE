@@ -9,6 +9,7 @@ Limite conhecido: as regex digitadas nas regras de conversão são avaliadas pel
 """
 from services.anotacao_cabos import eh_notacao, interpretar as interpretar_cabo
 from services.anotacao_outros import contexto_da_base, interpretar_linha
+from services.obra_params import montar as montar_obra
 from services.ativo_parametros import analisar_celula_base, assinaturas_do_projeto, dividir_tokens, nome_base, sem_colchetes, resolver_pedido
 import math
 import re
@@ -149,7 +150,7 @@ def classico_totalizadora(texto: str) -> list:
     return saida
 
 
-def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento: list, projeto_nome: str, itens_vinculo: list = None, cfg_vinculo: dict = None) -> list:
+def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento: list, projeto_nome: str, itens_vinculo: list = None, cfg_vinculo: dict = None, obra: dict = None) -> list:
     """Linhas {id, obs, operacao, ativo, qtd, desc, naoEncontrado, origem}. `qtd` pode ser float('nan') (como o NaN do JS).
     `itens_vinculo` (TASK-036): pseudo-itens origem "VINCULO" (ver `services/autonomo/vinculacao.py`), que nunca aparecem
     aqui sem regra de conversão correspondente — diferente de CABOS/OUTROS, que sempre mantêm o item original sem match."""
@@ -209,6 +210,7 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
             brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": item.get("operacao") or "I", "ativo": base_ativo,
                            "qtd": q, "desc": desc, "naoEncontrado": nao, "origem": "CABOS"})
     assinaturas_param = assinaturas_do_projeto(base, projeto_nome)
+    valores_obra = montar_obra(obra, str(projeto_nome or "").strip().upper())          # TASK-165: OBRA.* (cabeçalho/contexto da obra)
     ctx_outros = contexto_da_base(base, projeto_nome)
     parametros_vinculo = {}
     if cfg_vinculo is not None:                  # TASK-084: parâmetro `cabo` que cada estrutura recebe do(s) cabo(s) vinculado(s)
@@ -231,7 +233,7 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
             continue
         for it in interp["itens"]:
             nome, q = it["ativo"], it["qtd"]
-            ped = resolver_pedido(nome, assinaturas_param)          # TASK-079: normaliza N1 → N1(XLPE,DT); variante inválida fica em vermelho
+            ped = resolver_pedido(nome, assinaturas_param, valores_obra)          # TASK-079: normaliza N1 → N1(XLPE,DT); variante inválida fica em vermelho
             if ped["com_assinatura"] or "(" in nome:
                 nome = nome.upper() if ped["erros"] else ped["texto"]
             desc, nao = _buscar_descricao(base, nome, projeto_nome)

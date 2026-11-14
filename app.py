@@ -98,6 +98,10 @@ async def serve_resumo_layout_js():
 async def serve_ativo_sugestao_js():
     return _serve_js("ativo_sugestao.js")       # TASK-136
 
+@app.get("/static/obra_params.js")
+async def serve_obra_params_js():
+    return _serve_js("obra_params.js")          # TASK-165
+
 
 @app.get("/static/projeto.js")
 async def serve_projeto_js():

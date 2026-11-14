@@ -3795,6 +3795,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem(_chaveContextoLocalStorage(projCode), _selectContexto.value);
             _atualizarBotoesContexto();
             if (typeof window.ajCarregar === 'function') window.ajCarregar();
+            if (window.GridRProjeto && GridRProjeto.marcarSujo) GridRProjeto.marcarSujo(false);          // TASK-165: o contexto vai no .obra
         });
     }
 
@@ -4748,7 +4749,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const payload = {
                     cabos: payloadCabos,
                     outros: payloadOutros,
-                    projeto: projVal
+                    projeto: projVal,
+                    obra: window.ObraParams ? ObraParams.obraDoProjeto() : {}          // TASK-165: cabeçalho + contexto da obra aberta (parâmetros OBRA.*)
                 };
                 
                 if(selectProj) {
@@ -5859,6 +5861,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
     // Processar Outros
     // TASK-079: ativos com parâmetros — o texto entre parênteses não é quebrado e o pedido é normalizado (N1 → N1(XLPE,DT) pelo padrão)
     const assinaturasParam = AtivoParametros.assinaturasDoProjeto(orcamentoBaseData, localStorage.getItem('projeto_selecionado') || '');
+    if (window.ObraParams) ObraParams.carregarTabela(localStorage.getItem('projeto_selecionado') || '');          // TASK-165: tabela regional (OBRA.REGIAO derivado)
     const ctxOutros = _ctxOutros();
     const parametrosVinculo = _parametrosVinculoPorLinha();                 // TASK-084
     tableStates.outros.data.forEach((item, idxOutros) => {
@@ -5879,7 +5882,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
         interp.itens.forEach(it => {
             let aName = it.ativo;
             const q = it.qtd;
-            const ped = AtivoParametros.resolverPedido(aName, assinaturasParam);
+            const ped = AtivoParametros.resolverPedido(aName, assinaturasParam, window.ObraParams ? ObraParams.valores() : null);
             if (ped.com_assinatura || aName.indexOf('(') >= 0) aName = ped.erros.length ? aName.toUpperCase() : ped.texto;
             let resDesc = buscarDescricao(aName);
             // TASK-123: nome que existe com parâmetros com problema = âmbar (avisoParametros, mensagem na descrição); nome inexistente = vermelho (como antes)

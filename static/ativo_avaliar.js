@@ -53,7 +53,7 @@
     }
 
     /** → { nome, desc, naoEncontrado, erroParametros }  (erroParametros = '' quando não há problema) */
-    function avaliarAtivo(texto, origem, idx) {
+    function avaliarAtivo(texto, origem, idx) {                                              // idx.obra (opcional): valores OBRA.* da obra (TASK-165)
         const t = String(texto == null ? '' : texto).trim();
         if (!t) return { nome: '', desc: '', naoEncontrado: false, erroParametros: '' };
         const nome = AP.nomeBase(t);
@@ -66,7 +66,7 @@
         if (abre === -1) return res;                                                         // sem parênteses: nada a conferir (o padrão da declaração vale)
         const literal = /^\[[^\]]*\]/.test(t);
         const oficial = (literal ? '[' + base + ']' : base) + t.slice(abre);                 // apelido → nome oficial, para achar a declaração
-        const ped = AP.resolverPedido(oficial, idx.assinaturas);
+        const ped = AP.resolverPedido(oficial, idx.assinaturas, idx.obra);
         if (ped.erros && ped.erros.length) res.erroParametros = ped.erros.map(mensagemDe).join('; ');
         return res;
     }

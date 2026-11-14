@@ -60,6 +60,7 @@ REGRAS_LEITOR_PROCESSAMENTO_PE_SEED_PATH = _get_resource_path(os.path.join("data
 REGRAS_LEITOR_CLASSIFICACAO_PE_SEED_PATH = _get_resource_path(os.path.join("data", "regras_leitor_classificacao_pernambuco_seed.json"))
 VINCULACAO_PE_SEED_PATH = _get_resource_path(os.path.join("data", "vinculacao_pernambuco_seed.json"))
 REGRAS_VINCULACAO_SEED_PATH = _get_resource_path(os.path.join("data", "regras_vinculacao_seed.json"))
+REGIONAIS_PE_PATH = _get_resource_path(os.path.join("data", "regionais_pernambuco.json"))      # TASK-165
 VALIDACOES_SEED_DIR = _get_resource_path(os.path.join("data", "validacoes"))
 REGRAS_DOMINIO_SEED_PATH = os.path.join(VALIDACOES_SEED_DIR, "regras_dominio_seed.json")
 AJUSTES_SEED_PATH = os.path.join(VALIDACOES_SEED_DIR, "ajustes_seed.json")

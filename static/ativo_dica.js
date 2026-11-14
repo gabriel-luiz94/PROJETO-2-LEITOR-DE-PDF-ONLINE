@@ -68,7 +68,7 @@
                     const miolo = /^!/.test(m) ? null : String(m).replace(/^%+|%+$/g, '');
                     if (miolo && miolo.indexOf('%') === -1 && miolo.indexOf('|') === -1 && !valores.includes(miolo)) valores.push(miolo);
                 });
-                return { nome: nm, padrao: (sig.padroes || {})[nm] == null ? null : (sig.padroes || {})[nm], valores, mascaras, aberto: !(sig.fechados || []).includes(nm), porNome: false };
+                return { nome: nm, padrao: (sig.padroes || {})[nm] == null ? null : (sig.padroes || {})[nm], valores, mascaras, aberto: !(sig.fechados || []).includes(nm), porNome: false, obra: /^OBRA\./i.test(nm) };           // TASK-165: OBRA.* = da obra, não editável no pedido
             });
             (sig.livres || []).forEach(nm => params.push({ nome: nm, padrao: null, valores: [], mascaras: [], aberto: true, porNome: true }));
             return { tipo: 'parametros', ativo: base, params };
@@ -94,7 +94,7 @@
     /** TASK-149: os parâmetros POSICIONAIS (na ordem) e o índice do parâmetro da vez; `atual` = o parâmetro (por posição ou pelo nome já digitado) ou null. */
     function parametroAtual(c, d) {
         if (!d || d.tipo !== 'parametros') return { pos: [], i: -1, atual: null };
-        const pos = d.params.filter(p => !p.porNome);
+        const pos = d.params.filter(p => !p.porNome && !p.obra);
         let i = c.nomeParam ? pos.findIndex(p => p.nome.toUpperCase() === c.nomeParam) : c.indice;
         if (i < 0 || i >= pos.length) i = -1;
         return { pos, i, atual: i === -1 ? null : pos[i] };
@@ -188,13 +188,17 @@
             tit.textContent = d.mensagem; caixa.appendChild(tit);
         } else {
             tit.textContent = `${d.ativo} — parâmetros`; caixa.appendChild(tit);
+            let posicional = 0;
             d.params.forEach((p, i) => {
                 const lin = doc.createElement('div');
-                const atual = c.nomeParam ? p.nome.toUpperCase() === c.nomeParam : (!p.porNome && i === c.indice);
+                const idxPos = (!p.porNome && !p.obra) ? posicional++ : -1;
+                const atual = !p.obra && (c.nomeParam ? p.nome.toUpperCase() === c.nomeParam : (!p.porNome && idxPos === c.indice));
                 lin.className = 'dp-lin' + (atual ? ' atual' : '');
-                const nm = doc.createElement('span'); nm.className = 'dp-nome'; nm.textContent = `${p.porNome ? '·' : i + 1 + '.'} ${p.nome.toLowerCase()}`; lin.appendChild(nm);
+                const nm = doc.createElement('span'); nm.className = 'dp-nome'; nm.textContent = `${p.porNome || p.obra ? '·' : idxPos + 1 + '.'} ${p.nome.toLowerCase()}`; lin.appendChild(nm);
                 const pad = doc.createElement('span'); pad.className = 'dp-pad';
-                pad.textContent = p.porNome ? '(só na fórmula: informe por nome, ex.: ' + p.nome.toLowerCase() + '=…)' : (p.padrao != null ? `padrão ${p.padrao}` : 'sem padrão') + (p.aberto ? ' · aceita qualquer valor' : '');
+                const vObra = p.obra && raiz.ObraParams ? raiz.ObraParams.valores()[p.nome.toUpperCase()] : null;
+                if (p.obra) pad.textContent = `da obra (não editável) · ${vObra ? p.nome.toUpperCase() + '=' + vObra + ' ‹obra›' : (p.padrao != null ? 'sem dado na obra: usa ' + p.padrao : 'sem dado na obra')}`;
+                else pad.textContent = p.porNome ? '(só na fórmula: informe por nome, ex.: ' + p.nome.toLowerCase() + '=…)' : (p.padrao != null ? `padrão ${p.padrao}` : 'sem padrão') + (p.aberto ? ' · aceita qualquer valor' : '');
                 lin.appendChild(pad);
                 p.valores.forEach(v => {
                     if (!atual) { const t = doc.createElement('span'); t.className = 'dp-mask'; t.textContent = v; lin.appendChild(t); return; }      // só o parâmetro da posição atual insere valor

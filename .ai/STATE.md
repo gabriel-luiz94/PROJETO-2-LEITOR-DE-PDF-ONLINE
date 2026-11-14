@@ -17,6 +17,8 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] **TASK-165** — Parâmetros de obra `OBRA.*` (`services/obra_params.py`, `data/regionais_pernambuco.json`, `resolver_pedido(..., obra)`), payload `obra` no cálculo, `.obra` guarda `projeto_trabalho.contexto`
+
 - [x] **TASK-164** — Resultado › SAP estilo Excel: seleção por clique/arraste, edição com 2 cliques/F2, coluna `#` não copiável, contador selecionadas/faltam, cópia em blocos de N (padrão 10) com progresso, cópia no formato Excel (CRLF + HTML) com colunas/formato escolhíveis (`orcamento_sap.js`, `resultado_orcamento.html`)
 
 ### Extração

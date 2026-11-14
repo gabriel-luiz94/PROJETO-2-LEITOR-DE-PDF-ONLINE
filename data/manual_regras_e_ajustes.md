@@ -457,6 +457,16 @@ Quando um ativo muda de itens conforme uma categoria (tipo de cabo, tipo de post
 - Combina com a coluna **LV** (linha viva/morta) e com a soma por código (o mesmo código em grupos exclusivos soma normalmente).
 - Nada a rodar no Supabase.
 
+
+### Parâmetros de obra (`OBRA.*`)
+
+Parâmetro cujo nome começa com `OBRA.` é preenchido pelo **programa**, não pelo pedido: `OBRA.MUNICIPIO`, `OBRA.BAIRRO`, `OBRA.UTD`, `OBRA.UTEP` (do cabeçalho da obra, em **Projeto → Informações do relatório SAP**), `OBRA.REGIAO` (a regional, derivada) e `OBRA.CONTEXTO` (o contexto selecionado). Outros nomes `OBRA.*` são recusados ao importar a base.
+- Na base, declare-os como qualquer parâmetro, de preferência por último: `FLBIM=FLBIM(poste=D, obra.regiao=CENTRO)` e use nos grupos: `FLBIM(obra.regiao=CENTRO|CENTRO_OESTE|OESTE)`. O valor da declaração é o **padrão** quando a obra não tem o dado (o resultado mostra o aviso *"OBRA.REGIAO não informado na obra; usando CENTRO"*).
+- No pedido **não se informa**: `1-FLBIM(obra.regiao=SUL)` dá erro, e `1-FLBIT(121000R,50)` liga só poste e cabo (os `OBRA.*` são pulados na posição).
+- Os valores são comparados sem acento e sem diferença de maiúsculas, com espaço virando `_` (`Centro Oeste` = `CENTRO_OESTE`, `34,5kV` = `34,5KV`).
+- **`OBRA.REGIAO`**: vem da UTEP do cabeçalho (se for uma regional), senão da UTD, senão do município (+ bairro), pela tabela da ICP (`data/regionais_pernambuco.json`, só no projeto PERNAMBUCO).
+- O **contexto** selecionado passa a ser gravado no `.obra` (e volta ao abrir; se o contexto não existir no projeto o programa avisa e fica em Nenhum; **Mesclar** mantém o atual).
+
 ## Notação compacta na tabela Outros (11600D, 2 N3, T3)
 
 Além do formato antigo (`1-DT11/600 2-N3 1-T3`), a tabela Outros aceita a lista com **vírgula + espaço**:
