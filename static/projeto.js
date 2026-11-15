@@ -199,6 +199,8 @@
     let dadosProntos = false;          // só grava Resumo depois de carregar o projeto (ou de a tela ter dados): nunca sobrescreve com a tela vazia
     let sujo = false, temporizador = null, pendente = null, gravando = null, suspenso = false, ultimaGravacao = null, erroAvisado = false;
     let coletorResultado = null;       // o Resultado (na moldura) registra como entregar as linhas dele quando o usuário clica em Salvar
+    let resultadoEditado = false;      // TASK-180: o Resultado mostrado teve edição manual depois de calculado (para avisar quando Montar Orçamento o substituir)
+    let aoAbrirProjeto = null;         // TASK-180: a tela do Resultado registra como mostrar o resultado de um projeto recém-aberto (menu Abrir / projeto do plugin)
     let rascunhoSessao = false, temporizadorRascunho = null;
     let ui = null;                     // elementos do menu (montarMenu)
 
@@ -413,6 +415,13 @@
         } catch (x) { return ''; }
     }
 
+    /** TASK-180: avisa a tela do Resultado (se estiver aberta) que um projeto foi aberto no modo Abrir, com o resultado gravado nele (ou null). Mesclar/Sobrescrever não avisam:
+     *  a tabela do Resultado vale. A tela do Resultado roda na moldura: a notificação vai para a instância da janela principal (`dono`), onde ela se registrou. */
+    function notificarAbertura(pr) {
+        const info = { nome: (pr && pr.nome) || '', resultado: (pr && pr.resultado) || null };
+        try { const dn = dono(); if (dn && dn.__notificarAbertura) dn.__notificarAbertura(info); else if (aoAbrirProjeto) aoAbrirProjeto(info); } catch (x) { /* a tela do Resultado segue como estava */ }
+    }
+
     /* ── Aplicar o projeto na tela ── */
     function aplicarNumero() {
         const e = estado();
@@ -454,6 +463,7 @@
             else sujo = true;                                   // sobrescrever: a tela vale e vai por cima do arquivo quando salvar
             dadosProntos = true;
         }
+        if (modo === 'abrir') { resultadoEditado = false; notificarAbertura(pr); }          // TASK-180: com o Resultado à vista, mostra o resultado gravado no arquivo
         aplicarNumero(); atualizarMenu();
         avisar((pr.legado ? 'Projeto antigo aberto. Informe o número da obra em Projeto → Propriedades.' : 'Projeto “' + pr.nome + '” aberto. Salvamento automático desligado: use Salvar (Ctrl+S).') + vinc);
         return true;
@@ -484,6 +494,7 @@
             suspenso = false; pendente = null; aplicarNumero(); atualizarMenu();
             await aplicarContexto(r.projeto.contexto);
             const vincAtual = await vincularPorPosteAoAbrir(r.projeto);
+            resultadoEditado = false; notificarAbertura(r.projeto);                                  // TASK-180
             avisar('Projeto “' + r.projeto.nome + '” atualizado pelo nanoCAD.' + vincAtual);
             return true;
         }
@@ -717,6 +728,8 @@
     /* ── Resultado do orçamento ── */
     let observador = null, termoResultado = null;
     /** As linhas do Resultado do projeto (pendentes em memória ou gravadas no arquivo), se foram calculadas com o mesmo payload (`assinatura`); senão null. */
+    /** TASK-154 (substituída pela TASK-180): NÃO é mais usada para restaurar o Resultado — Montar Orçamento sempre recalcula e o resultado gravado só volta ao abrir um .obra na tela do Resultado
+     *  (`aoAbrirProjeto`). Fica exportada por compatibilidade. */
     async function carregarResultado(assinatura) {
         const e = estado(), p = ponte();
         if (!e || !p || !assinatura) return null;
@@ -730,15 +743,35 @@
     function acompanharResultado(tbody, coletar, assinatura) {
         if (!ativo() || !tbody) return;
         if (observador) observador.disconnect();
+        const dn = dono() || api;
+        dn.__limparEdicaoResultado();                                          // TASK-180: resultado novo (calculado ou do arquivo) = sem edições ainda
         const entregar = () => ({ assinatura, linhas: coletar() });
         const gravar = () => { try { if (ativo()) enviar({ resultado: entregar() }); } catch (x) { /* a tela segue valendo */ } };
         const agendar = () => { clearTimeout(termoResultado); termoResultado = setTimeout(gravar, ESPERA_MS); };
-        observador = new MutationObserver(agendar);
+        const ehFantasma = n => !!(n && n.nodeType === 1 && ((n.classList && n.classList.contains('fantasma')) || (n.closest && n.closest('tr.fantasma'))));
+        observador = new MutationObserver(registros => {
+            // o que muda DEPOIS do cálculo é edição manual (a linha-fantasma do modo comparação não conta)
+            if (registros.some(r => !ehFantasma(r.target) && ![].concat(Array.from(r.addedNodes), Array.from(r.removedNodes)).some(ehFantasma))) dn.__marcarEdicaoResultado();
+            agendar();
+        });
         observador.observe(tbody, { childList: true, subtree: true, characterData: true });
-        const dn = dono() || api;
         dn.__registrarColetor(entregar);                                       // o botão Salvar (na janela principal) pede as linhas atuais
         agendar();
         raiz.addEventListener('pagehide', () => { clearTimeout(termoResultado); gravar(); dn.__registrarColetor(null); });
+    }
+    /** TASK-180: deixa de acompanhar a tabela do Resultado (projeto aberto sem resultado: a tabela esvaziada não pode ser gravada no projeto novo). */
+    function pararAcompanharResultado() {
+        clearTimeout(termoResultado);
+        if (observador) { observador.disconnect(); observador = null; }
+        const dn = dono() || api;
+        dn.__registrarColetor(null);
+        dn.__limparEdicaoResultado();
+    }
+    /** TASK-180: a tela do Resultado registra como mostrar o resultado de um projeto aberto (modo Abrir); `fn({nome, resultado})`. Sai ao fechar a tela. */
+    function registrarAoAbrir(fn) {
+        const dn = dono() || api;
+        dn.__registrarAoAbrir(fn);
+        raiz.addEventListener('pagehide', () => dn.__registrarAoAbrir(null));
     }
     /** Pop-up de confirmação do número da obra na exportação do REC; resolve com o número ou null (cancelou). Não altera o projeto. */
     function confirmarNumeroObra(atual) {
@@ -785,7 +818,9 @@
         registrarResumo, marcarSujo, colarSap, ROTULOS, abrirDoPlugin, aplicarContexto, contextoAtual, temPonte: () => !!ponte(), salvarAgora: salvarAutomatico, abrirJanela, voltarAoDefault, carregarResultado, acompanharResultado, confirmarNumeroObra, salvarSap,
         salvar: salvarClick, salvarComo: salvarComoClick, definirAuto, recuperarRascunho, autoLigado, temPendencias,
         __enviar: enviarLocal, __enviarAgora: enviarAgoraLocal, __salvarClick: salvarClick, __salvarComoClick: salvarComoClick,
-        __registrarColetor: fn => { coletorResultado = fn; }, __pendenteResultado: () => (pendente && pendente.resultado) || null
+        __registrarColetor: fn => { coletorResultado = fn; }, __registrarAoAbrir: fn => { aoAbrirProjeto = fn; }, __notificarAbertura: info => { if (aoAbrirProjeto) aoAbrirProjeto(info); },
+        __marcarEdicaoResultado: () => { resultadoEditado = true; }, __limparEdicaoResultado: () => { resultadoEditado = false; }, __resultadoEditado: () => resultadoEditado,
+        resultadoEditado: () => { const d = dono(); return d ? d.__resultadoEditado() : resultadoEditado; }, pararAcompanharResultado, aoAbrirProjeto: registrarAoAbrir, __pendenteResultado: () => (pendente && pendente.resultado) || null
     });
     raiz.GridRProjeto = api;
 })(typeof window !== 'undefined' ? window : globalThis);

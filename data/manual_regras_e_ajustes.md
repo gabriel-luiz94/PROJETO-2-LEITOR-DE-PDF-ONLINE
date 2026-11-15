@@ -832,3 +832,6 @@ O botão **Relatórios PDF** do Resultado agora gera **um PDF só**, `NOTA_<nº>
 
 A pesquisa da Base de Orçamento agora é uma **barra fixa no topo da tela** (ela acompanha a rolagem). **Ctrl+K** leva o cursor para ela de qualquer lugar da tela. Os resultados aparecem logo abaixo da barra: ↑/↓ escolhem, **Enter** abre a ficha do ativo (ou o uso do código), **Esc** fecha a lista e o **✕** limpa o texto. O painel flutuante "Consulta Rápida" foi removido: a barra o substitui.
 
+## Resultado do orçamento: Montar sempre recalcula (TASK-180)
+
+**Montar Orçamento** sempre calcula de novo com a base técnica atual, mesmo com projeto aberto e resultado gravado nele. Se você tinha editado o resultado à mão, o log informa que as edições foram substituídas. O resultado gravado no arquivo `.obra` (com as edições) só volta quando você **abre o projeto** com a tela do Resultado à vista: a tabela mostra o que está no arquivo, sem recalcular. Se o projeto não tem resultado gravado, a tabela fica vazia com a orientação de voltar ao Resumo e clicar em Montar Orçamento. Recarregar a página do Resultado também recalcula.

@@ -1430,20 +1430,11 @@
                 }
 
                 const payload = JSON.parse(payloadStr);
-                // TASK-154: com projeto aberto, o Resultado (inclusive as edições) volta como foi gravado, se o cálculo é o mesmo
+                // TASK-180: Montar Orçamento SEMPRE recalcula com a base atual (nunca restaura o resultado gravado no projeto).
+                // O resultado gravado só volta ao abrir um projeto nesta tela (mostrarResultadoDoProjeto).
                 const projetoAtivo = window.GridRProjeto && GridRProjeto.ativo();
                 const assinaturaCalculo = projetoAtivo ? GridRProjeto.hashTexto(payloadStr) : '';
-                if (projetoAtivo) {
-                    const salvo = await GridRProjeto.carregarResultado(assinaturaCalculo);
-                    if (salvo) {
-                        tbody.innerHTML = '';
-                        sapCopiadas.clear();
-                        renderRowsData(salvo.linhas);
-                        log(`Resultado restaurado do projeto: ${salvo.linhas.length} item(ns).`);
-                        GridRProjeto.acompanharResultado(tbody, getRowsData, assinaturaCalculo);
-                        return;
-                    }
-                }
+                const tinhaEdicoes = !!(projetoAtivo && GridRProjeto.resultadoEditado && GridRProjeto.resultadoEditado());
                 log('Calculando orçamento com a base técnica...', true);
 
                 const res = await fetch('/api/orcamento/calcular', {
@@ -1460,6 +1451,7 @@
                     // Mensagens vêm do servidor (inclusive trechos da base): sempre como texto, nunca como HTML.
                     const alertaCalculo = (titulo, itens, cor) => {
                         const box = document.createElement('div');
+                        box.className = 'alerta-calculo';
                         box.style = "background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-default); color: var(--text-secondary); padding: 10px 14px; border-radius: 5px; font-size: 0.8rem; margin-bottom: 10px;";
                         const t = document.createElement('strong'); t.style.color = cor || 'var(--text-primary)'; t.textContent = titulo + ' ';
                         box.appendChild(t); box.appendChild(document.createTextNode(itens.join(' • ')));
@@ -1475,6 +1467,7 @@
                     if (data.resultado && data.resultado.length > 0) {
                         sapCopiadas.clear();              // outro cálculo: as marcações de "já copiado" recomeçam
                         log(`Orçamento gerado: ${data.resultado.length} item(ns) encontrado(s).`);
+                        if (tinhaEdicoes) log('Recalculado com a base atual; as edições manuais do resultado anterior foram substituídas.');
                         renderRowsData(data.resultado);
                         if (projetoAtivo) GridRProjeto.acompanharResultado(tbody, getRowsData, assinaturaCalculo);
                     } else {
@@ -1510,6 +1503,26 @@
                 localStorage.setItem('numero_obra', e.target.value);
             });
         }
+
+        /** TASK-180: um projeto foi aberto (menu Abrir / plugin) com esta tela à vista: mostra o resultado gravado nele, com as edições, SEM recalcular.
+         *  Projeto sem resultado: a tabela esvazia e orienta a montar o orçamento (não deixa o resultado do projeto anterior parecendo do novo). */
+        function mostrarResultadoDoProjeto(info) {
+            const linhas = info && info.resultado && Array.isArray(info.resultado.linhas) ? info.resultado.linhas : [];
+            document.querySelectorAll('.alerta-calculo').forEach(n => n.remove());
+            sapCopiadas.clear();
+            if (linhas.length) {
+                tbody.innerHTML = '';
+                renderRowsData(linhas);
+                log(`Resultado do projeto “${info.nome || ''}” (gravado no arquivo): ${linhas.length} item(ns).`);
+                GridRProjeto.acompanharResultado(tbody, getRowsData, info.resultado.assinatura || '');
+            } else {
+                GridRProjeto.pararAcompanharResultado();
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-secondary);">Este projeto não tem resultado gravado.<br>Volte ao Resumo e clique em "Montar Orçamento".</td></tr>';
+                log('Este projeto não tem resultado gravado.');
+                updateStats([]);
+            }
+        }
+        if (window.GridRProjeto && GridRProjeto.aoAbrirProjeto && !new URLSearchParams(window.location.search).get('rec')) GridRProjeto.aoAbrirProjeto(mostrarResultadoDoProjeto);
 
         const urlParams = new URLSearchParams(window.location.search);
         const recParam = urlParams.get('rec');
