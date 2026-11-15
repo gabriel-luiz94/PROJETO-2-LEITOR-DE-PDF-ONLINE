@@ -7,7 +7,7 @@ roda a MESMA validação da importação da base (`validar_base`). Só devolve o
 """
 import re
 
-from services.ativo_parametros import nome_base, preencher_componentes, validar_base
+from services.ativo_parametros import agrupar_avisos, nome_base, preencher_componentes, validar_base
 from services.fator_formula import normalizar_fator
 from services.orcamento_arred import normalizar_arred
 from services.orcamento_calc import processar_calculo
@@ -77,7 +77,10 @@ def avaliar(base: list, novas: list, projeto: str, simular: list = None) -> dict
     ja_erros, ja_avisos = {_chave(x) for x in antes["erros"]}, {_chave(x) for x in antes["avisos"]}
     novos_erros = [e for e in depois["erros"] if _chave(e) not in ja_erros]
     novos_avisos = [a for a in depois["avisos"] if _chave(a) not in ja_avisos]
-    resposta = {"erros": novos_erros, "avisos": novos_avisos, "linhas": juntas[len(sem):], "componentes_gerados": n_comp, "simulacao": None}
+    avisos_vistos, avisos_detalhe = agrupar_avisos(novos_avisos)                  # TASK-172: só apresentação (ativo com mais de 5 avisos de sobreposição = 1 resumo)
+    resposta = {"erros": novos_erros, "avisos": avisos_vistos, "linhas": juntas[len(sem):], "componentes_gerados": n_comp, "simulacao": None}
+    if avisos_detalhe:
+        resposta["avisos_detalhe"] = avisos_detalhe
     if simular:
         saida = []
         for s in simular[:20]:

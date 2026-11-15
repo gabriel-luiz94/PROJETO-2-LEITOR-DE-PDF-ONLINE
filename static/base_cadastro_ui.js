@@ -317,7 +317,12 @@
         if (!servidor) lat.appendChild(el('div', { class: 'bf-mut', text: 'Validando no servidor…' }));
         if (servidor && !erros.length) lat.appendChild(el('div', { class: 'bf-ok', text: '✔ nenhum erro — a base continua válida com este ativo' }));
         erros.forEach(x => lat.appendChild(el('div', { class: 'bf-er', text: '✖ ' + x })));
-        avisos.slice(0, 10).forEach(x => lat.appendChild(el('div', { class: 'bf-av', text: '⚠ ' + x })));
+        const detalhesAvisos = (servidor && servidor.avisos_detalhe) || {};
+        avisos.slice(0, 10).forEach(x => {                                                  // TASK-172: aviso resumo com a lista completa recolhida
+            const lista = detalhesAvisos[x];
+            if (!lista) { lat.appendChild(el('div', { class: 'bf-av', text: '⚠ ' + x })); return; }
+            lat.appendChild(el('details', { class: 'bf-av' }, [el('summary', { text: '⚠ ' + x, style: 'cursor:pointer' })].concat(lista.map(t => el('div', { class: 'bf-mut', style: 'font-size:11px;margin-top:3px', text: t })))));
+        });
         if (pv) {
             lat.appendChild(el('h4', { style: 'margin-top:14px', text: 'Impacto' }));
             lat.appendChild(el('div', { text: pv.chamadores.length ? `Ativos que chamam este: ${pv.chamadores.map(c => c.ativo).join(', ')}` : 'Nenhum outro ativo chama este.' }));

@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-15 — TASK-172: validador da base com menos alarme falso de sobreposição
+
+- Padrões `%X%` × `%Y%` só "podem valer juntos" se um texto contém o outro (`%30KVA%` × `%10KVA%` não; `%A35%` × `%A35P%` sim). Ativo com mais de 5 avisos de sobreposição vira UM aviso resumo na importação e no modal (lista completa recolhida); `validar_base` não muda. Tarefa: `.ai/tasks/TASK-172-15-11-2026.md`.
+
+---
+
 ## 2026-11-15 — TASK-171: estrutura fictícia do cabo sugere os componentes avulsos (alças, conectores)
 
 - Sob o cabo com estrutura fictícia (modal Vinculação) aparece `N4 (fictícia) → 3 × ALCA(cabo=…)  [+ Outros]`: os itens dos grupos da base que chamam ativos, só do lado do cabo novo; `[+ Outros]` cria as linhas em Outros (`origemAvulso` no `.obra`; a quantidade vai na notação `3-ALCA(…)`). Python + JS; nada entra no cálculo sem o clique. Tarefa: `.ai/tasks/TASK-171-15-11-2026.md`.
