@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-15 — TASK-168: o programa sempre abre no projeto default
+
+- O projeto aberto da execução anterior é esquecido ao abrir o programa (id de sessão em cookie `gridr_sessao`, só no desktop; `GridRProjeto.reiniciarNoDefault`). Recarregar/trocar de tela na mesma execução mantém o projeto. Tarefa: `.ai/tasks/TASK-168-15-11-2026.md`.
+
+---
+
 ## 2026-11-15 — TASK-167: balão e cores dos parâmetros preenchidos × que faltam
 
 - Passar o mouse no ativo (Demais Ativos e Totalizadora) mostra os parâmetros preenchidos (origem: pedido/vínculo/obra/padrão) e os que faltam. Opção escondida em Configurações › Aparência › Avançado pinta o ativo de verde (tudo preenchido) ou laranja (falta algum) só em Demais Ativos; desligada por padrão. `static/ativo_status.js`. Tarefa: `.ai/tasks/TASK-167-15-11-2026.md`.
