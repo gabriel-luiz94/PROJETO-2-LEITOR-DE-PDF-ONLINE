@@ -458,6 +458,19 @@ Quando um ativo muda de itens conforme uma categoria (tipo de cabo, tipo de post
 - Nada a rodar no Supabase.
 
 
+### Parâmetros do ativo: o que está preenchido e o que falta
+
+Passe o mouse no **ativo** (tabela Demais Ativos ou Totalizadora): o balão lista, por estrutura, os parâmetros **preenchidos** (✓, com a origem: *do pedido*, *vínculo*, *da obra* ou *padrão*) e os que **faltam** (⚠, com o motivo, ex.: "nenhum cabo vinculado a esta estrutura"). Valor que vem só do padrão da declaração conta como preenchido.
+- **Cores (opcional):** em **Configurações › Aparência › ▸ Avançado**, o interruptor **Colorir ativos por parâmetros** pinta o ativo na tabela Demais Ativos: **verde** = todos os parâmetros preenchidos, **laranja** = falta algum (numa linha com várias estruturas, basta uma faltar). Ativo sem parâmetros não é pintado. Vem desligado; vale só na tela (não altera dados nem relatórios) e fica guardado neste computador.
+
+### Vinculação por poste (obra vinda do plugin do nanoCAD)
+
+Quando você abre uma obra que veio do plugin (tem a geometria do desenho), o programa **vincula sozinho pelo que chega em cada poste**: cada vão (cabo) tem 2 pontas e cada ponta termina em um poste; cada **estrutura do poste** procura, entre os cabos que chegam nele, os que cumprem as regras dela (Tabela de Estruturas: quantidade, cabos iguais, tipo de cabo, operação…) e liga em cada um, consumindo uma ponta. Ex.: uma **B1MT** (2 cabos MT iguais) liga nos dois cabos MT iguais que chegam no poste.
+- Cabo **M** usa 1 ponta; cabo **I** usa 2. Estruturas que disputam o mesmo cabo: vale a **ordem da Tabela de Estruturas** (depois a ordem na linha do poste).
+- Chegou **mais cabo que a estrutura aceita**: o programa escolhe os primeiros (ordem da Tabela de cabos) e **avisa**. Chegou **menos**: a estrutura fica incompleta e aparece no aviso/Validação.
+- Vínculo **manual** (feito por você no modal) é mantido; os automáticos são refeitos a cada abertura. Cabo sem geometria e retirada (R) não são tocados.
+- No modal **Vinculação › Script**, o botão **🏗️ Vincular por poste (desenho)** refaz na hora (Ctrl+Z desfaz) e lista o que sobrou, pontas soltas e estruturas incompletas.
+
 ### Parâmetros de obra (`OBRA.*`)
 
 Parâmetro cujo nome começa com `OBRA.` é preenchido pelo **programa**, não pelo pedido: `OBRA.MUNICIPIO`, `OBRA.BAIRRO`, `OBRA.UTD`, `OBRA.UTEP` (do cabeçalho da obra, em **Projeto → Informações do relatório SAP**), `OBRA.REGIAO` (a regional, derivada) e `OBRA.CONTEXTO` (o contexto selecionado). Outros nomes `OBRA.*` são recusados ao importar a base.

@@ -389,6 +389,17 @@
         avisar('Rascunho recuperado.');
     }
 
+    /** TASK-166: projeto do plugin do nanoCAD (tem geometria) abre já vinculado pelo que chega em cada poste. Devolve o resumo em texto (ou ''). */
+    async function vincularPorPosteAoAbrir(pr) {
+        if (!pr || !pr.cad || !resumo || !resumo.vincularPorPoste) return '';
+        try {
+            const r = await resumo.vincularPorPoste();
+            const s = r && r.resumo;
+            if (!s || !s.cabos) return '';
+            return ' Vínculos por poste: ' + s.completos + ' cabo(s) completo(s), ' + s.parciais + ' parcial(is), ' + s.sem_vinculo + ' sem vínculo' + (s.estruturas_incompletas ? '; ' + s.estruturas_incompletas + ' estrutura(s) incompleta(s) (veja Vinculação)' : '') + '.';
+        } catch (x) { return ''; }
+    }
+
     /* ── Aplicar o projeto na tela ── */
     function aplicarNumero() {
         const e = estado();
@@ -414,7 +425,7 @@
     async function ativarAberto(r) {
         const pr = r.projeto;
         if (!(await confirmarSaida())) return false;                          // havia outro projeto com alterações não salvas
-        let modo = 'abrir';
+        let modo = 'abrir', vinc = '';
         if (resumo && resumo.temDados()) {
             modo = await perguntar('Abrir “' + pr.nome + '”', 'O Resumo já tem dados. O que deseja fazer?',
                 [{ texto: 'Abrir', valor: 'abrir', ok: true, descricao: 'Apaga o que está na tela e usa o que está no projeto.' },
@@ -425,13 +436,13 @@
         definirProjeto(r, false);
         suspenso = false; pendente = null; ultimaGravacao = null; sujo = false;
         if (resumo) {
-            if (modo === 'abrir') { resumo.carregar(pr.dados); await aplicarContexto(pr.contexto); }          // TASK-165: Abrir seleciona o contexto da obra; Mesclar e Sobrescrever mantêm o atual
+            if (modo === 'abrir') { resumo.carregar(pr.dados); await aplicarContexto(pr.contexto); vinc = await vincularPorPosteAoAbrir(pr); }          // TASK-165: Abrir seleciona o contexto da obra; Mesclar e Sobrescrever mantêm o atual
             else if (modo === 'mesclar') { resumo.mesclar(pr.dados); sujo = true; }
             else sujo = true;                                   // sobrescrever: a tela vale e vai por cima do arquivo quando salvar
             dadosProntos = true;
         }
         aplicarNumero(); atualizarMenu();
-        avisar(pr.legado ? 'Projeto antigo aberto. Informe o número da obra em Projeto → Propriedades.' : 'Projeto “' + pr.nome + '” aberto. Salvamento automático desligado: use Salvar (Ctrl+S).');
+        avisar((pr.legado ? 'Projeto antigo aberto. Informe o número da obra em Projeto → Propriedades.' : 'Projeto “' + pr.nome + '” aberto. Salvamento automático desligado: use Salvar (Ctrl+S).') + vinc);
         return true;
     }
 
@@ -459,7 +470,8 @@
             if (resumo) { resumo.carregar(r.projeto.dados); dadosProntos = true; sujo = false; }
             suspenso = false; pendente = null; aplicarNumero(); atualizarMenu();
             await aplicarContexto(r.projeto.contexto);
-            avisar('Projeto “' + r.projeto.nome + '” atualizado pelo nanoCAD.');
+            const vincAtual = await vincularPorPosteAoAbrir(r.projeto);
+            avisar('Projeto “' + r.projeto.nome + '” atualizado pelo nanoCAD.' + vincAtual);
             return true;
         }
         return ativarAberto(r);

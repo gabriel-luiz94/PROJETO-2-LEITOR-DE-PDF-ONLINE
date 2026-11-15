@@ -376,6 +376,112 @@
         return l;
     }
 
+    /* ── vinculação POR POSTE (TASK-166) — espelho de services/vinculacao_regras.py ──
+       Cada ponta do vão (`_geo`: 1º e último ponto) termina em um poste (`_poste` na linha de Outros): o problema se separa por poste. Cada estrutura do poste procura, entre os
+       cabos que CHEGAM nele, os que cumprem as validações dela e consome UMA ponta de cada. Prioridade: ordem da Tabela de Estruturas, depois a ordem na linha do poste. */
+    const RAIO_POSTE_PADRAO = 5.0;
+    const par = p => (Array.isArray(p) && p.length >= 2 && typeof p[0] !== 'boolean' && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1])) && p[0] !== null && p[1] !== null && p[0] !== '' && p[1] !== '' ? [Number(p[0]), Number(p[1])] : null);
+    function extremos(cabo) {
+        const g = cabo._geo;
+        if (!Array.isArray(g) || g.length < 2) return null;
+        const a = par(g[0]), b = par(g[g.length - 1]);
+        return a && b ? [a, b] : null;
+    }
+    function posteMaisPerto(pt, postes, raio) {
+        let melhor = null, dmin = null;
+        postes.forEach(([linha, pos]) => {
+            const d = Math.sqrt((pt[0] - pos[0]) ** 2 + (pt[1] - pos[1]) ** 2);
+            if (d <= raio && (dmin === null || d < dmin)) { melhor = linha; dmin = d; }
+        });
+        return melhor;
+    }
+
+    function vincularPorPoste(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn, raio, aplicar) {
+        const x = expandir(cabos, outros, codigoFn, codigosFn);
+        const r = vincularPorPosteBase(x.cabosV, x.virt, cfg, prefixoFn, x.codigoV, typeof raio === 'number' && raio > 0 ? raio : RAIO_POSTE_PADRAO);
+        r.vinculos.forEach(v => { v.estruturas = v.estruturas.map(j => x.idDe[j]); });
+        r.achados.forEach(a => { if (a.estrutura !== null && a.estrutura !== undefined) a.estrutura = x.idDe[a.estrutura]; });
+        if (aplicar) r.vinculos.forEach(v => {
+            cabos[v.cabo].vinculoEstruturas = v.estruturas.slice();
+            if (v.estruturas.length) cabos[v.cabo].vinculoOrigem = 'poste'; else delete cabos[v.cabo].vinculoOrigem;
+        });
+        return r;
+    }
+
+    function vincularPorPosteBase(cabos, outros, cfg, prefixoFn, codigoFn, raio) {
+        cfg = normalizarConfig(cfg);
+        const ests = estruturasDisponiveis(outros), infoE = {}, infoC = {}, porLinha = new Map();
+        ests.forEach(ie => { infoE[ie] = infoEstrutura(codigoFn(outros[ie].ativo, outros[ie]), cfg); const l = outros[ie]._linha; if (!porLinha.has(l)) porLinha.set(l, []); porLinha.get(l).push(ie); });
+        cabos.forEach((c, ic) => { if (ehCaboValido(c)) infoC[ic] = infoCabo(prefixoFn(c.ativo) || '', c.operacao, cfg, extraCabo(c)); });
+        const linhasOrd = Array.from(porLinha.keys()).sort((a, b) => a - b);
+        const postes = linhasOrd.map(l => [l, par(outros[porLinha.get(l)[0]]._poste)]).filter(([, pos]) => pos);
+        const fict = {};
+        ests.forEach(ie => { fict[ie] = (outros[ie].cabosFicticios || []).map(v => trim(v).toUpperCase()).filter(Boolean); });
+        const icsOrd = Object.keys(infoC).map(Number).sort((a, b) => a - b);
+        const manuais = new Set(icsOrd.filter(ic => cabos[ic].vinculoOrigem === 'manual' && (cabos[ic].vinculoEstruturas || []).length));
+        const ocup = {}; ests.forEach(ie => { ocup[ie] = []; });
+        Array.from(manuais).sort((a, b) => a - b).forEach(ic => cabos[ic].vinculoEstruturas.forEach(ie => { if (ie in ocup) ocup[ie].push(ic); }));
+        const ligados = {}, restante = {}, chegadas = {}, soltas = [], semGeo = [];
+        const saida = { vinculos: [], achados: [], resumo: {} };
+        icsOrd.forEach(ic => {
+            const c = infoC[ic];
+            if (!c.vincula || manuais.has(ic)) return;
+            const fim = extremos(cabos[ic]);
+            if (!fim) { semGeo.push(ic); return; }
+            ligados[ic] = [];
+            restante[ic] = Math.max(0, c.pontas - estruturasFicticiasDe(cabos[ic]).length);
+            fim.forEach((pt, k) => {
+                const linha = posteMaisPerto(pt, postes, raio);
+                if (linha === null) soltas.push([ic, k]); else (chegadas[linha] = chegadas[linha] || []).push(ic);
+            });
+        });
+        const nomePoste = linha => `poste da linha ${linha + 1} (${outros[porLinha.get(linha)[0]].ativo})`;
+        const add = (tipo, mensagem, poste, cabo, estrutura) => saida.achados.push({ tipo, poste, cabo, estrutura, mensagem });
+        let estrIncompletas = 0;
+        postes.forEach(([linha]) => {
+            const pend = (chegadas[linha] || []).slice(), ies = porLinha.get(linha);
+            const unidades = ies.slice().sort((a, b) => ((infoE[a].regra !== null ? infoE[a].regra : 1e6) - (infoE[b].regra !== null ? infoE[b].regra : 1e6)) || (ies.indexOf(a) - ies.indexOf(b)));
+            unidades.forEach(ie => {
+                const e = infoE[ie];
+                if (e.regra === null || e.qtd === null) return;
+                const ocupantes = ocup[ie].map(ic => ({ info: infoC[ic], ficticio: false })).concat(fict[ie].map(cod => ({ info: infoCabo(cod, opFicticio(e), cfg), ficticio: true })));
+                const falta = e.qtd - ocupantes.length;
+                if (falta > 0) {
+                    let cands = [];
+                    pend.forEach(ic => { if ((restante[ic] || 0) > 0 && podeVincular(infoC[ic], e)[0] && !cands.includes(ic)) cands.push(ic); });
+                    if (e.lados === 'IGUAIS' && cands.length && !ocupantes.length) {
+                        const grupos = new Map();
+                        cands.forEach(ic => { const k = infoC[ic].codigo + '|' + infoC[ic].op; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(ic); });
+                        let melhor = null, mv = -1;
+                        grupos.forEach(g => { const v = Math.min(g.length, falta); if (v > mv) { melhor = g; mv = v; } });          // o grupo de cabos iguais que mais enche a estrutura (empate: o 1º)
+                        cands = melhor;
+                    }
+                    const escolhidos = [];
+                    for (const ic of cands) {
+                        if (escolhidos.length >= falta) break;
+                        if (podeComOcupantes(infoC[ic], e, ocupantes)[0]) { ocupantes.push({ info: infoC[ic], ficticio: false }); escolhidos.push(ic); }
+                    }
+                    if (cands.length > escolhidos.length && escolhidos.length) add('escolha', `${e.codigo} no ${nomePoste(linha)}: ${cands.length} cabos servem, ligados os ${escolhidos.length} primeiros (ordem da tabela de cabos).`, linha, escolhidos[0], ie);
+                    escolhidos.forEach(ic => { ocup[ie].push(ic); ligados[ic].push(ie); restante[ic] -= 1; pend.splice(pend.indexOf(ic), 1); });
+                }
+                const tem = ocup[ie].length + fict[ie].length;
+                if (e.qtd_min !== null && tem < e.qtd_min) { estrIncompletas++; add('incompleta', `${e.codigo} no ${nomePoste(linha)}: precisa de ${e.qtd_min} cabo(s) e só chegaram ${tem} que ela aceita.`, linha, null, ie); }
+            });
+            pend.forEach(ic => { if ((restante[ic] || 0) > 0) add('sobra', `Cabo ${infoC[ic].codigo} (linha ${ic + 1}) chega ao ${nomePoste(linha)} e nenhuma estrutura o usou.`, linha, ic, null); });
+        });
+        soltas.forEach(([ic, k]) => add('ponta_solta', `Cabo ${infoC[ic].codigo} (linha ${ic + 1}): a ponta ${k === 0 ? 'A' : 'B'} não toca nenhum poste (raio ${raio}).`, null, ic, null));
+        semGeo.forEach(ic => add('sem_geometria', `Cabo ${infoC[ic].codigo} (linha ${ic + 1}) sem geometria (_geo): vínculo não alterado.`, null, ic, null));
+        let completos = 0;
+        Object.keys(ligados).map(Number).sort((a, b) => a - b).forEach(ic => {
+            const full = ligados[ic].length >= Math.max(0, infoC[ic].pontas - estruturasFicticiasDe(cabos[ic]).length);
+            if (full && ligados[ic].length) completos++;
+            saida.vinculos.push({ cabo: ic, estruturas: ligados[ic].slice(), completo: !!(full && ligados[ic].length) });
+        });
+        saida.resumo = { cabos: Object.keys(ligados).length, completos, parciais: saida.vinculos.filter(v => v.estruturas.length && !v.completo).length,
+            sem_vinculo: saida.vinculos.filter(v => !v.estruturas.length).length, estruturas_incompletas: estrIncompletas, pontas_soltas: soltas.length, manuais_mantidos: manuais.size, sem_geometria: semGeo.length };
+        return saida;
+    }
+
     const temXY = r => r._x !== undefined && r._x !== null && r._y !== undefined && r._y !== null;
     const dist = (a, b) => { const dx = a._x - b._x, dy = a._y - b._y; return Math.sqrt(dx * dx + dy * dy); };
 
@@ -517,7 +623,7 @@
         return erros;
     }
 
-    const api = { descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);
