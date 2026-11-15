@@ -870,6 +870,18 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
     return {"estruturas": res_e, "cabos": res_c, "links": links}
 
 
+def parametros_do_cabo_na_estrutura(estrutura, cabo_row, cfg, prefixo_fn) -> dict:
+    """TASK-171: {NOME: [valores]} que a estrutura `estrutura` receberia se ESTE cabo fosse o único ligado a ela (mesmas fontes da TASK-100: descrição, tipocabo, código).
+    Sem regra de cabo/estrutura devolve o que a tabela der (ou {})."""
+    cfg = normalizar_config(cfg)
+    e = info_estrutura(estrutura, cfg)
+    c = info_cabo(_codigo_cabo(cabo_row, prefixo_fn), (cabo_row or {}).get("operacao"), cfg, extra_cabo(cabo_row))
+    valor, _avisos, params = _valor_e_parametros(e, cfg, [{"info": c, "ficticio": False}])
+    if params is None and valor and e["parametro"]:
+        params = {e["parametro"]: [valor]}
+    return params or {}
+
+
 def parametros_por_linha(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> dict:
     """{indice_em_outros: {"CABO": "C"}} — o parâmetro que a estrutura recebe do(s) cabo(s) vinculado(s) (só onde há valor)."""
     a = analisar(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn)

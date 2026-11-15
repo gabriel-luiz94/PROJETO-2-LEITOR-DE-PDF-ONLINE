@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-15 — TASK-171: estrutura fictícia do cabo sugere os componentes avulsos (alças, conectores)
+
+- Sob o cabo com estrutura fictícia (modal Vinculação) aparece `N4 (fictícia) → 3 × ALCA(cabo=…)  [+ Outros]`: os itens dos grupos da base que chamam ativos, só do lado do cabo novo; `[+ Outros]` cria as linhas em Outros (`origemAvulso` no `.obra`; a quantidade vai na notação `3-ALCA(…)`). Python + JS; nada entra no cálculo sem o clique. Tarefa: `.ai/tasks/TASK-171-15-11-2026.md`.
+
+---
+
 ## 2026-11-15 — TASK-170: vinculação — nível do fictício, derivação, cabos por vão e parâmetros automáticos
 
 - Fictício herda o nível da regra de cabo que aceita a estrutura; `lados: DERIVACAO` (derivação obrigatória + tronco de 2 iguais); `cabos_vaos` (1 cabo por vão); `define` (parâmetros automáticos pela linha do poste/1º cabo, ex.: `tipo=RL`, variantes do ATRINT_EQ). Python + JS, modal com as colunas novas, regras 081 atualizadas. Tarefa: `.ai/tasks/TASK-170-15-11-2026.md`.

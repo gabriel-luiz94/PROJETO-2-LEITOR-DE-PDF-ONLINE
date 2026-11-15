@@ -106,6 +106,10 @@ async def serve_obra_params_js():
 async def serve_ativo_status_js():
     return _serve_js("ativo_status.js")         # TASK-167
 
+@app.get("/static/avulsos_ficticia.js")
+async def serve_avulsos_ficticia_js():
+    return _serve_js("avulsos_ficticia.js")     # TASK-171
+
 
 @app.get("/static/projeto.js")
 async def serve_projeto_js():

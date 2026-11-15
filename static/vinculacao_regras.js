@@ -490,6 +490,16 @@
         return saida;
     }
 
+    /** TASK-171: {NOME: [valores]} que a estrutura receberia se ESTE cabo fosse o único ligado a ela (mesmas fontes da TASK-100). */
+    function parametrosDoCaboNaEstrutura(estrutura, caboRow, cfg, prefixoFn) {
+        cfg = normalizarConfig(cfg);
+        const e = infoEstrutura(estrutura, cfg), c = infoCabo(prefixoFn((caboRow || {}).ativo) || '', (caboRow || {}).operacao, cfg, extraCabo(caboRow));
+        const r = valorEParametros(e, cfg, [{ info: c, ficticio: false }]);
+        let params = r.parametros;
+        if (params === null && r.valor && e.parametro) params = { [e.parametro]: [r.valor] };
+        return params || {};
+    }
+
     function parametrosPorLinha(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn) {
         const a = analisar(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn), saida = {};
         Object.keys(a.estruturas).sort((x, y) => x - y).forEach(k => {
@@ -859,7 +869,7 @@
         return erros;
     }
 
-    const api = { defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);

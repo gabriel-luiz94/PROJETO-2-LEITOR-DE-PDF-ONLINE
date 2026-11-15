@@ -273,6 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body.innerHTML = '';
         const frag = document.createDocumentFragment();   // uma única inserção no DOM (tabelas grandes)
         const paramsVinc = type === 'outros' ? _parametrosVinculoPorLinha() : {};     // TASK-084
+        const avulsoVelho = type === 'outros' ? _indicesAvulsoVelho() : new Set();      // TASK-171
 
         state.data.forEach((row, idx) => {
             const tr = document.createElement('tr');
@@ -369,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
             inpAt.value = row.ativo;
             inpAt.autocomplete = 'off';
             inpAt.setAttribute('list', '');  // desabilita datalist nativo, usamos o nosso
-            if (type === 'outros') { inpAt.dataset.parTipo = 'outros'; inpAt.dataset.parIdx = idx; }        // TASK-167: o balão (parâmetros preenchidos e os que faltam) lê estes dados ao passar o mouse
+            if (type === 'outros') { inpAt.dataset.parTipo = 'outros'; inpAt.dataset.parIdx = idx; if (avulsoVelho.has(idx)) { inpAt.classList.add('avulso-velho'); inpAt.title = 'avulso desatualizado: o cabo ou a estrutura fictícia mudou (veja Vinculação)'; } }        // TASK-167: o balão (parâmetros preenchidos e os que faltam) lê estes dados ao passar o mouse
             let prevAtivo = row.ativo;
 
             inpAt.addEventListener('input', () => {
@@ -1830,6 +1831,8 @@ document.addEventListener('DOMContentLoaded', () => {
         prefixoCabo: _prefixoCaboVinculo,
         codigoEstrutura: _codigoEstruturaVinculo,
         codigosEstrutura: _codigosEstruturaVinculo,            // TASK-094: todas as estruturas da linha (9400D, N1, N4 → N1, N4)
+        avulsosDoCabo: ic => _avulsosDoCabo(ic),               // TASK-171: componentes avulsos que a estrutura fictícia do cabo usa (alças, conectores)
+        adicionarAvulsos: (ic, ficticia) => _adicionarAvulsos(ic, ficticia),
         postesDaLinha(ativo) {
             const r = AnotacaoOutros.interpretarLinha(ativo || '', 'I', _classicoTotalizadora, _ctxOutros());
             return r.itens.map(i => AtivoParametros.nomeBase(i.ativo)).filter(n => AnotacaoOutros.ehPoste(n)).map(n => AnotacaoOutros.posteParaCompacto(n));
@@ -1904,6 +1907,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Array.isArray(obj.vinculoEstruturas)) c.vinculoEstruturas = obj.vinculoEstruturas.slice();
         if (obj.vinculoOrigem) c.vinculoOrigem = obj.vinculoOrigem;                                       // TASK-084: manual | script
         if (Array.isArray(obj.estruturasFicticias) && obj.estruturasFicticias.length) c.estruturasFicticias = obj.estruturasFicticias.slice();   // TASK-095: estruturas fictícias do cabo
+        if (obj.origemAvulso) { c.origemAvulso = obj.origemAvulso; if (obj.texto) c.texto = obj.texto; }                 // TASK-171: linha de Outros vinda da sugestão de avulsos da estrutura fictícia
         if (obj.cabosFicticiosSlots && Object.keys(obj.cabosFicticiosSlots).length) c.cabosFicticiosSlots = JSON.parse(JSON.stringify(obj.cabosFicticiosSlots));   // TASK-094: fictícios das demais estruturas da linha
         if (Array.isArray(obj.cabosFicticios) && obj.cabosFicticios.length) c.cabosFicticios = obj.cabosFicticios.slice();   // TASK-084: cabos fictícios da estrutura
         return c;
@@ -1984,6 +1988,45 @@ document.addEventListener('DOMContentLoaded', () => {
         return st ? [st] : [];
     }
 
+
+    /* ═══════════════════════════════════════
+       TASK-171 — AVULSOS DA ESTRUTURA FICTÍCIA (alças, conectores) → tabela Outros, com um clique
+    ═══════════════════════════════════════ */
+    let _cacheAvulsos = null;
+    function _gruposEAssinaturas() {                                                   // recalcula só quando a base muda
+        const proj = localStorage.getItem('projeto_selecionado') || '';
+        if (!_cacheAvulsos || _cacheAvulsos.base !== orcamentoBaseData || _cacheAvulsos.proj !== proj) {
+            _cacheAvulsos = { base: orcamentoBaseData, proj, assin: AtivoParametros.assinaturasDoProjeto(orcamentoBaseData, proj), grupos: AvulsosFicticia.gruposDeChamada(orcamentoBaseData, proj) };
+        }
+        return _cacheAvulsos;
+    }
+    function _avulsosDoCabo(ic) {
+        const cfg = window.__vinculacaoConfig, cabo = tableStates.cabos.data[ic];
+        if (!cfg || !cabo || typeof AvulsosFicticia === 'undefined' || !VinculacaoRegras.estruturasFicticiasDe(cabo).length) return [];
+        const c = _gruposEAssinaturas();
+        return AvulsosFicticia.avulsosDoCabo(cabo, cfg, _prefixoCaboVinculo, c.assin, c.grupos).map(x => Object.assign({}, x, AvulsosFicticia.estadoDosAvulsos(ic, x.ficticia, x.itens, tableStates.outros.data)));
+    }
+    function _adicionarAvulsos(ic, ficticia) {
+        const lista = _avulsosDoCabo(ic).find(x => x.ficticia === String(ficticia).toUpperCase());
+        const itens = lista ? lista.itens.filter(i => !i.completar) : [];
+        if (!itens.length) { showToast('Nada a adicionar: complete o cabo existente nos itens marcados.'); return 0; }
+        pushHistory();
+        const chave = AvulsosFicticia.chaveOrigem(ic, ficticia);
+        tableStates.outros.data.forEach(r => { if (r && r.origemAvulso === chave) r.origemAvulso = chave + '!velho'; });          // a sugestão anterior fica como "avulso desatualizado"
+        itens.forEach(i => tableStates.outros.data.push({ entidade: 'OUTROS', operacao: i.operacao, ativo: AvulsosFicticia.textoDaLinha(i), qtdAtivos: i.qtd, texto: `avulso da ${ficticia} fictícia — cabo #${ic + 1}`, origemAvulso: chave }));
+        renderTable('outros'); atualizarResumoRedeUI();
+        if (window.GridRProjeto && GridRProjeto.marcarSujo) GridRProjeto.marcarSujo(false);
+        showToast(`${itens.length} avulso(s) da ${ficticia} adicionado(s) em Outros.`);
+        return itens.length;
+    }
+    /** Índices das linhas de Outros de uma sugestão desatualizada (o cabo ou a fictícia mudou). */
+    function _indicesAvulsoVelho() {
+        const out = new Set(), dados = tableStates.outros.data;
+        if (!dados.some(r => r && r.origemAvulso)) return out;
+        dados.forEach((r, i) => { if (r && r.origemAvulso && r.origemAvulso.endsWith('!velho')) out.add(i); });
+        try { tableStates.cabos.data.forEach((c, ic) => { if (c) _avulsosDoCabo(ic).forEach(x => { if (x.estado === 'desatualizado') x.linhas.forEach(i => out.add(i)); }); }); } catch (e) { /* base ainda carregando */ }
+        return out;
+    }
 
     /** TASK-081: contexto da base (apelidos, postes, assinaturas) para traduzir a notação compacta de Outros. */
     function _ctxOutros() {

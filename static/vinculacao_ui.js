@@ -26,6 +26,7 @@
     .vz-cols{display:grid;grid-template-columns:minmax(300px,430px) minmax(120px,1fr) minmax(360px,560px);position:relative;align-items:start}
     .vz-col h4{margin:0 0 8px;font-size:11px;letter-spacing:.08em;color:#8b949e;text-transform:uppercase;position:sticky;top:0;background:#0d1117;z-index:2;padding:2px 0}
     .vz-card{display:flex;align-items:center;gap:10px;height:62px;margin-bottom:10px;padding:0 12px;border-radius:8px;border:2px solid #6e7681;background:#010409;cursor:pointer;position:relative;overflow:hidden}
+    .vz-avulso{display:flex;align-items:center;gap:8px;margin:-4px 0 10px 18px;padding:5px 10px;border-radius:6px;background:#161b22;border:1px solid #30363d;color:#8b949e;font-size:11px}.vz-avulso .n{color:#c9d1d9;white-space:nowrap}.vz-avulso .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.vz-avulso .ok{color:#3fb950}.vz-avulso .v{color:#d29922}.vz-avulso .vz-btn{padding:2px 8px;font-size:11px}
     .vz-card.pu{border-color:#a371f7;background:#1d1537}.vz-card.gr{border-color:#3fb950;background:#0f2a17}.vz-card.rd{border-color:#f85149;background:#3a1216}.vz-card.fic{border-style:dashed;border-color:#a371f7;background:#161027}
     .vz-card.sel,.vz-ebox.sel{box-shadow:0 0 0 3px rgba(88,166,255,.65)}.vz-card.glow,.vz-ebox.glow{box-shadow:0 0 0 3px rgba(63,185,80,.40)}.vz-dim{opacity:.35}
     .vz-card .t{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}.vz-card .s{font-size:11px;color:#8b949e;white-space:nowrap}.vz-card .r{margin-left:auto;text-align:right;font-size:11px;white-space:nowrap}
@@ -195,6 +196,16 @@
         render();
     }
 
+    /** TASK-171: linha cinza sob o cabo — os avulsos (alças, conectores) que a estrutura fictícia usa para ESTE cabo, com [+ Outros]. */
+    function linhaAvulso(ic, av) {
+        const completos = av.itens.filter(i => !i.completar), faltam = av.itens.filter(i => i.completar);
+        const texto = completos.map(i => `${i.qtd} × ${i.ativo}`).join(' · ') + (faltam.length ? (completos.length ? ' · ' : '') + faltam.map(i => `${i.qtd} × ${i.ativo} — complete o cabo existente`).join(' · ') : '');
+        const estado = av.estado === 'adicionado' ? el('span', { class: 'ok', text: 'adicionado ✓' }) : el('button', { class: 'vz-btn', text: '+ Outros', ...(completos.length ? {} : { disabled: 'disabled' }), title: completos.length ? 'adiciona estes itens à tabela Outros (você pode editar ou apagar)' : 'complete o cabo existente antes',
+            onclick: e => { e.stopPropagation(); host.adicionarAvulsos(ic, av.ficticia); render(); } });
+        return el('div', { class: 'vz-avulso', title: texto }, [el('span', { class: 'n', text: `${av.ficticia} (fictícia) → ` }), el('span', { class: 't', text: texto }),
+            av.estado === 'desatualizado' ? el('span', { class: 'v', text: 'avulso desatualizado' }) : null, estado]);
+    }
+
     function clicar(tipo, i) {
         if (tipo === 'e' && infoEst(i).ocupa === false) { toast('Equipamento (' + infoEst(i).codigo + ') lê os cabos do poste: não recebe vínculo de cabo.'); return; }          // TASK-169
         if (st.sel && st.sel.t !== tipo) { const ic = tipo === 'c' ? i : st.sel.i, ie = tipo === 'e' ? i : st.sel.i; ligar(ic, ie); return; }
@@ -290,6 +301,7 @@
                 el('div', {}, [el('div', { class: 't', text: c.ativo || '' }), el('div', { class: 's', text: `${r.codigo}${r.valor_cabo ? ' · tipocabo=' + r.valor_cabo : ''} · ${r.tem}/${r.precisa} ponta(s)${r.ficticias ? ' · ' + r.ficticias + ' estrutura fictícia' : ''}` })]),
                 el('div', { class: 'r', style: { gr: 'color:#3fb950', pu: 'color:#a371f7', rd: 'color:#f85149', k: 'color:#8b949e' }[r.estado], text: r.vincula ? TXT_C[r.estado] : 'não vincula' })]);
             colC.appendChild(card);
+            (host.avulsosDoCabo ? host.avulsosDoCabo(ic) : []).forEach(av => colC.appendChild(linhaAvulso(ic, av)));          // TASK-171
         });
         // TASK-094: uma linha por POSTE; as estruturas dela (N1, N4…) ficam lado a lado, em blocos separados. Poste sem estrutura não aparece; estrutura sem poste não tem o card do poste.
         const bloco = (ie, o) => {
