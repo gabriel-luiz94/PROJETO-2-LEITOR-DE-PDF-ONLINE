@@ -8,6 +8,18 @@
 
 ---
 
+## 2026-11-15 — TASK-171: estrutura fictícia do cabo sugere os componentes avulsos (alças, conectores)
+
+- Sob o cabo com estrutura fictícia (modal Vinculação) aparece `N4 (fictícia) → 3 × ALCA(cabo=…)  [+ Outros]`: os itens dos grupos da base que chamam ativos, só do lado do cabo novo; `[+ Outros]` cria as linhas em Outros (`origemAvulso` no `.obra`; a quantidade vai na notação `3-ALCA(…)`). Python + JS; nada entra no cálculo sem o clique. Tarefa: `.ai/tasks/TASK-171-15-11-2026.md`.
+
+---
+
+## 2026-11-15 — TASK-170: vinculação — nível do fictício, derivação, cabos por vão e parâmetros automáticos
+
+- Fictício herda o nível da regra de cabo que aceita a estrutura; `lados: DERIVACAO` (derivação obrigatória + tronco de 2 iguais); `cabos_vaos` (1 cabo por vão); `define` (parâmetros automáticos pela linha do poste/1º cabo, ex.: `tipo=RL`, variantes do ATRINT_EQ). Python + JS, modal com as colunas novas, regras 081 atualizadas. Tarefa: `.ai/tasks/TASK-170-15-11-2026.md`.
+
+---
+
 ## 2026-11-15 — TASK-169: equipamento herda os cabos do poste (RL, CFU, para-raio, chave-faca)
 
 - Tabela de Estruturas ganha `ocupa` (false = equipamento: não consome ponta nem capacidade), `herda: POSTE`, `nivel`, `ordem` (MAIOR_PRIMEIRO), `distintos`, `se_faltar`. O equipamento recebe `cabo`/`cabo2` dos cabos que chegam no poste (desenho), dos ligados às estruturas do poste e dos fictícios, numa 2ª passada de `_analisar_base`; `distintos`/`ordem` valem também para estruturas que ocupam. `vincular_por_poste`, scripts e `achados` ignoram o equipamento. Python + JS; modal Vinculação com as colunas novas e o equipamento em cinza. Config sem os campos novos = como antes. Tarefa: `.ai/tasks/TASK-169-15-11-2026.md`.

@@ -26,6 +26,7 @@
     .vz-cols{display:grid;grid-template-columns:minmax(300px,430px) minmax(120px,1fr) minmax(360px,560px);position:relative;align-items:start}
     .vz-col h4{margin:0 0 8px;font-size:11px;letter-spacing:.08em;color:#8b949e;text-transform:uppercase;position:sticky;top:0;background:#0d1117;z-index:2;padding:2px 0}
     .vz-card{display:flex;align-items:center;gap:10px;height:62px;margin-bottom:10px;padding:0 12px;border-radius:8px;border:2px solid #6e7681;background:#010409;cursor:pointer;position:relative;overflow:hidden}
+    .vz-avulso{display:flex;align-items:center;gap:8px;margin:-4px 0 10px 18px;padding:5px 10px;border-radius:6px;background:#161b22;border:1px solid #30363d;color:#8b949e;font-size:11px}.vz-avulso .n{color:#c9d1d9;white-space:nowrap}.vz-avulso .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.vz-avulso .ok{color:#3fb950}.vz-avulso .v{color:#d29922}.vz-avulso .vz-btn{padding:2px 8px;font-size:11px}
     .vz-card.pu{border-color:#a371f7;background:#1d1537}.vz-card.gr{border-color:#3fb950;background:#0f2a17}.vz-card.rd{border-color:#f85149;background:#3a1216}.vz-card.fic{border-style:dashed;border-color:#a371f7;background:#161027}
     .vz-card.sel,.vz-ebox.sel{box-shadow:0 0 0 3px rgba(88,166,255,.65)}.vz-card.glow,.vz-ebox.glow{box-shadow:0 0 0 3px rgba(63,185,80,.40)}.vz-dim{opacity:.35}
     .vz-card .t{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}.vz-card .s{font-size:11px;color:#8b949e;white-space:nowrap}.vz-card .r{margin-left:auto;text-align:right;font-size:11px;white-space:nowrap}
@@ -195,6 +196,16 @@
         render();
     }
 
+    /** TASK-171: linha cinza sob o cabo — os avulsos (alças, conectores) que a estrutura fictícia usa para ESTE cabo, com [+ Outros]. */
+    function linhaAvulso(ic, av) {
+        const completos = av.itens.filter(i => !i.completar), faltam = av.itens.filter(i => i.completar);
+        const texto = completos.map(i => `${i.qtd} × ${i.ativo}`).join(' · ') + (faltam.length ? (completos.length ? ' · ' : '') + faltam.map(i => `${i.qtd} × ${i.ativo} — complete o cabo existente`).join(' · ') : '');
+        const estado = av.estado === 'adicionado' ? el('span', { class: 'ok', text: 'adicionado ✓' }) : el('button', { class: 'vz-btn', text: '+ Outros', ...(completos.length ? {} : { disabled: 'disabled' }), title: completos.length ? 'adiciona estes itens à tabela Outros (você pode editar ou apagar)' : 'complete o cabo existente antes',
+            onclick: e => { e.stopPropagation(); host.adicionarAvulsos(ic, av.ficticia); render(); } });
+        return el('div', { class: 'vz-avulso', title: texto }, [el('span', { class: 'n', text: `${av.ficticia} (fictícia) → ` }), el('span', { class: 't', text: texto }),
+            av.estado === 'desatualizado' ? el('span', { class: 'v', text: 'avulso desatualizado' }) : null, estado]);
+    }
+
     function clicar(tipo, i) {
         if (tipo === 'e' && infoEst(i).ocupa === false) { toast('Equipamento (' + infoEst(i).codigo + ') lê os cabos do poste: não recebe vínculo de cabo.'); return; }          // TASK-169
         if (st.sel && st.sel.t !== tipo) { const ic = tipo === 'c' ? i : st.sel.i, ie = tipo === 'e' ? i : st.sel.i; ligar(ic, ie); return; }
@@ -290,6 +301,7 @@
                 el('div', {}, [el('div', { class: 't', text: c.ativo || '' }), el('div', { class: 's', text: `${r.codigo}${r.valor_cabo ? ' · tipocabo=' + r.valor_cabo : ''} · ${r.tem}/${r.precisa} ponta(s)${r.ficticias ? ' · ' + r.ficticias + ' estrutura fictícia' : ''}` })]),
                 el('div', { class: 'r', style: { gr: 'color:#3fb950', pu: 'color:#a371f7', rd: 'color:#f85149', k: 'color:#8b949e' }[r.estado], text: r.vincula ? TXT_C[r.estado] : 'não vincula' })]);
             colC.appendChild(card);
+            (host.avulsosDoCabo ? host.avulsosDoCabo(ic) : []).forEach(av => colC.appendChild(linhaAvulso(ic, av)));          // TASK-171
         });
         // TASK-094: uma linha por POSTE; as estruturas dela (N1, N4…) ficam lado a lado, em blocos separados. Poste sem estrutura não aparece; estrutura sem poste não tem o card do poste.
         const bloco = (ie, o) => {
@@ -358,6 +370,8 @@
         const v = r[campo];
         if (tipo === 'bool') return el('input', { type: 'checkbox', ...((v === undefined ? !!extra : v) ? { checked: 'checked' } : {}), onchange: e => { r[campo] = e.target.checked; marcarSujo(); } });
         if (tipo === 'select') return el('select', { onchange: e => { r[campo] = e.target.value; marcarSujo(); } }, extra.map(o => el('option', { value: o, text: o, ...(String(v == null ? extra[0] : v) === o ? { selected: 'selected' } : {}) })));
+        if (tipo === 'json') return el('input', { type: 'text', value: v === undefined || v === null || (Array.isArray(v) && !v.length) ? '' : JSON.stringify(v), placeholder: extra || '', style: 'min-width:150px',
+            onchange: e => { const t = e.target.value.trim(); if (!t) { delete r[campo]; marcarSujo(); return; } try { r[campo] = JSON.parse(t); marcarSujo(); } catch (err) { raiz.alert('JSON inválido em ' + campo + ': ' + err.message); e.target.value = v === undefined ? '' : JSON.stringify(v); } } });          // TASK-170
         if (tipo === 'number') return el('input', { type: 'number', min: '1', value: v == null ? '' : v, onchange: e => { r[campo] = e.target.value === '' ? undefined : parseInt(e.target.value, 10); marcarSujo(); } });
         if (tipo === 'ops') return el('input', { type: 'text', value: Array.isArray(v) ? v.join(', ') : '', placeholder: 'I, M', onchange: e => { const l = e.target.value.split(',').map(trim).filter(Boolean); if (l.length) r[campo] = l; else delete r[campo]; marcarSujo(); } });
         if (tipo === 'pontas') return el('div', { style: 'display:flex;gap:4px' }, ['I', 'M'].map(k => el('input', { type: 'number', min: '0', title: 'pontas do cabo ' + k, placeholder: k, value: r.pontas && r.pontas[k] != null ? r.pontas[k] : '', onchange: e => { r.pontas = r.pontas || {}; if (e.target.value === '') delete r.pontas[k]; else r.pontas[k] = parseInt(e.target.value, 10); marcarSujo(); } })));
@@ -427,9 +441,11 @@
         tabelaEditavel(corpo, st.cfg.estruturas, [
             { campo: 'padrao', rot: 'Padrão da estrutura', tipo: 'text', extra: '^N1$ ou N1, N2' }, { campo: 'ocupa', rot: 'Ocupa', tipo: 'bool', extra: true, w: '55px', dica: 'marcado (padrão) = consome pontas dos cabos. Desmarcado = EQUIPAMENTO (RL, CFU, para-raio…): não consome ponta, não conta capacidade e lê os cabos do poste (veja Herda).' }, { campo: 'herda', rot: 'Herda', tipo: 'select', extra: ['', 'POSTE'], w: '75px', dica: 'só com Ocupa desmarcado: POSTE = recebe os cabos que chegam no poste (desenho), os ligados às estruturas do poste e os fictícios' }, { campo: 'nivel', rot: 'Nível', tipo: 'select', extra: ['', 'MT', 'BT'], w: '60px', dica: 'filtra os cabos do poste pelo nível do cabo' }, { campo: 'ordem', rot: 'Ordem', tipo: 'select', extra: ['ORIGEM', 'MAIOR_PRIMEIRO'], w: '120px', dica: 'MAIOR_PRIMEIRO: ordena pela seção do cabo, o maior primeiro (tronco em cabo, ramal em cabo2)' }, { campo: 'distintos', rot: 'Distintos', tipo: 'bool', w: '65px', dica: 'junta os cabos de mesma descrição antes de distribuir nos parâmetros (vale também para estruturas que ocupam)' }, { campo: 'se_faltar', rot: 'Se faltar', tipo: 'select', extra: ['AVISAR', 'BLOQUEAR'], w: '90px', dica: 'poste sem cabo que sirva: AVISAR (parâmetro no padrão da base) ou BLOQUEAR (estado vermelho)' },
             { campo: 'qtd_cabos', rot: 'Cabos', tipo: 'number', w: '60px', dica: 'quantidade fixa (mín = máx)', cinza: r => r.ocupa === false }, { campo: 'qtd_min', rot: 'Mín', tipo: 'number', w: '50px', dica: 'faixa: mínimo para ficar completa', cinza: r => r.ocupa === false }, { campo: 'qtd_max', rot: 'Máx', tipo: 'number', w: '50px', dica: 'faixa: máximo aceito', cinza: r => r.ocupa === false }, { campo: 'max_reais', rot: 'Reais', tipo: 'number', w: '55px', cinza: r => r.ocupa === false, dica: 'quantos podem ser cabos REAIS; o excedente só entra como cabo fictício (ex.: SI3 = 1)' },
-            { campo: 'lados', rot: 'Os lados…', tipo: 'select', extra: ['LIVRE', 'IGUAIS'], w: '90px', cinza: r => r.ocupa === false }, { campo: 'amarracao', rot: 'Amarração', tipo: 'bool', w: '80px', dica: 'aceita cabo M', cinza: r => r.ocupa === false },
+            { campo: 'lados', rot: 'Os lados…', tipo: 'select', extra: ['LIVRE', 'IGUAIS', 'DERIVACAO'], w: '100px', cinza: r => r.ocupa === false, dica: 'LIVRE · IGUAIS (cabos iguais) · DERIVACAO (1 cabo de derivação obrigatório + até 2 do tronco, iguais entre si; o 1º parâmetro é sempre a derivação)' }, { campo: 'amarracao', rot: 'Amarração', tipo: 'bool', w: '80px', dica: 'aceita cabo M', cinza: r => r.ocupa === false },
             { campo: 'aceita_i', rot: 'Aceita I', tipo: 'bool', w: '70px', dica: 'desmarcado = só cabo M', cinza: r => r.ocupa === false }, { campo: 'cabos', rot: 'Cabos que aceita', tipo: 'text', extra: '(vazio = qualquer)' },
             { campo: 'parametro', rot: 'Parâmetro', tipo: 'text', w: '80px', dica: 'parâmetro ÚNICO que recebe o VALOR DE CABO da Tabela de Cabos (use tipocabo); vazio = nenhum. Para a descrição completa do cabo use a coluna Parâmetros (vários) com cabo.' }, { campo: 'parametros', rot: 'Parâmetros (vários)', tipo: 'text', w: '150px', extra: 'cabo, cabo, tipocabo, tipocabo', dica: 'um valor por cabo vinculado. cabo = descrição completa do cabo, sem o comprimento (3xS04-7,97kV → 3XS04-7.97KV); tipocabo = a coluna Valor de cabo da Tabela de Cabos; o mesmo nome pode se repetir (N4 com dois cabos). Se preenchido, substitui o Parâmetro único.' }, { campo: 'se_diferem', rot: 'Se diferem', tipo: 'select', extra: ['MAIOR', 'BLOQUEAR', 'AVISAR'], w: '95px' },
+            { campo: 'cabos_vaos', rot: 'Cabos por vão', tipo: 'json', extra: '["^PB\\\\d+$", "^C\\\\d+$"]', w: '170px', dica: 'lista de regex, uma por vão: cada uma precisa de um cabo DIFERENTE (IBIT: 1 multiplex + 1 BT nua). Com ela a estrutura aceita tantos cabos quantos vãos e os parâmetros seguem a ordem dos vãos. Vazio = vale a coluna Cabos que aceita.' },
+            { campo: 'define', rot: 'Parâmetros automáticos', tipo: 'json', extra: '[{"linha_tem":"RL","param":"tipo=RL"}]', w: '220px', dica: 'lista de {linha_tem?, cabo?, param:"nome=valor"}: linha_tem = outra estrutura da mesma linha do poste; cabo = regex do 1º cabo da estrutura. O 1º item que casa para cada nome vence; não sobrescreve o digitado nem o vínculo de cabo.' },
             { campo: 'ativa', rot: 'Ativa', tipo: 'bool', w: '50px' }, { campo: 'obs', rot: 'Observação', tipo: 'text' }],
             () => ({ padrao: '', qtd_cabos: 1, lados: 'LIVRE', amarracao: false, aceita_i: true, cabos: '', parametro: 'cabo', se_diferem: 'MAIOR', ativa: true, obs: '' }),
             txt => {

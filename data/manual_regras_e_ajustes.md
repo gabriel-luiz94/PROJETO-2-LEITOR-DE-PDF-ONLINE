@@ -464,6 +464,20 @@ Na **Tabela de Estruturas** (modal Vinculação), uma linha com **Ocupa desmarca
 - **Nível** (MT/BT) filtra os cabos; **Ordem = MAIOR_PRIMEIRO** põe o cabo de maior seção em `cabo` (tronco) e o menor em `cabo2` (ramal); **Distintos** junta cabos iguais (o mesmo cabo dos dois lados vira só `cabo`); **Se faltar** = AVISAR (parâmetro no padrão da base) ou BLOQUEAR (vermelho). *Distintos* e *Ordem* também valem para estruturas que ocupam (ex.: CE2.CE3 com tronco ×2 + ramal).
 - No modal, o equipamento aparece em **cinza tracejado** ("lê do poste 12600D: A185P, A35P") e não recebe cabo por clique. As regras prontas do 081 estão em `data/vinculacao_estruturas_081.json` (importar na tabela).
 
+### Estrutura fictícia do cabo: componentes avulsos (alças, conectores)
+
+Quando o cabo é ligado a uma **estrutura fictícia** (o cabo novo ancora numa N4 existente, que não está na obra), o modal **Vinculação** mostra, **abaixo do cabo**, o que essa estrutura usa para aquele cabo: `N4 (fictícia) → 3 × ALCA(cabo=3XA35P…)  [+ Outros]`. São os itens dos grupos da base que chamam ativos (`N4(cabo=%,cabo2=%):=3*ALCA(cabo) + 3*ALCA(cabo2)`), **só do lado do cabo novo** (a alça do cabo existente fica de fora). Itens que dependem do cabo existente também (ex.: `CON(cabo, cabo2)`) aparecem com `cabo2=?` e **"complete o cabo existente"** — não vão para Outros.
+- **+ Outros** cria uma linha em Outros por item (você pode editar ou apagar); o botão vira **adicionado ✓**. A quantidade vai no texto (`3-ALCA(cabo=…)`) para o cálculo contá-la. Nada entra no cálculo sem o clique.
+- Mudou o cabo ou a estrutura fictícia? A sugestão volta e as linhas antigas ficam em laranja ("avulso desatualizado"). Estrutura sem linhas de chamada na base (ex.: N1): sem sugestão. A marca fica no `.obra`: reabrir mantém o "adicionado".
+
+### Regras novas da Tabela de Estruturas (derivação, cabos por vão e parâmetros automáticos)
+
+- **Cabo fictício e nível:** o cabo fictício de uma estrutura é MT ou BT conforme a primeira regra da **Tabela de Cabos** que casa com o código **e aceita aquela estrutura** (S04 numa LN3 = BT nua; numa N3 = CAA MT). Por isso o RL/para-raio (só MT) não leem um fictício BT.
+- **Os lados = DERIVACAO** (SDBIT, SDBIM): 1 cabo de **derivação** (obrigatório) + até 2 do **tronco**, **iguais entre si**. O 1º parâmetro (`cabobt`) é sempre a derivação, em qualquer ordem de ligação. Só tronco = "falta o cabo da derivação"; tronco diferente = vermelho; 2 cabos diferentes = o 1º ligado vira a derivação e avisa.
+- **Cabos por vão** (IBIT, IBIM): uma regex por vão (`["^PB\\d+$", "^C\\d+$"]`); cada vão precisa de **um cabo diferente** (um multiplex e uma BT nua; um 2º multiplex é recusado). Os parâmetros seguem a ordem dos vãos.
+- **Parâmetros automáticos** (`define`): `{"linha_tem": "RL, RL_MT", "cabo": "^C120$", "param": "tipo=RL_CU120"}` — preenche `tipo` quando a linha do poste tem um RL e/ou o 1º cabo casa (o 1º item que casa vence; os mais específicos vêm antes). Não sobrescreve o que você digitou nem o que veio do vínculo do cabo. No balão do ativo aparece como **automático ‹linha: RL›** ou **‹cabo C35›**; sem RL na linha, o parâmetro fica no padrão da base (ou "não definido (a linha não tem RL)").
+- Regras prontas do 081: `data/vinculacao_estruturas_081.json` (importar na Tabela de Estruturas). **RL_CAA40 = cabo S4/0**: confirmar com a planilha modular do religador.
+
 ### Ao abrir o programa
 
 O programa **sempre abre no projeto default**: o projeto que estava aberto da última vez não volta sozinho. Abra o projeto em **Projeto → Abrir** (ou pelo plugin do nanoCAD). Enquanto o programa está aberto, recarregar ou trocar de tela mantém o projeto aberto.

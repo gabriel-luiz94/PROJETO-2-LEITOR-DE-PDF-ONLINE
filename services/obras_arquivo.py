@@ -54,6 +54,7 @@ CAMPOS_VINCULO = {
     "entidadeManual": lambda v: isinstance(v, bool), "_x": _num, "_y": _num, "_geoTipo": _texto, "_geo": lambda v: _lista_de(v, _ponto),
     "_poste": _ponto, "vinculoEstruturas": lambda v: _lista_de(v, _num), "vinculoOrigem": _texto,
     "estruturasFicticias": lambda v: _lista_de(v, _texto), "cabosFicticios": lambda v: _lista_de(v, _texto), "cabosFicticiosSlots": _slots,
+    "origemAvulso": _texto,                    # TASK-171: "<índice do cabo>:<estrutura fictícia>" nas linhas de Outros adicionadas pela sugestão de avulsos
 }
 CAMPOS_TOTALIZADORA = {"id": str, "baseId": str, "obs": str, "operacao": str, "ativo": str, "qtd": (int, float, str, type(None)), "desc": str,
                        "naoEncontrado": bool, "origem": str}

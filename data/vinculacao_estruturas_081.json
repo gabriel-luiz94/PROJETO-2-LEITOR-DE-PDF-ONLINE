@@ -313,14 +313,14 @@
       "padrao": "SDBIT",
       "qtd_min": 1,
       "qtd_max": 3,
-      "lados": "LIVRE",
+      "lados": "DERIVACAO",
       "amarracao": true,
       "aceita_i": true,
       "cabos": "",
       "parametro": "",
       "parametros": "cabobt",
       "se_diferem": "MAIOR",
-      "obs": "derivação tri: 1º = derivação (obrigatório) + 2 do tronco iguais (opcionais). PROGRAMA AINDA NÃO GARANTE a ordem nem os 2 iguais (TASK-170)",
+      "obs": "derivação tri: 1º parâmetro = derivação (obrigatória) + até 2 cabos do tronco, iguais entre si (TASK-170)",
       "ativa": true
     },
     {
@@ -367,6 +367,18 @@
       "padrao": "SDBIM",
       "qtd_min": 1,
       "qtd_max": 3,
+      "lados": "DERIVACAO",
+      "amarracao": true,
+      "aceita_i": true,
+      "cabos": "",
+      "parametro": "",
+      "parametros": "",
+      "se_diferem": "MAIOR",
+      "obs": "derivação mono: derivação (obrigatória) + até 2 cabos do tronco, iguais entre si (TASK-170)",
+      "ativa": true
+    },
+    {
+      "padrao": "IBIT",
       "lados": "LIVRE",
       "amarracao": true,
       "aceita_i": true,
@@ -374,34 +386,28 @@
       "parametro": "",
       "parametros": "",
       "se_diferem": "MAIOR",
-      "obs": "derivação mono: 1º = derivação + 2 do tronco iguais (opcionais). PROGRAMA AINDA NÃO GARANTE (TASK-170)",
-      "ativa": true
-    },
-    {
-      "padrao": "IBIT",
-      "qtd_cabos": 2,
-      "lados": "LIVRE",
-      "amarracao": true,
-      "aceita_i": true,
-      "cabos": "^(PB\\d+|(C\\d+|(S|W)\\d+(/\\d+)?))$",
-      "parametro": "",
-      "parametros": "",
-      "se_diferem": "MAIOR",
-      "obs": "transição multiplex tri x BT nua tri: 1 vão de cada. PROGRAMA AINDA NÃO GARANTE 1 de cada (TASK-170). Não existe na base",
-      "ativa": true
+      "obs": "transição multiplex tri x BT nua tri: exatamente 1 cabo de cada vão (TASK-170)",
+      "ativa": true,
+      "cabos_vaos": [
+        "^PB\\d+$",
+        "^(C\\d+|(S|W)\\d+(/\\d+)?)$"
+      ]
     },
     {
       "padrao": "IBIM",
-      "qtd_cabos": 2,
       "lados": "LIVRE",
       "amarracao": true,
       "aceita_i": true,
-      "cabos": "^(RAMA\\d+|(C\\d+|(S|W)\\d+(/\\d+)?))$",
+      "cabos": "",
       "parametro": "",
       "parametros": "",
       "se_diferem": "MAIOR",
-      "obs": "transição multiplex mono x BT nua mono: 1 vão de cada. PROGRAMA AINDA NÃO GARANTE 1 de cada (TASK-170). Não existe na base",
-      "ativa": true
+      "obs": "transição multiplex mono x BT nua mono: exatamente 1 cabo de cada vão (TASK-170)",
+      "ativa": true,
+      "cabos_vaos": [
+        "^RAMA\\d+$",
+        "^(C\\d+|(S|W)\\d+(/\\d+)?)$"
+      ]
     },
     {
       "padrao": "B1BT, B2BT, B3BT, B4BT",
@@ -492,7 +498,13 @@
       "ordem": "MAIOR_PRIMEIRO",
       "distintos": true,
       "nivel": "MT",
-      "se_faltar": "AVISAR"
+      "se_faltar": "AVISAR",
+      "define": [
+        {
+          "linha_tem": "RL, RL_MT, RL_REAP",
+          "param": "tipo=RL"
+        }
+      ]
     },
     {
       "padrao": "LACO_BT",
@@ -512,6 +524,51 @@
       "distintos": true,
       "nivel": "BT",
       "se_faltar": "AVISAR"
+    },
+    {
+      "padrao": "ATRINT_EQ, ATRINT-EQ",
+      "qtd_cabos": 2,
+      "lados": "LIVRE",
+      "amarracao": true,
+      "aceita_i": true,
+      "cabos": "^(C\\d+|A\\d+P|(S|W)\\d+(/\\d+)?)$",
+      "parametro": "",
+      "parametros": "",
+      "se_diferem": "MAIOR",
+      "obs": "TASK-170: variante do RL pelo cabo MT do poste (RL, RL_CU, RL_CU120, RL_CAA, RL_CAA40); RL_CAA40 = S4/0 (confirmar com a planilha modular do religador)",
+      "ativa": true,
+      "ocupa": false,
+      "herda": "POSTE",
+      "ordem": "MAIOR_PRIMEIRO",
+      "distintos": true,
+      "nivel": "MT",
+      "se_faltar": "AVISAR",
+      "define": [
+        {
+          "linha_tem": "RL, RL_MT, RL_REAP",
+          "cabo": "^C120$",
+          "param": "tipo=RL_CU120"
+        },
+        {
+          "linha_tem": "RL, RL_MT, RL_REAP",
+          "cabo": "^C\\d+$",
+          "param": "tipo=RL_CU"
+        },
+        {
+          "linha_tem": "RL, RL_MT, RL_REAP",
+          "cabo": "^S4/0$",
+          "param": "tipo=RL_CAA40"
+        },
+        {
+          "linha_tem": "RL, RL_MT, RL_REAP",
+          "cabo": "^(S|W)\\d+(/\\d+)?$",
+          "param": "tipo=RL_CAA"
+        },
+        {
+          "linha_tem": "RL, RL_MT, RL_REAP",
+          "param": "tipo=RL"
+        }
+      ]
     }
   ]
 }
