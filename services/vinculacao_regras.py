@@ -132,8 +132,39 @@ def validar_config(cfg) -> list:
                     brutos = len(pr) if isinstance(pr, list) else len(str(pr).split(","))
                     if not np_ or len(np_) != brutos or any(not re.fullmatch(r"[A-Z0-9_.]+", x["nome"]) or x["fonte"] not in FONTES_PARAMETRO for x in np_):
                         erros.append(f"{p}: 'parametros' precisa ser uma lista como \"cabo=ativo, cabo=ativo, tipocabo=valor_cabo\" (fonte: descricao, valor_cabo ou ativo).")
-                if r.get("lados") not in (None, "IGUAIS", "LIVRE"):
-                    erros.append(f"{p}: 'lados' precisa ser IGUAIS ou LIVRE.")
+                if r.get("lados") not in (None, "IGUAIS", "LIVRE", "DERIVACAO"):
+                    erros.append(f"{p}: 'lados' precisa ser IGUAIS, LIVRE ou DERIVACAO.")
+                cv = r.get("cabos_vaos")                                                                  # TASK-170
+                if cv is not None and cv != "":
+                    if not isinstance(cv, list):
+                        erros.append(f"{p}: 'cabos_vaos' precisa ser uma lista de regex (uma por vão).")
+                    else:
+                        for x in cv:
+                            try:
+                                re.compile(str(x))
+                            except re.error as e:
+                                erros.append(f"{p}: 'cabos_vaos' tem regex inválida ({e}).")
+                df = r.get("define")
+                if df is not None and df != "":
+                    if not isinstance(df, list):
+                        erros.append(f"{p}: 'define' precisa ser uma lista de {{linha_tem?, cabo?, param}}.")
+                    else:
+                        for k, it in enumerate(df):
+                            q = f"{p}: define #{k + 1}"
+                            if not isinstance(it, dict):
+                                erros.append(f"{q}: precisa ser um objeto.")
+                                continue
+                            if it.get("linha_tem") in (None, "", []) and not _trim(it.get("cabo")):
+                                erros.append(f"{q}: precisa de pelo menos uma condição (linha_tem ou cabo).")
+                            if not isinstance(it.get("param"), str) or not re.fullmatch(r"\s*[A-Za-z0-9_.]+\s*=\s*[A-Za-z0-9_./-]+\s*", it.get("param") or ""):
+                                erros.append(f"{q}: 'param' precisa ser nome=valor (ex.: tipo=RL).")
+                            for campo in ("linha_tem", "cabo"):
+                                v = it.get(campo)
+                                if isinstance(v, str) and _RE_REGEX.search(v):
+                                    try:
+                                        re.compile(v)
+                                    except re.error as e:
+                                        erros.append(f"{q}: '{campo}' regex inválida ({e}).")
                 if r.get("se_diferem") not in (None,) + SE_DIFEREM:
                     erros.append(f"{p}: 'se_diferem' precisa ser um de {list(SE_DIFEREM)}.")
                 for k in ("ocupa", "distintos"):                                                          # TASK-169
@@ -244,6 +275,20 @@ def info_cabo(codigo, operacao, cfg, extra=None) -> dict:
             "descricao": extra["descricao"] if extra and extra.get("descricao") else cod}
 
 
+def info_cabo_ficticio(codigo, estrutura, operacao, cfg) -> dict:
+    """TASK-170: o cabo fictício de uma estrutura recebe o NÍVEL da primeira regra de cabo que casa com o código E aceita a estrutura (S04 numa LN3 = BT; numa N3 = MT);
+    se essa regra não tem `nivel`, fica sem nível (como antes)."""
+    cod = _trim(codigo).upper()
+    info = info_cabo(cod, operacao, cfg)
+    for r in cfg["cabos"]:
+        if r.get("ativa") is False or not casa(r.get("padrao"), cod) or not casa(r.get("estruturas"), estrutura):
+            continue
+        n = _trim(r.get("nivel")).upper()
+        info["nivel"] = n if n in ("MT", "BT") else None
+        break
+    return info
+
+
 # TASK-096: parâmetros da estrutura com FONTE por cabo vinculado: "cabo=ativo, cabo=ativo, tipocabo=valor_cabo" (ativo = código do cabo sem 3x/tensão; valor_cabo = tipo da regra do cabo).
 # O mesmo nome pode se repetir: a n-ésima ocorrência de um nome recebe o n-ésimo cabo (a ordem dos cabos não importa para o orçamento).
 # TASK-100: o NOME do parâmetro define o que ele recebe — `cabo` = a DESCRIÇÃO COMPLETA do cabo (sem o comprimento, ex.: 3xS04-7,97kV → 3XS04-7.97KV);
@@ -281,17 +326,36 @@ def normalizar_parametros(v):
     return lista or None
 
 
+def _normalizar_define(v) -> list:
+    """TASK-170: [{"linha_tem", "cabo", "param": "nome=valor"}] → [{"linha_tem", "cabo", "param": (NOME, VALOR)}] (item sem condição ou sem param válido é ignorado)."""
+    saida = []
+    if not isinstance(v, list):
+        return saida
+    for it in v:
+        if not isinstance(it, dict) or not isinstance(it.get("param"), str) or "=" not in it["param"]:
+            continue
+        nome, _, valor = it["param"].partition("=")
+        nome, valor = _trim(nome).upper(), _trim(valor).upper()
+        lt, cb = it.get("linha_tem"), it.get("cabo")
+        lt = lt if (isinstance(lt, (str, list)) and lt != "" and lt != []) else None
+        cb = cb if (isinstance(cb, str) and _trim(cb)) else None
+        if not nome or not valor or (lt is None and cb is None):
+            continue
+        saida.append({"linha_tem": lt, "cabo": cb, "param": (nome, valor)})
+    return saida
+
+
 def info_estrutura(codigo, cfg) -> dict:
     cod = _trim(codigo).upper()
     i, r = _primeira(cfg["estruturas"], "padrao", cod) if cod else (None, None)
     d = {"codigo": cod, "regra": i, "qtd": None, "qtd_min": None, "max_reais": None, "parametros": None, "lados": "LIVRE", "amarracao": False, "aceita_i": True, "cabos": None, "parametro": "CABO", "se_diferem": "MAIOR",
-         "ocupa": True, "herda": None, "nivel": None, "ordem": "ORIGEM", "distintos": False, "se_faltar": "AVISAR"}
+         "ocupa": True, "herda": None, "nivel": None, "ordem": "ORIGEM", "distintos": False, "se_faltar": "AVISAR", "cabos_vaos": [], "define": []}
     if r is not None:
         # TASK-093: qtd_cabos fixo (min = max) OU faixa qtd_min..qtd_max; max_reais = quantos podem ser cabos REAIS (o excedente só entra como fictício)
         d["qtd"] = r["qtd_max"] if isinstance(r.get("qtd_max"), int) else (r.get("qtd_cabos") if isinstance(r.get("qtd_cabos"), int) else None)
         d["qtd_min"] = r["qtd_min"] if isinstance(r.get("qtd_min"), int) else d["qtd"]
         d["max_reais"] = r["max_reais"] if isinstance(r.get("max_reais"), int) else None
-        d["lados"] = "IGUAIS" if r.get("lados") == "IGUAIS" else "LIVRE"
+        d["lados"] = r["lados"] if r.get("lados") in ("IGUAIS", "DERIVACAO") else "LIVRE"          # TASK-170: DERIVACAO = 1 derivação + até 2 do tronco (iguais)
         d["amarracao"] = bool(r.get("amarracao", False))
         d["aceita_i"] = r.get("aceita_i") is not False
         d["cabos"] = r.get("cabos")
@@ -307,6 +371,12 @@ def info_estrutura(codigo, cfg) -> dict:
         d["ordem"] = "MAIOR_PRIMEIRO" if _trim(r.get("ordem")).upper() == "MAIOR_PRIMEIRO" else "ORIGEM"
         d["distintos"] = r.get("distintos") is True
         d["se_faltar"] = "BLOQUEAR" if _trim(r.get("se_faltar")).upper() == "BLOQUEAR" else "AVISAR"
+        # TASK-170: um cabo por vão (cada regex precisa de um cabo DIFERENTE) e parâmetros automáticos pela linha do poste / pelo 1º cabo
+        vaos = r.get("cabos_vaos")
+        if isinstance(vaos, list) and any(_trim(x) for x in vaos):
+            d["cabos_vaos"] = [_trim(x) for x in vaos if _trim(x)]
+            d["qtd"] = d["qtd_min"] = len(d["cabos_vaos"])
+        d["define"] = _normalizar_define(r.get("define"))
     return d
 
 
@@ -326,13 +396,102 @@ def pode_vincular(c, e):
             return False, f"a regra do cabo {c['codigo']} não aceita a operação {c['op']}"
     if not casa(c["estruturas"], e["codigo"]):
         return False, f"o cabo {c['codigo']} não aceita a estrutura {e['codigo']}"
-    if not casa(e["cabos"], c["codigo"]):
+    if not (any(casa(v, c["codigo"]) for v in e["cabos_vaos"]) if e["cabos_vaos"] else casa(e["cabos"], c["codigo"])):
         return False, f"a estrutura {e['codigo']} não aceita o cabo {c['codigo']}"
     if c["base"] == "M" and e["regra"] is not None and not e["amarracao"]:
         return False, f"cabo M só se liga a estrutura de amarração ({e['codigo']} não é)"
     if c["base"] == "I" and e["regra"] is not None and not e["aceita_i"]:
         return False, f"a estrutura {e['codigo']} só aceita cabo M"
     return True, None
+
+
+def _atribuicao_vaos(vaos, codigos):
+    """TASK-170: casamento um a um — cada cabo num vão DIFERENTE cuja regex ele satisfaz. → [índice do vão de cada cabo] ou None."""
+    n = len(codigos)
+
+    def tenta(i, usados):
+        if i == n:
+            return []
+        for j, v in enumerate(vaos):
+            if j in usados or not casa(v, codigos[i]):
+                continue
+            resto = tenta(i + 1, usados | {j})
+            if resto is not None:
+                return [j] + resto
+        return None
+    return tenta(0, frozenset())
+
+
+def _par_do_tronco(codigos):
+    """TASK-170: índices (i, j) do primeiro par de cabos iguais (o tronco da derivação) ou None."""
+    for i in range(len(codigos)):
+        for j in range(i + 1, len(codigos)):
+            if codigos[i] == codigos[j]:
+                return (i, j)
+    return None
+
+
+def _lista_derivacao(e, ocupantes):
+    """TASK-170 (`lados: DERIVACAO`): → (ocupantes na ordem derivação, tronco…, avisos, incompleta). Tronco = o par de iguais (no máximo 2); derivação = o que sobra e é OBRIGATÓRIA.
+    2 cabos iguais = só tronco (falta a derivação); 2 diferentes = ambíguo: o 1º ligado vira derivação e avisa."""
+    cods = [o["info"]["codigo"] for o in ocupantes]
+    if len(ocupantes) == 0:
+        return [], [], False
+    if len(ocupantes) == 1:
+        return list(ocupantes), [], False
+    if len(ocupantes) == 2:
+        if cods[0] == cods[1]:
+            return [], [f"{e['codigo']}: falta o cabo da derivação"], True
+        return [ocupantes[0], ocupantes[1]], [f"{e['codigo']}: 2 cabos diferentes sem par ({cods[0]}, {cods[1]}); usado o 1º ligado como derivação"], False
+    par = _par_do_tronco(cods)
+    if par is None:
+        return [], [], False                                          # tronco diferente: já é erro de vínculo (vermelho)
+    resto = [i for i in range(len(ocupantes)) if i not in par]
+    return [ocupantes[resto[0]]] + [ocupantes[i] for i in par], [], False
+
+
+def _lista_vaos(e, ocupantes):
+    """TASK-170 (`cabos_vaos`): os cabos na ORDEM DOS VÃOS (1º nome do parâmetro = 1º vão); vão sem cabo fica None."""
+    atrib = _atribuicao_vaos(e["cabos_vaos"], [o["info"]["codigo"] for o in ocupantes])
+    if atrib is None:
+        return list(ocupantes)
+    lista = [None] * len(e["cabos_vaos"])
+    for o, j in zip(ocupantes, atrib):
+        lista[j] = o
+    while lista and lista[-1] is None:
+        lista.pop()
+    return lista
+
+
+def _aplicar_define(e, ie, outros, ests, info_e, lista):
+    """TASK-170 (`define`): parâmetros automáticos pela linha do poste (`linha_tem`) e/ou pelo 1º cabo (`cabo`). Os itens valem em ordem; o 1º que casa para cada nome vence.
+    → ({NOME: VALOR}, {NOME: origem}, [{"param", "motivo"}] dos nomes que nenhum item definiu)."""
+    saida, origem, faltou = {}, {}, []
+    if not e["define"]:
+        return saida, origem, faltou
+    linha = outros[ie].get("_linha")
+    outras = [info_e[j]["codigo"] for j in ests if j != ie and outros[j].get("_linha") == linha]
+    primeiro = next((o["info"]["codigo"] for o in lista if o), None)
+    for item in e["define"]:
+        nome, valor = item["param"]
+        if nome in saida:
+            continue
+        achou = None
+        if item["linha_tem"] is not None:
+            achou = next((c for c in outras if casa(item["linha_tem"], c)), None)
+            if achou is None:
+                continue
+        if item["cabo"] is not None and (primeiro is None or not casa(item["cabo"], primeiro)):
+            continue
+        saida[nome] = valor
+        origem[nome] = f"cabo {primeiro}" if item["cabo"] is not None else f"linha: {achou}"
+    for item in e["define"]:
+        nome = item["param"][0]
+        if nome not in saida and nome not in [f["param"] for f in faltou]:
+            lt = item["linha_tem"]
+            quem = (lt if isinstance(lt, str) else ", ".join(lt)).split(",")[0].strip() if lt is not None else ""
+            faltou.append({"param": nome, "motivo": f"a linha não tem {quem}" if quem else "nenhuma condição do define casou"})
+    return saida, origem, faltou
 
 
 def _chave_lado(info_c, ficticio=False):
@@ -353,6 +512,11 @@ def pode_com_ocupantes(c, e, ocupantes, ficticio=False):
         mesmo = ref["info"]["codigo"] == c["codigo"] and (ref.get("ficticio") or ref["info"]["op"] == c["op"])
         if not mesmo:
             return False, f"{e['codigo']} exige cabos iguais: {ref['info']['codigo']} × {c['codigo']}"
+    codigos = [o["info"]["codigo"] for o in ocupantes] + [c["codigo"]]
+    if e["cabos_vaos"] and _atribuicao_vaos(e["cabos_vaos"], codigos) is None:                       # TASK-170: um cabo por vão
+        return False, f"{e['codigo']}: já tem o cabo do vão em que o {c['codigo']} caberia (cada vão aceita um cabo)"
+    if e["lados"] == "DERIVACAO" and len(codigos) >= 3 and _par_do_tronco(codigos) is None:        # TASK-170: com 3 cabos, 2 formam o tronco e precisam ser iguais
+        return False, f"{e['codigo']}: os dois cabos do tronco precisam ser iguais ({', '.join(codigos)})"
     return True, None
 
 
@@ -519,7 +683,8 @@ def _valor_e_parametros(e, cfg, ocupantes):
     """Valor consolidado do cabo (parâmetro único) e os parâmetros por nome da estrutura, a partir dos ocupantes (já ordenados/juntados). → (valor, avisos, parametros)."""
     avisos = []
     valores = []
-    for oc in ocupantes:
+    reais = [oc for oc in ocupantes if oc]                       # TASK-170: vão sem cabo = None (a posição do parâmetro é mantida)
+    for oc in reais:
         v = oc["info"]["valor_cabo"]
         if v is not None:
             valores.append(v)
@@ -548,12 +713,34 @@ def _valor_e_parametros(e, cfg, ocupantes):
             o = ocupantes[k] if 0 <= k < len(ocupantes) else None
             # `tipocabo` escrito UMA vez numa estrutura com 2 cabos = o tipo consolidado (se_diferem: MAIOR C>P>A…), como no parâmetro único
             v = (o["info"]["valor_cabo"] if p["fonte"] == "valor_cabo" else (o["info"]["descricao"] if p["fonte"] == "descricao" else o["info"]["codigo"])) if o else None
-            if p["fonte"] == "valor_cabo" and vezes[p["nome"]] == 1 and len(ocupantes) > 1:
+            if p["fonte"] == "valor_cabo" and vezes[p["nome"]] == 1 and len(reais) > 1:
                 v = valor
             if v:
                 parametros = parametros or {}
                 parametros.setdefault(p["nome"], []).append(v)
     return valor, avisos, parametros
+
+
+def _lista_de_parametros(e, ocupantes):
+    """A ordem em que os cabos vão para os parâmetros: derivação+tronco (`DERIVACAO`), um por vão (`cabos_vaos`) ou ordem/distintos. → (lista, avisos_vinculo, incompleta)."""
+    if e["lados"] == "DERIVACAO":
+        return _lista_derivacao(e, ocupantes)
+    if e["cabos_vaos"]:
+        return _lista_vaos(e, ocupantes), [], False
+    return _ordenar_e_juntar(e, ocupantes), [], False
+
+
+def _mesclar_define(e, parametros, valor, saida):
+    """TASK-170: junta os parâmetros do `define` aos do vínculo SEM sobrescrever o que o vínculo já deu (nem o digitado: `_com_param` não duplica)."""
+    if not saida:
+        return parametros
+    novo = dict(parametros or {})
+    if parametros is None and valor and e["parametro"]:
+        novo[e["parametro"]] = valor                              # o parâmetro único (valor do cabo) continua valendo ao lado do define
+    for nome, v in saida.items():
+        if nome not in novo:
+            novo[nome] = [v]
+    return novo
 
 
 def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
@@ -588,22 +775,26 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
                 bad_links.add((ic, ie))
                 erros.append(motivo)
         for cod in fict:
-            ic_f = info_cabo(cod, op_ficticio(e), cfg)
+            ic_f = info_cabo_ficticio(cod, e["codigo"], op_ficticio(e), cfg)
             ok, motivo = pode_com_ocupantes(ic_f, e, ocupantes, True)
             ocupantes.append({"info": ic_f, "ficticio": True})
             if not ok:
                 erros.append(motivo)
-        valor, avisos, parametros = _valor_e_parametros(e, cfg, _ordenar_e_juntar(e, ocupantes))
+        lista, avisos_vinculo, incompleta = _lista_de_parametros(e, ocupantes)
+        valor, avisos, parametros = _valor_e_parametros(e, cfg, lista)
+        d_saida, d_origem, d_faltou = _aplicar_define(e, ie, outros, ests, info_e, lista)
+        parametros = _mesclar_define(e, parametros, valor, d_saida)
         if erros:
             estado = "rd"
         elif tem == 0:
             estado = "k"
-        elif e["qtd_min"] is not None and tem < e["qtd_min"]:
+        elif (e["qtd_min"] is not None and tem < e["qtd_min"]) or incompleta:
             estado = "pu"
         else:
             estado = "gr"
         res_e[ie] = {"estado": estado, "tem": tem, "precisa": e["qtd_min"], "maximo": e["qtd"], "valor_cabo": valor, "erros": erros, "avisos": avisos, "codigo": e["codigo"],
-                     "regra": e["regra"], "ficticios": len(fict), "parametro": e["parametro"], "parametros": parametros, "ocupa": True}
+                     "regra": e["regra"], "ficticios": len(fict), "parametro": e["parametro"], "parametros": parametros, "ocupa": True,
+                     "avisos_vinculo": avisos_vinculo, "define": {n: {"valor": v, "origem": d_origem[n]} for n, v in d_saida.items()}, "define_faltou": d_faltou}
     # TASK-169 — 2ª passada: equipamento (RL, CFU, para-raio…) lê os cabos do POSTE, sem ocupar pontas
     postes = _mapa_postes(outros, ests)
     for ie in ests:
@@ -629,7 +820,7 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
         for j in unidades:
             for x in (outros[j].get("cabosFicticios") or []):
                 if _trim(x):
-                    candidatos.append({"info": info_cabo(_trim(x).upper(), op_ficticio(info_e[j]), cfg), "ficticio": True})
+                    candidatos.append({"info": info_cabo_ficticio(_trim(x).upper(), info_e[j]["codigo"], op_ficticio(info_e[j]), cfg), "ficticio": True})
         lista = []
         for o in candidatos:
             c = o["info"]
@@ -638,21 +829,24 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
             if e["nivel"] and c["nivel"] is not None and c["nivel"] != e["nivel"]:
                 continue
             lista.append(o)
-        lista = _ordenar_e_juntar(e, lista)
+        lista, avisos_vinculo, incompleta = _lista_de_parametros(e, lista)
         erros, avisos_f, valor, parametros = [], [], None, None
         if e["herda"] == "POSTE":
             valor, avisos, parametros = _valor_e_parametros(e, cfg, lista)
             avisos_f += avisos
+        d_saida, d_origem, d_faltou = _aplicar_define(e, ie, outros, ests, info_e, lista)
+        parametros = _mesclar_define(e, parametros, valor, d_saida)
         if e["herda"] == "POSTE" and not lista:
             msg = f"{e['codigo']}: o poste {_nome_poste(outros[ie])} não tem cabo{' ' + e['nivel'] if e['nivel'] else ''} ligado"
             if e["se_faltar"] == "BLOQUEAR":
                 erros.append(msg)
             else:
                 avisos_f.append(msg)
-        estado = "rd" if erros else ("gr" if (lista or e["herda"] != "POSTE") else "k")
-        res_e[ie] = {"estado": estado, "tem": len(lista), "precisa": None, "maximo": None, "valor_cabo": valor, "erros": erros, "avisos": avisos_f, "codigo": e["codigo"],
+        estado = "rd" if erros else ("gr" if (lista or e["herda"] != "POSTE") else "k")          # nunca "pu" (TASK-169)
+        res_e[ie] = {"estado": estado, "tem": len([o for o in lista if o]), "precisa": None, "maximo": None, "valor_cabo": valor, "erros": erros, "avisos": avisos_f, "codigo": e["codigo"],
                      "regra": e["regra"], "ficticios": 0, "parametro": e["parametro"], "parametros": parametros, "ocupa": False,
-                     "le_do_poste": {"poste": _nome_poste(outros[ie]), "cabos": [o["info"]["codigo"] for o in lista]}}
+                     "le_do_poste": {"poste": _nome_poste(outros[ie]), "cabos": [o["info"]["codigo"] for o in lista if o]},
+                     "avisos_vinculo": avisos_vinculo, "define": {n: {"valor": v, "origem": d_origem[n]} for n, v in d_saida.items()}, "define_faltou": d_faltou}
     res_c = {}
     for ic, c in info_c.items():
         mine = [ie for ie in (cabos[ic].get("vinculoEstruturas") or []) if ie in ocup]
@@ -735,6 +929,8 @@ def achados(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> list:
             add(ie, f"Estrutura \"{nome}\" com {r['tem']} cabo(s) vinculado(s), esperado {faixa}.", f"{r['codigo']} exige {'exatamente ' if faixa == str(r['precisa']) else ''}{faixa} cabo(s) vinculado(s).")
         for msg in r["avisos"]:
             add(ie, f"Estrutura \"{nome}\": {msg}.", "Os cabos vinculados têm valores diferentes para o parâmetro da estrutura.")
+        for msg in r.get("avisos_vinculo", []):                                  # TASK-170: derivação incompleta / ambígua
+            add(ie, f"Estrutura \"{nome}\": {msg}.", "A regra da estrutura (lados DERIVACAO) pede 1 cabo de derivação e até 2 do tronco, iguais entre si.")
     return saida
 
 
@@ -841,7 +1037,7 @@ def _vincular_por_poste_base(cabos, outros, cfg, prefixo_fn, codigo_fn, raio) ->
             e = info_e[ie]
             if e["regra"] is None or e["qtd"] is None or not e["ocupa"]:
                 continue                                          # sem regra/quantidade na Tabela de Estruturas (ou equipamento que não ocupa — TASK-169): não exige cabo
-            ocupantes = [{"info": info_c[x], "ficticio": False} for x in ocup[ie]] + [{"info": info_cabo(cod, op_ficticio(e), cfg), "ficticio": True} for cod in fict[ie]]
+            ocupantes = [{"info": info_c[x], "ficticio": False} for x in ocup[ie]] + [{"info": info_cabo_ficticio(cod, e["codigo"], op_ficticio(e), cfg), "ficticio": True} for cod in fict[ie]]
             falta = e["qtd"] - len(ocupantes)
             if falta > 0:
                 cands = []
@@ -1002,7 +1198,7 @@ def _executar_script_base(script, cabos, outros, cfg, prefixo_fn, codigo_fn) -> 
 
     def ocupantes_de(ie, ignorando=None):
         lista = [{"info": info_c[ic], "ficticio": False} for ic in sorted(info_c) if ic != ignorando and ie in ligados[ic]]
-        lista += [{"info": info_cabo(cod, op_ficticio(info_e[ie]), cfg), "ficticio": True} for cod in fict[ie]]
+        lista += [{"info": info_cabo_ficticio(cod, info_e[ie]["codigo"], op_ficticio(info_e[ie]), cfg), "ficticio": True} for cod in fict[ie]]
         return lista
 
     def pode(ic, ie):

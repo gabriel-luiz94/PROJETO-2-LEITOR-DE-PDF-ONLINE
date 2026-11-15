@@ -92,6 +92,18 @@
     const fonteDoNome = nome => (/^CABO\d*$/.test(nome) ? 'descricao' : (/^TIPOCABO\d*$/.test(nome) ? 'valor_cabo' : 'ativo'));      // cabo, cabo2, cabo3… / tipocabo, tipocabo2…
     const RE_COMPRIMENTO = /\s+\d+(?:[.,]\d+)?\s*m?\s*$/i;      // o 'm' é opcional (RAMA25 12)
     /** Descrição completa do cabo, sem o comprimento, no formato aceito num parâmetro: maiúsculas, sem espaços, vírgula decimal → ponto, parênteses → "_". */
+    /** TASK-170: o cabo fictício de uma estrutura recebe o NÍVEL da primeira regra de cabo que casa com o código E aceita a estrutura (S04 numa LN3 = BT; numa N3 = MT). */
+    function infoCaboFicticio(codigo, estrutura, operacao, cfg) {
+        const cod = trim(codigo).toUpperCase(), info = infoCabo(cod, operacao, cfg);
+        for (const r of cfg.cabos) {
+            if (r.ativa === false || !casa(r.padrao, cod) || !casa(r.estruturas, estrutura)) continue;
+            const n = trim(r.nivel).toUpperCase();
+            info.nivel = (n === 'MT' || n === 'BT') ? n : null;
+            break;
+        }
+        return info;
+    }
+
     function descricaoCabo(texto, codigo) {
         const d = trim(texto).replace(RE_COMPRIMENTO, '').replace(/\s+/g, '').toUpperCase().replace(/,/g, '.').replace(/[()[\]]/g, '_');
         return d || trim(codigo).toUpperCase();
@@ -108,17 +120,32 @@
         return lista.length ? lista : null;
     }
 
+    /** TASK-170: [{linha_tem, cabo, param: "nome=valor"}] → [{linha_tem, cabo, param: [NOME, VALOR]}] (item sem condição ou sem param válido é ignorado). */
+    function normalizarDefine(v) {
+        const saida = [];
+        if (!Array.isArray(v)) return saida;
+        v.forEach(it => {
+            if (!it || typeof it !== 'object' || typeof it.param !== 'string' || !it.param.includes('=')) return;
+            const i = it.param.indexOf('='), nome = trim(it.param.slice(0, i)).toUpperCase(), valor = trim(it.param.slice(i + 1)).toUpperCase();
+            const lt = (typeof it.linha_tem === 'string' || Array.isArray(it.linha_tem)) && it.linha_tem.length ? it.linha_tem : null;
+            const cb = typeof it.cabo === 'string' && trim(it.cabo) ? it.cabo : null;
+            if (!nome || !valor || (lt === null && cb === null)) return;
+            saida.push({ linha_tem: lt, cabo: cb, param: [nome, valor] });
+        });
+        return saida;
+    }
+
     function infoEstrutura(codigo, cfg) {
         const cod = trim(codigo).toUpperCase();
         const [i, r] = cod ? primeira(cfg.estruturas, 'padrao', cod) : [null, null];
         const d = { codigo: cod, regra: i, qtd: null, qtd_min: null, max_reais: null, parametros: null, lados: 'LIVRE', amarracao: false, aceita_i: true, cabos: null, parametro: 'CABO', se_diferem: 'MAIOR',
-            ocupa: true, herda: null, nivel: null, ordem: 'ORIGEM', distintos: false, se_faltar: 'AVISAR' };
+            ocupa: true, herda: null, nivel: null, ordem: 'ORIGEM', distintos: false, se_faltar: 'AVISAR', cabos_vaos: [], define: [] };
         if (r) {
             // TASK-093: qtd_cabos fixo (min = max) OU faixa qtd_min..qtd_max; max_reais = quantos podem ser cabos REAIS (o excedente só entra como fictício, ex.: SI3 = 1 real + 1 fictício opcional)
             d.qtd = Number.isInteger(r.qtd_max) ? r.qtd_max : (Number.isInteger(r.qtd_cabos) ? r.qtd_cabos : null);
             d.qtd_min = Number.isInteger(r.qtd_min) ? r.qtd_min : d.qtd;
             d.max_reais = Number.isInteger(r.max_reais) ? r.max_reais : null;
-            d.lados = r.lados === 'IGUAIS' ? 'IGUAIS' : 'LIVRE';
+            d.lados = (r.lados === 'IGUAIS' || r.lados === 'DERIVACAO') ? r.lados : 'LIVRE';          // TASK-170: DERIVACAO = 1 derivação + até 2 do tronco (iguais)
             d.amarracao = !!r.amarracao;
             d.aceita_i = r.aceita_i !== false;
             d.cabos = r.cabos === undefined ? null : r.cabos;
@@ -133,6 +160,9 @@
             d.ordem = trim(r.ordem).toUpperCase() === 'MAIOR_PRIMEIRO' ? 'MAIOR_PRIMEIRO' : 'ORIGEM';
             d.distintos = r.distintos === true;
             d.se_faltar = trim(r.se_faltar).toUpperCase() === 'BLOQUEAR' ? 'BLOQUEAR' : 'AVISAR';
+            // TASK-170: um cabo por vão (cada regex precisa de um cabo DIFERENTE) e parâmetros automáticos pela linha do poste / pelo 1º cabo
+            if (Array.isArray(r.cabos_vaos) && r.cabos_vaos.some(x => trim(x))) { d.cabos_vaos = r.cabos_vaos.map(trim).filter(Boolean); d.qtd = d.qtd_min = d.cabos_vaos.length; }
+            d.define = normalizarDefine(r.define);
         }
         return d;
     }
@@ -146,10 +176,91 @@
             if (!aceitas.includes(opn) && !(opn === 'R' && aceitas.includes('I'))) return [false, `a regra do cabo ${c.codigo} não aceita a operação ${c.op}`];
         }
         if (!casa(c.estruturas, e.codigo)) return [false, `o cabo ${c.codigo} não aceita a estrutura ${e.codigo}`];
-        if (!casa(e.cabos, c.codigo)) return [false, `a estrutura ${e.codigo} não aceita o cabo ${c.codigo}`];
+        if (!(e.cabos_vaos.length ? e.cabos_vaos.some(v => casa(v, c.codigo)) : casa(e.cabos, c.codigo))) return [false, `a estrutura ${e.codigo} não aceita o cabo ${c.codigo}`];
         if (c.base === 'M' && e.regra !== null && !e.amarracao) return [false, `cabo M só se liga a estrutura de amarração (${e.codigo} não é)`];
         if (c.base === 'I' && e.regra !== null && !e.aceita_i) return [false, `a estrutura ${e.codigo} só aceita cabo M`];
         return [true, null];
+    }
+
+    /** TASK-170: casamento um a um — cada cabo num vão DIFERENTE cuja regex ele satisfaz. → [índice do vão de cada cabo] ou null. */
+    function atribuicaoVaos(vaos, codigos) {
+        const n = codigos.length;
+        const tenta = (i, usados) => {
+            if (i === n) return [];
+            for (let j = 0; j < vaos.length; j++) {
+                if (usados.has(j) || !casa(vaos[j], codigos[i])) continue;
+                const resto = tenta(i + 1, new Set(usados).add(j));
+                if (resto !== null) return [j].concat(resto);
+            }
+            return null;
+        };
+        return tenta(0, new Set());
+    }
+    /** TASK-170: índices [i, j] do primeiro par de cabos iguais (o tronco da derivação) ou null. */
+    function parDoTronco(codigos) {
+        for (let i = 0; i < codigos.length; i++) for (let j = i + 1; j < codigos.length; j++) if (codigos[i] === codigos[j]) return [i, j];
+        return null;
+    }
+    /** `lados: DERIVACAO` → [ocupantes na ordem derivação+tronco, avisos, incompleta]. */
+    function listaDerivacao(e, ocupantes) {
+        const cods = ocupantes.map(o => o.info.codigo);
+        if (ocupantes.length === 0) return [[], [], false];
+        if (ocupantes.length === 1) return [ocupantes.slice(), [], false];
+        if (ocupantes.length === 2) {
+            if (cods[0] === cods[1]) return [[], [`${e.codigo}: falta o cabo da derivação`], true];
+            return [[ocupantes[0], ocupantes[1]], [`${e.codigo}: 2 cabos diferentes sem par (${cods[0]}, ${cods[1]}); usado o 1º ligado como derivação`], false];
+        }
+        const par = parDoTronco(cods);
+        if (par === null) return [[], [], false];
+        const resto = ocupantes.map((_, i) => i).filter(i => !par.includes(i));
+        return [[ocupantes[resto[0]]].concat(par.map(i => ocupantes[i])), [], false];
+    }
+    /** `cabos_vaos`: os cabos na ORDEM DOS VÃOS (1º nome do parâmetro = 1º vão); vão sem cabo = null. */
+    function listaVaos(e, ocupantes) {
+        const atrib = atribuicaoVaos(e.cabos_vaos, ocupantes.map(o => o.info.codigo));
+        if (atrib === null) return ocupantes.slice();
+        const lista = e.cabos_vaos.map(() => null);
+        ocupantes.forEach((o, i) => { lista[atrib[i]] = o; });
+        while (lista.length && lista[lista.length - 1] === null) lista.pop();
+        return lista;
+    }
+    /** `define`: parâmetros automáticos pela linha do poste e/ou pelo 1º cabo; o 1º item que casa para cada nome vence. → { saida, origem, faltou }. */
+    function aplicarDefine(e, ie, outros, ests, infoE, lista) {
+        const saida = {}, origem = {}, faltou = [];
+        if (!e.define.length) return { saida, origem, faltou };
+        const linha = outros[ie]._linha, outras = ests.filter(j => j !== ie && outros[j]._linha === linha).map(j => infoE[j].codigo);
+        const prim = lista.find(o => o);
+        const primeiro = prim ? prim.info.codigo : null;
+        e.define.forEach(item => {
+            const [nome, valor] = item.param;
+            if (nome in saida) return;
+            let achou = null;
+            if (item.linha_tem !== null) { achou = outras.find(c => casa(item.linha_tem, c)); if (achou === undefined) return; }
+            if (item.cabo !== null && (primeiro === null || !casa(item.cabo, primeiro))) return;
+            saida[nome] = valor;
+            origem[nome] = item.cabo !== null ? `cabo ${primeiro}` : `linha: ${achou}`;
+        });
+        e.define.forEach(item => {
+            const nome = item.param[0];
+            if (nome in saida || faltou.some(f => f.param === nome)) return;
+            const lt = item.linha_tem, quem = lt !== null ? (typeof lt === 'string' ? lt : lt.join(', ')).split(',')[0].trim() : '';
+            faltou.push({ param: nome, motivo: quem ? `a linha não tem ${quem}` : 'nenhuma condição do define casou' });
+        });
+        return { saida, origem, faltou };
+    }
+    /** A ordem em que os cabos vão para os parâmetros. → [lista, avisos_vinculo, incompleta]. */
+    function listaDeParametros(e, ocupantes) {
+        if (e.lados === 'DERIVACAO') return listaDerivacao(e, ocupantes);
+        if (e.cabos_vaos.length) return [listaVaos(e, ocupantes), [], false];
+        return [ordenarEJuntar(e, ocupantes), [], false];
+    }
+    /** Junta os parâmetros do `define` aos do vínculo SEM sobrescrever o que o vínculo já deu. */
+    function mesclarDefine(e, parametros, valor, saida) {
+        if (!Object.keys(saida).length) return parametros;
+        const novo = Object.assign({}, parametros || {});
+        if (parametros === null && valor && e.parametro) novo[e.parametro] = valor;
+        Object.keys(saida).forEach(n => { if (!(n in novo)) novo[n] = [saida[n]]; });
+        return novo;
     }
 
     function podeComOcupantes(c, e, ocupantes, ficticio) {
@@ -162,6 +273,9 @@
             const mesmo = ref.info.codigo === c.codigo && (ref.ficticio || ref.info.op === c.op);
             if (!mesmo) return [false, `${e.codigo} exige cabos iguais: ${ref.info.codigo} × ${c.codigo}`];
         }
+        const codigos = ocupantes.map(o => o.info.codigo).concat([c.codigo]);
+        if (e.cabos_vaos.length && atribuicaoVaos(e.cabos_vaos, codigos) === null) return [false, `${e.codigo}: já tem o cabo do vão em que o ${c.codigo} caberia (cada vão aceita um cabo)`];          // TASK-170: um cabo por vão
+        if (e.lados === 'DERIVACAO' && codigos.length >= 3 && parDoTronco(codigos) === null) return [false, `${e.codigo}: os dois cabos do tronco precisam ser iguais (${codigos.join(', ')})`];
         return [true, null];
     }
 
@@ -253,7 +367,7 @@
     }
     /** Valor consolidado do cabo e parâmetros por nome a partir dos ocupantes (já ordenados/juntados). */
     function valorEParametros(e, cfg, ocupantes) {
-        const avisos = [], valores = ocupantes.map(o => o.info.valor_cabo).filter(v => v !== null);
+        const avisos = [], reais = ocupantes.filter(o => o), valores = reais.map(o => o.info.valor_cabo).filter(v => v !== null);          // TASK-170: vão sem cabo = null (a posição do parâmetro é mantida)
         let valor = null;
         const distintos = Array.from(new Set(valores)).sort();
         if (distintos.length === 1) valor = distintos[0];
@@ -273,7 +387,7 @@
                 const o = ocupantes[pos]; cont[nome] = (cont[nome] || 0) + 1;
                 // `tipocabo` escrito UMA vez numa estrutura com 2 cabos = o tipo consolidado (se_diferem: MAIOR C>P>A…), como no parâmetro único
                 let v = o ? (fonte === 'valor_cabo' ? o.info.valor_cabo : (fonte === 'descricao' ? o.info.descricao : o.info.codigo)) : null;
-                if (fonte === 'valor_cabo' && vezes[nome] === 1 && ocupantes.length > 1) v = valor;
+                if (fonte === 'valor_cabo' && vezes[nome] === 1 && reais.length > 1) v = valor;
                 if (v) (parametros = parametros || {})[nome] = ((parametros || {})[nome] || []).concat([v]);
             });
         }
@@ -303,15 +417,19 @@
                 if (!ok) { bad.add(ic + '|' + ie); erros.push(motivo); }
             });
             fict.forEach(cod => {
-                const icf = infoCabo(cod, opFicticio(e), cfg);
+                const icf = infoCaboFicticio(cod, e.codigo, opFicticio(e), cfg);
                 const [ok, motivo] = podeComOcupantes(icf, e, ocupantes, true);
                 ocupantes.push({ info: icf, ficticio: true });
                 if (!ok) erros.push(motivo);
             });
-            const { valor, avisos, parametros } = valorEParametros(e, cfg, ordenarEJuntar(e, ocupantes));
+            const [lista, avisosVinculo, incompleta] = listaDeParametros(e, ocupantes);
+            const r1 = valorEParametros(e, cfg, lista), valor = r1.valor, avisos = r1.avisos, d = aplicarDefine(e, ie, outros, ests, infoE, lista);
+            const parametros = mesclarDefine(e, r1.parametros, valor, d.saida);
             let estado;
-            if (erros.length) estado = 'rd'; else if (tem === 0) estado = 'k'; else if (e.qtd_min !== null && tem < e.qtd_min) estado = 'pu'; else estado = 'gr';
-            resE[ie] = { estado, tem, precisa: e.qtd_min, maximo: e.qtd, valor_cabo: valor, erros, avisos, codigo: e.codigo, regra: e.regra, ficticios: fict.length, parametro: e.parametro, parametros, ocupa: true };
+            if (erros.length) estado = 'rd'; else if (tem === 0) estado = 'k'; else if ((e.qtd_min !== null && tem < e.qtd_min) || incompleta) estado = 'pu'; else estado = 'gr';
+            const defineObj = {}; Object.keys(d.saida).forEach(n => { defineObj[n] = { valor: d.saida[n], origem: d.origem[n] }; });
+            resE[ie] = { estado, tem, precisa: e.qtd_min, maximo: e.qtd, valor_cabo: valor, erros, avisos, codigo: e.codigo, regra: e.regra, ficticios: fict.length, parametro: e.parametro, parametros, ocupa: true,
+                avisos_vinculo: avisosVinculo, define: defineObj, define_faltou: d.faltou };
         });
         // TASK-169 — 2ª passada: equipamento (RL, CFU, para-raio…) lê os cabos do POSTE, sem ocupar pontas
         const postes = mapaPostes(outros, ests);
@@ -326,19 +444,24 @@
                     if (!vistos.has(ic) && ext && ext.some(pt => posteMaisPerto(pt, postes, RAIO_POSTE_PADRAO) === linha)) { vistos.add(ic); candidatos.push({ info: infoC[ic], ficticio: false }); }
                 });
             }
-            unidades.forEach(j => (outros[j].cabosFicticios || []).forEach(x => { if (trim(x)) candidatos.push({ info: infoCabo(trim(x).toUpperCase(), opFicticio(infoE[j]), cfg), ficticio: true }); }));
+            unidades.forEach(j => (outros[j].cabosFicticios || []).forEach(x => { if (trim(x)) candidatos.push({ info: infoCaboFicticio(trim(x).toUpperCase(), infoE[j].codigo, opFicticio(infoE[j]), cfg), ficticio: true }); }));
             let lista = candidatos.filter(o => { const c = o.info; return c.vincula && opAceita(c) && casa(e.cabos, c.codigo) && !(e.nivel && c.nivel !== null && c.nivel !== e.nivel); });
-            lista = ordenarEJuntar(e, lista);
+            const [listaP, avisosVinculo] = listaDeParametros(e, lista);
+            lista = listaP;
             const erros = [], avisosF = [];
             let valor = null, parametros = null;
             if (e.herda === 'POSTE') { const r = valorEParametros(e, cfg, lista); valor = r.valor; parametros = r.parametros; r.avisos.forEach(a => avisosF.push(a)); }
+            const d = aplicarDefine(e, ie, outros, ests, infoE, lista);
+            parametros = mesclarDefine(e, parametros, valor, d.saida);
             if (e.herda === 'POSTE' && !lista.length) {
                 const msg = `${e.codigo}: o poste ${nomePoste(outros[ie])} não tem cabo${e.nivel ? ' ' + e.nivel : ''} ligado`;
                 if (e.se_faltar === 'BLOQUEAR') erros.push(msg); else avisosF.push(msg);
             }
             const estado = erros.length ? 'rd' : ((lista.length || e.herda !== 'POSTE') ? 'gr' : 'k');
-            resE[ie] = { estado, tem: lista.length, precisa: null, maximo: null, valor_cabo: valor, erros, avisos: avisosF, codigo: e.codigo, regra: e.regra, ficticios: 0, parametro: e.parametro, parametros, ocupa: false,
-                le_do_poste: { poste: nomePoste(outros[ie]), cabos: lista.map(o => o.info.codigo) } };
+            const defineObj = {}; Object.keys(d.saida).forEach(n => { defineObj[n] = { valor: d.saida[n], origem: d.origem[n] }; });
+            resE[ie] = { estado, tem: lista.filter(o => o).length, precisa: null, maximo: null, valor_cabo: valor, erros, avisos: avisosF, codigo: e.codigo, regra: e.regra, ficticios: 0, parametro: e.parametro, parametros, ocupa: false,
+                le_do_poste: { poste: nomePoste(outros[ie]), cabos: lista.filter(o => o).map(o => o.info.codigo) },
+                avisos_vinculo: avisosVinculo, define: defineObj, define_faltou: d.faltou };
         });
         const resC = {};
         Object.keys(infoC).forEach(k => {
@@ -353,6 +476,18 @@
             resC[ic] = { estado, tem, precisa, codigo: c.codigo, valor_cabo: c.valor_cabo, vincula: c.vincula, ficticias: fictE.length, erros: errosF };
         });
         return { estruturas: resE, cabos: resC, links };
+    }
+
+    /** TASK-170: {linha: {CODIGO_DA_ESTRUTURA: {define: {NOME: {valor, origem}}, faltou: {NOME: motivo}}}} — de onde veio cada parâmetro do `define` (e por que não veio), para o balão da tela. */
+    function defineDeEstruturas(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn) {
+        const a = analisar(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn), saida = {};
+        Object.keys(a.estruturas).sort((x, y) => x - y).forEach(k => {
+            const r = a.estruturas[k];
+            if (!Object.keys(r.define || {}).length && !(r.define_faltou || []).length) return;
+            const faltou = {}; (r.define_faltou || []).forEach(f => { faltou[f.param] = f.motivo; });
+            ((saida[linhaDe(Number(k))] = saida[linhaDe(Number(k))] || {})[r.codigo]) = { define: r.define || {}, faltou };
+        });
+        return saida;
     }
 
     function parametrosPorLinha(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn) {
@@ -400,6 +535,7 @@
             r.erros.forEach(msg => add(ie, `Estrutura "${nome}": vínculo inválido.`, msg));
             if (!r.erros.length && r.precisa !== null && (r.tem < r.precisa || (r.maximo !== null && r.tem > r.maximo))) { const faixa = r.maximo !== null && r.maximo !== r.precisa ? `${r.precisa} a ${r.maximo}` : `${r.precisa}`; add(ie, `Estrutura "${nome}" com ${r.tem} cabo(s) vinculado(s), esperado ${faixa}.`, `${r.codigo} exige ${faixa === String(r.precisa) ? 'exatamente ' : ''}${faixa} cabo(s) vinculado(s).`); }
             r.avisos.forEach(msg => add(ie, `Estrutura "${nome}": ${msg}.`, 'Os cabos vinculados têm valores diferentes para o parâmetro da estrutura.'));
+            (r.avisos_vinculo || []).forEach(msg => add(ie, `Estrutura "${nome}": ${msg}.`, 'A regra da estrutura (lados DERIVACAO) pede 1 cabo de derivação e até 2 do tronco, iguais entre si.'));          // TASK-170
         });
         return saida;
     }
@@ -523,7 +659,7 @@
             unidades.forEach(ie => {
                 const e = infoE[ie];
                 if (e.regra === null || e.qtd === null || !e.ocupa) return;          // sem regra/quantidade (ou equipamento que não ocupa — TASK-169): não exige cabo
-                const ocupantes = ocup[ie].map(ic => ({ info: infoC[ic], ficticio: false })).concat(fict[ie].map(cod => ({ info: infoCabo(cod, opFicticio(e), cfg), ficticio: true })));
+                const ocupantes = ocup[ie].map(ic => ({ info: infoC[ic], ficticio: false })).concat(fict[ie].map(cod => ({ info: infoCaboFicticio(cod, e.codigo, opFicticio(e), cfg), ficticio: true })));
                 const falta = e.qtd - ocupantes.length;
                 if (falta > 0) {
                     let cands = [];
@@ -583,7 +719,7 @@
 
         const ocupantesDe = (ie, ignorando) => {
             const lista = chavesC.filter(ic => ic !== ignorando && ligados[ic].includes(ie)).map(ic => ({ info: infoC[ic], ficticio: false }));
-            fict[ie].forEach(cod => lista.push({ info: infoCabo(cod, opFicticio(infoE[ie]), cfg), ficticio: true }));
+            fict[ie].forEach(cod => lista.push({ info: infoCaboFicticio(cod, infoE[ie].codigo, opFicticio(infoE[ie]), cfg), ficticio: true }));
             return lista;
         };
         const pode = (ic, ie) => {
@@ -690,7 +826,21 @@
                         const np = normalizarParametros(r.parametros), brutos = Array.isArray(r.parametros) ? r.parametros.length : String(r.parametros).split(',').length;
                         if (!np || np.length !== brutos || np.some(x => !/^[A-Z0-9_.]+$/.test(x.nome) || !FONTES_PARAMETRO.includes(x.fonte))) erros.push(`${p}: 'parametros' precisa ser uma lista como "cabo=ativo, cabo=ativo, tipocabo=valor_cabo" (fonte: descricao, valor_cabo ou ativo).`);
                     }
-                    if (r.lados != null && !['IGUAIS', 'LIVRE'].includes(r.lados)) erros.push(`${p}: 'lados' precisa ser IGUAIS ou LIVRE.`);
+                    if (r.lados != null && !['IGUAIS', 'LIVRE', 'DERIVACAO'].includes(r.lados)) erros.push(`${p}: 'lados' precisa ser IGUAIS, LIVRE ou DERIVACAO.`);
+                    if (r.cabos_vaos != null && r.cabos_vaos !== '') {                                                                // TASK-170
+                        if (!Array.isArray(r.cabos_vaos)) erros.push(`${p}: 'cabos_vaos' precisa ser uma lista de regex (uma por vão).`);
+                        else r.cabos_vaos.forEach(x => { let m = null; try { new RegExp(String(x)); } catch (e) { m = e.message; } if (m) erros.push(`${p}: 'cabos_vaos' tem regex inválida (${m}).`); });
+                    }
+                    if (r.define != null && r.define !== '') {
+                        if (!Array.isArray(r.define)) erros.push(`${p}: 'define' precisa ser uma lista de {linha_tem?, cabo?, param}.`);
+                        else r.define.forEach((it, k) => {
+                            const q = `${p}: define #${k + 1}`;
+                            if (!it || typeof it !== 'object') { erros.push(`${q}: precisa ser um objeto.`); return; }
+                            if ((it.linha_tem == null || it.linha_tem === '' || (Array.isArray(it.linha_tem) && !it.linha_tem.length)) && !trim(it.cabo)) erros.push(`${q}: precisa de pelo menos uma condição (linha_tem ou cabo).`);
+                            if (typeof it.param !== 'string' || !/^\s*[A-Za-z0-9_.]+\s*=\s*[A-Za-z0-9_./-]+\s*$/.test(it.param)) erros.push(`${q}: 'param' precisa ser nome=valor (ex.: tipo=RL).`);
+                            ['linha_tem', 'cabo'].forEach(campo => { const v = it[campo]; if (typeof v === 'string' && RE_REGEX.test(v)) { let m = null; try { new RegExp(v); } catch (e) { m = e.message; } if (m) erros.push(`${q}: '${campo}' regex inválida (${m}).`); } });
+                        });
+                    }
                     if (r.se_diferem != null && !SE_DIFEREM.includes(r.se_diferem)) erros.push(`${p}: 'se_diferem' precisa ser um de ${JSON.stringify(SE_DIFEREM)}.`);
                     ['ocupa', 'distintos'].forEach(k => { if (r[k] != null && typeof r[k] !== 'boolean') erros.push(`${p}: '${k}' precisa ser true ou false.`); });          // TASK-169
                     if (r.herda != null && r.herda !== '' && r.herda !== 'POSTE') erros.push(`${p}: 'herda' precisa ser "POSTE" (ou vazio).`);
@@ -709,7 +859,7 @@
         return erros;
     }
 
-    const api = { vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);

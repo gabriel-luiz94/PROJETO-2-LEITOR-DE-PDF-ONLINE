@@ -29,7 +29,7 @@
      * @param textoPedido  o ativo como foi escrito (sem o que o vínculo injetou); omitido = igual ao final
      * @returns null (ativo sem parâmetros) | {ativo, texto, params: [{nome, valor, origem, falta, invalido, motivo}], total, faltam, invalidos, completo}
      */
-    function statusDoAtivo(textoFinal, textoPedido, assinaturas, obra) {
+    function statusDoAtivo(textoFinal, textoPedido, assinaturas, obra, extra) {          // extra (TASK-170): { define: {NOME: {valor, origem}}, faltou: {NOME: motivo} } do `define` da Tabela de Estruturas
         const a = AP.analisarAtivo(textoFinal);
         if (a.erro || a.tipo === 'declaracao') return null;
         const sig = (assinaturas || {})[a.base];
@@ -41,11 +41,11 @@
             let origem = null;
             if (ehObra(n)) origem = ped.obra && ped.obra[n] ? (ped.obra[n].origem === 'obra' ? 'obra' : 'padrao') : null;
             else if (escrito.has(n)) origem = 'pedido';
-            else if (final.has(n)) origem = 'vinculo';
+            else if (final.has(n)) origem = (extra && extra.define && extra.define[n] && extra.define[n].valor === valor) ? 'define' : 'vinculo';
             else if (n in (sig.padroes || {})) origem = 'padrao';
-            const falta = valor === null;
+            const falta = valor === null, detalhe = origem === 'define' ? extra.define[n].origem : '';
             const invalido = !falta && (ped.erros || []).some(e => e.indexOf(nomeTela(n) + '=') === 0);
-            return { nome: nomeTela(n).toLowerCase(), valor, origem: falta ? null : origem, falta, invalido, motivo: falta ? motivoDaFalta(n) : (invalido ? 'valor não cadastrado na base' : '') };
+            return { nome: nomeTela(n).toLowerCase(), valor, origem: falta ? null : origem, detalhe, falta, invalido, motivo: falta ? ((extra && extra.faltou && extra.faltou[n]) ? 'não definido (' + extra.faltou[n] + ')' : motivoDaFalta(n)) : (invalido ? 'valor não cadastrado na base' : '') };
         });
         const faltam = params.filter(p => p.falta).length, invalidos = params.filter(p => p.invalido).length;
         return { ativo: a.base, texto: ped.texto, params, total: params.length, faltam, invalidos, completo: faltam === 0 && invalidos === 0 };
@@ -58,8 +58,8 @@
         return l.every(s => s.completo) ? 'ok' : 'falta';
     }
 
-    const ROTULO_ORIGEM = { pedido: 'do pedido', vinculo: 'vínculo', obra: 'da obra', padrao: 'padrão' };
-    function rotuloOrigem(o) { return ROTULO_ORIGEM[o] || ''; }
+    const ROTULO_ORIGEM = { pedido: 'do pedido', vinculo: 'vínculo', obra: 'da obra', padrao: 'padrão', define: 'automático' };
+    function rotuloOrigem(o, detalhe) { return (ROTULO_ORIGEM[o] || '') + (o === 'define' && detalhe ? ' ‹' + detalhe + '›' : ''); }
 
     const api = { statusDoAtivo, estadoDaLinha, rotuloOrigem, ligadosPeloTexto };
     if (typeof module !== 'undefined' && module.exports) module.exports = api; else raiz.AtivoStatus = api;

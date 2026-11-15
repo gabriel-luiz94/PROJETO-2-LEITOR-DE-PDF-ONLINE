@@ -1926,13 +1926,18 @@ document.addEventListener('DOMContentLoaded', () => {
     window.corParametrosLigada = corParametrosLigada;
 
     /** Status (por estrutura) de uma linha de Outros: o que o pedido liga, o que o vínculo injeta, a obra e os padrões da base. */
-    function _statusParametrosDaLinha(item, pvLinha, assin, ctxBase, obra) {
+    function _statusParametrosDaLinha(item, pvLinha, assin, ctxBase, obra, defLinha) {          // defLinha (TASK-170): {CODIGO: {define, faltou}} desta linha
         if (!item || !String(item.ativo || '').trim() || typeof AtivoStatus === 'undefined') return [];
         const op = item.operacao || 'I';
         const sem = AnotacaoOutros.interpretarLinha(item.ativo, op, _classicoTotalizadora, ctxBase);
         if (sem.erros.length) return [];
         const com = pvLinha ? AnotacaoOutros.interpretarLinha(item.ativo, op, _classicoTotalizadora, Object.assign({}, ctxBase, { parametros_estrutura: pvLinha })) : sem;
-        return sem.itens.map((it, i) => AtivoStatus.statusDoAtivo(((com.itens[i] || it).ativo), it.ativo, assin, obra)).filter(Boolean);
+        return sem.itens.map((it, i) => AtivoStatus.statusDoAtivo(((com.itens[i] || it).ativo), it.ativo, assin, obra, defLinha ? defLinha[AtivoParametros.nomeBase(it.ativo)] : undefined)).filter(Boolean);
+    }
+    function _defineDoVinculo() {                                                         // TASK-170: de onde veio cada parâmetro do `define`
+        const cfg = window.__vinculacaoConfig;
+        if (!cfg || typeof VinculacaoRegras === 'undefined' || !VinculacaoRegras.defineDeEstruturas) return {};
+        return VinculacaoRegras.defineDeEstruturas(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
     }
     function _contextoParametros() {
         return { assin: AtivoParametros.assinaturasDoProjeto(orcamentoBaseData, localStorage.getItem('projeto_selecionado') || ''), ctx: _ctxOutros(), obra: window.ObraParams ? ObraParams.valores() : null };
@@ -1946,10 +1951,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!ligada) { inputs.forEach(i => i.classList.remove('par-ok', 'par-falta')); return; }
         let c;
         try { c = _contextoParametros(); } catch (e) { return; }                       // base ainda carregando: pinta quando chegar
-        const pv = _parametrosVinculoPorLinha();
+        const pv = _parametrosVinculoPorLinha(), dv = _defineDoVinculo();
         inputs.forEach(inp => {
             const idx = Number(inp.dataset.parIdx);
-            const estado = AtivoStatus.estadoDaLinha(_statusParametrosDaLinha(tableStates.outros.data[idx], pv[idx], c.assin, c.ctx, c.obra));
+            const estado = AtivoStatus.estadoDaLinha(_statusParametrosDaLinha(tableStates.outros.data[idx], pv[idx], c.assin, c.ctx, c.obra, dv[idx]));
             inp.classList.toggle('par-ok', estado === 'ok');
             inp.classList.toggle('par-falta', estado === 'falta');
         });
@@ -1965,7 +1970,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const linhas = s.params.map(p => {
                 if (p.falta) return `<div><span class="f">⚠</span> ${esc(p.nome)} <span class="f">· falta</span> <span class="m">— ${esc(p.motivo)}</span></div>`;
                 if (p.invalido) return `<div><span class="f">⚠</span> ${esc(p.nome)} = ${esc(p.valor)} <span class="f">· inválido</span> <span class="m">— ${esc(p.motivo)}</span></div>`;
-                return `<div><span class="v">✓</span> ${esc(p.nome)} = ${esc(p.valor)} <span class="m">· ${esc(AtivoStatus.rotuloOrigem(p.origem))}</span></div>`;
+                return `<div><span class="v">✓</span> ${esc(p.nome)} = ${esc(p.valor)} <span class="m">· ${esc(AtivoStatus.rotuloOrigem(p.origem, p.detalhe))}</span></div>`;
             }).join('');
             return `<div class="est"><b class="h">${esc(s.ativo)}</b> ${cab}${linhas}</div>`;
         }).join('');
@@ -1973,7 +1978,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function _statusDoAlvoDoBalao(el) {
         const idx = Number(el.dataset.parIdx);
         const c = _contextoParametros();
-        if (el.dataset.parTipo === 'outros') return _statusParametrosDaLinha(tableStates.outros.data[idx], _parametrosVinculoPorLinha()[idx], c.assin, c.ctx, c.obra);
+        if (el.dataset.parTipo === 'outros') return _statusParametrosDaLinha(tableStates.outros.data[idx], _parametrosVinculoPorLinha()[idx], c.assin, c.ctx, c.obra, _defineDoVinculo()[idx]);
         const lin = tableStates.totalizadora.data[idx];                                  // Totalizadora: o ativo já está como o cálculo o enxerga
         const st = lin && AtivoStatus.statusDoAtivo(lin.ativo, lin.ativo, c.assin, c.obra);
         return st ? [st] : [];
