@@ -216,6 +216,8 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 Apenas o que está explicitamente marcado como pendente no próprio projeto:
 
+- [ ] **TASK-170** (pedido de 2026-11-15): vinculação — nível do cabo fictício, `lados: DERIVACAO` (SDBIT/SDBIM), `cabos_vaos` (IBIT/IBIM) e `define` (PARA_RAIO `tipo=RL` e variante do ATRINT_EQ pelo cabo do poste quando a linha tem RL). Em PLANEJAMENTO. Ver `.ai/tasks/TASK-170-15-11-2026.md`.
+- [ ] **TASK-171** (pedido de 2026-11-15): estrutura fictícia do cabo sugere os componentes avulsos (alças, conectores) da base, com botão para adicionar à tabela Outros. Em PLANEJAMENTO. Ver `.ai/tasks/TASK-171-15-11-2026.md`.
 - [x] **TASK-169** (pedido de 2026-11-15): equipamentos (RL, RL_REAP, CFU, PARA_RAIO, CHAVE_FACA, LACO_BT) herdam `cabo`/`cabo2` dos cabos do poste sem ocupar pontas (`ocupa: false`, `herda: POSTE`) e opção `distintos` para derivações. Em PLANEJAMENTO. Regras do projeto 081 em `data/vinculacao_cabos_081.json` e `data/vinculacao_estruturas_081.json`. Ver `.ai/tasks/TASK-169-15-11-2026.md`. — **concluída em 15/11/2026** (núcleo Python/JS, validação, modal Vinculação; regras 081 ligadas)
 - [ ] **TASK-165** (pedido de 2026-11-14): parâmetros de obra `OBRA.*` preenchidos pelo cabeçalho/contexto (região derivada por `data/regionais_pernambuco.json`) e `.obra` guardando o contexto. Em PLANEJAMENTO. Ver `.ai/tasks/TASK-165-14-11-2026.md`.
 - [ ] Conectar os dois workers de background restantes acima (fila offline, sync em tempo real) ou decidir removê-los
