@@ -210,6 +210,17 @@ namespace OrcamentoNanoCAD
             return textos;
         }
 
+        /// <summary>TASK-021: todos os textos do desenho (para achar o comprimento perto do rótulo do cabo). Lido só quando falta o comprimento.</summary>
+        private static List<TextoDesenho> TextosDoDesenho(Sessao s)
+        {
+            try
+            {
+                DesenhoBruto b = ExtratorDesenho.Ler(s.Doc);
+                return MontadorDesenho.Montar(b, s.Regras.Leitura).Textos.Where(t => t.Tipo != "BLOCO" && t.Tipo != "BLOCO_DEF").ToList();
+            }
+            catch (System.Exception e) { Aplicacao.Log("textos do desenho: " + e.Message); return new List<TextoDesenho>(); }
+        }
+
         private static bool PrepararConstrucao(Sessao s)
         {
             if (s.Obra == null) { s.Obra = Construtor.NovaObra(s.Doc.Name, s.Regras); PainelObra.Abrir(s); }
@@ -289,7 +300,7 @@ namespace OrcamentoNanoCAD
                     // o plugin sugere os postes das pontas; o usuário confirma (Enter) ou troca (número, ou "-" para nenhum)
                     if (PedirPoste(ed, "\nPoste da ponta A", s.Obra, a, out a) < 0) break;
                     if (PedirPoste(ed, "\nPoste da ponta B", s.Obra, b, out b) < 0) break;
-                    Vao v = Construtor.AdicionarVao(s.Obra, linha, textos, a, b, s.Regras);
+                    Vao v = Construtor.AdicionarVao(s.Obra, linha, textos, a, b, s.Regras, () => TextosDoDesenho(s));
                     Aplicacao.Msg(v.Numero + ": " + (v.TemAnotacao ? v.Ativo : "(sem anotação)") + " " + (v.PosteA ?? "—") + " → " + (v.PosteB ?? "—"));
                     Mudou(s, true);
                 }
@@ -671,7 +682,10 @@ namespace OrcamentoNanoCAD
                         cabo = t.Cabo;
                         List<TextoDesenho> textos = SelecionarTextos(s, "\nSelecione o texto (TEXT/MTEXT) da linha e Enter: ");
                         if (textos.Count == 0) { ativo = t.Ativo; operacao = t.Operacao; continue; }
-                        lido = Construtor.LerTextoParaLinha(textos, s.Regras);
+                        // TASK-021: em "Cabos" (ou se as regras leem cabo) o texto é lido COMO CABO e o comprimento vem da mesma linha,
+                        // dos textos escolhidos ou da vizinhança no desenho
+                        lido = cabo ? null : Construtor.LerTextoParaLinha(textos, s.Regras);
+                        if (lido == null || (lido.Cabo.HasValue && lido.Cabo.Value)) lido = Construtor.LerCaboDeTexto(textos, s.Regras, () => TextosDoDesenho(s));
                         ativo = lido.Ativo;
                         operacao = lido.Operacao;
                         if (lido.Cabo.HasValue) cabo = lido.Cabo.Value;

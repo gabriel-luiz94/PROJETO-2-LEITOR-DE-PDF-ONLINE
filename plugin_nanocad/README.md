@@ -36,7 +36,7 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 | `ORC_LER` / `ORC_RELER` / `ORC_ATUALIZAR` | lê o desenho pelas regras (layer + cor) · reler do zero (descarta ajustes) · reler mantendo os ajustes |
 | `ORC_CONSTRUIR`, `ORC_POSTE`, `ORC_VAO`, `ORC_VINCULAR` | construir do zero: apontar poste (bloco + anotação) e vão (linha + anotação); refazer vínculos automáticos |
 | `ORC_EDITAR` | pop-up do vão/poste: entrada (lida do desenho), saída (para a obra), ajustes — **ativo editável com o autocompletar da Base de Orçamento** (sugestões, parâmetros, `)` automático; não altera o desenho), operação, metros, estrutura do vínculo, troca opcional da layer do texto, **Excluir da obra / Restaurar** |
-| `ORC_NOVO_CABO`, `ORC_NOVO_OUTROS` | linha nova (+ Cabo / + Outros no painel): digitada com o autocompletar, ou **lida de um TEXT/MTEXT escolhido no desenho** pelas regras do leitor |
+| `ORC_NOVO_CABO`, `ORC_NOVO_OUTROS` | linha nova (+ Cabo / + Outros no painel): digitada com o autocompletar, ou **lida de um TEXT/MTEXT escolhido no desenho** pelas regras do leitor. Em + Cabo o texto é lido como cabo e o comprimento vem da mesma linha ou do texto "35 m" ao lado/embaixo no desenho |
 | `ORC_VINCULOS`, `ORC_ATIVOS` | tabela de vínculos · ativos com parâmetros (`N4(9400D, P, 3XA35P_7.94_-13.8KV, ?)`) |
 | `ORC_SALVAR` | grava o **projeto `<desenho>.obra`** na pasta do desenho (formato do 📁 Projeto do OrçaCore: linhas + a obra do plugin; SAP e resultado do programa ficam) e a cópia **no DWG**. Se as linhas foram alteradas no OrçaCore, pergunta antes de gravar por cima |
 | `ORC_PROJETO` | nome e número de obra do projeto (o número vai para o REC) |
