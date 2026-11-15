@@ -200,7 +200,7 @@ def ler(nome):
 def test_telas_ligadas_ao_projeto():
     resumo, resultado, js = ler("resumo.html"), ler("resultado_orcamento.html"), ler("resumo.js")
     assert "/static/projeto.js" in resumo and 'id="projeto-menu-host"' in resumo and "GridRProjeto.numeroObra()" in resumo
-    assert "/static/projeto.js" in resultado and "confirmarNumeroObra" in resultado and "salvarSap" in resultado and "acompanharResultado" in resultado and "carregarResultado" in resultado
+    assert "/static/projeto.js" in resultado and "confirmarNumeroObra" in resultado and "salvarSap" in resultado and "acompanharResultado" in resultado and "mostrarResultadoDoProjeto" in resultado        # TASK-180: o Resultado não restaura mais por assinatura; mostra o gravado ao abrir o projeto
     assert "registrarResumo" in js and "GridRProjeto.marcarSujo(true)" in js
     assert "pastaDoProjeto()" in ler("desktop_arquivos.js")
 

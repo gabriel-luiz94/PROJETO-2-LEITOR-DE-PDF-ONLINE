@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-15 — TASK-180: Montar Orçamento sempre recalcula; resultado gravado só volta ao abrir o projeto
+
+- Substitui a restauração da TASK-154 (payload igual → restaurava o resultado do `.obra`, mesmo com base nova). Agora `montarOrcamento` sempre chama `/api/orcamento/calcular`; `assinatura` segue gravada no `.obra` (formato igual) mas não decide mais nada.
+- Abrir um projeto (modo Abrir; menu ou plugin) com a tela do Resultado aberta mostra o resultado gravado, com as edições, sem recalcular (`aoAbrirProjeto` → `mostrarResultadoDoProjeto`); `.obra` sem resultado esvazia a tabela com aviso e para de acompanhá-la. Mesclar/Sobrescrever não mexem na tabela. Recarregar a página recalcula.
+- Edição manual detectada em memória (`resultadoEditado`, MutationObserver, ignora `tr.fantasma`); ao recalcular o log avisa que as edições foram substituídas. Limitação: a flag se perde ao reiniciar o programa.
+
+---
+
 ## 2026-11-15 — TASK-172: validador da base com menos alarme falso de sobreposição
 
 - Padrões `%X%` × `%Y%` só "podem valer juntos" se um texto contém o outro (`%30KVA%` × `%10KVA%` não; `%A35%` × `%A35P%` sim). Ativo com mais de 5 avisos de sobreposição vira UM aviso resumo na importação e no modal (lista completa recolhida); `validar_base` não muda. Tarefa: `.ai/tasks/TASK-172-15-11-2026.md`.
