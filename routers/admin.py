@@ -23,7 +23,7 @@ from services.orcamento_lv import normalizar_lv
 from services.orcamento_arred import normalizar_arred
 from services.fator_formula import normalizar_fator
 from typing import Union
-from services.ativo_parametros import preencher_componentes, validar_base, resumo_erros
+from services.ativo_parametros import agrupar_avisos, preencher_componentes, validar_base, resumo_erros
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -522,7 +522,9 @@ async def upload_master_csv(request: Request, file: UploadFile = File(...), proj
         if n_comp:
             resposta["componentes_gerados"] = n_comp
         if val_param["avisos"]:
-            resposta["avisos"] = val_param["avisos"]
+            resposta["avisos"], det = agrupar_avisos(val_param["avisos"])          # TASK-172: ativo com muitos avisos de sobreposição vira um resumo
+            if det:
+                resposta["avisos_detalhe"] = det
         return resposta
 
     except HTTPException:
@@ -634,7 +636,9 @@ def sync_master_all(req: SalvarOrcamentoRequest, request: Request):
     if n_comp:
         resposta["componentes_gerados"] = n_comp
     if val_param["avisos"]:
-        resposta["avisos"] = val_param["avisos"]
+        resposta["avisos"], det = agrupar_avisos(val_param["avisos"])              # TASK-172
+        if det:
+            resposta["avisos_detalhe"] = det
     return resposta
 
 

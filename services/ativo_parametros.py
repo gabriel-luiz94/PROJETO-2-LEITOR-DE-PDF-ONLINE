@@ -736,6 +736,41 @@ def apelidos_do_projeto(linhas, projeto) -> dict:
     return saida
 
 
+_RE_SOBREPOSICAO = re.compile(r"^Código (\S+) aparece nos grupos (\S+) \(linha \d+\) e (\S+) \(linha \d+\), que podem valer juntos: a quantidade soma duas vezes\.$")
+
+
+def _ativo_do_grupo(rotulo) -> str:
+    """O ativo de um rótulo de grupo/componente citado no aviso: ``RL(CABO=%A35P%)`` → RL; componente manual ``RL.0`` → RL."""
+    return rotulo.split("(")[0] if "(" in rotulo else rotulo.rsplit(".", 1)[0]
+
+
+def agrupar_avisos(avisos, limite=5) -> tuple:
+    """TASK-172 (só apresentação): ativo com mais de `limite` avisos de sobreposição ("Código X aparece nos grupos A e B, que podem valer juntos") vira UM aviso resumo.
+    → (avisos para mostrar, {aviso resumo: [avisos individuais]}). O texto de cada aviso individual não muda e `validar_base` continua devolvendo a lista completa."""
+    por_ativo = {}
+    for a in avisos or []:
+        m = _RE_SOBREPOSICAO.match(a)
+        if m:
+            por_ativo.setdefault(_ativo_do_grupo(m.group(2)), []).append((a, m.group(1), m.group(2), m.group(3)))
+    grandes = {b: l for b, l in por_ativo.items() if len(l) > limite}
+    saida, detalhe, vistos = [], {}, set()
+    for a in avisos or []:
+        m = _RE_SOBREPOSICAO.match(a)
+        base = _ativo_do_grupo(m.group(2)) if m else None
+        if base in grandes:
+            if base not in vistos:
+                vistos.add(base)
+                lista = grandes[base]
+                _, cod, g1, g2 = lista[0]
+                resumo = (f"{base}: {len(lista)} códigos aparecem em grupos que podem valer juntos (ex.: {cod} em {g1} e {g2}). "
+                          "Se a soma é de propósito (um por lado), ignore.")
+                saida.append(resumo)
+                detalhe[resumo] = [x[0] for x in lista]
+        else:
+            saida.append(a)
+    return saida, detalhe
+
+
 def resumo_erros(erros, limite=8) -> str:
     """Junta as primeiras mensagens de erro para uma resposta HTTP (as demais viram "… e mais N")."""
     msg = " | ".join(erros[:limite])
@@ -795,6 +830,11 @@ def preencher_componentes(linhas):
     return novas, n
 
 
+def _eh_contem(p) -> bool:
+    """Padrão "contém": ``%texto%`` (um % só no começo e um só no fim)."""
+    return len(p) > 2 and p.startswith("%") and p.endswith("%") and p.count("%") == 2
+
+
 def _alts_coincidem(a, b) -> bool:
     """Conservador: dois padrões podem casar o mesmo valor?"""
     if "%" not in a and "%" not in b:
@@ -805,6 +845,9 @@ def _alts_coincidem(a, b) -> bool:
         return casar_padrao(a, b)
     # dois padrões: só podem coincidir se os começos e os fins fixos forem compatíveis (D% x C% nunca; D% x %T sim)
     a, b = a.upper(), b.upper()
+    if _eh_contem(a) and _eh_contem(b):                                          # TASK-172: %X% x %Y% — o valor é UM código/descrição, que não contém dois códigos diferentes: só coincide se um texto contém o outro
+        x, y = a[1:-1], b[1:-1]
+        return x in y or y in x
     ini_a, ini_b, fim_a, fim_b = a.split("%")[0], b.split("%")[0], a.split("%")[-1], b.split("%")[-1]
     return (ini_a.startswith(ini_b) or ini_b.startswith(ini_a)) and (fim_a.endswith(fim_b) or fim_b.endswith(fim_a))
 
