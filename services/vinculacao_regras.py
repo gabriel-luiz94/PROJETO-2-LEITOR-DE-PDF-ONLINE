@@ -17,6 +17,8 @@ import re
 
 ORDEM_MAIOR_PADRAO = ["C", "P", "A"]
 SE_DIFEREM = ("BLOQUEAR", "MAIOR", "AVISAR")
+SE_FALTAR = ("AVISAR", "BLOQUEAR")                         # TASK-169
+ORDENS = ("ORIGEM", "MAIOR_PRIMEIRO")
 _RE_REGEX = re.compile(r"[\\^$()\[\]|+*?{}]")
 
 
@@ -134,6 +136,19 @@ def validar_config(cfg) -> list:
                     erros.append(f"{p}: 'lados' precisa ser IGUAIS ou LIVRE.")
                 if r.get("se_diferem") not in (None,) + SE_DIFEREM:
                     erros.append(f"{p}: 'se_diferem' precisa ser um de {list(SE_DIFEREM)}.")
+                for k in ("ocupa", "distintos"):                                                          # TASK-169
+                    if r.get(k) is not None and not isinstance(r[k], bool):
+                        erros.append(f"{p}: '{k}' precisa ser true ou false.")
+                if r.get("herda") not in (None, "", "POSTE"):
+                    erros.append(f"{p}: 'herda' precisa ser \"POSTE\" (ou vazio).")
+                if r.get("herda") == "POSTE" and r.get("ocupa") is not False:
+                    erros.append(f"{p}: 'herda' só vale com 'ocupa': false.")
+                if _trim(r.get("nivel")) and _trim(r.get("nivel")).upper() not in ("MT", "BT"):
+                    erros.append(f"{p}: 'nivel' precisa ser MT ou BT.")
+                if r.get("ordem") not in (None, "") + ORDENS:
+                    erros.append(f"{p}: 'ordem' precisa ser um de {list(ORDENS)}.")
+                if r.get("se_faltar") not in (None, "") + SE_FALTAR:
+                    erros.append(f"{p}: 'se_faltar' precisa ser um de {list(SE_FALTAR)}.")
     om = cfg.get("ordem_maior")
     if om is not None and (not isinstance(om, list) or not all(isinstance(x, str) for x in om)):
         erros.append("'ordem_maior' precisa ser uma lista de textos (ex.: [\"C\", \"P\", \"A\"]).")
@@ -269,7 +284,8 @@ def normalizar_parametros(v):
 def info_estrutura(codigo, cfg) -> dict:
     cod = _trim(codigo).upper()
     i, r = _primeira(cfg["estruturas"], "padrao", cod) if cod else (None, None)
-    d = {"codigo": cod, "regra": i, "qtd": None, "qtd_min": None, "max_reais": None, "parametros": None, "lados": "LIVRE", "amarracao": False, "aceita_i": True, "cabos": None, "parametro": "CABO", "se_diferem": "MAIOR"}
+    d = {"codigo": cod, "regra": i, "qtd": None, "qtd_min": None, "max_reais": None, "parametros": None, "lados": "LIVRE", "amarracao": False, "aceita_i": True, "cabos": None, "parametro": "CABO", "se_diferem": "MAIOR",
+         "ocupa": True, "herda": None, "nivel": None, "ordem": "ORIGEM", "distintos": False, "se_faltar": "AVISAR"}
     if r is not None:
         # TASK-093: qtd_cabos fixo (min = max) OU faixa qtd_min..qtd_max; max_reais = quantos podem ser cabos REAIS (o excedente só entra como fictício)
         d["qtd"] = r["qtd_max"] if isinstance(r.get("qtd_max"), int) else (r.get("qtd_cabos") if isinstance(r.get("qtd_cabos"), int) else None)
@@ -284,6 +300,13 @@ def info_estrutura(codigo, cfg) -> dict:
         if d["parametros"]:
             d["parametro"] = ""                                  # a lista substitui o parâmetro único
         d["se_diferem"] = r.get("se_diferem") if r.get("se_diferem") in SE_DIFEREM else "MAIOR"
+        # TASK-169: equipamento (RL, CFU, para-raio…) que NÃO ocupa pontas e lê os cabos do poste; todos opcionais (ausentes = comportamento de antes)
+        d["ocupa"] = r.get("ocupa") is not False
+        d["herda"] = "POSTE" if _trim(r.get("herda")).upper() == "POSTE" else None
+        d["nivel"] = _trim(r.get("nivel")).upper() if _trim(r.get("nivel")).upper() in ("MT", "BT") else None
+        d["ordem"] = "MAIOR_PRIMEIRO" if _trim(r.get("ordem")).upper() == "MAIOR_PRIMEIRO" else "ORIGEM"
+        d["distintos"] = r.get("distintos") is True
+        d["se_faltar"] = "BLOQUEAR" if _trim(r.get("se_faltar")).upper() == "BLOQUEAR" else "AVISAR"
     return d
 
 
@@ -331,6 +354,62 @@ def pode_com_ocupantes(c, e, ocupantes, ficticio=False):
         if not mesmo:
             return False, f"{e['codigo']} exige cabos iguais: {ref['info']['codigo']} × {c['codigo']}"
     return True, None
+
+
+# TASK-169: seção do cabo para ordenar "maior primeiro" (tronco em `cabo`, ramal em `cabo2`). Número do código (A185P → 185, S336 → 336); AWG com zero (S04, S02) e fração (S1/0) por tabela.
+_AWG0 = {2: 33.6, 4: 21.2, 6: 13.3, 8: 8.4}
+_AWG_X0 = {1: 53.5, 2: 67.4, 3: 85.0, 4: 107.2}
+
+
+def secao_cabo(codigo) -> float:
+    c = _trim(codigo).upper()
+    m = re.search(r"(\d)/0", c)
+    if m:
+        return _AWG_X0.get(int(m.group(1)), float(m.group(1)))
+    m = re.fullmatch(r"[A-Z]+0(\d)", c)
+    if m:
+        return _AWG0.get(int(m.group(1)), float(m.group(1)))
+    m = re.search(r"(\d+)", c)
+    return float(m.group(1)) if m else 0.0
+
+
+def _ordenar_e_juntar(e, ocupantes) -> list:
+    """TASK-169: `ordem: MAIOR_PRIMEIRO` (estável: empate = ordem de origem) e `distintos` (junta os cabos de mesma descrição) ANTES de distribuir nos parâmetros."""
+    lista = list(ocupantes)
+    if e["ordem"] == "MAIOR_PRIMEIRO":
+        lista = sorted(lista, key=lambda o: -secao_cabo(o["info"]["codigo"]))
+    if e["distintos"]:
+        vistos, saida = set(), []
+        for o in lista:
+            k = o["info"]["descricao"]
+            if k in vistos:
+                continue
+            vistos.add(k)
+            saida.append(o)
+        lista = saida
+    return lista
+
+
+def _op_aceita(c) -> bool:
+    """Mesma regra de operação de `pode_vincular` (a regra do cabo lista as operações que aceita)."""
+    if isinstance(c["operacoes"], list) and c["operacoes"]:
+        aceitas = [_trim(x).upper().replace("*", "") for x in c["operacoes"]]
+        opn = c["op"].replace("*", "")
+        return opn in aceitas or (opn == "R" and "I" in aceitas)
+    return True
+
+
+def _nome_poste(row) -> str:
+    return _trim(str((row or {}).get("ativo") or "").split(",")[0])
+
+
+def _mapa_postes(outros, ests) -> list:
+    """[(linha, (x, y))] dos postes (`_poste` da linha de Outros) — o mesmo da vinculação por poste (TASK-166)."""
+    por_linha = {}
+    for ie in ests:
+        por_linha.setdefault(outros[ie].get("_linha"), []).append(ie)
+    postes = [(linha, _par(outros[ies[0]].get("_poste"))) for linha, ies in sorted(por_linha.items(), key=lambda x: (x[0] is None, x[0]))]
+    return [(linha, pos) for linha, pos in postes if pos]
 
 
 # ── análise completa (estados, vínculos inválidos, valor do parâmetro) ─────────────────────────────
@@ -436,6 +515,47 @@ def _com_linha(codigo_fn):
     return f
 
 
+def _valor_e_parametros(e, cfg, ocupantes):
+    """Valor consolidado do cabo (parâmetro único) e os parâmetros por nome da estrutura, a partir dos ocupantes (já ordenados/juntados). → (valor, avisos, parametros)."""
+    avisos = []
+    valores = []
+    for oc in ocupantes:
+        v = oc["info"]["valor_cabo"]
+        if v is not None:
+            valores.append(v)
+    valor = None
+    distintos = sorted(set(valores))
+    if len(distintos) == 1:
+        valor = distintos[0]
+    elif len(distintos) > 1:
+        if e["se_diferem"] == "MAIOR":
+            ordem = cfg["ordem_maior"]
+            rank = lambda v: ordem.index(v) if v in ordem else len(ordem)
+            valor = sorted(distintos, key=rank)[0]
+            avisos.append(f"{e['codigo']}: cabos diferentes ({', '.join(distintos)}); usado o maior ({valor})")
+        else:
+            avisos.append(f"{e['codigo']}: cabos diferentes ({', '.join(distintos)}); parâmetro não preenchido")
+    parametros = None
+    if e["parametros"]:                                          # TASK-096: um valor por cabo vinculado (reais e fictícios), na ordem dos ocupantes
+        cont = {}
+        vezes = {}
+        for p in e["parametros"]:
+            vezes[p["nome"]] = vezes.get(p["nome"], 0) + 1
+        for p in e["parametros"]:
+            m_suf = re.fullmatch(r"(?:CABO|TIPOCABO)(\d+)", p["nome"])
+            k = int(m_suf.group(1)) - 1 if m_suf else cont.get(p["nome"], 0)           # cabo2 = o 2º cabo; cabo, cabo = 1º e 2º
+            cont[p["nome"]] = cont.get(p["nome"], 0) + 1
+            o = ocupantes[k] if 0 <= k < len(ocupantes) else None
+            # `tipocabo` escrito UMA vez numa estrutura com 2 cabos = o tipo consolidado (se_diferem: MAIOR C>P>A…), como no parâmetro único
+            v = (o["info"]["valor_cabo"] if p["fonte"] == "valor_cabo" else (o["info"]["descricao"] if p["fonte"] == "descricao" else o["info"]["codigo"])) if o else None
+            if p["fonte"] == "valor_cabo" and vezes[p["nome"]] == 1 and len(ocupantes) > 1:
+                v = valor
+            if v:
+                parametros = parametros or {}
+                parametros.setdefault(p["nome"], []).append(v)
+    return valor, avisos, parametros
+
+
 def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
     cfg = normalizar_config(cfg)
     ests = estruturas_disponiveis(outros)
@@ -444,7 +564,8 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
         if _eh_cabo_valido(c):
             info_c[ic] = info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg, extra_cabo(c))
     info_e = {ie: info_estrutura(codigo_fn(outros[ie].get("ativo"), outros[ie]), cfg) for ie in ests}
-    ocup = {ie: [] for ie in ests}                    # [(idx_cabo)]
+    ests_ocupa = [ie for ie in ests if info_e[ie]["ocupa"]]            # TASK-169: equipamento (ocupa: false) não consome ponta; é resolvido na 2ª passada
+    ocup = {ie: [] for ie in ests_ocupa}                               # [(idx_cabo)]
     for ic, c in enumerate(cabos):
         if ic not in info_c:
             continue
@@ -453,11 +574,11 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
                 ocup[ie].append(ic)
     links, bad_links = [], set()
     res_e = {}
-    for ie in ests:
+    for ie in ests_ocupa:
         e = info_e[ie]
         fict = [_trim(x).upper() for x in (outros[ie].get("cabosFicticios") or []) if _trim(x)]
         tem = len(ocup[ie]) + len(fict)
-        erros, avisos = [], []
+        erros = []
         ocupantes = []
         for ic in ocup[ie]:
             ok, motivo = pode_com_ocupantes(info_c[ic], e, ocupantes)
@@ -472,23 +593,7 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
             ocupantes.append({"info": ic_f, "ficticio": True})
             if not ok:
                 erros.append(motivo)
-        valores = []
-        for oc in ocupantes:
-            v = oc["info"]["valor_cabo"]
-            if v is not None:
-                valores.append(v)
-        valor = None
-        distintos = sorted(set(valores))
-        if len(distintos) == 1:
-            valor = distintos[0]
-        elif len(distintos) > 1:
-            if e["se_diferem"] == "MAIOR":
-                ordem = cfg["ordem_maior"]
-                rank = lambda v: ordem.index(v) if v in ordem else len(ordem)
-                valor = sorted(distintos, key=rank)[0]
-                avisos.append(f"{e['codigo']}: cabos diferentes ({', '.join(distintos)}); usado o maior ({valor})")
-            else:
-                avisos.append(f"{e['codigo']}: cabos diferentes ({', '.join(distintos)}); parâmetro não preenchido")
+        valor, avisos, parametros = _valor_e_parametros(e, cfg, _ordenar_e_juntar(e, ocupantes))
         if erros:
             estado = "rd"
         elif tem == 0:
@@ -497,26 +602,57 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
             estado = "pu"
         else:
             estado = "gr"
-        parametros = None
-        if e["parametros"]:                                      # TASK-096: um valor por cabo vinculado (reais e fictícios), na ordem dos ocupantes
-            cont = {}
-            vezes = {}
-            for p in e["parametros"]:
-                vezes[p["nome"]] = vezes.get(p["nome"], 0) + 1
-            for p in e["parametros"]:
-                m_suf = re.fullmatch(r"(?:CABO|TIPOCABO)(\d+)", p["nome"])
-                k = int(m_suf.group(1)) - 1 if m_suf else cont.get(p["nome"], 0)           # cabo2 = o 2º cabo; cabo, cabo = 1º e 2º
-                cont[p["nome"]] = cont.get(p["nome"], 0) + 1
-                o = ocupantes[k] if 0 <= k < len(ocupantes) else None
-                # `tipocabo` escrito UMA vez numa estrutura com 2 cabos = o tipo consolidado (se_diferem: MAIOR C>P>A…), como no parâmetro único
-                v = (o["info"]["valor_cabo"] if p["fonte"] == "valor_cabo" else (o["info"]["descricao"] if p["fonte"] == "descricao" else o["info"]["codigo"])) if o else None
-                if p["fonte"] == "valor_cabo" and vezes[p["nome"]] == 1 and len(ocupantes) > 1:
-                    v = valor
-                if v:
-                    parametros = parametros or {}
-                    parametros.setdefault(p["nome"], []).append(v)
         res_e[ie] = {"estado": estado, "tem": tem, "precisa": e["qtd_min"], "maximo": e["qtd"], "valor_cabo": valor, "erros": erros, "avisos": avisos, "codigo": e["codigo"],
-                     "regra": e["regra"], "ficticios": len(fict), "parametro": e["parametro"], "parametros": parametros}
+                     "regra": e["regra"], "ficticios": len(fict), "parametro": e["parametro"], "parametros": parametros, "ocupa": True}
+    # TASK-169 — 2ª passada: equipamento (RL, CFU, para-raio…) lê os cabos do POSTE, sem ocupar pontas
+    postes = _mapa_postes(outros, ests)
+    for ie in ests:
+        e = info_e[ie]
+        if e["ocupa"]:
+            continue
+        linha = outros[ie].get("_linha")
+        unidades = [j for j in ests_ocupa if outros[j].get("_linha") == linha]
+        candidatos = []                                                    # (ic | None, ocupante): ordem de origem = estruturas da linha, depois os vínculos; cabos só da geometria; fictícios
+        vistos = set()
+        for j in unidades:
+            for ic in ocup[j]:
+                if ic not in vistos:
+                    vistos.add(ic)
+                    candidatos.append({"info": info_c[ic], "ficticio": False})
+        pos = _par(outros[ie].get("_poste"))
+        if pos:
+            for ic in sorted(info_c):
+                ext = _extremos(cabos[ic])
+                if ic not in vistos and ext and any(_poste_mais_perto(pt, postes, RAIO_POSTE_PADRAO) == linha for pt in ext):
+                    vistos.add(ic)
+                    candidatos.append({"info": info_c[ic], "ficticio": False})
+        for j in unidades:
+            for x in (outros[j].get("cabosFicticios") or []):
+                if _trim(x):
+                    candidatos.append({"info": info_cabo(_trim(x).upper(), op_ficticio(info_e[j]), cfg), "ficticio": True})
+        lista = []
+        for o in candidatos:
+            c = o["info"]
+            if not c["vincula"] or not _op_aceita(c) or not casa(e["cabos"], c["codigo"]):
+                continue
+            if e["nivel"] and c["nivel"] is not None and c["nivel"] != e["nivel"]:
+                continue
+            lista.append(o)
+        lista = _ordenar_e_juntar(e, lista)
+        erros, avisos_f, valor, parametros = [], [], None, None
+        if e["herda"] == "POSTE":
+            valor, avisos, parametros = _valor_e_parametros(e, cfg, lista)
+            avisos_f += avisos
+        if e["herda"] == "POSTE" and not lista:
+            msg = f"{e['codigo']}: o poste {_nome_poste(outros[ie])} não tem cabo{' ' + e['nivel'] if e['nivel'] else ''} ligado"
+            if e["se_faltar"] == "BLOQUEAR":
+                erros.append(msg)
+            else:
+                avisos_f.append(msg)
+        estado = "rd" if erros else ("gr" if (lista or e["herda"] != "POSTE") else "k")
+        res_e[ie] = {"estado": estado, "tem": len(lista), "precisa": None, "maximo": None, "valor_cabo": valor, "erros": erros, "avisos": avisos_f, "codigo": e["codigo"],
+                     "regra": e["regra"], "ficticios": 0, "parametro": e["parametro"], "parametros": parametros, "ocupa": False,
+                     "le_do_poste": {"poste": _nome_poste(outros[ie]), "cabos": [o["info"]["codigo"] for o in lista]}}
     res_c = {}
     for ic, c in info_c.items():
         mine = [ie for ie in (cabos[ic].get("vinculoEstruturas") or []) if ie in ocup]
@@ -581,6 +717,12 @@ def achados(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> list:
         linha_o = outros[linha_de(ie)]
         nome = f"{linha_o.get('ativo')} [{r['codigo']}]" if codigos_fn and len([c for c in (codigos_fn(linha_o.get("ativo")) or []) if c]) > 1 else linha_o.get("ativo")
         if r["regra"] is None:
+            continue
+        if not r.get("ocupa", True):                                           # TASK-169: equipamento lê do poste — só avisa quando falta cabo (ou bloqueia)
+            for msg in r["erros"]:
+                add(ie, f"Estrutura \"{nome}\": {msg}.", "O equipamento lê os cabos do poste e a regra manda bloquear sem cabo (se_faltar = BLOQUEAR).")
+            for msg in r["avisos"]:
+                add(ie, f"Estrutura \"{nome}\": {msg}.", "O equipamento lê os cabos do poste; sem cabo o parâmetro fica no padrão da base.")
             continue
         if r["tem"] == 0:
             if not excecao_zero:
@@ -697,8 +839,8 @@ def _vincular_por_poste_base(cabos, outros, cfg, prefixo_fn, codigo_fn, raio) ->
         unidades = sorted(por_linha[linha], key=lambda ie: ((info_e[ie]["regra"] if info_e[ie]["regra"] is not None else 10 ** 6), por_linha[linha].index(ie)))
         for ie in unidades:
             e = info_e[ie]
-            if e["regra"] is None or e["qtd"] is None:
-                continue                                          # estrutura sem regra/quantidade na Tabela de Estruturas: não exige cabo
+            if e["regra"] is None or e["qtd"] is None or not e["ocupa"]:
+                continue                                          # sem regra/quantidade na Tabela de Estruturas (ou equipamento que não ocupa — TASK-169): não exige cabo
             ocupantes = [{"info": info_c[x], "ficticio": False} for x in ocup[ie]] + [{"info": info_cabo(cod, op_ficticio(e), cfg), "ficticio": True} for cod in fict[ie]]
             falta = e["qtd"] - len(ocupantes)
             if falta > 0:
@@ -901,7 +1043,7 @@ def _executar_script_base(script, cabos, outros, cfg, prefixo_fn, codigo_fn) -> 
             if fe.get("amarracao") is not None and bool(fe["amarracao"]) != info_e[ie]["amarracao"]:
                 return False
             return True
-        cand_global = [ie for ie in ests if estrutura_ok(ie)]
+        cand_global = [ie for ie in ests if estrutura_ok(ie) and info_e[ie]["ocupa"]]          # TASK-169: equipamento (ocupa: false) não recebe cabo
         raio = passo.get("raio_m")
         for pos, ic in enumerate(alvo):
             c = info_c[ic]

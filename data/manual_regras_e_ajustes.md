@@ -458,6 +458,12 @@ Quando um ativo muda de itens conforme uma categoria (tipo de cabo, tipo de post
 - Nada a rodar no Supabase.
 
 
+### Equipamentos que leem os cabos do poste (RL, CFU, para-raio, chave-faca)
+
+Na **Tabela de Estruturas** (modal Vinculação), uma linha com **Ocupa desmarcado** é um **equipamento**: não consome ponta de cabo, não conta capacidade e não disputa cabo com a estrutura que segura os cabos (B4MT_RL, N4, CE-4…). Com **Herda = POSTE**, ele recebe `cabo`/`cabo2` (os parâmetros da coluna *Parâmetros*) dos **cabos do poste**: os que chegam no poste pelo desenho, os ligados às estruturas da linha e os fictícios. Em `12600D, B4MT_RL, RL`, a B4MT_RL liga os cabos como sempre e o RL fica `RL(poste=12600D, cabo=…, cabo2=…)` sem digitar nada.
+- **Nível** (MT/BT) filtra os cabos; **Ordem = MAIOR_PRIMEIRO** põe o cabo de maior seção em `cabo` (tronco) e o menor em `cabo2` (ramal); **Distintos** junta cabos iguais (o mesmo cabo dos dois lados vira só `cabo`); **Se faltar** = AVISAR (parâmetro no padrão da base) ou BLOQUEAR (vermelho). *Distintos* e *Ordem* também valem para estruturas que ocupam (ex.: CE2.CE3 com tronco ×2 + ramal).
+- No modal, o equipamento aparece em **cinza tracejado** ("lê do poste 12600D: A185P, A35P") e não recebe cabo por clique. As regras prontas do 081 estão em `data/vinculacao_estruturas_081.json` (importar na tabela).
+
 ### Ao abrir o programa
 
 O programa **sempre abre no projeto default**: o projeto que estava aberto da última vez não volta sozinho. Abra o projeto em **Projeto → Abrir** (ou pelo plugin do nanoCAD). Enquanto o programa está aberto, recarregar ou trocar de tela mantém o projeto aberto.

@@ -33,7 +33,7 @@
     .vz-erow{display:flex;align-items:center;gap:12px;height:62px;margin-bottom:10px}
     .vz-prow{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:8px 10px;border:1px solid #21262d;border-radius:10px;background:#0d1117}.vz-blocos{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:flex-start;flex:1;min-width:0}.vz-bloco{display:flex;flex-direction:column;gap:4px;width:150px}.vz-bloco .vz-ebox{min-width:0;width:100%;box-sizing:border-box}.vz-bloco .vz-info{padding:0 2px}
     .vz-ebox{display:flex;align-items:center;justify-content:center;height:56px;min-width:92px;padding:0 16px;border-radius:9px;border:2px solid #6e7681;background:#010409;font-weight:800;font-size:15px;color:#fff;cursor:pointer;position:relative}
-    .vz-ebox.pu{border-color:#a371f7;background:#1d1537}.vz-ebox.gr{border-color:#3fb950;background:#0f2a17}.vz-ebox.rd{border-color:#f85149;background:#3a1216}
+    .vz-ebox.eqp{border-style:dashed;border-color:#6e7681;background:#161b22;color:#8b949e;cursor:default}.vz-ebox.pu{border-color:#a371f7;background:#1d1537}.vz-ebox.gr{border-color:#3fb950;background:#0f2a17}.vz-ebox.rd{border-color:#f85149;background:#3a1216}
     .vz-info{display:flex;flex-direction:column;gap:2px;min-width:0}.vz-info .a{font-size:12px;color:#c9d1d9;white-space:nowrap}.vz-info .b{font-size:11px;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .vz-pbtn{margin-left:auto;border:1px dashed #484f58;color:#6e7681;border-radius:6px;padding:4px 9px;font-size:12px;font-weight:700;background:#0d1117;cursor:default}
     .vz-liga{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}.vz-liga path.hit{pointer-events:stroke;cursor:pointer;stroke:transparent;stroke-width:12;fill:none}
@@ -196,6 +196,7 @@
     }
 
     function clicar(tipo, i) {
+        if (tipo === 'e' && infoEst(i).ocupa === false) { toast('Equipamento (' + infoEst(i).codigo + ') lê os cabos do poste: não recebe vínculo de cabo.'); return; }          // TASK-169
         if (st.sel && st.sel.t !== tipo) { const ic = tipo === 'c' ? i : st.sel.i, ie = tipo === 'e' ? i : st.sel.i; ligar(ic, ie); return; }
         st.sel = (st.sel && st.sel.t === tipo && st.sel.i === i) ? null : { t: tipo, i };
         render();
@@ -295,11 +296,12 @@
             const r = a.estruturas[ie];
             if (st.filtro === 'pendentes' && (r.estado === 'gr')) return null;
             if (st.filtro === 'conflitos' && r.estado !== 'rd') return null;
-            let cls = 'vz-ebox' + CORES[r.estado] + (selE === ie ? ' sel' : ''), dim = false, tip = '';
-            if (selC !== null) { const [ok, motivo] = podeLigar(selC, ie), ja = (cabos()[selC].vinculoEstruturas || []).includes(ie); if (ok || ja) cls += ' glow'; else { dim = true; tip = motivo; } }
+            const eqp = r.ocupa === false;                                                              // TASK-169: equipamento (lê do poste): cinza, sem alvo de cabo
+            let cls = 'vz-ebox' + (eqp ? ' eqp' : CORES[r.estado]) + (selE === ie ? ' sel' : ''), dim = false, tip = '';
+            if (selC !== null && !eqp) { const [ok, motivo] = podeLigar(selC, ie), ja = (cabos()[selC].vinculoEstruturas || []).includes(ie); if (ok || ja) cls += ' glow'; else { dim = true; tip = motivo; } }
             const nome = r.codigo || '?', info = infoEst(ie);
-            const ebox = el('div', { class: cls, 'data-e': ie, onclick: () => clicar('e', ie), oncontextmenu: e => menuEstrutura(e, ie), title: tip || (o.ativo || '') }, [nome]);
-            const sub = r.erros.length ? '✖ ' + r.erros[0] : (info.regra === null ? 'sem regra na Tabela de Estruturas' : (info.lados === 'IGUAIS' ? `exige ${info.qtd || ''} cabos iguais` : (info.amarracao ? 'amarração' : `${info.qtd || ''} cabo(s)`)));
+            const ebox = el('div', { class: cls, 'data-e': ie, onclick: () => clicar('e', ie), oncontextmenu: e => { if (!eqp) menuEstrutura(e, ie); }, title: tip || (o.ativo || '') }, [nome]);
+            const sub = eqp ? (r.erros.length ? '✖ ' + r.erros[0] : `lê do poste ${(r.le_do_poste && r.le_do_poste.poste) || ''}: ${r.le_do_poste && r.le_do_poste.cabos.length ? r.le_do_poste.cabos.join(', ') : 'nenhum cabo' + (r.avisos.length ? ' (' + r.avisos[0] + ')' : '')}`) : r.erros.length ? '✖ ' + r.erros[0] : (info.regra === null ? 'sem regra na Tabela de Estruturas' : (info.lados === 'IGUAIS' ? `exige ${info.qtd || ''} cabos iguais` : (info.amarracao ? 'amarração' : `${info.qtd || ''} cabo(s)`)));
             return el('div', { class: 'vz-bloco' + (dim ? ' vz-dim' : '') }, [ebox,
                 el('div', { class: 'vz-info' }, [el('div', { class: 'a', style: r.estado === 'rd' ? 'color:#f85149' : '', text: `${r.tem}${r.precisa ? '/' + faixaCabos(r) : ''}${r.valor_cabo ? ' · tipocabo=' + r.valor_cabo : ''}${r.ficticios ? ' · ' + r.ficticios + ' fictício' : ''}` }), el('div', { class: 'b', text: sub, title: sub })])]);
         };
@@ -354,7 +356,7 @@
     // ── tabelas editáveis (Cabos / Estruturas) ──
     function celula(r, campo, tipo, extra) {
         const v = r[campo];
-        if (tipo === 'bool') return el('input', { type: 'checkbox', ...(v ? { checked: 'checked' } : {}), onchange: e => { r[campo] = e.target.checked; marcarSujo(); } });
+        if (tipo === 'bool') return el('input', { type: 'checkbox', ...((v === undefined ? !!extra : v) ? { checked: 'checked' } : {}), onchange: e => { r[campo] = e.target.checked; marcarSujo(); } });
         if (tipo === 'select') return el('select', { onchange: e => { r[campo] = e.target.value; marcarSujo(); } }, extra.map(o => el('option', { value: o, text: o, ...(String(v == null ? extra[0] : v) === o ? { selected: 'selected' } : {}) })));
         if (tipo === 'number') return el('input', { type: 'number', min: '1', value: v == null ? '' : v, onchange: e => { r[campo] = e.target.value === '' ? undefined : parseInt(e.target.value, 10); marcarSujo(); } });
         if (tipo === 'ops') return el('input', { type: 'text', value: Array.isArray(v) ? v.join(', ') : '', placeholder: 'I, M', onchange: e => { const l = e.target.value.split(',').map(trim).filter(Boolean); if (l.length) r[campo] = l; else delete r[campo]; marcarSujo(); } });
@@ -369,7 +371,7 @@
         tb.appendChild(el('thead', {}, [el('tr', {}, [el('th', { text: '#' })].concat(colunas.map(c => el('th', { text: c.rot, title: c.dica || '' }))).concat([el('th', { text: '' })]))]));
         const tbody = el('tbody');
         lista.forEach((r, i) => {
-            tbody.appendChild(el('tr', {}, [el('td', { text: String(i + 1), style: 'color:#8b949e;text-align:center' })].concat(colunas.map(c => el('td', { style: c.w ? 'width:' + c.w : '' }, [celula(r, c.campo, c.tipo, c.extra)])))
+            tbody.appendChild(el('tr', {}, [el('td', { text: String(i + 1), style: 'color:#8b949e;text-align:center' })].concat(colunas.map(c => el('td', { style: (c.w ? 'width:' + c.w : '') + (c.cinza && c.cinza(r) ? ';opacity:.4' : '') }, [celula(r, c.campo, c.tipo, c.extra)])))
                 .concat([el('td', { style: 'white-space:nowrap' }, [el('button', { class: 'mv', text: '▲', title: 'a primeira linha que casa vale', onclick: () => { if (i > 0) { lista.splice(i - 1, 0, lista.splice(i, 1)[0]); marcarSujo(); render(); } } }),
                     el('button', { class: 'mv', text: '▼', onclick: () => { if (i < lista.length - 1) { lista.splice(i + 1, 0, lista.splice(i, 1)[0]); marcarSujo(); render(); } } }), el('button', { class: 'x', text: '✖', title: 'Excluir', onclick: () => { lista.splice(i, 1); marcarSujo(); render(); } })])])));
         });
@@ -423,15 +425,17 @@
 
     function abaEstruturas(corpo) {
         tabelaEditavel(corpo, st.cfg.estruturas, [
-            { campo: 'padrao', rot: 'Padrão da estrutura', tipo: 'text', extra: '^N1$ ou N1, N2' }, { campo: 'qtd_cabos', rot: 'Cabos', tipo: 'number', w: '60px', dica: 'quantidade fixa (mín = máx)' }, { campo: 'qtd_min', rot: 'Mín', tipo: 'number', w: '50px', dica: 'faixa: mínimo para ficar completa' }, { campo: 'qtd_max', rot: 'Máx', tipo: 'number', w: '50px', dica: 'faixa: máximo aceito' }, { campo: 'max_reais', rot: 'Reais', tipo: 'number', w: '55px', dica: 'quantos podem ser cabos REAIS; o excedente só entra como cabo fictício (ex.: SI3 = 1)' },
-            { campo: 'lados', rot: 'Os lados…', tipo: 'select', extra: ['LIVRE', 'IGUAIS'], w: '90px' }, { campo: 'amarracao', rot: 'Amarração', tipo: 'bool', w: '80px', dica: 'aceita cabo M' },
-            { campo: 'aceita_i', rot: 'Aceita I', tipo: 'bool', w: '70px', dica: 'desmarcado = só cabo M' }, { campo: 'cabos', rot: 'Cabos que aceita', tipo: 'text', extra: '(vazio = qualquer)' },
+            { campo: 'padrao', rot: 'Padrão da estrutura', tipo: 'text', extra: '^N1$ ou N1, N2' }, { campo: 'ocupa', rot: 'Ocupa', tipo: 'bool', extra: true, w: '55px', dica: 'marcado (padrão) = consome pontas dos cabos. Desmarcado = EQUIPAMENTO (RL, CFU, para-raio…): não consome ponta, não conta capacidade e lê os cabos do poste (veja Herda).' }, { campo: 'herda', rot: 'Herda', tipo: 'select', extra: ['', 'POSTE'], w: '75px', dica: 'só com Ocupa desmarcado: POSTE = recebe os cabos que chegam no poste (desenho), os ligados às estruturas do poste e os fictícios' }, { campo: 'nivel', rot: 'Nível', tipo: 'select', extra: ['', 'MT', 'BT'], w: '60px', dica: 'filtra os cabos do poste pelo nível do cabo' }, { campo: 'ordem', rot: 'Ordem', tipo: 'select', extra: ['ORIGEM', 'MAIOR_PRIMEIRO'], w: '120px', dica: 'MAIOR_PRIMEIRO: ordena pela seção do cabo, o maior primeiro (tronco em cabo, ramal em cabo2)' }, { campo: 'distintos', rot: 'Distintos', tipo: 'bool', w: '65px', dica: 'junta os cabos de mesma descrição antes de distribuir nos parâmetros (vale também para estruturas que ocupam)' }, { campo: 'se_faltar', rot: 'Se faltar', tipo: 'select', extra: ['AVISAR', 'BLOQUEAR'], w: '90px', dica: 'poste sem cabo que sirva: AVISAR (parâmetro no padrão da base) ou BLOQUEAR (estado vermelho)' },
+            { campo: 'qtd_cabos', rot: 'Cabos', tipo: 'number', w: '60px', dica: 'quantidade fixa (mín = máx)', cinza: r => r.ocupa === false }, { campo: 'qtd_min', rot: 'Mín', tipo: 'number', w: '50px', dica: 'faixa: mínimo para ficar completa', cinza: r => r.ocupa === false }, { campo: 'qtd_max', rot: 'Máx', tipo: 'number', w: '50px', dica: 'faixa: máximo aceito', cinza: r => r.ocupa === false }, { campo: 'max_reais', rot: 'Reais', tipo: 'number', w: '55px', cinza: r => r.ocupa === false, dica: 'quantos podem ser cabos REAIS; o excedente só entra como cabo fictício (ex.: SI3 = 1)' },
+            { campo: 'lados', rot: 'Os lados…', tipo: 'select', extra: ['LIVRE', 'IGUAIS'], w: '90px', cinza: r => r.ocupa === false }, { campo: 'amarracao', rot: 'Amarração', tipo: 'bool', w: '80px', dica: 'aceita cabo M', cinza: r => r.ocupa === false },
+            { campo: 'aceita_i', rot: 'Aceita I', tipo: 'bool', w: '70px', dica: 'desmarcado = só cabo M', cinza: r => r.ocupa === false }, { campo: 'cabos', rot: 'Cabos que aceita', tipo: 'text', extra: '(vazio = qualquer)' },
             { campo: 'parametro', rot: 'Parâmetro', tipo: 'text', w: '80px', dica: 'parâmetro ÚNICO que recebe o VALOR DE CABO da Tabela de Cabos (use tipocabo); vazio = nenhum. Para a descrição completa do cabo use a coluna Parâmetros (vários) com cabo.' }, { campo: 'parametros', rot: 'Parâmetros (vários)', tipo: 'text', w: '150px', extra: 'cabo, cabo, tipocabo, tipocabo', dica: 'um valor por cabo vinculado. cabo = descrição completa do cabo, sem o comprimento (3xS04-7,97kV → 3XS04-7.97KV); tipocabo = a coluna Valor de cabo da Tabela de Cabos; o mesmo nome pode se repetir (N4 com dois cabos). Se preenchido, substitui o Parâmetro único.' }, { campo: 'se_diferem', rot: 'Se diferem', tipo: 'select', extra: ['MAIOR', 'BLOQUEAR', 'AVISAR'], w: '95px' },
             { campo: 'ativa', rot: 'Ativa', tipo: 'bool', w: '50px' }, { campo: 'obs', rot: 'Observação', tipo: 'text' }],
             () => ({ padrao: '', qtd_cabos: 1, lados: 'LIVRE', amarracao: false, aceita_i: true, cabos: '', parametro: 'cabo', se_diferem: 'MAIOR', ativa: true, obs: '' }),
             txt => {
                 const cod = host.codigoEstrutura(txt) || txt, i = VR.infoEstrutura(cod, st.cfg);
-                return `estrutura <b style="color:#79c0ff">${esc(i.codigo)}</b> → ${i.regra === null ? 'nenhuma linha casa' : 'linha #' + (i.regra + 1) + ' · ' + (i.qtd || '?') + ' cabo(s) · lados ' + i.lados + (i.amarracao ? ' · amarração' : '') + (i.aceita_i ? '' : ' · só cabo M')}`;
+                if (i.regra !== null && !i.ocupa) return `equipamento <b style="color:#79c0ff">${esc(i.codigo)}</b> → linha #${i.regra + 1} · <b>não ocupa pontas</b>${i.herda === 'POSTE' ? ' · lê os cabos ' + (i.nivel || '') + ' do poste' : ''} · ordem ${i.ordem === 'MAIOR_PRIMEIRO' ? 'maior primeiro' : 'de origem'}${i.distintos ? ' · cabos distintos' : ''} · parâmetros ${esc((i.parametros || []).map(p => p.nome.toLowerCase()).join(', ') || i.parametro.toLowerCase() || '—')} · sem cabo: ${i.se_faltar === 'BLOQUEAR' ? 'bloqueia' : 'avisa'}`;
+                return `estrutura <b style="color:#79c0ff">${esc(i.codigo)}</b> → ${i.regra === null ? 'nenhuma linha casa' : 'linha #' + (i.regra + 1) + ' · ' + (i.qtd || '?') + ' cabo(s) · lados ' + i.lados + (i.amarracao ? ' · amarração' : '') + (i.aceita_i ? '' : ' · só cabo M')}${i.distintos ? ' · cabos distintos' : ''}${i.ordem === 'MAIOR_PRIMEIRO' ? ' · maior primeiro' : ''}`;
             },
             '<b>O que esta tabela diz:</b> para cada tipo de estrutura, quantos cabos ela recebe, se os lados precisam ser <b>iguais</b>, se é de <b>amarração</b> (a única que aceita cabo M), quais cabos aceita e <b>qual parâmetro recebe do cabo</b> (<code>cabo</code>). A estrutura é lida sem o poste (<code>9200D, N1</code> → <code>N1</code>). O vínculo só vale se o cabo aceita a estrutura <u>e</u> a estrutura aceita o cabo.', 'estruturas');
     }

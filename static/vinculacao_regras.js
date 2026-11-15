@@ -6,7 +6,7 @@
 (function (raiz) {
     'use strict';
     const ORDEM_MAIOR_PADRAO = ['C', 'P', 'A'];
-    const SE_DIFEREM = ['BLOQUEAR', 'MAIOR', 'AVISAR'];
+    const SE_DIFEREM = ['BLOQUEAR', 'MAIOR', 'AVISAR'], SE_FALTAR = ['AVISAR', 'BLOQUEAR'], ORDENS = ['ORIGEM', 'MAIOR_PRIMEIRO'];          // TASK-169
     const RE_REGEX = /[\\^$()\[\]|+*?{}]/;
     const trim = t => String(t == null ? '' : t).trim();
 
@@ -111,7 +111,8 @@
     function infoEstrutura(codigo, cfg) {
         const cod = trim(codigo).toUpperCase();
         const [i, r] = cod ? primeira(cfg.estruturas, 'padrao', cod) : [null, null];
-        const d = { codigo: cod, regra: i, qtd: null, qtd_min: null, max_reais: null, parametros: null, lados: 'LIVRE', amarracao: false, aceita_i: true, cabos: null, parametro: 'CABO', se_diferem: 'MAIOR' };
+        const d = { codigo: cod, regra: i, qtd: null, qtd_min: null, max_reais: null, parametros: null, lados: 'LIVRE', amarracao: false, aceita_i: true, cabos: null, parametro: 'CABO', se_diferem: 'MAIOR',
+            ocupa: true, herda: null, nivel: null, ordem: 'ORIGEM', distintos: false, se_faltar: 'AVISAR' };
         if (r) {
             // TASK-093: qtd_cabos fixo (min = max) OU faixa qtd_min..qtd_max; max_reais = quantos podem ser cabos REAIS (o excedente só entra como fictício, ex.: SI3 = 1 real + 1 fictício opcional)
             d.qtd = Number.isInteger(r.qtd_max) ? r.qtd_max : (Number.isInteger(r.qtd_cabos) ? r.qtd_cabos : null);
@@ -125,6 +126,13 @@
             d.parametros = normalizarParametros(r.parametros);
             if (d.parametros) d.parametro = '';          // a lista substitui o parâmetro único
             d.se_diferem = SE_DIFEREM.includes(r.se_diferem) ? r.se_diferem : 'MAIOR';
+            // TASK-169: equipamento (RL, CFU, para-raio…) que NÃO ocupa pontas e lê os cabos do poste; todos opcionais (ausentes = comportamento de antes)
+            d.ocupa = r.ocupa !== false;
+            d.herda = trim(r.herda).toUpperCase() === 'POSTE' ? 'POSTE' : null;
+            d.nivel = ['MT', 'BT'].includes(trim(r.nivel).toUpperCase()) ? trim(r.nivel).toUpperCase() : null;
+            d.ordem = trim(r.ordem).toUpperCase() === 'MAIOR_PRIMEIRO' ? 'MAIOR_PRIMEIRO' : 'ORIGEM';
+            d.distintos = r.distintos === true;
+            d.se_faltar = trim(r.se_faltar).toUpperCase() === 'BLOQUEAR' ? 'BLOQUEAR' : 'AVISAR';
         }
         return d;
     }
@@ -212,20 +220,82 @@
         return { estruturas, cabos: a.cabos, links: a.links.map(l => Object.assign({}, l, { estrutura: x.idDe[l.estrutura] })) };
     }
 
+    /** TASK-169: seção do cabo para ordenar "maior primeiro" (A185P → 185, S336 → 336; AWG com zero e fração por tabela). */
+    const AWG0 = { 2: 33.6, 4: 21.2, 6: 13.3, 8: 8.4 }, AWGX0 = { 1: 53.5, 2: 67.4, 3: 85.0, 4: 107.2 };
+    function secaoCabo(codigo) {
+        const c = trim(codigo).toUpperCase();
+        let m = /(\d)\/0/.exec(c);
+        if (m) return AWGX0[Number(m[1])] !== undefined ? AWGX0[Number(m[1])] : Number(m[1]);
+        m = /^[A-Z]+0(\d)$/.exec(c);
+        if (m) return AWG0[Number(m[1])] !== undefined ? AWG0[Number(m[1])] : Number(m[1]);
+        m = /(\d+)/.exec(c);
+        return m ? Number(m[1]) : 0;
+    }
+    /** `ordem: MAIOR_PRIMEIRO` (estável) e `distintos` (junta os cabos de mesma descrição) ANTES de distribuir nos parâmetros. */
+    function ordenarEJuntar(e, ocupantes) {
+        let lista = ocupantes.slice();
+        if (e.ordem === 'MAIOR_PRIMEIRO') lista = lista.map((o, i) => [o, i]).sort((x, y) => (secaoCabo(y[0].info.codigo) - secaoCabo(x[0].info.codigo)) || (x[1] - y[1])).map(x => x[0]);
+        if (e.distintos) { const vistos = new Set(); lista = lista.filter(o => { const k = o.info.descricao; if (vistos.has(k)) return false; vistos.add(k); return true; }); }
+        return lista;
+    }
+    function opAceita(c) {
+        if (Array.isArray(c.operacoes) && c.operacoes.length) {
+            const aceitas = c.operacoes.map(x => trim(x).toUpperCase().replace(/\*/g, '')), opn = c.op.replace(/\*/g, '');
+            return aceitas.includes(opn) || (opn === 'R' && aceitas.includes('I'));
+        }
+        return true;
+    }
+    const nomePoste = row => trim(String((row && row.ativo) || '').split(',')[0]);
+    function mapaPostes(outros, ests) {
+        const porLinha = new Map();
+        ests.forEach(ie => { const l = outros[ie]._linha; if (!porLinha.has(l)) porLinha.set(l, []); porLinha.get(l).push(ie); });
+        return Array.from(porLinha.keys()).sort((a, b) => a - b).map(l => [l, par(outros[porLinha.get(l)[0]]._poste)]).filter(([, pos]) => pos);
+    }
+    /** Valor consolidado do cabo e parâmetros por nome a partir dos ocupantes (já ordenados/juntados). */
+    function valorEParametros(e, cfg, ocupantes) {
+        const avisos = [], valores = ocupantes.map(o => o.info.valor_cabo).filter(v => v !== null);
+        let valor = null;
+        const distintos = Array.from(new Set(valores)).sort();
+        if (distintos.length === 1) valor = distintos[0];
+        else if (distintos.length > 1) {
+            if (e.se_diferem === 'MAIOR') {
+                const ordem = cfg.ordem_maior, rank = v => ordem.includes(v) ? ordem.indexOf(v) : ordem.length;
+                valor = distintos.slice().sort((a, b) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0))[0];
+                avisos.push(`${e.codigo}: cabos diferentes (${distintos.join(', ')}); usado o maior (${valor})`);
+            } else avisos.push(`${e.codigo}: cabos diferentes (${distintos.join(', ')}); parâmetro não preenchido`);
+        }
+        let parametros = null;
+        if (e.parametros) {          // TASK-096: um valor por cabo vinculado (reais e fictícios), na ordem dos ocupantes
+            const cont = {}, vezes = {};
+            e.parametros.forEach(p => { vezes[p.nome] = (vezes[p.nome] || 0) + 1; });
+            e.parametros.forEach(({ nome, fonte }) => {
+                const sufixo = /^(?:CABO|TIPOCABO)(\d+)$/.exec(nome), pos = sufixo ? Number(sufixo[1]) - 1 : (cont[nome] || 0);      // cabo2 = o 2º cabo; cabo, cabo = 1º e 2º
+                const o = ocupantes[pos]; cont[nome] = (cont[nome] || 0) + 1;
+                // `tipocabo` escrito UMA vez numa estrutura com 2 cabos = o tipo consolidado (se_diferem: MAIOR C>P>A…), como no parâmetro único
+                let v = o ? (fonte === 'valor_cabo' ? o.info.valor_cabo : (fonte === 'descricao' ? o.info.descricao : o.info.codigo)) : null;
+                if (fonte === 'valor_cabo' && vezes[nome] === 1 && ocupantes.length > 1) v = valor;
+                if (v) (parametros = parametros || {})[nome] = ((parametros || {})[nome] || []).concat([v]);
+            });
+        }
+        return { valor, avisos, parametros };
+    }
+
     function analisarBase(cabos, outros, cfg, prefixoFn, codigoFn) {
         cfg = normalizarConfig(cfg);
         const ests = estruturasDisponiveis(outros), infoC = {}, infoE = {}, ocup = {};
         cabos.forEach((c, ic) => { if (ehCaboValido(c)) infoC[ic] = infoCabo(prefixoFn(c.ativo) || '', c.operacao, cfg, extraCabo(c)); });
-        ests.forEach(ie => { infoE[ie] = infoEstrutura(codigoFn(outros[ie].ativo, outros[ie]), cfg); ocup[ie] = []; });
+        ests.forEach(ie => { infoE[ie] = infoEstrutura(codigoFn(outros[ie].ativo, outros[ie]), cfg); });
+        const estsOcupa = ests.filter(ie => infoE[ie].ocupa);          // TASK-169: equipamento (ocupa: false) não consome ponta; é resolvido na 2ª passada
+        estsOcupa.forEach(ie => { ocup[ie] = []; });
         cabos.forEach((c, ic) => {
             if (!(ic in infoC)) return;
             (c.vinculoEstruturas || []).forEach(ie => { if (ie in ocup) ocup[ie].push(ic); });
         });
         const links = [], bad = new Set(), resE = {};
-        ests.forEach(ie => {
+        estsOcupa.forEach(ie => {
             const e = infoE[ie];
             const fict = (outros[ie].cabosFicticios || []).map(x => trim(x).toUpperCase()).filter(Boolean);
-            const tem = ocup[ie].length + fict.length, erros = [], avisos = [], ocupantes = [];
+            const tem = ocup[ie].length + fict.length, erros = [], ocupantes = [];
             ocup[ie].forEach(ic => {
                 const [ok, motivo] = podeComOcupantes(infoC[ic], e, ocupantes);
                 ocupantes.push({ info: infoC[ic], ficticio: false });
@@ -238,33 +308,37 @@
                 ocupantes.push({ info: icf, ficticio: true });
                 if (!ok) erros.push(motivo);
             });
-            const valores = ocupantes.map(o => o.info.valor_cabo).filter(v => v !== null);
-            let valor = null;
-            const distintos = Array.from(new Set(valores)).sort();
-            if (distintos.length === 1) valor = distintos[0];
-            else if (distintos.length > 1) {
-                if (e.se_diferem === 'MAIOR') {
-                    const ordem = cfg.ordem_maior, rank = v => ordem.includes(v) ? ordem.indexOf(v) : ordem.length;
-                    valor = distintos.slice().sort((a, b) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0))[0];
-                    avisos.push(`${e.codigo}: cabos diferentes (${distintos.join(', ')}); usado o maior (${valor})`);
-                } else avisos.push(`${e.codigo}: cabos diferentes (${distintos.join(', ')}); parâmetro não preenchido`);
-            }
+            const { valor, avisos, parametros } = valorEParametros(e, cfg, ordenarEJuntar(e, ocupantes));
             let estado;
             if (erros.length) estado = 'rd'; else if (tem === 0) estado = 'k'; else if (e.qtd_min !== null && tem < e.qtd_min) estado = 'pu'; else estado = 'gr';
-            let parametros = null;
-            if (e.parametros) {          // TASK-096: um valor por cabo vinculado (reais e fictícios), na ordem dos ocupantes
-                const cont = {}, vezes = {};
-                e.parametros.forEach(p => { vezes[p.nome] = (vezes[p.nome] || 0) + 1; });
-                e.parametros.forEach(({ nome, fonte }) => {
-                    const sufixo = /^(?:CABO|TIPOCABO)(\d+)$/.exec(nome), pos = sufixo ? Number(sufixo[1]) - 1 : (cont[nome] || 0);      // cabo2 = o 2º cabo; cabo, cabo = 1º e 2º
-                    const o = ocupantes[pos]; cont[nome] = (cont[nome] || 0) + 1;
-                    // `tipocabo` escrito UMA vez numa estrutura com 2 cabos = o tipo consolidado (se_diferem: MAIOR C>P>A…), como no parâmetro único
-                    let v = o ? (fonte === 'valor_cabo' ? o.info.valor_cabo : (fonte === 'descricao' ? o.info.descricao : o.info.codigo)) : null;
-                    if (fonte === 'valor_cabo' && vezes[nome] === 1 && ocupantes.length > 1) v = valor;
-                    if (v) (parametros = parametros || {})[nome] = ((parametros || {})[nome] || []).concat([v]);
+            resE[ie] = { estado, tem, precisa: e.qtd_min, maximo: e.qtd, valor_cabo: valor, erros, avisos, codigo: e.codigo, regra: e.regra, ficticios: fict.length, parametro: e.parametro, parametros, ocupa: true };
+        });
+        // TASK-169 — 2ª passada: equipamento (RL, CFU, para-raio…) lê os cabos do POSTE, sem ocupar pontas
+        const postes = mapaPostes(outros, ests);
+        ests.forEach(ie => {
+            const e = infoE[ie];
+            if (e.ocupa) return;
+            const linha = outros[ie]._linha, unidades = estsOcupa.filter(j => outros[j]._linha === linha), candidatos = [], vistos = new Set();
+            unidades.forEach(j => ocup[j].forEach(ic => { if (!vistos.has(ic)) { vistos.add(ic); candidatos.push({ info: infoC[ic], ficticio: false }); } }));
+            if (par(outros[ie]._poste)) {
+                Object.keys(infoC).map(Number).sort((a, b) => a - b).forEach(ic => {
+                    const ext = extremos(cabos[ic]);
+                    if (!vistos.has(ic) && ext && ext.some(pt => posteMaisPerto(pt, postes, RAIO_POSTE_PADRAO) === linha)) { vistos.add(ic); candidatos.push({ info: infoC[ic], ficticio: false }); }
                 });
             }
-            resE[ie] = { estado, tem, precisa: e.qtd_min, maximo: e.qtd, valor_cabo: valor, erros, avisos, codigo: e.codigo, regra: e.regra, ficticios: fict.length, parametro: e.parametro, parametros };
+            unidades.forEach(j => (outros[j].cabosFicticios || []).forEach(x => { if (trim(x)) candidatos.push({ info: infoCabo(trim(x).toUpperCase(), opFicticio(infoE[j]), cfg), ficticio: true }); }));
+            let lista = candidatos.filter(o => { const c = o.info; return c.vincula && opAceita(c) && casa(e.cabos, c.codigo) && !(e.nivel && c.nivel !== null && c.nivel !== e.nivel); });
+            lista = ordenarEJuntar(e, lista);
+            const erros = [], avisosF = [];
+            let valor = null, parametros = null;
+            if (e.herda === 'POSTE') { const r = valorEParametros(e, cfg, lista); valor = r.valor; parametros = r.parametros; r.avisos.forEach(a => avisosF.push(a)); }
+            if (e.herda === 'POSTE' && !lista.length) {
+                const msg = `${e.codigo}: o poste ${nomePoste(outros[ie])} não tem cabo${e.nivel ? ' ' + e.nivel : ''} ligado`;
+                if (e.se_faltar === 'BLOQUEAR') erros.push(msg); else avisosF.push(msg);
+            }
+            const estado = erros.length ? 'rd' : ((lista.length || e.herda !== 'POSTE') ? 'gr' : 'k');
+            resE[ie] = { estado, tem: lista.length, precisa: null, maximo: null, valor_cabo: valor, erros, avisos: avisosF, codigo: e.codigo, regra: e.regra, ficticios: 0, parametro: e.parametro, parametros, ocupa: false,
+                le_do_poste: { poste: nomePoste(outros[ie]), cabos: lista.map(o => o.info.codigo) } };
         });
         const resC = {};
         Object.keys(infoC).forEach(k => {
@@ -314,6 +388,11 @@
         Object.keys(a.estruturas).sort((x, y) => x - y).forEach(k => {
             const ie = Number(k), r = a.estruturas[k], linhaO = outros[linhaDe(ie)], nome = codigosFn && (codigosFn(linhaO.ativo) || []).filter(Boolean).length > 1 ? `${linhaO.ativo} [${r.codigo}]` : linhaO.ativo;
             if (r.regra === null) return;
+            if (r.ocupa === false) {                                           // TASK-169: equipamento lê do poste — só avisa quando falta cabo (ou bloqueia)
+                r.erros.forEach(msg => add(ie, `Estrutura "${nome}": ${msg}.`, 'O equipamento lê os cabos do poste e a regra manda bloquear sem cabo (se_faltar = BLOQUEAR).'));
+                r.avisos.forEach(msg => add(ie, `Estrutura "${nome}": ${msg}.`, 'O equipamento lê os cabos do poste; sem cabo o parâmetro fica no padrão da base.'));
+                return;
+            }
             if (r.tem === 0) {
                 if (!excecaoZero) add(ie, `Estrutura "${nome}" sem nenhum cabo vinculado.`, `${r.codigo} exige ${r.precisa || 1} cabo(s); nenhum encontrado, e não há cabo M nem RETCA no projeto para justificar.`);
                 return;
@@ -443,7 +522,7 @@
             const unidades = ies.slice().sort((a, b) => ((infoE[a].regra !== null ? infoE[a].regra : 1e6) - (infoE[b].regra !== null ? infoE[b].regra : 1e6)) || (ies.indexOf(a) - ies.indexOf(b)));
             unidades.forEach(ie => {
                 const e = infoE[ie];
-                if (e.regra === null || e.qtd === null) return;
+                if (e.regra === null || e.qtd === null || !e.ocupa) return;          // sem regra/quantidade (ou equipamento que não ocupa — TASK-169): não exige cabo
                 const ocupantes = ocup[ie].map(ic => ({ info: infoC[ic], ficticio: false })).concat(fict[ie].map(cod => ({ info: infoCabo(cod, opFicticio(e), cfg), ficticio: true })));
                 const falta = e.qtd - ocupantes.length;
                 if (falta > 0) {
@@ -539,7 +618,8 @@
                 if (fe.amarracao !== undefined && fe.amarracao !== null && !!fe.amarracao !== infoE[ie].amarracao) return false;
                 return true;
             };
-            const candGlobal = ests.filter(estruturaOk), raio = passo.raio_m === undefined ? null : passo.raio_m;
+            const candGlobal = ests.filter(ie => estruturaOk(ie) && infoE[ie].ocupa)          // TASK-169: equipamento (ocupa: false) não recebe cabo
+                , raio = passo.raio_m === undefined ? null : passo.raio_m;
             for (let pos = 0; pos < alvo.length; pos++) {
                 const ic = alvo[pos], c = infoC[ic];
                 const need = Math.max(0, (Number.isInteger(passo.pontas) ? passo.pontas : c.pontas) - (passo.substituir ? 0 : estruturasFicticiasDe(cabos[ic]).length));
@@ -612,6 +692,12 @@
                     }
                     if (r.lados != null && !['IGUAIS', 'LIVRE'].includes(r.lados)) erros.push(`${p}: 'lados' precisa ser IGUAIS ou LIVRE.`);
                     if (r.se_diferem != null && !SE_DIFEREM.includes(r.se_diferem)) erros.push(`${p}: 'se_diferem' precisa ser um de ${JSON.stringify(SE_DIFEREM)}.`);
+                    ['ocupa', 'distintos'].forEach(k => { if (r[k] != null && typeof r[k] !== 'boolean') erros.push(`${p}: '${k}' precisa ser true ou false.`); });          // TASK-169
+                    if (r.herda != null && r.herda !== '' && r.herda !== 'POSTE') erros.push(`${p}: 'herda' precisa ser "POSTE" (ou vazio).`);
+                    if (r.herda === 'POSTE' && r.ocupa !== false) erros.push(`${p}: 'herda' só vale com 'ocupa': false.`);
+                    if (trim(r.nivel) && !['MT', 'BT'].includes(trim(r.nivel).toUpperCase())) erros.push(`${p}: 'nivel' precisa ser MT ou BT.`);
+                    if (r.ordem != null && r.ordem !== '' && !ORDENS.includes(r.ordem)) erros.push(`${p}: 'ordem' precisa ser um de ${JSON.stringify(ORDENS)}.`);
+                    if (r.se_faltar != null && r.se_faltar !== '' && !SE_FALTAR.includes(r.se_faltar)) erros.push(`${p}: 'se_faltar' precisa ser um de ${JSON.stringify(SE_FALTAR)}.`);
                 } else {
                     if (r.fases != null && r.fases !== '' && (Array.isArray(r.fases) ? r.fases : String(r.fases).split(',')).some(x => !/^[1-9]$/.test(trim(x)))) erros.push(`${p}: 'fases' precisa ser números de 1 a 9 (ex.: "3" ou "1,2").`);
                     if (trim(r.nivel) && !['MT', 'BT'].includes(trim(r.nivel).toUpperCase())) erros.push(`${p}: 'nivel' precisa ser MT ou BT.`);
