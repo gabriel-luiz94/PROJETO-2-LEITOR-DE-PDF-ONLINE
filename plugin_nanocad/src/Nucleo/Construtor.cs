@@ -30,7 +30,24 @@ namespace OrcamentoNanoCAD.Nucleo
         /// <summary>Lê os textos escolhidos com o motor do leitor. Sem regra que entenda (projeto sem padrão): o próprio texto, com a entidade pedida.</summary>
         public static TextoLido LerAnotacao(List<TextoDesenho> textos, RegrasProjeto regras, string entidadePadrao)
         {
+            return LerAnotacao(textos, regras, entidadePadrao, null);
+        }
+
+        /// <summary>TASK-021: com entidade CABO, lê como cabo e completa o comprimento (mesma linha, escolhidos ou vizinhança do desenho).</summary>
+        public static TextoLido LerAnotacao(List<TextoDesenho> textos, RegrasProjeto regras, string entidadePadrao, Func<IEnumerable<TextoDesenho>> desenho)
+        {
             if (textos == null || textos.Count == 0) return null;
+            if (entidadePadrao == "CABO")
+            {
+                LeituraDeTexto c = LerCaboDeTexto(textos, regras, desenho);
+                TextoLido tc = new TextoLido();
+                tc.T = c.Texto ?? textos[0];
+                tc.R = new ResultadoLeitor();
+                tc.R.Entidade = "CABO";
+                tc.R.Ativo = c.Ativo;
+                tc.R.Operacao = c.Operacao;
+                return tc;
+            }
             List<TextoLido> lidos = LeitorProjeto.ClassificarTextos(textos, regras);
             TextoLido bom = lidos.FirstOrDefault(t => t.R.Entidade == entidadePadrao)
                 ?? lidos.FirstOrDefault(t => entidadePadrao == "POSTE" && t.R.Entidade == "ESTRUTURA");
@@ -106,6 +123,11 @@ namespace OrcamentoNanoCAD.Nucleo
 
         public static Vao AdicionarVao(Obra obra, LinhaDesenho linha, List<TextoDesenho> textos, Poste a, Poste b, RegrasProjeto regras)
         {
+            return AdicionarVao(obra, linha, textos, a, b, regras, null);
+        }
+
+        public static Vao AdicionarVao(Obra obra, LinhaDesenho linha, List<TextoDesenho> textos, Poste a, Poste b, RegrasProjeto regras, Func<IEnumerable<TextoDesenho>> desenho)
+        {
             Vao v = obra.Vaos.FirstOrDefault(x => x.LinhaHandle == linha.Handle && x.Trecho == 0);
             if (v == null)
             {
@@ -121,7 +143,7 @@ namespace OrcamentoNanoCAD.Nucleo
             v.Tipo = regras.Leitura.ClassificarRede(linha.Layer, linha.Cor) ?? ConfigLeitura.TipoPelaCor(linha.Cor) ?? "";
             v.PosteA = a != null ? a.Numero : null;
             v.PosteB = b != null ? b.Numero : null;
-            TextoLido tl = LerAnotacao(textos, regras, "CABO");
+            TextoLido tl = LerAnotacao(textos, regras, "CABO", desenho);
             if (tl != null) LeitorProjeto.Anotar(v, tl);
             Recalcular(obra, regras);
             return v;
@@ -234,6 +256,8 @@ namespace OrcamentoNanoCAD.Nucleo
             public bool? Cabo;                // pelas regras: CABO → Tabela de Cabos; outra entidade → Outros; null = não se sabe
             public TextoDesenho Texto;        // o texto usado (ligação com o desenho)
             public string Lido = "";          // o que foi selecionado, como está no desenho
+            public string Comprimento;        // TASK-021: comprimento achado ("35 m"), null = não achou
+            public bool ComprimentoDaVizinhanca;   // veio de um texto do desenho que não foi selecionado
         }
 
         public static LeituraDeTexto LerTextoParaLinha(List<TextoDesenho> textos, RegrasProjeto regras)
@@ -260,6 +284,87 @@ namespace OrcamentoNanoCAD.Nucleo
             CaboLido cab = Anotacoes.LerCabo(r.Ativo);
             if (cab != null && cab.Erro == null && !string.IsNullOrEmpty(cab.Codigo) && cab.Comprimento.HasValue) r.Cabo = true;
             if (primeiro != null && !string.IsNullOrEmpty(primeiro.R.Operacao) && primeiro.R.Operacao != "0") r.Operacao = primeiro.R.Operacao;
+            return r;
+        }
+
+        // ── TASK-021: "+ Cabo" (e "+ Vão") — o texto escolhido é SEMPRE lido como cabo; o comprimento vem da mesma linha, dos textos
+        // escolhidos ou da VIZINHANÇA no desenho (como a regra de Pernambuco "comprimento na linha de baixo", mas pela posição no desenho:
+        // o texto "35 m" ao lado ou embaixo do rótulo, mesmo sem ter sido selecionado). ──
+        private static readonly System.Text.RegularExpressions.Regex SoComprimento =
+            new System.Text.RegularExpressions.Regex(@"^\s*(\d+(?:[.,]\d+)?)\s*m(?:etros?)?\s*\.?\s*$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        private static readonly System.Text.RegularExpressions.Regex ComComprimento =
+            new System.Text.RegularExpressions.Regex(@"\s(\d+(?:[.,]\d+)?)\s*m(?:etros?)?\s*$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>O texto é só um comprimento ("35 m", "35,5M", "40 metros")?</summary>
+        public static bool EhComprimento(string texto) { return SoComprimento.IsMatch(texto ?? ""); }
+
+        /// <summary>"3XA35P(7,94)-13,8KV 35 m" já tem o comprimento no fim?</summary>
+        public static bool TemComprimento(string ativo) { return ComComprimento.IsMatch(ativo ?? ""); }
+
+        /// <summary>O texto de comprimento mais perto do rótulo (até 8 alturas; ao lado ou embaixo vale mais que em cima), fora dos já escolhidos.</summary>
+        public static TextoDesenho ComprimentoVizinho(TextoDesenho rotulo, IEnumerable<TextoDesenho> escolhidos, IEnumerable<TextoDesenho> desenho)
+        {
+            if (rotulo == null || desenho == null) return null;
+            double h = rotulo.Altura > 0 ? rotulo.Altura : 1;
+            Ponto c = rotulo.Centro;
+            HashSet<string> usados = new HashSet<string>((escolhidos ?? Enumerable.Empty<TextoDesenho>()).Select(t => t.Handle + "|" + t.Parte));
+            TextoDesenho melhor = null;
+            double nota = double.MaxValue;
+            foreach (TextoDesenho t in desenho)
+            {
+                if (t == null || t.Tipo == "BLOCO" || t.Tipo == "BLOCO_DEF" || usados.Contains(t.Handle + "|" + t.Parte) || !EhComprimento(t.Texto)) continue;
+                double d = c.Dist(t.Centro);
+                if (d > 8 * h) continue;
+                double n = d + (t.Centro.Y > c.Y + 0.5 * h ? 4 * h : 0);      // em cima do rótulo: só se não houver ao lado/embaixo
+                if (n < nota) { nota = n; melhor = t; }
+            }
+            return melhor;
+        }
+
+        /// <summary>Lê os textos escolhidos COMO CABO: rótulo pelas regras do leitor (o que elas reconhecem como CABO, ou o processamento) e o
+        /// comprimento da mesma linha, das linhas escolhidas ou da vizinhança no desenho (`desenho`: todos os textos; chamado só se faltar).</summary>
+        public static LeituraDeTexto LerCaboDeTexto(List<TextoDesenho> textos, RegrasProjeto regras, Func<IEnumerable<TextoDesenho>> desenho)
+        {
+            LeituraDeTexto r = new LeituraDeTexto();
+            r.Cabo = true;
+            if (textos == null || textos.Count == 0) return r;
+            List<TextoLido> lidos = LeitorProjeto.ClassificarTextos(textos, regras);
+            r.Lido = string.Join(" / ", textos.Select(t => t.Texto).ToArray());
+            TextoLido cabo = lidos.FirstOrDefault(t => t.R.Entidade == "CABO" && !string.IsNullOrEmpty(t.R.Ativo));
+            string ativo;
+            TextoDesenho rotulo;
+            if (cabo != null)
+            {
+                r.Reconhecido = true;
+                r.Entidade = "CABO";
+                ativo = cabo.R.Ativo;
+                rotulo = cabo.T;
+                if (!string.IsNullOrEmpty(cabo.R.Operacao) && cabo.R.Operacao != "0") r.Operacao = cabo.R.Operacao;
+            }
+            else
+            {
+                // nenhuma regra classificou como cabo: o rótulo é o que o processamento montou (sem as linhas que são só comprimento)
+                List<TextoLido> partes = lidos.Where(t => !EhComprimento(t.T.Texto)).ToList();
+                List<string> l = partes.Select(t => !string.IsNullOrEmpty(t.R.Ativo) ? t.R.Ativo : t.T.Texto).Where(x => !string.IsNullOrEmpty(x) && !EhComprimento(x)).Distinct().ToList();
+                ativo = string.Join(" ", l.ToArray());
+                rotulo = partes.Count > 0 ? partes[0].T : textos[0];
+                TextoLido comOp = lidos.FirstOrDefault(t => !string.IsNullOrEmpty(t.R.Operacao) && t.R.Operacao != "0");
+                if (comOp != null) r.Operacao = comOp.R.Operacao;
+            }
+            if (!TemComprimento(ativo))
+            {
+                TextoDesenho comp = textos.FirstOrDefault(t => EhComprimento(t.Texto));       // escolhido junto
+                if (comp == null && desenho != null) { comp = ComprimentoVizinho(rotulo, textos, desenho()); if (comp != null) r.ComprimentoDaVizinhanca = true; }
+                if (comp != null)
+                {
+                    string num = SoComprimento.Match(comp.Texto).Groups[1].Value;
+                    ativo = ativo.TrimEnd() + " " + num + " m";
+                    r.Comprimento = num + " m";
+                }
+            }
+            else r.Comprimento = ComComprimento.Match(ativo).Groups[1].Value + " m";
+            r.Ativo = MotorLeitor.LimparTexto(ativo);
+            r.Texto = rotulo;
             return r;
         }
 

@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-11-15 — TASK-021: "+ Cabo" lê o texto como cabo e pega o comprimento da mesma linha ou da vizinhança (0.10.1)
+
+`Construtor.LerCaboDeTexto`: em "+ Cabo" (e quando as regras leem cabo em "+ Outros"), o texto escolhido é SEMPRE lido como cabo — rótulo pelo que as
+regras reconhecem como CABO ou pelo processamento — e o comprimento vem, nesta ordem: da mesma linha ("… 35 m"), de um texto de comprimento escolhido
+junto, ou da VIZINHANÇA no desenho (`ComprimentoVizinho`: o texto "35 m"/"35,5M"/"40 metros" mais perto do rótulo, até 8 alturas, ao lado ou embaixo
+antes de em cima), sem precisar selecioná-lo. Os textos do desenho só são lidos quando falta o comprimento. A tela mostra de onde veio o comprimento
+ou avisa que não achou. "+ Vão" (`ORC_VAO`) usa a mesma leitura. Testes: `CaboDeTextoTests` (13).
+
+---
+
 ## 2026-11-13 — TASK-020: integração com o projeto de trabalho do OrçaCore; sem gravação no banco (0.10.0)
 
 - **Salvar** (`ORC_SALVAR`) grava `<desenho>.obra` na pasta do desenho no formato do 📁 Projeto do OrçaCore (`Nucleo/ProjetoArquivo`): envelope +

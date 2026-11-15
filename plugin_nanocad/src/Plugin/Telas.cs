@@ -550,8 +550,12 @@ namespace OrcamentoNanoCAD.UI
             {
                 string info = "Lido do desenho: \"" + Relatorios.Resumir(lido.Lido, 90) + "\"" + (lido.Texto != null ? "  (layer " + lido.Texto.Layer + ")" : "")
                               + "\n" + (lido.Reconhecido ? "→ pelas regras do leitor: " + (lido.Entidade ?? "") + " · operação " + lido.Operacao + ". Confira e ajuste abaixo."
+                                                          : lido.Cabo == true ? "→ lido como cabo (operação " + lido.Operacao + "). Confira e ajuste abaixo."
                                                           : "→ nenhuma regra do leitor reconheceu o texto: entra como está (ajuste abaixo se precisar).");
-                Label l = Visual.Rotulo(info, Visual.Normal, lido.Reconhecido ? Visual.Ok : Visual.Conferir);
+                if (lido.Cabo == true)
+                    info += "\n" + (lido.Comprimento == null ? "⚠ Comprimento não encontrado (nem na linha, nem por perto): digite no fim do ativo, ex.: \" 35 m\"."
+                                     : "Comprimento: " + lido.Comprimento + (lido.ComprimentoDaVizinhanca ? " (texto ao lado/embaixo no desenho)" : ""));
+                Label l = Visual.Rotulo(info, Visual.Normal, (lido.Reconhecido || lido.Cabo == true) && !(lido.Cabo == true && lido.Comprimento == null) ? Visual.Ok : Visual.Conferir);
                 l.MaximumSize = new Size(560, 0);
                 f.Controls.Add(l);
             }
