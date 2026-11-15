@@ -8,6 +8,12 @@
 
 ---
 
+## 2026-11-15 — TASK-169: equipamento herda os cabos do poste (RL, CFU, para-raio, chave-faca)
+
+- Tabela de Estruturas ganha `ocupa` (false = equipamento: não consome ponta nem capacidade), `herda: POSTE`, `nivel`, `ordem` (MAIOR_PRIMEIRO), `distintos`, `se_faltar`. O equipamento recebe `cabo`/`cabo2` dos cabos que chegam no poste (desenho), dos ligados às estruturas do poste e dos fictícios, numa 2ª passada de `_analisar_base`; `distintos`/`ordem` valem também para estruturas que ocupam. `vincular_por_poste`, scripts e `achados` ignoram o equipamento. Python + JS; modal Vinculação com as colunas novas e o equipamento em cinza. Config sem os campos novos = como antes. Tarefa: `.ai/tasks/TASK-169-15-11-2026.md`.
+
+---
+
 ## 2026-11-15 — TASK-168: o programa sempre abre no projeto default
 
 - O projeto aberto da execução anterior é esquecido ao abrir o programa (id de sessão em cookie `gridr_sessao`, só no desktop; `GridRProjeto.reiniciarNoDefault`). Recarregar/trocar de tela na mesma execução mantém o projeto. Tarefa: `.ai/tasks/TASK-168-15-11-2026.md`.
