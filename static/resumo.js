@@ -369,9 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
             inpAt.value = row.ativo;
             inpAt.autocomplete = 'off';
             inpAt.setAttribute('list', '');  // desabilita datalist nativo, usamos o nosso
-            if (type === 'outros' && paramsVinc[idx]) {                // TASK-084/088: valor que a estrutura recebe do cabo vinculado — só aparece ao passar o mouse
-                inpAt.title = Object.keys(paramsVinc[idx]).map(cod => Object.keys(paramsVinc[idx][cod]).map(k => [].concat(paramsVinc[idx][cod][k]).map(v => `${k.toLowerCase()}=${v}`).join(' ')).join(' ')).join(' ') + ' (preenchido pelo vínculo cabo ⇄ estrutura; um valor digitado no ativo vale mais)';
-            }
+            if (type === 'outros') { inpAt.dataset.parTipo = 'outros'; inpAt.dataset.parIdx = idx; }        // TASK-167: o balão (parâmetros preenchidos e os que faltam) lê estes dados ao passar o mouse
             let prevAtivo = row.ativo;
 
             inpAt.addEventListener('input', () => {
@@ -383,6 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (cursor !== null) inpAt.setSelectionRange(cursor, cursor);
                 }
                 row.ativo = inpAt.value;
+                if (type === 'outros') agendarCoresParametros();
                 if (type !== 'outros') showAutocomplete(inpAt, type);                // TASK-136: em Outros quem sugere é AtivoSugestao (ativos/apelidos do projeto, com botão liga/desliga)
             });
             inpAt.addEventListener('keydown', e => {
@@ -552,6 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
             frag.appendChild(tr);
         });
         body.appendChild(frag);
+        if (type === 'outros') aplicarCoresParametros();                // TASK-167 (só com a opção ligada)
         atualizarIndicadoresOrdem(type);
 
         updateCounters();
@@ -1912,6 +1912,74 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ═══════════════════════════════════════
        CLASSIFICAÇÃO AUTOMÁTICA DE ENTIDADE
     ═══════════════════════════════════════ */
+    /* ═══════════════════════════════════════
+       TASK-167 — PARÂMETROS PREENCHIDOS × QUE FALTAM (balão ao passar o mouse + cores opcionais)
+       O balão vale sempre; a cor (verde = tudo preenchido, laranja = falta algum) só com a opção ligada em Configurações › Aparência › Avançado.
+    ═══════════════════════════════════════ */
+    const COR_PARAMS_CHAVE = 'colorir_ativos_parametros';
+    function corParametrosLigada() { try { return localStorage.getItem(COR_PARAMS_CHAVE) === '1'; } catch (e) { return false; } }
+    window.definirCorParametros = function (ligada) {
+        try { localStorage.setItem(COR_PARAMS_CHAVE, ligada ? '1' : '0'); } catch (e) { /* vale só nesta sessão */ }
+        document.body.classList.toggle('colorir-parametros', !!ligada);
+        aplicarCoresParametros();
+    };
+    window.corParametrosLigada = corParametrosLigada;
+
+    /** Status (por estrutura) de uma linha de Outros: o que o pedido liga, o que o vínculo injeta, a obra e os padrões da base. */
+    function _statusParametrosDaLinha(item, pvLinha, assin, ctxBase, obra) {
+        if (!item || !String(item.ativo || '').trim() || typeof AtivoStatus === 'undefined') return [];
+        const op = item.operacao || 'I';
+        const sem = AnotacaoOutros.interpretarLinha(item.ativo, op, _classicoTotalizadora, ctxBase);
+        if (sem.erros.length) return [];
+        const com = pvLinha ? AnotacaoOutros.interpretarLinha(item.ativo, op, _classicoTotalizadora, Object.assign({}, ctxBase, { parametros_estrutura: pvLinha })) : sem;
+        return sem.itens.map((it, i) => AtivoStatus.statusDoAtivo(((com.itens[i] || it).ativo), it.ativo, assin, obra)).filter(Boolean);
+    }
+    function _contextoParametros() {
+        return { assin: AtivoParametros.assinaturasDoProjeto(orcamentoBaseData, localStorage.getItem('projeto_selecionado') || ''), ctx: _ctxOutros(), obra: window.ObraParams ? ObraParams.valores() : null };
+    }
+
+    /** Pinta o ativo das linhas de Outros (só com a opção ligada; desligada, tira as cores). */
+    function aplicarCoresParametros() {
+        const inputs = document.querySelectorAll('#table-outros .inp-ativo');
+        const ligada = corParametrosLigada();
+        document.body.classList.toggle('colorir-parametros', ligada);
+        if (!ligada) { inputs.forEach(i => i.classList.remove('par-ok', 'par-falta')); return; }
+        let c;
+        try { c = _contextoParametros(); } catch (e) { return; }                       // base ainda carregando: pinta quando chegar
+        const pv = _parametrosVinculoPorLinha();
+        inputs.forEach(inp => {
+            const idx = Number(inp.dataset.parIdx);
+            const estado = AtivoStatus.estadoDaLinha(_statusParametrosDaLinha(tableStates.outros.data[idx], pv[idx], c.assin, c.ctx, c.obra));
+            inp.classList.toggle('par-ok', estado === 'ok');
+            inp.classList.toggle('par-falta', estado === 'falta');
+        });
+    }
+    window.aplicarCoresParametros = aplicarCoresParametros;
+    let _tmCoresParametros = null;
+    function agendarCoresParametros() { if (!corParametrosLigada()) return; clearTimeout(_tmCoresParametros); _tmCoresParametros = setTimeout(aplicarCoresParametros, 350); }
+
+    function _htmlBalaoParametros(status) {
+        const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+        return status.map(s => {
+            const cab = s.completo ? `<span class="v">· completo (${s.total} de ${s.total})</span>` : `<span class="f">· faltam ${s.faltam + s.invalidos} de ${s.total}</span>`;
+            const linhas = s.params.map(p => {
+                if (p.falta) return `<div><span class="f">⚠</span> ${esc(p.nome)} <span class="f">· falta</span> <span class="m">— ${esc(p.motivo)}</span></div>`;
+                if (p.invalido) return `<div><span class="f">⚠</span> ${esc(p.nome)} = ${esc(p.valor)} <span class="f">· inválido</span> <span class="m">— ${esc(p.motivo)}</span></div>`;
+                return `<div><span class="v">✓</span> ${esc(p.nome)} = ${esc(p.valor)} <span class="m">· ${esc(AtivoStatus.rotuloOrigem(p.origem))}</span></div>`;
+            }).join('');
+            return `<div class="est"><b class="h">${esc(s.ativo)}</b> ${cab}${linhas}</div>`;
+        }).join('');
+    }
+    function _statusDoAlvoDoBalao(el) {
+        const idx = Number(el.dataset.parIdx);
+        const c = _contextoParametros();
+        if (el.dataset.parTipo === 'outros') return _statusParametrosDaLinha(tableStates.outros.data[idx], _parametrosVinculoPorLinha()[idx], c.assin, c.ctx, c.obra);
+        const lin = tableStates.totalizadora.data[idx];                                  // Totalizadora: o ativo já está como o cálculo o enxerga
+        const st = lin && AtivoStatus.statusDoAtivo(lin.ativo, lin.ativo, c.assin, c.obra);
+        return st ? [st] : [];
+    }
+
+
     /** TASK-081: contexto da base (apelidos, postes, assinaturas) para traduzir a notação compacta de Outros. */
     function _ctxOutros() {
         let base = [];
@@ -5708,7 +5776,7 @@ if (window.AtivoDica) window.AtivoDica.iniciar({
 let _basePromessa = null;
 function carregarBaseOrcamento() {
     if (_basePromessa) return _basePromessa;
-    _basePromessa = fetch('/api/orcamento/dados').then(r => r.json()).then(d => { orcamentoBaseData = d.dados || []; }).catch(() => { /* sem base: sem dica */ }).finally(() => { _basePromessa = null; });
+    _basePromessa = fetch('/api/orcamento/dados').then(r => r.json()).then(d => { orcamentoBaseData = d.dados || []; if (window.aplicarCoresParametros) window.aplicarCoresParametros(); }).catch(() => { /* sem base: sem dica */ }).finally(() => { _basePromessa = null; });
     return _basePromessa;
 }
 carregarBaseOrcamento();
@@ -6065,7 +6133,7 @@ window.renderTotalizadora = function() {
                     ${(typeof OPERACOES !== 'undefined' ? OPERACOES : ['I', 'R', 'M']).map(op => `<option value="${op}" ${row.operacao === op ? 'selected' : ''}>${op}</option>`).join('')}
                 </select>
             </td>
-            <td><input type="text" class="tot-input tot-ativo-input" value="${row.ativo || ''}" onchange="updateTotRow(${index}, 'ativo', this.value)" onkeydown="handleTotKeydown(event, ${index}, 'ativo')" onpaste="handleTotPaste(event, ${index})"></td>
+            <td><input type="text" class="tot-input tot-ativo-input" data-par-tipo="tot" data-par-idx="${index}" value="${row.ativo || ''}" onchange="updateTotRow(${index}, 'ativo', this.value)" onkeydown="handleTotKeydown(event, ${index}, 'ativo')" onpaste="handleTotPaste(event, ${index})"></td>
             <td><input type="number" step="0.01" class="tot-input" style="width: 70px; text-align: center;" value="${row.qtd !== undefined && row.qtd !== null ? row.qtd : ''}" onchange="updateTotRow(${index}, 'qtd', this.value)" onkeydown="handleTotKeydown(event, ${index}, 'qtd')" onpaste="handleTotPaste(event, ${index})"></td>
             <td><input type="text" id="tot-desc-${index}" class="tot-input" value="${row.desc || ''}" placeholder="Opcional" onchange="updateTotRow(${index}, 'desc', this.value)"></td>
             <td>
@@ -6372,6 +6440,39 @@ window.handleTotPaste = function(e, index) {
     })();
 
     /* TASK-154: PROJETO DE TRABALHO (.obra) — ganchos do Resumo para static/projeto.js (grava Cabos/Outros/Totalizadora no arquivo do projeto) */
+    /* TASK-167: ligações com a tela (fora do trecho que os testes de paridade executam sem DOM) */
+    (function ligarBalaoParametros() {
+        let balao = null, timer = null, alvo = null;
+        const esconder = () => { clearTimeout(timer); alvo = null; if (balao) balao.style.display = 'none'; };
+        document.addEventListener('mouseover', e => {
+            const el = e.target && e.target.closest ? e.target.closest('[data-par-tipo]') : null;
+            if (!el || el === alvo) return;
+            esconder(); alvo = el;
+            timer = setTimeout(() => {
+                let status = [];
+                try { status = _statusDoAlvoDoBalao(el); } catch (x) { status = []; }
+                if (!status.length || alvo !== el) return;
+                if (!balao) { balao = document.createElement('div'); balao.className = 'par-balao'; document.body.appendChild(balao); }
+                balao.innerHTML = _htmlBalaoParametros(status);
+                const r = el.getBoundingClientRect();
+                balao.style.display = 'block';
+                balao.style.left = Math.max(8, Math.min(r.left, window.innerWidth - balao.offsetWidth - 8)) + 'px';
+                balao.style.top = (r.bottom + balao.offsetHeight + 12 > window.innerHeight ? Math.max(8, r.top - balao.offsetHeight - 6) : r.bottom + 4) + 'px';
+            }, 250);
+        });
+        document.addEventListener('mouseout', e => { const el = e.target && e.target.closest ? e.target.closest('[data-par-tipo]') : null; if (el && el === alvo && !(e.relatedTarget && el.contains(e.relatedTarget))) esconder(); });
+        ['mousedown', 'keydown', 'scroll'].forEach(ev => document.addEventListener(ev, esconder, true));
+    })();
+
+    (function ligarChaveCoresParametros() {
+        const chave = document.getElementById('cfg-colorir-params');
+        document.body.classList.toggle('colorir-parametros', corParametrosLigada());
+        if (!chave) return;
+        const pintar = () => chave.setAttribute('aria-checked', corParametrosLigada() ? 'true' : 'false');
+        pintar();
+        chave.addEventListener('click', () => { window.definirCorParametros(!corParametrosLigada()); pintar(); });          // botão (não checkbox): é preferência de tela, não deve marcar o projeto como alterado
+    })();
+
     (function ligarProjeto() {
         if (!window.GridRProjeto) return;
         const lista = k => tableStates[k].data.filter(Boolean);

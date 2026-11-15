@@ -17,6 +17,8 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] **TASK-167** — Balão dos parâmetros (preenchidos × que faltam) no ativo e cores opcionais (Configurações › Aparência › Avançado), `static/ativo_status.js`
+
 - [x] **TASK-166** — Vinculação por poste (`vincular_por_poste`, Python + JS): obra do plugin abre já vinculada; botão no modal Vinculação; `/api/plugin/conferir` usa o mesmo vínculo. Teste no nanoCAD real: 🟡
 
 - [x] **TASK-165** — Parâmetros de obra `OBRA.*` (`services/obra_params.py`, `data/regionais_pernambuco.json`, `resolver_pedido(..., obra)`), payload `obra` no cálculo, `.obra` guarda `projeto_trabalho.contexto`
