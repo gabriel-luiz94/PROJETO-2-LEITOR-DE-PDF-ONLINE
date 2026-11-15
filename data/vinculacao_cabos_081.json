@@ -91,8 +91,8 @@
         "I": 2,
         "M": 1
       },
-      "estruturas": "IM_1, IM_2, IM_3, IM_4, IT_1, IT_2, IT_3, IT_4, IMA_1, IMA_2, ITA_1, ITA_2, IM_A, IT_A, IM_R, IM-R, IMF_R, IMF-R, IT_R, IT-R, ITF_R, ITF-R, LN1, LN2, LN3, ID_M, ID-M",
-      "obs": "NOVA: BT convencional nua (IM/IT/LN/ID-M)",
+      "estruturas": "LN1, LN2, LN3, ID_M, ID-M, B1BT, B2BT, B3BT, B4BT, IBIT, IBIM",
+      "obs": "BT convencional nua (IM/IT/TCI só retirada: sem vínculo)",
       "ativa": true,
       "vincula": true,
       "nivel": "BT"
@@ -109,7 +109,7 @@
         "I": 2,
         "M": 1
       },
-      "estruturas": "STBI, FLBIT, FLABIT, FLABIDT, SDBIT, ID_T, ID-T, FLBIT NI, SDANI, SPBI, SAB, IBI",
+      "estruturas": "STBI, FLBIT, FLABIT, FLABIDT, SDBIT, IBIT, FLBIT NI, SDANI, SPBI, SAB",
       "obs": "só liga a estrutura de multiplex",
       "ativa": true,
       "vincula": true,
@@ -127,7 +127,7 @@
         "I": 2,
         "M": 1
       },
-      "estruturas": "SMBI, FLBIM, FLABIM, FLABIDM, SDBIM, FLBIM NI, SDANI, SPBI, SAB, IBI",
+      "estruturas": "SMBI, FLBIM, FLABIM, FLABIDM, SDBIM, IBIM, FLBIM NI, SDANI, SPBI, SAB",
       "obs": "",
       "ativa": true,
       "vincula": true,
