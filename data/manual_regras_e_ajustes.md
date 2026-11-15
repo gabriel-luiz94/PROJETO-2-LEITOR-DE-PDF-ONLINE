@@ -458,6 +458,10 @@ Quando um ativo muda de itens conforme uma categoria (tipo de cabo, tipo de post
 - Nada a rodar no Supabase.
 
 
+### Ao abrir o programa
+
+O programa **sempre abre no projeto default**: o projeto que estava aberto da última vez não volta sozinho. Abra o projeto em **Projeto → Abrir** (ou pelo plugin do nanoCAD). Enquanto o programa está aberto, recarregar ou trocar de tela mantém o projeto aberto.
+
 ### Parâmetros do ativo: o que está preenchido e o que falta
 
 Passe o mouse no **ativo** (tabela Demais Ativos ou Totalizadora): o balão lista, por estrutura, os parâmetros **preenchidos** (✓, com a origem: *do pedido*, *vínculo*, *da obra* ou *padrão*) e os que **faltam** (⚠, com o motivo, ex.: "nenhum cabo vinculado a esta estrutura"). Valor que vem só do padrão da declaração conta como preenchido.

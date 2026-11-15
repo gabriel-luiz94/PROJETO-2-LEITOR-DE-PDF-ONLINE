@@ -17,6 +17,8 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] **TASK-168** — O programa sempre abre no projeto default (o usuário abre o projeto): `SESSAO_ID`/cookie `gridr_sessao` + `GridRProjeto.reiniciarNoDefault`
+
 - [x] **TASK-167** — Balão dos parâmetros (preenchidos × que faltam) no ativo e cores opcionais (Configurações › Aparência › Avançado), `static/ativo_status.js`
 
 - [x] **TASK-166** — Vinculação por poste (`vincular_por_poste`, Python + JS): obra do plugin abre já vinculada; botão no modal Vinculação; `/api/plugin/conferir` usa o mesmo vínculo. Teste no nanoCAD real: 🟡

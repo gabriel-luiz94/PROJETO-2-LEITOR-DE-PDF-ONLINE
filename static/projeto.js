@@ -62,12 +62,25 @@
         if (!Object.keys(campos).length) return { ok: false, erro: 'O JSON do Atlas não traz nenhum dado para preencher.' };
         return { ok: true, campos };
     }
-    const api = { hashTexto, pastaDoCaminho, temDados, interpretarSap, CAMPOS_SAP, CHAVE };
+    /** TASK-168: o programa sempre abre no projeto default. `cookie` = document.cookie (traz gridr_sessao, o id desta abertura do programa); se o id mudou desde a última vez,
+     *  esquece o projeto aberto (o usuário abre o projeto). Sem o cookie (versão online) não faz nada. Devolve true se esqueceu. */
+    function reiniciarNoDefault(cookie, storage) {
+        try {
+            const m = /(?:^|;\s*)gridr_sessao=([^;]+)/.exec(String(cookie || ''));
+            if (!m) return false;
+            const mudou = storage.getItem('gridr_sessao') !== m[1];
+            if (mudou) { storage.removeItem(CHAVE); storage.setItem('gridr_sessao', m[1]); }
+            return mudou;
+        } catch (x) { return false; }
+    }
+
+    const api = { hashTexto, pastaDoCaminho, temDados, interpretarSap, CAMPOS_SAP, CHAVE, reiniciarNoDefault };
     if (typeof document === 'undefined') { if (typeof module !== 'undefined' && module.exports) module.exports = api; return; }
     if (raiz.GridRProjeto) return;
 
     /* ── Estado compartilhado ── */
     const doc = raiz.document;
+    reiniciarNoDefault(doc.cookie, raiz.localStorage);                       // antes de qualquer leitura do estado
     function estado() { try { const e = JSON.parse(raiz.localStorage.getItem(CHAVE) || 'null'); return e && e.caminho ? e : null; } catch (x) { return null; } }
     function gravarEstado(e) { try { if (e) raiz.localStorage.setItem(CHAVE, JSON.stringify(e)); else raiz.localStorage.removeItem(CHAVE); } catch (x) { /* sem storage: vale só nesta tela */ } }
     function ponte() {
