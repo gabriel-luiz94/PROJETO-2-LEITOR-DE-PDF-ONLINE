@@ -1,0 +1,145 @@
+{
+  "formato": "vinculacao-cabos",
+  "versao": 1,
+  "projeto": "081",
+  "cabos": [
+    {
+      "padrao": "^C\\d+$",
+      "grupo": "Cobre nu MT",
+      "valor_cabo": "C",
+      "operacoes": [
+        "I",
+        "M"
+      ],
+      "pontas": {
+        "I": 2,
+        "M": 1
+      },
+      "estruturas": "N1, N2, N3, N4, B1MT, B2MT, B3MT, B4MT, B4MT_RL, B4MT-RL, TE, N3.CE3, B3.CE3, N3S_CE, N3SCE, N3.CE3_SUH, N1_TT, N1-TT, B1_TT, B1-TT, N3_TT, N3-TT, B3MT_TT, B3MT-TT, TT, N3_CFU, N4_CFU",
+      "obs": "MT trifásico em cobre",
+      "ativa": true,
+      "vincula": true,
+      "nivel": "MT",
+      "fases": "3"
+    },
+    {
+      "padrao": "^(A)\\d+P$",
+      "grupo": "Alumínio protegido MT",
+      "valor_cabo": "X",
+      "operacoes": [
+        "I",
+        "M"
+      ],
+      "pontas": {
+        "I": 2,
+        "M": 1
+      },
+      "estruturas": "N1, N2, N3, N4, B1MT, B2MT, B3MT, B4MT, B4MT_RL, B4MT-RL, N3_N3, N3N3, N3.CE3, B3.CE3, N3S_CE, N3SCE, N3.CE3_SUH, CE_1, CE1, CE1_A, CE1A, CE_2, CE2, CEJ_1, CEJ1, CEJ2, CEJ2_SAH, CE_3, CE3, CE_4, CE4, CE3_CE3, CE3CE3, CE2.CE3, CE_3_CF, CE-3_CF, CE_4_CF, CE-4_CF, CE_4_SHU, CE-4_SHU, CE2_CE3_CF, CE2-CE3_CF, N3_CFU, N4_CFU, N1_TT, N1-TT, B1_TT, B1-TT, N3_TT, N3-TT, B3MT_TT, B3MT-TT, TT, CE_2_TR, CE-2_TR, CE_3_TR, CE-3_TR",
+      "obs": "o neutro CAZ acompanha o cabo (não vincula)",
+      "ativa": true,
+      "vincula": true,
+      "nivel": "MT",
+      "fases": "3"
+    },
+    {
+      "padrao": "^(S|W)\\d+(/\\d+)?$",
+      "grupo": "Alumínio nu (CAA) MT",
+      "valor_cabo": "A",
+      "operacoes": [
+        "I",
+        "M"
+      ],
+      "pontas": {
+        "I": 2,
+        "M": 1
+      },
+      "estruturas": "N1, N2, N3, N4, B1MT, B2MT, B3MT, B4MT, B4MT_RL, B4MT-RL, TE, N3.CE3, B3.CE3, N3S_CE, N3SCE, N3.CE3_SUH, N1_TT, N1-TT, B1_TT, B1-TT, N3_TT, N3-TT, B3MT_TT, B3MT-TT, TT, N3_CFU, N4_CFU",
+      "obs": "",
+      "ativa": true,
+      "vincula": true,
+      "nivel": "MT",
+      "fases": "3"
+    },
+    {
+      "padrao": "^(C\\d+|A\\d+P|(S|W)\\d+(/\\d+)?)$",
+      "grupo": "MT monofásico",
+      "valor_cabo": "",
+      "operacoes": [
+        "I",
+        "M"
+      ],
+      "pontas": {
+        "I": 2,
+        "M": 1
+      },
+      "estruturas": "U1, U2, U3, U4, U3_3, U33, U3_CM, U3_TM, U3-TM, CE1U, CE1AU, CE2U, CE3U_FIM, CE3U_CE3U, CE3UCE3U, CE4U, CE3U_CFU, CE3U_TR, CE2.3U, CE2U.CE3U, CE2U_CE3U_CFU, CE2U-CE3U_CFU",
+      "obs": "NOVA: cabo MT de 1 fase (texto 1x… ou sem Nx) nas estruturas U e CE…U",
+      "ativa": true,
+      "vincula": true,
+      "nivel": "MT",
+      "fases": "1,2"
+    },
+    {
+      "padrao": "^(C\\d+|(S|W)\\d+(/\\d+)?)$",
+      "grupo": "BT nua",
+      "valor_cabo": "",
+      "operacoes": [
+        "I",
+        "M"
+      ],
+      "pontas": {
+        "I": 2,
+        "M": 1
+      },
+      "estruturas": "IM_1, IM_2, IM_3, IM_4, IT_1, IT_2, IT_3, IT_4, IMA_1, IMA_2, ITA_1, ITA_2, IM_A, IT_A, IM_R, IM-R, IMF_R, IMF-R, IT_R, IT-R, ITF_R, ITF-R, LN1, LN2, LN3, ID_M, ID-M",
+      "obs": "NOVA: BT convencional nua (IM/IT/LN/ID-M)",
+      "ativa": true,
+      "vincula": true,
+      "nivel": "BT"
+    },
+    {
+      "padrao": "^(PB)\\d+$",
+      "grupo": "Multiplex BT tri",
+      "valor_cabo": "",
+      "operacoes": [
+        "I",
+        "M"
+      ],
+      "pontas": {
+        "I": 2,
+        "M": 1
+      },
+      "estruturas": "STBI, FLBIT, FLABIT, FLABIDT, SDBIT, ID_T, ID-T, FLBIT NI, SDANI, SPBI, SAB, IBI",
+      "obs": "só liga a estrutura de multiplex",
+      "ativa": true,
+      "vincula": true,
+      "nivel": "BT"
+    },
+    {
+      "padrao": "^(RAMA)\\d+$",
+      "grupo": "rama 25 mon",
+      "valor_cabo": "",
+      "operacoes": [
+        "I",
+        "M"
+      ],
+      "pontas": {
+        "I": 2,
+        "M": 1
+      },
+      "estruturas": "SMBI, FLBIM, FLABIM, FLABIDM, SDBIM, FLBIM NI, SDANI, SPBI, SAB, IBI",
+      "obs": "",
+      "ativa": true,
+      "vincula": true,
+      "nivel": "BT"
+    },
+    {
+      "padrao": "^CAZ",
+      "grupo": "Neutro / CAZ",
+      "valor_cabo": "",
+      "vincula": false,
+      "obs": "NOVA: acompanha o cabo principal",
+      "ativa": true
+    }
+  ]
+}
