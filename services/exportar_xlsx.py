@@ -8,6 +8,8 @@ import re
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
+from services import perfil_exportacao as pe
+
 LIMITE_LINHAS = 20000
 LIMITE_TEXTO = 500
 CABECALHO = ["TIPO MDO", "CÓDIGO", "QUANTIDADE", "CENTRO", "DESCRIÇÃO"]
@@ -46,32 +48,38 @@ def _validar(nome: str, linhas) -> list:
     return linhas
 
 
-def _planilha(ws, linhas):
-    ws.append(CABECALHO)
+_LARGURAS = {"mdo": 10, "codigo": 16, "qtd": 14, "centro": 10, "desc": 60}
+
+
+def _planilha(ws, linhas, perfil=None):
+    cols = pe.normalizar(perfil)["xlsx"]["colunas"]                                          # TASK-176: colunas e ordem do perfil (padrão: TIPO MDO, CÓDIGO, QUANTIDADE, CENTRO, DESCRIÇÃO)
+    ws.append([pe.COLUNAS_XLSX[c] for c in cols])
     for c in ws[1]:
         c.font = Font(bold=True, color="FFFFFF")
         c.fill = PatternFill("solid", fgColor="1F4E78")
         c.alignment = Alignment(horizontal="center")
     for x in linhas:
         mdo = _MDO.get(_texto(x.get("mdo")).upper(), _texto(x.get("mdo")).upper()[:1] or "N")
-        ws.append([mdo, _texto(x.get("codigo")), _qtd(x.get("qtd")), CENTRO.get(mdo, ""), _texto(x.get("desc"))])
+        valores = {"mdo": mdo, "codigo": _texto(x.get("codigo")), "qtd": _qtd(x.get("qtd")), "centro": pe.centro_de(mdo, perfil), "desc": _texto(x.get("desc"))}
+        ws.append([valores[c] for c in cols])
         for c in ws[ws.max_row]:
             if isinstance(c.value, str) and c.value[:1] in ("=", "+", "-", "@"):
                 c.data_type = "s"                                  # texto, nunca fórmula
-        ws.cell(row=ws.max_row, column=3).number_format = "#,##0.00"
-    for col, larg in zip("ABCDE", (10, 16, 14, 10, 60)):
-        ws.column_dimensions[col].width = larg
+        if "qtd" in cols:
+            ws.cell(row=ws.max_row, column=cols.index("qtd") + 1).number_format = "#,##0.00"
+    for i, c in enumerate(cols):
+        ws.column_dimensions["ABCDE"[i]].width = _LARGURAS[c]
     ws.freeze_panes = "A2"
 
 
-def gerar_xlsx(odi, odd) -> bytes:
+def gerar_xlsx(odi, odd, perfil=None) -> bytes:
     """Bytes de um .xlsx com as planilhas ODI e ODD. Cada linha: {mdo, codigo, desc, qtd}."""
     odi, odd = _validar("ODI", odi), _validar("ODD", odd)
     wb = Workbook()
     ws = wb.active
     ws.title = "ODI"
-    _planilha(ws, odi)
-    _planilha(wb.create_sheet("ODD"), odd)
+    _planilha(ws, odi, perfil)
+    _planilha(wb.create_sheet("ODD"), odd, perfil)
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()

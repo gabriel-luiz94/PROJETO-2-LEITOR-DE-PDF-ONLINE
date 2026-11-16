@@ -1818,6 +1818,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const rc = await fetch(`/api/vinculacao-config?projeto_codigo=${encodeURIComponent(projetoCodigo)}`);
             window.__vinculacaoConfig = rc.ok ? (await rc.json()).config : null;
             AnotacaoCabos.definirDicionario(window.__vinculacaoConfig && window.__vinculacaoConfig.dicionario_cabos);          // TASK-173
+            if (window.PerfilExportacao) PerfilExportacao.definir(window.__vinculacaoConfig && window.__vinculacaoConfig.exportacao);          // TASK-176
         } catch (e) {
             window.__vinculacaoConfig = null;
             AnotacaoCabos.definirDicionario(null);

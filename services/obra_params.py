@@ -69,11 +69,28 @@ def regiao_de(obra, projeto="") -> str:
     return ""
 
 
-def montar(obra, projeto="") -> dict:
-    """{"OBRA.X": valor normalizado} só dos dados que a obra tem. ``obra`` = {municipio, bairro, utd, utep, contexto} (qualquer chave pode faltar)."""
+def nomes_do_projeto(projeto) -> tuple:
+    """TASK-176: os parâmetros OBRA.* que a base deste projeto pode usar: a lista de sempre + as chaves do cabeçalho do perfil de exportação marcadas `obra` (OBRA.CONTRATO…)."""
+    extras = ()
+    try:
+        from routers.vinculacao_config import perfil_do_projeto
+        from services import perfil_exportacao as pe
+        perfil = perfil_do_projeto(projeto) if str(projeto or "").strip() else None
+        extras = tuple(n for n in pe.chaves_obra(perfil).values() if n not in NOMES) if perfil else ()
+    except Exception:  # noqa: BLE001
+        extras = ()
+    return NOMES + extras
+
+
+def montar(obra, projeto="", perfil=None) -> dict:
+    """{"OBRA.X": valor normalizado} só dos dados que a obra tem. ``obra`` = {municipio, bairro, utd, utep, contexto} (qualquer chave pode faltar).
+    `perfil` = perfil de exportação do projeto (TASK-176): as chaves do cabeçalho marcadas `obra` viram OBRA.<CHAVE> (padrão: municipio, bairro, utd, utep) + REGIAO e CONTEXTO."""
+    from services import perfil_exportacao as pe
     obra = obra if isinstance(obra, dict) else {}
     saida = {}
-    for campo, nome in _CAMPOS.items():
+    campos = dict(pe.chaves_obra(perfil) if perfil else _CAMPOS)
+    campos["contexto"] = "OBRA.CONTEXTO"
+    for campo, nome in campos.items():
         v = normalizar(obra.get(campo))
         if v:
             saida[nome] = v

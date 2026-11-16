@@ -53,10 +53,30 @@ def _texto(v, limite) -> str:
     return v.strip()[:limite] if isinstance(v, str) else ""
 
 
-def sap_limpo(sap) -> dict:
+_RE_CHAVE_SAP = re.compile(r"^[a-z][a-z0-9_]{0,30}$")
+LIMITE_CAMPOS_SAP = 30
+
+
+def _chaves_do_perfil(projeto) -> tuple:
+    """TASK-176: as chaves do cabeçalho do perfil de exportação do projeto (além das de sempre); sem perfil, nenhuma."""
+    codigo = _texto(projeto, 40)
+    if not codigo:
+        return ()
+    try:
+        from routers.vinculacao_config import perfil_do_projeto
+        from services import perfil_exportacao as pe
+        perfil = perfil_do_projeto(codigo)
+        return tuple(k for k in pe.campos_sap(perfil) if k not in CAMPOS_SAP) if perfil else ()
+    except Exception:  # noqa: BLE001
+        return ()
+
+
+def sap_limpo(sap, projeto="") -> dict:
+    """Cabeçalho do relatório gravado no `.obra`: os campos de sempre mais as chaves do perfil de exportação do projeto (TASK-176, ex.: `contrato`)."""
     if not isinstance(sap, dict):
         return {}
-    return {k: _texto(sap.get(k), LIMITE_TEXTO) for k in CAMPOS_SAP if isinstance(sap.get(k), str)}
+    chaves = CAMPOS_SAP + _chaves_do_perfil(projeto)
+    return {k: _texto(sap.get(k), LIMITE_TEXTO) for k in chaves if isinstance(sap.get(k), str)}
 
 
 def _linha_resultado(x):
@@ -88,7 +108,8 @@ def montar(parcial: dict, existente: dict = None, projeto_codigo: str = "") -> s
     if not nome:
         raise ErroProjeto(["Informe o nome do projeto."])
     numero = _texto(parcial.get("numero_obra"), LIMITE_NUMERO) if "numero_obra" in parcial else _texto(pt_antigo.get("numero_obra"), LIMITE_NUMERO)
-    sap = sap_limpo(parcial.get("sap")) if "sap" in parcial else sap_limpo(pt_antigo.get("sap"))
+    codigo = _texto(projeto_codigo, 40) or _texto(existente.get("projeto"), 40)
+    sap = sap_limpo(parcial.get("sap"), codigo) if "sap" in parcial else sap_limpo(pt_antigo.get("sap"), codigo)
     contexto = _texto(parcial.get("contexto"), LIMITE_CONTEXTO) if "contexto" in parcial else _texto(pt_antigo.get("contexto"), LIMITE_CONTEXTO)          # TASK-165: sem "contexto" no parcial preserva o do arquivo
     if "dados" in parcial:
         dados = obras_arquivo.normalizar_dados(parcial.get("dados"))
@@ -98,7 +119,6 @@ def montar(parcial: dict, existente: dict = None, projeto_codigo: str = "") -> s
         resultado = resultado_limpo(parcial.get("resultado"))
     else:
         resultado = resultado_limpo(pt_antigo.get("resultado"))
-    codigo = _texto(projeto_codigo, 40) or _texto(existente.get("projeto"), 40)
     trabalho = {"nome": nome, "numero_obra": numero, "sap": sap, "salvo_em": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     if contexto:
         trabalho["contexto"] = contexto
@@ -135,7 +155,7 @@ def ler(texto, projeto_selecionado: str) -> dict:
     trabalho = carga.get("projeto_trabalho") if isinstance(carga.get("projeto_trabalho"), dict) else None
     return {"nome": (_texto(trabalho.get("nome"), LIMITE_NOME) if trabalho else "") or pronta["nome"],
             "numero_obra": _texto(trabalho.get("numero_obra"), LIMITE_NUMERO) if trabalho else "",
-            "sap": sap_limpo(trabalho.get("sap")) if trabalho else {},
+            "sap": sap_limpo(trabalho.get("sap"), pronta["projeto"] or projeto_selecionado) if trabalho else {},
             "contexto": _texto(trabalho.get("contexto"), LIMITE_CONTEXTO) if trabalho else "",
             "resultado": resultado_limpo(trabalho.get("resultado")) if trabalho else None,
             "dados": pronta["dados"], "projeto": pronta["projeto"], "legado": trabalho is None,

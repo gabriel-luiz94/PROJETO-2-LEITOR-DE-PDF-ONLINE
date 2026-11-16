@@ -129,7 +129,7 @@
         const a = analise();
         const pend = Object.values(a.cabos).filter(c => c.estado !== 'gr').length + Object.values(a.estruturas).filter(e => e.estado === 'k' || e.estado === 'pu').length;
         overlay.innerHTML = '';
-        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''],
+        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''],
             ['script', 'Script', st.cfg.scripts.length], ['mapa', 'Mapa', '']];
         const vz = el('div', { class: 'vz' }, [
             el('div', { class: 'vz-top' }, [el('h3', { text: '🔗 Vinculação cabo ⇄ estrutura' }), el('span', { class: 'vz-chip', text: 'Projeto ' + host.projeto() }),
@@ -139,7 +139,7 @@
             rodape()]);
         overlay.appendChild(vz);
         const corpo = vz.querySelector('#vz-corpo');
-        ({ vinculo: abaVinculo, cabos: abaCabos, estruturas: abaEstruturas, dicionario: abaDicionario, postes: abaPostes, desenho: abaDesenho, script: abaScript, mapa: abaMapa })[st.aba](corpo, a);
+        ({ vinculo: abaVinculo, cabos: abaCabos, estruturas: abaEstruturas, dicionario: abaDicionario, postes: abaPostes, desenho: abaDesenho, exportacao: abaExportacao, script: abaScript, mapa: abaMapa })[st.aba](corpo, a);
     }
 
     function rodape() {
@@ -529,6 +529,59 @@
                 d.cfg = j.leitura; d.msg = j.aviso || 'Salvo.'; d.erro = ''; render();
             } catch (e) { raiz.alert('Não salvou: ' + (e.message || e)); }
         } }), el('span', { style: 'color:#3fb950', text: d.msg || '' })]));
+    }
+
+    /** TASK-176: perfil de exportação do projeto — campos do cabeçalho do relatório, centro por tipo, PDF/XLSX e arquivos oferecidos. Sem perfil, vale o de Neoenergia. */
+    function abaExportacao(corpo) {
+        const PE = raiz.PerfilExportacao;
+        if (!PE) { corpo.appendChild(el('div', { class: 'vz-nota', text: 'Perfil de exportação indisponível nesta tela.' })); return; }
+        const caixa = 'background:#010409;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;padding:5px 8px;font:12px Consolas,monospace';
+        corpo.appendChild(el('div', { class: 'vz-nota', html: '<b>O que esta tela diz:</b> como saem os relatórios do projeto: os <b>campos do cabeçalho</b> (rótulo no PDF, em qual coluna, se viram parâmetro <code>OBRA.&lt;CHAVE&gt;</code> da base e se o programa lembra o valor), o <b>centro</b> de material e de mão de obra, o PDF (cor do título, rodapé) e as <b>colunas do Excel</b>. O <code>.obra</code> grava as chaves do cabeçalho. <b>Sem perfil, vale o de Neoenergia.</b>' }));
+        if (!st.cfg.exportacao) {
+            corpo.appendChild(el('div', { style: 'margin:10px 0' }, [el('span', { style: 'color:#8b949e', text: 'Este projeto usa o perfil de Neoenergia (centros 1600/1000, cabeçalho da nota SAP). ' }),
+                el('button', { class: 'vz-btn', text: 'Personalizar a partir do padrão', onclick: () => { st.cfg.exportacao = JSON.parse(JSON.stringify(PE.PADRAO)); marcarSujo(); render(); } })]));
+        } else {
+            const x = st.cfg.exportacao;
+            if (!Array.isArray(x.cabecalho)) x.cabecalho = [];
+            x.centro = x.centro && typeof x.centro === 'object' ? x.centro : {}; x.pdf = x.pdf || {}; x.xlsx = x.xlsx || {};
+            const sc = el('div', { class: 'vz-scroll' }), tb = el('table', { class: 'vz-tb' });
+            tb.appendChild(el('thead', {}, [el('tr', {}, ['Chave', 'Rótulo no PDF', 'Rótulo na tela', 'Coluna', 'OBRA.*', 'Lembrar', ''].map(h => el('th', { text: h })))]));
+            const tbody = el('tbody');
+            x.cabecalho.forEach((c, i) => tbody.appendChild(el('tr', {}, [celula(c, 'chave', 'text', 'contrato'), celula(c, 'rotulo', 'text', 'CONTRATO:'), celula(c, 'tela', 'text', 'Contrato'), celula(c, 'coluna', 'select', ['esq', 'meio', 'id']),
+                celula(c, 'obra', 'bool'), celula(c, 'lembrar', 'bool')].map(y => el('td', {}, [y])).concat([el('td', { style: 'white-space:nowrap' }, [
+                    el('button', { class: 'mv', text: '▲', onclick: () => { if (i > 0) { x.cabecalho.splice(i - 1, 0, x.cabecalho.splice(i, 1)[0]); marcarSujo(); render(); } } }),
+                    el('button', { class: 'mv', text: '▼', onclick: () => { if (i < x.cabecalho.length - 1) { x.cabecalho.splice(i + 1, 0, x.cabecalho.splice(i, 1)[0]); marcarSujo(); render(); } } }),
+                    el('button', { class: 'x', text: '✖', title: 'Excluir o campo', onclick: () => { x.cabecalho.splice(i, 1); marcarSujo(); render(); } })])]))));
+            tb.appendChild(tbody); sc.appendChild(tb); corpo.appendChild(sc);
+            corpo.appendChild(el('div', { style: 'margin-top:8px' }, [el('button', { class: 'vz-btn', text: '＋ Campo', onclick: () => { x.cabecalho.push({ chave: '', rotulo: '', tela: '', coluna: 'meio', obra: false, lembrar: false }); marcarSujo(); render(); } })]));
+            const ln = (rot, ...y) => el('div', { style: 'display:flex;gap:8px;align-items:center;margin-top:8px' }, [el('span', { style: 'min-width:190px;color:#8b949e', text: rot })].concat(y));
+            const txt = (obj, k, larg, ph) => el('input', { type: 'text', style: 'width:' + larg + 'px;' + caixa, value: obj[k] === undefined ? '' : obj[k], placeholder: ph || '', onchange: e => { if (e.target.value.trim()) obj[k] = e.target.value.trim(); else delete obj[k]; marcarSujo(); } });
+            corpo.appendChild(ln('Centro · material / mão de obra', txt(x.centro, 'MATERIAL', 90, '1600'), txt(x.centro, 'MAO-DE-OBRA', 90, '1000')));
+            corpo.appendChild(ln('PDF · cor do título / rodapé', txt(x.pdf, 'cor_titulo', 100, '#00A443'), txt(x.pdf, 'rodape', 200, 'Internal Use')));
+            corpo.appendChild(ln('PDF · rótulos da ordem / do ID', txt(x.pdf, 'rotulo_ordem', 160, 'TIPO DE ORDEM'), txt(x.pdf, 'rotulo_id', 160, 'ID INVESTIMENTO')));
+            corpo.appendChild(ln('Excel · colunas (ordem)', el('input', { type: 'text', style: 'width:320px;' + caixa, value: (x.xlsx.colunas || PE.PADRAO.xlsx.colunas).join(', '), placeholder: 'mdo, codigo, qtd, centro, desc',
+                onchange: e => { const l = e.target.value.split(',').map(trim).filter(Boolean); if (l.length) x.xlsx.colunas = l; else delete x.xlsx.colunas; marcarSujo(); } })));
+            corpo.appendChild(ln('Arquivos oferecidos', ...PE.ARQUIVOS.map(a => el('label', { style: 'color:#c9d1d9' }, [el('input', { type: 'checkbox', ...((x.arquivos || PE.ARQUIVOS).includes(a) ? { checked: 'checked' } : {}),
+                onchange: e => { const atual = new Set(x.arquivos || PE.ARQUIVOS); if (e.target.checked) atual.add(a); else atual.delete(a); x.arquivos = PE.ARQUIVOS.filter(k => atual.has(k)); marcarSujo(); } }), ' ' + a]))));
+            const erros = PE.validar(x);
+            if (erros.length) corpo.appendChild(el('div', { style: 'color:#f85149;margin-top:8px', html: erros.map(esc).join('<br>') }));
+            corpo.appendChild(el('div', { style: 'display:flex;gap:8px;margin-top:12px' }, [
+                el('button', { class: 'vz-btn b', text: 'Pré-visualizar uma página', onclick: () => previaExportacao(corpo, x) }),
+                el('button', { class: 'vz-btn', text: 'Voltar ao padrão de Neoenergia', onclick: () => { if (raiz.confirm('Remover o perfil deste projeto e voltar ao padrão de Neoenergia?')) { delete st.cfg.exportacao; marcarSujo(); render(); } } })]));
+        }
+    }
+    async function previaExportacao(corpo, perfil) {
+        const PE = raiz.PerfilExportacao, erros = PE.validar(perfil);
+        if (erros.length) { raiz.alert(erros.join('\n')); return; }
+        const cab = {}; PE.normalizar(perfil).cabecalho.forEach(c => { cab[c.chave] = c.chave === 'titulo' ? 'PROJETO DE EXEMPLO' : c.chave === 'nota' ? '000000' : (c.tela || c.chave) + ' (exemplo)'; });
+        const linhas = ['M', 'N'].flatMap(m => [1, 2, 3].map(i => ({ mdo: m, codigo: String(m === 'M' ? 2460000 + i : 500100 + i), desc: (m === 'M' ? 'MATERIAL DE EXEMPLO ' : 'SERVIÇO DE EXEMPLO ') + i, qtd: i * 1.5 })));
+        try {
+            const r = await fetch('/api/orcamento/exportar-sap-pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cabecalho: cab, odi: linhas, odd: [], perfil }) });
+            if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.detail || ('HTTP ' + r.status)); }
+            const url = URL.createObjectURL(await r.blob());
+            const antigo = corpo.querySelector('.previa-exportacao'); if (antigo) antigo.remove();
+            corpo.appendChild(el('iframe', { class: 'previa-exportacao', src: url + '#toolbar=0&view=FitH', style: 'width:100%;height:520px;border:1px solid #30363d;border-radius:6px;margin-top:12px;background:#fff' }));
+        } catch (e) { raiz.alert('Não consegui gerar a pré-visualização: ' + (e.message || e)); }
     }
 
     function abaCabos(corpo) {

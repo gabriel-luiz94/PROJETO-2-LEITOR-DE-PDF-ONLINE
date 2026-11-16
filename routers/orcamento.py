@@ -279,7 +279,20 @@ def calcular_orcamento(req: OrcamentoRequest, request: Request):
     user_id = user["user_id"] if user else None
     merged_rows = get_merged_orcamento(user_id)
     from routers.vinculacao_config import postes_do_projeto
-    return processar_calculo(req.cabos, req.outros, req.projeto, merged_rows, obra=req.obra, convencao_postes=postes_do_projeto(req.projeto))
+    from routers.vinculacao_config import perfil_do_projeto
+    return processar_calculo(req.cabos, req.outros, req.projeto, merged_rows, obra=req.obra, convencao_postes=postes_do_projeto(req.projeto), perfil_exportacao=perfil_do_projeto(req.projeto))
+
+
+def _perfil_do_corpo(corpo):
+    """TASK-176: perfil de exportação do pedido: o `perfil` enviado (pré-visualização do que está sendo editado) ou o salvo para o `projeto` (código ou nome); None = Neoenergia."""
+    from services import perfil_exportacao as pe
+    if isinstance(corpo.get("perfil"), dict):
+        erros = pe.validar(corpo["perfil"])
+        if erros:
+            raise HTTPException(status_code=400, detail="; ".join(erros))
+        return corpo["perfil"]
+    from routers.vinculacao_config import perfil_do_projeto
+    return perfil_do_projeto(corpo.get("projeto"))
 
 
 @router.post("/exportar-xlsx")
@@ -292,7 +305,7 @@ async def exportar_xlsx(request: Request):
     if not isinstance(corpo, dict):
         raise HTTPException(status_code=400, detail="Corpo inválido.")
     try:
-        conteudo = gerar_xlsx(corpo.get("odi", []), corpo.get("odd", []))
+        conteudo = gerar_xlsx(corpo.get("odi", []), corpo.get("odd", []), _perfil_do_corpo(corpo))
     except ErroExportacao as e:
         raise HTTPException(status_code=400, detail=str(e))
     return Response(content=conteudo, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -311,9 +324,9 @@ async def exportar_sap_pdf(request: Request):
         raise HTTPException(status_code=400, detail="Corpo inválido.")
     try:
         if "odi" in corpo or "odd" in corpo:
-            conteudo = gerar_pdf_unico(corpo.get("cabecalho") or {}, corpo.get("odi") or [], corpo.get("odd") or [])
+            conteudo = gerar_pdf_unico(corpo.get("cabecalho") or {}, corpo.get("odi") or [], corpo.get("odd") or [], _perfil_do_corpo(corpo))
         else:
-            conteudo = gerar_pdf(corpo.get("cabecalho") or {}, corpo.get("tipo", ""), corpo.get("linhas", []))
+            conteudo = gerar_pdf(corpo.get("cabecalho") or {}, corpo.get("tipo", ""), corpo.get("linhas", []), _perfil_do_corpo(corpo))
     except ErroPdf as e:
         raise HTTPException(status_code=400, detail=str(e))
     return Response(content=conteudo, media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="SAP.pdf"'})

@@ -35,6 +35,15 @@
 
 ---
 
+## 2026-11-16 — TASK-176: perfil de exportação por projeto (cabeçalho, centros, layout e arquivos)
+
+- `exportacao` na configuração da vinculação: `cabecalho` (campos `chave`, `rotulo` do PDF, `tela`, `coluna` esq/meio/id, `obra`, `lembrar`), `centro` (`MATERIAL`/`MAO-DE-OBRA`), `pdf` (`cor_titulo`, `rodape`, `rotulo_ordem`, `rotulo_id`), `xlsx.colunas` (ordem) e `arquivos` (`pdf_sap`, `xlsx`, `rec`, `csv`). Sem perfil = Neoenergia: PDF, XLSX e visão SAP idênticos aos de antes (comparados com a baseline em `tests/dados/exportacao_padrao_176.json`).
+- `gerar_pdf/gerar_pdf_unico/gerar_xlsx` aceitam `perfil`; `/api/orcamento/exportar-xlsx` e `/exportar-sap-pdf` usam o `perfil` do corpo (pré-visualização) ou o salvo para o `projeto`. A caixa "Informações do relatório SAP" (Resumo e Resultado), o CENTRO da visão SAP e os botões oferecidos seguem o perfil.
+- O `.obra` grava as chaves do cabeçalho do perfil (`sap_limpo(sap, projeto)`); campo desconhecido continua descartado; arquivo antigo abre igual. `OBRA.*` = chaves marcadas `obra` do perfil (+ REGIAO e CONTEXTO); o validador da base aceita `OBRA.CONTRATO` nesse projeto.
+- Limites: o formato do `.rec` e do CSV segue fixo (o perfil só liga/desliga a oferta); a tabela de `OBRA.REGIAO` por projeto fica para a TASK-177; fonte do PDF não é configurável.
+
+---
+
 ## 2026-11-15 — TASK-180: Montar Orçamento sempre recalcula; resultado gravado só volta ao abrir o projeto
 
 - Substitui a restauração da TASK-154 (payload igual → restaurava o resultado do `.obra`, mesmo com base nova). Agora `montarOrcamento` sempre chama `/api/orcamento/calcular`; `assinatura` segue gravada no `.obra` (formato igual) mas não decide mais nada.

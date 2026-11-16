@@ -1,0 +1,133 @@
+{
+ "formato": "exportacao",
+ "versao_formato": 1,
+ "projeto": "081",
+ "exportacao": {
+  "cabecalho": [
+   {
+    "chave": "titulo",
+    "rotulo": "TÍTULO:",
+    "tela": "Título",
+    "coluna": "esq",
+    "obrigatorio": false,
+    "obra": false,
+    "lembrar": false
+   },
+   {
+    "chave": "nota",
+    "rotulo": "Nº NOTA:",
+    "tela": "Nº da nota",
+    "coluna": "esq",
+    "obrigatorio": false,
+    "obra": false,
+    "lembrar": false
+   },
+   {
+    "chave": "sap",
+    "rotulo": "Nº SAP:",
+    "tela": "Nº SAP",
+    "coluna": "meio",
+    "obrigatorio": false,
+    "obra": false,
+    "lembrar": false
+   },
+   {
+    "chave": "bairro",
+    "rotulo": "BAIRRO",
+    "tela": "Bairro",
+    "coluna": "esq",
+    "obrigatorio": false,
+    "obra": true,
+    "lembrar": false
+   },
+   {
+    "chave": "municipio",
+    "rotulo": "MUNICIPIO:",
+    "tela": "Município",
+    "coluna": "meio",
+    "obrigatorio": false,
+    "obra": true,
+    "lembrar": true
+   },
+   {
+    "chave": "utd",
+    "rotulo": "UTD:",
+    "tela": "UTD",
+    "coluna": "esq",
+    "obrigatorio": false,
+    "obra": true,
+    "lembrar": true
+   },
+   {
+    "chave": "utep",
+    "rotulo": "UTEP:",
+    "tela": "UTEP",
+    "coluna": "meio",
+    "obrigatorio": false,
+    "obra": true,
+    "lembrar": true
+   },
+   {
+    "chave": "projetista",
+    "rotulo": "PROJETISTA:",
+    "tela": "Projetista",
+    "coluna": "esq",
+    "obrigatorio": false,
+    "obra": false,
+    "lembrar": true
+   },
+   {
+    "chave": "data",
+    "rotulo": "DATA:",
+    "tela": "Data",
+    "coluna": "meio",
+    "obrigatorio": false,
+    "obra": false,
+    "lembrar": false
+   },
+   {
+    "chave": "id_investimento",
+    "rotulo": "ID INVESTIMENTO",
+    "tela": "ID Investimento (ODI)",
+    "coluna": "id",
+    "obrigatorio": false,
+    "obra": false,
+    "lembrar": true
+   },
+   {
+    "chave": "id_investimento_odd",
+    "rotulo": "ID INVESTIMENTO (ODD)",
+    "tela": "ID Investimento (ODD) — vazio = igual ao ODI",
+    "coluna": "id",
+    "obrigatorio": false,
+    "obra": false,
+    "lembrar": true
+   }
+  ],
+  "centro": {
+   "MATERIAL": "1600",
+   "MAO-DE-OBRA": "1000"
+  },
+  "pdf": {
+   "cor_titulo": "#00A443",
+   "rodape": "Internal Use",
+   "rotulo_ordem": "TIPO DE ORDEM",
+   "rotulo_id": "ID INVESTIMENTO"
+  },
+  "xlsx": {
+   "colunas": [
+    "mdo",
+    "codigo",
+    "qtd",
+    "centro",
+    "desc"
+   ]
+  },
+  "arquivos": [
+   "pdf_sap",
+   "xlsx",
+   "rec",
+   "csv"
+  ]
+ }
+}

@@ -847,3 +847,7 @@ No modal **Vinculação**, a aba **Postes** diz o que é poste na linha de Outro
 ## Leitura do desenho: layers e cores de rede (TASK-175)
 
 No modal **Vinculação**, a aba **Desenho** diz quais **layers** e **cores** do DXF são rede **MT** e **BT** (os mesmos campos do plugin do nanoCAD). Layer: o nome **contém** o trecho; `=NOME` exige o nome exato; `MT_*` é curinga. Cor: número ACI (1 = vermelho), `#RRGGBB` ou faixa RGB. **Regra:** `COR_MANDA` (padrão: a layer confirma a cor e divergência descarta a linha), `LAYER_MANDA` (a layer decide; sem layer de rede, vale a cor) ou `SO_LAYER` (a cor é ignorada). **Sem configuração, vale Pernambuco** (REDE_MT/REDE_BT, vermelho = MT, verde = BT). Use **Testar** (layer + cor) e **Salvar leitura do desenho**.
+
+## Perfil de exportação (TASK-176)
+
+No modal **Vinculação**, a aba **Exportação** diz como saem os relatórios do projeto: os **campos do cabeçalho** (rótulo no PDF, coluna do cabeçalho, se viram parâmetro `OBRA.<CHAVE>` da base e se o programa lembra o valor), o **centro** de material e de mão de obra (padrão 1600/1000), a cor do título e o rodapé do PDF, as **colunas do Excel** e quais **arquivos** o projeto oferece. O `.obra` grava as chaves do cabeçalho. Exemplo: acrescente o campo `contrato` marcado `OBRA.*` e a base pode usar `OBRA.CONTRATO` como parâmetro. **Pré-visualizar uma página** mostra o PDF de exemplo com o perfil em edição. **Sem perfil, vale o de Neoenergia.**

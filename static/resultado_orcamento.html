@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/static/tema.css?v=1">
     <script src="/static/auth_fetch.js"></script>
     <script src="/static/desktop_arquivos.js"></script>
+    <script src="/static/perfil_exportacao.js"></script>
     <script src="/static/projeto.js?v=1"></script>
     <link rel="stylesheet" href="/static/styles.css?v=2">
     <style>
@@ -1418,7 +1419,12 @@
             log('Linha em branco adicionada: preencha o código (linha sem código não vai para o REC).');
         }
 
+        // TASK-176: o perfil de exportação do projeto (centro, cabeçalho do relatório e arquivos oferecidos) vale antes de desenhar a visão SAP
+        const perfilPronto = window.PerfilExportacao ? PerfilExportacao.carregar(localStorage.getItem('projeto_selecionado_codigo') || '').then(() => {
+            ['xlsx:btn-exportar-xlsx', 'pdf_sap:btn-relatorio-pdf'].forEach(par => { const [arq, id] = par.split(':'), b = document.getElementById(id); if (b) b.style.display = PerfilExportacao.oferece(arq, PerfilExportacao.atual()) ? '' : 'none'; });
+        }) : Promise.resolve();
         async function montarOrcamento() {
+            await perfilPronto;
             try {
                 log('Lendo dados para cálculo do orçamento...', true);
                 const payloadStr = localStorage.getItem('orcamentoPayload');
@@ -2592,7 +2598,7 @@
             try {
                 log('Gerando o Excel...', true);
                 const res = await fetch('/api/orcamento/exportar-xlsx', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ odi: SAP.paraExcel(odi), odd: SAP.paraExcel(odd) }) });
+                    body: JSON.stringify({ odi: SAP.paraExcel(odi), odd: SAP.paraExcel(odd), projeto: localStorage.getItem('projeto_selecionado_codigo') || '' }) });
                 if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.detail || ('HTTP ' + res.status)); }
                 const blob = await res.blob();
                 if (window.showSaveFilePicker) {
@@ -2610,9 +2616,10 @@
         }
 
         /* TASK-140 — relatórios ODI e ODD em PDF (formato da nota do SAP): pergunta o cabeçalho e salva os dois arquivos */
-        const REL_CAMPOS = [['titulo', 'Título', 2], ['nota', 'Nº da nota', 1], ['sap', 'Nº SAP', 1], ['bairro', 'Bairro', 1], ['municipio', 'Município', 1], ['utd', 'UTD', 1], ['utep', 'UTEP', 1],
-            ['projetista', 'Projetista', 1], ['data', 'Data', 1], ['id_investimento', 'ID Investimento (ODI)', 1], ['id_investimento_odd', 'ID Investimento (ODD) — vazio = igual ao ODI', 1]];
-        const REL_LEMBRAR = ['projetista', 'utd', 'utep', 'municipio', 'id_investimento', 'id_investimento_odd'];
+        // TASK-176: os campos do cabeçalho vêm do perfil de exportação do projeto (sem perfil: os de Neoenergia)
+        const relPerfil = () => (window.PerfilExportacao ? PerfilExportacao.normalizar(PerfilExportacao.atual()) : null);
+        const relCampos = () => (relPerfil() ? relPerfil().cabecalho.map(x => [x.chave, x.tela, x.chave === 'titulo' ? 2 : 1]) : [['titulo', 'Título', 2], ['nota', 'Nº da nota', 1]]);
+        const relLembrar = () => (relPerfil() ? relPerfil().cabecalho.filter(x => x.lembrar).map(x => x.chave) : []);
         function relLer() { try { return JSON.parse(localStorage.getItem('relatorio_sap_cabecalho') || '{}') || {}; } catch (e) { return {}; } }
         function relGravar(v) { try { localStorage.setItem('relatorio_sap_cabecalho', JSON.stringify(v)); } catch (e) { /* sem localStorage: não lembra */ } }
         function abrirRelatorioPdf() {
@@ -2621,7 +2628,7 @@
             const projetoAtivo = window.GridRProjeto && GridRProjeto.ativo();                          // TASK-154: título, nota e cabeçalho vêm do projeto
             const lembrado = Object.assign({}, relLer(), projetoAtivo ? GridRProjeto.sap() : {}), hoje = new Date().toLocaleDateString('pt-BR');
             const box = document.getElementById('rel-campos'); box.innerHTML = '';
-            REL_CAMPOS.forEach(([k, rot, larg]) => {
+            relCampos().forEach(([k, rot, larg]) => {
                 const d = document.createElement('div'); if (larg === 2) d.style.gridColumn = '1 / -1';
                 const l = document.createElement('label'); l.textContent = rot; l.style.cssText = 'display:block; font-size:0.72rem; color:var(--text-secondary); margin-bottom:3px;';
                 const i = document.createElement('input'); i.type = 'text'; i.id = 'rel-' + k; i.style.cssText = 'width:100%; box-sizing:border-box; padding:7px 9px; background:var(--bg-canvas); color:var(--text-primary); border:1px solid var(--border-default); border-radius:6px; font:inherit; font-size:0.85rem; outline:none;';
@@ -2630,7 +2637,7 @@
                 d.append(l, i); box.appendChild(d);
             });
             document.getElementById('modal-relatorio-pdf').style.display = 'flex';
-            document.getElementById('rel-titulo').focus();
+            const primeiro = box.querySelector('input'); if (primeiro) primeiro.focus();
         }
         /* Colar SAP: preenche o cabeçalho com o JSON do Atlas (vale só para este relatório; vazio no JSON não apaga o que já está escrito) */
         async function colarSapNoRelatorio() {
@@ -2638,7 +2645,7 @@
             if (!window.GridRProjeto) return;
             const r = await GridRProjeto.colarSap();
             if (!r) return;
-            REL_CAMPOS.forEach(([k]) => { if (r.campos[k]) { const i = document.getElementById('rel-' + k); if (i) i.value = r.campos[k]; } });
+            relCampos().forEach(([k]) => { if (r.campos[k]) { const i = document.getElementById('rel-' + k); if (i) i.value = r.campos[k]; } });
             const numero = window.GridRProjeto.ativo() ? GridRProjeto.numeroObra() : '';
             if (numero && r.campos.nota && r.campos.nota !== numero) {
                 aviso.textContent = `Atenção: a nota colada (${r.campos.nota}) é diferente do número do projeto (${numero}). Vale só para este relatório.`;
@@ -2647,9 +2654,9 @@
         }
         function fecharRelatorioPdf() { document.getElementById('modal-relatorio-pdf').style.display = 'none'; }
         async function gerarRelatoriosPdf() {
-            const cab = {}; REL_CAMPOS.forEach(([k]) => { cab[k] = document.getElementById('rel-' + k).value.trim(); });
+            const cab = {}; relCampos().forEach(([k]) => { cab[k] = document.getElementById('rel-' + k).value.trim(); });
             if (!cab.nota) { alert('Informe o número da nota.'); return; }
-            const lembrar = {}; REL_LEMBRAR.forEach(k => { lembrar[k] = cab[k]; }); relGravar(lembrar);
+            const lembrar = {}; relLembrar().forEach(k => { lembrar[k] = cab[k]; }); relGravar(lembrar);
             if (window.GridRProjeto && GridRProjeto.ativo()) GridRProjeto.salvarSap(cab);              // TASK-154: o cabeçalho fica no projeto
             const nota = cab.nota.replace(/[^A-Za-z0-9_.-]+/g, '_');
             const btn = document.getElementById('rel-gerar'); btn.disabled = true;
@@ -2660,7 +2667,7 @@
                 if (!odi.length) log('ODI sem itens: o relatório leva só o ODD.'); else if (!odd.length) log('ODD sem itens: o relatório leva só o ODI.');
                 log('Gerando o PDF do relatório SAP...', true);
                 const res = await fetch('/api/orcamento/exportar-sap-pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cabecalho: cab, odi: SAP.paraExcel(odi), odd: SAP.paraExcel(odd) }) });
+                    body: JSON.stringify({ cabecalho: cab, odi: SAP.paraExcel(odi), odd: SAP.paraExcel(odd), projeto: localStorage.getItem('projeto_selecionado_codigo') || '' }) });
                 if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.detail || ('HTTP ' + res.status)); }
                 const sufixo = odi.length && odd.length ? 'ODI_ODD' : (odi.length ? 'ODI' : 'ODD');
                 const blob = await res.blob(), url = URL.createObjectURL(blob), a = document.createElement('a');
