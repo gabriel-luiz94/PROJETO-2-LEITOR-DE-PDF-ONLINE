@@ -1,0 +1,70 @@
+{
+ "versao": 2,
+ "cabos": [
+  {
+   "padrao": "^C\\d+$",
+   "grupo": "Cobre nu",
+   "valor_cabo": "C",
+   "operacoes": [
+    "I",
+    "M"
+   ],
+   "pontas": {
+    "I": 2,
+    "M": 1
+   },
+   "estruturas": "",
+   "vincula": true,
+   "ativa": true,
+   "obs": "Cabos de cobre"
+  },
+  {
+   "padrao": "^A\\d+P$",
+   "grupo": "Alumínio protegido",
+   "valor_cabo": "A",
+   "operacoes": [
+    "I",
+    "M"
+   ],
+   "pontas": {
+    "I": 2,
+    "M": 1
+   },
+   "estruturas": "",
+   "vincula": true,
+   "ativa": true,
+   "obs": "Cabos de alumínio protegido"
+  }
+ ],
+ "estruturas": [
+  {
+   "padrao": "^N3$",
+   "qtd_cabos": 2,
+   "lados": "LIVRE",
+   "amarracao": true,
+   "aceita_i": true,
+   "cabos": "",
+   "parametro": "cabo",
+   "se_diferem": "MAIOR",
+   "obs": "N3 recebe o tipo do cabo no parâmetro cabo",
+   "ativa": true
+  },
+  {
+   "padrao": "^(N1|N4)$",
+   "qtd_cabos": 2,
+   "lados": "LIVRE",
+   "amarracao": true,
+   "aceita_i": true,
+   "cabos": "",
+   "parametro": "",
+   "se_diferem": "AVISAR",
+   "obs": "",
+   "ativa": true
+  }
+ ],
+ "ordem_maior": [
+  "C",
+  "A"
+ ],
+ "scripts": []
+}

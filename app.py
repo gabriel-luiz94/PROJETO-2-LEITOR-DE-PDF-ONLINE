@@ -227,9 +227,29 @@ async def serve_vinculacao_ui_js():
     return _serve_js("vinculacao_ui.js")
 
 
+@app.get("/static/dicionario_cabos.js")
+async def serve_dicionario_cabos_js():
+    return _serve_js("dicionario_cabos.js")
+
+
 @app.get("/static/anotacao_cabos.js")
 async def serve_anotacao_cabos_js():
     return _serve_js("anotacao_cabos.js")
+
+
+@app.get("/static/base_explica.js")
+async def serve_base_explica_js():
+    return _serve_js("base_explica.js")
+
+
+@app.get("/static/perfil_exportacao.js")
+async def serve_perfil_exportacao_js():
+    return _serve_js("perfil_exportacao.js")
+
+
+@app.get("/static/convencao_postes.js")
+async def serve_convencao_postes_js():
+    return _serve_js("convencao_postes.js")
 
 
 @app.get("/static/anotacao_outros.js")
@@ -411,6 +431,10 @@ app.include_router(regras.router)
 app.include_router(regras_leitor.router)
 app.include_router(regras_vinculacao.router)
 app.include_router(vinculacao_config.router)
+from routers import pacote as _pacote_router                    # TASK-177
+app.include_router(_pacote_router.router)
+from routers import casos as _casos_router                       # TASK-178
+app.include_router(_casos_router.router)
 app.include_router(plugin_cad.router)          # TASK-104: plugin do nanoCAD (regras, versão, conferência com a base)
 app.include_router(atalhos.router)
 app.include_router(modais_montaveis.router)

@@ -15,6 +15,11 @@ Estrutura = código do primeiro item que não é poste da linha de Outros (ou o 
 """
 import re
 
+from services import anotacao_cabos as _ac
+from services import convencao_postes as _cp
+from services import dicionario_cabos as _dc
+from services import perfil_exportacao as _pe
+
 ORDEM_MAIOR_PADRAO = ["C", "P", "A"]
 SE_DIFEREM = ("BLOQUEAR", "MAIOR", "AVISAR")
 SE_FALTAR = ("AVISAR", "BLOQUEAR")                         # TASK-169
@@ -45,7 +50,7 @@ def casa(padrao, texto) -> bool:
 
 
 def config_vazia() -> dict:
-    return {"versao": 2, "cabos": [], "estruturas": [], "ordem_maior": list(ORDEM_MAIOR_PADRAO), "scripts": []}
+    return {"versao": 2, "cabos": [], "estruturas": [], "ordem_maior": list(ORDEM_MAIOR_PADRAO), "scripts": [], "dicionario_cabos": []}
 
 
 def normalizar_config(cfg) -> dict:
@@ -53,9 +58,16 @@ def normalizar_config(cfg) -> dict:
     if isinstance(cfg, dict):
         c["cabos"] = [r for r in (cfg.get("cabos") or []) if isinstance(r, dict)]
         c["estruturas"] = [r for r in (cfg.get("estruturas") or []) if isinstance(r, dict)]
+        c["dicionario_cabos"] = _dc.normalizar(cfg.get("dicionario_cabos"))                              # TASK-173
+        if isinstance(cfg.get("postes"), dict):                                                          # TASK-174: convenção de postes (sem ela, a de Pernambuco)
+            c["postes"] = cfg["postes"]
+        if isinstance(cfg.get("exportacao"), dict):                                                      # TASK-176: perfil de exportação (sem ele, o de Neoenergia)
+            c["exportacao"] = cfg["exportacao"]
         om = cfg.get("ordem_maior")
         if isinstance(om, list) and om:
             c["ordem_maior"] = [_trim(x).upper() for x in om]
+        elif _dc.ordem_maior_padrao(c["dicionario_cabos"]):                                              # TASK-173: sem ordem própria, vale a do dicionário
+            c["ordem_maior"] = _dc.ordem_maior_padrao(c["dicionario_cabos"])
         c["scripts"] = [s for s in (cfg.get("scripts") or []) if isinstance(s, dict)]
     return c
 
@@ -79,6 +91,9 @@ def validar_config(cfg) -> list:
     erros = []
     if not isinstance(cfg, dict):
         return ["A configuração precisa ser um objeto."]
+    erros.extend(_dc.validar(cfg.get("dicionario_cabos")))                                              # TASK-173
+    erros.extend(_cp.validar(cfg.get("postes")))                                                         # TASK-174
+    erros.extend(_pe.validar(cfg.get("exportacao")))                                                     # TASK-176
     for tabela, chave in (("cabos", "Cabo"), ("estruturas", "Estrutura")):
         lista = cfg.get(tabela, [])
         if not isinstance(lista, list):
@@ -205,17 +220,27 @@ _RE_FASES = re.compile(r"(?<![0-9A-Za-z])([1-9])\s*[xX]\s*(?=[A-Za-z])")
 _RE_TENSAO = re.compile(r"(\d+(?:[.,]\d+)?)\s*kV", re.I)
 
 
-def derivar_cabo(texto) -> dict:
+def derivar_cabo(texto, dic=None) -> dict:
+    """`dic` = dicionário de cabos do projeto (TASK-173): sem tensão no texto, o nível e as fases padrão vêm da linha do cabo; sem dicionário, BT e 1 fase."""
     t = _trim(texto)
     mf, mt = _RE_FASES.search(t), _RE_TENSAO.search(t)
     tensao = mt.group(1).replace(".", ",") + "kV" if mt else ""
-    return {"fases": int(mf.group(1)) if mf else 1, "tensao": tensao, "nivel": "MT" if mt and float(mt.group(1).replace(",", ".")) > 1 else "BT"}
+    fases, nivel = int(mf.group(1)) if mf else 1, "MT" if mt and float(mt.group(1).replace(",", ".")) > 1 else "BT"
+    if dic and (not mt or not mf):
+        itens = _ac.interpretar(t, dic)["itens"]
+        p = ([i for i in itens if not i["neutro"]] or itens or [None])[0]
+        if p:
+            if not mt:
+                nivel = _dc.nivel_padrao(dic, p["ativo"]) or nivel
+            if not mf:
+                fases = _dc.fases_padrao(dic, p["ativo"]) or fases
+    return {"fases": fases, "tensao": tensao, "nivel": nivel}
 
 
-def extra_cabo(row) -> dict:
+def extra_cabo(row, dic=None) -> dict:
     """Dados que as regras do cabo podem usar: o que está na linha (editável) ou, na falta, o derivado do texto original."""
     row = row or {}
-    d = derivar_cabo(row.get("textoOriginal"))
+    d = derivar_cabo(row.get("textoOriginal"), dic)
     try:
         f = int(_trim(row.get("fases"))) if _trim(row.get("fases")) != "" else d["fases"]
     except ValueError:
@@ -268,7 +293,11 @@ def info_cabo(codigo, operacao, cfg, extra=None) -> dict:
     pontas = 1 if base == "M" else 2
     if r is not None and isinstance(r.get("pontas"), dict) and isinstance(r["pontas"].get(base), int):
         pontas = r["pontas"][base]
-    return {"codigo": cod, "regra": i, "valor_cabo": (_trim(r.get("valor_cabo")).upper() or None) if r else None, "pontas": pontas,
+    vc = (_trim(r.get("valor_cabo")).upper() or None) if r else None
+    dic = cfg.get("dicionario_cabos")
+    if not vc and dic:                                                                                     # TASK-173: sem valor na Tabela de Cabos, vale o do dicionário
+        vc = _dc.valor_cabo(dic, cod)
+    return {"codigo": cod, "regra": i, "valor_cabo": vc, "pontas": pontas, "secao": secao_cabo(cod, dic),
             "vincula": not (r is not None and (r.get("vincula") is False)), "estruturas": (r.get("estruturas") if r else None),
             "operacoes": (r.get("operacoes") if r else None), "op": _trim(operacao).upper(), "base": base,
             "fases": extra["fases"] if extra else None, "nivel": extra["nivel"] if extra else None,
@@ -525,8 +554,12 @@ _AWG0 = {2: 33.6, 4: 21.2, 6: 13.3, 8: 8.4}
 _AWG_X0 = {1: 53.5, 2: 67.4, 3: 85.0, 4: 107.2}
 
 
-def secao_cabo(codigo) -> float:
+def secao_cabo(codigo, dic=None) -> float:
     c = _trim(codigo).upper()
+    if dic:                                                                                               # TASK-173: dicionário primeiro; sem linha, a regra fixa
+        s = _dc.secao(dic, c)
+        if s is not None:
+            return s
     m = re.search(r"(\d)/0", c)
     if m:
         return _AWG_X0.get(int(m.group(1)), float(m.group(1)))
@@ -541,7 +574,7 @@ def _ordenar_e_juntar(e, ocupantes) -> list:
     """TASK-169: `ordem: MAIOR_PRIMEIRO` (estável: empate = ordem de origem) e `distintos` (junta os cabos de mesma descrição) ANTES de distribuir nos parâmetros."""
     lista = list(ocupantes)
     if e["ordem"] == "MAIOR_PRIMEIRO":
-        lista = sorted(lista, key=lambda o: -secao_cabo(o["info"]["codigo"]))
+        lista = sorted(lista, key=lambda o: -(o["info"]["secao"] if o["info"].get("secao") is not None else secao_cabo(o["info"]["codigo"])))
     if e["distintos"]:
         vistos, saida = set(), []
         for o in lista:
@@ -749,7 +782,7 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
     info_c = {}
     for ic, c in enumerate(cabos):
         if _eh_cabo_valido(c):
-            info_c[ic] = info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg, extra_cabo(c))
+            info_c[ic] = info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg, extra_cabo(c, cfg.get("dicionario_cabos")))
     info_e = {ie: info_estrutura(codigo_fn(outros[ie].get("ativo"), outros[ie]), cfg) for ie in ests}
     ests_ocupa = [ie for ie in ests if info_e[ie]["ocupa"]]            # TASK-169: equipamento (ocupa: false) não consome ponta; é resolvido na 2ª passada
     ocup = {ie: [] for ie in ests_ocupa}                               # [(idx_cabo)]
@@ -875,7 +908,7 @@ def parametros_do_cabo_na_estrutura(estrutura, cabo_row, cfg, prefixo_fn) -> dic
     Sem regra de cabo/estrutura devolve o que a tabela der (ou {})."""
     cfg = normalizar_config(cfg)
     e = info_estrutura(estrutura, cfg)
-    c = info_cabo(_codigo_cabo(cabo_row, prefixo_fn), (cabo_row or {}).get("operacao"), cfg, extra_cabo(cabo_row))
+    c = info_cabo(_codigo_cabo(cabo_row, prefixo_fn), (cabo_row or {}).get("operacao"), cfg, extra_cabo(cabo_row, cfg.get("dicionario_cabos")))
     valor, _avisos, params = _valor_e_parametros(e, cfg, [{"info": c, "ficticio": False}])
     if params is None and valor and e["parametro"]:
         params = {e["parametro"]: [valor]}
@@ -1004,7 +1037,7 @@ def _vincular_por_poste_base(cabos, outros, cfg, prefixo_fn, codigo_fn, raio) ->
     cfg = normalizar_config(cfg)
     ests = estruturas_disponiveis(outros)
     info_e = {ie: info_estrutura(codigo_fn(outros[ie].get("ativo"), outros[ie]), cfg) for ie in ests}
-    info_c = {ic: info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg, extra_cabo(c)) for ic, c in enumerate(cabos) if _eh_cabo_valido(c)}
+    info_c = {ic: info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg, extra_cabo(c, cfg.get("dicionario_cabos"))) for ic, c in enumerate(cabos) if _eh_cabo_valido(c)}
     por_linha = {}
     for ie in ests:
         por_linha.setdefault(outros[ie].get("_linha"), []).append(ie)
@@ -1203,7 +1236,7 @@ def _executar_script_base(script, cabos, outros, cfg, prefixo_fn, codigo_fn) -> 
     modo_conf = script.get("conflitos") if script.get("conflitos") in CONFLITOS_SCRIPT else "avisar"
     ests = estruturas_disponiveis(outros)
     info_e = {ie: info_estrutura(codigo_fn(outros[ie].get("ativo"), outros[ie]), cfg) for ie in ests}
-    info_c = {ic: info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg, extra_cabo(c)) for ic, c in enumerate(cabos) if _eh_cabo_valido(c)}
+    info_c = {ic: info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg, extra_cabo(c, cfg.get("dicionario_cabos"))) for ic, c in enumerate(cabos) if _eh_cabo_valido(c)}
     ligados = {ic: list(cabos[ic].get("vinculoEstruturas") or []) for ic in info_c}       # estado de trabalho
     fict = {ie: [_trim(x).upper() for x in (outros[ie].get("cabosFicticios") or []) if _trim(x)] for ie in ests}
     saida = {"vinculos": [], "conflitos": [], "sem_candidato": [], "passos": [], "parou": False}

@@ -1,0 +1,13 @@
+{
+ "formato": "pacote-projeto-embutido",
+ "versao_formato": 1,
+ "id": "exemplo",
+ "nome": "Exemplo (modelo para começar)",
+ "descricao": "Base pequena e comentada (poste, N1, N3 com parâmetro, N4 com linha viva, cabos, alça, conector e um composto), vinculação simples e 5 casos de referência. Importe num projeto novo e siga docs/base_guia.md.",
+ "origem": "exemplo",
+ "partes": {
+  "base": "base.csv",
+  "vinculacao": "vinculacao.json",
+  "casos": "casos.json"
+ }
+}

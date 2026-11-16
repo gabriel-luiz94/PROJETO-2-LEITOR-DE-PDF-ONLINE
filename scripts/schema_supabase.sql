@@ -332,3 +332,18 @@ CREATE TABLE IF NOT EXISTS public.atalhos_modais (
     PRIMARY KEY (projeto_codigo, modal)
 );
 ALTER TABLE public.atalhos_modais DISABLE ROW LEVEL SECURITY;
+
+
+-- TASK-177: pacote de projeto. Ponto de partida do projeto (id de data/pacotes/<id>/); vazio = o que o manifesto do pacote declarar. Opcional: sem a coluna o programa usa só o manifesto.
+ALTER TABLE public.projetos ADD COLUMN IF NOT EXISTS pacote_inicial TEXT DEFAULT '';
+
+-- TASK-178: casos de referência por projeto (pedido + resultado esperado), para conferir a base antes de gravar. Sem esta tabela os casos ficam só no SQLite local.
+CREATE TABLE IF NOT EXISTS public.casos_referencia (
+    id BIGINT PRIMARY KEY,
+    projeto_codigo TEXT NOT NULL,
+    nome TEXT NOT NULL,
+    caso_json TEXT NOT NULL,
+    criado_por TEXT,
+    criado_em TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE public.casos_referencia DISABLE ROW LEVEL SECURITY;

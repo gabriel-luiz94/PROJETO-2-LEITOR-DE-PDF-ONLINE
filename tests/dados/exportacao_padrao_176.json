@@ -1,0 +1,106 @@
+{
+ "unico": {
+  "paginas": [
+   {
+    "palavras": "a6e7a6aa7634d8d98cba669fc08da3f1d5ec6a61",
+    "desenhos": "80eae2392e8329b0075fd9dbc47c0f8e78633e72",
+    "n_palavras": 375,
+    "n_desenhos": 57
+   },
+   {
+    "palavras": "79626b6edad75056ace74da4d1ae2307973df3ba",
+    "desenhos": "d9473966959d7c6abaf566557e59f0a8ad073f7b",
+    "n_palavras": 86,
+    "n_desenhos": 19
+   },
+   {
+    "palavras": "51ec5bf2b6c2fb9e4da0f45a5748499e16a227a6",
+    "desenhos": "596843738242d4c6c6d70fc7b305942e85542334",
+    "n_palavras": 64,
+    "n_desenhos": 14
+   }
+  ]
+ },
+ "odi": {
+  "paginas": [
+   {
+    "palavras": "c2b3e668a0b53b936af22794def4f3b0e1e912d2",
+    "desenhos": "02ef8b6e1b1e4c71d7c431242593957f3984e1a4",
+    "n_palavras": 60,
+    "n_desenhos": 12
+   }
+  ]
+ },
+ "odd": {
+  "paginas": [
+   {
+    "palavras": "51ec5bf2b6c2fb9e4da0f45a5748499e16a227a6",
+    "desenhos": "596843738242d4c6c6d70fc7b305942e85542334",
+    "n_palavras": 64,
+    "n_desenhos": 14
+   }
+  ]
+ },
+ "xlsx": {
+  "ODI": [
+   [
+    "TIPO MDO",
+    "CÓDIGO",
+    "QUANTIDADE",
+    "CENTRO",
+    "DESCRIÇÃO"
+   ],
+   [
+    "N",
+    "1000",
+    0,
+    "1000",
+    "ITEM 0 DESCRICAO"
+   ],
+   [
+    "M",
+    "1001",
+    1.5,
+    "1600",
+    "ITEM 1 DESCRICAO"
+   ],
+   [
+    "N",
+    "1002",
+    3,
+    "1000",
+    "ITEM 2 DESCRICAO"
+   ],
+   [
+    "M",
+    "1003",
+    4.5,
+    "1600",
+    "ITEM 3 DESCRICAO"
+   ]
+  ],
+  "ODD": [
+   [
+    "TIPO MDO",
+    "CÓDIGO",
+    "QUANTIDADE",
+    "CENTRO",
+    "DESCRIÇÃO"
+   ],
+   [
+    "M",
+    "90",
+    0,
+    "1600",
+    "REMOVE"
+   ],
+   [
+    "M",
+    "91",
+    1,
+    "1600",
+    "REMOVE"
+   ]
+  ]
+ }
+}

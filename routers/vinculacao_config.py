@@ -11,7 +11,7 @@ import json
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from config import logger, VINCULACAO_PE_SEED_PATH
+from config import logger
 from database import get_connection
 from routers.regras_vinculacao import _get_regras as _get_regras_legadas
 from services import vinculacao_regras as vr
@@ -19,17 +19,9 @@ from services.supabase_client import get_supabase
 
 router = APIRouter(prefix="/api/vinculacao-config", tags=["vinculacao-config"])
 
-PROJETO_PERNAMBUCO = "081"
-
-
 class ConfigPayload(BaseModel):
     projeto_codigo: str
     config: dict
-
-
-def _seed_pernambuco() -> dict:
-    with open(VINCULACAO_PE_SEED_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
 
 
 def _config_salva(projeto_codigo: str):
@@ -39,7 +31,7 @@ def _config_salva(projeto_codigo: str):
             res = supabase.table("vinculacao_config").select("config_json").eq("projeto_codigo", projeto_codigo).execute()
             if res.data:
                 cfg = json.loads(res.data[0]["config_json"])
-                if isinstance(cfg, dict) and (cfg.get("cabos") or cfg.get("estruturas") or cfg.get("scripts")):
+                if isinstance(cfg, dict) and (cfg.get("cabos") or cfg.get("estruturas") or cfg.get("scripts") or cfg.get("dicionario_cabos") or cfg.get("postes") or cfg.get("exportacao")):
                     return cfg
         except Exception as e:
             logger.warning(f"Falha ao buscar vinculacao_config no Supabase: {e}")
@@ -58,6 +50,37 @@ def _config_salva(projeto_codigo: str):
     return None
 
 
+def postes_do_projeto(nome_ou_codigo: str):
+    """TASK-174: a convenção de postes (tabela `postes`) salva para o projeto — pelo código ("081") ou pelo nome ("PERNAMBUCO") —; None = a de Pernambuco."""
+    return parte_do_projeto(nome_ou_codigo, "postes")
+
+
+def perfil_do_projeto(nome_ou_codigo: str):
+    """TASK-176: o perfil de exportação (`exportacao`) salvo para o projeto; None = o de Neoenergia."""
+    return parte_do_projeto(nome_ou_codigo, "exportacao")
+
+
+def parte_do_projeto(nome_ou_codigo: str, parte: str):
+    chave = str(nome_ou_codigo or "").strip()
+    if not chave:
+        return None
+    codigos = [chave]
+    conn = get_connection()
+    try:
+        r = conn.execute("SELECT codigo FROM projetos WHERE upper(nome) = ?", (chave.upper(),)).fetchone()
+        if r:
+            codigos.append(r[0])
+    except Exception:  # noqa: BLE001
+        pass
+    finally:
+        conn.close()
+    for c in codigos:
+        cfg = _config_salva(c)
+        if isinstance(cfg, dict) and isinstance(cfg.get(parte), dict):
+            return cfg[parte]
+    return None
+
+
 def obter_config(projeto_codigo: str) -> dict:
     """Configuração efetiva do projeto, normalizada (salva > ponto de partida de Pernambuco > migração das regras antigas)."""
     return obter_config_com_origem(projeto_codigo)[0]
@@ -67,11 +90,13 @@ def obter_config_com_origem(projeto_codigo: str):
     salva = _config_salva(projeto_codigo)
     if salva is not None:
         return vr.normalizar_config(salva), "salva"
-    if projeto_codigo == PROJETO_PERNAMBUCO:
-        try:
-            return vr.normalizar_config(_seed_pernambuco()), "pernambuco"
-        except (OSError, json.JSONDecodeError) as e:
-            logger.warning(f"Seed da vinculação de Pernambuco ilegível: {e}")
+    from services import pacote_projeto as pp                                     # TASK-177: o ponto de partida vem do pacote do projeto, não de um `if`
+    try:
+        inicial = pp.config_inicial(projeto_codigo)
+        if inicial is not None:
+            return vr.normalizar_config(inicial), (pp.pacote_inicial_de(projeto_codigo) or {}).get("origem") or "pacote"
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Pacote de partida da vinculação ilegível: {e}")
     legado = _get_regras_legadas(projeto_codigo)
     if legado:
         return vr.config_de_legado(legado), "migrada"

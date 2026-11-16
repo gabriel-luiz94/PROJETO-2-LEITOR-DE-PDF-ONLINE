@@ -13,7 +13,6 @@ import bcrypt
 from config import (
     DB_PATH, SEED_CSV_PATH, logger,
     REGRAS_LEITOR_PROCESSAMENTO_SEED_PATH, REGRAS_LEITOR_CLASSIFICACAO_SEED_PATH,
-    REGRAS_LEITOR_PROCESSAMENTO_PE_SEED_PATH, REGRAS_LEITOR_CLASSIFICACAO_PE_SEED_PATH,
     REGRAS_VINCULACAO_SEED_PATH,
     VALIDACOES_SEED_DIR, REGRAS_DOMINIO_SEED_PATH, AJUSTES_SEED_PATH,
 )
@@ -102,18 +101,21 @@ def _seed_regras_leitor(cursor: sqlite3.Cursor):
 
 
 def _seed_regras_leitor_pernambuco(cursor: sqlite3.Cursor):
-    """TASK-082: regras do leitor do projeto PERNAMBUCO (código "081"), do zero (postes compactos e cabos pelo LABEL).
-    Só para quem ainda não tem linha; depois disso o admin edita livremente."""
+    """TASK-082/177: regras do leitor dos projetos que têm pacote de partida embutido (data/pacotes/<id>/: hoje o de Pernambuco, código "081" no manifesto), do zero (postes compactos e
+    cabos pelo LABEL). Só para quem ainda não tem linha; depois disso o admin edita livremente. (O nome da função é histórico: ela não conhece projeto nenhum.)"""
     try:
-        with open(REGRAS_LEITOR_PROCESSAMENTO_PE_SEED_PATH, "r", encoding="utf-8") as f:
-            proc = json.load(f)
-        with open(REGRAS_LEITOR_CLASSIFICACAO_PE_SEED_PATH, "r", encoding="utf-8") as f:
-            cls = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        logger.warning(f"Seed de regras do leitor de Pernambuco não encontrado/inválido: {e}")
+        from services import pacote_projeto as pp
+        pacotes = pp.pacotes_embutidos()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Pacotes de partida indisponíveis: {e}")
         return
-    cursor.execute("INSERT OR IGNORE INTO regras_leitor_processamento (projeto_codigo, regras_json) VALUES (?, ?)", ("081", json.dumps(proc, ensure_ascii=False)))
-    cursor.execute("INSERT OR IGNORE INTO regras_leitor_classificacao (projeto_codigo, regras_json) VALUES (?, ?)", ("081", json.dumps(cls, ensure_ascii=False)))
+    for m in pacotes.values():
+        codigo = str(m.get("projeto_codigo_padrao") or "").strip()
+        proc, cls = pp.parte_embutida(m["id"], "leitor_processamento"), pp.parte_embutida(m["id"], "leitor_classificacao")
+        if not codigo or not isinstance(proc, list) or not isinstance(cls, list):
+            continue
+        cursor.execute("INSERT OR IGNORE INTO regras_leitor_processamento (projeto_codigo, regras_json) VALUES (?, ?)", (codigo, json.dumps(proc, ensure_ascii=False)))
+        cursor.execute("INSERT OR IGNORE INTO regras_leitor_classificacao (projeto_codigo, regras_json) VALUES (?, ?)", (codigo, json.dumps(cls, ensure_ascii=False)))
 
 
 def _seed_regras_vinculacao(cursor: sqlite3.Cursor):
@@ -653,6 +655,11 @@ def init_db():
         cursor.execute("ALTER TABLE projetos ADD COLUMN updated_at TEXT")
     except sqlite3.OperationalError:
         pass
+    try:
+        cursor.execute("ALTER TABLE projetos ADD COLUMN pacote_inicial TEXT DEFAULT ''")      # TASK-177: pacote de partida do projeto (id de data/pacotes/<id>/); vazio = o que o manifesto declarar
+    except sqlite3.OperationalError:
+        pass
+    cursor.execute("CREATE TABLE IF NOT EXISTS projeto_partes (projeto_codigo TEXT NOT NULL, parte TEXT NOT NULL, conteudo_json TEXT NOT NULL, updated_at TEXT DEFAULT (datetime('now')), PRIMARY KEY (projeto_codigo, parte))")
     cursor.execute("INSERT OR IGNORE INTO projetos (nome, codigo) VALUES ('PARAIBA', '027')")
     cursor.execute("INSERT OR IGNORE INTO projetos (nome, codigo) VALUES ('RONDONIA', '229')")
 

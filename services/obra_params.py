@@ -13,7 +13,6 @@ import config
 PREFIXO = "OBRA."
 NOMES = ("OBRA.MUNICIPIO", "OBRA.BAIRRO", "OBRA.UTD", "OBRA.UTEP", "OBRA.REGIAO", "OBRA.CONTEXTO")
 _CAMPOS = {"municipio": "OBRA.MUNICIPIO", "bairro": "OBRA.BAIRRO", "utd": "OBRA.UTD", "utep": "OBRA.UTEP", "contexto": "OBRA.CONTEXTO"}
-_TABELAS = {"PERNAMBUCO": config.REGIONAIS_PE_PATH}
 _cache = {}
 
 
@@ -33,17 +32,26 @@ def _chave(valor) -> str:
     return normalizar(valor).replace("_", " ")
 
 
+def limpar_cache():
+    _cache.clear()
+
+
 def tabela_regional(projeto) -> dict:
-    arq = _TABELAS.get(str(projeto or "").strip().upper())
-    if not arq:
+    """Tabela regional (município/UTD → região) do projeto (nome ou código): a importada no pacote do projeto ou, na falta, a do pacote de partida dele; {} se não há (TASK-177)."""
+    chave = str(projeto or "").strip().upper()
+    if not chave:
         return {}
-    if arq not in _cache:
+    if chave not in _cache:
+        tabela = {}
         try:
-            with open(arq, encoding="utf-8") as f:
-                _cache[arq] = json.load(f)
-        except (OSError, ValueError):
-            _cache[arq] = {}
-    return _cache[arq]
+            from services import pacote_projeto as pp
+            proj = pp.projeto_do_cadastro(chave)
+            guardada = pp.parte_guardada(proj["codigo"], "regional") if proj else None
+            tabela = guardada or pp.parte_inicial(chave, "regional") or {}
+        except Exception:  # noqa: BLE001
+            tabela = {}
+        _cache[chave] = tabela if isinstance(tabela, dict) else {}
+    return _cache[chave]
 
 
 def regiao_de(obra, projeto="") -> str:
@@ -69,11 +77,28 @@ def regiao_de(obra, projeto="") -> str:
     return ""
 
 
-def montar(obra, projeto="") -> dict:
-    """{"OBRA.X": valor normalizado} só dos dados que a obra tem. ``obra`` = {municipio, bairro, utd, utep, contexto} (qualquer chave pode faltar)."""
+def nomes_do_projeto(projeto) -> tuple:
+    """TASK-176: os parâmetros OBRA.* que a base deste projeto pode usar: a lista de sempre + as chaves do cabeçalho do perfil de exportação marcadas `obra` (OBRA.CONTRATO…)."""
+    extras = ()
+    try:
+        from routers.vinculacao_config import perfil_do_projeto
+        from services import perfil_exportacao as pe
+        perfil = perfil_do_projeto(projeto) if str(projeto or "").strip() else None
+        extras = tuple(n for n in pe.chaves_obra(perfil).values() if n not in NOMES) if perfil else ()
+    except Exception:  # noqa: BLE001
+        extras = ()
+    return NOMES + extras
+
+
+def montar(obra, projeto="", perfil=None) -> dict:
+    """{"OBRA.X": valor normalizado} só dos dados que a obra tem. ``obra`` = {municipio, bairro, utd, utep, contexto} (qualquer chave pode faltar).
+    `perfil` = perfil de exportação do projeto (TASK-176): as chaves do cabeçalho marcadas `obra` viram OBRA.<CHAVE> (padrão: municipio, bairro, utd, utep) + REGIAO e CONTEXTO."""
+    from services import perfil_exportacao as pe
     obra = obra if isinstance(obra, dict) else {}
     saida = {}
-    for campo, nome in _CAMPOS.items():
+    campos = dict(pe.chaves_obra(perfil) if perfil else _CAMPOS)
+    campos["contexto"] = "OBRA.CONTEXTO"
+    for campo, nome in campos.items():
         v = normalizar(obra.get(campo))
         if v:
             saida[nome] = v

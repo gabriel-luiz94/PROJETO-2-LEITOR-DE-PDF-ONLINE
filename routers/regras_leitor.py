@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from database import get_connection
 from services.supabase_client import get_supabase
 from middleware.auth_middleware import require_role
-from config import logger, REGRAS_LEITOR_PROCESSAMENTO_PE_SEED_PATH, REGRAS_LEITOR_CLASSIFICACAO_PE_SEED_PATH
+from config import logger
 
 router = APIRouter(prefix="/api/regras-leitor", tags=["regras-leitor"])
 
@@ -156,28 +156,23 @@ def validar_regras(tabela: str, regras) -> list:
 # ═══════════════════════════════════════════════════════════════════════════
 # LEITURA / ESCRITA
 # ═══════════════════════════════════════════════════════════════════════════
-# TASK-082: versões ANTERIORES do seed de Pernambuco (081). Se as regras salvas forem idênticas a uma delas (ninguém editou), são trocadas pelo seed atual
-# ao serem lidas; regras editadas pelo admin nunca são tocadas.
-_SEEDS_PE_ANTIGOS = {
-    "processamento": {"bac6fd1b89180f69de1c6c3810901c861fc3fa4e81254a0df26503dc4ff52762", "d19e5bc3766d9fb636e280ef0322eb1aa7547fc5eb6a50a3c5009e978822ffb9", "61b1e6a0190cd624b09878757863079deaf30720cbabb760a75e0dcd7f1de80e"},
-    "classificacao": {"57fb6f798e810ba373d059e285b6c122c76841cb6129b62de1f26ac986ca968e"},
-}
-
-
 def _hash_regras(regras) -> str:
     return hashlib.sha256(json.dumps(regras, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
-def _atualizar_seed_pernambuco(tabela: str, projeto_codigo: str, regras):
-    """Devolve as regras do seed atual se `regras` for uma versão antiga e intocada do seed de Pernambuco; senão, as próprias `regras`."""
-    if projeto_codigo != "081" or not regras or _hash_regras(regras) not in _SEEDS_PE_ANTIGOS.get(tabela, ()):
+def _atualizar_seed_do_pacote(tabela: str, projeto_codigo: str, regras):
+    """Devolve as regras do seed atual do pacote de partida do projeto se `regras` for uma versão antiga e intocada dele (`seeds_antigos` do manifesto); senão, as próprias `regras`.
+    TASK-082/177: antes era um `if` para o 081; agora quem declara é o pacote."""
+    if not regras:
         return regras
-    caminho = REGRAS_LEITOR_PROCESSAMENTO_PE_SEED_PATH if tabela == "processamento" else REGRAS_LEITOR_CLASSIFICACAO_PE_SEED_PATH
-    try:
-        with open(caminho, "r", encoding="utf-8") as f:
-            novas = json.load(f)
-    except (OSError, json.JSONDecodeError) as e:
-        logger.warning(f"Seed atual de Pernambuco ilegível ({tabela}): {e}")
+    from services import pacote_projeto as pp
+    pacote = pp.pacote_inicial_de(projeto_codigo)
+    antigos = set(((pacote or {}).get("seeds_antigos") or {}).get(tabela) or [])
+    if not pacote or _hash_regras(regras) not in antigos:
+        return regras
+    novas = pp.parte_embutida(pacote["id"], f"leitor_{tabela}")
+    if not isinstance(novas, list):
+        logger.warning(f"Seed atual do pacote '{pacote['id']}' ilegível ({tabela}).")
         return regras
     valor = json.dumps(novas, ensure_ascii=False)
     conn = get_connection()
@@ -191,8 +186,8 @@ def _atualizar_seed_pernambuco(tabela: str, projeto_codigo: str, regras):
         try:
             supabase.table(f"regras_leitor_{tabela}").upsert({"projeto_codigo": projeto_codigo, "regras_json": valor}).execute()
         except Exception as e:
-            logger.warning(f"Não foi possível atualizar o seed de Pernambuco ({tabela}) na nuvem: {e}")
-    logger.info(f"Regras do leitor de Pernambuco ({tabela}) atualizadas para o seed atual.")
+            logger.warning(f"Não foi possível atualizar o seed do pacote ({tabela}) na nuvem: {e}")
+    logger.info(f"Regras do leitor ({tabela}) do projeto {projeto_codigo} atualizadas para o seed atual do pacote.")
     return novas
 
 
@@ -211,7 +206,7 @@ def _get_regras(tabela: str, projeto_codigo: str):
             if res.data:
                 regras_nuvem = json.loads(res.data[0]["regras_json"])
                 if regras_nuvem:
-                    return _atualizar_seed_pernambuco(tabela, projeto_codigo, regras_nuvem)
+                    return _atualizar_seed_do_pacote(tabela, projeto_codigo, regras_nuvem)
         except Exception as e:
             logger.warning(f"Falha ao buscar regras_leitor_{tabela} no Supabase: {e}")
             supabase = None  # não tenta enviar nada se a leitura falhou
@@ -228,7 +223,7 @@ def _get_regras(tabela: str, projeto_codigo: str):
     except Exception:
         return []
 
-    regras_atualizadas = _atualizar_seed_pernambuco(tabela, projeto_codigo, regras)
+    regras_atualizadas = _atualizar_seed_do_pacote(tabela, projeto_codigo, regras)
     if regras_atualizadas is not regras:
         return regras_atualizadas                   # já gravou no SQLite e na nuvem
     if regras and supabase:

@@ -287,13 +287,13 @@ def _preparar_parametros(orcamento_rows, req_proj):
     return linhas, assinaturas, grupos
 
 
-def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcamento_rows: list, obra=None) -> dict:
+def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcamento_rows: list, obra=None, convencao_postes=None, perfil_exportacao=None) -> dict:
     req_proj = (req_projeto or "").strip().upper()
-    valores_obra = montar_obra(obra, req_proj)                          # TASK-165: OBRA.MUNICIPIO/BAIRRO/UTD/UTEP/REGIAO/CONTEXTO ({} quando a obra não tem nada)
+    valores_obra = montar_obra(obra, req_proj, perfil_exportacao)                          # TASK-165: OBRA.MUNICIPIO/BAIRRO/UTD/UTEP/REGIAO/CONTEXTO ({} quando a obra não tem nada)
     compostos = compostos_do_projeto(orcamento_rows, req_proj)          # TASK-110: N1C:=N1(C) + 2*N2(C)
     _param = compostos_parametrizados(orcamento_rows, req_proj)         # TASK-134: CF(cabo,cabo2):=… e CHAVE_FACA(cabo=%S04%):=…
     compostos_formais, compostos_de_grupo = _param["formais"], _param["grupos"]
-    ctx_outros = contexto_da_base(orcamento_rows, req_proj)          # TASK-081: apelidos, postes e assinaturas (antes de normalizar a base)
+    ctx_outros = contexto_da_base(orcamento_rows, req_proj, convencao_postes)          # TASK-081: apelidos, postes e assinaturas (antes de normalizar a base)
     orcamento_rows, assinaturas, grupos_param = _preparar_parametros(orcamento_rows, req_proj)
     avisos = []
 

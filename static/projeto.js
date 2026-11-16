@@ -15,8 +15,14 @@
 
     const CHAVE = 'gridr_projeto';
     const ESPERA_MS = 2000;
-    const CAMPOS_SAP = [['sap', 'Nº SAP'], ['bairro', 'Bairro'], ['municipio', 'Município'], ['utd', 'UTD'], ['utep', 'UTEP'], ['projetista', 'Projetista'],
+    const CAMPOS_SAP_PADRAO = [['sap', 'Nº SAP'], ['bairro', 'Bairro'], ['municipio', 'Município'], ['utd', 'UTD'], ['utep', 'UTEP'], ['projetista', 'Projetista'],
         ['data', 'Data'], ['id_investimento', 'ID Investimento (ODI)'], ['id_investimento_odd', 'ID Investimento (ODD) — vazio = igual ao ODI']];
+    /** TASK-176: campos do cabeçalho do relatório = os do perfil de exportação do projeto (sem perfil: os de Neoenergia). [[chave, rótulo da tela]] — sem título e nota (vêm do nome e do número do projeto). */
+    function camposSap() {
+        const PE = raiz.PerfilExportacao;
+        if (!PE) return CAMPOS_SAP_PADRAO;
+        return PE.normalizar(PE.atual()).cabecalho.filter(x => x.chave !== 'titulo' && x.chave !== 'nota').map(x => [x.chave, x.tela]);
+    }
 
     /* ── Parte pura ── */
     /** Hash curto (FNV-1a 32 bits + tamanho) de um texto: identifica o cálculo do orçamento que gerou as linhas do Resultado. */
@@ -74,7 +80,7 @@
         } catch (x) { return false; }
     }
 
-    const api = { hashTexto, pastaDoCaminho, temDados, interpretarSap, CAMPOS_SAP, CHAVE, reiniciarNoDefault };
+    const api = { hashTexto, pastaDoCaminho, temDados, interpretarSap, camposSap, CHAVE, reiniciarNoDefault };
     if (typeof document === 'undefined') { if (typeof module !== 'undefined' && module.exports) module.exports = api; return; }
     if (raiz.GridRProjeto) return;
 
@@ -506,17 +512,17 @@
         const j = janela('Informações do relatório SAP', 520);
         const grade = el('div', 'display:grid;grid-template-columns:1fr 1fr;gap:10px;');
         const campos = {};
-        CAMPOS_SAP.forEach(([k, rot]) => { const c = campo(rot, (valores || {})[k] || ''); if (k === 'id_investimento_odd') c.bloco.style.gridColumn = '1 / -1'; campos[k] = c.input; grade.appendChild(c.bloco); });
+        camposSap().forEach(([k, rot]) => { const c = campo(rot, (valores || {})[k] || ''); if (k === 'id_investimento_odd') c.bloco.style.gridColumn = '1 / -1'; campos[k] = c.input; grade.appendChild(c.bloco); });
         j.corpo.appendChild(el('div', 'font-size:12px;color:#8b949e;', 'O título do relatório é o nome do projeto e o nº da nota é o número da obra. Estes dados vão preenchidos ao gerar os relatórios ODI e ODD.'));
         j.corpo.appendChild(el('div', '', null, [botao('📋 Colar SAP', false, async () => {
             const r = await colarSap();
             if (!r) return;
-            CAMPOS_SAP.forEach(([k]) => { if (r.campos[k]) campos[k].value = r.campos[k]; });
-            avisar('Preenchido: ' + CAMPOS_SAP.filter(([k]) => r.campos[k]).map(([k]) => ROTULOS[k]).join(', ') + '.');
+            camposSap().forEach(([k]) => { if (r.campos[k]) campos[k].value = r.campos[k]; });
+            avisar('Preenchido: ' + camposSap().filter(([k]) => r.campos[k]).map(([k]) => ROTULOS[k] || k).join(', ') + '.');
         })]));
         j.corpo.appendChild(grade);
         j.rodape.append(botao('Cancelar', false, j.fechar), botao('OK', true, () => {
-            const v = {}; CAMPOS_SAP.forEach(([k]) => { v[k] = campos[k].value.trim(); });
+            const v = {}; camposSap().forEach(([k]) => { v[k] = campos[k].value.trim(); });
             j.fechar(); aoAplicar(v);
         }));
     }
@@ -560,7 +566,7 @@
             const c = r.campos;
             if (c.titulo) cNome.input.value = c.titulo;                                   // o título do SAP vira o nome do projeto
             if (c.nota) cNum.input.value = c.nota;                                        // e a nota, o número de obra
-            sap = Object.assign({}, sap); CAMPOS_SAP.forEach(([k]) => { if (c[k]) sap[k] = c[k]; });
+            sap = Object.assign({}, sap); camposSap().forEach(([k]) => { if (c[k]) sap[k] = c[k]; });
             mudou();
             avisar('Preenchido: ' + Object.keys(c).map(k => ROTULOS[k]).join(', ') + '.');
         });
@@ -790,7 +796,7 @@
     }
     function salvarSap(cab) {
         if (!estado() || !cab) return Promise.resolve();
-        const sap = {}; CAMPOS_SAP.forEach(([k]) => { if (typeof cab[k] === 'string') sap[k] = cab[k].trim(); });
+        const sap = {}; camposSap().forEach(([k]) => { if (typeof cab[k] === 'string') sap[k] = cab[k].trim(); });
         atualizarEstado({ sap });
         return enviar({ sap });
     }

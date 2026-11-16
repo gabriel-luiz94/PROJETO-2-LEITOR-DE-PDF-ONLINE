@@ -75,19 +75,33 @@ def _dxf_de_dwg(conteudo_dwg: bytes, nome_arquivo: str, header_key: str | None) 
     return dxf_bytes
 
 
-def _extrair_de_bytes_dxf(conteudo: bytes):
+def _leitura_do_projeto(projeto):
+    """TASK-175: configuração de leitura do desenho (layers/cores de rede) guardada para o projeto; None = o padrão de Pernambuco."""
+    codigo = str(projeto or "").strip()
+    if not codigo:
+        return None
+    try:
+        from routers.plugin_cad import leitura_salva
+        return leitura_salva(codigo)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Configuração de leitura do projeto indisponível: {e}")
+        return None
+
+
+def _extrair_de_bytes_dxf(conteudo: bytes, leitura=None):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".dxf") as tmp:
         tmp.write(conteudo)
         tmp_path = tmp.name
     try:
-        return extract_dxf_content(ezdxf.readfile(tmp_path), com_geometria=True)     # (linhas, geometria de fundo do mapa)
+        return extract_dxf_content(ezdxf.readfile(tmp_path), com_geometria=True, leitura=leitura)     # (linhas, geometria de fundo do mapa)
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
 
 @router.post("/upload")
-async def upload_file(request: Request, file: UploadFile = File(...)):
+async def upload_file(request: Request, file: UploadFile = File(...), projeto: str = ""):
+    leitura = _leitura_do_projeto(projeto)
     try:
         contents = await file.read()
         nome = file.filename.lower()
@@ -96,10 +110,10 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
                 contents = _dxf_de_dwg(contents, file.filename, request.headers.get("X-CloudConvert-Key"))
             except ErroConversaoDwg as e:
                 return {"error": str(e), "data": []}
-            linhas, geometria = _extrair_de_bytes_dxf(contents)
+            linhas, geometria = _extrair_de_bytes_dxf(contents, leitura)
             return {"data": linhas, "geometria": geometria}
         if nome.endswith(".dxf"):
-            linhas, geometria = _extrair_de_bytes_dxf(contents)
+            linhas, geometria = _extrair_de_bytes_dxf(contents, leitura)
             return {"data": linhas, "geometria": geometria}
 
         # PDF
@@ -111,7 +125,8 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
 
 
 @router.get("/extract-local")
-async def extract_local(request: Request, path: str):
+async def extract_local(request: Request, path: str, projeto: str = ""):
+    leitura = _leitura_do_projeto(projeto)
     # Proteção de segurança:
     # A extração de arquivo local por caminho só é permitida em ambiente frozen (.exe) local.
     if not IS_FROZEN:
@@ -128,11 +143,11 @@ async def extract_local(request: Request, path: str):
                 dxf_bytes = _dxf_de_dwg(conteudo, os.path.basename(path), request.headers.get("X-CloudConvert-Key"))
             except ErroConversaoDwg as e:
                 return {"error": str(e), "data": []}
-            linhas, geometria = _extrair_de_bytes_dxf(dxf_bytes)
+            linhas, geometria = _extrair_de_bytes_dxf(dxf_bytes, leitura)
             return {"data": linhas, "geometria": geometria, "filename": os.path.basename(path)}
         if caminho_min.endswith(".dxf"):
             doc = ezdxf.readfile(path)
-            linhas, geometria = extract_dxf_content(doc, com_geometria=True)
+            linhas, geometria = extract_dxf_content(doc, com_geometria=True, leitura=leitura)
             return {"data": linhas, "geometria": geometria, "filename": os.path.basename(path)}
         # PDF
         doc = pymupdf.open(path)

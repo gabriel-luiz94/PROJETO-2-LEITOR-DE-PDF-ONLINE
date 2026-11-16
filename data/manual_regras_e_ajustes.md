@@ -835,3 +835,31 @@ A pesquisa da Base de Orçamento agora é uma **barra fixa no topo da tela** (el
 ## Resultado do orçamento: Montar sempre recalcula (TASK-180)
 
 **Montar Orçamento** sempre calcula de novo com a base técnica atual, mesmo com projeto aberto e resultado gravado nele. Se você tinha editado o resultado à mão, o log informa que as edições foram substituídas. O resultado gravado no arquivo `.obra` (com as edições) só volta quando você **abre o projeto** com a tela do Resultado à vista: a tabela mostra o que está no arquivo, sem recalcular. Se o projeto não tem resultado gravado, a tabela fica vazia com a orientação de voltar ao Resumo e clicar em Montar Orçamento. Recarregar a página do Resultado também recalcula.
+
+## Dicionário de cabos (TASK-173)
+
+No modal **Vinculação** há a aba **Dicionário de cabos**: cada linha diz o que um cabo **é** (família, valor de cabo, seção em mm² para o "maior primeiro", nível MT/BT e fases quando o texto não traz, apelidos e como montar o neutro). A primeira linha que casa vale. **Sem linhas, o programa usa as regras de Pernambuco** (C, A…P, S/W, PB, RAMA, CAZ). Use **Testar um texto** (ex.: `3xA35P(7,94)-13,8kV 45 m`) para ver código, fases, neutro, nível, seção, valor e a linha usada. Marque **Código solto** quando o código sozinho (ex.: `ALU-50 30 m`) já deve valer como notação do LABEL. A Tabela de Cabos continua dizendo em quais estruturas o cabo entra.
+
+## Convenção de postes (TASK-174)
+
+No modal **Vinculação**, a aba **Postes** diz o que é poste na linha de Outros: os **tipos** (código e letra da notação compacta), as **formas de escrever** o poste (a primeira é o nome oficial; use `{tipo}`, `{sufixo}`, `{altura}`, `{esforco}`), a notação compacta e as faixas de altura e de dígitos do esforço. **Sem tabela, vale a de Pernambuco** (`DT11/600`, `11600D`). Exemplo de outra concessionária: formato `{tipo}{altura}-{esforco}` com o tipo `P` reconhece `P11-400, N3` e passa o parâmetro `poste` para a N3. Use **Testar um nome** para conferir. Se altura e esforço estiverem colados (`11600D`), o poste que existe na base decide a separação; sem base, valem as faixas.
+
+## Leitura do desenho: layers e cores de rede (TASK-175)
+
+No modal **Vinculação**, a aba **Desenho** diz quais **layers** e **cores** do DXF são rede **MT** e **BT** (os mesmos campos do plugin do nanoCAD). Layer: o nome **contém** o trecho; `=NOME` exige o nome exato; `MT_*` é curinga. Cor: número ACI (1 = vermelho), `#RRGGBB` ou faixa RGB. **Regra:** `COR_MANDA` (padrão: a layer confirma a cor e divergência descarta a linha), `LAYER_MANDA` (a layer decide; sem layer de rede, vale a cor) ou `SO_LAYER` (a cor é ignorada). **Sem configuração, vale Pernambuco** (REDE_MT/REDE_BT, vermelho = MT, verde = BT). Use **Testar** (layer + cor) e **Salvar leitura do desenho**.
+
+## Perfil de exportação (TASK-176)
+
+No modal **Vinculação**, a aba **Exportação** diz como saem os relatórios do projeto: os **campos do cabeçalho** (rótulo no PDF, coluna do cabeçalho, se viram parâmetro `OBRA.<CHAVE>` da base e se o programa lembra o valor), o **centro** de material e de mão de obra (padrão 1600/1000), a cor do título e o rodapé do PDF, as **colunas do Excel** e quais **arquivos** o projeto oferece. O `.obra` grava as chaves do cabeçalho. Exemplo: acrescente o campo `contrato` marcado `OBRA.*` e a base pode usar `OBRA.CONTRATO` como parâmetro. **Pré-visualizar uma página** mostra o PDF de exemplo com o perfil em edição. **Sem perfil, vale o de Neoenergia.**
+
+## Pacote de projeto (TASK-177)
+
+No modal **Vinculação**, a aba **Pacote** exporta e importa tudo de um projeto num arquivo `.zip`. **Exportar:** marque as partes (base técnica, vinculação, dicionário de cabos, postes, desenho, exportação, regras do leitor, tabela regional) e baixe o pacote. **Importar** (só administrador): escolha o `.zip`, veja a **prévia** — para cada parte, se é *novo*, *substitui* ou *igual*, quantos itens há hoje e no pacote e os avisos do validador — marque o que quer importar e confirme. Nada é gravado antes da confirmação; se uma parte tiver erro, nada é gravado. A base de outro projeto vira a do projeto onde você importa. Pacote de uma versão de formato mais nova que a do programa é recusado. Um projeto novo, sem configuração, começa pelo **pacote de partida** dele (campo do cadastro do projeto, ou o pacote que declara o código/nome dele): hoje existem o de Pernambuco e o de Rondônia, em `data/pacotes/`.
+
+## Casos de referência (TASK-178)
+
+No **Resultado do Orçamento**, **Guardar como caso de referência** guarda o pedido e o resultado desta tela. No modal **Vinculação → Casos** você vê os casos do projeto e usa **Conferir base**: o programa roda todos e diz quais ficaram **iguais**, quais **mudaram** (código a código, antes → depois) e quais deram **erro**. Para testar uma base antes de importar, escolha o CSV em *conferir um CSV antes de importar* — nada é gravado. Se a mudança era esperada, clique em **Mudança esperada** e diga o motivo: o resultado novo passa a ser o esperado e a nota fica no histórico. Ao importar um pacote com base, a prévia também mostra quantos casos mudariam. Os casos fazem parte do pacote do projeto.
+
+## Guia e modelo para criar uma base (TASK-179)
+
+O **guia da base** está em `docs/base_guia.md` (sintaxe do simples ao avançado, armadilhas e a lista de códigos do validador). Para começar de algo pronto, abra **Vinculação → Pacote**, escolha **Exemplo** em *Começar de um pacote pronto*, veja a prévia e importe num projeto novo: vêm uma base pequena (poste, N1, N3 com parâmetro, N4 com linha viva, cabos, alça, conector e um composto), a vinculação e 5 casos de referência para conferir. Na **ficha da base**, a coluna **O que faz** traz a frase em português de cada linha. Os erros e avisos da importação da base trazem um código (`B-005`…) que aponta para a seção do guia; o aviso **B-013** pega o equipamento (trafo, chave, religador…) colocado nas linhas gerais de um ativo que tem parâmetro desse tipo.

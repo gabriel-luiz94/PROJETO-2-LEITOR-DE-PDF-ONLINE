@@ -178,13 +178,14 @@
         tr.append(el('td', { class: 'bf-mono bf-mut', text: l.condicao || '—' }));
         if (compost) tr.appendChild(compost);
         else tr.append(el('td', { text: l.mdo.indexOf('MAO') === 0 || U(l.mdo) === 'N' ? 'N' : 'M' }), el('td', { class: 'bf-mono' }, [el('span', { class: 'bf-link', text: l.codigo, onclick: () => ref(l.codigo) })]), el('td', { text: l.desc_codigo }), el('td', { class: 'n', text: l.fator_i }), el('td', { class: 'n', text: l.fator_r }), el('td', { text: l.lv }), el('td', { text: l.filtro }));
+        tr.append(el('td', { class: 'bf-mut', style: 'font-size:12px;min-width:240px', text: raiz.BaseExplica ? raiz.BaseExplica.explicarItem(l) : '' }));          // TASK-179: o que a linha faz, em português
         return tr;
     }
     function abaItens(m, f, main, lado) {
-        const cab = ['Condição', 'MDO', 'Código', 'Descrição', 'Fator I', 'Fator R', 'LV', 'Filtro'];
+        const cab = ['Condição', 'MDO', 'Código', 'Descrição', 'Fator I', 'Fator R', 'LV', 'Filtro', 'O que faz'];
         const tb = el('table', { class: 'bf-tb' }, [el('tr', {}, cab.map(h => el('th', { text: h })))]);
         const mostrar = cod => { desenharLateralCodigo(m, f, cod, lado); tb.querySelectorAll('tr.s').forEach(t => t.classList.remove('s')); tb.querySelectorAll('tr[data-cod="' + cod + '"]').forEach(t => t.classList.add('s')); };
-        const grupo = (rot, ls) => { if (!ls.length) return; tb.appendChild(el('tr', { class: 'g' }, [el('td', { colspan: 8, text: rot })])); ls.forEach(l => tb.appendChild(linhaItem(m, l, mostrar))); };
+        const grupo = (rot, ls) => { if (!ls.length) return; tb.appendChild(el('tr', { class: 'g' }, [el('td', { colspan: 9, text: rot })])); ls.forEach(l => tb.appendChild(linhaItem(m, l, mostrar))); };
         grupo('Itens comuns — valem sempre', f.comuns);
         grupo('Por parâmetro / chamadas a outros ativos', f.variantes);
         main.appendChild(tb);

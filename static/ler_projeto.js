@@ -94,7 +94,7 @@
         if (!extensaoValida(arquivo && arquivo.name)) throw new Error('Formato não suportado. Use PDF, DXF ou DWG.');
         const fd = new FormData();
         fd.append('file', arquivo);
-        const resp = await fetch('/upload', { method: 'POST', body: fd, headers: chaveCloudConvert ? { 'X-CloudConvert-Key': chaveCloudConvert } : {} });
+        const resp = await fetch('/upload?projeto=' + encodeURIComponent(localStorage.getItem('projeto_selecionado_codigo') || ''), { method: 'POST', body: fd, headers: chaveCloudConvert ? { 'X-CloudConvert-Key': chaveCloudConvert } : {} });
         if (!resp.ok) throw new Error(`Falha ao enviar o arquivo (HTTP ${resp.status}).`);
         const json = await resp.json();
         if (json.error) throw new Error(json.error);

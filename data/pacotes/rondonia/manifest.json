@@ -1,0 +1,13 @@
+{
+ "formato": "pacote-projeto-embutido",
+ "versao_formato": 1,
+ "id": "rondonia",
+ "nome": "Rondônia",
+ "descricao": "Base técnica inicial de Rondônia.",
+ "projeto_codigo_padrao": "229",
+ "nome_projeto": "RONDONIA",
+ "origem": "rondonia",
+ "partes": {
+  "base": "../../tabela_seed.csv"
+ }
+}

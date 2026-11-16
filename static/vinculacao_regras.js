@@ -5,6 +5,10 @@
  */
 (function (raiz) {
     'use strict';
+    const nodeMod = typeof module !== 'undefined' && module.exports;
+    const DC = nodeMod ? require('./dicionario_cabos.js') : raiz.DicionarioCabos;          // TASK-173
+    const AC = nodeMod ? require('./anotacao_cabos.js') : raiz.AnotacaoCabos;
+    const CP = nodeMod ? require('./convencao_postes.js') : raiz.ConvencaoPostes;          // TASK-174
     const ORDEM_MAIOR_PADRAO = ['C', 'P', 'A'];
     const SE_DIFEREM = ['BLOQUEAR', 'MAIOR', 'AVISAR'], SE_FALTAR = ['AVISAR', 'BLOQUEAR'], ORDENS = ['ORIGEM', 'MAIOR_PRIMEIRO'];          // TASK-169
     const RE_REGEX = /[\\^$()\[\]|+*?{}]/;
@@ -20,14 +24,17 @@
         try { return new RegExp(p, 'i').test(trim(texto)); } catch (e) { return false; }
     }
 
-    function configVazia() { return { versao: 2, cabos: [], estruturas: [], ordem_maior: ORDEM_MAIOR_PADRAO.slice(), scripts: [] }; }
+    function configVazia() { return { versao: 2, cabos: [], estruturas: [], ordem_maior: ORDEM_MAIOR_PADRAO.slice(), scripts: [], dicionario_cabos: [] }; }
 
     function normalizarConfig(cfg) {
         const c = configVazia();
         if (cfg && typeof cfg === 'object' && !Array.isArray(cfg)) {
             c.cabos = (cfg.cabos || []).filter(r => r && typeof r === 'object' && !Array.isArray(r));
             c.estruturas = (cfg.estruturas || []).filter(r => r && typeof r === 'object' && !Array.isArray(r));
+            c.dicionario_cabos = DC ? DC.normalizar(cfg.dicionario_cabos) : [];                                          // TASK-173
+            if (cfg.postes && typeof cfg.postes === 'object' && !Array.isArray(cfg.postes)) c.postes = cfg.postes;          // TASK-174
             if (Array.isArray(cfg.ordem_maior) && cfg.ordem_maior.length) c.ordem_maior = cfg.ordem_maior.map(x => trim(x).toUpperCase());
+            else if (DC && DC.ordemMaiorPadrao(c.dicionario_cabos).length) c.ordem_maior = DC.ordemMaiorPadrao(c.dicionario_cabos);
             c.scripts = (cfg.scripts || []).filter(s => s && typeof s === 'object' && !Array.isArray(s));
         }
         return c;
@@ -47,14 +54,21 @@
     // TASK-092: fases (1x/2x/3x), tensão (13,8kV) e nível (MT/BT) vêm do TEXTO ORIGINAL do cabo ("3xA35P(7,94)-13,8kV 45 m"); sem "Nx" = 1 fase; MT = tensão acima de 1 kV.
     const RE_FASES = /(?<![0-9A-Za-z])([1-9])\s*[xX]\s*(?=[A-Za-z])/;
     const RE_TENSAO = /(\d+(?:[.,]\d+)?)\s*kV/i;
-    function derivarCabo(texto) {
+    /** `dic` = dicionário de cabos do projeto (TASK-173): sem tensão/Nx no texto, nível e fases padrão vêm da linha do cabo. */
+    function derivarCabo(texto, dic) {
+        if (dic === undefined && AC && AC.dicionario) dic = AC.dicionario();          // sem parâmetro: o dicionário do projeto aberto na tela
         const t = trim(texto), mf = RE_FASES.exec(t), mt = RE_TENSAO.exec(t);
         const tensao = mt ? mt[1].replace('.', ',') + 'kV' : '';
-        return { fases: mf ? Number(mf[1]) : 1, tensao, nivel: mt && Number(mt[1].replace(',', '.')) > 1 ? 'MT' : 'BT' };
+        let fases = mf ? Number(mf[1]) : 1, nivel = mt && Number(mt[1].replace(',', '.')) > 1 ? 'MT' : 'BT';
+        if (dic && dic.length && DC && AC && (!mt || !mf)) {
+            const itens = AC.interpretar(t, dic).itens, p = (itens.filter(i => !i.neutro)[0] || itens[0]);
+            if (p) { if (!mt) nivel = DC.nivelPadrao(dic, p.ativo) || nivel; if (!mf) fases = DC.fasesPadrao(dic, p.ativo) || fases; }
+        }
+        return { fases, tensao, nivel };
     }
     /** Dados que as regras do cabo podem usar: o que está na linha (editável) ou, na falta, o derivado do texto original. */
-    function extraCabo(row) {
-        const d = derivarCabo(row && row.textoOriginal), f = row && trim(row.fases) !== '' ? Number(trim(row.fases)) : d.fases;
+    function extraCabo(row, dic) {
+        const d = derivarCabo(row && row.textoOriginal, dic), f = row && trim(row.fases) !== '' ? Number(trim(row.fases)) : d.fases;
         const n = row && trim(row.nivel) ? trim(row.nivel).toUpperCase() : d.nivel;
         return { texto: trim(row && row.textoOriginal), descricao: descricaoCabo((row && (row.textoOriginal || row.ativo)) || '', ''), fases: Number.isFinite(f) ? f : d.fases, tensao: row && trim(row.tensao) ? trim(row.tensao) : d.tensao, nivel: n };
     }
@@ -79,7 +93,8 @@
         const base = opBase(operacao);
         let pontas = base === 'M' ? 1 : 2;
         if (r && r.pontas && typeof r.pontas === 'object' && Number.isInteger(r.pontas[base])) pontas = r.pontas[base];
-        return { codigo: cod, regra: i, valor_cabo: r ? (trim(r.valor_cabo).toUpperCase() || null) : null, pontas, vincula: !(r && r.vincula === false),
+        const dic = cfg.dicionario_cabos, vc = r ? (trim(r.valor_cabo).toUpperCase() || null) : null;
+        return { codigo: cod, regra: i, valor_cabo: vc || (dic && dic.length && DC ? DC.valorCabo(dic, cod) : null), pontas, secao: secaoCabo(cod, dic), vincula: !(r && r.vincula === false),
             estruturas: r ? (r.estruturas === undefined ? null : r.estruturas) : null, operacoes: r ? (r.operacoes === undefined ? null : r.operacoes) : null,
             op: trim(operacao).toUpperCase(), base, fases: extra ? extra.fases : null, nivel: extra ? extra.nivel : null, descricao: extra && extra.descricao ? extra.descricao : cod };
     }
@@ -336,8 +351,9 @@
 
     /** TASK-169: seção do cabo para ordenar "maior primeiro" (A185P → 185, S336 → 336; AWG com zero e fração por tabela). */
     const AWG0 = { 2: 33.6, 4: 21.2, 6: 13.3, 8: 8.4 }, AWGX0 = { 1: 53.5, 2: 67.4, 3: 85.0, 4: 107.2 };
-    function secaoCabo(codigo) {
+    function secaoCabo(codigo, dic) {
         const c = trim(codigo).toUpperCase();
+        if (dic && dic.length && DC) { const s = DC.secao(dic, c); if (s !== null) return s; }                  // TASK-173: dicionário primeiro
         let m = /(\d)\/0/.exec(c);
         if (m) return AWGX0[Number(m[1])] !== undefined ? AWGX0[Number(m[1])] : Number(m[1]);
         m = /^[A-Z]+0(\d)$/.exec(c);
@@ -348,7 +364,7 @@
     /** `ordem: MAIOR_PRIMEIRO` (estável) e `distintos` (junta os cabos de mesma descrição) ANTES de distribuir nos parâmetros. */
     function ordenarEJuntar(e, ocupantes) {
         let lista = ocupantes.slice();
-        if (e.ordem === 'MAIOR_PRIMEIRO') lista = lista.map((o, i) => [o, i]).sort((x, y) => (secaoCabo(y[0].info.codigo) - secaoCabo(x[0].info.codigo)) || (x[1] - y[1])).map(x => x[0]);
+        if (e.ordem === 'MAIOR_PRIMEIRO') lista = lista.map((o, i) => [o, i]).sort((x, y) => ((y[0].info.secao != null ? y[0].info.secao : secaoCabo(y[0].info.codigo)) - (x[0].info.secao != null ? x[0].info.secao : secaoCabo(x[0].info.codigo))) || (x[1] - y[1])).map(x => x[0]);
         if (e.distintos) { const vistos = new Set(); lista = lista.filter(o => { const k = o.info.descricao; if (vistos.has(k)) return false; vistos.add(k); return true; }); }
         return lista;
     }
@@ -397,7 +413,7 @@
     function analisarBase(cabos, outros, cfg, prefixoFn, codigoFn) {
         cfg = normalizarConfig(cfg);
         const ests = estruturasDisponiveis(outros), infoC = {}, infoE = {}, ocup = {};
-        cabos.forEach((c, ic) => { if (ehCaboValido(c)) infoC[ic] = infoCabo(prefixoFn(c.ativo) || '', c.operacao, cfg, extraCabo(c)); });
+        cabos.forEach((c, ic) => { if (ehCaboValido(c)) infoC[ic] = infoCabo(prefixoFn(c.ativo) || '', c.operacao, cfg, extraCabo(c, cfg.dicionario_cabos)); });
         ests.forEach(ie => { infoE[ie] = infoEstrutura(codigoFn(outros[ie].ativo, outros[ie]), cfg); });
         const estsOcupa = ests.filter(ie => infoE[ie].ocupa);          // TASK-169: equipamento (ocupa: false) não consome ponta; é resolvido na 2ª passada
         estsOcupa.forEach(ie => { ocup[ie] = []; });
@@ -493,7 +509,7 @@
     /** TASK-171: {NOME: [valores]} que a estrutura receberia se ESTE cabo fosse o único ligado a ela (mesmas fontes da TASK-100). */
     function parametrosDoCaboNaEstrutura(estrutura, caboRow, cfg, prefixoFn) {
         cfg = normalizarConfig(cfg);
-        const e = infoEstrutura(estrutura, cfg), c = infoCabo(prefixoFn((caboRow || {}).ativo) || '', (caboRow || {}).operacao, cfg, extraCabo(caboRow));
+        const e = infoEstrutura(estrutura, cfg), c = infoCabo(prefixoFn((caboRow || {}).ativo) || '', (caboRow || {}).operacao, cfg, extraCabo(caboRow, cfg.dicionario_cabos));
         const r = valorEParametros(e, cfg, [{ info: c, ficticio: false }]);
         let params = r.parametros;
         if (params === null && r.valor && e.parametro) params = { [e.parametro]: [r.valor] };
@@ -637,7 +653,7 @@
         cfg = normalizarConfig(cfg);
         const ests = estruturasDisponiveis(outros), infoE = {}, infoC = {}, porLinha = new Map();
         ests.forEach(ie => { infoE[ie] = infoEstrutura(codigoFn(outros[ie].ativo, outros[ie]), cfg); const l = outros[ie]._linha; if (!porLinha.has(l)) porLinha.set(l, []); porLinha.get(l).push(ie); });
-        cabos.forEach((c, ic) => { if (ehCaboValido(c)) infoC[ic] = infoCabo(prefixoFn(c.ativo) || '', c.operacao, cfg, extraCabo(c)); });
+        cabos.forEach((c, ic) => { if (ehCaboValido(c)) infoC[ic] = infoCabo(prefixoFn(c.ativo) || '', c.operacao, cfg, extraCabo(c, cfg.dicionario_cabos)); });
         const linhasOrd = Array.from(porLinha.keys()).sort((a, b) => a - b);
         const postes = linhasOrd.map(l => [l, par(outros[porLinha.get(l)[0]]._poste)]).filter(([, pos]) => pos);
         const fict = {};
@@ -723,7 +739,7 @@
         const modoConf = CONFLITOS_SCRIPT.includes(script.conflitos) ? script.conflitos : 'avisar';
         const ests = estruturasDisponiveis(outros), infoE = {}, infoC = {}, ligados = {}, fict = {};
         ests.forEach(ie => { infoE[ie] = infoEstrutura(codigoFn(outros[ie].ativo, outros[ie]), cfg); fict[ie] = (outros[ie].cabosFicticios || []).map(x => trim(x).toUpperCase()).filter(Boolean); });
-        cabos.forEach((c, ic) => { if (ehCaboValido(c)) { infoC[ic] = infoCabo(prefixoFn(c.ativo) || '', c.operacao, cfg, extraCabo(c)); ligados[ic] = (c.vinculoEstruturas || []).slice(); } });
+        cabos.forEach((c, ic) => { if (ehCaboValido(c)) { infoC[ic] = infoCabo(prefixoFn(c.ativo) || '', c.operacao, cfg, extraCabo(c, cfg.dicionario_cabos)); ligados[ic] = (c.vinculoEstruturas || []).slice(); } });
         const chavesC = Object.keys(infoC).map(Number).sort((a, b) => a - b);
         const saida = { vinculos: [], conflitos: [], sem_candidato: [], passos: [], parou: false };
 
@@ -816,7 +832,7 @@
 
     function validarConfig(cfg) {
         if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) return ['A configuração precisa ser um objeto.'];
-        const erros = [];
+        const erros = (DC ? DC.validar(cfg.dicionario_cabos) : []).concat(CP ? CP.validar(cfg.postes) : []);          // TASK-173/174
         [['cabos', 'Cabo', 'estruturas'], ['estruturas', 'Estrutura', 'cabos']].forEach(([tab, chave, outro]) => {
             const lista = cfg[tab] === undefined ? [] : cfg[tab];
             if (!Array.isArray(lista)) { erros.push(`'${tab}' precisa ser uma lista.`); return; }

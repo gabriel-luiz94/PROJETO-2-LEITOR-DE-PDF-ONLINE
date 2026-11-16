@@ -1,0 +1,239 @@
+[
+ {
+  "nome": "Poste de 11 m com N1",
+  "pedido": {
+   "cabos": [],
+   "outros": [
+    {
+     "ativo": "POSTE11, N1",
+     "operacao": "I",
+     "entidade": "0"
+    }
+   ]
+  },
+  "obra_cabecalho": {},
+  "modo": "calculo",
+  "esperado": [
+   {
+    "operacao": "I",
+    "mdo": "MAO-DE-OBRA",
+    "codigo": "7002",
+    "qtd": 1.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MAO-DE-OBRA",
+    "codigo": "7103",
+    "qtd": 1.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MATERIAL",
+    "codigo": "7001",
+    "qtd": 1.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MATERIAL",
+    "codigo": "7101",
+    "qtd": 1.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MATERIAL",
+    "codigo": "7102",
+    "qtd": 1.0
+   }
+  ],
+  "tolerancia": 0.005,
+  "origem": "manual",
+  "nota": "Caso do pacote de exemplo.",
+  "historico": []
+ },
+ {
+  "nome": "N3 de alumínio com ALCA",
+  "pedido": {
+   "cabos": [],
+   "outros": [
+    {
+     "ativo": "1-N3(A) 3-ALCA(A)",
+     "operacao": "I",
+     "entidade": "0"
+    }
+   ]
+  },
+  "obra_cabecalho": {},
+  "modo": "calculo",
+  "esperado": [
+   {
+    "operacao": "I",
+    "mdo": "MAO-DE-OBRA",
+    "codigo": "7202",
+    "qtd": 1.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MATERIAL",
+    "codigo": "7201",
+    "qtd": 1.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MATERIAL",
+    "codigo": "7204",
+    "qtd": 3.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MATERIAL",
+    "codigo": "7501",
+    "qtd": 3.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MATERIAL",
+    "codigo": "7502",
+    "qtd": 3.0
+   }
+  ],
+  "tolerancia": 0.005,
+  "origem": "manual",
+  "nota": "Caso do pacote de exemplo.",
+  "historico": []
+ },
+ {
+  "nome": "N4 em linha viva (com cartucho)",
+  "pedido": {
+   "cabos": [],
+   "outros": [
+    {
+     "ativo": "1-N4",
+     "operacao": "*I",
+     "entidade": "0"
+    }
+   ]
+  },
+  "obra_cabecalho": {},
+  "modo": "calculo",
+  "esperado": [
+   {
+    "operacao": "I",
+    "mdo": "MAO-DE-OBRA",
+    "codigo": "7303",
+    "qtd": 1.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MATERIAL",
+    "codigo": "7301",
+    "qtd": 1.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MATERIAL",
+    "codigo": "7302",
+    "qtd": 1.0
+   }
+  ],
+  "tolerancia": 0.005,
+  "origem": "manual",
+  "nota": "Caso do pacote de exemplo.",
+  "historico": []
+ },
+ {
+  "nome": "Retirada de uma N1",
+  "pedido": {
+   "cabos": [],
+   "outros": [
+    {
+     "ativo": "1-N1",
+     "operacao": "R",
+     "entidade": "0"
+    }
+   ]
+  },
+  "obra_cabecalho": {},
+  "modo": "calculo",
+  "esperado": [
+   {
+    "operacao": "R",
+    "mdo": "MAO-DE-OBRA",
+    "codigo": "7103",
+    "qtd": 1.0
+   },
+   {
+    "operacao": "R",
+    "mdo": "MATERIAL",
+    "codigo": "7101",
+    "qtd": 1.0
+   },
+   {
+    "operacao": "R",
+    "mdo": "MATERIAL",
+    "codigo": "7102",
+    "qtd": 1.0
+   }
+  ],
+  "tolerancia": 0.005,
+  "origem": "manual",
+  "nota": "Caso do pacote de exemplo.",
+  "historico": []
+ },
+ {
+  "nome": "Kit N3 de cobre",
+  "pedido": {
+   "cabos": [],
+   "outros": [
+    {
+     "ativo": "1-KIT_N3",
+     "operacao": "I",
+     "entidade": "0"
+    }
+   ]
+  },
+  "obra_cabecalho": {},
+  "modo": "calculo",
+  "esperado": [
+   {
+    "operacao": "I",
+    "mdo": "MAO-DE-OBRA",
+    "codigo": "7202",
+    "qtd": 1.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MATERIAL",
+    "codigo": "7201",
+    "qtd": 1.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MATERIAL",
+    "codigo": "7203",
+    "qtd": 3.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MATERIAL",
+    "codigo": "7501",
+    "qtd": 3.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MATERIAL",
+    "codigo": "7503",
+    "qtd": 3.0
+   },
+   {
+    "operacao": "I",
+    "mdo": "MATERIAL",
+    "codigo": "7601",
+    "qtd": 2.0
+   }
+  ],
+  "tolerancia": 0.005,
+  "origem": "manual",
+  "nota": "Caso do pacote de exemplo.",
+  "historico": []
+ }
+]

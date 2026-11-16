@@ -5,6 +5,7 @@
  */
 (function (raiz) {
     'use strict';
+    const PEX = (typeof module !== 'undefined' && module.exports) ? require('./perfil_exportacao.js') : raiz.PerfilExportacao;          // TASK-176: centro do perfil de exportação do projeto
 
     /** MATERIAL -> M; MAO-DE-OBRA (ou vazio/'-'/S) -> N; o que já vier M/N é mantido; outro texto fica como está (maiúsculo). */
     function rotuloMdo(mdo) {
@@ -24,6 +25,7 @@
     /** CENTRO da visão SAP: 1600 para material, 1000 para mão de obra (derivado do TIPO MDO; outro tipo = vazio). */
     function centroDe(mdo) {
         const r = rotuloMdo(mdo);
+        if (PEX) return r === 'M' || r === 'N' ? PEX.centroDe(r, PEX.atual()) : '';          // sem perfil no projeto: 1600 / 1000 (Neoenergia)
         return r === 'M' ? '1600' : (r === 'N' ? '1000' : '');
     }
 

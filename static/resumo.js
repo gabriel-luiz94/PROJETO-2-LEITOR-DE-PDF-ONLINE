@@ -1817,8 +1817,11 @@ document.addEventListener('DOMContentLoaded', () => {
         try {                                                                  // TASK-084: Tabela de Cabos + Tabela de Estruturas
             const rc = await fetch(`/api/vinculacao-config?projeto_codigo=${encodeURIComponent(projetoCodigo)}`);
             window.__vinculacaoConfig = rc.ok ? (await rc.json()).config : null;
+            AnotacaoCabos.definirDicionario(window.__vinculacaoConfig && window.__vinculacaoConfig.dicionario_cabos);          // TASK-173
+            if (window.PerfilExportacao) PerfilExportacao.definir(window.__vinculacaoConfig && window.__vinculacaoConfig.exportacao);          // TASK-176
         } catch (e) {
             window.__vinculacaoConfig = null;
+            AnotacaoCabos.definirDicionario(null);
             console.error('Erro ao carregar a configuração de vinculação:', e);
         }
     };
@@ -2032,7 +2035,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function _ctxOutros() {
         let base = [];
         try { base = orcamentoBaseData || []; } catch (e) { /* a base ainda não foi declarada (a tela está carregando) */ }
-        return AnotacaoOutros.contextoDaBase(base, (typeof localStorage !== 'undefined' ? localStorage.getItem('projeto_selecionado') : '') || '');
+        return AnotacaoOutros.contextoDaBase(base, (typeof localStorage !== 'undefined' ? localStorage.getItem('projeto_selecionado') : '') || '', window.__vinculacaoConfig ? window.__vinculacaoConfig.postes : undefined);          // TASK-174: convenção de postes do projeto
     }
 
     /** Leitor do formato ANTIGO usado pela Totalizadora: token a token, "qtd-ativo" (o "*" na frente da quantidade é negativo). */

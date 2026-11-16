@@ -14,6 +14,7 @@ from datetime import date
 import fitz
 
 import config
+from services import perfil_exportacao as pe
 
 LIMITE_LINHAS = 20000
 LIMITE_TEXTO = 200
@@ -80,7 +81,7 @@ def formatar_qtd(v) -> str:
     return t.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
-def _linhas(tipo, linhas):
+def _linhas(tipo, linhas, perfil=None):
     if not isinstance(linhas, list):
         raise ErroPdf(f"{tipo}: precisa ser uma lista.")
     if len(linhas) > LIMITE_LINHAS:
@@ -90,39 +91,52 @@ def _linhas(tipo, linhas):
         if not isinstance(x, dict):
             raise ErroPdf(f"{tipo} linha {i}: precisa ser um objeto.")
         mdo = _MDO.get(_texto(x.get("mdo")).upper(), _texto(x.get("mdo")).upper()[:1] or "N")
-        saida.append((mdo, _texto(x.get("codigo"), 40), formatar_qtd(x.get("qtd")), CENTRO.get(mdo, ""), _texto(x.get("desc"), 300)))
+        saida.append((mdo, _texto(x.get("codigo"), 40), formatar_qtd(x.get("qtd")), pe.centro_de(mdo, perfil), _texto(x.get("desc"), 300)))
     return saida
 
 
-def _cabecalho(c, tipo):
+def _cabecalho(c, tipo, perfil=None):
+    """Valores do cabeçalho: os campos do perfil (padrão: título, nota, SAP, bairro, município, UTD, UTEP, projetista, data) e o `id` do investimento (ODD, se houver, senão ODI)."""
     c = c if isinstance(c, dict) else {}
     g = lambda k: _texto(c.get(k), 120)
     idi = g("id_investimento_odd") if tipo == "ODD" and g("id_investimento_odd") else g("id_investimento")
-    return {"titulo": g("titulo"), "nota": g("nota"), "sap": g("sap"), "bairro": g("bairro"), "municipio": g("municipio"), "utd": g("utd"),
-            "utep": g("utep"), "projetista": g("projetista"), "data": g("data") or date.today().strftime("%d/%m/%Y"), "id": idi}
+    saida = {x["chave"]: g(x["chave"]) for x in pe.normalizar(perfil)["cabecalho"] if x["coluna"] != "id"}
+    saida["data"] = g("data") or date.today().strftime("%d/%m/%Y")
+    saida["id"] = idi
+    return saida
 
 
-def gerar_pdf(cabecalho: dict, tipo: str, linhas: list) -> bytes:
+def gerar_pdf(cabecalho: dict, tipo: str, linhas: list, perfil=None) -> bytes:
     """PDF (bytes) do relatório `tipo` ('ODI'|'ODD'). `linhas`: [{mdo, codigo, desc, qtd}]. O cabeçalho vem do diálogo."""
-    return gerar_relatorio(cabecalho, [(tipo, linhas)])
+    return gerar_relatorio(cabecalho, [(tipo, linhas)], perfil)
 
 
-def gerar_pdf_unico(cabecalho: dict, odi: list, odd: list) -> bytes:
+def gerar_pdf_unico(cabecalho: dict, odi: list, odd: list, perfil=None) -> bytes:
     """TASK-161: um PDF só com o ODI e depois o ODD (a seção sem itens é omitida; é preciso ter itens em pelo menos uma)."""
     secoes = [(t, l) for t, l in (("ODI", odi), ("ODD", odd)) if isinstance(l, list) and l]
     if not secoes:
         raise ErroPdf("Não há itens no ODI nem no ODD para gerar o relatório.")
-    return gerar_relatorio(cabecalho, secoes)
+    return gerar_relatorio(cabecalho, secoes, perfil)
 
 
-def gerar_relatorio(cabecalho: dict, secoes: list) -> bytes:
-    """PDF com uma ou mais seções [(tipo, linhas)], cada uma começando em página nova com o cabeçalho completo (TIPO DE ORDEM - ODI|ODD)."""
+def _cor(hexcor, padrao):
+    try:
+        return tuple(round(int(hexcor[i:i + 2], 16) / 255, 4) for i in (1, 3, 5))
+    except Exception:  # noqa: BLE001
+        return padrao
+
+
+def gerar_relatorio(cabecalho: dict, secoes: list, perfil=None) -> bytes:
+    """PDF com uma ou mais seções [(tipo, linhas)], cada uma começando em página nova com o cabeçalho completo (TIPO DE ORDEM - ODI|ODD).
+    `perfil` = perfil de exportação do projeto (TASK-176): campos do cabeçalho, centro, cor do título e rodapé; sem perfil, o de Neoenergia (saída idêntica à de sempre)."""
+    perfil = pe.normalizar(perfil)
+    cor_tab = VERDE_TAB if perfil["pdf"]["cor_titulo"].upper() == pe.PADRAO["pdf"]["cor_titulo"].upper() else _cor(perfil["pdf"]["cor_titulo"], VERDE_TAB)
     preparadas = []
     for tipo, linhas in secoes:
         tipo = str(tipo).upper()
         if tipo not in ("ODI", "ODD"):
             raise ErroPdf("Tipo precisa ser ODI ou ODD.")
-        preparadas.append((tipo, _linhas(tipo, linhas), _cabecalho(cabecalho, tipo)))
+        preparadas.append((tipo, _linhas(tipo, linhas, perfil), _cabecalho(cabecalho, tipo, perfil)))
     if not preparadas:
         raise ErroPdf("Informe ao menos uma seção (ODI ou ODD).")
     reg, neg = _fontes()
@@ -135,7 +149,7 @@ def gerar_relatorio(cabecalho: dict, secoes: list) -> bytes:
         p = pg[0]
         p.insert_font(fontname="cal", fontfile=reg)
         p.insert_font(fontname="calb", fontfile=neg)
-        rod = RODAPE
+        rod = perfil["pdf"]["rodape"]
         w = f_reg.text_length(rod, fontsize=12)
         p.insert_text((PAGINA[0] / 2 - w / 2, 837.72), rod, fontname="cal", fontsize=12, color=VERDE_RODAPE)
         return p
@@ -156,7 +170,7 @@ def gerar_relatorio(cabecalho: dict, secoes: list) -> bytes:
         texto(p, x, y, t, tam=tam)
 
     def cabecalho_tabela(p, topo):
-        p.draw_rect(fitz.Rect(X_TAB + 0.4, topo, COLUNAS[-1], topo + ALT_CAB_TAB), color=None, fill=VERDE_TAB)
+        p.draw_rect(fitz.Rect(X_TAB + 0.4, topo, COLUNAS[-1], topo + ALT_CAB_TAB), color=None, fill=cor_tab)
         b = topo + BASE_CAB
         branco = (1, 1, 1)
         centrado(p, COLUNAS[0], COLUNAS[1], b, "TIPO", True, branco)
@@ -178,15 +192,16 @@ def gerar_relatorio(cabecalho: dict, secoes: list) -> bytes:
         p = nova_pagina()
         esq, dir_ = 18.4, 88.4
         l = [TOPO_BLOCO + i * ALT_LINHA for i in range(5)]
-        for rot, val, y in (("TÍTULO:", cab["titulo"], l[0]), ("Nº NOTA:", cab["nota"], l[1]), ("BAIRRO", cab["bairro"], l[2]),
-                            ("UTD:", cab["utd"], l[3]), ("PROJETISTA:", cab["projetista"], l[4])):
-            texto(p, esq, y, rot, True)
-            texto(p, dir_, y, val)
-        for rot, val, y in (("Nº SAP:", cab["sap"], l[1]), ("MUNICIPIO:", cab["municipio"], l[2]), ("UTEP:", cab["utep"], l[3]), ("DATA:", cab["data"], l[4])):
-            texto(p, 235.9, y, rot, True)
-            texto(p, 300.4, y, val)
-        texto(p, 443.5, l[1], f"ID INVESTIMENTO - {cab['id']}", True, CINZA_TXT)
-        texto(p, 443.5, l[2], f"TIPO DE ORDEM  -  {tipo}", True, CINZA_TXT)
+        esquerda = [x for x in perfil["cabecalho"] if x["coluna"] == "esq"][:5]                              # 1ª coluna: a partir da 1ª linha
+        meio = [x for x in perfil["cabecalho"] if x["coluna"] == "meio"][:4]                                 # 2ª coluna: a partir da 2ª linha
+        for k, x in enumerate(esquerda):
+            texto(p, esq, l[k], x["rotulo"], True)
+            texto(p, dir_, l[k], cab.get(x["chave"], ""))
+        for k, x in enumerate(meio):
+            texto(p, 235.9, l[k + 1], x["rotulo"], True)
+            texto(p, 300.4, l[k + 1], cab.get(x["chave"], ""))
+        texto(p, 443.5, l[1], f"{perfil['pdf']['rotulo_id']} - {cab['id']}", True, CINZA_TXT)
+        texto(p, 443.5, l[2], f"{perfil['pdf']['rotulo_ordem']}  -  {tipo}", True, CINZA_TXT)
 
         i, primeira = 0, True
         while True:

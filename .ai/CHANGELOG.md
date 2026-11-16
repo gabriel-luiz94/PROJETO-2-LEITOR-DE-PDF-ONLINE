@@ -8,6 +8,71 @@
 
 ---
 
+## 2026-11-16 — TASK-173: dicionário de cabos por projeto (notação, nível, seção, ordem do "maior")
+
+- Lista `dicionario_cabos` na configuração da vinculação (a primeira linha que casa vale): `padrao`, `familia`, `valor_cabo`, `secao` (número ou `$1`, com tabela `awg`), `nivel`, `fases_padrao`, `apelidos`, `neutro` (`CAZ{valor}`), `notacao_solta`, `ativa`. Sem dicionário = regras de Pernambuco como antes.
+- `anotacao_cabos.interpretar(texto, dic)`, `derivar_cabo/extra_cabo(…, dic)`, `secao_cabo(codigo, dic)` e `info_cabo` (`valor_cabo` do dicionário quando a Tabela de Cabos não tem; `secao` no info) consultam o dicionário; `ordem_maior` sem valor próprio usa a ordem dos valores do dicionário. Paridade Python = JS testada.
+- `notacao_solta`: sem ela, um código do dicionário só vira notação quando o texto traz Nx, tensão ou parênteses (o formato antigo `CAA2 ABC 35 m` não muda).
+- Aba "Dicionário de cabos" no modal Vinculação (editor de tabela + "Testar um texto"). O dicionário do 081 (`data/pacotes/081/dicionario_cabos.json`) dá o mesmo resultado do código fixo (testado).
+
+---
+
+## 2026-11-16 — TASK-174: convenção de postes por projeto
+
+- Tabela `postes` na configuração da vinculação: `tipos` (`codigo`, `sufixo`, `nome`), `formatos` (formas de escrever o poste; a 1ª é o nome oficial; `{tipo}`, `{sufixo}`, `{altura}`, `{esforco}`), `altura` [mín, máx], `esforco_digitos` [mín, máx] e `compacto`. Sem tabela = Pernambuco (DT/RC/CV/FV, `11600D`), idêntico ao que era fixo.
+- `anotacao_outros` (Python e JS) lê a convenção por `ctx.convencao_postes` (`contexto_da_base(..., convencao_postes)`); a poste vira o parâmetro `poste` das estruturas da linha como antes (a ambiguidade de altura/esforço continua resolvida pela base).
+- `/api/orcamento/calcular` e o plugin resolvem a convenção do projeto (`postes_do_projeto`); a tela do Resumo usa a da configuração carregada. Aba "Postes" no modal Vinculação com "Testar um nome".
+- Limite: os modos autônomos (`services/autonomo`) ainda usam o padrão de Pernambuco.
+
+---
+
+## 2026-11-16 — TASK-175: leitura do desenho (DXF) configurável por projeto: layers e cores de rede
+
+- A configuração de leitura do projeto (`plugin_leitura_config`, a mesma do plugin do nanoCAD: `layers_rede_mt`, `layers_rede_bt`, `blocos_poste`, `layers_poste`, `layers_guia`) agora também vale na extração do DXF no servidor: `classificar_rede`, postes e guias seguem a configuração; sem ela, o padrão de Pernambuco (idêntico ao anterior, testado).
+- Campos novos opcionais: `cor_mt`/`cor_bt` (ACI, `#RRGGBB`, faixa RGB ou lista) e `regra` (`COR_MANDA` padrão | `LAYER_MANDA` | `SO_LAYER`; `cor_confirma: false` do plugin = `SO_LAYER`). Layer: "contém", `=NOME` exato ou curinga (`MT_*`).
+- `/upload` e `/extract-local` aceitam `?projeto=<código>` (a tela envia o projeto selecionado). Aba "Desenho" no modal Vinculação com "Testar" (layer + cor → MT/BT/descartada).
+- Limite: o código do plugin (C#) não foi alterado; ao salvar a leitura pelo plugin, `cor_mt`, `cor_bt` e `regra` ainda não são reenviados por ele (ConfigLeitura.cs só conhece os campos antigos).
+
+---
+
+## 2026-11-16 — TASK-176: perfil de exportação por projeto (cabeçalho, centros, layout e arquivos)
+
+- `exportacao` na configuração da vinculação: `cabecalho` (campos `chave`, `rotulo` do PDF, `tela`, `coluna` esq/meio/id, `obra`, `lembrar`), `centro` (`MATERIAL`/`MAO-DE-OBRA`), `pdf` (`cor_titulo`, `rodape`, `rotulo_ordem`, `rotulo_id`), `xlsx.colunas` (ordem) e `arquivos` (`pdf_sap`, `xlsx`, `rec`, `csv`). Sem perfil = Neoenergia: PDF, XLSX e visão SAP idênticos aos de antes (comparados com a baseline em `tests/dados/exportacao_padrao_176.json`).
+- `gerar_pdf/gerar_pdf_unico/gerar_xlsx` aceitam `perfil`; `/api/orcamento/exportar-xlsx` e `/exportar-sap-pdf` usam o `perfil` do corpo (pré-visualização) ou o salvo para o `projeto`. A caixa "Informações do relatório SAP" (Resumo e Resultado), o CENTRO da visão SAP e os botões oferecidos seguem o perfil.
+- O `.obra` grava as chaves do cabeçalho do perfil (`sap_limpo(sap, projeto)`); campo desconhecido continua descartado; arquivo antigo abre igual. `OBRA.*` = chaves marcadas `obra` do perfil (+ REGIAO e CONTEXTO); o validador da base aceita `OBRA.CONTRATO` nesse projeto.
+- Limites: o formato do `.rec` e do CSV segue fixo (o perfil só liga/desliga a oferta); a tabela de `OBRA.REGIAO` por projeto fica para a TASK-177; fonte do PDF não é configurável.
+
+---
+
+## 2026-11-16 — TASK-177: pacote de projeto: exportar/importar tudo num arquivo e pontos de partida sem caso especial
+
+- Pacote = `.zip` com `manifest.json` (`formato: "pacote-projeto"`, `versao_formato` 1, `versao_programa`, `projeto`, `partes` com hash) e um arquivo por parte: `base.csv`, `vinculacao`, `dicionario_cabos`, `postes`, `exportacao`, `desenho`, `leitor_processamento`, `leitor_classificacao`, `regional` (`<parte>.json`). Parte ausente = não mexe. Formato mais novo que o do programa é recusado com mensagem; hash diferente também.
+- Importar: `previa` mostra por parte novo/substitui/igual, contagens (hoje → pacote) e os avisos do validador (`validar_config`, `validar_base`, regras do leitor), sem gravar; `aplicar` valida tudo antes e só então grava parte por parte (admin, com confirmação). A base de um projeto de origem passa a ser do projeto de destino. Importar num projeto não altera outro.
+- Pontos de partida: `data/pacotes/<id>/manifest.json` (`projeto_codigo_padrao`, `nome_projeto`, `origem`, `seeds_antigos`, `partes` apontando para os arquivos; os de Pernambuco continuam em `data/*_pernambuco_seed.json`). `projetos.pacote_inicial` (campo novo no cadastro; Supabase: coluna `pacote_inicial` opcional) vale mais que o manifesto. Saíram `PROJETO_PERNAMBUCO`, `_seed_pernambuco`, `_atualizar_seed_pernambuco` (agora `_atualizar_seed_do_pacote`) e `_TABELAS` (a tabela regional vem da parte `regional` importada ou do pacote de partida; tabela `projeto_partes`).
+- Limites: contextos/ajustes (ADR-006) e modelos de obra ainda não viajam no pacote; os casos de referência entram com a TASK-178.
+
+---
+
+## 2026-11-16 — TASK-178: casos de referência por projeto: conferência automática da base
+
+- Caso = pedido (o mesmo payload do cálculo: `cabos` + `outros`) + `obra_cabecalho` + `esperado` (por operação · tipo de mão de obra · código) + `tolerancia` + `origem` (programa | ICP | manual) + `nota` + `historico`. Guardado em `casos_referencia` (SQLite; espelho opcional no Supabase). Não muda o cálculo.
+- `conferir`: roda os casos em lote com a base carregada UMA vez e devolve igual / mudou (código a código: antes → depois, `novo`/`sumiu`/`qtd`) / erro, mais o relatório em Markdown no estilo de `CON_EMB_mudancas.md`. `POST /api/casos/conferir` aceita `base_csv` (base candidata, sem gravar) e `ids` (lotes com progresso na tela). "Mudança esperada" (`/api/casos/aceitar`) exige nota e grava quem/quando no histórico do caso.
+- A prévia de importação de pacote com base mostra o impacto nos casos antes de gravar; os casos viajam no pacote (parte `casos`).
+- Desempenho medido: 312 pedidos contra a base da semente (2.326 linhas) em ~5 s (≈17 ms por pedido, base carregada uma vez); 300 casos numa base pequena em 0,1 s.
+- Limites: o caso guarda o pedido de cálculo (não o `.obra` inteiro nem a Totalizadora); gerar o esperado pela ICP fica por conta da habilidade `orcamento-icp-neoenergia-pe` (basta gravar o caso com `origem: "ICP"`).
+
+---
+
+## 2026-11-16 — TASK-179: guia e modelo para quem cria uma base nova
+
+- `docs/base_guia.md`: ativo simples → parâmetro → grupos com condição → linha viva (LV/LM) → retirada → cabos e arredondamento → composto → `OBRA.*` → armadilhas → conferência; cada recurso com um exemplo curto e o resultado.
+- `data/pacotes/exemplo/`: base de 20 linhas (poste, N1, N3 com parâmetro `cabo`, N4 com linha viva/morta, cabos, alça, conector e um composto), vinculação simples e 5 casos de referência. Importa e funciona sozinho (testado: prévia sem avisos, 5 casos iguais, pedidos do guia dão o resultado dito). É ponto de partida **sugerido** (não é pacote de projeto nenhum): `GET /api/pacote/embutidos` lista e `/api/pacote/embutidos/<id>.zip` entrega no formato do pacote; a aba Pacote tem "Começar de um pacote pronto".
+- Ficha da base (`orcamento.html`): coluna "O que faz" com a frase em português de cada linha ("vale quando cabo contém A35P; soma 3 de 7204 na instalação e na retirada"; grupos, compostos, linha viva e arredondamento).
+- Validador: `codigo_do_achado`/`com_codigo` dão a cada tipo de erro/aviso um código `B-0xx` + `docs/base_guia.md`; aparece no fim das mensagens de `resumo_erros` (o texto da mensagem não mudou). Aviso novo B-013: código de MATERIAL cuja descrição é de equipamento (trafo, chave, religador, regulador, capacitor) nas linhas gerais de um ativo com parâmetro do mesmo tipo.
+- Critério da base `base_orcamento_20261115_CON_EMB.csv` / `…_TT.csv`: esses arquivos não estão no repositório; o caso foi reproduzido com uma base sintética de CE_2_TR (trafo de 45 kVA nas linhas gerais → aviso B-013; trafos só nos grupos do parâmetro → sem aviso). Conferir com os arquivos reais quando estiverem à mão.
+
+---
+
 ## 2026-11-15 — TASK-180: Montar Orçamento sempre recalcula; resultado gravado só volta ao abrir o projeto
 
 - Substitui a restauração da TASK-154 (payload igual → restaurava o resultado do `.obra`, mesmo com base nova). Agora `montarOrcamento` sempre chama `/api/orcamento/calcular`; `assinatura` segue gravada no `.obra` (formato igual) mas não decide mais nada.

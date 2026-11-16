@@ -155,6 +155,19 @@ def validar_leitura(cfg) -> dict:
             erros.append("cor_confirma: verdadeiro/falso")
         else:
             ok["cor_confirma"] = cfg["cor_confirma"]
+    if "regra" in cfg:                                                                    # TASK-175
+        if not isinstance(cfg["regra"], str) or cfg["regra"].strip().upper() not in ("COR_MANDA", "LAYER_MANDA", "SO_LAYER"):
+            erros.append("regra: COR_MANDA, LAYER_MANDA ou SO_LAYER")
+        else:
+            ok["regra"] = cfg["regra"].strip().upper()
+    for k in ("cor_mt", "cor_bt"):
+        if k in cfg:
+            from services.leitura_desenho import validar as _validar_cores
+            e = _validar_cores({k: cfg[k]})
+            if e:
+                erros.extend(e)
+            else:
+                ok[k] = cfg[k]
     if "placa_regex" in cfg:
         v = cfg["placa_regex"]
         try:
@@ -229,6 +242,22 @@ def salvar_leitura(projeto: str, payload: LeituraPayload):
     return {"projeto": p, "leitura": cfg, "aviso": aviso}
 
 
+class TestarLeituraPayload(BaseModel):
+    leitura: Dict[str, Any] = {}
+    layer: str = ""
+    cor: Any = ""
+
+
+@router.post("/leitura/testar")
+def testar_leitura(payload: TestarLeituraPayload):
+    """TASK-175: "Testar" da tela Desenho — layer + cor → MT | BT | descartada | não é rede, com o motivo (sem gravar nada)."""
+    from services import leitura_desenho as ld
+    erros = ld.validar(payload.leitura)
+    if erros:
+        raise HTTPException(status_code=400, detail={"erros": erros})
+    return ld.testar(payload.leitura, payload.layer, payload.cor)
+
+
 class ConferirPayload(BaseModel):
     projeto: str
     dados: Dict[str, Any] = {}
@@ -263,7 +292,7 @@ def conferir(payload: ConferirPayload, request: Request):
     tot = montar_totalizadora(cabos, outros, f["conversao"], f["base"], p["nome"],
                               itens_vinculo=itens_vinculo_para_totalizadora(cabos, outros), cfg_vinculo=normalizar_config(f["vinculacao"]), obra=payload.obra)
     calc = payload_calculo(tot)
-    nao_encontrados = list(processar_calculo(calc["cabos"], calc["outros"], p["nome"], f["base"], obra=payload.obra)["nao_encontrados"])
+    nao_encontrados = list(processar_calculo(calc["cabos"], calc["outros"], p["nome"], f["base"], obra=payload.obra, convencao_postes=(f["vinculacao"] or {}).get("postes"))["nao_encontrados"])
 
     def nao_achado(ativo):
         a = str(ativo or "")
