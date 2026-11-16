@@ -1,0 +1,30 @@
+{
+ "formato": "pacote-projeto-embutido",
+ "versao_formato": 1,
+ "id": "081",
+ "nome": "Pernambuco (Neoenergia)",
+ "descricao": "Ponto de partida do projeto de Pernambuco: vinculação, leitor, dicionário de cabos, postes, desenho, exportação e tabela regional.",
+ "projeto_codigo_padrao": "081",
+ "nome_projeto": "PERNAMBUCO",
+ "origem": "pernambuco",
+ "seeds_antigos": {
+  "processamento": [
+   "61b1e6a0190cd624b09878757863079deaf30720cbabb760a75e0dcd7f1de80e",
+   "bac6fd1b89180f69de1c6c3810901c861fc3fa4e81254a0df26503dc4ff52762",
+   "d19e5bc3766d9fb636e280ef0322eb1aa7547fc5eb6a50a3c5009e978822ffb9"
+  ],
+  "classificacao": [
+   "57fb6f798e810ba373d059e285b6c122c76841cb6129b62de1f26ac986ca968e"
+  ]
+ },
+ "partes": {
+  "vinculacao": "../../vinculacao_pernambuco_seed.json",
+  "leitor_processamento": "../../regras_leitor_processamento_pernambuco_seed.json",
+  "leitor_classificacao": "../../regras_leitor_classificacao_pernambuco_seed.json",
+  "regional": "../../regionais_pernambuco.json",
+  "dicionario_cabos": "dicionario_cabos.json",
+  "postes": "postes.json",
+  "desenho": "leitura_desenho.json",
+  "exportacao": "exportacao.json"
+ }
+}

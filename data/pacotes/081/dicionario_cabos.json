@@ -1,70 +1,65 @@
-{
- "formato": "dicionario-cabos",
- "versao_formato": 1,
- "projeto": "081",
- "dicionario_cabos": [
-  {
-   "padrao": "^[A-Z]+(\\d)/0$",
-   "familia": "ALUMINIO NU (AWG fração)",
-   "valor_cabo": "A",
-   "secao": "$1",
-   "awg": {
-    "1": 53.5,
-    "2": 67.4,
-    "3": 85.0,
-    "4": 107.2
-   },
-   "obs": "S1/0, S2/0…: seção por tabela AWG"
+[
+ {
+  "padrao": "^[A-Z]+(\\d)/0$",
+  "familia": "ALUMINIO NU (AWG fração)",
+  "valor_cabo": "A",
+  "secao": "$1",
+  "awg": {
+   "1": 53.5,
+   "2": 67.4,
+   "3": 85.0,
+   "4": 107.2
   },
-  {
-   "padrao": "^[A-Z]+0(\\d)$",
-   "familia": "ALUMINIO NU (AWG com zero)",
-   "valor_cabo": "A",
-   "secao": "$1",
-   "awg": {
-    "2": 33.6,
-    "4": 21.2,
-    "6": 13.3,
-    "8": 8.4
-   },
-   "obs": "S02, S04, S06, S08: seção por tabela AWG"
+  "obs": "S1/0, S2/0…: seção por tabela AWG"
+ },
+ {
+  "padrao": "^[A-Z]+0(\\d)$",
+  "familia": "ALUMINIO NU (AWG com zero)",
+  "valor_cabo": "A",
+  "secao": "$1",
+  "awg": {
+   "2": 33.6,
+   "4": 21.2,
+   "6": 13.3,
+   "8": 8.4
   },
-  {
-   "padrao": "^C(\\d+)$",
-   "familia": "COBRE NU",
-   "valor_cabo": "C",
-   "secao": "$1",
-   "apelidos": [
-    {
-     "padrao": "^(\\d{2,3})$",
-     "codigo": "C$1"
-    }
-   ]
-  },
-  {
-   "padrao": "^(?:A|S)(\\d+)P$",
-   "familia": "ALUMINIO PROTEGIDO",
-   "valor_cabo": "P",
-   "secao": "$1"
-  },
-  {
-   "padrao": "^(?:S|AA|CAA)(\\d+)(?:/\\d+)?$",
-   "familia": "ALUMINIO NU (CAA)",
-   "valor_cabo": "A",
-   "secao": "$1"
-  },
-  {
-   "padrao": "^(?:RAMA|PB)(\\d+)$",
-   "familia": "MULTIPLEX BT",
-   "secao": "$1",
-   "apelidos": [
-    "^(?:RAMA|PB)\\d+$"
-   ]
-  },
-  {
-   "padrao": "^CAZ",
-   "familia": "NEUTRO / CAZ",
-   "neutro": "CAZ{valor}"
-  }
- ]
-}
+  "obs": "S02, S04, S06, S08: seção por tabela AWG"
+ },
+ {
+  "padrao": "^C(\\d+)$",
+  "familia": "COBRE NU",
+  "valor_cabo": "C",
+  "secao": "$1",
+  "apelidos": [
+   {
+    "padrao": "^(\\d{2,3})$",
+    "codigo": "C$1"
+   }
+  ]
+ },
+ {
+  "padrao": "^(?:A|S)(\\d+)P$",
+  "familia": "ALUMINIO PROTEGIDO",
+  "valor_cabo": "P",
+  "secao": "$1"
+ },
+ {
+  "padrao": "^(?:S|AA|CAA)(\\d+)(?:/\\d+)?$",
+  "familia": "ALUMINIO NU (CAA)",
+  "valor_cabo": "A",
+  "secao": "$1"
+ },
+ {
+  "padrao": "^(?:RAMA|PB)(\\d+)$",
+  "familia": "MULTIPLEX BT",
+  "secao": "$1",
+  "apelidos": [
+   "^(?:RAMA|PB)\\d+$"
+  ]
+ },
+ {
+  "padrao": "^CAZ",
+  "familia": "NEUTRO / CAZ",
+  "neutro": "CAZ{valor}"
+ }
+]

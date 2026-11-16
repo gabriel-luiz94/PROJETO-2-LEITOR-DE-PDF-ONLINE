@@ -12,7 +12,7 @@ from services import dicionario_cabos as dc
 from services import vinculacao_regras as vr
 
 NODE = shutil.which("node")
-DIC081 = json.load(open(os.path.join(config.BASE_DIR, "data", "pacotes", "081", "dicionario_cabos.json"), encoding="utf-8"))["dicionario_cabos"]
+DIC081 = json.load(open(os.path.join(config.BASE_DIR, "data", "pacotes", "081", "dicionario_cabos.json"), encoding="utf-8"))
 OUTRO = [{"padrao": r"^ALU-(\d+)$", "familia": "ALUMINIO", "valor_cabo": "A", "secao": "$1", "nivel": "MT", "fases_padrao": 3, "neutro": "NEU{valor}", "notacao_solta": True},
          {"padrao": r"^CU-(\d+)$", "familia": "COBRE", "valor_cabo": "C", "secao": "$1", "nivel": "BT", "notacao_solta": True, "apelidos": [{"padrao": r"^(\d{2})$", "codigo": "CU-$1"}]}]
 TEXTOS = ["3xA35P(7,94)-13,8kV 45 m", "3xC16(16) 30M", "3xS50P(35) 40", "1xS1/0-7,9kV 20", "RAMA25 12", "PB35 5", "16 10 m", "(S04) 8", "C 3x1x95(95)+20kV 12",

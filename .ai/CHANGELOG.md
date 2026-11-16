@@ -44,6 +44,15 @@
 
 ---
 
+## 2026-11-16 — TASK-177: pacote de projeto: exportar/importar tudo num arquivo e pontos de partida sem caso especial
+
+- Pacote = `.zip` com `manifest.json` (`formato: "pacote-projeto"`, `versao_formato` 1, `versao_programa`, `projeto`, `partes` com hash) e um arquivo por parte: `base.csv`, `vinculacao`, `dicionario_cabos`, `postes`, `exportacao`, `desenho`, `leitor_processamento`, `leitor_classificacao`, `regional` (`<parte>.json`). Parte ausente = não mexe. Formato mais novo que o do programa é recusado com mensagem; hash diferente também.
+- Importar: `previa` mostra por parte novo/substitui/igual, contagens (hoje → pacote) e os avisos do validador (`validar_config`, `validar_base`, regras do leitor), sem gravar; `aplicar` valida tudo antes e só então grava parte por parte (admin, com confirmação). A base de um projeto de origem passa a ser do projeto de destino. Importar num projeto não altera outro.
+- Pontos de partida: `data/pacotes/<id>/manifest.json` (`projeto_codigo_padrao`, `nome_projeto`, `origem`, `seeds_antigos`, `partes` apontando para os arquivos; os de Pernambuco continuam em `data/*_pernambuco_seed.json`). `projetos.pacote_inicial` (campo novo no cadastro; Supabase: coluna `pacote_inicial` opcional) vale mais que o manifesto. Saíram `PROJETO_PERNAMBUCO`, `_seed_pernambuco`, `_atualizar_seed_pernambuco` (agora `_atualizar_seed_do_pacote`) e `_TABELAS` (a tabela regional vem da parte `regional` importada ou do pacote de partida; tabela `projeto_partes`).
+- Limites: contextos/ajustes (ADR-006) e modelos de obra ainda não viajam no pacote; os casos de referência entram com a TASK-178.
+
+---
+
 ## 2026-11-15 — TASK-180: Montar Orçamento sempre recalcula; resultado gravado só volta ao abrir o projeto
 
 - Substitui a restauração da TASK-154 (payload igual → restaurava o resultado do `.obra`, mesmo com base nova). Agora `montarOrcamento` sempre chama `/api/orcamento/calcular`; `assinatura` segue gravada no `.obra` (formato igual) mas não decide mais nada.

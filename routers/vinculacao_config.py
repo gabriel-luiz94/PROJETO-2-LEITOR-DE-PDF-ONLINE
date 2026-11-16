@@ -11,7 +11,7 @@ import json
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from config import logger, VINCULACAO_PE_SEED_PATH
+from config import logger
 from database import get_connection
 from routers.regras_vinculacao import _get_regras as _get_regras_legadas
 from services import vinculacao_regras as vr
@@ -19,17 +19,9 @@ from services.supabase_client import get_supabase
 
 router = APIRouter(prefix="/api/vinculacao-config", tags=["vinculacao-config"])
 
-PROJETO_PERNAMBUCO = "081"
-
-
 class ConfigPayload(BaseModel):
     projeto_codigo: str
     config: dict
-
-
-def _seed_pernambuco() -> dict:
-    with open(VINCULACAO_PE_SEED_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
 
 
 def _config_salva(projeto_codigo: str):
@@ -98,11 +90,13 @@ def obter_config_com_origem(projeto_codigo: str):
     salva = _config_salva(projeto_codigo)
     if salva is not None:
         return vr.normalizar_config(salva), "salva"
-    if projeto_codigo == PROJETO_PERNAMBUCO:
-        try:
-            return vr.normalizar_config(_seed_pernambuco()), "pernambuco"
-        except (OSError, json.JSONDecodeError) as e:
-            logger.warning(f"Seed da vinculação de Pernambuco ilegível: {e}")
+    from services import pacote_projeto as pp                                     # TASK-177: o ponto de partida vem do pacote do projeto, não de um `if`
+    try:
+        inicial = pp.config_inicial(projeto_codigo)
+        if inicial is not None:
+            return vr.normalizar_config(inicial), (pp.pacote_inicial_de(projeto_codigo) or {}).get("origem") or "pacote"
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Pacote de partida da vinculação ilegível: {e}")
     legado = _get_regras_legadas(projeto_codigo)
     if legado:
         return vr.config_de_legado(legado), "migrada"

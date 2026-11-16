@@ -13,7 +13,6 @@ import config
 PREFIXO = "OBRA."
 NOMES = ("OBRA.MUNICIPIO", "OBRA.BAIRRO", "OBRA.UTD", "OBRA.UTEP", "OBRA.REGIAO", "OBRA.CONTEXTO")
 _CAMPOS = {"municipio": "OBRA.MUNICIPIO", "bairro": "OBRA.BAIRRO", "utd": "OBRA.UTD", "utep": "OBRA.UTEP", "contexto": "OBRA.CONTEXTO"}
-_TABELAS = {"PERNAMBUCO": config.REGIONAIS_PE_PATH}
 _cache = {}
 
 
@@ -33,17 +32,26 @@ def _chave(valor) -> str:
     return normalizar(valor).replace("_", " ")
 
 
+def limpar_cache():
+    _cache.clear()
+
+
 def tabela_regional(projeto) -> dict:
-    arq = _TABELAS.get(str(projeto or "").strip().upper())
-    if not arq:
+    """Tabela regional (município/UTD → região) do projeto (nome ou código): a importada no pacote do projeto ou, na falta, a do pacote de partida dele; {} se não há (TASK-177)."""
+    chave = str(projeto or "").strip().upper()
+    if not chave:
         return {}
-    if arq not in _cache:
+    if chave not in _cache:
+        tabela = {}
         try:
-            with open(arq, encoding="utf-8") as f:
-                _cache[arq] = json.load(f)
-        except (OSError, ValueError):
-            _cache[arq] = {}
-    return _cache[arq]
+            from services import pacote_projeto as pp
+            proj = pp.projeto_do_cadastro(chave)
+            guardada = pp.parte_guardada(proj["codigo"], "regional") if proj else None
+            tabela = guardada or pp.parte_inicial(chave, "regional") or {}
+        except Exception:  # noqa: BLE001
+            tabela = {}
+        _cache[chave] = tabela if isinstance(tabela, dict) else {}
+    return _cache[chave]
 
 
 def regiao_de(obra, projeto="") -> str:

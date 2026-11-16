@@ -129,7 +129,7 @@
         const a = analise();
         const pend = Object.values(a.cabos).filter(c => c.estado !== 'gr').length + Object.values(a.estruturas).filter(e => e.estado === 'k' || e.estado === 'pu').length;
         overlay.innerHTML = '';
-        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''],
+        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''], ['pacote', 'Pacote', ''],
             ['script', 'Script', st.cfg.scripts.length], ['mapa', 'Mapa', '']];
         const vz = el('div', { class: 'vz' }, [
             el('div', { class: 'vz-top' }, [el('h3', { text: '🔗 Vinculação cabo ⇄ estrutura' }), el('span', { class: 'vz-chip', text: 'Projeto ' + host.projeto() }),
@@ -139,7 +139,7 @@
             rodape()]);
         overlay.appendChild(vz);
         const corpo = vz.querySelector('#vz-corpo');
-        ({ vinculo: abaVinculo, cabos: abaCabos, estruturas: abaEstruturas, dicionario: abaDicionario, postes: abaPostes, desenho: abaDesenho, exportacao: abaExportacao, script: abaScript, mapa: abaMapa })[st.aba](corpo, a);
+        ({ vinculo: abaVinculo, cabos: abaCabos, estruturas: abaEstruturas, dicionario: abaDicionario, postes: abaPostes, desenho: abaDesenho, exportacao: abaExportacao, pacote: abaPacote, script: abaScript, mapa: abaMapa })[st.aba](corpo, a);
     }
 
     function rodape() {
@@ -582,6 +582,68 @@
             const antigo = corpo.querySelector('.previa-exportacao'); if (antigo) antigo.remove();
             corpo.appendChild(el('iframe', { class: 'previa-exportacao', src: url + '#toolbar=0&view=FitH', style: 'width:100%;height:520px;border:1px solid #30363d;border-radius:6px;margin-top:12px;background:#fff' }));
         } catch (e) { raiz.alert('Não consegui gerar a pré-visualização: ' + (e.message || e)); }
+    }
+
+    /** TASK-177: pacote do projeto — exportar tudo (ou partes) num .zip e importar num projeto com prévia do que muda. Só o administrador importa; nada é gravado antes de confirmar. */
+    async function abaPacote(corpo) {
+        const caixa = 'background:#010409;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;padding:5px 8px;font:12px Consolas,monospace';
+        if (!st.pacote) {
+            st.pacote = { partes: null, marcadas: null, previa: null, arquivo: null, msg: '' };
+            fetch('/api/pacote/partes').then(r => r.json()).then(d => { st.pacote.partes = d.partes; st.pacote.marcadas = new Set(d.partes.map(x => x.parte)); render(); }).catch(() => { st.pacote.partes = []; st.pacote.marcadas = new Set(); render(); });
+        }
+        const pk = st.pacote, projeto = host.projeto();
+        corpo.appendChild(el('div', { class: 'vz-nota', html: '<b>O que esta aba faz:</b> o <b>pacote</b> é um arquivo <code>.zip</code> com tudo o que um projeto precisa (base técnica, vinculação, dicionário de cabos, postes, desenho, exportação, regras do leitor e tabela regional). Quem distribui o programa manda o pacote; quem recebe <b>importa</b> num projeto vazio e começa a orçar. A importação mostra antes <b>o que muda</b> em cada parte e só grava depois de você confirmar.' }));
+        if (!pk.partes) { corpo.appendChild(el('div', { style: 'color:#8b949e;margin-top:10px', text: 'Carregando…' })); return; }
+        corpo.appendChild(el('div', { style: 'margin-top:10px;font-weight:600', text: 'Exportar o projeto ' + projeto }));
+        const lista = el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:6px 0' }, pk.partes.map(x => el('label', { style: 'color:#c9d1d9' }, [el('input', { type: 'checkbox', ...(pk.marcadas.has(x.parte) ? { checked: 'checked' } : {}),
+            onchange: e => { if (e.target.checked) pk.marcadas.add(x.parte); else pk.marcadas.delete(x.parte); } }), ' ' + x.rotulo])));
+        corpo.appendChild(lista);
+        corpo.appendChild(el('button', { class: 'vz-btn b', text: 'Exportar pacote (.zip)', onclick: async () => {
+            try {
+                const r = await fetch('/api/pacote/exportar?projeto=' + encodeURIComponent(projeto) + '&partes=' + encodeURIComponent(Array.from(pk.marcadas).join(',')));
+                if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.detail || ('HTTP ' + r.status)); }
+                const a = el('a', { href: URL.createObjectURL(await r.blob()), download: 'pacote_' + projeto + '.zip' }); doc.body.appendChild(a); a.click(); a.remove();
+                pk.msg = 'Pacote exportado.'; render();
+            } catch (e) { raiz.alert('Não exportou: ' + (e.message || e)); }
+        } }));
+        corpo.appendChild(el('div', { style: 'margin-top:18px;font-weight:600', text: 'Importar um pacote no projeto ' + projeto }));
+        corpo.appendChild(el('input', { type: 'file', accept: '.zip,application/zip', style: 'margin:6px 0;' + caixa, onchange: async e => {
+            pk.arquivo = e.target.files[0] || null; pk.previa = null; pk.msg = '';
+            if (!pk.arquivo) { render(); return; }
+            try {
+                const fd = new FormData(); fd.append('file', pk.arquivo); fd.append('projeto', projeto);
+                const r = await fetch('/api/pacote/previa', { method: 'POST', body: fd }), d = await r.json();
+                if (!r.ok) throw new Error(d.detail || ('HTTP ' + r.status));
+                pk.previa = d; pk.importar = new Set(d.partes.filter(x => x.situacao !== 'igual').map(x => x.parte));
+            } catch (err) { pk.msg = 'Não li o pacote: ' + (err.message || err); }
+            render();
+        } }));
+        if (pk.previa) {
+            const rot = { novo: ['novo', '#3fb950'], substitui: ['substitui', '#d29922'], igual: ['igual', '#8b949e'] };
+            corpo.appendChild(el('div', { style: 'color:#8b949e;margin:6px 0', text: 'Pacote' + (pk.previa.origem ? ' do projeto ' + pk.previa.origem.nome + ' (' + pk.previa.origem.codigo + ')' : '') + (pk.previa.descricao ? ' — ' + pk.previa.descricao : '') }));
+            const tb = el('table', { class: 'vz-tb' });
+            tb.appendChild(el('thead', {}, [el('tr', {}, ['Importar', 'Parte', 'Situação', 'Hoje', 'Pacote', 'Avisos'].map(h => el('th', { text: h })))]));
+            tb.appendChild(el('tbody', {}, pk.previa.partes.map(x => el('tr', {}, [
+                el('td', {}, [el('input', { type: 'checkbox', ...(pk.importar.has(x.parte) ? { checked: 'checked' } : {}), onchange: e => { if (e.target.checked) pk.importar.add(x.parte); else pk.importar.delete(x.parte); } })]),
+                el('td', { text: x.rotulo }), el('td', { style: 'color:' + rot[x.situacao][1] + ';font-weight:600', text: rot[x.situacao][0] }), el('td', { text: x.antes }), el('td', { text: x.depois }),
+                el('td', { style: 'color:#f85149', html: x.avisos.map(esc).join('<br>') })]))));
+            corpo.appendChild(el('div', { class: 'vz-scroll' }, [tb]));
+            corpo.appendChild(el('div', { style: 'display:flex;gap:8px;margin-top:10px' }, [
+                el('button', { class: 'vz-btn b', text: 'Confirmar e importar', onclick: async () => {
+                    if (!pk.importar.size) { raiz.alert('Marque ao menos uma parte.'); return; }
+                    if (!raiz.confirm('Importar ' + pk.importar.size + ' parte(s) no projeto ' + projeto + '? As partes marcadas como "substitui" serão trocadas.')) return;
+                    try {
+                        const fd = new FormData(); fd.append('file', pk.arquivo); fd.append('projeto', projeto); fd.append('partes', Array.from(pk.importar).join(',')); fd.append('confirmar', 'true');
+                        const r = await fetch('/api/pacote/importar', { method: 'POST', body: fd }), d = await r.json();
+                        if (!r.ok) throw new Error(d.detail || ('HTTP ' + r.status));
+                        pk.msg = 'Importado: ' + d.gravadas.join(', ') + '. Reabra a tela para usar a configuração nova.'; pk.previa = null; pk.arquivo = null;
+                        if (d.gravadas.some(p => ['vinculacao', 'dicionario_cabos', 'postes', 'exportacao'].includes(p))) { try { const rc = await fetch('/api/vinculacao-config?projeto_codigo=' + encodeURIComponent(projeto)); if (rc.ok) st.cfg = clone(VR.normalizarConfig((await rc.json()).config)); } catch (x) { /* a tela recarrega ao reabrir */ } }
+                    } catch (err) { raiz.alert('Não importou: ' + (err.message || err)); }
+                    render();
+                } }),
+                el('button', { class: 'vz-btn', text: 'Cancelar', onclick: () => { pk.previa = null; pk.arquivo = null; render(); } })]));
+        }
+        if (pk.msg) corpo.appendChild(el('div', { style: 'color:#3fb950;margin-top:10px', text: pk.msg }));
     }
 
     function abaCabos(corpo) {
