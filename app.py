@@ -227,6 +227,11 @@ async def serve_vinculacao_ui_js():
     return _serve_js("vinculacao_ui.js")
 
 
+@app.get("/static/dicionario_cabos.js")
+async def serve_dicionario_cabos_js():
+    return _serve_js("dicionario_cabos.js")
+
+
 @app.get("/static/anotacao_cabos.js")
 async def serve_anotacao_cabos_js():
     return _serve_js("anotacao_cabos.js")

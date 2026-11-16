@@ -835,3 +835,7 @@ A pesquisa da Base de Orçamento agora é uma **barra fixa no topo da tela** (el
 ## Resultado do orçamento: Montar sempre recalcula (TASK-180)
 
 **Montar Orçamento** sempre calcula de novo com a base técnica atual, mesmo com projeto aberto e resultado gravado nele. Se você tinha editado o resultado à mão, o log informa que as edições foram substituídas. O resultado gravado no arquivo `.obra` (com as edições) só volta quando você **abre o projeto** com a tela do Resultado à vista: a tabela mostra o que está no arquivo, sem recalcular. Se o projeto não tem resultado gravado, a tabela fica vazia com a orientação de voltar ao Resumo e clicar em Montar Orçamento. Recarregar a página do Resultado também recalcula.
+
+## Dicionário de cabos (TASK-173)
+
+No modal **Vinculação** há a aba **Dicionário de cabos**: cada linha diz o que um cabo **é** (família, valor de cabo, seção em mm² para o "maior primeiro", nível MT/BT e fases quando o texto não traz, apelidos e como montar o neutro). A primeira linha que casa vale. **Sem linhas, o programa usa as regras de Pernambuco** (C, A…P, S/W, PB, RAMA, CAZ). Use **Testar um texto** (ex.: `3xA35P(7,94)-13,8kV 45 m`) para ver código, fases, neutro, nível, seção, valor e a linha usada. Marque **Código solto** quando o código sozinho (ex.: `ALU-50 30 m`) já deve valer como notação do LABEL. A Tabela de Cabos continua dizendo em quais estruturas o cabo entra.

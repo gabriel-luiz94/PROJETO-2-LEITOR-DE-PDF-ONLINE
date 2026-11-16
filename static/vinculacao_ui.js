@@ -129,7 +129,7 @@
         const a = analise();
         const pend = Object.values(a.cabos).filter(c => c.estado !== 'gr').length + Object.values(a.estruturas).filter(e => e.estado === 'k' || e.estado === 'pu').length;
         overlay.innerHTML = '';
-        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length],
+        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length],
             ['script', 'Script', st.cfg.scripts.length], ['mapa', 'Mapa', '']];
         const vz = el('div', { class: 'vz' }, [
             el('div', { class: 'vz-top' }, [el('h3', { text: '🔗 Vinculação cabo ⇄ estrutura' }), el('span', { class: 'vz-chip', text: 'Projeto ' + host.projeto() }),
@@ -139,7 +139,7 @@
             rodape()]);
         overlay.appendChild(vz);
         const corpo = vz.querySelector('#vz-corpo');
-        ({ vinculo: abaVinculo, cabos: abaCabos, estruturas: abaEstruturas, script: abaScript, mapa: abaMapa })[st.aba](corpo, a);
+        ({ vinculo: abaVinculo, cabos: abaCabos, estruturas: abaEstruturas, dicionario: abaDicionario, script: abaScript, mapa: abaMapa })[st.aba](corpo, a);
     }
 
     function rodape() {
@@ -391,7 +391,7 @@
         });
         tb.appendChild(tbody); sc.appendChild(tb); corpo.appendChild(sc);
         const saidaTeste = el('span', { style: 'color:#8b949e;flex:1' });
-        const campo = el('input', { type: 'text', style: 'width:280px;background:#010409;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;padding:5px 8px;font:12px Consolas,monospace', placeholder: nome === 'cabos' ? 'Testar um cabo: 3xA35P(7,94)-13,8kV' : 'Testar uma estrutura: 9200D, N1', value: st.teste[nome] || '',
+        const campo = el('input', { type: 'text', style: 'width:280px;background:#010409;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;padding:5px 8px;font:12px Consolas,monospace', placeholder: nome === 'dicionario_cabos' ? 'Testar um texto: 3xA35P(7,94)-13,8kV 45 m' : nome === 'cabos' ? 'Testar um cabo: 3xA35P(7,94)-13,8kV' : 'Testar uma estrutura: 9200D, N1', value: st.teste[nome] || '',
             oninput: e => { st.teste[nome] = e.target.value; saidaTeste.innerHTML = e.target.value ? testeFn(e.target.value) : ''; } });
         if (st.teste[nome]) saidaTeste.innerHTML = testeFn(st.teste[nome]);
         corpo.appendChild(el('div', { style: 'display:flex;gap:8px;margin-top:10px;align-items:center' }, [el('button', { class: 'vz-btn', text: '＋ Linha', onclick: () => { lista.push(novaLinha()); marcarSujo(); render(); } }), campo, saidaTeste,
@@ -416,6 +416,30 @@
             } catch (err) { raiz.alert('Arquivo inválido: ' + err.message); }
         } });
         inp.click();
+    }
+
+    /** TASK-173: dicionário de cabos do projeto (o que o cabo É: família, valor, seção, nível, fases, apelidos e neutro). A Tabela de Cabos continua dizendo em quais estruturas ele entra. */
+    function abaDicionario(corpo) {
+        if (!Array.isArray(st.cfg.dicionario_cabos)) st.cfg.dicionario_cabos = [];
+        const DC = raiz.DicionarioCabos, AC = raiz.AnotacaoCabos;
+        tabelaEditavel(corpo, st.cfg.dicionario_cabos, [
+            { campo: 'padrao', rot: 'Padrão do código', tipo: 'text', extra: '^A(\\d+)P$', dica: 'regex contra o código do cabo principal (sem Nx, neutro e tensão); a primeira linha que casa vale' }, { campo: 'familia', rot: 'Família', tipo: 'text', w: '130px' },
+            { campo: 'valor_cabo', rot: 'Valor de cabo', tipo: 'text', w: '80px', dica: 'vale quando a Tabela de Cabos não tem valor para o cabo' }, { campo: 'secao', rot: 'Seção (mm²)', tipo: 'text', w: '80px', extra: '$1 ou 50', dica: '$1 = grupo da regex; vazio = regra fixa do código' },
+            { campo: 'awg', rot: 'Tabela AWG', tipo: 'json', w: '130px', extra: '{"4":21.2}', dica: 'seção por texto do grupo (AWG)' },
+            { campo: 'nivel', rot: 'Nível', tipo: 'select', extra: ['', 'MT', 'BT'], w: '65px', dica: 'vale quando o texto não traz tensão (sem isso: BT)' }, { campo: 'fases_padrao', rot: 'Fases', tipo: 'number', w: '55px', dica: 'fases quando o texto não traz Nx' },
+            { campo: 'apelidos', rot: 'Apelidos', tipo: 'json', extra: '["^PB\\\\d+$", {"padrao":"^(\\\\d+)$","codigo":"C$1"}]', dica: 'textos curtos que viram o código' }, { campo: 'neutro', rot: 'Neutro', tipo: 'text', w: '100px', extra: 'CAZ{valor}', dica: 'como montar o neutro do parêntese com vírgula' },
+            { campo: 'notacao_solta', rot: 'Código solto', tipo: 'bool', w: '70px', dica: 'o código sozinho (ALU-50 30 m) já conta como notação do LABEL' }, { campo: 'ativa', rot: 'Ativa', tipo: 'bool', w: '50px' }, { campo: 'obs', rot: 'Observação', tipo: 'text' }],
+            () => ({ padrao: '', familia: '', valor_cabo: '', secao: '', nivel: '', ativa: true, obs: '' }),
+            txt => {
+                if (!DC || !AC) return 'dicionário indisponível';
+                const dic = st.cfg.dicionario_cabos, r = AC.interpretar(txt, dic), p = r.itens.find(i => !i.neutro) || r.itens[0];
+                if (!p) return 'nada reconhecido' + (r.erros.length ? ' — ' + esc(r.erros.join('; ')) : '');
+                const [li] = DC.linha(dic, p.ativo), neutro = r.itens.find(i => i.neutro), tens = r.tensao ? Number(r.tensao.replace(',', '.')) : null;
+                const nivel = tens !== null ? (tens > 1 ? 'MT' : 'BT') : (DC.nivelPadrao(dic, p.ativo) || 'BT'), sec = DC.secao(dic, p.ativo);
+                return `código <b style="color:#79c0ff">${esc(p.ativo)}</b> · ${p.fases} fase(s)${neutro ? ' · neutro <b>' + esc(neutro.ativo) + '</b>' : ''} · ${nivel}${sec !== null ? ' · ' + sec + ' mm²' : ''}${DC.valorCabo(dic, p.ativo) ? ' · valor <b>' + esc(DC.valorCabo(dic, p.ativo)) + '</b>' : ''} · ${li === null ? 'nenhuma linha do dicionário casa' : 'linha #' + (li + 1)}`;
+            },
+            '<b>O que esta tabela diz:</b> o que cada cabo <b>é</b> (família, valor de cabo, seção para o "maior primeiro", nível e fases quando o texto não traz, apelidos e neutro). Vazia = regras de Pernambuco. A <b>Tabela de Cabos</b> segue dizendo em quais estruturas ele entra. A primeira linha que casa vale.',
+            'dicionario_cabos');
     }
 
     function abaCabos(corpo) {

@@ -5,6 +5,7 @@
  */
 (function (raiz) {
     'use strict';
+    const DC = (typeof module !== 'undefined' && module.exports) ? require('./dicionario_cabos.js') : raiz.DicionarioCabos;   // TASK-173
     const RE_SEPARA = /^(.*\S)\s+(\d+(?:[.,]\d+)?)\s*[mM]?$/;
     const RE_TENSAO = /\s*[-+]\s*(\d+(?:[.,]\d+)?)\s*KV\s*$/i;      // 13,8kV ou 13.8KV
     const RE_SOLTO = /^[(\[]\s*([A-Z]\w*)\s*[)\]]$/;
@@ -21,18 +22,29 @@
         return m ? [m[1].trim(), m[2]] : [t, null];
     }
 
-    function ehNotacao(texto) {
-        const r = separar(texto)[0].toUpperCase();
+    function semTensao(r) { const m = r.match(RE_TENSAO); return m ? r.slice(0, m.index).trim() : r; }
+    // TASK-173: com dicionário, o código do rótulo ("3xALU-50(35)" → "ALU-50") é qualquer texto que uma linha do dicionário reconheça.
+    const RE_CODIGO_DIC = /^(?:(\d)[xX])?([^()\s]+)(?:\(([^)]*)\))?$/;
+    function porDicionario(rotulo, dic, solta) {
+        if (!dic || !DC) return null;
+        const c = rotulo.replace(/ /g, '').match(RE_CODIGO_DIC);
+        return c && DC.reconheceCodigo(dic, c[2], !!solta) ? c : null;
+    }
+
+    function ehNotacao(texto, dic) {
+        let r = separar(texto)[0].toUpperCase();
         if (!r) return false;
-        return RE_MARCA.test(r) || RE_CURTO.test(r) || RE_NUMERO_SOZINHO.test(r);
+        if (RE_MARCA.test(r) || RE_CURTO.test(r) || RE_NUMERO_SOZINHO.test(r)) return true;
+        if (dic && DC) { r = semTensao(r); return DC.apelido(dic, r)[0] || porDicionario(r, dic, true) !== null; }
+        return false;
     }
 
     const num = t => parseFloat(String(t).replace(',', '.'));
 
-    function neutroDe(codigo, valor) {
+    function neutroDe(codigo, valor, dic) {
         const v = valor.trim().toUpperCase();
         if (!v) return null;
-        if (v.includes(',')) return 'CAZ' + v;
+        if (v.includes(',')) return dic && DC ? DC.neutroTemplate(dic, codigo).replace('{valor}', v) : 'CAZ' + v;
         if (/^\d+$/.test(v)) {
             const m = codigo.match(RE_SECAO);
             return m ? `${m[1]}${v}${m[3]}` : codigo;
@@ -40,9 +52,9 @@
         return v;
     }
 
-    function interpretar(texto) {
+    function interpretar(texto, dic) {
         const r = { formato: 'antigo', itens: [], tensao: null, erros: [] };
-        if (!ehNotacao(texto)) return r;
+        if (!ehNotacao(texto, dic)) return r;
         r.formato = 'notacao';
         let [rotulo, comp] = separar(texto);
         rotulo = rotulo.toUpperCase();
@@ -55,14 +67,15 @@
         const solto = rotulo.match(RE_SOLTO);
         if (solto) add(solto[1], 1, true);
         else if (RE_POTENCIA.test(rotulo)) add(rotulo.replace(/\s+/g, ''), 1, false);
+        else if (dic && DC && DC.apelido(dic, rotulo)[0]) { const ap = DC.apelido(dic, rotulo)[1]; add(ap, DC.fasesPadrao(dic, ap) || 1, false); }
         else if (RE_NUMERO_SOZINHO.test(rotulo)) add('C' + rotulo, 1, false);
         else {
-            const c = rotulo.replace(/ /g, '').match(RE_CODIGO);
+            const c = rotulo.replace(/ /g, '').match(RE_CODIGO) || porDicionario(rotulo, dic);
             if (!c) { r.erros.push(`rótulo '${rotulo}' não reconhecido (ex.: 3xA35P(7,94)-13,8kV 45 m)`); return r; }
-            const fases = c[1] ? parseInt(c[1], 10) : 1, codigo = c[2];
+            const codigo = c[2], fases = c[1] ? parseInt(c[1], 10) : ((dic && DC ? DC.fasesPadrao(dic, codigo) : null) || 1);
             add(codigo, fases, false);
             if (c[3] !== undefined) {
-                const neutro = neutroDe(codigo, c[3]);
+                const neutro = neutroDe(codigo, c[3], dic);
                 if (neutro === null) r.erros.push(`neutro vazio em '${rotulo}'`);
                 else add(neutro, 1, true);
             }
@@ -75,13 +88,13 @@
         return (p.length ? p : r.itens)[0] || null;
     }
 
-    function fasesDaLinha(texto) {
-        const p = principal(interpretar(texto));
+    function fasesDaLinha(texto, dic) {
+        const p = principal(interpretar(texto, dic));
         return p ? p.fases : 1;
     }
 
-    function prefixoEComprimento(texto) {
-        const p = principal(interpretar(texto));
+    function prefixoEComprimento(texto, dic) {
+        const p = principal(interpretar(texto, dic));
         return p && p.comprimento !== null ? [p.ativo, p.comprimento] : null;
     }
 

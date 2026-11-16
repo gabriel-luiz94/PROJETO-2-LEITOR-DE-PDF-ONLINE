@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-11-16 — TASK-173: dicionário de cabos por projeto (notação, nível, seção, ordem do "maior")
+
+- Lista `dicionario_cabos` na configuração da vinculação (a primeira linha que casa vale): `padrao`, `familia`, `valor_cabo`, `secao` (número ou `$1`, com tabela `awg`), `nivel`, `fases_padrao`, `apelidos`, `neutro` (`CAZ{valor}`), `notacao_solta`, `ativa`. Sem dicionário = regras de Pernambuco como antes.
+- `anotacao_cabos.interpretar(texto, dic)`, `derivar_cabo/extra_cabo(…, dic)`, `secao_cabo(codigo, dic)` e `info_cabo` (`valor_cabo` do dicionário quando a Tabela de Cabos não tem; `secao` no info) consultam o dicionário; `ordem_maior` sem valor próprio usa a ordem dos valores do dicionário. Paridade Python = JS testada.
+- `notacao_solta`: sem ela, um código do dicionário só vira notação quando o texto traz Nx, tensão ou parênteses (o formato antigo `CAA2 ABC 35 m` não muda).
+- Aba "Dicionário de cabos" no modal Vinculação (editor de tabela + "Testar um texto"). O dicionário do 081 (`data/pacotes/081/dicionario_cabos.json`) dá o mesmo resultado do código fixo (testado).
+
+---
+
 ## 2026-11-15 — TASK-180: Montar Orçamento sempre recalcula; resultado gravado só volta ao abrir o projeto
 
 - Substitui a restauração da TASK-154 (payload igual → restaurava o resultado do `.obra`, mesmo com base nova). Agora `montarOrcamento` sempre chama `/api/orcamento/calcular`; `assinatura` segue gravada no `.obra` (formato igual) mas não decide mais nada.

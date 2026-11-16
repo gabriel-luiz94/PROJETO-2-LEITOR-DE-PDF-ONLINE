@@ -16,6 +16,8 @@ Mesma lógica de static/anotacao_cabos.js (paridade testada em tests/test_anotac
 """
 import re
 
+from services import dicionario_cabos as dc
+
 # `\s`/`trim` do JavaScript (inclui BOM e NBSP), `\d`/`\w` só ASCII e `$` só no fim da string: assim a paridade com static/anotacao_cabos.js vale
 # até para texto estranho (testada com ruído em tests/test_anotacao_cabos.py).
 _WS = "\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
@@ -44,35 +46,56 @@ def _separar(texto: str):
     return (_trim(m.group(1)), m.group(2)) if m else (t, None)
 
 
-def eh_notacao(texto) -> bool:
-    """A linha usa a notação do LABEL (e não o formato antigo ATIVO FASE COMPRIMENTO)?"""
+def _sem_tensao(r: str) -> str:
+    m = _RE_TENSAO.search(r)
+    return _trim(r[:m.start()]) if m else r
+
+
+# TASK-173: com dicionário, o código do rótulo ("3xALU-50(35)" → "ALU-50") é qualquer texto que uma linha do dicionário reconheça.
+_RE_CODIGO_DIC = re.compile(r"^(?:([0-9])[xX])?([^()\s]+)(?:\(([^)]*)\))?\Z", _A)
+
+
+def _por_dicionario(rotulo: str, dic, solta=False):
+    if not dic:
+        return None
+    c = _RE_CODIGO_DIC.match(rotulo.replace(" ", ""))
+    return c if c and dc.reconhece_codigo(dic, c.group(2), solta) else None
+
+
+def eh_notacao(texto, dic=None) -> bool:
+    """A linha usa a notação do LABEL (e não o formato antigo ATIVO FASE COMPRIMENTO)? Com `dic` (TASK-173), apelidos e códigos do dicionário também contam."""
     rotulo, _ = _separar(texto)
     r = rotulo.upper()
     if not r:
         return False
-    return bool(_RE_MARCA.search(r) or _RE_CURTO.match(r) or _RE_NUMERO_SOZINHO.match(r))
+    if _RE_MARCA.search(r) or _RE_CURTO.match(r) or _RE_NUMERO_SOZINHO.match(r):
+        return True
+    if dic:
+        r = _sem_tensao(r)
+        return dc.apelido(dic, r)[0] or _por_dicionario(r, dic, True) is not None
+    return False
 
 
 def _num(txt) -> float:
     return float(str(txt).replace(",", "."))
 
 
-def _neutro_de(codigo: str, valor: str):
+def _neutro_de(codigo: str, valor: str, dic=None):
     v = _trim(valor).upper()
     if not v:
         return None
     if "," in v:
-        return "CAZ" + v
+        return dc.neutro_template(dic, codigo).replace("{valor}", v) if dic else "CAZ" + v
     if re.fullmatch(r"[0-9]+", v, _A):
         m = _RE_SECAO.match(codigo)
         return f"{m.group(1)}{v}{m.group(3)}" if m else codigo
     return v
 
 
-def interpretar(texto) -> dict:
+def interpretar(texto, dic=None) -> dict:
     """{"formato": "notacao"|"antigo", "itens": [{"ativo","fases","comprimento","neutro"}], "tensao": str|None, "erros": [msg]}."""
     r = {"formato": "antigo", "itens": [], "tensao": None, "erros": []}
-    if not eh_notacao(texto):
+    if not eh_notacao(texto, dic):
         return r
     r["formato"] = "notacao"
     rotulo, comp = _separar(texto)
@@ -93,18 +116,22 @@ def interpretar(texto) -> dict:
         add(solto.group(1), 1, True)
     elif _RE_POTENCIA.match(rotulo):
         add(_RE_ESPACOS.sub("", rotulo), 1, False)
+    elif dic and dc.apelido(dic, rotulo)[0]:
+        add(dc.apelido(dic, rotulo)[1], dc.fases_padrao(dic, dc.apelido(dic, rotulo)[1]) or 1, False)
     elif _RE_NUMERO_SOZINHO.match(rotulo):
         add("C" + rotulo, 1, False)
     else:
         c = _RE_CODIGO.match(rotulo.replace(" ", ""))
         if not c:
+            c = _por_dicionario(rotulo, dic)
+        if not c:
             r["erros"].append(f"rótulo '{rotulo}' não reconhecido (ex.: 3xA35P(7,94)-13,8kV 45 m)")
             return r
-        fases = int(c.group(1)) if c.group(1) else 1
         codigo = c.group(2)
+        fases = int(c.group(1)) if c.group(1) else ((dc.fases_padrao(dic, codigo) if dic else None) or 1)
         add(codigo, fases, False)
         if c.group(3) is not None:
-            neutro = _neutro_de(codigo, c.group(3))
+            neutro = _neutro_de(codigo, c.group(3), dic)
             if neutro is None:
                 r["erros"].append(f"neutro vazio em '{rotulo}'")
             else:
@@ -112,16 +139,16 @@ def interpretar(texto) -> dict:
     return r
 
 
-def fases_da_linha(texto) -> int:
+def fases_da_linha(texto, dic=None) -> int:
     """Quantidade de ativos (fases) do cabo principal; 1 se não for notação ou não entender."""
-    r = interpretar(texto)
+    r = interpretar(texto, dic)
     principais = [i for i in r["itens"] if not i["neutro"]] or r["itens"]
     return principais[0]["fases"] if principais else 1
 
 
-def prefixo_e_comprimento(texto):
+def prefixo_e_comprimento(texto, dic=None):
     """Para o vínculo/contadores: (código do cabo principal, comprimento) — None se a linha não for notação ou não tiver comprimento."""
-    r = interpretar(texto)
+    r = interpretar(texto, dic)
     principais = [i for i in r["itens"] if not i["neutro"]] or r["itens"]
     if not principais or principais[0]["comprimento"] is None:
         return None
