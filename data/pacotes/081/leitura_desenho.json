@@ -1,0 +1,21 @@
+{
+ "formato": "leitura-desenho",
+ "versao_formato": 1,
+ "projeto": "081",
+ "leitura": {
+  "layers_rede_mt": [
+   "REDE_MT"
+  ],
+  "layers_rede_bt": [
+   "REDE_BT"
+  ],
+  "cor_mt": null,
+  "cor_bt": null,
+  "regra": "COR_MANDA",
+  "blocos_poste": [
+   "poste"
+  ],
+  "layers_poste": [],
+  "layers_guia": []
+ }
+}

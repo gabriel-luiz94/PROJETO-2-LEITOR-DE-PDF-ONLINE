@@ -13,6 +13,7 @@ A associação é por proximidade para qualquer texto; quem decide se o texto é
 import math
 from collections import defaultdict
 from config import logger
+from services import leitura_desenho as ld
 from services.dxf_service import _get_entity_base_color
 
 RAIO_ALTURAS = 4          # raio de busca = 4 x altura do texto (pedido: entre 3 e 5)
@@ -21,36 +22,18 @@ MAX_PTS_GEO = 60
 _PROF_BLOCOS = 3
 
 
-def _tipo_pela_cor(hexcor: str):
-    try:
-        r, g, b = int(hexcor[1:3], 16), int(hexcor[3:5], 16), int(hexcor[5:7], 16)
-    except Exception:
-        return None
-    if r >= 170 and g <= 100 and b <= 100:
-        return "MT"
-    if g >= 140 and r <= 120 and b <= 120:
-        return "BT"
-    return None
+def _tipo_pela_cor(hexcor: str, cfg=None):
+    return ld.tipo_pela_cor(hexcor, cfg)
 
 
-def _tipo_pela_layer(layer: str):
-    u = (layer or "").upper()
-    if "REDE_MT" in u:
-        return "MT"
-    if "REDE_BT" in u:
-        return "BT"
-    return None
+def _tipo_pela_layer(layer: str, cfg=None):
+    return ld.tipo_pela_layer(layer, cfg)
 
 
-def classificar_rede(layer: str, hexcor: str):
-    """A cor decide o tipo e a layer confirma. Cor fora de vermelho/verde: vale a layer. Divergência: None (descarta)."""
-    da_layer = _tipo_pela_layer(layer)
-    if da_layer is None:
-        return None
-    da_cor = _tipo_pela_cor(hexcor)
-    if da_cor is None or da_cor == da_layer:
-        return da_layer
-    return None
+def classificar_rede(layer: str, hexcor: str, cfg=None):
+    """Tipo da rede (MT|BT) ou None. Sem `cfg`: a cor decide o tipo e a layer confirma (cor fora de vermelho/verde: vale a layer; divergência: None, descarta).
+    Com `cfg` (TASK-175, configuração de leitura do projeto): layers, cores e regra (COR_MANDA | LAYER_MANDA | SO_LAYER) vêm dela — ver services/leitura_desenho.py."""
+    return ld.classificar_rede(layer, hexcor, cfg)
 
 
 def _pontos(ent):
@@ -77,8 +60,8 @@ def _comprimento(pts):
     return sum(math.dist(pts[i], pts[i + 1]) for i in range(len(pts) - 1))
 
 
-def coletar_geometria(doc) -> dict:
-    """{'redes': [{tipo, layer, pts}], 'postes': [(x, y)], 'guias': [[(x, y), ...]]} — guias ainda sem filtro de tamanho."""
+def coletar_geometria(doc, cfg=None) -> dict:
+    """`cfg` = configuração de leitura do projeto (TASK-175; sem ela, o padrão de Pernambuco). {'redes': [{tipo, layer, pts}], 'postes': [(x, y)], 'guias': [[(x, y), ...]]} — guias ainda sem filtro de tamanho."""
     redes, postes, guias = [], [], []
 
     def varrer(entidades, prof):
@@ -87,7 +70,7 @@ def coletar_geometria(doc) -> dict:
                 tp = ent.dxftype()
                 if tp == "INSERT":
                     nome = str(ent.dxf.name or "")
-                    if "poste" in nome.lower():
+                    if ld.eh_bloco_poste(nome, getattr(ent.dxf, "layer", "") or "", cfg):
                         p = ent.dxf.insert
                         postes.append((float(p.x), float(p.y)))
                     elif prof < _PROF_BLOCOS:
@@ -97,10 +80,10 @@ def coletar_geometria(doc) -> dict:
                     if len(pts) < 2:
                         continue
                     layer = getattr(ent.dxf, "layer", "") or ""
-                    tipo = classificar_rede(layer, _get_entity_base_color(ent, doc)) if tp != "LEADER" else None
+                    tipo = classificar_rede(layer, _get_entity_base_color(ent, doc), cfg) if tp != "LEADER" else None
                     if tipo:
                         redes.append({"tipo": tipo, "layer": layer, "pts": pts})
-                    elif _tipo_pela_layer(layer) is None:
+                    elif ld.pode_ser_guia(layer, cfg):
                         guias.append(pts)
             except Exception as e:     # uma entidade estranha não pode derrubar a extração de texto
                 logger.debug(f"geometria: entidade ignorada ({e})")

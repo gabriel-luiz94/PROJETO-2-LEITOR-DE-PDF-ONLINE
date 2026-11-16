@@ -419,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('file', currentFile);
             // TASK-043: só usada quando o arquivo é .dwg (conversão via CloudConvert); .pdf/.dxf a ignoram.
             const chaveCloudConvert = localStorage.getItem('cloudconvert_api_key') || '';
-            const response = await fetch('/upload', {
+            const response = await fetch('/upload?projeto=' + encodeURIComponent(localStorage.getItem('projeto_selecionado_codigo') || ''), {         // TASK-175: layers/cores de rede do projeto
                 method: 'POST', body: formData,
                 headers: chaveCloudConvert ? { 'X-CloudConvert-Key': chaveCloudConvert } : {}
             });

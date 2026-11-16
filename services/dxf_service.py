@@ -221,7 +221,7 @@ def _process_entity(entity, doc, base_color=None, block_name=None) -> list[dict]
     return rows
 
 
-def extract_dxf_content(doc, com_geometria: bool = False):
+def extract_dxf_content(doc, com_geometria: bool = False, leitura=None):
     """
     Extrai todo o conteúdo textual do model space, blocos e atributos,
     incluindo a identificação dos nomes dos blocos.
@@ -274,7 +274,7 @@ def extract_dxf_content(doc, com_geometria: bool = False):
     geometria = None
     try:
         from services.dxf_geometria import coletar_geometria, associar_textos, geometria_de_fundo
-        geo = coletar_geometria(doc)
+        geo = coletar_geometria(doc, leitura)                                                      # TASK-175: layers/cores de rede do projeto (None = Pernambuco)
         associar_textos(all_rows, geo)
         geometria = geometria_de_fundo(geo)
     except Exception as e:

@@ -26,6 +26,15 @@
 
 ---
 
+## 2026-11-16 — TASK-175: leitura do desenho (DXF) configurável por projeto: layers e cores de rede
+
+- A configuração de leitura do projeto (`plugin_leitura_config`, a mesma do plugin do nanoCAD: `layers_rede_mt`, `layers_rede_bt`, `blocos_poste`, `layers_poste`, `layers_guia`) agora também vale na extração do DXF no servidor: `classificar_rede`, postes e guias seguem a configuração; sem ela, o padrão de Pernambuco (idêntico ao anterior, testado).
+- Campos novos opcionais: `cor_mt`/`cor_bt` (ACI, `#RRGGBB`, faixa RGB ou lista) e `regra` (`COR_MANDA` padrão | `LAYER_MANDA` | `SO_LAYER`; `cor_confirma: false` do plugin = `SO_LAYER`). Layer: "contém", `=NOME` exato ou curinga (`MT_*`).
+- `/upload` e `/extract-local` aceitam `?projeto=<código>` (a tela envia o projeto selecionado). Aba "Desenho" no modal Vinculação com "Testar" (layer + cor → MT/BT/descartada).
+- Limite: o código do plugin (C#) não foi alterado; ao salvar a leitura pelo plugin, `cor_mt`, `cor_bt` e `regra` ainda não são reenviados por ele (ConfigLeitura.cs só conhece os campos antigos).
+
+---
+
 ## 2026-11-15 — TASK-180: Montar Orçamento sempre recalcula; resultado gravado só volta ao abrir o projeto
 
 - Substitui a restauração da TASK-154 (payload igual → restaurava o resultado do `.obra`, mesmo com base nova). Agora `montarOrcamento` sempre chama `/api/orcamento/calcular`; `assinatura` segue gravada no `.obra` (formato igual) mas não decide mais nada.

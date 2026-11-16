@@ -843,3 +843,7 @@ No modal **Vinculação** há a aba **Dicionário de cabos**: cada linha diz o q
 ## Convenção de postes (TASK-174)
 
 No modal **Vinculação**, a aba **Postes** diz o que é poste na linha de Outros: os **tipos** (código e letra da notação compacta), as **formas de escrever** o poste (a primeira é o nome oficial; use `{tipo}`, `{sufixo}`, `{altura}`, `{esforco}`), a notação compacta e as faixas de altura e de dígitos do esforço. **Sem tabela, vale a de Pernambuco** (`DT11/600`, `11600D`). Exemplo de outra concessionária: formato `{tipo}{altura}-{esforco}` com o tipo `P` reconhece `P11-400, N3` e passa o parâmetro `poste` para a N3. Use **Testar um nome** para conferir. Se altura e esforço estiverem colados (`11600D`), o poste que existe na base decide a separação; sem base, valem as faixas.
+
+## Leitura do desenho: layers e cores de rede (TASK-175)
+
+No modal **Vinculação**, a aba **Desenho** diz quais **layers** e **cores** do DXF são rede **MT** e **BT** (os mesmos campos do plugin do nanoCAD). Layer: o nome **contém** o trecho; `=NOME` exige o nome exato; `MT_*` é curinga. Cor: número ACI (1 = vermelho), `#RRGGBB` ou faixa RGB. **Regra:** `COR_MANDA` (padrão: a layer confirma a cor e divergência descarta a linha), `LAYER_MANDA` (a layer decide; sem layer de rede, vale a cor) ou `SO_LAYER` (a cor é ignorada). **Sem configuração, vale Pernambuco** (REDE_MT/REDE_BT, vermelho = MT, verde = BT). Use **Testar** (layer + cor) e **Salvar leitura do desenho**.
