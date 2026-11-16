@@ -39,7 +39,7 @@ def _config_salva(projeto_codigo: str):
             res = supabase.table("vinculacao_config").select("config_json").eq("projeto_codigo", projeto_codigo).execute()
             if res.data:
                 cfg = json.loads(res.data[0]["config_json"])
-                if isinstance(cfg, dict) and (cfg.get("cabos") or cfg.get("estruturas") or cfg.get("scripts")):
+                if isinstance(cfg, dict) and (cfg.get("cabos") or cfg.get("estruturas") or cfg.get("scripts") or cfg.get("dicionario_cabos") or cfg.get("postes")):
                     return cfg
         except Exception as e:
             logger.warning(f"Falha ao buscar vinculacao_config no Supabase: {e}")
@@ -55,6 +55,28 @@ def _config_salva(projeto_codigo: str):
                 return cfg
         except Exception:
             pass
+    return None
+
+
+def postes_do_projeto(nome_ou_codigo: str):
+    """TASK-174: a convenção de postes (tabela `postes`) salva para o projeto — pelo código ("081") ou pelo nome ("PERNAMBUCO") —; None = a de Pernambuco."""
+    chave = str(nome_ou_codigo or "").strip()
+    if not chave:
+        return None
+    codigos = [chave]
+    conn = get_connection()
+    try:
+        r = conn.execute("SELECT codigo FROM projetos WHERE upper(nome) = ?", (chave.upper(),)).fetchone()
+        if r:
+            codigos.append(r[0])
+    except Exception:  # noqa: BLE001
+        pass
+    finally:
+        conn.close()
+    for c in codigos:
+        cfg = _config_salva(c)
+        if isinstance(cfg, dict) and isinstance(cfg.get("postes"), dict):
+            return cfg["postes"]
     return None
 
 

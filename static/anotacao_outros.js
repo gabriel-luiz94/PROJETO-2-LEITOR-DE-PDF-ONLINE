@@ -7,52 +7,18 @@
 (function (raiz) {
     'use strict';
     const AP = (typeof module !== 'undefined' && module.exports) ? require('./ativo_parametros.js') : raiz.AtivoParametros;
-    const SUFIXO_PARA_TIPO = { D: 'DT', R: 'RC', F: 'CV', FV: 'FV' };
-    const TIPO_PARA_SUFIXO = { DT: 'D', RC: 'R', CV: 'F', FV: 'FV' };
-    const ALTURA_MIN = 7, ALTURA_MAX = 16;
-    const RE_COMPACTO = /^(\d+)(FV|D|R|F)$/i;
-    const RE_POSTE = /^(DT|RC|CV|FV)(\d+)\/(\d+)$/;
+    const CP = (typeof module !== 'undefined' && module.exports) ? require('./convencao_postes.js') : raiz.ConvencaoPostes;          // TASK-174
     const RE_QTD = /^\*?\d+(?:[.,]\d+)?$/;
     const RE_QTD_ANTIGA = /^\*?\d+(?:[.,]\d+)?[-xX][A-Za-z(].*$/;
     const RE_QTD_CLASSICA = /^[*-]?\d+(?:[.,]\d+)?[Xx-].+$/;          // token do formato antigo (qtd-ativo): decide entre o formato antigo e o compacto numa linha sem vírgula+espaço
     const txt = t => String(t == null ? '' : t);
 
-    const RE_POSTE_ABREV = /^(R|D|F)(\d+)\/(\d+)$/;
-
-    /** Nome de poste → notação compacta, ou null (TASK-124): DT11/600 · RC12/1000 (formato antigo), R12/1000 (abreviação) e o próprio compacto (121000R,
-     *  quando o poste está cadastrado na base com o nome compacto como ATIVO). Mesma lógica de services/anotacao_outros.py. */
-    function compactoDoPoste(nome) {
-        let t = txt(nome).trim().toUpperCase(), m = t.match(RE_POSTE);
-        if (m) return `${m[2]}${m[3]}${TIPO_PARA_SUFIXO[m[1]]}`;
-        m = t.match(RE_POSTE_ABREV);
-        if (m) t = `${m[2]}${m[3]}${m[1]}`;
-        if (RE_COMPACTO.test(t)) { const c = compactoParaPoste(t); if (c && !c.erro) return t; }
-        return null;
-    }
-
-    function ehPoste(nome) { return compactoDoPoste(nome) !== null; }
-
-    function posteParaCompacto(nome) { return compactoDoPoste(nome); }
-
-    function compactoParaPoste(token, postes) {
-        const t = txt(token).trim(), m = t.match(RE_COMPACTO);
-        if (!m) return null;
-        const digitos = m[1], tipo = SUFIXO_PARA_TIPO[m[2].toUpperCase()], cands = [];
-        for (const hl of [2, 1]) {
-            const h = digitos.slice(0, hl), e = digitos.slice(hl);
-            if (e.length < 3 || e.length > 4 || h.startsWith('0') || e.startsWith('0')) continue;
-            cands.push([parseInt(h, 10), `${tipo}${parseInt(h, 10)}/${parseInt(e, 10)}`]);
-        }
-        const r = { ativo: null, compacto: t.toUpperCase(), erro: null };
-        if (postes && postes.size) {
-            const naBase = cands.map(c => c[1]).filter(n => postes.has(n));
-            if (naBase.length === 1) { r.ativo = naBase[0]; return r; }
-        }
-        const plausiveis = cands.filter(c => c[0] >= ALTURA_MIN && c[0] <= ALTURA_MAX).map(c => c[1]);
-        if (plausiveis.length === 1) r.ativo = plausiveis[0];
-        else r.erro = !plausiveis.length ? `não foi possível separar altura e esforço de '${t.toUpperCase()}'` : `'${t.toUpperCase()}' é ambíguo (${plausiveis.join(' ou ')})`;
-        return r;
-    }
+    // TASK-174: o que é poste vem da convenção de postes do projeto (`ctx.convencao_postes`; sem ela, a de Pernambuco) — a lógica mora em convencao_postes.js.
+    /** Nome de poste → notação compacta, ou null (DT11/600 → 11600D; o próprio compacto quando se resolve). Mesma lógica de services/anotacao_outros.py. */
+    function compactoDoPoste(nome, conv) { return CP.compactoDoPoste(nome, conv); }
+    function ehPoste(nome, conv) { return CP.ehPoste(nome, conv); }
+    function posteParaCompacto(nome, conv) { return CP.compactoDoPoste(nome, conv); }
+    function compactoParaPoste(token, postes, conv) { return CP.compactoParaPoste(token, postes, conv); }
 
     /** Vírgulas fora de parênteses: [[posição, 'separador'|'decimal'|'invalida']]. */
     function virgulas(texto) {
@@ -82,7 +48,7 @@
         ctx = ctx || {};
         if (ctx.nomes && ctx.nomes.has(base)) return [base + params, null];
         if (ctx.apelidos && Object.prototype.hasOwnProperty.call(ctx.apelidos, base)) return [ctx.apelidos[base] + params, null];
-        const c = compactoParaPoste(base, ctx.postes);
+        const c = compactoParaPoste(base, ctx.postes, ctx.convencao_postes);
         if (c !== null) return c.erro ? [base + params, c.erro] : [c.ativo + params, null];
         return [base + params, null];
     }
@@ -108,7 +74,7 @@
 
     function resolveParaPoste(token, ctx) {
         const [nome, erro] = resolverNome(token, ctx);
-        return erro === null && ehPoste(nome) && !/^\*?\d+(?:[.,]\d+)?[-xX]/.test(token);
+        return erro === null && ehPoste(nome, ctx && ctx.convencao_postes) && !/^\*?\d+(?:[.,]\d+)?[-xX]/.test(token);
     }
 
     function interpretarLinha(texto, operacao, classico, ctx) {
@@ -155,8 +121,9 @@
         const assinaturas = (ctx && ctx.assinaturas) || {};
         const parametrosLinha = (ctx && ctx.parametros_linha) || {}, parametrosEstrutura = (ctx && ctx.parametros_estrutura) || {};      // TASK-096: por estrutura da linha (N1 e N4 não se misturam)
         let posteAtual = null;
+        const convPostes = ctx && ctx.convencao_postes;
         for (const it of itens) {
-            if (ehPoste(it.ativo)) posteAtual = posteParaCompacto(it.ativo);
+            if (ehPoste(it.ativo, convPostes)) posteAtual = posteParaCompacto(it.ativo, convPostes);
             else {
                 const parametrosDoItem = parametrosEstrutura[AP.nomeBase(it.ativo)] || parametrosLinha;
                 Object.keys(parametrosDoItem).forEach(nome => { [].concat(parametrosDoItem[nome]).forEach((v, k) => { it.ativo = comParam(it.ativo, nome, v, assinaturas, k); }); });   // TASK-084; TASK-096: lista = um valor por repetição do parâmetro
@@ -164,7 +131,7 @@
             }
         }
         if (op === 'M' || op === '*M') {
-            itens = itens.filter(i => !ehPoste(AP.nomeBase(i.ativo))).map(i => Object.assign({}, i, { operacao: op === 'M' ? 'I' : '*I' }));
+            itens = itens.filter(i => !ehPoste(AP.nomeBase(i.ativo), convPostes)).map(i => Object.assign({}, i, { operacao: op === 'M' ? 'I' : '*I' }));
         }
         r.itens = itens;
         return r;
@@ -178,7 +145,7 @@
         return r.itens.map(i => `${fmt(i.qtd)}-${i.ativo.replace(/[(].*$/, '')}`).join(' ');
     }
 
-    function contextoDaBase(linhas, projeto) {
+    function contextoDaBase(linhas, projeto, convencaoPostes) {
         const p = txt(projeto).trim().toUpperCase(), nomes = new Set(), postes = new Set();
         for (const l of linhas || []) {
             const lp = txt(l.projeto).trim().toUpperCase();
@@ -188,19 +155,19 @@
             const a = AP.analisarCelulaBase(cel);
             if (a.erro || !a.base) continue;
             nomes.add(a.base);
-            if (ehPoste(a.base)) postes.add(a.base);
+            if (ehPoste(a.base, convencaoPostes)) postes.add(a.base);
         }
-        return { apelidos: AP.apelidosDoProjeto(linhas, projeto), nomes, postes, assinaturas: AP.assinaturasDoProjeto(linhas, projeto) };
+        return { apelidos: AP.apelidosDoProjeto(linhas, projeto), nomes, postes, assinaturas: AP.assinaturasDoProjeto(linhas, projeto), convencao_postes: convencaoPostes };
     }
 
     /** TASK-094: nomes de TODOS os itens que não são poste, na ordem da linha (`9400D, N1, N4` → N1, N4). */
     function codigosEstruturas(texto, classico, ctx) {
-        return interpretarLinha(texto, '', classico, ctx).itens.map(i => AP.nomeBase(i.ativo)).filter(n => !ehPoste(n));
+        return interpretarLinha(texto, '', classico, ctx).itens.map(i => AP.nomeBase(i.ativo)).filter(n => !ehPoste(n, ctx && ctx.convencao_postes));
     }
 
     function codigoEstrutura(texto, classico, ctx) {
         const r = interpretarLinha(texto, '', classico, ctx);
-        for (const i of r.itens) if (!ehPoste(AP.nomeBase(i.ativo))) return AP.nomeBase(i.ativo);
+        for (const i of r.itens) if (!ehPoste(AP.nomeBase(i.ativo), ctx && ctx.convencao_postes)) return AP.nomeBase(i.ativo);
         return '';
     }
 

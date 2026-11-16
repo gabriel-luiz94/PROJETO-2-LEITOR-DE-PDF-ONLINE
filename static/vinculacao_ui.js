@@ -129,7 +129,7 @@
         const a = analise();
         const pend = Object.values(a.cabos).filter(c => c.estado !== 'gr').length + Object.values(a.estruturas).filter(e => e.estado === 'k' || e.estado === 'pu').length;
         overlay.innerHTML = '';
-        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length],
+        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''],
             ['script', 'Script', st.cfg.scripts.length], ['mapa', 'Mapa', '']];
         const vz = el('div', { class: 'vz' }, [
             el('div', { class: 'vz-top' }, [el('h3', { text: '🔗 Vinculação cabo ⇄ estrutura' }), el('span', { class: 'vz-chip', text: 'Projeto ' + host.projeto() }),
@@ -139,7 +139,7 @@
             rodape()]);
         overlay.appendChild(vz);
         const corpo = vz.querySelector('#vz-corpo');
-        ({ vinculo: abaVinculo, cabos: abaCabos, estruturas: abaEstruturas, dicionario: abaDicionario, script: abaScript, mapa: abaMapa })[st.aba](corpo, a);
+        ({ vinculo: abaVinculo, cabos: abaCabos, estruturas: abaEstruturas, dicionario: abaDicionario, postes: abaPostes, script: abaScript, mapa: abaMapa })[st.aba](corpo, a);
     }
 
     function rodape() {
@@ -440,6 +440,48 @@
             },
             '<b>O que esta tabela diz:</b> o que cada cabo <b>é</b> (família, valor de cabo, seção para o "maior primeiro", nível e fases quando o texto não traz, apelidos e neutro). Vazia = regras de Pernambuco. A <b>Tabela de Cabos</b> segue dizendo em quais estruturas ele entra. A primeira linha que casa vale.',
             'dicionario_cabos');
+    }
+
+    /** TASK-174: convenção de postes do projeto (o que é poste na linha de Outros: tipos, formatos de nome, notação compacta e faixas). Sem tabela, vale a de Pernambuco. */
+    function abaPostes(corpo) {
+        const CP = raiz.ConvencaoPostes;
+        if (!CP) { corpo.appendChild(el('div', { class: 'vz-nota', text: 'Convenção de postes indisponível nesta tela.' })); return; }
+        const caixa = 'background:#010409;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;padding:5px 8px;font:12px Consolas,monospace';
+        corpo.appendChild(el('div', { class: 'vz-nota', html: '<b>O que esta tela diz:</b> o que é <b>poste</b> na linha de Outros — os <b>tipos</b> (código e letra da notação compacta), as <b>formas de escrever</b> o poste (a primeira é o nome oficial) e as faixas de altura e de dígitos do esforço usadas para separar <code>11600D</code> em altura e esforço. Use <code>{tipo}</code>, <code>{sufixo}</code>, <code>{altura}</code> e <code>{esforco}</code>. <b>Sem tabela, vale a de Pernambuco.</b>' }));
+        if (!st.cfg.postes) {
+            corpo.appendChild(el('div', { style: 'margin:10px 0' }, [el('span', { style: 'color:#8b949e', text: 'Este projeto usa a convenção de Pernambuco (DT/RC/CV/FV, 11600D). ' }),
+                el('button', { class: 'vz-btn', text: 'Personalizar a partir do padrão', onclick: () => { st.cfg.postes = JSON.parse(JSON.stringify(CP.PADRAO)); marcarSujo(); render(); } })]));
+        } else {
+            const c = st.cfg.postes;
+            if (!Array.isArray(c.tipos)) c.tipos = [];
+            const sc = el('div', { class: 'vz-scroll' }), tb = el('table', { class: 'vz-tb' });
+            tb.appendChild(el('thead', {}, [el('tr', {}, ['Código', 'Letra (compacto)', 'Nome', ''].map(x => el('th', { text: x })))]));
+            const tbody = el('tbody');
+            c.tipos.forEach((tp, i) => tbody.appendChild(el('tr', {}, [celula(tp, 'codigo', 'text', 'DT'), celula(tp, 'sufixo', 'text', 'D'), celula(tp, 'nome', 'text', 'duplo T')].map(x => el('td', {}, [x]))
+                .concat([el('td', {}, [el('button', { class: 'x', text: '✖', title: 'Excluir o tipo', onclick: () => { c.tipos.splice(i, 1); marcarSujo(); render(); } })])]))));
+            tb.appendChild(tbody); sc.appendChild(tb); corpo.appendChild(sc);
+            const ln = (rot, ...x) => el('div', { style: 'display:flex;gap:8px;align-items:center;margin-top:8px' }, [el('span', { style: 'min-width:170px;color:#8b949e', text: rot })].concat(x));
+            const faixa = (campo, rot) => ln(rot, ...[0, 1].map(k => el('input', { type: 'number', min: '0', style: 'width:70px;' + caixa, value: Array.isArray(c[campo]) ? c[campo][k] : '',
+                onchange: e => { const v = Array.isArray(c[campo]) ? c[campo].slice() : [0, 0]; v[k] = parseInt(e.target.value, 10); c[campo] = v; marcarSujo(); } })));
+            corpo.appendChild(el('div', { style: 'margin-top:8px' }, [el('button', { class: 'vz-btn', text: '＋ Tipo', onclick: () => { c.tipos.push({ codigo: '', sufixo: '', nome: '' }); marcarSujo(); render(); } })]));
+            corpo.appendChild(ln('Formas de escrever (uma por linha)', el('textarea', { rows: '3', style: 'flex:1;' + caixa, text: (c.formatos || []).join('\n'), placeholder: '{tipo}{altura}/{esforco}',
+                onchange: e => { c.formatos = e.target.value.split('\n').map(trim).filter(Boolean); marcarSujo(); } })));
+            corpo.appendChild(ln('Notação compacta', el('input', { type: 'text', style: 'width:260px;' + caixa, value: c.compacto || '', placeholder: '{altura}{esforco}{sufixo}', onchange: e => { c.compacto = e.target.value; marcarSujo(); } })));
+            corpo.appendChild(faixa('altura', 'Altura (m): mínimo · máximo'));
+            corpo.appendChild(faixa('esforco_digitos', 'Dígitos do esforço: mín · máx'));
+            const erros = CP.validar(c);
+            if (erros.length) corpo.appendChild(el('div', { style: 'color:#f85149;margin-top:8px', html: erros.map(esc).join('<br>') }));
+            corpo.appendChild(el('div', { style: 'margin-top:10px' }, [el('button', { class: 'vz-btn', text: 'Voltar ao padrão de Pernambuco', onclick: () => { if (raiz.confirm('Remover a convenção deste projeto e voltar ao padrão de Pernambuco?')) { delete st.cfg.postes; marcarSujo(); render(); } } })]));
+        }
+        const saida = el('span', { style: 'color:#8b949e;flex:1' });
+        const mostrar = v => {
+            if (!v) { saida.innerHTML = ''; return; }
+            const r = CP.testar(v, st.cfg.postes || undefined);
+            saida.innerHTML = r.poste ? `<b style="color:#3fb950">poste</b> · tipo ${esc(r.tipo)} · nome <b style="color:#79c0ff">${esc(r.ativo)}</b> · compacto <b>${esc(r.compacto)}</b>` : (r.erro ? `<b style="color:#f85149">${esc(r.erro)}</b>` : 'não é poste (entra como estrutura)');
+        };
+        corpo.appendChild(el('div', { style: 'display:flex;gap:8px;margin-top:12px;align-items:center' }, [el('input', { type: 'text', style: 'width:280px;' + caixa, placeholder: 'Testar um nome: DT11/600 ou 11600D', value: st.teste.postes || '',
+            oninput: e => { st.teste.postes = e.target.value; mostrar(e.target.value); } }), saida]));
+        mostrar(st.teste.postes);
     }
 
     function abaCabos(corpo) {

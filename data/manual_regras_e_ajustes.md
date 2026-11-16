@@ -839,3 +839,7 @@ A pesquisa da Base de Orçamento agora é uma **barra fixa no topo da tela** (el
 ## Dicionário de cabos (TASK-173)
 
 No modal **Vinculação** há a aba **Dicionário de cabos**: cada linha diz o que um cabo **é** (família, valor de cabo, seção em mm² para o "maior primeiro", nível MT/BT e fases quando o texto não traz, apelidos e como montar o neutro). A primeira linha que casa vale. **Sem linhas, o programa usa as regras de Pernambuco** (C, A…P, S/W, PB, RAMA, CAZ). Use **Testar um texto** (ex.: `3xA35P(7,94)-13,8kV 45 m`) para ver código, fases, neutro, nível, seção, valor e a linha usada. Marque **Código solto** quando o código sozinho (ex.: `ALU-50 30 m`) já deve valer como notação do LABEL. A Tabela de Cabos continua dizendo em quais estruturas o cabo entra.
+
+## Convenção de postes (TASK-174)
+
+No modal **Vinculação**, a aba **Postes** diz o que é poste na linha de Outros: os **tipos** (código e letra da notação compacta), as **formas de escrever** o poste (a primeira é o nome oficial; use `{tipo}`, `{sufixo}`, `{altura}`, `{esforco}`), a notação compacta e as faixas de altura e de dígitos do esforço. **Sem tabela, vale a de Pernambuco** (`DT11/600`, `11600D`). Exemplo de outra concessionária: formato `{tipo}{altura}-{esforco}` com o tipo `P` reconhece `P11-400, N3` e passa o parâmetro `poste` para a N3. Use **Testar um nome** para conferir. Se altura e esforço estiverem colados (`11600D`), o poste que existe na base decide a separação; sem base, valem as faixas.

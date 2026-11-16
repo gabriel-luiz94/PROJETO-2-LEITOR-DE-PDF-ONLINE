@@ -278,7 +278,8 @@ def calcular_orcamento(req: OrcamentoRequest, request: Request):
     user = getattr(request.state, "user", None)
     user_id = user["user_id"] if user else None
     merged_rows = get_merged_orcamento(user_id)
-    return processar_calculo(req.cabos, req.outros, req.projeto, merged_rows, obra=req.obra)
+    from routers.vinculacao_config import postes_do_projeto
+    return processar_calculo(req.cabos, req.outros, req.projeto, merged_rows, obra=req.obra, convencao_postes=postes_do_projeto(req.projeto))
 
 
 @router.post("/exportar-xlsx")

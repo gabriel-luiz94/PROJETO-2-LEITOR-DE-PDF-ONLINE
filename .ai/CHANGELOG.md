@@ -17,6 +17,15 @@
 
 ---
 
+## 2026-11-16 — TASK-174: convenção de postes por projeto
+
+- Tabela `postes` na configuração da vinculação: `tipos` (`codigo`, `sufixo`, `nome`), `formatos` (formas de escrever o poste; a 1ª é o nome oficial; `{tipo}`, `{sufixo}`, `{altura}`, `{esforco}`), `altura` [mín, máx], `esforco_digitos` [mín, máx] e `compacto`. Sem tabela = Pernambuco (DT/RC/CV/FV, `11600D`), idêntico ao que era fixo.
+- `anotacao_outros` (Python e JS) lê a convenção por `ctx.convencao_postes` (`contexto_da_base(..., convencao_postes)`); a poste vira o parâmetro `poste` das estruturas da linha como antes (a ambiguidade de altura/esforço continua resolvida pela base).
+- `/api/orcamento/calcular` e o plugin resolvem a convenção do projeto (`postes_do_projeto`); a tela do Resumo usa a da configuração carregada. Aba "Postes" no modal Vinculação com "Testar um nome".
+- Limite: os modos autônomos (`services/autonomo`) ainda usam o padrão de Pernambuco.
+
+---
+
 ## 2026-11-15 — TASK-180: Montar Orçamento sempre recalcula; resultado gravado só volta ao abrir o projeto
 
 - Substitui a restauração da TASK-154 (payload igual → restaurava o resultado do `.obra`, mesmo com base nova). Agora `montarOrcamento` sempre chama `/api/orcamento/calcular`; `assinatura` segue gravada no `.obra` (formato igual) mas não decide mais nada.

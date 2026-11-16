@@ -237,6 +237,11 @@ async def serve_anotacao_cabos_js():
     return _serve_js("anotacao_cabos.js")
 
 
+@app.get("/static/convencao_postes.js")
+async def serve_convencao_postes_js():
+    return _serve_js("convencao_postes.js")
+
+
 @app.get("/static/anotacao_outros.js")
 async def serve_anotacao_outros_js():
     return _serve_js("anotacao_outros.js")

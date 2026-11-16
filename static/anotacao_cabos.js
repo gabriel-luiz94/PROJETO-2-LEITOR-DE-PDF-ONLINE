@@ -6,6 +6,9 @@
 (function (raiz) {
     'use strict';
     const DC = (typeof module !== 'undefined' && module.exports) ? require('./dicionario_cabos.js') : raiz.DicionarioCabos;   // TASK-173
+    let dicionarioAtual = null;          // TASK-173: dicionário do projeto aberto na tela (o resumo.js define ao carregar a configuração); parâmetro `dic` explícito sempre vale mais
+    function definirDicionario(dic) { dicionarioAtual = Array.isArray(dic) && dic.length ? dic : null; }
+    const dicDe = dic => (dic === undefined ? dicionarioAtual : dic);
     const RE_SEPARA = /^(.*\S)\s+(\d+(?:[.,]\d+)?)\s*[mM]?$/;
     const RE_TENSAO = /\s*[-+]\s*(\d+(?:[.,]\d+)?)\s*KV\s*$/i;      // 13,8kV ou 13.8KV
     const RE_SOLTO = /^[(\[]\s*([A-Z]\w*)\s*[)\]]$/;
@@ -32,6 +35,7 @@
     }
 
     function ehNotacao(texto, dic) {
+        dic = dicDe(dic);
         let r = separar(texto)[0].toUpperCase();
         if (!r) return false;
         if (RE_MARCA.test(r) || RE_CURTO.test(r) || RE_NUMERO_SOZINHO.test(r)) return true;
@@ -53,6 +57,7 @@
     }
 
     function interpretar(texto, dic) {
+        dic = dicDe(dic);
         const r = { formato: 'antigo', itens: [], tensao: null, erros: [] };
         if (!ehNotacao(texto, dic)) return r;
         r.formato = 'notacao';
@@ -104,7 +109,7 @@
         return m ? num(m[1]) : null;
     }
 
-    const api = { ehNotacao, interpretar, fasesDaLinha, prefixoEComprimento, comprimentoSozinho };
+    const api = { definirDicionario, dicionario: () => dicionarioAtual, ehNotacao, interpretar, fasesDaLinha, prefixoEComprimento, comprimentoSozinho };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.AnotacaoCabos = api;
 })(typeof window !== 'undefined' ? window : globalThis);

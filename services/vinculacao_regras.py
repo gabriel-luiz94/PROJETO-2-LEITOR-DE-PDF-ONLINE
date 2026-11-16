@@ -16,6 +16,7 @@ Estrutura = código do primeiro item que não é poste da linha de Outros (ou o 
 import re
 
 from services import anotacao_cabos as _ac
+from services import convencao_postes as _cp
 from services import dicionario_cabos as _dc
 
 ORDEM_MAIOR_PADRAO = ["C", "P", "A"]
@@ -57,6 +58,8 @@ def normalizar_config(cfg) -> dict:
         c["cabos"] = [r for r in (cfg.get("cabos") or []) if isinstance(r, dict)]
         c["estruturas"] = [r for r in (cfg.get("estruturas") or []) if isinstance(r, dict)]
         c["dicionario_cabos"] = _dc.normalizar(cfg.get("dicionario_cabos"))                              # TASK-173
+        if isinstance(cfg.get("postes"), dict):                                                          # TASK-174: convenção de postes (sem ela, a de Pernambuco)
+            c["postes"] = cfg["postes"]
         om = cfg.get("ordem_maior")
         if isinstance(om, list) and om:
             c["ordem_maior"] = [_trim(x).upper() for x in om]
@@ -86,6 +89,7 @@ def validar_config(cfg) -> list:
     if not isinstance(cfg, dict):
         return ["A configuração precisa ser um objeto."]
     erros.extend(_dc.validar(cfg.get("dicionario_cabos")))                                              # TASK-173
+    erros.extend(_cp.validar(cfg.get("postes")))                                                         # TASK-174
     for tabela, chave in (("cabos", "Cabo"), ("estruturas", "Estrutura")):
         lista = cfg.get(tabela, [])
         if not isinstance(lista, list):

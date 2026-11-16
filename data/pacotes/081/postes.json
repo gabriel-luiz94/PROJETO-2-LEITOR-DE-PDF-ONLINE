@@ -1,0 +1,43 @@
+{
+ "formato": "postes",
+ "versao_formato": 1,
+ "projeto": "081",
+ "postes": {
+  "tipos": [
+   {
+    "codigo": "DT",
+    "sufixo": "D",
+    "nome": "duplo T"
+   },
+   {
+    "codigo": "RC",
+    "sufixo": "R",
+    "nome": "redondo"
+   },
+   {
+    "codigo": "CV",
+    "sufixo": "F",
+    "nome": "concreto"
+   },
+   {
+    "codigo": "FV",
+    "sufixo": "FV",
+    "nome": "fibra de vidro"
+   }
+  ],
+  "formatos": [
+   "{tipo}{altura}/{esforco}",
+   "{sufixo}{altura}/{esforco}",
+   "{altura}{esforco}{sufixo}"
+  ],
+  "altura": [
+   7,
+   16
+  ],
+  "esforco_digitos": [
+   3,
+   4
+  ],
+  "compacto": "{altura}{esforco}{sufixo}"
+ }
+}

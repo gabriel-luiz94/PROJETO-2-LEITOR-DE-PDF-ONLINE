@@ -20,81 +20,39 @@ O "classico" é o leitor do formato antigo de cada chamador (cálculo, Totalizad
 """
 import re
 
+from services import convencao_postes as cp
 from services.ativo_parametros import (
     analisar_celula_base, apelidos_do_projeto, assinaturas_do_projeto, dividir_tokens, literal_de, nome_base,
 )
 
-SUFIXO_PARA_TIPO = {"D": "DT", "R": "RC", "F": "CV", "FV": "FV"}
-TIPO_PARA_SUFIXO = {v: k for k, v in SUFIXO_PARA_TIPO.items()}
-ALTURA_MIN, ALTURA_MAX = 7, 16
-
-_RE_COMPACTO = re.compile(r"^(\d+)(FV|D|R|F)$", re.I)
-_RE_POSTE = re.compile(r"^(DT|RC|CV|FV)(\d+)/(\d+)$")
 _RE_QTD = re.compile(r"^\*?\d+(?:[.,]\d+)?$")
 _RE_QTD_ANTIGA = re.compile(r"^\*?\d+(?:[.,]\d+)?[-xX][A-Za-z(].*$")
 _RE_QTD_CLASSICA = re.compile(r"^[*-]?\d+(?:[.,]\d+)?[Xx-].+$")          # token do formato antigo (qtd-ativo): decide entre o formato antigo e o compacto numa linha sem vírgula+espaço
 
 
-_RE_POSTE_ABREV = re.compile(r"^(R|D|F)(\d+)/(\d+)$")
+# TASK-174: o que é poste (tipos, formatos, compacto, faixas) vem da convenção de postes do projeto (`ctx["convencao_postes"]`; sem ela, a de Pernambuco) —
+# a lógica mora em services/convencao_postes.py (e static/convencao_postes.js); aqui só os nomes de sempre.
+def _compacto_do_poste(nome, conv=None):
+    """Nome de poste → notação compacta, ou None (TASK-124): DT11/600 · R12/1000 · o próprio compacto (121000R) quando se resolve. Formatos conforme a convenção do projeto."""
+    return cp.compacto_do_poste(nome, conv)
 
 
-def _compacto_do_poste(nome):
-    """Nome de poste → notação compacta, ou None. Reconhece (TASK-124): ``DT11/600``/``RC12/1000``/``CV…``/``FV…`` (formato antigo),
-    a abreviação ``R12/1000``/``D11/600``/``F12/1000`` e o próprio compacto (``121000R``) — este quando o poste está cadastrado na base com o
-    nome compacto como ATIVO (e não como DT/RC…), caso em que o nome não é reescrito mas continua sendo um poste."""
-    t = str(nome if nome is not None else "").strip().upper()
-    m = _RE_POSTE.match(t)
-    if m:
-        return f"{m.group(2)}{m.group(3)}{TIPO_PARA_SUFIXO[m.group(1)]}"
-    m = _RE_POSTE_ABREV.match(t)
-    if m:
-        t = f"{m.group(2)}{m.group(3)}{m.group(1)}"
-    if _RE_COMPACTO.match(t):
-        c = compacto_para_poste(t)
-        if c is not None and not c["erro"]:
-            return t
-    return None
+def eh_poste(nome, conv=None) -> bool:
+    """O nome (sem parâmetros) é um poste na convenção do projeto (padrão: DT|RC|CV|FV + altura/esforço, abreviação R/D/F ou notação compacta)?"""
+    return _compacto_do_poste(nome, conv) is not None
 
 
-def eh_poste(nome) -> bool:
-    """O nome (sem parâmetros) é um poste: DT|RC|CV|FV + altura/esforço, a abreviação R/D/F + altura/esforço ou a notação compacta?"""
-    return _compacto_do_poste(nome) is not None
-
-
-def poste_para_compacto(nome):
+def poste_para_compacto(nome, conv=None):
     """DT11/600 → 11600D; 121000R → 121000R (None se não for poste)."""
-    return _compacto_do_poste(nome)
+    return _compacto_do_poste(nome, conv)
 
 
-def compacto_para_poste(token, postes=None):
+def compacto_para_poste(token, postes=None, conv=None):
     """Notação compacta → poste. Retorna None se o token não é compacto; senão {"ativo", "compacto", "erro"}.
 
-    Para separar altura de esforço prefere o poste que EXISTE na base (``postes`` = conjunto de nomes em maiúsculas); sem base, usa
-    alturas 7–16 e esforço de 3–4 dígitos sem zero à esquerda. Ambíguo ou impossível → erro."""
-    t = str(token if token is not None else "").strip()
-    m = _RE_COMPACTO.match(t)
-    if not m:
-        return None
-    digitos, suf = m.group(1), m.group(2).upper()
-    tipo = SUFIXO_PARA_TIPO[suf]
-    cands = []
-    for hl in (2, 1):
-        h, e = digitos[:hl], digitos[hl:]
-        if not 3 <= len(e) <= 4 or h.startswith("0") or e.startswith("0"):
-            continue
-        cands.append((int(h), f"{tipo}{int(h)}/{int(e)}"))
-    r = {"ativo": None, "compacto": t.upper(), "erro": None}
-    if postes:
-        na_base = [n for _, n in cands if n in postes]
-        if len(na_base) == 1:
-            r["ativo"] = na_base[0]
-            return r
-    plausiveis = [n for h, n in cands if ALTURA_MIN <= h <= ALTURA_MAX]
-    if len(plausiveis) == 1:
-        r["ativo"] = plausiveis[0]
-    else:
-        r["erro"] = f"não foi possível separar altura e esforço de '{t.upper()}'" if not plausiveis else f"'{t.upper()}' é ambíguo ({' ou '.join(plausiveis)})"
-    return r
+    Para separar altura de esforço prefere o poste que EXISTE na base (``postes`` = conjunto de nomes em maiúsculas); sem base, usa a faixa de altura e de
+    dígitos do esforço da convenção (padrão: 7–16 m e 3–4 dígitos sem zero à esquerda). Ambíguo ou impossível → erro."""
+    return cp.compacto_para_poste(token, postes, conv)
 
 
 def _virgulas(texto):
@@ -138,7 +96,7 @@ def _resolver_nome(nome, ctx):
         return base + params, None
     if base in (ctx.get("apelidos") or {}):
         return ctx["apelidos"][base] + params, None
-    c = compacto_para_poste(base, ctx.get("postes"))
+    c = compacto_para_poste(base, ctx.get("postes"), ctx.get("convencao_postes"))
     if c is not None:
         if c["erro"]:
             return base + params, c["erro"]
@@ -178,7 +136,7 @@ def _com_param(ativo, nome, valor, assinaturas, k=0):
 def _resolve_para_poste(token, ctx) -> bool:
     """O token sozinho é um poste (compacto ou apelido de um poste da base)?"""
     nome, erro = _resolver_nome(token, ctx)
-    return erro is None and eh_poste(nome) and not re.match(r"^\*?\d+(?:[.,]\d+)?[-xX]", token)
+    return erro is None and eh_poste(nome, (ctx or {}).get("convencao_postes")) and not re.match(r"^\*?\d+(?:[.,]\d+)?[-xX]", token)
 
 
 def interpretar_linha(texto, operacao, classico, ctx=None) -> dict:
@@ -243,9 +201,10 @@ def interpretar_linha(texto, operacao, classico, ctx=None) -> dict:
     parametros_linha = (ctx or {}).get("parametros_linha") or {}
     parametros_estrutura = (ctx or {}).get("parametros_estrutura") or {}        # TASK-096: por estrutura da linha (N1 e N4 não se misturam)
     poste_atual = None
+    conv_postes = (ctx or {}).get("convencao_postes")
     for it in itens:
-        if eh_poste(it["ativo"]):
-            poste_atual = poste_para_compacto(it["ativo"])
+        if eh_poste(it["ativo"], conv_postes):
+            poste_atual = poste_para_compacto(it["ativo"], conv_postes)
         else:
             for nome, valor in (parametros_estrutura.get(nome_base(it["ativo"])) or parametros_linha).items():          # TASK-084: parâmetro que a estrutura recebe do vínculo (ex.: CABO=C); TASK-096: lista = um valor por repetição
                 for k, v in enumerate(valor if isinstance(valor, list) else [valor]):
@@ -254,7 +213,7 @@ def interpretar_linha(texto, operacao, classico, ctx=None) -> dict:
                 it["ativo"] = _com_param(it["ativo"], "POSTE", poste_atual, assinaturas)
     # operação M/*M: poste ignorado, demais itens I/*I
     if op in ("M", "*M"):
-        itens = [dict(i, operacao="I" if op == "M" else "*I") for i in itens if not eh_poste(nome_base(i["ativo"]))]
+        itens = [dict(i, operacao="I" if op == "M" else "*I") for i in itens if not eh_poste(nome_base(i["ativo"]), conv_postes)]
     r["itens"] = itens
     return r
 
@@ -271,7 +230,7 @@ def _fmt(q) -> str:
     return str(int(q)) if float(q).is_integer() else str(q)
 
 
-def contexto_da_base(linhas, projeto) -> dict:
+def contexto_da_base(linhas, projeto, convencao_postes=None) -> dict:
     """Contexto da base do projeto para interpretar_linha: apelidos, nomes oficiais, postes e assinaturas dos parâmetros."""
     p = str(projeto or "").strip().upper()
     nomes, postes = set(), set()
@@ -286,21 +245,22 @@ def contexto_da_base(linhas, projeto) -> dict:
         if a["erro"] or not a["base"]:
             continue
         nomes.add(a["base"])
-        if eh_poste(a["base"]):
+        if eh_poste(a["base"], convencao_postes):
             postes.add(a["base"])
-    return {"apelidos": apelidos_do_projeto(linhas, projeto), "nomes": nomes, "postes": postes, "assinaturas": assinaturas_do_projeto(linhas, projeto)}
+    return {"apelidos": apelidos_do_projeto(linhas, projeto), "nomes": nomes, "postes": postes, "assinaturas": assinaturas_do_projeto(linhas, projeto), "convencao_postes": convencao_postes}
 
 
 def codigos_estruturas(texto, classico, ctx=None) -> list:
     """Nomes de TODOS os itens que não são poste, na ordem da linha (TASK-094: `9400D, N1, N4` → ["N1", "N4"]); vazio se só houver poste."""
     r = interpretar_linha(texto, "", classico, ctx)
-    return [nome_base(i["ativo"]) for i in r["itens"] if not eh_poste(nome_base(i["ativo"]))]
+    conv = (ctx or {}).get("convencao_postes")
+    return [nome_base(i["ativo"]) for i in r["itens"] if not eh_poste(nome_base(i["ativo"]), conv)]
 
 
 def codigo_estrutura(texto, classico, ctx=None) -> str:
     """Nome do primeiro item que NÃO é poste (a estrutura da linha, para o vínculo); vazio se não houver."""
     r = interpretar_linha(texto, "", classico, ctx)
     for i in r["itens"]:
-        if not eh_poste(nome_base(i["ativo"])):
+        if not eh_poste(nome_base(i["ativo"]), (ctx or {}).get("convencao_postes")):
             return nome_base(i["ativo"])
     return ""

@@ -263,7 +263,7 @@ def conferir(payload: ConferirPayload, request: Request):
     tot = montar_totalizadora(cabos, outros, f["conversao"], f["base"], p["nome"],
                               itens_vinculo=itens_vinculo_para_totalizadora(cabos, outros), cfg_vinculo=normalizar_config(f["vinculacao"]), obra=payload.obra)
     calc = payload_calculo(tot)
-    nao_encontrados = list(processar_calculo(calc["cabos"], calc["outros"], p["nome"], f["base"], obra=payload.obra)["nao_encontrados"])
+    nao_encontrados = list(processar_calculo(calc["cabos"], calc["outros"], p["nome"], f["base"], obra=payload.obra, convencao_postes=(f["vinculacao"] or {}).get("postes"))["nao_encontrados"])
 
     def nao_achado(ativo):
         a = str(ativo or "")

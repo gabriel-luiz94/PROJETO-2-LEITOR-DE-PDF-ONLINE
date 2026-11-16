@@ -8,6 +8,7 @@
     const nodeMod = typeof module !== 'undefined' && module.exports;
     const DC = nodeMod ? require('./dicionario_cabos.js') : raiz.DicionarioCabos;          // TASK-173
     const AC = nodeMod ? require('./anotacao_cabos.js') : raiz.AnotacaoCabos;
+    const CP = nodeMod ? require('./convencao_postes.js') : raiz.ConvencaoPostes;          // TASK-174
     const ORDEM_MAIOR_PADRAO = ['C', 'P', 'A'];
     const SE_DIFEREM = ['BLOQUEAR', 'MAIOR', 'AVISAR'], SE_FALTAR = ['AVISAR', 'BLOQUEAR'], ORDENS = ['ORIGEM', 'MAIOR_PRIMEIRO'];          // TASK-169
     const RE_REGEX = /[\\^$()\[\]|+*?{}]/;
@@ -31,6 +32,7 @@
             c.cabos = (cfg.cabos || []).filter(r => r && typeof r === 'object' && !Array.isArray(r));
             c.estruturas = (cfg.estruturas || []).filter(r => r && typeof r === 'object' && !Array.isArray(r));
             c.dicionario_cabos = DC ? DC.normalizar(cfg.dicionario_cabos) : [];                                          // TASK-173
+            if (cfg.postes && typeof cfg.postes === 'object' && !Array.isArray(cfg.postes)) c.postes = cfg.postes;          // TASK-174
             if (Array.isArray(cfg.ordem_maior) && cfg.ordem_maior.length) c.ordem_maior = cfg.ordem_maior.map(x => trim(x).toUpperCase());
             else if (DC && DC.ordemMaiorPadrao(c.dicionario_cabos).length) c.ordem_maior = DC.ordemMaiorPadrao(c.dicionario_cabos);
             c.scripts = (cfg.scripts || []).filter(s => s && typeof s === 'object' && !Array.isArray(s));
@@ -54,6 +56,7 @@
     const RE_TENSAO = /(\d+(?:[.,]\d+)?)\s*kV/i;
     /** `dic` = dicionário de cabos do projeto (TASK-173): sem tensão/Nx no texto, nível e fases padrão vêm da linha do cabo. */
     function derivarCabo(texto, dic) {
+        if (dic === undefined && AC && AC.dicionario) dic = AC.dicionario();          // sem parâmetro: o dicionário do projeto aberto na tela
         const t = trim(texto), mf = RE_FASES.exec(t), mt = RE_TENSAO.exec(t);
         const tensao = mt ? mt[1].replace('.', ',') + 'kV' : '';
         let fases = mf ? Number(mf[1]) : 1, nivel = mt && Number(mt[1].replace(',', '.')) > 1 ? 'MT' : 'BT';
@@ -829,7 +832,7 @@
 
     function validarConfig(cfg) {
         if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) return ['A configuração precisa ser um objeto.'];
-        const erros = DC ? DC.validar(cfg.dicionario_cabos) : [];                                                     // TASK-173
+        const erros = (DC ? DC.validar(cfg.dicionario_cabos) : []).concat(CP ? CP.validar(cfg.postes) : []);          // TASK-173/174
         [['cabos', 'Cabo', 'estruturas'], ['estruturas', 'Estrutura', 'cabos']].forEach(([tab, chave, outro]) => {
             const lista = cfg[tab] === undefined ? [] : cfg[tab];
             if (!Array.isArray(lista)) { erros.push(`'${tab}' precisa ser uma lista.`); return; }
