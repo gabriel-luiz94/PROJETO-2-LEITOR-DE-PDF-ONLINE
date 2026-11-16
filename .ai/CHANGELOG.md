@@ -63,6 +63,16 @@
 
 ---
 
+## 2026-11-16 — TASK-179: guia e modelo para quem cria uma base nova
+
+- `docs/base_guia.md`: ativo simples → parâmetro → grupos com condição → linha viva (LV/LM) → retirada → cabos e arredondamento → composto → `OBRA.*` → armadilhas → conferência; cada recurso com um exemplo curto e o resultado.
+- `data/pacotes/exemplo/`: base de 20 linhas (poste, N1, N3 com parâmetro `cabo`, N4 com linha viva/morta, cabos, alça, conector e um composto), vinculação simples e 5 casos de referência. Importa e funciona sozinho (testado: prévia sem avisos, 5 casos iguais, pedidos do guia dão o resultado dito). É ponto de partida **sugerido** (não é pacote de projeto nenhum): `GET /api/pacote/embutidos` lista e `/api/pacote/embutidos/<id>.zip` entrega no formato do pacote; a aba Pacote tem "Começar de um pacote pronto".
+- Ficha da base (`orcamento.html`): coluna "O que faz" com a frase em português de cada linha ("vale quando cabo contém A35P; soma 3 de 7204 na instalação e na retirada"; grupos, compostos, linha viva e arredondamento).
+- Validador: `codigo_do_achado`/`com_codigo` dão a cada tipo de erro/aviso um código `B-0xx` + `docs/base_guia.md`; aparece no fim das mensagens de `resumo_erros` (o texto da mensagem não mudou). Aviso novo B-013: código de MATERIAL cuja descrição é de equipamento (trafo, chave, religador, regulador, capacitor) nas linhas gerais de um ativo com parâmetro do mesmo tipo.
+- Critério da base `base_orcamento_20261115_CON_EMB.csv` / `…_TT.csv`: esses arquivos não estão no repositório; o caso foi reproduzido com uma base sintética de CE_2_TR (trafo de 45 kVA nas linhas gerais → aviso B-013; trafos só nos grupos do parâmetro → sem aviso). Conferir com os arquivos reais quando estiverem à mão.
+
+---
+
 ## 2026-11-15 — TASK-180: Montar Orçamento sempre recalcula; resultado gravado só volta ao abrir o projeto
 
 - Substitui a restauração da TASK-154 (payload igual → restaurava o resultado do `.obra`, mesmo com base nova). Agora `montarOrcamento` sempre chama `/api/orcamento/calcular`; `assinatura` segue gravada no `.obra` (formato igual) mas não decide mais nada.

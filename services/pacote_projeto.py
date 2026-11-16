@@ -103,6 +103,30 @@ def parte_embutida(pacote_id, parte):
         return None
 
 
+def empacotar_embutido(pacote_id) -> bytes:
+    """O pacote embutido (`data/pacotes/<id>/`) como `.zip` no mesmo formato do exportado, para importar na aba Pacote (TASK-179: o pacote de exemplo)."""
+    m = pacotes_embutidos().get(pacote_id)
+    if not m:
+        raise ErroPacote(f"Não existe o pacote embutido '{pacote_id}'.")
+    arquivos, lista = {}, []
+    for p in PARTES:
+        v = parte_embutida(pacote_id, p)
+        if v is None:
+            continue
+        conteudo = v.encode("utf-8") if p == "base" else _json_bytes(v)
+        nome = "base.csv" if p == "base" else p + ".json"
+        arquivos[nome] = conteudo
+        lista.append({"nome": p, "arquivo": nome, "hash": _hash(conteudo)})
+    manifesto = {"formato": FORMATO, "versao_formato": VERSAO_FORMATO, "versao_programa": versao_programa(), "projeto": {"nome": _trim(m.get("nome_projeto") or "EXEMPLO").upper(), "codigo": _trim(m.get("projeto_codigo_padrao"))},
+                 "descricao": m.get("descricao", ""), "exportado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"), "partes": lista}
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("manifest.json", _json_bytes(manifesto))
+        for nome, c in arquivos.items():
+            z.writestr(nome, c)
+    return buf.getvalue()
+
+
 def projeto_do_cadastro(codigo_ou_nome):
     """{"nome", "codigo", "pacote_inicial"} do cadastro de projetos (pelo código ou pelo nome); None se não existe."""
     chave = _trim(codigo_ou_nome)
@@ -241,6 +265,8 @@ def valor_atual(projeto, parte):
         return _csv_base(linhas) if linhas else None
     if parte == "vinculacao":
         cfg = _config_efetiva(codigo)
+        if not (cfg.get("cabos") or cfg.get("estruturas") or cfg.get("scripts")):
+            return None                                                                       # projeto sem vinculação configurada: a do pacote entra como "novo"
         return {k: cfg[k] for k in CHAVES_VINCULACAO if k in cfg}
     if parte in ("dicionario_cabos", "postes", "exportacao"):
         v = _config_efetiva(codigo).get(parte)

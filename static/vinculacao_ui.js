@@ -662,6 +662,22 @@
             } catch (e) { raiz.alert('Não exportou: ' + (e.message || e)); }
         } }));
         corpo.appendChild(el('div', { style: 'margin-top:18px;font-weight:600', text: 'Importar um pacote no projeto ' + projeto }));
+        if (pk.prontos === undefined) { pk.prontos = null; fetch('/api/pacote/embutidos').then(r => r.json()).then(d => { pk.prontos = d.pacotes || []; render(); }).catch(() => { pk.prontos = []; }); }
+        if (pk.prontos && pk.prontos.length) {
+            const sel = el('select', { style: caixa }, pk.prontos.map(x => el('option', { value: x.id, text: x.nome })));
+            corpo.appendChild(el('div', { style: 'display:flex;gap:8px;align-items:center;margin:6px 0' }, [el('span', { style: 'color:#8b949e', text: 'Começar de um pacote pronto:' }), sel, el('button', { class: 'vz-btn', text: 'Ver a prévia', onclick: async () => {
+                try {
+                    const z = await fetch('/api/pacote/embutidos/' + encodeURIComponent(sel.value) + '.zip'); if (!z.ok) throw new Error('HTTP ' + z.status);
+                    pk.arquivo = new File([await z.blob()], 'pacote_' + sel.value + '.zip', { type: 'application/zip' });
+                    const fd = new FormData(); fd.append('file', pk.arquivo); fd.append('projeto', projeto);
+                    const r = await fetch('/api/pacote/previa', { method: 'POST', body: fd }), d = await r.json();
+                    if (!r.ok) throw new Error(d.detail || ('HTTP ' + r.status));
+                    pk.previa = d; pk.importar = new Set(d.partes.filter(x => x.situacao !== 'igual').map(x => x.parte)); pk.msg = '';
+                } catch (err) { pk.msg = 'Não li o pacote pronto: ' + (err.message || err); }
+                render();
+            } })]));
+            corpo.appendChild(el('div', { style: 'color:#8b949e;font-size:12px;margin-bottom:4px', text: pk.prontos.map(x => x.nome + ': ' + x.descricao).join(' · ') }));
+        }
         corpo.appendChild(el('input', { type: 'file', accept: '.zip,application/zip', style: 'margin:6px 0;' + caixa, onchange: async e => {
             pk.arquivo = e.target.files[0] || null; pk.previa = null; pk.msg = '';
             if (!pk.arquivo) { render(); return; }

@@ -34,6 +34,23 @@ def listar_partes(request: Request):
     return {"partes": [{"parte": p, "rotulo": pp.ROTULOS[p]} for p in pp.PARTES], "versao_formato": pp.VERSAO_FORMATO}
 
 
+@router.get("/embutidos")
+def embutidos(request: Request):
+    """Pacotes prontos que vêm com o programa (ponto de partida): o de exemplo para quem cria uma base nova, o de Pernambuco…"""
+    get_current_user_from_state(request)
+    return {"pacotes": [{"id": m["id"], "nome": m.get("nome", m["id"]), "descricao": m.get("descricao", ""), "partes": [p for p in pp.PARTES if p in m["partes"]]} for m in pp.pacotes_embutidos().values()]}
+
+
+@router.get("/embutidos/{pacote_id}.zip")
+def embutido_zip(request: Request, pacote_id: str):
+    get_current_user_from_state(request)
+    try:
+        conteudo = pp.empacotar_embutido(pacote_id)
+    except pp.ErroPacote as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return Response(content=conteudo, media_type="application/zip", headers={"Content-Disposition": f'attachment; filename="pacote_{pacote_id}.zip"'})
+
+
 @router.get("/exportar")
 def exportar(request: Request, projeto: str, partes: str = "", descricao: str = ""):
     get_current_user_from_state(request)

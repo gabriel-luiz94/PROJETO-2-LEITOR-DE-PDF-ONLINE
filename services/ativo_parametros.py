@@ -772,9 +772,42 @@ def agrupar_avisos(avisos, limite=5) -> tuple:
     return saida, detalhe
 
 
+# TASK-179: cada tipo de erro/aviso da validação da base tem um código curto (B-012) que aponta para a seção do guia (docs/base_guia.md). O texto da mensagem não muda;
+# o código vai no fim, só na apresentação (`com_codigo`).
+_CODIGOS_ACHADOS = (
+    (re.compile(r"na base os parâmetros levam nome"), "B-002"),
+    (re.compile(r"não é parâmetro de obra"), "B-003"),
+    (re.compile(r"apelido '.*' já (é o nome de outro ativo|pertence ao ativo)"), "B-004"),
+    (re.compile(r"tem mais de uma declaração"), "B-005"),
+    (re.compile(r"declaração de .* precisa ser a primeira linha"), "B-006"),
+    (re.compile(r"parâmetro .* não está na declaração de"), "B-007"),
+    (re.compile(r"padrão .* não tem nenhum grupo cadastrado"), "B-008"),
+    (re.compile(r"COMPONENTE .* é usado por grupos diferentes"), "B-009"),
+    (re.compile(r"podem valer juntos"), "B-010"),
+    (re.compile(r"(FATOR (I|R)|fórmula|usa o parâmetro '.*', que o ativo)"), "B-011"),
+    (re.compile(r"(ativo composto|composto '|Composto '|grupo '.*': na base os parâmetros|não é um ativo da base: o composto)"), "B-012"),
+    (re.compile(r"é um equipamento .* nas linhas gerais"), "B-013"),
+    (re.compile(r"^Linha \d+: ativo '.*':"), "B-001"),
+)
+
+
+def codigo_do_achado(msg):
+    """"B-0xx" do erro/aviso (ou None)."""
+    for rx, cod in _CODIGOS_ACHADOS:
+        if rx.search(str(msg)):
+            return cod
+    return None
+
+
+def com_codigo(msg) -> str:
+    """A mensagem com o código no fim ("… [B-005 · docs/base_guia.md]"); sem código conhecido, a própria mensagem."""
+    cod = codigo_do_achado(msg)
+    return f"{msg} [{cod} · docs/base_guia.md]" if cod and f"[{cod}" not in str(msg) else str(msg)
+
+
 def resumo_erros(erros, limite=8) -> str:
     """Junta as primeiras mensagens de erro para uma resposta HTTP (as demais viram "… e mais N")."""
-    msg = " | ".join(erros[:limite])
+    msg = " | ".join(com_codigo(e) for e in erros[:limite])
     return msg + (f" | … e mais {len(erros) - limite}" if len(erros) > limite else "")
 
 
@@ -982,9 +1015,39 @@ def validar_base(linhas) -> dict:
                     p1, p2 = restr_do_comp[c1], restr_do_comp[c2]
                     if all(_compativeis(p1[k], p2[k]) for k in set(p1) & set(p2)):
                         avisos.append(f"Código {cod} aparece nos grupos {c1} (linha {n1}) e {c2} (linha {n2}), que podem valer juntos: a quantidade soma duas vezes.")
+    _avisar_equipamento_no_geral(linhas, grupos_do_comp, avisos)
     _validar_formulas(analises, parametrizadas, erros, avisos)
     _validar_compostos(linhas, analises, erros)
     return {"erros": erros, "avisos": avisos}
+
+
+# TASK-179 (heurística): item de catálogo de EQUIPAMENTO nas linhas GERAIS de um ativo que tem parâmetro do mesmo tipo. O item vale para todo pedido, mesmo quando o parâmetro
+# escolhe outro equipamento (o caso do CE_2_TR, que saía com dois transformadores). Só material; o aviso diz o que mover.
+_EQUIPAMENTOS = {"TRAFO": ("TRAFO", "TRANSFORMADOR"), "CHAVE": ("CHAVE",), "RELIGADOR": ("RELIGADOR",), "REGULADOR": ("REGULADOR",), "CAPACITOR": ("CAPACITOR",)}
+
+
+def _avisar_equipamento_no_geral(linhas, grupos_do_comp, avisos):
+    condicionados = {}                                                # (escopo, ativo) → nomes dos parâmetros que algum grupo condiciona
+    for (esc, comp), grupos in grupos_do_comp.items():
+        for base, restr in grupos:
+            for nome, _op, _valor in restr:
+                condicionados.setdefault((esc, base), set()).add(nome)
+    for (esc, comp), grupos in grupos_do_comp.items():
+        for base, restr in grupos:
+            params = condicionados.get((esc, base))
+            if restr or not params:
+                continue
+            for n, linha in enumerate(linhas, start=1):
+                cod = (linha.get("codigo") or "").strip()
+                if not cod or _comp(linha) != comp or _escopo(linha) != esc or not (linha.get("mdo") or "").strip().upper().startswith("MAT"):
+                    continue
+                desc = (linha.get("desc_codigo") or "").upper()
+                for nome in sorted(params):
+                    tipo = re.sub(r"\d+$", "", nome_tela(nome).upper())
+                    if any(p in desc for p in _EQUIPAMENTOS.get(tipo, ())):
+                        avisos.append(f"Linha {n}: o código {cod} ({(linha.get('desc_codigo') or '').strip()}) é um equipamento ({tipo.lower()}) nas linhas gerais de {base}, que tem o parâmetro {nome.lower()}: "
+                                      f"vale para todo pedido de {base}, mesmo quando o parâmetro escolhe outro equipamento. Não deveria estar no grupo do parâmetro?")
+                        break
 
 
 def compostos_do_projeto(linhas, projeto) -> dict:
