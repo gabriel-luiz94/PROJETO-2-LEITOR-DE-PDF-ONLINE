@@ -945,6 +945,9 @@
                     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zM9.5 3A1.5 1.5 0 0 0 11 4.5h2.5L9.5 0v3z"/></svg>
                     Relatórios PDF
                 </button>
+                <button class="btn-action" id="btn-caso-referencia" onclick="guardarCasoDeReferencia()" title="Guarda este pedido e este resultado como caso de referência do projeto: depois, ao trocar a base, o programa confere se o resultado mudou">
+                    Guardar como caso de referência
+                </button>
 
                 <button class="btn-action" onclick="window.print()" title="Imprimir Relatório">
                     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
@@ -2587,6 +2590,26 @@
             marcarCopiadasSap(iv.tipo, iv.trs, iv.campos);
             log(`Seleção copiada: ${iv.trs.length} linha(s) × ${iv.campos.length} coluna(s).`);
         });
+
+        /* TASK-178 — guarda o pedido (o mesmo do "Montar Orçamento") e o resultado desta tela como caso de referência do projeto */
+        async function guardarCasoDeReferencia() {
+            let pedido = null;
+            try { pedido = JSON.parse(localStorage.getItem('orcamentoPayload') || 'null'); } catch (e) { /* sem pedido */ }
+            const linhas = getRowsData();
+            if (!pedido || !linhas.length) return alert('Monte o orçamento antes: não há pedido e resultado para guardar.');
+            const projeto = localStorage.getItem('projeto_selecionado_codigo') || '';
+            if (!projeto) return alert('Selecione o projeto antes de guardar o caso.');
+            const nome = prompt('Nome do caso de referência (ex.: "Rua das Flores — N4 com cartucho"):', (window.GridRProjeto && GridRProjeto.ativo() && GridRProjeto.nome()) || '');
+            if (!nome || !nome.trim()) return;
+            const esperado = linhas.map(l => ({ operacao: l.operacao || 'I', mdo: l.mdo || '', codigo: l.codigo, qtd: parseFloat(l.total) || 0 }));
+            const obra = window.ObraParams ? ObraParams.obraDoProjeto() : {};
+            try {
+                const r = await fetch('/api/casos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projeto, caso: { nome: nome.trim(), pedido: { cabos: pedido.cabos || [], outros: pedido.outros || [] }, obra_cabecalho: obra, esperado, origem: 'programa' } }) });
+                const d = await r.json();
+                if (!r.ok) throw new Error((d.detail && d.detail.erros ? d.detail.erros.join('; ') : d.detail) || ('HTTP ' + r.status));
+                log(`Caso de referência guardado: “${nome.trim()}” (${esperado.length} item(ns) esperados).`);
+            } catch (err) { alert('Não guardou o caso: ' + (err.message || err)); }
+        }
 
         async function exportarExcelSap() {
             const odi = linhasVisiveisSap('odi'), odd = linhasVisiveisSap('odd');

@@ -22,10 +22,10 @@ from config import logger
 
 FORMATO = "pacote-projeto"
 VERSAO_FORMATO = 1
-PARTES = ("base", "vinculacao", "dicionario_cabos", "postes", "exportacao", "desenho", "leitor_processamento", "leitor_classificacao", "regional")
+PARTES = ("base", "vinculacao", "dicionario_cabos", "postes", "exportacao", "desenho", "leitor_processamento", "leitor_classificacao", "regional", "casos")
 ROTULOS = {"base": "Base técnica", "vinculacao": "Vinculação (cabos, estruturas, scripts)", "dicionario_cabos": "Dicionário de cabos", "postes": "Convenção de postes",
            "exportacao": "Perfil de exportação", "desenho": "Leitura do desenho (DXF)", "leitor_processamento": "Regras do leitor (processamento)",
-           "leitor_classificacao": "Regras do leitor (classificação)", "regional": "Tabela regional (OBRA.REGIAO)"}
+           "leitor_classificacao": "Regras do leitor (classificação)", "regional": "Tabela regional (OBRA.REGIAO)", "casos": "Casos de referência"}
 CHAVES_VINCULACAO = ("versao", "cabos", "estruturas", "ordem_maior", "scripts")
 COLUNAS_BASE = ("ATIVO", "DESC ATIVO", "COMPONENTE", "PROJETO", "MDO", "CODIGO", "DESC CODIGO", "FATOR I", "FATOR R", "FILTRO", "ORIGEM", "LV", "ARRED")
 LIMITE_BYTES = 80 * 1024 * 1024
@@ -254,6 +254,9 @@ def valor_atual(projeto, parte):
         return r or None
     if parte == "regional":
         return parte_guardada(codigo, "regional") or parte_inicial(codigo, "regional")
+    if parte == "casos":
+        from services import casos_referencia as cr
+        return [{k: v for k, v in c.items() if k != "id"} for c in cr.listar(codigo)] or None
     raise ErroPacote(f"Parte desconhecida: {parte}.")
 
 
@@ -336,6 +339,8 @@ def _contagem(parte, v) -> str:
         return "—"
     if parte == "base":
         return f"{len(_linhas_do_csv(v))} linhas"
+    if parte == "casos":
+        return f"{len(v)} casos"
     if parte == "vinculacao":
         return f"{len(v.get('cabos') or [])} cabos · {len(v.get('estruturas') or [])} estruturas · {len(v.get('scripts') or [])} scripts"
     if isinstance(v, list):
@@ -356,6 +361,10 @@ def _avisos_da_parte(parte, v, destino):
             rows = _linhas_do_csv(v)
             r = validar_base(rows)
             avisos += [f"base: {e}" for e in r.get("erros", [])[:20]] + [f"base (aviso): {a}" for a in r.get("avisos", [])[:20]]
+        elif parte == "casos":
+            from services import casos_referencia as cr
+            for c in v:
+                cr.normalizar_caso(c)
         elif parte == "desenho":
             from services import leitura_desenho as ld
             avisos += ld.validar(v)
@@ -384,7 +393,17 @@ def previa(codigo_ou_nome, pacote: dict) -> dict:
             igual = atual is not None and _norm(atual) == _norm(novo)
         situacao = "novo" if atual is None else ("igual" if igual else "substitui")
         saida.append({"parte": parte, "rotulo": ROTULOS[parte], "situacao": situacao, "antes": _contagem(parte, atual), "depois": _contagem(parte, novo), "avisos": _avisos_da_parte(parte, novo, proj)})
-    return {"projeto": proj, "origem": pacote["manifesto"].get("projeto"), "descricao": pacote["manifesto"].get("descricao", ""), "versao_programa": pacote["manifesto"].get("versao_programa", ""), "partes": saida}
+    res = {"projeto": proj, "origem": pacote["manifesto"].get("projeto"), "descricao": pacote["manifesto"].get("descricao", ""), "versao_programa": pacote["manifesto"].get("versao_programa", ""), "partes": saida}
+    if "base" in pacote["partes"]:                                                                  # TASK-178: os casos de referência (do pacote ou do projeto) rodam com a base do pacote, sem gravar
+        try:
+            from routers.casos import conferir_projeto
+            from services import casos_referencia as cr
+            casos = [dict(cr.normalizar_caso(c), id=i + 1) for i, c in enumerate(pacote["partes"].get("casos") or [])] if pacote["partes"].get("casos") else None
+            r = conferir_projeto(proj, None, None, pacote["partes"]["base"], casos)
+            res["casos"] = {"resumo": r["resumo"], "total": r["total"], "segundos": r["segundos"], "mudaram": [c for c in r["casos"] if c["situacao"] != "igual"][:50]}
+        except Exception as e:  # noqa: BLE001
+            res["casos"] = {"erro": str(e)[:200]}
+    return res
 
 
 # ── aplicar ───────────────────────────────────────────────────────────────────────────────────
@@ -448,6 +467,12 @@ def _aplicar_parte(proj, parte, valor, user_id, email):
     elif parte in ("leitor_processamento", "leitor_classificacao"):
         from routers.regras_leitor import RegrasLeitorPayload, _save_regras
         _save_regras(parte.split("_", 1)[1], RegrasLeitorPayload(projeto_codigo=codigo, regras=valor), email)
+    elif parte == "casos":
+        from services import casos_referencia as cr
+        for c in cr.listar(codigo):
+            cr.excluir(codigo, c["id"])
+        for c in valor:
+            cr.gravar(codigo, c, email)
     elif parte == "regional":
         guardar_parte(codigo, "regional", valor)
         from services import obra_params

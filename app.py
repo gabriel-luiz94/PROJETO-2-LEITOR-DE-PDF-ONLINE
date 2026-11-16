@@ -428,6 +428,8 @@ app.include_router(regras_vinculacao.router)
 app.include_router(vinculacao_config.router)
 from routers import pacote as _pacote_router                    # TASK-177
 app.include_router(_pacote_router.router)
+from routers import casos as _casos_router                       # TASK-178
+app.include_router(_casos_router.router)
 app.include_router(plugin_cad.router)          # TASK-104: plugin do nanoCAD (regras, versão, conferência com a base)
 app.include_router(atalhos.router)
 app.include_router(modais_montaveis.router)

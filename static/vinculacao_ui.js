@@ -129,7 +129,7 @@
         const a = analise();
         const pend = Object.values(a.cabos).filter(c => c.estado !== 'gr').length + Object.values(a.estruturas).filter(e => e.estado === 'k' || e.estado === 'pu').length;
         overlay.innerHTML = '';
-        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''], ['pacote', 'Pacote', ''],
+        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''], ['casos', 'Casos', ''], ['pacote', 'Pacote', ''],
             ['script', 'Script', st.cfg.scripts.length], ['mapa', 'Mapa', '']];
         const vz = el('div', { class: 'vz' }, [
             el('div', { class: 'vz-top' }, [el('h3', { text: '🔗 Vinculação cabo ⇄ estrutura' }), el('span', { class: 'vz-chip', text: 'Projeto ' + host.projeto() }),
@@ -139,7 +139,7 @@
             rodape()]);
         overlay.appendChild(vz);
         const corpo = vz.querySelector('#vz-corpo');
-        ({ vinculo: abaVinculo, cabos: abaCabos, estruturas: abaEstruturas, dicionario: abaDicionario, postes: abaPostes, desenho: abaDesenho, exportacao: abaExportacao, pacote: abaPacote, script: abaScript, mapa: abaMapa })[st.aba](corpo, a);
+        ({ vinculo: abaVinculo, cabos: abaCabos, estruturas: abaEstruturas, dicionario: abaDicionario, postes: abaPostes, desenho: abaDesenho, exportacao: abaExportacao, casos: abaCasos, pacote: abaPacote, script: abaScript, mapa: abaMapa })[st.aba](corpo, a);
     }
 
     function rodape() {
@@ -582,6 +582,61 @@
             const antigo = corpo.querySelector('.previa-exportacao'); if (antigo) antigo.remove();
             corpo.appendChild(el('iframe', { class: 'previa-exportacao', src: url + '#toolbar=0&view=FitH', style: 'width:100%;height:520px;border:1px solid #30363d;border-radius:6px;margin-top:12px;background:#fff' }));
         } catch (e) { raiz.alert('Não consegui gerar a pré-visualização: ' + (e.message || e)); }
+    }
+
+    /** TASK-178: casos de referência do projeto — pedidos com o resultado esperado. "Conferir base" roda todos (em lotes, com progresso) e mostra o que mudou código a código; "Conferir um CSV" faz o mesmo
+     *  com uma base candidata, sem gravar; "Mudança esperada" aceita o resultado novo (com a nota de quem e por quê). */
+    async function abaCasos(corpo) {
+        const caixa = 'background:#010409;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;padding:5px 8px;font:12px Consolas,monospace';
+        const projeto = host.projeto(), req = (url, corpoJson) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpoJson) });
+        if (!st.casos) {
+            st.casos = { lista: null, res: null, progresso: '', msg: '' };
+            fetch('/api/casos?projeto=' + encodeURIComponent(projeto)).then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))).then(d => { st.casos.lista = d.casos; render(); })
+                .catch(e => { st.casos.lista = []; st.casos.msg = 'Não consegui ler os casos: ' + (e.message || e); render(); });
+        }
+        const ck = st.casos;
+        corpo.appendChild(el('div', { class: 'vz-nota', html: '<b>O que esta aba faz:</b> guarda <b>pedidos com o resultado esperado</b> (no Resultado: <b>Guardar como caso de referência</b>) e <b>confere a base</b>: roda todos os casos e mostra o que mudou, código a código (antes → depois). Use depois de importar ou editar a base ou a vinculação. A importação de pacote também mostra o impacto nos casos antes de gravar.' }));
+        if (!ck.lista) { corpo.appendChild(el('div', { style: 'color:#8b949e;margin-top:10px', text: 'Carregando…' })); return; }
+        const rodar = async (baseCsv) => {
+            ck.res = null; ck.msg = ''; const ids = ck.lista.map(c => c.id), todos = { casos: [], resumo: { igual: 0, mudou: 0, erro: 0 }, total: 0, segundos: 0 };
+            for (let i = 0; i < ids.length; i += 40) {
+                ck.progresso = `Conferindo ${Math.min(i + 40, ids.length)} de ${ids.length}…`; render();
+                try {
+                    const r = await req('/api/casos/conferir', { projeto, ids: ids.slice(i, i + 40), base_csv: baseCsv || undefined }), d = await r.json();
+                    if (!r.ok) throw new Error(d.detail || ('HTTP ' + r.status));
+                    todos.casos = todos.casos.concat(d.casos); ['igual', 'mudou', 'erro'].forEach(k => { todos.resumo[k] += d.resumo[k]; }); todos.total += d.total; todos.segundos += d.segundos;
+                } catch (e) { ck.msg = 'Não conferiu: ' + (e.message || e); ck.progresso = ''; render(); return; }
+            }
+            ck.progresso = ''; ck.res = todos; ck.baseCsv = baseCsv || ''; render();
+        };
+        corpo.appendChild(el('div', { style: 'display:flex;gap:8px;margin:10px 0;align-items:center;flex-wrap:wrap' }, [
+            el('button', { class: 'vz-btn b', text: 'Conferir base', ...(ck.lista.length ? {} : { disabled: 'disabled' }), onclick: () => rodar('') }),
+            el('label', { style: 'color:#8b949e' }, ['ou conferir um CSV antes de importar: ', el('input', { type: 'file', accept: '.csv,text/csv', style: caixa, onchange: async e => { const f = e.target.files[0]; if (f) await rodar(await f.text()); } })]),
+            el('span', { style: 'color:#d29922', text: ck.progresso || '' })]));
+        const tb = el('table', { class: 'vz-tb' });
+        tb.appendChild(el('thead', {}, [el('tr', {}, ['Caso', 'Origem', 'Itens esperados', 'Situação', ''].map(h => el('th', { text: h })))]));
+        const sit = id => ck.res ? ck.res.casos.find(c => c.id === id) : null, cor = { igual: '#3fb950', mudou: '#d29922', erro: '#f85149' };
+        tb.appendChild(el('tbody', {}, ck.lista.map(c => { const s = sit(c.id); return el('tr', {}, [el('td', { text: c.nome }), el('td', { text: c.origem }), el('td', { text: String(c.itens) }),
+            el('td', { style: s ? 'font-weight:600;color:' + cor[s.situacao] : 'color:#8b949e', text: s ? s.situacao : '—' }),
+            el('td', {}, [el('button', { class: 'x', text: '✖', title: 'Excluir o caso', onclick: async () => { if (!raiz.confirm('Excluir o caso “' + c.nome + '”?')) return; await fetch('/api/casos/' + c.id + '?projeto=' + encodeURIComponent(projeto), { method: 'DELETE' }); st.casos = null; render(); } })])]); })));
+        corpo.appendChild(el('div', { class: 'vz-scroll' }, [tb]));
+        if (!ck.lista.length) corpo.appendChild(el('div', { style: 'color:#8b949e;margin-top:8px', text: 'Nenhum caso ainda. No Resultado do Orçamento, clique em “Guardar como caso de referência”.' }));
+        if (ck.res) {
+            const r = ck.res.resumo;
+            corpo.appendChild(el('div', { style: 'margin-top:10px;font-weight:600', text: `${r.igual} igual(is) · ${r.mudou} mudou · ${r.erro} com erro — ${ck.res.total} caso(s) em ${ck.res.segundos.toFixed(1)} s${ck.baseCsv ? ' (base candidata, nada foi gravado)' : ''}` }));
+            ck.res.casos.filter(c => c.situacao !== 'igual').forEach(c => {
+                corpo.appendChild(el('div', { style: 'margin-top:8px;border-left:3px solid ' + cor[c.situacao] + ';padding-left:10px' }, [el('div', { style: 'font-weight:600', text: c.nome + ' — ' + c.situacao }),
+                    c.erro ? el('div', { style: 'color:#f85149', text: c.erro }) : null,
+                    ...c.diferencas.map(d => el('div', { style: 'font-family:Consolas,monospace;font-size:12px', html: `<b>${esc(d.codigo)}</b> (${esc(d.operacao)}${d.mdo ? ' · ' + esc(d.mdo) : ''}): ${d.antes === null ? '—' : d.antes} → ${d.depois === null ? '—' : d.depois} <span style="color:#8b949e">${esc(d.tipo)}</span>` })),
+                    c.situacao === 'mudou' ? el('button', { class: 'vz-btn', text: 'Mudança esperada', onclick: async () => {
+                        const nota = raiz.prompt('Por que esta mudança é esperada? (fica no histórico do caso)', '');
+                        if (!nota) return;
+                        try { const rr = await req('/api/casos/aceitar', { projeto, ids: [c.id], nota, base_csv: ck.baseCsv || undefined }), d = await rr.json(); if (!rr.ok) throw new Error(d.detail || ('HTTP ' + rr.status)); st.casos = null; render(); }
+                        catch (e) { raiz.alert('Não aceitou: ' + (e.message || e)); }
+                    } }) : null].filter(Boolean)));
+            });
+        }
+        if (ck.msg) corpo.appendChild(el('div', { style: 'color:#f85149;margin-top:8px', text: ck.msg }));
     }
 
     /** TASK-177: pacote do projeto — exportar tudo (ou partes) num .zip e importar num projeto com prévia do que muda. Só o administrador importa; nada é gravado antes de confirmar. */

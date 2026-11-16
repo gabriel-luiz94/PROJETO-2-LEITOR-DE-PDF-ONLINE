@@ -53,6 +53,16 @@
 
 ---
 
+## 2026-11-16 — TASK-178: casos de referência por projeto: conferência automática da base
+
+- Caso = pedido (o mesmo payload do cálculo: `cabos` + `outros`) + `obra_cabecalho` + `esperado` (por operação · tipo de mão de obra · código) + `tolerancia` + `origem` (programa | ICP | manual) + `nota` + `historico`. Guardado em `casos_referencia` (SQLite; espelho opcional no Supabase). Não muda o cálculo.
+- `conferir`: roda os casos em lote com a base carregada UMA vez e devolve igual / mudou (código a código: antes → depois, `novo`/`sumiu`/`qtd`) / erro, mais o relatório em Markdown no estilo de `CON_EMB_mudancas.md`. `POST /api/casos/conferir` aceita `base_csv` (base candidata, sem gravar) e `ids` (lotes com progresso na tela). "Mudança esperada" (`/api/casos/aceitar`) exige nota e grava quem/quando no histórico do caso.
+- A prévia de importação de pacote com base mostra o impacto nos casos antes de gravar; os casos viajam no pacote (parte `casos`).
+- Desempenho medido: 312 pedidos contra a base da semente (2.326 linhas) em ~5 s (≈17 ms por pedido, base carregada uma vez); 300 casos numa base pequena em 0,1 s.
+- Limites: o caso guarda o pedido de cálculo (não o `.obra` inteiro nem a Totalizadora); gerar o esperado pela ICP fica por conta da habilidade `orcamento-icp-neoenergia-pe` (basta gravar o caso com `origem: "ICP"`).
+
+---
+
 ## 2026-11-15 — TASK-180: Montar Orçamento sempre recalcula; resultado gravado só volta ao abrir o projeto
 
 - Substitui a restauração da TASK-154 (payload igual → restaurava o resultado do `.obra`, mesmo com base nova). Agora `montarOrcamento` sempre chama `/api/orcamento/calcular`; `assinatura` segue gravada no `.obra` (formato igual) mas não decide mais nada.
