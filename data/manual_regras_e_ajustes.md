@@ -871,3 +871,10 @@ Ao criar um projeto (**Projeto → Novo projeto…** ou **Salvar como…**) e us
 ## Login: "Lembrar de mim" (17/11/2026)
 
 Na tela de login, com **Lembrar de mim** marcado o programa **abre direto, sem pedir o login**, por até **30 dias** (ou até você clicar em **Sair**). Com a caixa **desmarcada**, o login vale só enquanto o programa está aberto: ao fechar e abrir de novo, a tela de login volta. Se a sessão vencer (30 dias, ou 24 h sem a marca), o programa avisa "Sessão expirada" e leva ao login. Quem já estava logado antes desta versão continua entrando direto até o token vencer.
+
+## Ativo fora da base, linhas congeladas e bloqueadas (17/11/2026)
+
+- **Ativo que não está na base:** ligue **Configurações › Aparência › Avançado › Colorir ativos por parâmetros**. Em **Cabos e Outros**, o ativo que não existe na base (nem como ativo, apelido, componente ou código do projeto) fica **vermelho**; passe o mouse para ver a dica. Em Outros, verde = parâmetros completos e laranja = falta algum, como antes. A cor confere o texto digitado; o botão **Validar** confere de novo depois das regras de conversão.
+- **Congelar linha** (botão direito na linha › *Congelar linha*; vale para as linhas selecionadas): a linha fica na tela, **editável**, mas **fora de tudo** — Totalizadora, orçamento, validação, ajustes, cores, resumo da rede e vínculos. Serve para anotar (por exemplo, um limite de seção). Um **cabo congelado** pode continuar sendo a **fonte de um vínculo que você fez à mão**: a estrutura ligada a ele segue funcionando normalmente. Os vínculos automáticos (por poste, mapa e script) não ligam cabo congelado, e uma estrutura congelada não entra em vínculo.
+- **Bloquear linha**: a linha **não pode ser editada nem excluída** (colar e limpar em bloco também a pulam), mas continua nos cálculos. Uma linha pode ser congelada e bloqueada ao mesmo tempo. **Desbloquear** é a única ação aceita numa linha bloqueada. Ctrl+Z desfaz.
+- As marcas ❄ (congelada) e 🔒 (bloqueada) aparecem ao lado do número da linha e ficam gravadas no projeto `.obra`.

@@ -198,7 +198,7 @@ def itens_vinculo_para_totalizadora(cabos, outros):
     (TASK-034). Só existe aqui dentro: nunca grava nas tabelas Cabos/Outros."""
     itens = []
     for idx_cabo, cabo in enumerate(cabos):
-        if not cabo or not participa_vinculo(cabo):                  # TASK-095: cabo R/*R não entra no vínculo
+        if not cabo or cabo.get("congelada") or not participa_vinculo(cabo):                  # TASK-095: cabo R/*R não entra no vínculo; cabo congelado não gera itens (só alimenta o vínculo feito à mão)
             continue
         ficticias = estruturas_ficticias_de(cabo)
         if not cabo.get("vinculoEstruturas") and not ficticias:
@@ -214,7 +214,7 @@ def itens_vinculo_para_totalizadora(cabos, outros):
             if not (0 <= linha < len(outros)):
                 continue
             estrutura = outros[linha]
-            if not estrutura or not estrutura.get("ativo") or not participa_vinculo(estrutura):
+            if not estrutura or estrutura.get("congelada") or not estrutura.get("ativo") or not participa_vinculo(estrutura):
                 continue
             codigos = codigos_estrutura(estrutura["ativo"])
             slot = slot_de(idx_estrutura)

@@ -158,7 +158,7 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
     brutos = []
     contador = 1
     for idx, item in enumerate(cabos):
-        if not item:
+        if not item or item.get("congelada"):                    # linha congelada: fora da Totalizadora (e do orçamento)
             continue
         base_id = contador
         contador += 1
@@ -219,7 +219,7 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
         from services.vinculacao_regras import parametros_por_estrutura
         parametros_vinculo = parametros_por_estrutura(cabos, outros, cfg_vinculo, prefixo_cabo, codigo_estrutura, codigos_estrutura)
     for idx_outros, item in enumerate(outros):
-        if not item:
+        if not item or item.get("congelada"):                    # linha congelada: fora da Totalizadora (e do orçamento)
             continue
         base_id = contador
         contador += 1

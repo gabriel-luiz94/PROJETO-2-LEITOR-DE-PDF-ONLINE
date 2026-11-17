@@ -237,6 +237,11 @@ async def serve_anotacao_cabos_js():
     return _serve_js("anotacao_cabos.js")
 
 
+@app.get("/static/ativo_na_base.js")
+async def serve_ativo_na_base_js():
+    return _serve_js("ativo_na_base.js")
+
+
 @app.get("/static/base_explica.js")
 async def serve_base_explica_js():
     return _serve_js("base_explica.js")

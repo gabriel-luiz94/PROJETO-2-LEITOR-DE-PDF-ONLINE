@@ -630,7 +630,8 @@ def _eh_cabo_valido(row):
 
 def _eh_linha_estrutura(r):
     # TASK-125: também a linha ainda não classificada ('0' ou vazia) que tem ativo (mesma regra de static/vinculacao_regras.js)
-    return bool(r) and participa_vinculo(r) and (r.get("entidade") in ("ESTRUTURA", "POSTE") or (r.get("entidade") in (None, "", "0") and bool(_trim(r.get("ativo")))))
+    # Linha de Outros CONGELADA não é estrutura (fora do vínculo); o cabo congelado continua valendo como fonte de um vínculo manual (só não é ligado sozinho pelos algoritmos).
+    return bool(r) and not r.get("congelada") and participa_vinculo(r) and (r.get("entidade") in ("ESTRUTURA", "POSTE") or (r.get("entidade") in (None, "", "0") and bool(_trim(r.get("ativo")))))
 
 
 # TASK-094: uma linha de Outros pode ter VÁRIAS estruturas (`9400D, N1, N4` = poste + N1 + N4); cada uma é uma "unidade" vinculável.
@@ -945,7 +946,7 @@ def achados(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> list:
     """Avisos de validação (formato de services/validacao_planilhas.py), severidade "aviso"."""
     cfg = normalizar_config(cfg)
     a = analisar(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn)
-    existe_m = any(_eh_cabo_valido(c) and op_base(c.get("operacao")) == "M" for c in cabos)
+    existe_m = any(_eh_cabo_valido(c) and not c.get("congelada") and op_base(c.get("operacao")) == "M" for c in cabos)
     existe_retca = any(r and re.search(r"\bRETCA\b", r.get("ativo") or "", re.I | re.A) for r in outros)
     excecao_zero = existe_m or existe_retca
     saida = []
@@ -1054,7 +1055,7 @@ def _vincular_por_poste_base(cabos, outros, cfg, prefixo_fn, codigo_fn, raio) ->
     saida = {"vinculos": [], "achados": [], "resumo": {}}
     for ic in sorted(info_c):
         c = info_c[ic]
-        if not c["vincula"] or ic in manuais:
+        if not c["vincula"] or ic in manuais or cabos[ic].get("congelada"):          # cabo congelado: só entra no vínculo se já foi ligado à mão
             continue
         fim = _extremos(cabos[ic])
         if fim is None:
