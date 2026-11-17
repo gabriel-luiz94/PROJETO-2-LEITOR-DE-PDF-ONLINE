@@ -63,9 +63,21 @@
 
 ---
 
+## 2026-11-17 — Cadastro rápido: renomear o ativo ao editar
+
+- Em **Editar ativo** o campo **Nome** agora pode ser trocado. Ao publicar, as linhas do nome antigo saem e as do nome novo entram num passo só (local + nuvem); o nome antigo vira **apelido** por padrão (caixa "Manter “X” como apelido (recomendado)") para chamadas `:=` e orçamentos antigos continuarem achando o ativo. Sem a caixa, a tela lista os ativos que chamam o nome antigo e a confirmação avisa.
+- Recusas: nome novo que já é de outro ativo do projeto (erro na revisão e no servidor), ativo antigo que não existe mais, apelido de OUTRO ativo (o apelido do próprio ativo em edição deixou de dar falso erro; e a edição sem renomear deixou de mostrar o falso aviso "já existe").
+- API: `renomear_de` em `/api/admin/ativo/previa`, `/api/admin/ativo/publicar` e `/api/orcamento/rascunho` (`rascunho_ativo.avaliar(..., tirar=[nome antigo])`). Prévia devolve `renomeacao {de, para, existe_destino, origem_existe}`; o diff compara com as linhas do nome antigo; a auditoria registra `renomeado_de`.
+- **Desfazer/refazer** a renomeação: `ativo_versoes` guarda, além das linhas, a lista `limpar` (formato `{"linhas": [...], "limpar": [...]}`; publicação comum continua lista simples). Desfazer apaga o nome novo e restaura o antigo; refazer faz o inverso, sem acumular linhas.
+- Testes: `tests/test_publicar_ativo_148.py` (renomear, destino existente, origem inexistente, prévia, desfazer/refazer, nuvem), `tests/test_base_cadastro_147.py`.
+
+---
+
 ## 2026-11-17 — Cálculo: ativo com declaração sem COMPONENTE não fica mais vazio
 
 - Ativo cadastrado como `N3_2, N32, N23` (declaração SEM componente, itens abaixo com `COMPONENTE=N3_2`) calculava **nada**, sem erro nem aviso: o cálculo pegava o componente só da PRIMEIRA linha do ativo (a declaração, vazia). Agora usa o primeiro componente preenchido entre as linhas do ativo (`services/orcamento_calc.py`). Teste: `tests/test_declaracao_sem_componente.py`.
+
+- **Origem do problema:** o cadastro rápido (Novo ativo) gerava a declaração só com apelidos (`N3_2, N32, N23`) sem COMPONENTE (o servidor só preenche o componente de ativos com parâmetros). Agora `gerarLinhas` já grava o componente nessa declaração (`static/base_cadastro_dados.js`), como nas declarações importadas (ex. `9400D, DT9/400`).
 
 ---
 

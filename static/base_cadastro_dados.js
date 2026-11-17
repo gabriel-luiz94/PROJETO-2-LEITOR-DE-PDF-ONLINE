@@ -17,6 +17,8 @@
 
     function rascunhoVazio() { return { nome: '', apelidos: '', descricao: '', parametros: [], itens: [] }; }
     function itemVazio() { return { condicao: '', codigo: '', desc_codigo: '', mdo: 'M', fator_i: '1', fator_r: '0', lv: 'A', filtro: '', arred: 'NORMAL' }; }
+    /** Edição de um ativo existente em que o nome foi trocado (r.editar = nome original; r.nome = nome atual). */
+    const renomeando = r => !!T(r.editar) && !!T(r.nome) && U(r.nome) !== U(r.editar);
     const listaApelidos = r => String(r.apelidos || '').split(',').map(T).filter(Boolean);
     /** Item que chama outros ativos: o campo CÓDIGO começa com ":=" (ex.: ":= 3*TERM(cabo) + 6*CON(cabo,cabo2)"). */
     const ehChamada = it => T(it.codigo).startsWith(':=');
@@ -24,12 +26,15 @@
 
     /** Linhas da base para o rascunho. `projeto`: nome do projeto das linhas. */
     function gerarLinhas(r, projeto) {
-        const nome = T(r.nome), aps = listaApelidos(r), ps = (r.parametros || []).filter(p => T(p.nome));
+        const nome = T(r.nome), ps = (r.parametros || []).filter(p => T(p.nome));
+        const aps = listaApelidos(r).filter(a => U(a) !== U(nome));                 // (renomear para um dos próprios apelidos: ele deixa de ser apelido)
+        // renomeando um ativo existente: o NOME ANTIGO vira apelido (chamadas := e orçamentos que ainda usam o nome antigo continuam achando o ativo); r.manterAntigo === false desliga
+        if (renomeando(r) && r.manterAntigo !== false && !aps.some(a => U(a) === U(r.editar))) aps.push(T(r.editar));
         const base = { desc_ativo: T(r.descricao), projeto: T(projeto), origem: '', fator_i: 0, fator_r: 0, formula_i: '', formula_r: '', lv: 'A', arred: 'NORMAL', filtro: '', mdo: '', codigo: '', desc_codigo: '', componente: '' };
         const linhas = [];
         const dx = r.declExtra || {};
         if (ps.length) linhas.push(Object.assign({}, base, dx, { ativo: `${nome}=${nome}(${ps.map(p => T(p.nome) + (T(p.padrao) ? '=' + T(p.padrao) : '')).join(',')})${aps.length ? ', ' + aps.join(', ') : ''}` }));
-        else if (aps.length) linhas.push(Object.assign({}, base, dx, { ativo: `${nome}, ${aps.join(', ')}` }));
+        else if (aps.length) linhas.push(Object.assign({}, base, dx, { ativo: `${nome}, ${aps.join(', ')}`, componente: T(dx.componente) || nome }));      // declaração só com apelidos: leva o COMPONENTE (como as importadas, ex. 9400D) — sem ele o cálculo não achava os itens
         (r.itens || []).filter(itemPreenchido).forEach(it => {
             const cond = T(it.condicao);
             const celula = cond ? `${nome}(${cond})` : nome;
@@ -90,8 +95,9 @@
         const erros = [], avisos = [], nome = T(r.nome);
         if (!nome) erros.push({ texto: 'Informe o nome do ativo.' });
         else if (!NOME_OK.test(nome)) erros.push({ texto: 'O nome não pode ter espaços, parênteses, vírgula, "=", ":" nem "%".' });
-        else if (m && FD.resolver(m, nome)) avisos.push({ texto: `Já existe um ativo "${nome}" neste projeto: ao adicionar à tabela as linhas novas ficam junto das antigas (o cadastro por ativo, que troca as linhas, vem na publicação).` });
-        listaApelidos(r).forEach(ap => { if (m && FD.resolver(m, ap) && U(FD.resolver(m, ap)) !== U(nome)) erros.push({ texto: `O apelido "${ap}" já é usado pelo ativo "${FD.resolver(m, ap)}".` }); });
+        else if (m && renomeando(r) && FD.resolver(m, nome) && U(FD.resolver(m, nome)) !== U(r.editar)) erros.push({ texto: `Já existe um ativo chamado "${FD.resolver(m, nome)}" neste projeto: escolha outro nome para renomear.` });
+        else if (m && FD.resolver(m, nome) && !(T(r.editar) && U(FD.resolver(m, nome)) === U(r.editar))) avisos.push({ texto: `Já existe um ativo "${nome}" neste projeto: ao adicionar à tabela as linhas novas ficam junto das antigas (o cadastro por ativo, que troca as linhas, vem na publicação).` });
+        listaApelidos(r).forEach(ap => { const dono = m && FD.resolver(m, ap); if (dono && U(dono) !== U(nome) && !(T(r.editar) && U(dono) === U(r.editar))) erros.push({ texto: `O apelido "${ap}" já é usado pelo ativo "${dono}".` }); });
         const nomesParam = (r.parametros || []).map(p => U(p.nome)).filter(Boolean);
         nomesParam.forEach((n, i) => { if (!NOME_OK.test(n)) erros.push({ texto: `Nome de parâmetro inválido: "${n}".` }); if (nomesParam.indexOf(n) !== i) erros.push({ texto: `Parâmetro repetido: "${n}".` }); });
         const novos = new Set();
@@ -153,6 +159,6 @@
         return linhas.map(l => [l.ativo, l.desc_ativo, l.componente, l.projeto, l.mdo, l.origem, l.codigo, l.desc_codigo, l.formula_i || l.fator_i, l.formula_r || l.fator_r, l.filtro, l.lv, l.arred].map(f).join('\t')).join('\n');
     }
 
-    const api = { rascunhoDeLinhas, rascunhoVazio, itemVazio, ehChamada, gerarLinhas, lerColado, lerCombinacoes, validarLocal, paraTsv, mdoDe };
+    const api = { rascunhoDeLinhas, rascunhoVazio, itemVazio, ehChamada, renomeando, gerarLinhas, lerColado, lerCombinacoes, validarLocal, paraTsv, mdoDe };
     if (typeof module !== 'undefined' && module.exports) module.exports = api; else raiz.BaseCadastroDados = api;
 })(typeof window !== 'undefined' ? window : globalThis);

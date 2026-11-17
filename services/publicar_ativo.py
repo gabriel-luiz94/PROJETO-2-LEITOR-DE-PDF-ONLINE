@@ -95,10 +95,16 @@ def linhas_do_ativo(projeto, nome, sb=None):
 
 
 def _anterior(projeto, nome):
+    """(linhas, usuario, criado_em, limpar) do passo anterior. `limpar` = nomes de OUTROS ativos que o desfazer também apaga (renomeação); a coluna guarda uma lista
+    (publicação comum) ou {"linhas": [...], "limpar": [...]} (renomeação)."""
     conn = get_row_connection()
     try:
         r = conn.execute("SELECT linhas_json, usuario, criado_em FROM ativo_versoes WHERE projeto = ? AND ativo = ?", (_u(projeto), _u(nome))).fetchone()
-        return (json.loads(r["linhas_json"]), r["usuario"], r["criado_em"]) if r else None
+        if not r:
+            return None
+        j = json.loads(r["linhas_json"])
+        linhas, limpar = (j.get("linhas") or [], j.get("limpar") or []) if isinstance(j, dict) else (j, [])
+        return (linhas, r["usuario"], r["criado_em"], limpar)
     finally:
         conn.close()
 
@@ -166,18 +172,39 @@ def chamadores(base, nome) -> list:
     return [{"ativo": k, "referencias": v} for k, v in sorted(saida.items())]
 
 
-def previa(projeto, nome, linhas, sb=None) -> dict:
+def _renomeia(nome, renomear_de) -> bool:
+    return bool(str(renomear_de or "").strip()) and _u(renomear_de) != _u(nome)
+
+
+def previa(projeto, nome, linhas, sb=None, renomear_de=None) -> dict:
+    """`renomear_de`: nome ANTIGO quando o ativo está sendo renomeado para `nome` (as linhas atuais comparadas são as do nome antigo)."""
     base = _locais()
-    ava = avaliar(base, linhas, projeto)
-    atuais = linhas_do_ativo(projeto, nome, sb)
+    renomeando = _renomeia(nome, renomear_de)
+    ava = avaliar(base, linhas, projeto, tirar=[renomear_de] if renomeando else None)
+    atuais = linhas_do_ativo(projeto, renomear_de if renomeando else nome, sb)
     novas = ava["linhas"] if not ava["erros"] else []
     d = diff(atuais, novas) if novas else {"novas": [], "alteradas": [], "removidas": [], "iguais": 0}
     ant = _anterior(projeto, nome)
-    return {"erros": ava["erros"], "avisos": ava["avisos"], "diff": d, "chamadores": chamadores(base, nome), "total_base": len(base), "assinatura": assinatura(atuais),
-            "existe": bool(atuais), "tem_anterior": ant is not None}
+    resposta = {"erros": ava["erros"], "avisos": ava["avisos"], "diff": d, "chamadores": chamadores(base, renomear_de if renomeando else nome), "total_base": len(base),
+                "assinatura": assinatura(atuais), "existe": bool(atuais) if not renomeando else bool(linhas_do_ativo(projeto, nome, sb)), "tem_anterior": ant is not None}
+    if renomeando:
+        resposta["renomeacao"] = {"de": str(renomear_de).strip(), "para": nome, "existe_destino": resposta["existe"], "origem_existe": bool(atuais)}
+    return resposta
 
 
 # ───────────────────────── gravação ─────────────────────────
+def _ids_de(linhas, nomes, projeto):
+    """ids das linhas de um ou mais ativos (`nomes`: texto ou lista) no projeto, sem repetir."""
+    lista = [nomes] if isinstance(nomes, str) else list(nomes)
+    saida, vistos = [], set()
+    for n in lista:
+        for i in ids_do_ativo(linhas, n, projeto):
+            if i not in vistos:
+                vistos.add(i)
+                saida.append(i)
+    return saida
+
+
 def _inserir_local(cur, linhas):
     for r in linhas:
         v = _so_campos(r)
@@ -185,13 +212,13 @@ def _inserir_local(cur, linhas):
 
 
 def _aplicar(projeto, nome, novas, sb):
-    """Troca as linhas do ativo no projeto: nuvem primeiro (sem deixar nada pela metade), depois o banco local."""
+    """`nome`: um ativo ou uma LISTA de ativos cujas linhas saem (renomeação/desfazer de renomeação). Troca as linhas do ativo no projeto: nuvem primeiro (sem deixar nada pela metade), depois o banco local."""
     novas = [dict(_so_campos(r), projeto=r.get("projeto") or projeto) for r in novas]
     nuvem = False
     if sb:
         try:
             na_nuvem = _da_nuvem(sb, projeto)
-            ids_velhos = ids_do_ativo(na_nuvem, nome, projeto)
+            ids_velhos = _ids_de(na_nuvem, nome, projeto)
             novos_ids = []
             for i in range(0, len(novas), 500):
                 res = sb.table(TABELA).insert(novas[i:i + 500]).execute()
@@ -215,7 +242,7 @@ def _aplicar(projeto, nome, novas, sb):
         cur = conn.cursor()
         cur.execute("BEGIN")
         locais = [dict(x) for x in conn.execute(f"SELECT * FROM {TABELA} ORDER BY id").fetchall()]
-        ids = ids_do_ativo(locais, nome, projeto)
+        ids = _ids_de(locais, nome, projeto)
         for i in range(0, len(ids), 500):
             cur.execute(f"DELETE FROM {TABELA} WHERE id IN ({','.join('?' * len(ids[i:i + 500]))})", ids[i:i + 500])
         _inserir_local(cur, novas)
@@ -228,49 +255,70 @@ def _aplicar(projeto, nome, novas, sb):
     return nuvem
 
 
-def _guardar_anterior(projeto, nome, linhas, usuario):
+def _guardar_anterior(projeto, nome, linhas, usuario, limpar=None):
     conn = get_connection()
     try:
+        corpo = [_so_campos(r) for r in linhas]
+        if limpar:
+            corpo = {"linhas": corpo, "limpar": sorted({str(x) for x in limpar})}
         conn.execute("INSERT OR REPLACE INTO ativo_versoes (projeto, ativo, linhas_json, usuario, criado_em) VALUES (?, ?, ?, ?, datetime('now'))",
-                     (_u(projeto), _u(nome), json.dumps([_so_campos(r) for r in linhas], ensure_ascii=False), usuario))
+                     (_u(projeto), _u(nome), json.dumps(corpo, ensure_ascii=False), usuario))
         conn.commit()
     finally:
         conn.close()
 
 
-def publicar(admin: dict, projeto: str, nome: str, linhas: list, esperada=None, forcar=False, sb="auto") -> dict:
-    """Publica as `linhas` como a definição do ativo `nome` no `projeto`. Levanta ErroPublicacao (400 validação / 409 conflito / 502 nuvem)."""
+def publicar(admin: dict, projeto: str, nome: str, linhas: list, esperada=None, forcar=False, sb="auto", renomear_de=None) -> dict:
+    """Publica as `linhas` como a definição do ativo `nome` no `projeto`. Levanta ErroPublicacao (400 validação / 409 conflito / 502 nuvem).
+    `renomear_de`: o ativo `renomear_de` passa a se chamar `nome` (as linhas do nome antigo saem, as novas entram, num passo só; o desfazer volta ao nome antigo)."""
     sb = get_supabase() if sb == "auto" else sb
     projeto, nome = str(projeto or "").strip(), str(nome or "").strip()
     if not projeto or not nome:
         raise ErroPublicacao("Escolha um projeto e informe o nome do ativo.")
-    atuais = linhas_do_ativo(projeto, nome, sb)
+    renomeando = _renomeia(nome, renomear_de)
+    antigo = str(renomear_de).strip() if renomeando else None
+    atuais = linhas_do_ativo(projeto, antigo or nome, sb)
+    if renomeando:
+        if not atuais:
+            raise ErroPublicacao(f'O ativo "{antigo}" não existe neste projeto: não há o que renomear.')
+        if linhas_do_ativo(projeto, nome, sb):
+            raise ErroPublicacao(f'Já existe um ativo chamado "{nome}" neste projeto. Escolha outro nome (ou edite aquele).')
     if esperada is not None and esperada != assinatura(atuais) and not forcar:
-        quem, quando = _ultimo_editor(projeto, nome)
+        quem, quando = _ultimo_editor(projeto, antigo or nome)
         raise ErroPublicacao("Este ativo mudou desde que você o abriu" + (f" (alterado por {quem} em {quando})" if quem else "") + ".", 409,
                              {"conflito": True, "assinatura_atual": assinatura(atuais), "linhas_atuais": [_so_campos(r) for r in atuais]})
-    ava = avaliar(_locais(), linhas, projeto)
+    ava = avaliar(_locais(), linhas, projeto, tirar=[antigo] if renomeando else None)
     if ava["erros"]:
         raise ErroPublicacao("A publicação foi recusada: " + " | ".join(ava["erros"][:6]), 400, {"erros": ava["erros"]})
     if not ava["linhas"]:
         raise ErroPublicacao("Não há linhas para publicar.")
     if any(nome_base(l["ativo"]) != _u(nome) for l in ava["linhas"] if str(l.get("ativo") or "").strip()):
         raise ErroPublicacao("Todas as linhas precisam ser do ativo " + nome + ".")
-    nuvem = _aplicar(projeto, nome, ava["linhas"], sb)
+    nuvem = _aplicar(projeto, antigo or nome, ava["linhas"], sb)
     _guardar_anterior(projeto, nome, atuais, admin.get("email"))
     espelhar_master_no_pessoal(admin.get("user_id"), projeto)
     novas = linhas_do_ativo(projeto, nome, sb)
-    return {"status": "ok", "linhas": len(ava["linhas"]), "removidas": len(atuais), "nuvem": nuvem, "assinatura": assinatura(novas), "avisos": ava["avisos"]}
+    resposta = {"status": "ok", "linhas": len(ava["linhas"]), "removidas": len(atuais), "nuvem": nuvem, "assinatura": assinatura(novas), "avisos": ava["avisos"]}
+    if renomeando:
+        resposta["renomeado_de"] = antigo
+    return resposta
 
 
 def desfazer(admin: dict, projeto: str, nome: str, sb="auto") -> dict:
-    """Volta o ativo ao que havia antes da última publicação (e guarda o atual como o novo "anterior": desfazer de novo refaz)."""
+    """Volta o ativo ao que havia antes da última publicação (e guarda o atual como o novo "anterior": desfazer de novo refaz).
+    Depois de uma RENOMEAÇÃO, desfazer apaga o nome novo e restaura o antigo (e refazer faz o caminho inverso)."""
     sb = get_supabase() if sb == "auto" else sb
     ant = _anterior(projeto, nome)
     if ant is None:
         raise ErroPublicacao("Não há versão anterior guardada para este ativo.", 404)
-    atuais = linhas_do_ativo(projeto, nome, sb)
-    nuvem = _aplicar(projeto, nome, ant[0], sb)
-    _guardar_anterior(projeto, nome, atuais, admin.get("email"))
+    nomes_ant = {nome_base(l["ativo"]) for l in ant[0] if str(l.get("ativo") or "").strip()}
+    apagar = [nome] + [n for n in ant[3] if _u(n) != _u(nome)]
+    atuais = []
+    for n in apagar:                                                           # o que existe agora e vai sair (o ativo e os que a renomeação mexeu)
+        atuais += linhas_do_ativo(projeto, n, sb)
+    nuvem = _aplicar(projeto, apagar, ant[0], sb)
+    nomes_atuais = {nome_base(l["ativo"]) for l in atuais if str(l.get("ativo") or "").strip()}
+    limpar = sorted((nomes_ant | nomes_atuais) - {_u(nome)})                  # o refazer precisa apagar o que este desfazer restaurou
+    _guardar_anterior(projeto, nome, atuais, admin.get("email"), limpar=limpar)
     espelhar_master_no_pessoal(admin.get("user_id"), projeto)
     return {"status": "ok", "linhas": len(ant[0]), "removidas": len(atuais), "nuvem": nuvem, "assinatura": assinatura(linhas_do_ativo(projeto, nome, sb))}

@@ -62,15 +62,15 @@ def _chave(msg: str) -> str:
     return _PREFIXO_LINHA.sub("", msg)
 
 
-def avaliar(base: list, novas: list, projeto: str, simular: list = None) -> dict:
-    """{"erros": [...], "avisos": [...], "linhas": [linhas novas com COMPONENTE preenchido], "componentes_gerados": n, "simulacao": [...]|None}."""
+def avaliar(base: list, novas: list, projeto: str, simular: list = None, tirar: list = None) -> dict:
+    """`tirar`: nomes de ativos que SAEM da base junto com os das `novas` (renomeação: o nome antigo deixa de existir). {"erros": [...], "avisos": [...], "linhas": [linhas novas com COMPONENTE preenchido], "componentes_gerados": n, "simulacao": [...]|None}."""
     if not isinstance(novas, list) or len(novas) > LIMITE_LINHAS:
         return {"erros": [f"Envie até {LIMITE_LINHAS} linhas."], "avisos": [], "linhas": [], "componentes_gerados": 0, "simulacao": None}
     linhas, erros = _normalizar_novas(novas, projeto)
     if erros:
         return {"erros": erros, "avisos": [], "linhas": [], "componentes_gerados": 0, "simulacao": None}
     nomes = {nome_base(l["ativo"]) for l in linhas if l["ativo"]}
-    sem = _sem_ativos(base, nomes, projeto)
+    sem = _sem_ativos(base, nomes | {nome_base(t) for t in (tirar or []) if str(t or "").strip()}, projeto)
     antes = validar_base(preencher_componentes([dict(x) for x in sem])[0])
     juntas, n_comp = preencher_componentes([dict(x) for x in sem] + [dict(x) for x in linhas])
     depois = validar_base([dict(x) for x in juntas])

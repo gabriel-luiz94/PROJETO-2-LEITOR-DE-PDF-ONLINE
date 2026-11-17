@@ -112,12 +112,29 @@
         v.avisos.slice(0, 6).forEach(x => lado.appendChild(el('div', { class: 'bf-av', text: '⚠ ' + x.texto })));
         marcarErros(v);
     }
+    /** Edição de ativo existente: o nome pode ser trocado (renomear). O nome antigo vira apelido por padrão, para as chamadas e orçamentos antigos continuarem achando o ativo. */
+    function campoNomeEdicao() {
+        const aviso = el('div', { class: 'bf-mut', style: 'font-size:12px;margin-top:4px' });
+        const inp = el('input', { class: 'bf-in', value: r.nome, placeholder: 'novo nome do ativo' });
+        const caixa = el('input', { type: 'checkbox' });
+        caixa.checked = r.manterAntigo !== false;
+        caixa.addEventListener('change', () => { r.manterAntigo = caixa.checked; salvarRascunho(); lateral(); });
+        const linhaApelido = el('label', { style: 'display:none;font-size:12px;margin-top:6px;cursor:pointer' }, [caixa, ` Manter “${r.editar}” como apelido (recomendado)`]);
+        const atualizar = () => {
+            const ren = C.renomeando(r);
+            linhaApelido.style.display = ren ? 'block' : 'none';
+            aviso.textContent = ren ? `Renomeando “${r.editar}” → “${r.nome}”. As linhas do nome antigo saem e as do novo entram ao publicar (dá para desfazer).` : 'Mudar o nome renomeia o ativo ao publicar.';
+        };
+        inp.addEventListener('input', () => { r.nome = inp.value.trim(); servidor = null; atualizar(); salvarRascunho(); lateral(); });
+        atualizar();
+        return el('div', {}, [el('label', { class: 'bc-lbl', text: 'Nome do ativo' }), inp, aviso, linhaApelido]);
+    }
     function passo1() {
         const main = el('div', { class: 'bf-main', style: 'padding:14px' });
         lado = el('div', { class: 'bf-side', style: 'width:340px' });
         corpo.append(main, lado);
         main.appendChild(el('div', { style: 'display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:12px' }, [
-            r.editar ? el('div', {}, [el('label', { class: 'bc-lbl', text: 'Nome do ativo (não muda na edição)' }), el('input', { class: 'bf-in', value: r.nome, disabled: 'disabled' })]) : campo('Nome do ativo', r.nome, v => { r.nome = v.trim(); }, 'ex.: CHAVE_FACA_OLEO'), campo('Apelidos (separados por vírgula)', r.apelidos, v => { r.apelidos = v; }, 'ex.: SUO, CFO'), campo('Descrição', r.descricao, v => { r.descricao = v; })]));
+            r.editar ? campoNomeEdicao() : campo('Nome do ativo', r.nome, v => { r.nome = v.trim(); }, 'ex.: CHAVE_FACA_OLEO'), campo('Apelidos (separados por vírgula)', r.apelidos, v => { r.apelidos = v; }, 'ex.: SUO, CFO'), campo('Descrição', r.descricao, v => { r.descricao = v; })]));
         main.appendChild(el('h4', { class: 'bf-mut', style: 'margin:18px 0 6px;font-size:11px;text-transform:uppercase', text: 'Parâmetros (opcional) — o ativo muda de itens conforme o valor' }));
         const tb = el('table', { class: 'bc-grid', style: 'width:60%' }, [el('tr', {}, ['Parâmetro', 'Padrão (se o usuário não informar)', ''].map(h => el('th', { text: h })))]);
         (r.parametros || []).forEach((p, i) => {
@@ -232,12 +249,12 @@
         const op = raiz.BaseStatus ? raiz.BaseStatus.iniciar('Validando o ativo no servidor…') : null;
         const exemplo = (r.nome || 'ATIVO') + ((r.parametros || []).filter(p => p.nome).length ? '(' + r.parametros.filter(p => p.nome).map(p => p.padrao || '').join(',') + ')' : '');
         try {
-            servidor = await post('/api/orcamento/rascunho', { linhas, projeto: cfg.projeto(), simular: [{ ativo: exemplo }] });
+            servidor = await post('/api/orcamento/rascunho', { linhas, projeto: cfg.projeto(), simular: [{ ativo: exemplo }], renomear_de: C.renomeando(r) ? r.editar : undefined });
             if (servidor.detail) servidor = { erros: [String(servidor.detail)], avisos: [], linhas: [], simulacao: null };
             if (cfg.admin() && r.nome) {
                 if (op) op.etapa('Conferindo o que muda na base (prévia)…');
-                const pv = await post('/api/admin/ativo/previa', { projeto: cfg.projeto(), nome: r.nome, linhas });
-                if (pv.detail) servidor.erros = (servidor.erros || []).concat([String(pv.detail)]); else { servidor.previa = pv; if (!r.editar || esperada == null) esperada = pv.assinatura; salvarRascunho(); }
+                const pv = await post('/api/admin/ativo/previa', { projeto: cfg.projeto(), nome: r.nome, linhas, renomear_de: C.renomeando(r) ? r.editar : undefined });
+                if (pv.detail) servidor.erros = (servidor.erros || []).concat([String(pv.detail)]); else { servidor.previa = pv; if (pv.renomeacao && pv.renomeacao.existe_destino) servidor.erros = (servidor.erros || []).concat([`Já existe um ativo chamado “${r.nome}” neste projeto — escolha outro nome.`]); if (pv.renomeacao && !pv.renomeacao.origem_existe) servidor.erros = (servidor.erros || []).concat([`O ativo “${r.editar}” não existe mais neste projeto (outro administrador pode ter alterado).`]); if (!r.editar || esperada == null) esperada = pv.assinatura; salvarRascunho(); }
             }
         } catch (e) { servidor = { erros: ['Não foi possível validar no servidor: ' + e.message], avisos: [], linhas: [], simulacao: null }; }
         if (op) { const n = (servidor.erros || []).length; if (n) op.erro(`Validação: ${n} erro(s) — corrija antes de publicar.`); else op.ok('Validado — pronto para publicar' + ((servidor.avisos || []).length ? ` (${servidor.avisos.length} aviso(s))` : '')); }
@@ -247,16 +264,18 @@
         const pv = servidor && servidor.previa, proj = cfg.projeto();
         if (!pv) return;
         if (!r.editar && pv.existe && !forcar && !confirm(`O ativo "${r.nome}" JÁ EXISTE no ${proj}. Publicar vai SUBSTITUIR as linhas dele pelas deste rascunho. Continuar?`)) return;
-        if (!forcar && !confirm(`Publicar "${r.nome}" no ${proj}? As linhas do ativo são trocadas na base local e na nuvem agora. A tabela da tela será recarregada (edições não salvas nela serão perdidas).`)) return;
-        const op = raiz.BaseStatus ? raiz.BaseStatus.iniciar(`Publicando “${r.nome}” (base local e nuvem)…`) : null;
-        const j = await post('/api/admin/ativo/publicar', { projeto: proj, nome: r.nome, linhas: C.gerarLinhas(r, proj), esperada: forcar ? undefined : esperada, forcar: !!forcar });
+        const ren = C.renomeando(r), chamam = (pv.chamadores || []).map(c => c.ativo);
+        if (ren && !forcar && !confirm(`Renomear "${r.editar}" para "${r.nome}" no ${proj}?\n\nAs linhas de "${r.editar}" saem da base e as de "${r.nome}" entram (local e nuvem).` + (r.manterAntigo !== false ? `\n"${r.editar}" continua valendo como apelido.` : `\n"${r.editar}" deixa de existir: ${chamam.length ? 'estes ativos chamam o nome antigo e vão parar de achá-lo: ' + chamam.join(', ') + '. ' : ''}orçamentos que ainda usam o nome antigo não vão achá-lo.`) + '\n\nA tabela da tela será recarregada (edições não salvas nela serão perdidas). Dá para desfazer.')) return;
+        if (!ren && !forcar && !confirm(`Publicar "${r.nome}" no ${proj}? As linhas do ativo são trocadas na base local e na nuvem agora. A tabela da tela será recarregada (edições não salvas nela serão perdidas).`)) return;
+        const op = raiz.BaseStatus ? raiz.BaseStatus.iniciar(ren ? `Renomeando “${r.editar}” para “${r.nome}” (base local e nuvem)…` : `Publicando “${r.nome}” (base local e nuvem)…`) : null;
+        const j = await post('/api/admin/ativo/publicar', { projeto: proj, nome: r.nome, linhas: C.gerarLinhas(r, proj), esperada: forcar ? undefined : esperada, forcar: !!forcar, renomear_de: ren ? r.editar : undefined });
         if (j._status === 409) { if (op) op.erro('Outro administrador alterou este ativo — veja o aviso.'); conflito = j; desenhar(); return; }
         if (j._status !== 200) { if (op) op.erro(j.detail || 'Falha ao publicar.'); avisar(j.detail || 'Falha ao publicar.'); if (j.erros) { servidor = Object.assign(servidor || {}, { erros: j.erros }); desenhar(); } return; }
-        publicado = { linhas: j.linhas, removidas: j.removidas, nuvem: j.nuvem, desfeito: false, nome: r.nome };
+        publicado = { linhas: j.linhas, removidas: j.removidas, nuvem: j.nuvem, desfeito: false, nome: r.nome, renomeadoDe: ren ? r.editar : '' };
         conflito = null; limparRascunho();
         if (op) op.etapa('Publicado. Recarregando a tabela e avisando as outras telas…');
         try { await cfg.recarregar(); } catch (e) { /* a tela recarrega na próxima abertura */ }
-        if (op) op.ok(`Publicado: ${j.linhas} linha(s)${j.removidas ? `, ${j.removidas} removida(s)` : ''}${j.nuvem === false ? ' — só no local (nuvem indisponível)' : ''}`);
+        if (op) op.ok(`${ren ? 'Renomeado e publicado' : 'Publicado'}: ${j.linhas} linha(s)${j.removidas ? `, ${j.removidas} removida(s)` : ''}${j.nuvem === false ? ' — só no local (nuvem indisponível)' : ''}`);
         desenhar();
     }
     async function desfazerPublicacao() {
@@ -285,7 +304,7 @@
     function painelPublicado(lat, main) {
         main.appendChild(el('div', { style: 'text-align:center;padding:60px 20px' }, [
             el('div', { style: 'font-size:42px', text: publicado.desfeito ? '↶' : '✔' }),
-            el('h2', { style: 'margin:10px 0', text: publicado.desfeito ? `Publicação de "${publicado.nome}" desfeita` : `"${publicado.nome}" publicado no ${cfg.projeto()}` }),
+            el('h2', { style: 'margin:10px 0', text: publicado.desfeito ? `Publicação de "${publicado.nome}" desfeita` : (publicado.renomeadoDe ? `"${publicado.renomeadoDe}" renomeado para "${publicado.nome}" no ${cfg.projeto()}` : `"${publicado.nome}" publicado no ${cfg.projeto()}`) }),
             el('div', { class: 'bf-mut', text: `${publicado.linhas} linha(s) agora na base · ${publicado.removidas} linha(s) antigas trocadas · ${publicado.nuvem ? 'nuvem e banco local atualizados' : 'banco local atualizado (nuvem não configurada)'}.` }),
             el('div', { style: 'margin-top:22px;display:flex;gap:10px;justify-content:center' }, [
                 el('button', { class: 'bf-b', text: publicado.desfeito ? '↷ Refazer a publicação' : '↶ Desfazer esta publicação', onclick: desfazerPublicacao }),
@@ -335,6 +354,7 @@
             lat.appendChild(el('h4', { style: 'margin-top:14px', text: 'Impacto' }));
             lat.appendChild(el('div', { text: pv.chamadores.length ? `Ativos que chamam este: ${pv.chamadores.map(c => c.ativo).join(', ')}` : 'Nenhum outro ativo chama este.' }));
             lat.appendChild(el('div', { class: 'bf-mut', style: 'font-size:12px', text: 'Quem usa o ativo passa a calcular com a definição nova assim que publicar.' }));
+            if (C.renomeando(r)) lat.appendChild(el('div', { class: r.manterAntigo !== false ? 'bf-mut' : 'bf-av', style: 'font-size:12px;margin-top:6px', text: r.manterAntigo !== false ? `✎ Renomeação: “${r.editar}” continua valendo como apelido de “${r.nome}”, então as chamadas e orçamentos antigos seguem funcionando.` : `⚠ Renomeação sem apelido: quem usa “${r.editar}” deixa de achar o ativo${pv.chamadores.length ? ' (inclusive os ativos listados acima)' : ''}.` }));
             if (!r.editar && pv.existe) lat.appendChild(el('div', { class: 'bf-av', style: 'margin-top:6px', text: `⚠ "${r.nome}" já existe neste projeto: publicar SUBSTITUI as linhas dele (para partir da definição atual, abra a ficha e use Editar).` }));
             lat.appendChild(el('h4', { style: 'margin-top:14px', text: 'Segurança' }));
             lat.appendChild(el('div', { text: pv.tem_anterior ? 'Já há um passo anterior guardado; esta publicação o substitui.' : 'Antes de trocar, o estado atual é guardado (um passo para desfazer).' }));
