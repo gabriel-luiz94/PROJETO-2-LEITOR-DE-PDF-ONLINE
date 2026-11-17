@@ -426,8 +426,9 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             return True, None
 
         linhas_ativo = achado[1]
-        # Pega o COMPONENTE do primeiro match do ativo
-        componente = linhas_ativo[0].get("componente", "").strip().upper()
+        # Pega o COMPONENTE do ativo: o do primeiro match que tiver (a linha de declaração "N3_2, N32" pode vir SEM componente, com os itens logo abaixo
+        # trazendo-o — antes o cálculo olhava só a primeira linha e devolvia tudo vazio, sem erro nem aviso)
+        componente = next((c for c in ((r.get("componente") or "").strip().upper() for r in linhas_ativo) if c), "")
         if not componente:
             return True, None
 

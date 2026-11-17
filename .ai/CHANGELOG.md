@@ -63,6 +63,12 @@
 
 ---
 
+## 2026-11-17 — Cálculo: ativo com declaração sem COMPONENTE não fica mais vazio
+
+- Ativo cadastrado como `N3_2, N32, N23` (declaração SEM componente, itens abaixo com `COMPONENTE=N3_2`) calculava **nada**, sem erro nem aviso: o cálculo pegava o componente só da PRIMEIRA linha do ativo (a declaração, vazia). Agora usa o primeiro componente preenchido entre as linhas do ativo (`services/orcamento_calc.py`). Teste: `tests/test_declaracao_sem_componente.py`.
+
+---
+
 ## 2026-11-17 — Base de Orçamento mais rápida: ativo novo aparece na hora, pesquisa ágil e barra de status
 
 - **Causa da lentidão:** cada abertura da base (`GET /api/orcamento/dados`) baixava a tabela mestre INTEIRA da nuvem (páginas de 1000) e a regravava no SQLite. Agora `sync_tabela_master_se_preciso()` só baixa de novo depois de `SYNC_MASTER_TTL` (30 s) — o que o próprio servidor grava (publicar, salvar, importar) já atualiza o local; `invalidar_sync_master()` força. Duas telas abrindo juntas baixam uma vez só (trava). Falha de sync não marca o horário.
