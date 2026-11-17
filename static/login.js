@@ -25,6 +25,9 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             localStorage.setItem('user_id', data.user_id);
             localStorage.setItem('user_email', data.email);
             localStorage.setItem('is_admin', data.is_admin);
+            // "Lembrar de mim": marcado, o programa abre direto na próxima vez (sessão de 30 dias); desmarcado, vale só até fechar o programa (a tela de login volta ao reabrir)
+            localStorage.setItem('auth_lembrar', lembrar ? 'true' : 'false');
+            try { sessionStorage.setItem('sessao_ativa', '1'); } catch (_) { /* sem sessionStorage */ }
             
             // TASK-133: oferece salvar a senha no navegador/janela (gerenciador de senhas); falha silenciosa onde não houver suporte
             try {

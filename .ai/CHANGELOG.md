@@ -63,6 +63,13 @@
 
 ---
 
+## 2026-11-17 — Login: "Lembrar de mim" passa a valer
+
+- Antes a caixa era enviada ao servidor e ignorada (o token valia 24 h para todos). Agora: **marcada** → sessão de **30 dias** (`JWT_LEMBRAR_HORAS`) e o programa abre direto, sem a tela de login; **desmarcada** → token de 24 h e a tela de login volta ao reabrir o programa.
+- Cliente: `login.js` grava `auth_lembrar` (localStorage) e `sessao_ativa` (sessionStorage); `auth_fetch.js` descarta o token numa abertura nova quando `auth_lembrar === 'false'` e não há `sessao_ativa`. Sessão criada antes desta versão (sem a marca) segue entrando direto. Logout limpa as duas marcas. Tokens: `create_jwt_token(..., horas=)`.
+
+---
+
 ## 2026-11-17 — Novo projeto: a nota do SAP é o nome do projeto
 
 - Em **Novo projeto** (e **Salvar como**), **Colar SAP** passa a preencher o **nome** (e o nome do arquivo `.obra`) e o **número da obra** com a **nota**; o **título** do SAP não vira mais o nome: fica guardado em `sap.titulo` do projeto e continua sendo o título sugerido nos relatórios PDF (sem ele, vale o nome do projeto).

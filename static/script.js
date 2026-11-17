@@ -92,6 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.removeItem('user_id');
             localStorage.removeItem('user_email');
             localStorage.removeItem('is_admin');
+            localStorage.removeItem('auth_lembrar');
+            try { sessionStorage.removeItem('sessao_ativa'); } catch (e) { /* sem sessionStorage */ }
             window.location.href = '/login';
         });
     }
