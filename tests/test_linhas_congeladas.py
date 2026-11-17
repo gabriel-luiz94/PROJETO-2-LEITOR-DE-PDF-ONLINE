@@ -132,3 +132,12 @@ def test_ligacoes_na_tela():
     assert "/static/ativo_na_base.js" in html and 'id="ctx-congelar"' in html and 'id="ctx-bloquear"' in html and "par-nao-base" in html and "linha-congelada" in html
     assert "item.congelada) continue" in js and "alternarMarcaLinhas" in js and "AtivoNaBase.foraDaBase" in js and "r && !r.congelada) linhas.push" in js
     assert "Linha bloqueada: desbloqueie antes de excluir." in js
+
+
+def test_comentario_persiste_e_vale_como_congelada():
+    dados = {"cabos": [], "outros": [{"ativo": "LIMITE DE SECAO", "operacao": "I", "entidade": "0", "comentario": True},
+                                      {"ativo": "N1", "operacao": "I", "entidade": "0", "comentario": "sim"}]}
+    r = obras_arquivo.normalizar_dados(dados)["outros"]
+    assert r[0]["comentario"] is True and r[0]["congelada"] is True           # comentário é uma linha congelada com outra aparência
+    assert "comentario" not in r[1] and "congelada" not in r[1]               # valor inválido é descartado, como os outros campos
+    assert obras_arquivo.normalizar_dados({"cabos": [], "outros": [{"ativo": "X", "operacao": "I", "entidade": "0"}]})["outros"] == [{"ativo": "X", "operacao": "I", "entidade": "0"}]

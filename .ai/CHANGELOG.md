@@ -63,6 +63,14 @@
 
 ---
 
+## 2026-11-17 — Resumo: comentário em linha, operação antes do ativo e aviso "ATIVO NÃO EXISTE NA BASE"
+
+- **Comentário** (menu de contexto da linha, Cabos e Outros): a linha vira uma anotação (💬, verde itálico) — é uma linha **congelada** com outra aparência (`comentario: true` + `congelada: true`; o `.obra` normaliza `comentario` → `congelada`). Continua editável; "Congelar" não mexe em comentário; "Tirar comentário" devolve a linha ao normal. Um passo de Ctrl+Z.
+- **Operação antes do ativo:** nas linhas em branco de Cabos e Outros a coluna Operação agora é um seletor (já vem com a operação herdada). Escolhida antes de digitar o ativo, vale para a linha criada; sem escolher, continua herdando.
+- **Balão ao passar o mouse** (com "Colorir ativos por parâmetros" ligado): ativo pedido que não existe na base (nem como ativo/apelido, componente ou código do projeto/origem) aparece como **"<ATIVO> · ATIVO NÃO EXISTE NA BASE"**, em Cabos e Outros, antes do status de parâmetros. Substitui o título nativo do campo vermelho.
+
+---
+
 ## 2026-11-17 — Cadastro rápido: renomear o ativo ao editar
 
 - Em **Editar ativo** o campo **Nome** agora pode ser trocado. Ao publicar, as linhas do nome antigo saem e as do nome novo entram num passo só (local + nuvem); o nome antigo vira **apelido** por padrão (caixa "Manter “X” como apelido (recomendado)") para chamadas `:=` e orçamentos antigos continuarem achando o ativo. Sem a caixa, a tela lista os ativos que chamam o nome antigo e a confirmação avisa.

@@ -893,3 +893,9 @@ Na tela de login, com **Lembrar de mim** marcado o programa **abre direto, sem p
 - Por padrão o **nome antigo vira apelido** do ativo novo (marcado como recomendado): as chamadas `:=` de outros ativos e os orçamentos que ainda usam o nome antigo continuam funcionando. Desmarque só se quiser que o nome antigo deixe de existir (a tela lista quem o chama).
 - Não dá para renomear para o nome de **outro** ativo do mesmo projeto (aparece o erro na revisão). O ativo é renomeado só no projeto escolhido.
 - Ao publicar, as linhas do nome antigo saem e as do novo entram de uma vez (base local e nuvem). **Desfazer** volta ao nome antigo; desfazer de novo refaz.
+
+## Comentário, operação antes do ativo e ativo fora da base (17/11/2026)
+
+- **Comentário:** botão direito na linha › *Marcar como comentário* (💬). Serve para anotar na tabela (por exemplo, o limite de uma seção): fica fora de todos os cálculos, como a linha congelada, e continua editável. *Tirar comentário* devolve a linha ao normal.
+- **Operação antes do ativo:** nas linhas em branco de Cabos e Outros, escolha a **Operação** na coluna antes de digitar o ativo; a nova linha nasce com ela. Se não escolher, vale a operação da linha de cima, como antes.
+- **Ativo que não existe na base:** com *Colorir ativos por parâmetros* ligado, passe o mouse no ativo vermelho: o balão mostra "**ATIVO NÃO EXISTE NA BASE**". Um nome que é **componente** ou **código** da base não é marcado.
