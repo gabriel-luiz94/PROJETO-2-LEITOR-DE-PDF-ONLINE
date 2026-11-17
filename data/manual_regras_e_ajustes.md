@@ -878,3 +878,11 @@ Na tela de login, com **Lembrar de mim** marcado o programa **abre direto, sem p
 - **Congelar linha** (botão direito na linha › *Congelar linha*; vale para as linhas selecionadas): a linha fica na tela, **editável**, mas **fora de tudo** — Totalizadora, orçamento, validação, ajustes, cores, resumo da rede e vínculos. Serve para anotar (por exemplo, um limite de seção). Um **cabo congelado** pode continuar sendo a **fonte de um vínculo que você fez à mão**: a estrutura ligada a ele segue funcionando normalmente. Os vínculos automáticos (por poste, mapa e script) não ligam cabo congelado, e uma estrutura congelada não entra em vínculo.
 - **Bloquear linha**: a linha **não pode ser editada nem excluída** (colar e limpar em bloco também a pulam), mas continua nos cálculos. Uma linha pode ser congelada e bloqueada ao mesmo tempo. **Desbloquear** é a única ação aceita numa linha bloqueada. Ctrl+Z desfaz.
 - As marcas ❄ (congelada) e 🔒 (bloqueada) aparecem ao lado do número da linha e ficam gravadas no projeto `.obra`.
+
+## Base de Orçamento mais rápida (17/11/2026)
+
+- Salvou, publicou ou sincronizou na **Base de Orçamento**? As outras telas (Resumo/Orçamento) são avisadas e **recarregam a base na hora**: o ativo novo já aparece nas sugestões e nas cores, sem esperar. Aparece o aviso "Base de orçamento atualizada".
+- A base da nuvem não é mais baixada inteira a cada abertura: o servidor só atualiza a cópia local a cada **30 segundos**.
+- A **pesquisa** (Ctrl+K) ficou mais ágil: usa a base já carregada e se atualiza sozinha em segundo plano.
+- Uma **barra de status** no canto inferior esquerdo mostra o que está acontecendo (Carregando, Validando, Salvando, Publicando, Recarregando) e o resultado (✔ Pronto ou ✖ erro, que fica até você fechar). Os botões de salvar/sincronizar ficam desabilitados enquanto a operação roda.
+- A tabela grande é montada em lotes (a barra mostra "Montando linhas… X de Y").

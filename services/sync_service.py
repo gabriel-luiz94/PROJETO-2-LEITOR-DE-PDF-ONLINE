@@ -7,6 +7,36 @@ from services.supabase_client import get_supabase
 from services.offline_queue import process_queue
 from database import get_connection, get_row_connection
 from config import logger
+import time
+import threading
+
+# Cada abertura da base (GET /api/orcamento/dados) baixava a tabela mestre INTEIRA da nuvem (em páginas de 1000) e regravava o SQLite local.
+# Agora o download só se repete depois de SYNC_MASTER_TTL segundos; o que o próprio servidor grava (publicar, salvar, importar) já atualiza o local.
+SYNC_MASTER_TTL = 30.0
+_sync_master_em = 0.0
+_sync_master_trava = threading.Lock()
+
+
+def invalidar_sync_master():
+    """Força o próximo `sync_tabela_master_se_preciso` a baixar da nuvem."""
+    global _sync_master_em
+    _sync_master_em = 0.0
+
+
+def sync_tabela_master_se_preciso(ttl: float = None) -> bool:
+    """Como `sync_tabela_master`, mas pula o download se o último deu certo há menos de `ttl` segundos (padrão SYNC_MASTER_TTL).
+    Devolve True se baixou agora, False se pulou ou falhou."""
+    global _sync_master_em
+    ttl = SYNC_MASTER_TTL if ttl is None else ttl
+    if time.monotonic() - _sync_master_em < ttl:
+        return False
+    with _sync_master_trava:                       # duas telas abrindo juntas baixam uma vez só
+        if time.monotonic() - _sync_master_em < ttl:
+            return False
+        ok = sync_tabela_master()
+        if ok:
+            _sync_master_em = time.monotonic()
+        return bool(ok)
 
 
 def sync_tabela_master():
@@ -68,6 +98,8 @@ def sync_tabela_master():
         cursor.execute("COMMIT")
         conn.close()
         logger.info(f"Sync Master concluído. {len(master_rows)} registros atualizados localmente.")
+        global _sync_master_em
+        _sync_master_em = time.monotonic()
         return True
 
     except Exception as e:

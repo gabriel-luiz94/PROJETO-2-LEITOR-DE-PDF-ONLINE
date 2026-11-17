@@ -57,16 +57,44 @@
                 fator_i: i[8].value, fator_r: i[9].value, filtro: i[10].value, lv: i[11].value, arred: i[12].value, formula_i: '', formula_r: '' };
         }).filter(Boolean);
     }
+    // A base vem do servidor 1× e fica em memória; o modelo de pesquisa só é refeito quando a base OU a tabela da tela mudam (antes: a cada foco na barra,
+    // lendo todos os <input> da tabela). Base velha (> TTL) é usada na hora e atualizada em segundo plano, sem travar a pesquisa.
+    const TTL_BASE = 5 * 60 * 1000;
+    let modeloChave = '', telaSuja = true, baixando = null, observando = null;
+    function observarTela() {
+        if (!cfg.tbody || observando === cfg.tbody) return;
+        observando = cfg.tbody;
+        const sujar = () => { telaSuja = true; };
+        cfg.tbody.addEventListener('input', sujar); cfg.tbody.addEventListener('change', sujar);
+        if (raiz.MutationObserver) new raiz.MutationObserver(sujar).observe(cfg.tbody, { childList: true });
+    }
+    function baixarBase() {
+        if (baixando) return baixando;
+        baixando = (async () => {
+            try { baseCache = (await (await raiz.fetch('/api/orcamento/dados')).json()).dados || []; baseEm = Date.now(); modeloChave = ''; }
+            catch (e) { baseCache = baseCache || []; }
+            finally { baixando = null; }
+        })();
+        return baixando;
+    }
     async function modelo(forcar) {
-        if (!baseCache || forcar || Date.now() - baseEm > 45000) { try { baseCache = (await (await raiz.fetch('/api/orcamento/dados')).json()).dados || []; baseEm = Date.now(); } catch (e) { baseCache = baseCache || []; } }
-        const proj = cfg.projeto(), visao = cfg.visao();
+        observarTela();
+        if (!baseCache || forcar) await baixarBase();
+        else if (Date.now() - baseEm > TTL_BASE) baixarBase();                      // em segundo plano; a próxima pesquisa já usa a nova
+        const proj = cfg.projeto(), visao = cfg.visao(), chave = visao + '|' + proj;
+        if (modeloAtual && !telaSuja && chave === modeloChave) return modeloAtual;
         let linhas = baseCache;
         if (visao === 'projeto' && proj) linhas = baseCache.filter(r => U(r.projeto) !== U(proj)).concat(linhasDaTela());
         else if (visao === 'genericas') linhas = baseCache.filter(r => U(r.projeto) !== '').concat(linhasDaTela());
         modeloAtual = D.construir(linhas, visao === 'projeto' ? proj : '');
+        modeloChave = chave; telaSuja = false;
         return modeloAtual;
     }
-    function invalidar() { baseCache = null; }
+    /** A base mudou (salvou/publicou/sincronizou): descarta o cache e avisa as outras telas (Resumo/Orçamento recarregam a base na hora). */
+    function invalidar() { baseCache = null; modeloChave = ''; telaSuja = true; if (raiz.BaseSinal) raiz.BaseSinal.avisar(); }
+    /** Mesmo que `invalidar`, mas sem avisar de novo (usado quando o aviso veio de outra tela). */
+    function invalidarLocal() { baseCache = null; modeloChave = ''; telaSuja = true; }
+    if (raiz.BaseSinal) raiz.BaseSinal.ouvir(origem => { if (origem !== 'local') invalidarLocal(); });
 
     /* ───────── janela ───────── */
     function limparJanelas() { doc.querySelectorAll('.bf-ov').forEach(o => o.remove()); doc.removeEventListener('keydown', aoTeclar, true); }
@@ -111,7 +139,8 @@
             const ativa = drop.querySelector('.bf-res.a'); if (ativa && ativa.scrollIntoView) ativa.scrollIntoView({ block: 'nearest' });
         }
         inp.addEventListener('focus', () => { desenhar(); carregar().then(desenhar); });
-        inp.addEventListener('input', () => { sel = 0; atualizar(); if (m) desenhar(); else { desenhar(); carregar().then(desenhar); } });
+        let espera = 0;                                   // espera ~80 ms depois da última tecla antes de refazer a lista (digitar rápido não trava)
+        inp.addEventListener('input', () => { sel = 0; atualizar(); if (!m) { desenhar(); carregar().then(desenhar); return; } clearTimeout(espera); espera = setTimeout(desenhar, 80); });
         inp.addEventListener('keydown', e => {
             if (e.key === 'ArrowDown') { e.preventDefault(); if (drop.style.display === 'none') desenhar(); sel = Math.min(sel + 1, Math.max(itens.length - 1, 0)); desenhar(); }
             else if (e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(sel - 1, 0); desenhar(); }

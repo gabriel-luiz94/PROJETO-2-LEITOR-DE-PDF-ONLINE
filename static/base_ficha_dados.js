@@ -78,29 +78,39 @@
     const resolver = (m, nome) => { const n = T(nome); return m.ativos.has(n) ? n : (m.apelidos.get(U(n)) || (m.ativos.has(U(n)) ? U(n) : null) || Array.from(m.ativos.keys()).find(k => U(k) === U(n)) || null); };
 
     /** Pesquisa: ativos/apelidos (nome começa > contém), códigos (começa > contém) e descrição. Cada resultado: {tipo:'ativo'|'codigo', ...}. */
+    /** Índice de pesquisa do modelo (textos já em maiúsculas), montado UMA vez por modelo — antes cada tecla refazia U() em toda descrição e todo código. */
+    function indiceDe(m) {
+        if (m._idxPesquisa) return m._idxPesquisa;
+        const ativos = [], codigos = [];
+        m.ativos.forEach(e => ativos.push({ e, nome: U(e.nome), apelidos: e.apelidos.map(a => [a, U(a)]), desc: U(e.descricao) }));
+        m.codigos.forEach(c => { const desc = Array.from(c.descricoes)[0] || ''; codigos.push({ c, cod: U(c.codigo), desc, descU: U(desc) }); });
+        const idx = { ativos, codigos };
+        Object.defineProperty(m, '_idxPesquisa', { value: idx, enumerable: false });      // não enumerável: não aparece em cópias/JSON do modelo
+        return idx;
+    }
     function pesquisar(m, consulta, limite) {
         const q = U(consulta);
         if (!q) return [];
         const max = limite || 30, saida = [];
-        const rankNome = n => { const u = U(n); return u === q ? 0 : u.startsWith(q) ? 1 : u.includes(q) ? 2 : -1; };
+        const rk = u => u === q ? 0 : u.startsWith(q) ? 1 : u.includes(q) ? 2 : -1;
+        const ix = indiceDe(m);
         const achados = [];
-        m.ativos.forEach(e => {
-            let r = rankNome(e.nome), via = '';
-            e.apelidos.forEach(ap => { const k = rankNome(ap); if (k !== -1 && (r === -1 || k < r)) { r = k; via = ap; } });
-            if (r === -1 && U(e.descricao).includes(q)) { r = 3; via = ''; }
-            if (r !== -1) achados.push({ tipo: 'ativo', nome: e.nome, apelidos: e.apelidos, via, rank: r, descricao: e.descricao, projetos: Array.from(e.projetos), linhas: e.linhas.length, codigos: e.codigos.size });
+        ix.ativos.forEach(a => {
+            let r = rk(a.nome), via = '';
+            a.apelidos.forEach(([ap, apU]) => { const k = rk(apU); if (k !== -1 && (r === -1 || k < r)) { r = k; via = ap; } });
+            if (r === -1 && a.desc.includes(q)) { r = 3; via = ''; }
+            if (r !== -1) achados.push({ a, via, rank: r });
         });
-        achados.sort((a, b) => a.rank - b.rank || a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true }));
-        achados.slice(0, max).forEach(x => saida.push(x));
+        achados.sort((x, y) => x.rank - y.rank || x.a.e.nome.localeCompare(y.a.e.nome, 'pt-BR', { numeric: true }));
+        achados.slice(0, max).forEach(({ a, via, rank }) => { const e = a.e; saida.push({ tipo: 'ativo', nome: e.nome, apelidos: e.apelidos, via, rank, descricao: e.descricao, projetos: Array.from(e.projetos), linhas: e.linhas.length, codigos: e.codigos.size }); });
         const cods = [];
-        m.codigos.forEach(c => {
-            const desc = Array.from(c.descricoes)[0] || '';
-            let r = rankNome(c.codigo);
-            if (r === -1 && U(desc).includes(q)) r = 3;
-            if (r !== -1) cods.push({ tipo: 'codigo', codigo: c.codigo, descricao: desc, rank: r, usos: new Set(c.usos.map(u => u.ativo)).size, em: Array.from(new Set(c.usos.map(u => u.ativo))).slice(0, 4) });
+        ix.codigos.forEach(x => {
+            let r = rk(x.cod);
+            if (r === -1 && x.descU.includes(q)) r = 3;
+            if (r !== -1) cods.push({ x, rank: r });
         });
-        cods.sort((a, b) => a.rank - b.rank || a.codigo.localeCompare(b.codigo, 'pt-BR', { numeric: true }));
-        cods.slice(0, max).forEach(x => saida.push(x));
+        cods.sort((p, o) => p.rank - o.rank || p.x.c.codigo.localeCompare(o.x.c.codigo, 'pt-BR', { numeric: true }));
+        cods.slice(0, max).forEach(({ x, rank }) => { const nomes = Array.from(new Set(x.c.usos.map(u => u.ativo))); saida.push({ tipo: 'codigo', codigo: x.c.codigo, descricao: x.desc, rank, usos: nomes.length, em: nomes.slice(0, 4) }); });
         return saida.slice(0, max * 2);
     }
 
