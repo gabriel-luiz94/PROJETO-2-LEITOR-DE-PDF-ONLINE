@@ -867,3 +867,7 @@ O **guia da base** está em `docs/base_guia.md` (sintaxe do simples ao avançado
 ## Novo projeto: a nota é o nome (17/11/2026)
 
 Ao criar um projeto (**Projeto → Novo projeto…** ou **Salvar como…**) e usar **📋 Colar SAP**, o **nome do projeto** (e o nome do arquivo `.obra`) e o **número da obra** passam a ser a **nota** do SAP (ex.: `9101578720.obra`). O **título** do SAP não vira o nome: fica guardado no projeto e é sugerido como **título dos relatórios PDF** (sem título guardado, o relatório usa o nome do projeto). Em projeto já criado, o Colar SAP continua como antes.
+
+## Login: "Lembrar de mim" (17/11/2026)
+
+Na tela de login, com **Lembrar de mim** marcado o programa **abre direto, sem pedir o login**, por até **30 dias** (ou até você clicar em **Sair**). Com a caixa **desmarcada**, o login vale só enquanto o programa está aberto: ao fechar e abrir de novo, a tela de login volta. Se a sessão vencer (30 dias, ou 24 h sem a marca), o programa avisa "Sessão expirada" e leva ao login. Quem já estava logado antes desta versão continua entrando direto até o token vencer.

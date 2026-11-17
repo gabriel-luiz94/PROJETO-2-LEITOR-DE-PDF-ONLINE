@@ -16,6 +16,7 @@ from config import logger
 JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret-change-in-production")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24
+JWT_LEMBRAR_HORAS = 24 * 30          # "Lembrar de mim" marcado no login: a sessão dura 30 dias (sem marcar: 24 h, e a tela de login volta ao reabrir o programa)
 
 # Rotas que NÃO exigem autenticação
 PUBLIC_ROUTES = {
@@ -55,8 +56,8 @@ PUBLIC_PREFIXES = (
 )
 
 
-def create_jwt_token(user_id: str, email: str, role: str) -> str:
-    """Cria um token JWT com expiração."""
+def create_jwt_token(user_id: str, email: str, role: str, horas: int = None) -> str:
+    """Cria um token JWT com expiração (`horas`; padrão JWT_EXPIRY_HOURS)."""
     from datetime import timedelta
     now = datetime.now(timezone.utc)
     payload = {
@@ -64,7 +65,7 @@ def create_jwt_token(user_id: str, email: str, role: str) -> str:
         "email": email,
         "role": role,
         "iat": now,
-        "exp": now + timedelta(hours=JWT_EXPIRY_HOURS),
+        "exp": now + timedelta(hours=horas or JWT_EXPIRY_HOURS),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 

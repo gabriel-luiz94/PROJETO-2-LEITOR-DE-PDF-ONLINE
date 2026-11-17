@@ -13,7 +13,7 @@ from database import (
     hash_password, verify_password, _migrate_legacy_password
 )
 from middleware.auth_middleware import (
-    create_jwt_token, create_refresh_token, decode_jwt_token
+    create_jwt_token, create_refresh_token, decode_jwt_token, JWT_EXPIRY_HOURS, JWT_LEMBRAR_HORAS
 )
 from config import logger
 
@@ -33,6 +33,11 @@ class AuthResponse(BaseModel):
     email: str
     is_admin: bool
     role: str
+
+
+def _horas(req) -> int:
+    """"Lembrar de mim": sessão de 30 dias; sem marcar, 24 h (e o programa pede o login de novo a cada abertura — ver static/auth_fetch.js)."""
+    return JWT_LEMBRAR_HORAS if req.lembrar else JWT_EXPIRY_HOURS
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -57,7 +62,7 @@ def login(req: LoginRequest):
                     role = user_cloud.get("role") or ("admin" if user_cloud.get("is_admin") else "operador")
                     is_admin = bool(user_cloud.get("is_admin")) or role == "admin"  # TASK-074: usuarios_nuvem só tem `role`
 
-                    access_token = create_jwt_token(user_id, email, role)
+                    access_token = create_jwt_token(user_id, email, role, _horas(req))
                     refresh_token = create_refresh_token(user_id)
 
                     # Atualiza o cache local
@@ -110,7 +115,7 @@ def login(req: LoginRequest):
                 _migrate_legacy_password(email, req.password, conn)
                 conn.close()
 
-            access_token = create_jwt_token(user_id, email, role)
+            access_token = create_jwt_token(user_id, email, role, _horas(req))
             refresh_token = create_refresh_token(user_id)
 
             conn = get_connection()
@@ -151,7 +156,7 @@ def login(req: LoginRequest):
         is_admin = bool(user_cloud.get("is_admin")) or role == "admin"  # TASK-074
 
         # Gerar tokens JWT
-        access_token = create_jwt_token(user_id, email, role)
+        access_token = create_jwt_token(user_id, email, role, _horas(req))
         refresh_token = create_refresh_token(user_id)
 
         # Salvar na sessão local (SQLite)
