@@ -63,6 +63,13 @@
 
 ---
 
+## 2026-11-17 — Novo projeto: a nota do SAP é o nome do projeto
+
+- Em **Novo projeto** (e **Salvar como**), **Colar SAP** passa a preencher o **nome** (e o nome do arquivo `.obra`) e o **número da obra** com a **nota**; o **título** do SAP não vira mais o nome: fica guardado em `sap.titulo` do projeto e continua sendo o título sugerido nos relatórios PDF (sem ele, vale o nome do projeto).
+- Em projeto já existente (Abrir / Propriedades) o Colar SAP segue como antes. O título digitado ao gerar relatório, se diferente do nome, também fica no projeto. `projeto_obra.sap_limpo` aceita `titulo`; `.obra` antigo abre igual.
+
+---
+
 ## 2026-11-16 — TASK-179: guia e modelo para quem cria uma base nova
 
 - `docs/base_guia.md`: ativo simples → parâmetro → grupos com condição → linha viva (LV/LM) → retirada → cabos e arredondamento → composto → `OBRA.*` → armadilhas → conferência; cada recurso com um exemplo curto e o resultado.

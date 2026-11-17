@@ -863,3 +863,7 @@ No **Resultado do Orçamento**, **Guardar como caso de referência** guarda o pe
 ## Guia e modelo para criar uma base (TASK-179)
 
 O **guia da base** está em `docs/base_guia.md` (sintaxe do simples ao avançado, armadilhas e a lista de códigos do validador). Para começar de algo pronto, abra **Vinculação → Pacote**, escolha **Exemplo** em *Começar de um pacote pronto*, veja a prévia e importe num projeto novo: vêm uma base pequena (poste, N1, N3 com parâmetro, N4 com linha viva, cabos, alça, conector e um composto), a vinculação e 5 casos de referência para conferir. Na **ficha da base**, a coluna **O que faz** traz a frase em português de cada linha. Os erros e avisos da importação da base trazem um código (`B-005`…) que aponta para a seção do guia; o aviso **B-013** pega o equipamento (trafo, chave, religador…) colocado nas linhas gerais de um ativo que tem parâmetro desse tipo.
+
+## Novo projeto: a nota é o nome (17/11/2026)
+
+Ao criar um projeto (**Projeto → Novo projeto…** ou **Salvar como…**) e usar **📋 Colar SAP**, o **nome do projeto** (e o nome do arquivo `.obra`) e o **número da obra** passam a ser a **nota** do SAP (ex.: `9101578720.obra`). O **título** do SAP não vira o nome: fica guardado no projeto e é sugerido como **título dos relatórios PDF** (sem título guardado, o relatório usa o nome do projeto). Em projeto já criado, o Colar SAP continua como antes.

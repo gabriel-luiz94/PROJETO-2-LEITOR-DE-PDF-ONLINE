@@ -513,7 +513,7 @@
         const grade = el('div', 'display:grid;grid-template-columns:1fr 1fr;gap:10px;');
         const campos = {};
         camposSap().forEach(([k, rot]) => { const c = campo(rot, (valores || {})[k] || ''); if (k === 'id_investimento_odd') c.bloco.style.gridColumn = '1 / -1'; campos[k] = c.input; grade.appendChild(c.bloco); });
-        j.corpo.appendChild(el('div', 'font-size:12px;color:#8b949e;', 'O título do relatório é o nome do projeto e o nº da nota é o número da obra. Estes dados vão preenchidos ao gerar os relatórios ODI e ODD.'));
+        j.corpo.appendChild(el('div', 'font-size:12px;color:#8b949e;', 'O título do relatório é o título do SAP (se foi colado ao criar o projeto) ou o nome do projeto; o nº da nota é o número da obra. Estes dados vão preenchidos ao gerar os relatórios ODI e ODD.'));
         j.corpo.appendChild(el('div', '', null, [botao('📋 Colar SAP', false, async () => {
             const r = await colarSap();
             if (!r) return;
@@ -556,7 +556,7 @@
         });
         cPasta.input.readOnly = true;
         const linhaPasta = el('div', 'display:flex;gap:8px;'); cPasta.bloco.insertBefore(linhaPasta, cPasta.input); linhaPasta.appendChild(cPasta.input); linhaPasta.appendChild(btnEscolher);
-        const btnSap = botao('📋 Informações do relatório SAP…', false, () => abrirJanelaSap(sap, v => { sap = v; mudou(); }));
+        const btnSap = botao('📋 Informações do relatório SAP…', false, () => abrirJanelaSap(sap, v => { sap = Object.assign({}, v, sap.titulo ? { titulo: sap.titulo } : {}); mudou(); }));
         j.corpo.append(cNome.bloco, cNum.bloco);
         if (criaArquivo) j.corpo.appendChild(cPasta.bloco);
         else j.corpo.appendChild(el('div', 'font-size:12px;color:#8b949e;word-break:break-all;', 'Arquivo: ' + (modo === 'abrir' ? aberto.caminho : (atual ? atual.caminho : ''))));
@@ -564,9 +564,15 @@
             const r = await colarSap();
             if (!r) return;
             const c = r.campos;
-            if (c.titulo) cNome.input.value = c.titulo;                                   // o título do SAP vira o nome do projeto
-            if (c.nota) cNum.input.value = c.nota;                                        // e a nota, o número de obra
-            sap = Object.assign({}, sap); camposSap().forEach(([k]) => { if (c[k]) sap[k] = c[k]; });
+            sap = Object.assign({}, sap);
+            if (criaArquivo) {                                                            // projeto novo / salvar como: a NOTA é o nome do projeto (e do .obra) e o número da obra; o título do SAP fica guardado só para os relatórios
+                if (c.nota) { cNome.input.value = c.nota; cNum.input.value = c.nota; }
+                if (c.titulo) sap.titulo = c.titulo;
+            } else {
+                if (c.titulo) cNome.input.value = c.titulo;                               // projeto já existente: como sempre (o título vira o nome)
+                if (c.nota) cNum.input.value = c.nota;
+            }
+            camposSap().forEach(([k]) => { if (c[k]) sap[k] = c[k]; });
             mudou();
             avisar('Preenchido: ' + Object.keys(c).map(k => ROTULOS[k]).join(', ') + '.');
         });
@@ -797,6 +803,8 @@
     function salvarSap(cab) {
         if (!estado() || !cab) return Promise.resolve();
         const sap = {}; camposSap().forEach(([k]) => { if (typeof cab[k] === 'string') sap[k] = cab[k].trim(); });
+        const nomeAtual = (estado() || {}).nome || '';
+        if (typeof cab.titulo === 'string' && cab.titulo.trim() && cab.titulo.trim() !== nomeAtual) sap.titulo = cab.titulo.trim();          // título dos relatórios diferente do nome do projeto (ex.: o do SAP): fica no projeto
         atualizarEstado({ sap });
         return enviar({ sap });
     }
