@@ -63,6 +63,15 @@
 
 ---
 
+## 2026-11-17 — Cabos e Outros: ativo fora da base na linha, e linhas congeladas/bloqueadas
+
+- **Ativo fora da base:** o interruptor "Colorir ativos por parâmetros" (Configurações › Aparência › Avançado) passa a pintar de **vermelho** o ativo que não existe na base, em **Cabos e Outros**, ao vivo (e ao carregar a base). Mesma cascata do cálculo para o nome (ativo/apelido → componente → código, projeto e origem) em `static/ativo_na_base.js`; confere o texto digitado (o Validar/C1-BASE confere depois das regras de conversão). Linha congelada não é pintada.
+- **Congelar** (menu de contexto da linha, em Cabos e Outros; vale para as linhas selecionadas): a linha continua na tela e **editável** (serve de comentário), mas sai da Totalizadora, do orçamento, da validação (lista, IA, C1-BASE), dos ajustes, das cores, do resumo da rede, dos contadores de qtd de ativos e do autocomplete; estrutura congelada sai do vínculo. **Cabo congelado** ainda pode ser fonte de um vínculo **feito à mão** (a estrutura continua recebendo `cabo`/`tipocabo`); os algoritmos (por poste, mapa, script) não ligam cabo congelado sozinhos, e ele não gera os itens `VINCULO` das regras de conversão.
+- **Bloquear:** a linha não pode ser editada (nem por colagem/limpeza em bloco) nem excluída; continua nos cálculos, a menos que também esteja congelada. Linha bloqueada só aceita desbloquear. Congelar e bloquear valem os dois ao mesmo tempo; Ctrl+Z desfaz.
+- Contrato do `.obra`/dados: campos **opcionais** `congelada` e `bloqueada` (booleanos) em cada linha de Cabos/Outros; arquivo antigo abre sem nenhuma marca. Servidor: `montar_totalizadora`, `itens_vinculo_para_totalizadora` e `vinculacao_regras` (Python = JS) respeitam as marcas.
+
+---
+
 ## 2026-11-17 — Login: "Lembrar de mim" passa a valer
 
 - Antes a caixa era enviada ao servidor e ignorada (o token valia 24 h para todos). Agora: **marcada** → sessão de **30 dias** (`JWT_LEMBRAR_HORAS`) e o programa abre direto, sem a tela de login; **desmarcada** → token de 24 h e a tela de login volta ao reabrir o programa.

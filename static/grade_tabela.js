@@ -88,6 +88,7 @@
                 res.criadas++;
             }
             const row = dados[idx];
+            if (row.bloqueada) { res.bloqueadas = (res.bloqueadas || 0) + 1; return; }          // linha bloqueada: não recebe colagem
             // TASK-111: colagem mista — a linha "OP<tab>ATIVO" respeita a operação mesmo que as outras só tragam o Ativo (essas herdam a de cima)
             const opIdx = cols.indexOf('operacao');
             const inicioDaLinha = (cols[c0] === 'ativo' && opIdx >= 0 && celulas.length >= 2 && (operacaoValida(celulas[0]) || String(celulas[0]).trim() === '')) ? opIdx : c0;
@@ -133,7 +134,7 @@
         const cols = colunasDe(tipo), alt = [];
         for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) {
             const row = dados[r];
-            if (!row) continue;
+            if (!row || row.bloqueada) continue;                         // linha bloqueada: não é limpa
             let mudou = false;
             for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++) {
                 if (cols[c] === 'ativo' && row.ativo !== '') { row.ativo = ''; mudou = true; }

@@ -468,6 +468,14 @@
         .par-balao .h { color: #fff; } .par-balao .v { color: #3fb950; } .par-balao .f { color: #f0883e; } .par-balao .m { color: #8b949e; }
         body.colorir-parametros #table-outros .inp-ativo.par-ok { background: rgba(63, 185, 80, 0.20); box-shadow: inset 3px 0 0 #3fb950; }
         body.colorir-parametros #table-outros .inp-ativo.par-falta { background: rgba(240, 136, 62, 0.24); box-shadow: inset 3px 0 0 #f0883e; }
+        /* Ativo que não existe na base (mesmo interruptor; Cabos e Outros): vermelho vence verde/laranja */
+        body.colorir-parametros #table-outros .inp-ativo.par-nao-base, body.colorir-parametros #table-cabos .inp-ativo.par-nao-base { background: rgba(248, 81, 73, 0.24); box-shadow: inset 3px 0 0 #f85149; }
+        /* Linha congelada (fora de Totalizadora, orçamento e validação; serve de comentário) e bloqueada (sem edição) */
+        tr.linha-congelada > td { opacity: 0.62; }
+        tr.linha-congelada > td:not(.col-num) input, tr.linha-congelada > td:not(.col-num) select { font-style: italic; color: #79c0ff; }
+        tr.linha-congelada { background: repeating-linear-gradient(135deg, rgba(121,192,255,0.07) 0 8px, rgba(121,192,255,0.02) 8px 16px); box-shadow: inset 3px 0 0 #58a6ff; }
+        tr.linha-bloqueada > td:not(.col-num) input, tr.linha-bloqueada > td:not(.col-num) select { cursor: not-allowed; }
+        .marca-linha { font-size: 10px; margin-left: 3px; opacity: 1; vertical-align: middle; cursor: default; }
         .painel-avancado { margin-top: 10px; } .painel-avancado > summary { cursor: pointer; color: #6e7681; font-size: 11px; list-style: none; user-select: none; }
         .painel-avancado > summary::-webkit-details-marker { display: none; } .painel-avancado > summary::before { content: '▸ '; } .painel-avancado[open] > summary::before { content: '▾ '; }
         .painel-avancado .cfg-chave { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
@@ -1391,6 +1399,15 @@
             Definir entidade…
         </div>
         <div class="ctx-r-sep"></div>
+        <div class="ctx-r-item" id="ctx-congelar" title="Congelada: a linha fica na tela, mas sai da Totalizadora, do orçamento, da validação e dos demais cálculos (serve de comentário; ainda pode ser fonte de um vínculo feito à mão)">
+            <span style="width:13px;display:inline-block;text-align:center;">❄</span>
+            <span id="ctx-congelar-txt">Congelar linha</span>
+        </div>
+        <div class="ctx-r-item" id="ctx-bloquear" title="Bloqueada: a linha não pode ser editada nem excluída (continua entrando nos cálculos, a menos que também esteja congelada)">
+            <span style="width:13px;display:inline-block;text-align:center;">🔒</span>
+            <span id="ctx-bloquear-txt">Bloquear linha</span>
+        </div>
+        <div class="ctx-r-sep"></div>
         <div class="ctx-r-item danger" id="ctx-del">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
             Excluir linha
@@ -1747,6 +1764,7 @@
     <script src="/static/ler_projeto.js"></script>
     <script src="/static/ativo_parametros.js"></script>
     <script src="/static/ativo_status.js"></script>
+    <script src="/static/ativo_na_base.js"></script>
     <script src="/static/avulsos_ficticia.js"></script>
     <script src="/static/obra_params.js"></script>
     <script src="/static/ativo_avaliar.js?v=1"></script>

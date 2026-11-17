@@ -78,6 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    /** Linha CONGELADA: fica na tela (e pode ser editada), mas sai de Totalizadora, orçamento, validação, ajustes, cores, contadores e algoritmos — serve de comentário. Só um vínculo feito à mão pode usar um cabo congelado como fonte.
+     *  Linha BLOQUEADA: não pode ser editada nem excluída; continua entrando nos cálculos (a menos que também esteja congelada). */
+    const congelada = r => !!(r && r.congelada), bloqueada = r => !!(r && r.bloqueada);
     const tableStates = {
         cabos: { bodyId: 'body-cabos', data: [] },
         outros: { bodyId: 'body-outros', data: [] },
@@ -284,6 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const tdNum = document.createElement('td');
             tdNum.className = 'col-num';
             tdNum.textContent = idx + 1;
+            if (row.congelada) { const m = document.createElement('span'); m.className = 'marca-linha'; m.textContent = '❄'; m.title = 'Linha congelada: fora da Totalizadora, do orçamento e da validação (botão direito para descongelar)'; tdNum.appendChild(m); }
+            if (row.bloqueada) { const m = document.createElement('span'); m.className = 'marca-linha'; m.textContent = '🔒'; m.title = 'Linha bloqueada: não pode ser editada nem excluída (botão direito para desbloquear)'; tdNum.appendChild(m); }
             tr.appendChild(tdNum);
 
             /* ── Entidade (só Outros — TASK-069): texto leve; clicar abre o seletor. Escolher à mão trava a linha (entidadeManual) ── */
@@ -303,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
                 atualizarCelulaEntidade();
                 const abrirSeletor = () => {
-                    if (tdEnt.querySelector('select')) return;
+                    if (tdEnt.querySelector('select') || bloqueada(row)) return;
                     const sel = document.createElement('select');
                     sel.className = 'sel-entidade';
                     sel.dataset.field = 'entidade';
@@ -370,6 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
             inpAt.value = row.ativo;
             inpAt.autocomplete = 'off';
             inpAt.setAttribute('list', '');  // desabilita datalist nativo, usamos o nosso
+            if (type === 'cabos') { inpAt.dataset.parTipo = 'cabos'; inpAt.dataset.parIdx = idx; }
             if (type === 'outros') { inpAt.dataset.parTipo = 'outros'; inpAt.dataset.parIdx = idx; if (avulsoVelho.has(idx)) { inpAt.classList.add('avulso-velho'); inpAt.title = 'avulso desatualizado: o cabo ou a estrutura fictícia mudou (veja Vinculação)'; } }        // TASK-167: o balão (parâmetros preenchidos e os que faltam) lê estes dados ao passar o mouse
             let prevAtivo = row.ativo;
 
@@ -382,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (cursor !== null) inpAt.setSelectionRange(cursor, cursor);
                 }
                 row.ativo = inpAt.value;
-                if (type === 'outros') agendarCoresParametros();
+                agendarCoresParametros();
                 if (type !== 'outros') showAutocomplete(inpAt, type);                // TASK-136: em Outros quem sugere é AtivoSugestao (ativos/apelidos do projeto, com botão liga/desliga)
             });
             inpAt.addEventListener('keydown', e => {
@@ -549,10 +555,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     frag.appendChild(sep);
                 }
             }
+            if (row.congelada) tr.classList.add('linha-congelada');
+            if (row.bloqueada) {
+                tr.classList.add('linha-bloqueada');
+                tr.querySelectorAll('input').forEach(i => { i.readOnly = true; });
+                tr.querySelectorAll('select').forEach(s => { s.disabled = true; });
+                btnDel.disabled = true;
+            }
             frag.appendChild(tr);
         });
         body.appendChild(frag);
-        if (type === 'outros') aplicarCoresParametros();                // TASK-167 (só com a opção ligada)
+        aplicarCoresParametros();                                       // TASK-167 (só com a opção ligada); Outros e Cabos
         atualizarIndicadoresOrdem(type);
 
         updateCounters();
@@ -567,6 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
        CRUD
     ═══════════════════════════════════════ */
     function deleteRow(type, idx) {
+        if (bloqueada(tableStates[type].data[idx])) { showToast('Linha bloqueada: desbloqueie antes de excluir.'); return; }
         pushHistory();  // snapshot ANTES da exclusão
         limparGrade();  // TASK-087: a seleção apontava para posições que mudaram
         tableStates[type].data.splice(idx, 1);
@@ -904,9 +918,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const selected = Array.from(body.querySelectorAll('tr.row-selected'));
         const doIntervalo = selected.length ? [] : linhasDoIntervaloSelecionado(type);
         if (selected.length > 0 || doIntervalo.length > 0) {
+            const idxs = (selected.length ? selected.map(tr => parseInt(tr.dataset.index)) : doIntervalo).sort((a,b) => b-a).filter(i => !bloqueada(tableStates[type].data[i]));          // linha bloqueada não é excluída
+            if (!idxs.length) { showToast('Linha bloqueada: desbloqueie antes de excluir.'); return; }
             pushHistory();  // snapshot ANTES da exclusão em lote
             // Remove de trás pra frente para não deslocar índices
-            const idxs = (selected.length ? selected.map(tr => parseInt(tr.dataset.index)) : doIntervalo).sort((a,b) => b-a);
             idxs.forEach(i => {
                 tableStates[type].data.splice(i, 1);
                 if (type === 'outros') _reajustarVinculosAposRemoverOutros(i);
@@ -917,6 +932,7 @@ document.addEventListener('DOMContentLoaded', () => {
             refreshAllFilters(type);
         } else {
             // Remove a última linha
+            if (tableStates[type].data.length > 0 && bloqueada(tableStates[type].data[tableStates[type].data.length - 1])) { showToast('Linha bloqueada: desbloqueie antes de excluir.'); return; }
             if (tableStates[type].data.length > 0) {
                 pushHistory();  // snapshot ANTES da exclusão
                 tableStates[type].data.pop();
@@ -965,9 +981,38 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ═══════════════════════════════════════
        CONTEXT MENU
     ═══════════════════════════════════════ */
+    /** Linhas que o menu de contexto afeta: as selecionadas (se a clicada está entre elas) ou só a clicada. */
+    function _linhasDoMenu() {
+        if (!ctxRow || !ctxType) return [];
+        const idx = parseInt(ctxRow.dataset.index);
+        const body = document.getElementById(tableStates[ctxType].bodyId);
+        const sel = Array.from(body.querySelectorAll('tr.row-selected')).map(tr => parseInt(tr.dataset.index));
+        return sel.includes(idx) ? sel : [idx];
+    }
+    /** Congelar/descongelar e bloquear/desbloquear linhas (um passo de Ctrl+Z). Se todas já têm a marca, tira; senão, põe em todas. Linha bloqueada só aceita ser desbloqueada. */
+    function alternarMarcaLinhas(tipo, idxs, campo) {
+        const dados = tableStates[tipo].data;
+        let alvos = idxs.filter(i => dados[i]);
+        if (campo === 'congelada') alvos = alvos.filter(i => !bloqueada(dados[i]));
+        if (!alvos.length) { showToast('Linha bloqueada: desbloqueie antes de congelar ou descongelar.'); return; }
+        const poe = !alvos.every(i => dados[i][campo]);
+        pushHistory();
+        alvos.forEach(i => { if (poe) dados[i][campo] = true; else delete dados[i][campo]; });
+        limparGrade();
+        renderTable(tipo);
+        buildAtivoSets(); buildDataLists();
+        refreshAllFilters(tipo);
+        atualizarResumoRedeUI();
+        const nome = campo === 'congelada' ? ['congelada', 'descongelada'] : ['bloqueada', 'desbloqueada'];
+        showToast(`${alvos.length} linha(s) ${poe ? nome[0] : nome[1]}. Ctrl+Z desfaz.`);
+    }
     function showCtxMenu(x, y) {
         const itemEnt = document.getElementById('ctx-entidade');
         if (itemEnt) itemEnt.style.display = ctxType === 'outros' ? '' : 'none';
+        const alvos = _linhasDoMenu().map(i => tableStates[ctxType].data[i]).filter(Boolean);
+        const tc = document.getElementById('ctx-congelar-txt'), tb = document.getElementById('ctx-bloquear-txt');
+        if (tc) tc.textContent = alvos.length && alvos.every(r => r.congelada) ? 'Descongelar linha' : 'Congelar linha';
+        if (tb) tb.textContent = alvos.length && alvos.every(r => r.bloqueada) ? 'Desbloquear linha' : 'Bloquear linha';
         ctxMenu.style.left = Math.min(x, window.innerWidth - 180) + 'px';
         ctxMenu.style.top  = Math.min(y, window.innerHeight - 140) + 'px';
         ctxMenu.classList.add('visible');
@@ -986,6 +1031,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const idx = parseInt(ctxRow.dataset.index);
         addRow(ctxType, idx);
         hideCtxMenu();
+    });
+    document.getElementById('ctx-congelar').addEventListener('click', () => {
+        if (!ctxRow || !ctxType) return;
+        const tipo = ctxType, idxs = _linhasDoMenu();
+        hideCtxMenu();
+        alternarMarcaLinhas(tipo, idxs, 'congelada');
+    });
+    document.getElementById('ctx-bloquear').addEventListener('click', () => {
+        if (!ctxRow || !ctxType) return;
+        const tipo = ctxType, idxs = _linhasDoMenu();
+        hideCtxMenu();
+        alternarMarcaLinhas(tipo, idxs, 'bloqueada');
     });
     document.getElementById('ctx-del').addEventListener('click', () => {
         if (!ctxRow || !ctxType) return;
@@ -1493,8 +1550,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function buildAtivoSets() {
         ativoSets.cabos.clear();
         ativoSets.outros.clear();
-        tableStates.cabos.data.forEach(r => { if (r.ativo) ativoSets.cabos.add(r.ativo.trim()); });
-        tableStates.outros.data.forEach(r => { if (r.ativo) ativoSets.outros.add(r.ativo.trim()); });
+        tableStates.cabos.data.forEach(r => { if (r.ativo && !r.congelada) ativoSets.cabos.add(r.ativo.trim()); });
+        tableStates.outros.data.forEach(r => { if (r.ativo && !r.congelada) ativoSets.outros.add(r.ativo.trim()); });
     }
 
     function buildDataLists() {
@@ -1737,7 +1794,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const ctxOutros = _ctxOutros();
 
         tableStates.outros.data.forEach(row => {
-            if ((row.operacao || '').toUpperCase() !== 'I') return;
+            if (row.congelada || (row.operacao || '').toUpperCase() !== 'I') return;
             AnotacaoOutros.interpretarLinha(row.ativo, 'I', extrairParesQtdAtivoOutros, ctxOutros).itens.forEach(({ ativo, qtd }) => {
                 if (/^(DT|RC|CV|FV)/i.test(ativo)) {
                     resumo.postes += qtd;
@@ -1749,12 +1806,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const linhasCabos = tableStates.cabos.data;
         linhasCabos.forEach((row, idx) => {
-            if ((row.operacao || '').toUpperCase() !== 'I') return;
+            if (row.congelada || (row.operacao || '').toUpperCase() !== 'I') return;
             // TASK-116/118: cabo reconhecido, mas sem comprimento na própria linha → vale o comprimento da linha de baixo: só o número ("45 m")
             // ou outro cabo com comprimento ("CAZ9,5 abc 50 m"). A linha de baixo continua sendo contada por si mesma.
             const abaixo = () => {
                 const p = linhasCabos[idx + 1];
-                if (!p) return null;
+                if (!p || p.congelada) return null;
                 const solto = AnotacaoCabos.comprimentoSozinho(p.ativo);
                 if (solto !== null) return solto;
                 const info = extrairPrefixoEComprimentoCabo(p.ativo);
@@ -1950,18 +2007,53 @@ document.addEventListener('DOMContentLoaded', () => {
         return { assin: AtivoParametros.assinaturasDoProjeto(orcamentoBaseData, localStorage.getItem('projeto_selecionado') || ''), ctx: _ctxOutros(), obra: window.ObraParams ? ObraParams.valores() : null };
     }
 
-    /** Pinta o ativo das linhas de Outros (só com a opção ligada; desligada, tira as cores). */
+    /** Nomes que o cálculo resolve na base (ativo/apelido → componente → código) para o projeto e a origem; recalcula só quando a base ou o projeto mudam. */
+    let _cacheNomesBase = null;
+    function _nomesDaBaseDaTela(origem) {
+        const proj = localStorage.getItem('projeto_selecionado') || '';
+        if (!_cacheNomesBase || _cacheNomesBase.base !== orcamentoBaseData || _cacheNomesBase.proj !== proj || _cacheNomesBase.n !== orcamentoBaseData.length) _cacheNomesBase = { base: orcamentoBaseData, proj, n: orcamentoBaseData.length, por: {} };
+        return _cacheNomesBase.por[origem] || (_cacheNomesBase.por[origem] = AtivoNaBase.nomesDaBase(orcamentoBaseData, proj, origem));
+    }
+    /** Os ativos (nomes) que a linha de Cabos/Outros pede, como o cálculo os lê: notação compacta, apelidos e notação do LABEL já traduzidos. */
+    function _ativosPedidosDaLinha(tipo, row, ctxBase) {
+        if (!row || !String(row.ativo || '').trim()) return [];
+        if (tipo === 'cabos') {
+            if (AnotacaoCabos.ehNotacao(row.ativo)) { const r = AnotacaoCabos.interpretar(row.ativo); return r.erros.length ? [] : r.itens.map(i => i.ativo); }
+            const p = _prefixoCaboVinculo(row.ativo);
+            return p ? [p] : [];
+        }
+        const sem = AnotacaoOutros.interpretarLinha(row.ativo, row.operacao || 'I', _classicoTotalizadora, ctxBase);
+        return sem.erros.length ? [] : sem.itens.map(i => i.ativo);
+    }
+    /** Pinta o ativo das linhas de Outros e Cabos (só com a opção ligada; desligada, tira as cores): Outros → verde/laranja pelos parâmetros; vermelho = o ativo não existe na base (Cabos e Outros).
+     *  Linha congelada nunca é pintada. */
     function aplicarCoresParametros() {
-        const inputs = document.querySelectorAll('#table-outros .inp-ativo');
+        const inputs = document.querySelectorAll('#table-outros .inp-ativo, #table-cabos .inp-ativo');
         const ligada = corParametrosLigada();
         document.body.classList.toggle('colorir-parametros', ligada);
-        if (!ligada) { inputs.forEach(i => i.classList.remove('par-ok', 'par-falta')); return; }
+        const limpar = i => { i.classList.remove('par-ok', 'par-falta', 'par-nao-base'); if (i.dataset.titNaoBase) { i.title = i.dataset.titNaoBase === '-' ? '' : i.dataset.titNaoBase; delete i.dataset.titNaoBase; } };
+        if (!ligada) { inputs.forEach(limpar); return; }
         let c;
         try { c = _contextoParametros(); } catch (e) { return; }                       // base ainda carregando: pinta quando chegar
         const pv = _parametrosVinculoPorLinha(), dv = _defineDoVinculo();
+        const baseCarregada = orcamentoBaseData.length > 0;
         inputs.forEach(inp => {
-            const idx = Number(inp.dataset.parIdx);
-            const estado = AtivoStatus.estadoDaLinha(_statusParametrosDaLinha(tableStates.outros.data[idx], pv[idx], c.assin, c.ctx, c.obra, dv[idx]));
+            const tipo = inp.dataset.parTipo === 'cabos' ? 'cabos' : 'outros';
+            const idx = Number(inp.dataset.parIdx), row = tableStates[tipo].data[idx];
+            limpar(inp);
+            if (!row || row.congelada) return;
+            if (baseCarregada) {
+                let fora = [];
+                try { fora = AtivoNaBase.foraDaBase(_nomesDaBaseDaTela(tipo === 'cabos' ? 'CABOS' : 'OUTROS'), _ativosPedidosDaLinha(tipo, row, c.ctx)); } catch (e) { fora = []; }
+                if (fora.length) {
+                    inp.classList.add('par-nao-base');
+                    inp.dataset.titNaoBase = inp.title || '-';
+                    inp.title = `Ativo não cadastrado na base: ${Array.from(new Set(fora)).join(', ')}. (Confere o texto digitado; as regras de conversão da Totalizadora podem trocá-lo — o botão Validar confere depois da conversão.)`;
+                    return;
+                }
+            }
+            if (tipo !== 'outros') return;
+            const estado = AtivoStatus.estadoDaLinha(_statusParametrosDaLinha(row, pv[idx], c.assin, c.ctx, c.obra, dv[idx]));
             inp.classList.toggle('par-ok', estado === 'ok');
             inp.classList.toggle('par-falta', estado === 'falta');
         });
@@ -1984,6 +2076,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function _statusDoAlvoDoBalao(el) {
         const idx = Number(el.dataset.parIdx);
+        if (el.dataset.parTipo === 'cabos') return [];                                   // Cabos: só a cor/título do "ativo fora da base"; parâmetros são coisa de Outros
         const c = _contextoParametros();
         if (el.dataset.parTipo === 'outros') return _statusParametrosDaLinha(tableStates.outros.data[idx], _parametrosVinculoPorLinha()[idx], c.assin, c.ctx, c.obra, _defineDoVinculo()[idx]);
         const lin = tableStates.totalizadora.data[idx];                                  // Totalizadora: o ativo já está como o cálculo o enxerga
@@ -2296,9 +2389,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = tableStates.cabos.data;
         for (let i = data.length - 1; i >= 0; i--) {
             const row = data[i];
-            if (!row) continue;
+            if (!row || row.congelada) continue;                                  // linha congelada: nenhum algoritmo mexe nela
             let faseFromNext = null;
-            if (isStandaloneLine(row.ativo) && i + 1 < data.length) {
+            if (isStandaloneLine(row.ativo) && i + 1 < data.length && !data[i + 1].congelada) {
                 faseFromNext = extrairFase(data[i + 1].ativo);
             }
             
@@ -2323,9 +2416,9 @@ document.addEventListener('DOMContentLoaded', () => {
         function calc(i) {
             if (i < 0 || i >= data.length) return;
             const r = data[i];
-            if (!r) return;
+            if (!r || r.congelada) return;
             let faseNext = null;
-            if (isStandaloneLine(r.ativo) && i + 1 < data.length) {
+            if (isStandaloneLine(r.ativo) && i + 1 < data.length && !data[i + 1].congelada) {
                 faseNext = extrairFase(data[i + 1].ativo);
             }
             const isNeg = r.qtdAtivos !== undefined && r.qtdAtivos !== null && r.qtdAtivos.toString().trim().startsWith('-');
@@ -2996,8 +3089,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let tableContext = "";
         if (precisaContexto) {
             tableContext = "\n\nESTADO ATUAL DA TABELA:\n";
-            tableStates.cabos.data.forEach((r, i) => { if(r) tableContext += `[CABOS-${i}] | ${r.operacao} | ${r.ativo}\n`; });
-            tableStates.outros.data.forEach((r, i) => { if(r) tableContext += `[OUTROS-${i}] | ${r.operacao} | ${r.ativo}\n`; });
+            tableStates.cabos.data.forEach((r, i) => { if(r && !r.congelada) tableContext += `[CABOS-${i}] | ${r.operacao} | ${r.ativo}\n`; });
+            tableStates.outros.data.forEach((r, i) => { if(r && !r.congelada) tableContext += `[OUTROS-${i}] | ${r.operacao} | ${r.ativo}\n`; });
         }
 
         try {
@@ -3786,7 +3879,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function linhasParaValidacao(tabela, prefixo) {
         const linhas = [];
         tableStates[tabela].data.forEach((r, i) => {
-            if (r) linhas.push({ id: `${prefixo}-${i}`, operacao: r.operacao || '', ativo: r.ativo || '' });
+            if (r && !r.congelada) linhas.push({ id: `${prefixo}-${i}`, operacao: r.operacao || '', ativo: r.ativo || '' });          // congelada: a validação não a vê
         });
         return linhas;
     }
@@ -5900,7 +5993,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
     const cabosData = tableStates.cabos.data;
     for (let idx = 0; idx < cabosData.length; idx++) {
         const item = cabosData[idx];
-        if (!item) continue;
+        if (!item || item.congelada) continue;                                                   // linha congelada: fora da Totalizadora
         const currentBaseId = baseIdCounter++;
         if (AnotacaoCabos.ehNotacao(item.ativo)) {                                                // TASK-083: notação do LABEL → cabo (N vezes) + neutro à parte
             const nr = AnotacaoCabos.interpretar(item.ativo);
@@ -5984,7 +6077,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
     const ctxOutros = _ctxOutros();
     const parametrosVinculo = _parametrosVinculoPorLinha();                 // TASK-084
     tableStates.outros.data.forEach((item, idxOutros) => {
-        if (!item) return;
+        if (!item || item.congelada) return;                                                     // linha congelada: fora da Totalizadora
         const currentBaseId = baseIdCounter++;
         
         // TASK-081: notação compacta/apelidos/regra do M traduzidos aqui; o que o usuário digitou não muda
@@ -6025,7 +6118,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
     // vínculo (TASK-032), origem "VINCULO", para as Regras de Conversão poderem casar contra ele
     // (ex.: ativo_de=CAA2_N4). Só existe aqui dentro — nunca aparece na Totalizadora sem match.
     tableStates.cabos.data.forEach((cabo, idxCabo) => {
-        if (!VinculacaoRegras.participaVinculo(cabo)) return;                                          // TASK-095: cabo R/*R não entra no vínculo
+        if (cabo.congelada || !VinculacaoRegras.participaVinculo(cabo)) return;                        // TASK-095: cabo R/*R não entra no vínculo; congelado só alimenta o vínculo feito à mão
         const ficticiasCabo = VinculacaoRegras.estruturasFicticiasDe(cabo);
         if ((!Array.isArray(cabo.vinculoEstruturas) || !cabo.vinculoEstruturas.length) && !ficticiasCabo.length) return;
         const info = extrairPrefixoEComprimentoCabo(cabo.ativo);
@@ -6036,7 +6129,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
         }));
         (cabo.vinculoEstruturas || []).forEach(idxEstrutura => {
             const estrutura = tableStates.outros.data[VinculacaoRegras.linhaDe(idxEstrutura)];        // TASK-094: unidade = linha (+ posição/100)
-            if (!estrutura || !estrutura.ativo || !VinculacaoRegras.participaVinculo(estrutura)) return;
+            if (!estrutura || estrutura.congelada || !estrutura.ativo || !VinculacaoRegras.participaVinculo(estrutura)) return;
             const codigosLinha = _codigosEstruturaVinculo(estrutura.ativo), codigoUnidade = codigosLinha[VinculacaoRegras.slotDe(idxEstrutura)] || _codigoEstruturaVinculo(estrutura.ativo);
             rawItems.push({
                 baseId: `TOT-VINC-${idxCabo}-${idxEstrutura}`,
