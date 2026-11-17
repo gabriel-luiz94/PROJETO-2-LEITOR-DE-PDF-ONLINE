@@ -5917,13 +5917,16 @@ if (window.AtivoDica) window.AtivoDica.iniciar({
     carregarBase: () => carregarBaseOrcamento()
 });
 // TASK-128: a base de orçamento é pedida JÁ ao abrir a tela (em segundo plano) — antes só no primeiro "(" digitado, e a resposta demora no início (sincroniza com a nuvem)
-let _basePromessa = null;
-function carregarBaseOrcamento() {
-    if (_basePromessa) return _basePromessa;
-    _basePromessa = fetch('/api/orcamento/dados').then(r => r.json()).then(d => { orcamentoBaseData = d.dados || []; if (window.aplicarCoresParametros) window.aplicarCoresParametros(); }).catch(() => { /* sem base: sem dica */ }).finally(() => { _basePromessa = null; });
+let _basePromessa = null, _baseOutraVez = false;
+function carregarBaseOrcamento(refazer) {
+    // `refazer` (a base mudou agora): pedido durante um download em andamento (a base mudou agora há pouco): baixa de novo assim que terminar, em vez de ficar com a resposta antiga
+    if (_basePromessa) { if (refazer) _baseOutraVez = true; return _basePromessa; }
+    _basePromessa = fetch('/api/orcamento/dados').then(r => r.json()).then(d => { orcamentoBaseData = d.dados || []; if (window.aplicarCoresParametros) window.aplicarCoresParametros(); }).catch(() => { /* sem base: sem dica */ }).finally(() => { _basePromessa = null; if (_baseOutraVez) { _baseOutraVez = false; carregarBaseOrcamento(); } });
     return _basePromessa;
 }
 carregarBaseOrcamento();
+// a base foi salva/publicada/sincronizada na tela da Base de Orçamento (outra aba, janela ou moldura): recarrega na hora — o ativo novo passa a valer nas sugestões e nas cores
+if (window.BaseSinal) window.BaseSinal.ouvir(origem => { if (origem !== 'local') carregarBaseOrcamento(true).then(() => { if (typeof showToast === 'function') showToast('Base de orçamento atualizada.'); }); });
 // TASK-142: ao fechar a Tabela de orçamento (moldura do programa) a base é pedida de novo — ativo editado/sincronizado passa a valer na hora na tela de baixo
 document.addEventListener('tela-app-fechada', e => { if (/\/orcamento(\?|$|#)/.test((e.detail && e.detail.url) || '')) carregarBaseOrcamento(); });
 // versão online (a tabela abre em outra aba): ao voltar para esta aba depois de um tempo, também recarrega a base

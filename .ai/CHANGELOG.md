@@ -63,6 +63,17 @@
 
 ---
 
+## 2026-11-17 — Base de Orçamento mais rápida: ativo novo aparece na hora, pesquisa ágil e barra de status
+
+- **Causa da lentidão:** cada abertura da base (`GET /api/orcamento/dados`) baixava a tabela mestre INTEIRA da nuvem (páginas de 1000) e a regravava no SQLite. Agora `sync_tabela_master_se_preciso()` só baixa de novo depois de `SYNC_MASTER_TTL` (30 s) — o que o próprio servidor grava (publicar, salvar, importar) já atualiza o local; `invalidar_sync_master()` força. Duas telas abrindo juntas baixam uma vez só (trava). Falha de sync não marca o horário.
+- **Ativo novo nas sugestões:** `static/base_sinal.js` (`BaseSinal.avisar()/ouvir()`, BroadcastChannel + `storage`, sem duplicar o aviso) — salvar/publicar/sincronizar na Base avisa o Resumo/Orçamento, que recarregam a base na hora (e mostram "Base de orçamento atualizada"). Pedido de recarga durante um download em andamento baixa de novo ao terminar.
+- **Pesquisa:** o modelo da Base só é refeito quando a base ou a tabela da tela mudam (antes, a cada foco na barra, lendo todos os inputs); base velha (> 5 min) é usada na hora e atualizada em segundo plano; índice de pesquisa em maiúsculas montado uma vez por modelo (`indiceDe`); digitação espera ~80 ms.
+- **Barra de status** (`static/base_status.js`, `BaseStatus.iniciar/rodar`): Carregando/Montando linhas → Validando e salvando → Salvo/Erro; Sincronizando com a nuvem; no cadastro rápido: Validando → Conferindo prévia → Publicando (base local e nuvem) → Recarregando → Publicado/Desfeito. Botões marcados `data-status-bloqueia` travam durante a operação.
+- **Carga da tabela em lotes** de 300 linhas (a tela responde, a barra mostra o andamento; troca de projeto cancela a carga antiga) e valores com aspas/&/< nos campos da tabela agora são escapados (antes quebravam a linha).
+- Medido: validar+preencher componentes de 6000 linhas leva ~0,02 s no servidor; por isso **não** foi feito "salvar só as linhas alteradas" (mudaria a semântica do salvar por projeto sem ganho).
+
+---
+
 ## 2026-11-17 — Cabos e Outros: ativo fora da base na linha, e linhas congeladas/bloqueadas
 
 - **Ativo fora da base:** o interruptor "Colorir ativos por parâmetros" (Configurações › Aparência › Avançado) passa a pintar de **vermelho** o ativo que não existe na base, em **Cabos e Outros**, ao vivo (e ao carregar a base). Mesma cascata do cálculo para o nome (ativo/apelido → componente → código, projeto e origem) em `static/ativo_na_base.js`; confere o texto digitado (o Validar/C1-BASE confere depois das regras de conversão). Linha congelada não é pintada.

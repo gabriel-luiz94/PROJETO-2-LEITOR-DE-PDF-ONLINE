@@ -11,6 +11,8 @@
     <script src="/static/desktop_arquivos.js"></script>
     <script src="/static/ativo_parametros.js"></script>
     <script src="/static/obra_params.js"></script>
+    <script src="/static/base_sinal.js"></script>
+    <script src="/static/base_status.js"></script>
     <script src="/static/base_explica.js"></script>
     <script src="/static/base_ficha_dados.js"></script>
     <script src="/static/base_ficha_ui.js"></script>
@@ -424,7 +426,7 @@
                     <button id="btn-admin-csv" class="btn-action btn-master hidden" onclick="document.getElementById('file-upload-master').click()" title="Com um projeto selecionado, substitui só as linhas desse projeto. Sem projeto selecionado (visão Comuns/Não reconhecido), substitui TODOS os projetos.">
                         Importar CSV Master
                     </button>
-                    <button id="btn-admin-sync-all" class="btn-action btn-master hidden" onclick="sincronizarTudoNuvem()" title="Com um projeto selecionado, sincroniza só esse projeto. Sem projeto selecionado, sincroniza TODOS os projetos.">
+                    <button id="btn-admin-sync-all" data-status-bloqueia class="btn-action btn-master hidden" onclick="sincronizarTudoNuvem()" title="Com um projeto selecionado, sincroniza só esse projeto. Sem projeto selecionado, sincroniza TODOS os projetos.">
                         Sincronizar Tudo com a Nuvem
                     </button>
                     <button id="btn-admin-migrar" class="btn-action btn-master hidden" onclick="migrarProjetosCompartilhados()" title="Ação única: divide toda linha que hoje vale para mais de um projeto (ex. PARAIBA/PARAIBANOVO) em uma cópia exclusiva por projeto">
@@ -433,7 +435,7 @@
                 </span>
 
                 <!-- A ação principal da tela -->
-                <button class="btn-action btn-save" onclick="salvarAlteracoes()" title="Salva alterações na sua tabela local">
+                <button class="btn-action btn-save" data-status-bloqueia onclick="salvarAlteracoes()" title="Salva alterações na sua tabela local">
                     Salvar Alterações
                 </button>
             </div>
@@ -595,20 +597,23 @@
                 lista.map(o => `<option value="${o}"${o === v ? ' selected' : ''}>${o}</option>`).join('') + '</select></td>';
         }
 
+        /** Texto seguro para dentro de value="…" (aspas e & no ATIVO/DESCRIÇÃO quebravam a linha e perdiam o valor ao salvar). */
+        const escAttr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
         function criarLinhaExistente(r) {
             const tr = document.createElement('tr');
             tr.innerHTML =
-                `<td><input type="text" class="cell-input" value="${r.ativo || ''}"></td>` +
-                `<td><input type="text" class="cell-input" value="${r.desc_ativo || ''}"></td>` +
-                `<td><input type="text" class="cell-input" value="${r.componente || ''}"></td>` +
+                `<td><input type="text" class="cell-input" value="${escAttr(r.ativo)}"></td>` +
+                `<td><input type="text" class="cell-input" value="${escAttr(r.desc_ativo)}"></td>` +
+                `<td><input type="text" class="cell-input" value="${escAttr(r.componente)}"></td>` +
                 `<td>${campoProjetoHTML(r.projeto)}</td>` +
-                `<td><input type="text" class="cell-input" value="${r.mdo || ''}"></td>` +
-                `<td><input type="text" class="cell-input" value="${r.origem || ''}"></td>` +
-                `<td><input type="text" class="cell-input" value="${r.codigo || ''}"></td>` +
-                `<td><input type="text" class="cell-input" value="${r.desc_codigo || ''}"></td>` +
-                `<td><input type="text" inputmode="decimal" title="Número (1,5) ou fórmula com parâmetros do ativo: =NUM(fios)/8, =SE(tipo=&quot;A&quot;; 2; 1)" class="cell-input" value="${fatorTela(r.formula_i, r.fator_i)}"></td>` +
-                `<td><input type="text" inputmode="decimal" title="Número (1,5) ou fórmula com parâmetros do ativo: =NUM(fios)/8, =SE(tipo=&quot;A&quot;; 2; 1)" class="cell-input" value="${fatorTela(r.formula_r, r.fator_r)}"></td>` +
-                `<td><input type="text" class="cell-input" value="${r.filtro || ''}"></td>` +
+                `<td><input type="text" class="cell-input" value="${escAttr(r.mdo)}"></td>` +
+                `<td><input type="text" class="cell-input" value="${escAttr(r.origem)}"></td>` +
+                `<td><input type="text" class="cell-input" value="${escAttr(r.codigo)}"></td>` +
+                `<td><input type="text" class="cell-input" value="${escAttr(r.desc_codigo)}"></td>` +
+                `<td><input type="text" inputmode="decimal" title="Número (1,5) ou fórmula com parâmetros do ativo: =NUM(fios)/8, =SE(tipo=&quot;A&quot;; 2; 1)" class="cell-input" value="${escAttr(fatorTela(r.formula_i, r.fator_i))}"></td>` +
+                `<td><input type="text" inputmode="decimal" title="Número (1,5) ou fórmula com parâmetros do ativo: =NUM(fios)/8, =SE(tipo=&quot;A&quot;; 2; 1)" class="cell-input" value="${escAttr(fatorTela(r.formula_r, r.fator_r))}"></td>` +
+                `<td><input type="text" class="cell-input" value="${escAttr(r.filtro)}"></td>` +
                 lvHTML(r.lv) +
                 arredHTML(r.arred) +
                 '<td style="text-align:center;"><button class="btn-del" onclick="this.closest(\'tr\').remove()" title="Excluir">Excluir</button></td>';
@@ -622,18 +627,32 @@
             return null;   // aba "projeto" sem nenhum projeto escolhido ainda
         }
 
+        let cargaSeq = 0;
         async function carregarDados() {
             const url = urlDados();
             if (!url) {
+                cargaSeq++;
                 tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:35px; color:var(--text-secondary);">Selecione um projeto acima para ver e editar a base técnica dele.</td></tr>';
                 return;
             }
+            const op = BaseStatus.iniciar('Carregando a base…'), minhaCarga = ++cargaSeq;
             try {
                 const res = await fetch(url);
                 const data = await res.json();
+                if (minhaCarga !== cargaSeq) { op.ok(''); return; }
+                op.etapa(`Montando ${(data.dados || []).length} linha(s) na tela…`);
+                await new Promise(r => setTimeout(r, 0));                           // deixa a barra aparecer antes do trabalho pesado de montar a tabela
                 tbody.innerHTML = '';
                 if (data.dados && data.dados.length > 0) {
-                    data.dados.forEach(r => tbody.appendChild(criarLinhaExistente(r)));
+                    // monta em lotes: a tela responde (e a barra de status anda) mesmo com milhares de linhas
+                    const LOTE = 300, total = data.dados.length;
+                    for (let i = 0; i < total; i += LOTE) {
+                        if (minhaCarga !== cargaSeq) return;                        // outra carga (troca de projeto/aba) começou: esta para
+                        const frag = document.createDocumentFragment();
+                        data.dados.slice(i, i + LOTE).forEach(r => frag.appendChild(criarLinhaExistente(r)));
+                        tbody.appendChild(frag);
+                        if (i + LOTE < total) { op.etapa(`Montando linhas… ${Math.min(i + LOTE, total)} de ${total}`); await new Promise(r => setTimeout(r, 0)); }
+                    }
                 } else {
                     const msg = visaoAtual === 'genericas'
                         ? 'Nenhuma linha comum a todos os projetos.'
@@ -642,7 +661,9 @@
                         : `Nenhuma linha cadastrada para "${projetoAtual}" ainda.`;
                     tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; padding:35px; color:var(--text-secondary);">${msg}</td></tr>`;
                 }
+                op.ok(data.dados && data.dados.length ? `${data.dados.length} linha(s) carregada(s)` : 'Pronto');
             } catch(e) {
+                op.erro('Erro ao carregar a base.');
                 console.error(e);
                 tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:35px; color:#f87171;">Erro ao carregar dados da base.</td></tr>';
             }
@@ -839,8 +860,8 @@
                 return;
             }
 
+            const op = BaseStatus.iniciar(`Validando e salvando ${dados.length} linha(s) no servidor…`);
             try {
-                showToast("Salvando alterações...");
                 const res = await fetch('/api/orcamento/salvar', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
@@ -848,16 +869,17 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    showToast("Base de orçamento atualizada com sucesso!");
+                    op.etapa('Salvo. Avisando as outras telas…');
                     BaseFicha.invalidar();
                     aposGravarComComponentes(data);
                     mostrarAvisosBase(data);
+                    op.ok(`Base atualizada: ${dados.length} linha(s) salva(s). As sugestões já valem na tela de Orçamento.`);
                 } else {
                     const msg = data.detail || "Erro ao salvar.";
-                    showToast(msg);
+                    op.erro(msg);
                     alert(msg);
                 }
-            } catch(e) { alert("Erro de conexão."); }
+            } catch(e) { op.erro('Erro de conexão ao salvar.'); alert("Erro de conexão."); }
         }
 
         function exportarCSV() {
@@ -927,8 +949,8 @@
                 return;
             }
 
+            const op = BaseStatus.iniciar(escopo ? `Sincronizando o projeto ${escopo} com a nuvem…` : "Sincronizando tudo com a nuvem…");
             try {
-                showToast(escopo ? `Sincronizando o projeto ${escopo} com a nuvem...` : "Sincronizando tudo com a nuvem...");
                 const corpo = escopo ? { dados: dados, projeto: escopo } : { dados: dados };
                 const res = await fetch('/api/admin/sync-master-all', {
                     method: 'POST',
@@ -937,17 +959,16 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    showToast(data.msg || "Nuvem atualizada com sucesso!");
-                    alert(data.msg || "Nuvem atualizada com sucesso!");
                     BaseFicha.invalidar();
                     aposGravarComComponentes(data);
                     mostrarAvisosBase(data);
+                    op.ok(data.msg || "Nuvem atualizada com sucesso!");
                 } else {
                     const msg = data.detail || "Erro ao sincronizar.";
-                    showToast(msg);
+                    op.erro(msg);
                     alert(msg);
                 }
-            } catch(e) { alert("Erro de conexão."); }
+            } catch(e) { op.erro('Erro de conexão ao sincronizar.'); alert("Erro de conexão."); }
         }
 
         async function migrarProjetosCompartilhados() {

@@ -18,7 +18,7 @@ from services.exportar_xlsx import ErroExportacao, gerar_xlsx
 from services.exportar_sap_pdf import ErroPdf, gerar_pdf, gerar_pdf_unico
 from services.rascunho_ativo import avaliar as avaliar_rascunho
 from services.sync_service import (
-    get_merged_orcamento, sync_tabela_master, filtrar_linhas_por_categoria,
+    get_merged_orcamento, sync_tabela_master, sync_tabela_master_se_preciso, filtrar_linhas_por_categoria,
     validar_linhas_do_projeto,
 )
 from middleware.auth_middleware import get_current_user_from_state
@@ -119,7 +119,7 @@ def get_orcamento_dados(request: Request, projeto: str = None, genericas: bool =
     """
     user = getattr(request.state, "user", None)
     user_id = user["user_id"] if user else None
-    sync_tabela_master()
+    sync_tabela_master_se_preciso()           # no máximo a cada SYNC_MASTER_TTL s (antes baixava a mestre inteira a cada abertura)
     merged_rows = get_merged_orcamento(user_id)
 
     if projeto or genericas or nao_reconhecido:

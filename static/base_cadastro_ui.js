@@ -229,15 +229,18 @@
     const post = async (url, corpo) => { const res = await raiz.fetch(url, { method: 'POST', headers: auth(), body: JSON.stringify(corpo) }); const j = await res.json().catch(() => ({})); j._status = res.status; return j; };
     async function validarNoServidor() {
         const linhas = C.gerarLinhas(r, cfg.projeto());
+        const op = raiz.BaseStatus ? raiz.BaseStatus.iniciar('Validando o ativo no servidor…') : null;
         const exemplo = (r.nome || 'ATIVO') + ((r.parametros || []).filter(p => p.nome).length ? '(' + r.parametros.filter(p => p.nome).map(p => p.padrao || '').join(',') + ')' : '');
         try {
             servidor = await post('/api/orcamento/rascunho', { linhas, projeto: cfg.projeto(), simular: [{ ativo: exemplo }] });
             if (servidor.detail) servidor = { erros: [String(servidor.detail)], avisos: [], linhas: [], simulacao: null };
             if (cfg.admin() && r.nome) {
+                if (op) op.etapa('Conferindo o que muda na base (prévia)…');
                 const pv = await post('/api/admin/ativo/previa', { projeto: cfg.projeto(), nome: r.nome, linhas });
                 if (pv.detail) servidor.erros = (servidor.erros || []).concat([String(pv.detail)]); else { servidor.previa = pv; if (!r.editar || esperada == null) esperada = pv.assinatura; salvarRascunho(); }
             }
         } catch (e) { servidor = { erros: ['Não foi possível validar no servidor: ' + e.message], avisos: [], linhas: [], simulacao: null }; }
+        if (op) { const n = (servidor.erros || []).length; if (n) op.erro(`Validação: ${n} erro(s) — corrija antes de publicar.`); else op.ok('Validado — pronto para publicar' + ((servidor.avisos || []).length ? ` (${servidor.avisos.length} aviso(s))` : '')); }
         if (passo === 3) desenhar();
     }
     async function publicar(forcar) {
@@ -245,20 +248,25 @@
         if (!pv) return;
         if (!r.editar && pv.existe && !forcar && !confirm(`O ativo "${r.nome}" JÁ EXISTE no ${proj}. Publicar vai SUBSTITUIR as linhas dele pelas deste rascunho. Continuar?`)) return;
         if (!forcar && !confirm(`Publicar "${r.nome}" no ${proj}? As linhas do ativo são trocadas na base local e na nuvem agora. A tabela da tela será recarregada (edições não salvas nela serão perdidas).`)) return;
+        const op = raiz.BaseStatus ? raiz.BaseStatus.iniciar(`Publicando “${r.nome}” (base local e nuvem)…`) : null;
         const j = await post('/api/admin/ativo/publicar', { projeto: proj, nome: r.nome, linhas: C.gerarLinhas(r, proj), esperada: forcar ? undefined : esperada, forcar: !!forcar });
-        if (j._status === 409) { conflito = j; desenhar(); return; }
-        if (j._status !== 200) { avisar(j.detail || 'Falha ao publicar.'); if (j.erros) { servidor = Object.assign(servidor || {}, { erros: j.erros }); desenhar(); } return; }
+        if (j._status === 409) { if (op) op.erro('Outro administrador alterou este ativo — veja o aviso.'); conflito = j; desenhar(); return; }
+        if (j._status !== 200) { if (op) op.erro(j.detail || 'Falha ao publicar.'); avisar(j.detail || 'Falha ao publicar.'); if (j.erros) { servidor = Object.assign(servidor || {}, { erros: j.erros }); desenhar(); } return; }
         publicado = { linhas: j.linhas, removidas: j.removidas, nuvem: j.nuvem, desfeito: false, nome: r.nome };
         conflito = null; limparRascunho();
+        if (op) op.etapa('Publicado. Recarregando a tabela e avisando as outras telas…');
         try { await cfg.recarregar(); } catch (e) { /* a tela recarrega na próxima abertura */ }
+        if (op) op.ok(`Publicado: ${j.linhas} linha(s)${j.removidas ? `, ${j.removidas} removida(s)` : ''}${j.nuvem === false ? ' — só no local (nuvem indisponível)' : ''}`);
         desenhar();
     }
     async function desfazerPublicacao() {
         if (!confirm(`Desfazer a última publicação de "${publicado.nome}"? O ativo volta ao que era antes (e dá para refazer pelo mesmo botão).`)) return;
+        const op = raiz.BaseStatus ? raiz.BaseStatus.iniciar('Desfazendo a publicação…') : null;
         const j = await post('/api/admin/ativo/desfazer', { projeto: cfg.projeto(), nome: publicado.nome });
-        if (j._status !== 200) { avisar(j.detail || 'Falha ao desfazer.'); return; }
+        if (j._status !== 200) { if (op) op.erro(j.detail || 'Falha ao desfazer.'); avisar(j.detail || 'Falha ao desfazer.'); return; }
         publicado.desfeito = !publicado.desfeito; publicado.linhas = j.linhas; publicado.removidas = j.removidas;
         try { await cfg.recarregar(); } catch (e) { /* idem */ }
+        if (op) op.ok('Publicação desfeita');
         desenhar();
     }
     function recarregarDoConflito() {
