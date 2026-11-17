@@ -2656,7 +2656,7 @@
                 const l = document.createElement('label'); l.textContent = rot; l.style.cssText = 'display:block; font-size:0.72rem; color:var(--text-secondary); margin-bottom:3px;';
                 const i = document.createElement('input'); i.type = 'text'; i.id = 'rel-' + k; i.style.cssText = 'width:100%; box-sizing:border-box; padding:7px 9px; background:var(--bg-canvas); color:var(--text-primary); border:1px solid var(--border-default); border-radius:6px; font:inherit; font-size:0.85rem; outline:none;';
                 i.onfocus = () => { i.style.borderColor = '#f97316'; }; i.onblur = () => { i.style.borderColor = ''; };
-                i.autocomplete = 'off'; i.value = k === 'nota' ? ((projetoAtivo && GridRProjeto.numeroObra()) || document.getElementById('obra-numero').value.trim() || '') : k === 'titulo' && projetoAtivo ? GridRProjeto.nome() : k === 'data' ? (lembrado.data || hoje) : (lembrado[k] || '');
+                i.autocomplete = 'off'; i.value = k === 'nota' ? ((projetoAtivo && GridRProjeto.numeroObra()) || document.getElementById('obra-numero').value.trim() || '') : k === 'titulo' && projetoAtivo ? (GridRProjeto.sap().titulo || GridRProjeto.nome()) : k === 'data' ? (lembrado.data || hoje) : (lembrado[k] || '');
                 d.append(l, i); box.appendChild(d);
             });
             document.getElementById('modal-relatorio-pdf').style.display = 'flex';
