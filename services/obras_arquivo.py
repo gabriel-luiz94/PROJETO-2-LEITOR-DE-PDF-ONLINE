@@ -54,7 +54,7 @@ CAMPOS_VINCULO = {
     "entidadeManual": lambda v: isinstance(v, bool), "_x": _num, "_y": _num, "_geoTipo": _texto, "_geo": lambda v: _lista_de(v, _ponto),
     "_poste": _ponto, "vinculoEstruturas": lambda v: _lista_de(v, _num), "vinculoOrigem": _texto,
     "estruturasFicticias": lambda v: _lista_de(v, _texto), "cabosFicticios": lambda v: _lista_de(v, _texto), "cabosFicticiosSlots": _slots,
-    "congelada": lambda v: isinstance(v, bool), "bloqueada": lambda v: isinstance(v, bool),          # linha congelada (fora de totalizadora/orçamento/validação) e bloqueada (sem edição)
+    "congelada": lambda v: isinstance(v, bool), "bloqueada": lambda v: isinstance(v, bool), "comentario": lambda v: isinstance(v, bool),          # linha congelada (fora de totalizadora/orçamento/validação) e bloqueada (sem edição)
     "origemAvulso": _texto,                    # TASK-171: "<índice do cabo>:<estrutura fictícia>" nas linhas de Outros adicionadas pela sugestão de avulsos
 }
 CAMPOS_TOTALIZADORA = {"id": str, "baseId": str, "obs": str, "operacao": str, "ativo": str, "qtd": (int, float, str, type(None)), "desc": str,
@@ -98,6 +98,8 @@ def normalizar_dados(dados_json) -> dict:
                 linha = {k: x[k] for k, tipo in campos.items() if k in x and _tipo_ok(x[k], tipo)}
                 if campos is CAMPOS_LINHA:
                     linha.update({k: x[k] for k, ok in CAMPOS_VINCULO.items() if k in x and ok(x[k])})
+                    if linha.get("comentario"):
+                        linha["congelada"] = True                    # comentário é uma linha congelada com outra aparência: nenhum cálculo a lê
                 linhas.append(linha)
         saida[chave] = linhas
     return saida

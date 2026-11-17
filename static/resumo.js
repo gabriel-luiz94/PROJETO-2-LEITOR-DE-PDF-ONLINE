@@ -287,7 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const tdNum = document.createElement('td');
             tdNum.className = 'col-num';
             tdNum.textContent = idx + 1;
-            if (row.congelada) { const m = document.createElement('span'); m.className = 'marca-linha'; m.textContent = '❄'; m.title = 'Linha congelada: fora da Totalizadora, do orçamento e da validação (botão direito para descongelar)'; tdNum.appendChild(m); }
+            if (row.comentario) { const m = document.createElement('span'); m.className = 'marca-linha'; m.textContent = '💬'; m.title = 'Comentário: anotação da tabela, fora de todos os cálculos (botão direito para tirar o comentário)'; tdNum.appendChild(m); }
+            else if (row.congelada) { const m = document.createElement('span'); m.className = 'marca-linha'; m.textContent = '❄'; m.title = 'Linha congelada: fora da Totalizadora, do orçamento e da validação (botão direito para descongelar)'; tdNum.appendChild(m); }
             if (row.bloqueada) { const m = document.createElement('span'); m.className = 'marca-linha'; m.textContent = '🔒'; m.title = 'Linha bloqueada: não pode ser editada nem excluída (botão direito para desbloquear)'; tdNum.appendChild(m); }
             tr.appendChild(tdNum);
 
@@ -555,7 +556,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     frag.appendChild(sep);
                 }
             }
-            if (row.congelada) tr.classList.add('linha-congelada');
+            if (row.comentario) tr.classList.add('linha-comentario');
+            else if (row.congelada) tr.classList.add('linha-congelada');
             if (row.bloqueada) {
                 tr.classList.add('linha-bloqueada');
                 tr.querySelectorAll('input').forEach(i => { i.readOnly = true; });
@@ -640,12 +642,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return tb;
     }
 
-    function materializarLinhaVazia(type, texto) {
+    function materializarLinhaVazia(type, texto, operacao) {
         const dados = tableStates[type].data;
         pushHistory();                                         // um passo de Ctrl+Z para criar a linha
         limparGrade();
         const GT = window.GradeTabela;
-        const row = GT.novaLinha(type, GT.operacaoHerdada(dados, dados.length));
+        const row = GT.novaLinha(type, operacao || GT.operacaoHerdada(dados, dados.length));          // operação escolhida na linha em branco, ou a herdada
         row.ativo = String(texto).toUpperCase();
         dados.push(row);
         if (type === 'outros') reclassificarEntidade(row);
@@ -695,12 +697,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const cel = (cls, txt) => { const td = document.createElement('td'); if (cls) td.className = cls; if (txt) td.textContent = txt; tr.appendChild(td); return td; };
             cel('col-num', String(dados.length + i + 1));
             if (type === 'outros') cel('cel-ent', '');
-            cel('vz-op', i === 0 ? dica : '');                                         // dica: a operação que a nova linha vai receber
+            const tdOpVz = cel('vz-op', '');                                           // operação da nova linha: já vem a que ela receberia (herdada); dá para escolher ANTES de digitar o ativo
+            const selOpVz = document.createElement('select');
+            selOpVz.className = 'sel-operacao vz-sel';
+            selOpVz.setAttribute('aria-label', 'Nova linha: operação (opcional; escolha antes de digitar o ativo)');
+            OPERACOES.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; selOpVz.appendChild(o); });
+            selOpVz.value = OPERACOES.includes(dica) ? dica : 'I';
+            selOpVz.addEventListener('change', () => { selOpVz.dataset.tocada = '1'; });
+            tdOpVz.appendChild(selOpVz);
             const tdAt = cel('', '');
             const inp = document.createElement('input');
             inp.type = 'text'; inp.className = 'inp-ativo-vazio'; inp.autocomplete = 'off';
             inp.setAttribute('aria-label', 'Nova linha: digite o ativo');
-            inp.addEventListener('input', () => { if (inp.value.trim() !== '') materializarLinhaVazia(type, inp.value); });
+            inp.addEventListener('input', () => { if (inp.value.trim() !== '') materializarLinhaVazia(type, inp.value, selOpVz.dataset.tocada ? selOpVz.value : null); });
             inp.addEventListener('paste', e => {
                 const texto = (e.clipboardData || window.clipboardData).getData('text');
                 if (!window.GradeTabela.ehColagemMultipla(texto)) return;               // valor único: colagem nativa (cai no 'input')
@@ -993,8 +1002,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function alternarMarcaLinhas(tipo, idxs, campo) {
         const dados = tableStates[tipo].data;
         let alvos = idxs.filter(i => dados[i]);
-        if (campo === 'congelada') alvos = alvos.filter(i => !bloqueada(dados[i]));
-        if (!alvos.length) { showToast('Linha bloqueada: desbloqueie antes de congelar ou descongelar.'); return; }
+        if (campo === 'congelada') {
+            const comentarios = alvos.filter(i => dados[i].comentario).length;
+            alvos = alvos.filter(i => !bloqueada(dados[i]) && !dados[i].comentario);
+            if (!alvos.length) { showToast(comentarios ? 'Comentário já fica fora de todos os cálculos: tire o comentário para mudar o congelamento.' : 'Linha bloqueada: desbloqueie antes de congelar ou descongelar.'); return; }
+        } else if (!alvos.length) return;
         const poe = !alvos.every(i => dados[i][campo]);
         pushHistory();
         alvos.forEach(i => { if (poe) dados[i][campo] = true; else delete dados[i][campo]; });
@@ -1006,12 +1018,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const nome = campo === 'congelada' ? ['congelada', 'descongelada'] : ['bloqueada', 'desbloqueada'];
         showToast(`${alvos.length} linha(s) ${poe ? nome[0] : nome[1]}. Ctrl+Z desfaz.`);
     }
+    /** Comentário (menu de contexto): a linha vira uma anotação — congelada (fora de todos os cálculos), com outra aparência. Tirar o comentário devolve a linha ao normal. Um passo de Ctrl+Z. */
+    function alternarComentario(tipo, idxs) {
+        const dados = tableStates[tipo].data;
+        const alvos = idxs.filter(i => dados[i] && !bloqueada(dados[i]));
+        if (!alvos.length) { showToast('Linha bloqueada: desbloqueie antes de mudar o comentário.'); return; }
+        const poe = !alvos.every(i => dados[i].comentario);
+        pushHistory();
+        alvos.forEach(i => { if (poe) { dados[i].comentario = true; dados[i].congelada = true; } else { delete dados[i].comentario; delete dados[i].congelada; } });
+        limparGrade();
+        renderTable(tipo);
+        buildAtivoSets(); buildDataLists();
+        refreshAllFilters(tipo);
+        atualizarResumoRedeUI();
+        showToast(`${alvos.length} linha(s) ${poe ? 'viraram comentário' : 'voltaram ao normal'}. Ctrl+Z desfaz.`);
+    }
     function showCtxMenu(x, y) {
         const itemEnt = document.getElementById('ctx-entidade');
         if (itemEnt) itemEnt.style.display = ctxType === 'outros' ? '' : 'none';
         const alvos = _linhasDoMenu().map(i => tableStates[ctxType].data[i]).filter(Boolean);
         const tc = document.getElementById('ctx-congelar-txt'), tb = document.getElementById('ctx-bloquear-txt');
         if (tc) tc.textContent = alvos.length && alvos.every(r => r.congelada) ? 'Descongelar linha' : 'Congelar linha';
+        const tcm = document.getElementById('ctx-comentario-txt');
+        if (tcm) tcm.textContent = alvos.length && alvos.every(r => r.comentario) ? 'Tirar comentário' : 'Marcar como comentário';
         if (tb) tb.textContent = alvos.length && alvos.every(r => r.bloqueada) ? 'Desbloquear linha' : 'Bloquear linha';
         ctxMenu.style.left = Math.min(x, window.innerWidth - 180) + 'px';
         ctxMenu.style.top  = Math.min(y, window.innerHeight - 140) + 'px';
@@ -1037,6 +1066,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const tipo = ctxType, idxs = _linhasDoMenu();
         hideCtxMenu();
         alternarMarcaLinhas(tipo, idxs, 'congelada');
+    });
+    document.getElementById('ctx-comentario').addEventListener('click', () => {
+        if (!ctxRow || !ctxType) return;
+        const tipo = ctxType, idxs = _linhasDoMenu();
+        hideCtxMenu();
+        alternarComentario(tipo, idxs);
     });
     document.getElementById('ctx-bloquear').addEventListener('click', () => {
         if (!ctxRow || !ctxType) return;
@@ -2046,9 +2081,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let fora = [];
                 try { fora = AtivoNaBase.foraDaBase(_nomesDaBaseDaTela(tipo === 'cabos' ? 'CABOS' : 'OUTROS'), _ativosPedidosDaLinha(tipo, row, c.ctx)); } catch (e) { fora = []; }
                 if (fora.length) {
-                    inp.classList.add('par-nao-base');
-                    inp.dataset.titNaoBase = inp.title || '-';
-                    inp.title = `Ativo não cadastrado na base: ${Array.from(new Set(fora)).join(', ')}. (Confere o texto digitado; as regras de conversão da Totalizadora podem trocá-lo — o botão Validar confere depois da conversão.)`;
+                    inp.classList.add('par-nao-base');                                  // a explicação ("ATIVO NÃO EXISTE NA BASE") aparece no balão ao passar o mouse (_statusDoAlvoDoBalao)
                     return;
                 }
             }
@@ -2065,6 +2098,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function _htmlBalaoParametros(status) {
         const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
         return status.map(s => {
+            if (s.naoExiste) return `<div class="est"><b class="h">${esc(s.ativo)}</b> <span class="f">· ATIVO NÃO EXISTE NA BASE</span></div>`;
             const cab = s.completo ? `<span class="v">· completo (${s.total} de ${s.total})</span>` : `<span class="f">· faltam ${s.faltam + s.invalidos} de ${s.total}</span>`;
             const linhas = s.params.map(p => {
                 if (p.falta) return `<div><span class="f">⚠</span> ${esc(p.nome)} <span class="f">· falta</span> <span class="m">— ${esc(p.motivo)}</span></div>`;
@@ -2074,11 +2108,19 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<div class="est"><b class="h">${esc(s.ativo)}</b> ${cab}${linhas}</div>`;
         }).join('');
     }
+    /** Ativos pedidos pela linha que NÃO existem na base (nem como ativo/apelido, nem como componente ou código) → itens do balão "ATIVO NÃO EXISTE NA BASE". Só com a verificação ligada. */
+    function _foraDaBaseDoAlvo(tipo, idx, c) {
+        if (!corParametrosLigada() || !orcamentoBaseData.length) return [];
+        const row = tableStates[tipo].data[idx];
+        if (!row || row.congelada) return [];
+        const fora = AtivoNaBase.foraDaBase(_nomesDaBaseDaTela(tipo === 'cabos' ? 'CABOS' : 'OUTROS'), _ativosPedidosDaLinha(tipo, row, c.ctx));
+        return Array.from(new Set(fora)).map(nome => ({ ativo: nome, naoExiste: true }));
+    }
     function _statusDoAlvoDoBalao(el) {
         const idx = Number(el.dataset.parIdx);
-        if (el.dataset.parTipo === 'cabos') return [];                                   // Cabos: só a cor/título do "ativo fora da base"; parâmetros são coisa de Outros
         const c = _contextoParametros();
-        if (el.dataset.parTipo === 'outros') return _statusParametrosDaLinha(tableStates.outros.data[idx], _parametrosVinculoPorLinha()[idx], c.assin, c.ctx, c.obra, _defineDoVinculo()[idx]);
+        if (el.dataset.parTipo === 'cabos') return _foraDaBaseDoAlvo('cabos', idx, c);          // Cabos: só o aviso de "ativo fora da base"; parâmetros são coisa de Outros
+        if (el.dataset.parTipo === 'outros') return _foraDaBaseDoAlvo('outros', idx, c).concat(_statusParametrosDaLinha(tableStates.outros.data[idx], _parametrosVinculoPorLinha()[idx], c.assin, c.ctx, c.obra, _defineDoVinculo()[idx]));
         const lin = tableStates.totalizadora.data[idx];                                  // Totalizadora: o ativo já está como o cálculo o enxerga
         const st = lin && AtivoStatus.statusDoAtivo(lin.ativo, lin.ativo, c.assin, c.obra);
         return st ? [st] : [];

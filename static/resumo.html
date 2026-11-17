@@ -475,6 +475,9 @@
         tr.linha-congelada > td:not(.col-num) input, tr.linha-congelada > td:not(.col-num) select { font-style: italic; color: #79c0ff; }
         tr.linha-congelada { background: repeating-linear-gradient(135deg, rgba(121,192,255,0.07) 0 8px, rgba(121,192,255,0.02) 8px 16px); box-shadow: inset 3px 0 0 #58a6ff; }
         tr.linha-bloqueada > td:not(.col-num) input, tr.linha-bloqueada > td:not(.col-num) select { cursor: not-allowed; }
+        tr.linha-comentario > td:not(.col-num) input, tr.linha-comentario > td:not(.col-num) select { font-style: italic; color: #7ee787; }
+        tr.linha-comentario { background: rgba(126,231,135,0.06); box-shadow: inset 3px 0 0 #3fb950; }
+        tr.linha-comentario > td { opacity: 0.88; }
         .marca-linha { font-size: 10px; margin-left: 3px; opacity: 1; vertical-align: middle; cursor: default; }
         .painel-avancado { margin-top: 10px; } .painel-avancado > summary { cursor: pointer; color: #6e7681; font-size: 11px; list-style: none; user-select: none; }
         .painel-avancado > summary::-webkit-details-marker { display: none; } .painel-avancado > summary::before { content: '▸ '; } .painel-avancado[open] > summary::before { content: '▾ '; }
@@ -1402,6 +1405,10 @@
         <div class="ctx-r-item" id="ctx-congelar" title="Congelada: a linha fica na tela, mas sai da Totalizadora, do orçamento, da validação e dos demais cálculos (serve de comentário; ainda pode ser fonte de um vínculo feito à mão)">
             <span style="width:13px;display:inline-block;text-align:center;">❄</span>
             <span id="ctx-congelar-txt">Congelar linha</span>
+        </div>
+        <div class="ctx-r-item" id="ctx-comentario" title="Comentário: a linha vira uma anotação da tabela (por exemplo, o limite de uma seção). Fica fora de todos os cálculos, como a linha congelada, e continua editável">
+            <span style="width:13px;display:inline-block;text-align:center;">💬</span>
+            <span id="ctx-comentario-txt">Marcar como comentário</span>
         </div>
         <div class="ctx-r-item" id="ctx-bloquear" title="Bloqueada: a linha não pode ser editada nem excluída (continua entrando nos cálculos, a menos que também esteja congelada)">
             <span style="width:13px;display:inline-block;text-align:center;">🔒</span>

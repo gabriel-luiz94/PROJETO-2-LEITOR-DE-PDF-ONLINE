@@ -163,6 +163,8 @@ body { display: block; overflow: hidden; }
 }
 .resumo-table tr.linha-vazia .inp-ativo-vazio:focus { outline: 2px solid #388bfd; outline-offset: -2px; background: rgba(56,139,253,0.08); }
 .resumo-table tr.linha-vazia td.vz-op { color: #484f58; text-align: center; font-size: 0.75rem; }
+.resumo-table tr.linha-vazia .vz-sel { background: transparent; color: #484f58; border: 0; font-size: 0.75rem; opacity: 0.7; cursor: pointer; }
+.resumo-table tr.linha-vazia .vz-sel:hover, .resumo-table tr.linha-vazia .vz-sel:focus { opacity: 1; color: #c9d1d9; background: rgba(56,139,253,0.08); }
 
 /* ── Modal Resumo da rede ── */
 .resumo-rede-modal { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
