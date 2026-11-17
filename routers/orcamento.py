@@ -344,4 +344,4 @@ async def avaliar_rascunho_ativo(request: Request):
     if not isinstance(corpo, dict):
         raise HTTPException(status_code=400, detail="Corpo inválido.")
     base = get_merged_orcamento(user.get("user_id"))
-    return avaliar_rascunho(base, corpo.get("linhas") or [], corpo.get("projeto") or "", corpo.get("simular"))
+    return avaliar_rascunho(base, corpo.get("linhas") or [], corpo.get("projeto") or "", corpo.get("simular"), tirar=[corpo.get("renomear_de")] if corpo.get("renomear_de") else None)

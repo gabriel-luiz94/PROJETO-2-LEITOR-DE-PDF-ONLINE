@@ -677,7 +677,7 @@ async def ativo_previa(request: Request):
     _require_admin(request)
     corpo = await request.json()
     try:
-        return pub.previa(corpo.get("projeto", ""), corpo.get("nome", ""), corpo.get("linhas") or [], get_supabase())
+        return pub.previa(corpo.get("projeto", ""), corpo.get("nome", ""), corpo.get("linhas") or [], get_supabase(), renomear_de=corpo.get("renomear_de"))
     except pub.ErroPublicacao as e:
         return _erro_pub(e)
 
@@ -688,11 +688,11 @@ async def ativo_publicar(request: Request):
     admin = _require_admin(request)
     corpo = await request.json()
     try:
-        r = pub.publicar(admin, corpo.get("projeto", ""), corpo.get("nome", ""), corpo.get("linhas") or [], corpo.get("esperada"), bool(corpo.get("forcar")))
+        r = pub.publicar(admin, corpo.get("projeto", ""), corpo.get("nome", ""), corpo.get("linhas") or [], corpo.get("esperada"), bool(corpo.get("forcar")), renomear_de=corpo.get("renomear_de"))
     except pub.ErroPublicacao as e:
         return _erro_pub(e)
     _audit(admin, "PUBLICAR_ATIVO", "tabela_orcamento_master", f"{(corpo.get('projeto') or '').strip().upper()}|{(corpo.get('nome') or '').strip().upper()}",
-           f"linhas={r['linhas']}, removidas={r['removidas']}, nuvem={r['nuvem']}")
+           f"linhas={r['linhas']}, removidas={r['removidas']}, nuvem={r['nuvem']}" + (f", renomeado_de={r['renomeado_de']}" if r.get("renomeado_de") else ""))
     return r
 
 

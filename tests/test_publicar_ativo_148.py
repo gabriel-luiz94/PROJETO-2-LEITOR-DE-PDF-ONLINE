@@ -180,3 +180,62 @@ def test_rotas_admin(client):
     assert client.post("/api/admin/ativo/desfazer", json={"projeto": "PE", "nome": "X"}, headers=h).status_code == 200
     assert client.get("/api/admin/ativo/versao?projeto=PE&nome=X", headers=h).json()["linhas"] == []
     assert client.post("/api/admin/ativo/publicar", json={}, headers={}).status_code in (401, 403)
+
+
+# ───────────── renomear o ativo ao editar ─────────────
+def _nomes(proj="PE"):
+    return sorted({pub.nome_base(r["ativo"]) for r in pub._locais() if str(r["ativo"]).strip() and str(r["projeto"]).upper() == proj})
+
+
+def _renomeado(db):
+    novo = [L("OUTRO2, OUTRO"), L("OUTRO2", "O", "9", "x", 1)]
+    return pub.publicar(ADMIN, "PE", "OUTRO2", novo, renomear_de="OUTRO", sb=None)
+
+
+def test_renomear_troca_o_nome_e_remove_o_antigo(db):
+    r = _renomeado(db)
+    assert r["renomeado_de"] == "OUTRO" and r["linhas"] == 2
+    assert "OUTRO2" in _nomes() and local("OUTRO") == []                      # o antigo sumiu (o nome antigo ficou só como apelido)
+    assert local("OUTRO", "PARAIBA") != []                                    # outro projeto não é tocado
+
+
+def test_renomear_para_nome_que_ja_existe_e_recusado(db):
+    with pytest.raises(pub.ErroPublicacao) as e:
+        pub.publicar(ADMIN, "PE", "TERM", [L("TERM", "O", "9", "x", 1)], renomear_de="OUTRO", sb=None)
+    assert "Já existe" in str(e.value) and local("OUTRO") != []
+
+
+def test_renomear_ativo_que_nao_existe_e_recusado(db):
+    with pytest.raises(pub.ErroPublicacao) as e:
+        pub.publicar(ADMIN, "PE", "ZZ2", [L("ZZ2", "Z", "1", "x", 1)], renomear_de="ZZ", sb=None)
+    assert "não existe" in str(e.value)
+
+
+def test_previa_da_renomeacao_compara_com_o_nome_antigo_e_avisa_destino(db):
+    pv = pub.previa("PE", "OUTRO2", [L("OUTRO2", "O", "9", "x", 1)], None, renomear_de="OUTRO")
+    assert pv["renomeacao"] == {"de": "OUTRO", "para": "OUTRO2", "existe_destino": False, "origem_existe": True} and pv["assinatura"] == pub.assinatura(pub.linhas_do_ativo("PE", "OUTRO", None))
+    assert pub.previa("PE", "TERM", [L("TERM", "O", "9", "x", 1)], None, renomear_de="OUTRO")["renomeacao"]["existe_destino"] is True
+
+
+def test_desfazer_e_refazer_a_renomeacao(db):
+    _renomeado(db)
+    pub.desfazer(ADMIN, "PE", "OUTRO2", sb=None)
+    assert "OUTRO" in _nomes() and "OUTRO2" not in _nomes()                    # voltou ao nome antigo, sem sobrar o novo
+    pub.desfazer(ADMIN, "PE", "OUTRO2", sb=None)
+    assert "OUTRO2" in _nomes() and local("OUTRO") == []                       # refazer: nome novo de volta, antigo fora
+    pub.desfazer(ADMIN, "PE", "OUTRO2", sb=None)
+    assert "OUTRO" in _nomes() and "OUTRO2" not in _nomes()                    # e de novo, sem acumular linhas
+    assert len(local("OUTRO")) == 1
+
+
+def test_renomear_tambem_na_nuvem(db):
+    nuvem = Nuvem(BASE)
+    pub.publicar(ADMIN, "PE", "OUTRO2", [L("OUTRO2", "O", "9", "x", 1)], renomear_de="OUTRO", sb=nuvem)
+    nomes = {pub.nome_base(r["ativo"]) for r in nuvem.t if r["projeto"] == "PE" and str(r["ativo"]).strip()}
+    assert "OUTRO2" in nomes and "OUTRO" not in nomes
+
+
+def test_publicacao_comum_continua_guardando_lista_simples(db):
+    pub.publicar(ADMIN, "PE", "OUTRO", [L("OUTRO", "O", "9", "x", 5)], sb=None)
+    ant = pub._anterior("PE", "OUTRO")
+    assert ant[3] == [] and ant[0][0]["fator_i"] == 1

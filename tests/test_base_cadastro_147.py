@@ -121,3 +121,34 @@ def test_rascunho_de_linhas_ida_e_volta_mantendo_o_que_a_linha_sem_codigo_ja_tin
     assert (ls[0]["mdo"], ls[0]["filtro"]) == ("MATERIAL", "6.CHAVE") and (ls[3]["filtro"], ls[3]["lv"]) == ("9.X", "LV")
     assert ls[2]["formula_i"] == "=NUM(cabo)" and ls[2]["mdo"] == "MAO-DE-OBRA" and ls[2]["lv"] == "LM"
     assert js("C.rascunhoDeLinhas(e.rows).parametros.map(p=>p.nome+'='+p.padrao)", rows=rows) == ["cabo=S04", "cabo2=S04"]
+
+
+def test_declaracao_so_com_apelidos_leva_o_componente():
+    ls = js("C.gerarLinhas({nome:'N3_2',apelidos:'N32, N23',parametros:[],itens:[e.i]},'PE').map(l=>[l.ativo,l.componente])", i=It(codigo="1"))
+    assert ls[0] == ["N3_2, N32, N23", "N3_2"] and ls[1][1] == "N3_2"
+
+
+def test_renomear_gera_linhas_do_nome_novo_com_o_antigo_como_apelido():
+    r = "{nome:'OUTRO2',editar:'OUTRO',apelidos:'',parametros:[],itens:[e.i]}"
+    ls = js(f"C.gerarLinhas({r},'PE').map(l=>[l.ativo,l.componente])", i=It(codigo="1"))
+    assert ls[0] == ["OUTRO2, OUTRO", "OUTRO2"] and ls[1] == ["OUTRO2", "OUTRO2"]
+    sem = js("C.gerarLinhas({nome:'OUTRO2',editar:'OUTRO',manterAntigo:false,apelidos:'',parametros:[],itens:[e.i]},'PE').map(l=>l.ativo)", i=It(codigo="1"))
+    assert sem == ["OUTRO2"]
+    igual = js("C.gerarLinhas({nome:'outro',editar:'OUTRO',apelidos:'',parametros:[],itens:[e.i]},'PE').map(l=>l.ativo)", i=It(codigo="1"))
+    assert igual == ["outro"]                                    # só mudou a caixa: não é renomeação
+    assert js("[C.renomeando({editar:'A',nome:'B'}), C.renomeando({editar:'A',nome:'a'}), C.renomeando({nome:'B'})]") == [True, False, False]
+
+
+def test_validar_local_na_renomeacao_nao_confunde_o_ativo_em_edicao_com_outro():
+    base = [dict(ativo="N1, EST1", desc_ativo="d", componente="N1", projeto="PE", mdo="", codigo="", desc_codigo="", fator_i=0, fator_r=0, filtro="", lv="A", arred="NORMAL", formula_i="", formula_r=""),
+            dict(ativo="N1", desc_ativo="d", componente="N1", projeto="PE", mdo="MATERIAL", codigo="1", desc_codigo="x", fator_i=1, fator_r=0, filtro="", lv="A", arred="NORMAL", formula_i="", formula_r=""),
+            dict(ativo="N2", desc_ativo="d", componente="N2", projeto="PE", mdo="MATERIAL", codigo="2", desc_codigo="x", fator_i=1, fator_r=0, filtro="", lv="A", arred="NORMAL", formula_i="", formula_r="")]
+    cod = lambda r: js("(()=>{const m=F.construir(e.base,'PE');const v=C.validarLocal(e.r,m);return [v.erros.map(x=>x.texto),v.avisos.map(x=>x.texto)];})()", base=base, r=r)
+    it = [It(codigo="1")]
+    ok_ = cod({"nome": "N1_NOVO", "editar": "N1", "apelidos": "EST1", "parametros": [], "itens": it})
+    assert ok_[0] == [] and ok_[1] == []                                       # EST1 é do próprio N1: sem erro; nome novo livre
+    assert cod({"nome": "N1", "editar": "N1", "apelidos": "EST1", "parametros": [], "itens": it}) == [[], []]      # edição sem renomear: sem o falso aviso "já existe"
+    dup = cod({"nome": "N2", "editar": "N1", "apelidos": "", "parametros": [], "itens": it})
+    assert any("escolha outro nome" in t for t in dup[0])                      # renomear para um nome de OUTRO ativo: erro
+    outro = cod({"nome": "N1_NOVO", "editar": "N1", "apelidos": "N2", "parametros": [], "itens": it})
+    assert any('"N2"' in t for t in outro[0])                                  # apelido de outro ativo continua sendo erro

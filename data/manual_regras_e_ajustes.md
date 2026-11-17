@@ -886,3 +886,10 @@ Na tela de login, com **Lembrar de mim** marcado o programa **abre direto, sem p
 - A **pesquisa** (Ctrl+K) ficou mais ágil: usa a base já carregada e se atualiza sozinha em segundo plano.
 - Uma **barra de status** no canto inferior esquerdo mostra o que está acontecendo (Carregando, Validando, Salvando, Publicando, Recarregando) e o resultado (✔ Pronto ou ✖ erro, que fica até você fechar). Os botões de salvar/sincronizar ficam desabilitados enquanto a operação roda.
 - A tabela grande é montada em lotes (a barra mostra "Montando linhas… X de Y").
+
+## Renomear um ativo ao editar (17/11/2026)
+
+- Na ficha do ativo, **Editar** abre o cadastro rápido. No passo 1 o campo **Nome do ativo** agora pode ser trocado: aparece "Renomeando “A” → “B”".
+- Por padrão o **nome antigo vira apelido** do ativo novo (marcado como recomendado): as chamadas `:=` de outros ativos e os orçamentos que ainda usam o nome antigo continuam funcionando. Desmarque só se quiser que o nome antigo deixe de existir (a tela lista quem o chama).
+- Não dá para renomear para o nome de **outro** ativo do mesmo projeto (aparece o erro na revisão). O ativo é renomeado só no projeto escolhido.
+- Ao publicar, as linhas do nome antigo saem e as do novo entram de uma vez (base local e nuvem). **Desfazer** volta ao nome antigo; desfazer de novo refaz.
