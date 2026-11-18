@@ -223,7 +223,7 @@ def _expandir_compostos(itens, compostos, avisos, profundidade_max=10, formais=N
 def _fator_do_uso(row, qual, params, avisos) -> float:
     """TASK-109: fator da linha para ESTE uso — a fórmula (``=NUM(fios)/8``, com os parâmetros do pedido) se houver, senão o número. Fórmula com
     erro (parâmetro não informado, texto sem número…) avisa e a linha não soma neste uso."""
-    formula = (row.get(f"formula_{qual}") or "").strip()
+    formula = (row.get(f"formula_{qual}") or "").strip().replace("&quot;", '"')      # reparo de fórmulas gravadas com aspas escapadas em dobro
     if not formula:
         return float(row.get(f"fator_{qual}") or 0)
     try:

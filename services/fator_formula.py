@@ -264,6 +264,7 @@ def normalizar_fator(valor, rotulo=""):
         return float(valor), ""
     t = str(valor).strip()
     if t.startswith("="):
+        t = t.replace("&quot;", '"')            # reparo: a tela já mostrou/gravou aspas como &quot; (escape em dobro); a fórmula volta ao que era
         try:
             compilar(t)
         except FormulaErro as e:
