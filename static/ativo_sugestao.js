@@ -59,8 +59,8 @@
         return { inicio: ini + deslocar, fim, query: seg };
     }
 
-    /** Até `limite` nomes: começam com a consulta primeiro, depois os que a contêm. Nome idêntico à consulta, sozinho, não vira sugestão. */
-    function sugerir(query, indice, limite) {
+    /** Até `limite` nomes: começam com a consulta primeiro, depois os que a contêm. Nome idêntico à consulta, sozinho, só vira sugestão quando `incluirExato` (ao DIGITAR: «PR» já mostra o PR; ao clicar num campo já preenchido não abre à toa). */
+    function sugerir(query, indice, limite, incluirExato) {
         const q = MAIUSC(query).replace(/^\[/, '');
         if (!q) return [];
         const soNumero = /^\d+$/.test(q);                                                                // só dígitos: só quem COMEÇA com eles (evita sugerir por um pedaço no meio do nome)
@@ -70,7 +70,7 @@
             if (n.startsWith(q)) come.push(e); else if (!soNumero && n.includes(q)) contem.push(e);
         }
         const todos = come.concat(contem);
-        if (todos.length === 1 && todos[0].nome.toUpperCase() === q) return [];
+        if (!incluirExato && todos.length === 1 && todos[0].nome.toUpperCase() === q) return [];
         return todos.slice(0, limite || 12);
     }
 
@@ -162,7 +162,7 @@
         marcar(-1);
     }
 
-    function atualizar(input) {
+    function atualizar(input, digitando) {
         if (!cfg || !ligado() || !ehCampo(input)) { fechar(); return; }
         const t = tokenAtual(input.value, input.selectionStart);
         if (!t) { fechar(); return; }
@@ -172,7 +172,7 @@
             if (cfg.carregarBase && !carregando) { carregando = true; Promise.resolve(cfg.carregarBase()).finally(() => { carregando = false; if (doc.activeElement === input) atualizar(input); }); }
             return;
         }
-        const lista = sugerir(t.query, indice(origemDe(input)), 12);
+        const lista = sugerir(t.query, indice(origemDe(input)), 12, !!digitando);
         if (!lista.length) { fechar(); return; }
         alvo = input; token = t; itens = lista;
         desenhar(input);
@@ -180,7 +180,7 @@
 
     function iniciar(opcoes) {
         cfg = opcoes || {};
-        doc.addEventListener('input', e => { if (ehCampo(e.target)) atualizar(e.target); });
+        doc.addEventListener('input', e => { if (ehCampo(e.target)) atualizar(e.target, true); });
         doc.addEventListener('click', e => { if (ehCampo(e.target)) atualizar(e.target); });
         doc.addEventListener('focusout', e => { if (ehCampo(e.target)) setTimeout(() => { if (doc.activeElement !== alvo) fechar(); }, 120); });
         doc.addEventListener('keydown', e => {
@@ -188,7 +188,11 @@
             const consumir = () => { e.preventDefault(); e.stopImmediatePropagation(); };
             if (e.key === 'ArrowDown') { consumir(); marcar(Math.min(destaque + 1, itens.length - 1)); }
             else if (e.key === 'ArrowUp') { consumir(); marcar(Math.max(destaque - 1, 0)); }
-            else if (e.key === 'Tab' && !e.shiftKey) { consumir(); aceitar(destaque >= 0 ? destaque : 0); }
+            else if (e.key === 'Tab' && !e.shiftKey) {
+                const i = destaque >= 0 ? destaque : 0;
+                if (itens[i] && token && MAIUSC(itens[i].nome) === MAIUSC(token.query)) { fechar(); return; }        // já está escrito do jeito da sugestão: o Tab segue para a próxima célula
+                consumir(); aceitar(i);
+            }
             else if (e.key === 'Enter' && destaque >= 0) { consumir(); aceitar(destaque); }
             else if (e.key === 'Escape') { consumir(); fechar(); }
         }, true);
