@@ -16,6 +16,13 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-18 — TASK-186: «Ocultar parâmetros» com campo só de nomes, balão interativo dos ativos/parâmetros e Tab na tabela Outros
+
+- **Campo do ativo (Outros) com «Ocultar parâmetros» ligado:** mostra e edita só os **nomes** (`12600D, N1, N4`) — cursor, escrever, selecionar, colar, copiar normais; `row.ativo` guarda o texto cheio. Os **parâmetros ficam presos a cada item** (`static/ativo_itens.js`: `itens`, `compacto`, `aplicarEdicao` por diferença de texto + posição do cursor): apagou ou renomeou = item novo, sem parâmetros; item repetido (`N1, N1`) guarda os SEUS. Colar texto com parênteses leva os parâmetros junto. Desligada: texto inteiro, como antes. Acabou o rótulo sobreposto/campo transparente (`ativo-compacto`); sem selinho de contagem.
+- **Balão interativo (`static/ativo_balao.js`)**, abre com **Ctrl+Enter**, duplo clique ou mouse parado ~1,5 s na linha; lista os ativos da linha (✓ completo, ⚠ falta, – sem parâmetros) com o que já está preenchido; **↑↓/Tab** navegam, **Enter**/clique entram nos parâmetros do ativo; lá **Tab/Shift+Tab** andam entre parâmetros, **↑↓** escolhem o valor (ou «✎ digitar outro valor…»), **Enter** grava e vai ao próximo (no último, ao próximo ativo com pendência; sem pendência, fecha), **Del** limpa, **Esc** volta à lista e outro **Esc** fecha devolvendo o foco ao campo. Grava pelo mesmo caminho do blur (`_gravarCheio` → `confirmarMudanca`), um passo do Ctrl+Z. Com a opção ligada, **`(`** não escreve: abre direto os parâmetros do ativo sob o cursor (`AtivoBalao.abrirNoCursor`). O balão só-leitura antigo continua em Cabos/Totalizadora.
+- **Tab em Outros:** Operação → Ativo → **Operação da linha de baixo** (última linha preenchida: cria linha nova); Shift+Tab volta; Enter no ativo continua criando linha. Tab/Enter na Operação sempre vão ao ativo da mesma linha.
+- Alternar a opção em Configurações refaz a tabela Outros. `AtivoDica.contextoAtual()` exportado. Testes: `tests/test_ativo_itens_186.py`.
+
 ## 2026-11-18 — TASK-185b: tabelas de 1000+ linhas, teclado e achados na aba Cabos ⇄ Postes, `layer_em` com curinga, teste de desempenho
 
 - **Tabelas muito grandes (> 300 linhas):** em segundo plano só se monta ~2500 px em volta da área visível (`LIMIAR_PARCIAL`, `hidratarJanela(type, 2500)`); o resto monta ao rolar. Com 1000+1000 linhas: Enter 67 ms, excluir 34 ms, desfazer 146 ms, rolagem 16 ms/quadro.

@@ -526,5 +526,5 @@
     /** Monta o contexto da base antes do 1º uso (chamado logo depois que a base chega): o primeiro "(" não paga o custo de varrer a base inteira. */
     function aquecer() { if (cfg && cfg.base && (cfg.base() || []).length) contexto(); }
 
-    raiz.AtivoDica = Object.assign({ iniciar, aquecer }, api);
+    raiz.AtivoDica = Object.assign({ iniciar, aquecer, contextoAtual: () => (cfg && cfg.base && (cfg.base() || []).length ? contexto() : null) }, api);
 })(typeof window !== 'undefined' ? window : globalThis);
