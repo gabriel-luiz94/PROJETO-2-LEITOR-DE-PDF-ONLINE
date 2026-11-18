@@ -943,3 +943,10 @@ Na tela de login, com **Lembrar de mim** marcado o programa **abre direto, sem p
 ## Ocultar parâmetros: clicar na linha não mostra os parâmetros; "(" abre o balão (18/11/2026)
 
 Com *Ocultar parâmetros ao sair da linha* ligado, clicar na linha mantém só o nome do ativo (`PR`). Ao **digitar `(`** (ou levar o cursor para dentro do parêntese com **End**/**→**), os parâmetros **preenchidos** aparecem no **balão** junto ao campo — não na linha. Passar o mouse mostra o mesmo balão.
+
+## Ocultar parâmetros, balão dos ativos e Tab em Outros (18/11/2026)
+
+- **Opção desligada:** o campo do ativo mostra o texto inteiro (com os parênteses) e se edita normalmente.
+- **Opção ligada (⚙ Configurações › Aparência › Avançado):** o campo mostra só os nomes (`12600D, N1, N4`) e você escreve, seleciona, cola e copia normalmente. Os parâmetros ficam **presos a cada ativo** enquanto ele existir; se você apagar ou renomear um ativo, ele passa a ser um ativo novo (sem parâmetros). Digitar `(` não escreve nada: abre os parâmetros do ativo onde está o cursor.
+- **Balão dos ativos:** **Ctrl+Enter** no ativo, **duplo clique** ou **mouse parado** ~1,5 s na linha. Mostra os ativos da linha e o que já está preenchido/falta. **↑↓** ou **Tab** navegam; **Enter** (ou clique) abre os parâmetros do ativo. Nos parâmetros: **Tab** anda entre eles, **↑↓** escolhem o valor, **Enter** grava e vai ao próximo (no último, ao próximo ativo com pendência), **Del** limpa o valor, **Esc** volta à lista; **Esc** de novo fecha e devolve o cursor ao ativo.
+- **Tab na tabela Outros:** Operação → Ativo → Operação da linha de baixo (na última linha cria uma nova); **Shift+Tab** volta. **Enter** no ativo cria linha nova abaixo, como antes.

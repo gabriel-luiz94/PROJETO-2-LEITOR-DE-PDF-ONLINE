@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault(); e.stopPropagation();
             l.escolherAtual();
         } else if (e.key === 'Enter' || e.key === 'Escape') l.fechar();
-        if (e.key === 'Enter' && !e.shiftKey) {                                       // Enter na operação (escolhida ou digitada) → vai para o ativo da mesma linha
+        if ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {                  // Enter/Tab na operação (escolhida ou digitada) → vai para o ativo da mesma linha
             const tr = e.target.closest('tr'), alvo = tr && (tr.querySelector('.inp-ativo') || tr.querySelector('.inp-ativo-vazio') || tr.querySelector('.tot-ativo-input'));
             if (alvo) { e.preventDefault(); e.stopPropagation(); alvo.focus(); const f = alvo.value.length; try { alvo.setSelectionRange(f, f); } catch (x) { /* sem seleção */ } }
         }
@@ -526,6 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 atualizarResumoRedeUI();
             });
             selOp.dataset.field = 'operacao';
+            if (type === 'outros') selOp.addEventListener('keydown', e => { if (e.key === 'Tab' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && idx > 0) { e.preventDefault(); irParaCelula(type, idx - 1, 1, -1); } });
             tdOp.appendChild(selOp);
             tdOp.dataset.col = '0';
             tr.appendChild(tdOp);
@@ -537,7 +538,13 @@ document.addEventListener('DOMContentLoaded', () => {
             inpAt.type = 'text';
             inpAt.className = 'inp-ativo';
             inpAt.dataset.field = 'ativo';
-            inpAt.value = row.ativo;
+            // «Ocultar parâmetros» ligado (só Outros): o campo mostra e edita só os NOMES ("12600D, N1, N4"); row.ativo guarda o texto cheio e os parâmetros ficam presos a cada item
+            const oculto = type === 'outros' && !!window.AtivoItens && ocultarParametrosLigado();
+            let itensDoCampo = oculto ? window.AtivoItens.itens(row.ativo) : null, compactoDoCampo = '';
+            inpAt.value = oculto ? window.AtivoItens.compacto(row.ativo) : row.ativo;
+            compactoDoCampo = inpAt.value;
+            const textoDoAtivo = () => (oculto ? row.ativo : inpAt.value);
+            inpAt._sincronizarCheio = () => { if (oculto) { itensDoCampo = window.AtivoItens.itens(row.ativo); compactoDoCampo = inpAt.value; } else inpAt.value = row.ativo; };
             inpAt.autocomplete = 'off';
             inpAt.setAttribute('list', '');  // desabilita datalist nativo, usamos o nosso
             if (type === 'cabos') { inpAt.dataset.parTipo = 'cabos'; inpAt.dataset.parIdx = idx; }
@@ -552,11 +559,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     inpAt.value = upperVal;
                     if (cursor !== null) inpAt.setSelectionRange(cursor, cursor);
                 }
-                row.ativo = inpAt.value;
+                if (oculto) {
+                    const r = window.AtivoItens.aplicarEdicao(itensDoCampo, compactoDoCampo, inpAt.value, inpAt.selectionStart);
+                    itensDoCampo = r.itens; row.ativo = r.texto;
+                    if (inpAt.value.indexOf('(') >= 0) { inpAt.value = window.AtivoItens.compacto(r.texto); const f = inpAt.value.length; inpAt.setSelectionRange(f, f); }      // colou com parênteses: os parâmetros vão para o item e o campo continua só com os nomes
+                    compactoDoCampo = inpAt.value;
+                } else row.ativo = inpAt.value;
                 agendarCoresParametros();
                 if (type !== 'outros') showAutocomplete(inpAt, type);                // TASK-136: em Outros quem sugere é AtivoSugestao (ativos/apelidos do projeto, com botão liga/desliga)
             });
             inpAt.addEventListener('keydown', e => {
+                if (type === 'outros' && window.AtivoBalao) {
+                    if (oculto && e.key === '(' && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); window.AtivoBalao.abrirNoCursor(inpAt); return; }       // "(" = atalho para os parâmetros do ativo
+                    if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); window.AtivoBalao.abrir(inpAt, { foco: true }); return; }                              // Ctrl+Enter = balão dos ativos
+                    if (e.key === 'Tab' && !e.ctrlKey && !e.altKey && !e.metaKey && !window.AtivoBalao.aberto()) {                                                    // Tab: Operação → Ativo → Operação da linha de baixo
+                        e.preventDefault();
+                        if (e.shiftKey) { irParaCelula(type, idx, 0, -1); return; }
+                        if (idx + 1 < state.data.length) { irParaCelula(type, idx + 1, 0, 1); return; }
+                        if (String(row.ativo == null ? '' : row.ativo).trim() !== '') { addRow(type, idx); setTimeout(() => irParaCelula(type, idx + 1, 0, 1), 80); }
+                        return;
+                    }
+                }
                 if (e.key === 'Delete' && inpAt.value.trim() === '') {
                     e.preventDefault();
                     e.stopPropagation();          // TASK-087: o tratador global da grade (Delete = limpar a seleção) também limparia a linha de cima
@@ -576,67 +599,64 @@ document.addEventListener('DOMContentLoaded', () => {
                     irParaCelula(type, idx + (e.key === 'ArrowDown' ? 1 : -1), 1, e.key === 'ArrowDown' ? 1 : -1);
                 }
             });
+            // depois que o valor da linha mudou (blur ou gravação pelo balão): classificação, índices, filtros, quantidades
+            const confirmarMudanca = snapAtivo => {
+                const mudouHash = sincronizarHash(row, snapAtivo);                    // TASK-182: "#" no começo = comentário (no mesmo passo de Ctrl+Z)
+                if (type === 'outros') {                              // TASK-065
+                    reclassificarEntidade(row);
+                    atualizarCelulaEntidade();
+                }
+                buildAtivoSets();
+                buildDataLists();
+                if (type === 'cabos') {
+                    const currentIdx = parseInt(tr.dataset.index);
+                    recalcRowAndAbove(currentIdx);
+                    // Atualiza visualmente os inputs de qtdAtivos
+                    const body = document.getElementById(state.bodyId);
+                    if (body) {
+                        Array.from(body.children).forEach(trLoop => {
+                            const loopIdx = parseInt(trLoop.dataset.index);
+                            if (loopIdx === currentIdx || loopIdx === currentIdx - 1) {
+                                const qtdInp = trLoop.querySelector('.inp-qtd-ativos');
+                                if (qtdInp && state.data[loopIdx]) {
+                                    qtdInp.value = state.data[loopIdx].qtdAtivos !== undefined ? state.data[loopIdx].qtdAtivos : '';
+                                }
+                            }
+                        });
+                    }
+                }
+                refreshAllFilters(type);
+                atualizarResumoRedeUI();
+                if (mudouHash) renderPreservandoFoco(type);
+            };
+            inpAt._gravarCheio = novo => {                                              // o balão de parâmetros grava o texto cheio da linha (um passo do Ctrl+Z)
+                const snap = row.ativo;
+                if (novo === snap) return;
+                row.ativo = snap; pushHistory(); row.ativo = novo; prevAtivo = novo;
+                inpAt._sincronizarCheio();
+                confirmarMudanca(snap);
+            };
             inpAt.addEventListener('blur', () => {
                 setTimeout(() => {
                     hideAutocomplete();
-                    if (inpAt.value !== prevAtivo) {
+                    const atual = textoDoAtivo();
+                    if (atual !== prevAtivo) {
                         const snapAtivo = prevAtivo;  // guarda o valor antes
-                        prevAtivo = inpAt.value;
+                        prevAtivo = atual;
                         // Restaura temporariamente o valor antigo para capturar o snapshot correto
                         row.ativo = snapAtivo;
                         pushHistory();  // snapshot com valor ANTES
-                        row.ativo = inpAt.value;  // aplica o novo valor
-                        const mudouHash = sincronizarHash(row, snapAtivo);                    // TASK-182: "#" no começo = comentário (no mesmo passo de Ctrl+Z)
-                        if (type === 'outros') {                              // TASK-065
-                            reclassificarEntidade(row);
-                            atualizarCelulaEntidade();
-                        }
-                        buildAtivoSets();
-                        buildDataLists();
-                        if (type === 'cabos') {
-                            const currentIdx = parseInt(tr.dataset.index);
-                            recalcRowAndAbove(currentIdx);
-                            // Atualiza visualmente os inputs de qtdAtivos
-                            const body = document.getElementById(state.bodyId);
-                            if (body) {
-                                Array.from(body.children).forEach(trLoop => {
-                                    const loopIdx = parseInt(trLoop.dataset.index);
-                                    if (loopIdx === currentIdx || loopIdx === currentIdx - 1) {
-                                        const qtdInp = trLoop.querySelector('.inp-qtd-ativos');
-                                        if (qtdInp && state.data[loopIdx]) {
-                                            qtdInp.value = state.data[loopIdx].qtdAtivos !== undefined ? state.data[loopIdx].qtdAtivos : '';
-                                        }
-                                    }
-                                });
-                            }
-                        }
-                        refreshAllFilters(type);
-                        atualizarResumoRedeUI();
-                        if (mudouHash) renderPreservandoFoco(type);
+                        row.ativo = atual;  // aplica o novo valor
+                        confirmarMudanca(snapAtivo);
                     }
                 }, 150);
             });
             inpAt.addEventListener('focus', () => {
-                prevAtivo = inpAt.value;
+                prevAtivo = textoDoAtivo();
                 if (inpAt.value.length === 0) showAutocomplete(inpAt, type);
             });
 
             tdAt.appendChild(inpAt);
-            if (type === 'outros' && window.AtivoCompacto) {                         // "Ocultar parâmetros ao sair da linha": rótulo com o nome sem os parâmetros (o CSS só o mostra com a opção ligada e a linha sem foco)
-                const rotulo = document.createElement('span');
-                rotulo.className = 'ativo-compacto';
-                rotulo.setAttribute('aria-hidden', 'true');
-                tdAt.classList.add('cel-ativo-comp');
-                tdAt.appendChild(rotulo);
-                const atualizarCompacto = () => { const c = window.AtivoCompacto.compactar(inpAt.value); rotulo.textContent = c; tdAt.classList.toggle('tem-params', c !== inpAt.value); };
-                atualizarCompacto();
-                inpAt.addEventListener('blur', atualizarCompacto);
-                inpAt.addEventListener('input', atualizarCompacto);
-                // Com a linha em foco os parâmetros continuam ocultos na linha; ao digitar "(" (ou andar para dentro do parêntese) os PREENCHIDOS aparecem no balão, não na linha
-                const mostrarNoBalao = () => { const i = inpAt.value.indexOf('('); if (i >= 0 && (inpAt.selectionStart || 0) > i && window.mostrarBalaoParametros) window.mostrarBalaoParametros(inpAt); else if (window.esconderBalaoParametros) window.esconderBalaoParametros(inpAt); };
-                ['input', 'keyup', 'click'].forEach(ev => inpAt.addEventListener(ev, () => setTimeout(mostrarNoBalao, 0)));
-                inpAt.addEventListener('blur', () => { if (window.esconderBalaoParametros) window.esconderBalaoParametros(inpAt); });
-            }
             tdAt.dataset.col = '1';
             tr.appendChild(tdAt);
 
@@ -6296,6 +6316,40 @@ if (window.AtivoDica) window.AtivoDica.iniciar({
         } catch (e) { return null; }
     }
 });
+// TASK-186: balão interativo dos ativos/parâmetros de Outros (Ctrl+Enter, duplo clique, mouse parado, "(" com «Ocultar parâmetros» ligado)
+if (window.AtivoBalao && window.AtivoItens) window.AtivoBalao.iniciar({
+    itens: input => {
+        const idx = Number(input.dataset.parIdx), row = tableStates.outros.data[idx], itens = window.AtivoItens.itens(row ? row.ativo : '');
+        let sts = [];
+        try { const c = _contextoParametros(); sts = _statusParametrosDaLinha(row, _parametrosVinculoPorLinha()[idx], c.assin, c.ctx, c.obra, _defineDoVinculo()[idx]); } catch (e) { sts = []; }
+        return itens.map(it => ({ nome: it.nome, params: it.params, raw: it.raw, status: sts.find(x => String(AtivoParametros.nomeBase(x.ativo)).toUpperCase() === String(AtivoParametros.nomeBase(it.nome)).toUpperCase()) || null }));
+    },
+    dica: nome => { try { const c = window.AtivoDica && window.AtivoDica.contextoAtual(); return c ? window.AtivoDica.dica(nome, c) : null; } catch (e) { return null; } },
+    origens: (input, ativo) => {
+        try {
+            const idx = Number(input.dataset.parIdx), c = _contextoParametros(), sts = _statusParametrosDaLinha(tableStates.outros.data[idx], _parametrosVinculoPorLinha()[idx], c.assin, c.ctx, c.obra, _defineDoVinculo()[idx]);
+            const s = sts.find(x => String(AtivoParametros.nomeBase(x.ativo)).toUpperCase() === ativo);
+            if (!s) return null;
+            const m = {};
+            s.params.forEach(p => { m[String(p.nome).toUpperCase()] = { valor: p.falta || p.invalido ? null : p.valor, rotulo: AtivoStatus.rotuloOrigem(p.origem, p.detalhe) }; });
+            return m;
+        } catch (e) { return null; }
+    },
+    gravar: (input, i, nomeParam, valor) => {
+        const idx = Number(input.dataset.parIdx), row = tableStates.outros.data[idx], AI = window.AtivoItens, itens = AI.itens(row.ativo), it = itens[i];
+        if (!it) return;
+        const c = window.AtivoDica.contextoAtual(), d = c && window.AtivoDica.dica(it.nome, c);
+        if (!d || d.tipo !== 'parametros') return;
+        const inner = AI.conteudo(it.params), base = it.nome + '(' + inner + ')';
+        const r = window.AtivoDica.aplicarValor(base, it.nome.length + 1 + inner.length, d, nomeParam, valor);
+        if (!r) return;
+        const params = r.texto.slice(it.nome.length);
+        const novos = AI.comParams(itens, i, params);
+        input._gravarCheio(AI.juntar(novos));
+    },
+    carregarBase: () => carregarBaseOrcamento(),
+    mensagem: t => showToast(t)
+});
 // TASK-128: a base de orçamento é pedida JÁ ao abrir a tela (em segundo plano) — antes só no primeiro "(" digitado, e a resposta demora no início (sincroniza com a nuvem)
 /** Prepara (em segundo plano) o que varre a base inteira — contexto de Outros, assinaturas e contexto da caixa de parâmetros — para o 1º uso já sair rápido. */
 function aquecerCaches() { try { _contextoParametros(); if (window.AtivoDica && window.AtivoDica.aquecer) window.AtivoDica.aquecer(); } catch (e) { /* base ou convenção ainda carregando */ } }
@@ -6994,6 +7048,7 @@ window.handleTotPaste = function(e, index) {
         document.addEventListener('mouseover', e => {
             const el = e.target && e.target.closest ? e.target.closest('[data-par-tipo]') : null;
             if (!el || el === alvo) return;
+            if (el.dataset.parTipo === 'outros' && window.AtivoBalao) return;                  // Outros: quem mostra (e edita) é o balão interativo (ativo_balao.js)
             esconder(); alvo = el;
             timer = setTimeout(() => mostrar(el), 250);
         });
@@ -7010,6 +7065,8 @@ window.handleTotPaste = function(e, index) {
     window.definirOcultarParametros = function (ligado) {
         try { localStorage.setItem(OCULTAR_PARAMS_CHAVE, ligado ? '1' : '0'); } catch (e) { /* vale só nesta sessão */ }
         document.body.classList.toggle('ocultar-parametros', !!ligado);
+        if (window.AtivoBalao) window.AtivoBalao.fechar(false);
+        try { renderTable('outros'); } catch (e) { /* tela ainda carregando */ }          // o campo do ativo passa a mostrar só os nomes (ou o texto inteiro)
     };
     (function ligarChaveOcultarParametros() {
         const chave = document.getElementById('cfg-ocultar-params');

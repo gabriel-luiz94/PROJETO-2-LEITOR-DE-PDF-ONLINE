@@ -8,7 +8,7 @@ DICA = open(os.path.join(config.STATIC_DIR, "ativo_dica.js"), encoding="utf-8").
 
 
 def test_enter_na_operacao_vai_ao_ativo_da_mesma_linha():
-    i = JS.index("// Enter na operação (escolhida ou digitada)")
+    i = JS.index("// Enter/Tab na operação (escolhida ou digitada)")
     trecho = JS[i:i + 520]
     assert "querySelector('.inp-ativo')" in trecho and "tot-ativo-input" in trecho and "alvo.focus()" in trecho
 
