@@ -92,6 +92,13 @@ def _valida_regra_processamento(regra: dict, idx: int, erros: list):
             _compila_regex(vizinhanca.get("regex"), f"{prefixo}.vizinhanca.regex", erros)
             if vizinhanca.get("direcao") not in (None, "", "ANTES_E_DEPOIS", "DEPOIS", "ANTES"):
                 erros.append(f"{prefixo}: 'vizinhanca.direcao' precisa ser ANTES_E_DEPOIS, DEPOIS ou ANTES.")
+            if vizinhanca.get("geometrica") not in (None, True, False):
+                erros.append(f"{prefixo}: 'vizinhanca.geometrica' precisa ser true ou false.")
+            raio = vizinhanca.get("raio")
+            if raio is not None and (isinstance(raio, bool) or not isinstance(raio, (int, float)) or raio <= 0):
+                erros.append(f"{prefixo}: 'vizinhanca.raio' precisa ser um número maior que zero (unidades do desenho).")
+            if vizinhanca.get("posicao") not in (None, "", "ABAIXO", "ACIMA", "QUALQUER"):
+                erros.append(f"{prefixo}: 'vizinhanca.posicao' precisa ser ABAIXO, ACIMA ou QUALQUER.")
             janela = vizinhanca.get("janela")
             if janela is not None and not isinstance(janela, (int, float)):
                 erros.append(f"{prefixo}: 'vizinhanca.janela' precisa ser numérico.")

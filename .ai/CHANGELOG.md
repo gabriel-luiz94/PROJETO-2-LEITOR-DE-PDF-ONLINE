@@ -16,6 +16,13 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-19 — TASK-188: Leitor lê o comprimento do cabo POR POSIÇÃO no desenho
+
+- **Problema (conferido no DXF da nota 9101578729):** a vizinhança das regras do Leitor olha os N itens seguintes **da lista**, e a lista do DXF sai **ordenada por altura (Y)**; o comprimento de um cabo caía a 26–37 itens do rótulo (janela 16) ou antes dele. Resultado: cabo sem comprimento (rótulos riscados `2xC25-13,8kV`/`1xS04-13,8kV` do print) ou, pior, com o comprimento de OUTRO cabo — de 40 rótulos, 22 pegavam um texto a 14–134 unidades de distância enquanto o certo estava a 2–7 unidades logo abaixo.
+- **Novo na vizinhança (`regras_leitor_engine.js`, `_vizinhoPorPosicao`):** `geometrica: true` + `raio` (unidades do desenho, padrão 12) + `posicao` (`ABAIXO` padrão, `ACIMA`, `QUALQUER`): usa `_x/_y` dos itens e escolhe o texto da regex **mais perto** (empate: o mais próximo na lista; só da mesma página). Com coordenadas e nada dentro do raio a regra não casa (não cai para a ordem da lista); sem coordenadas (PDF) usa a janela/ordem de antes. Validação em `routers/regras_leitor.py` e campos no editor de regras (Por posição no desenho · Raio · Onde).
+- **Rótulo com neutro** (`3xC16(16)+16`, `3xC35(35)+35`): a regex dos cabos aceita `+N` antes do `-13,8kV`.
+- **Regras do projeto Pernambuco (081)** ajustadas e entregues em JSON (regra «Cabo: label sozinho» por posição, raio 12; `+N`). No DXF da nota: cabos reconhecidos 65 → 74, todos com comprimento; os dois riscados e o de cima passam a ler `27 m`. Testes: `tests/test_leitura_por_posicao_188.py`.
+
 ## 2026-11-18 — TASK-187: ajustes do uso do balão, sugestões, setas e menu de contexto
 
 - **Balão aberto pelo mouse:** só abre com o mouse parado (~1,5 s) na linha **selecionada** (campo com o foco); em linha não selecionada nada abre. Aberto assim, já tem o teclado: setas, Tab, Enter e Esc funcionam com o mouse em cima; mexeu no teclado, ele deixa de fechar quando o mouse sai.
