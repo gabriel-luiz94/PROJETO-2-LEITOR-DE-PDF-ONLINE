@@ -56,6 +56,46 @@ document.addEventListener('DOMContentLoaded', () => {
     ═══════════════════════════════════════ */
     const ENTIDADES = ['0', 'CABO', 'CHAVE', 'TRAFO', 'ESTRUTURA', 'APOIO', 'IP', 'POSTE', 'RAMAIS', 'CERCA'];
     const OPERACOES = ['I', '*I', 'R', '*R', 'M', '*M'];
+    /* TASK-182 C — Operação digitada, validada como uma célula do Excel: maiúsculas e sem espaços (*r → *R); só aceita OPERACOES (fonte única); inválida = não grava,
+       a célula fica vermelha com o aviso e o valor volta ao anterior. O campo tem a lista (datalist) para quem prefere escolher. */
+    const MSG_OPERACAO_INVALIDA = 'Operação inválida: use I, *I, R, *R, M ou *M';
+    const normalizarOperacao = t => String(t == null ? '' : t).replace(/\s+/g, '').toUpperCase();
+    function datalistOperacoes() {
+        if (!document.getElementById('dl-operacoes')) {
+            const d = document.createElement('datalist'); d.id = 'dl-operacoes';
+            OPERACOES.forEach(v => d.appendChild(new Option(v)));
+            document.body.appendChild(d);
+        }
+        return 'dl-operacoes';
+    }
+    /** Marca a célula como inválida por alguns segundos (vermelho + aviso no título) e devolve o valor anterior. */
+    function recusarOperacao(inp, anterior) {
+        inp.value = anterior;
+        inp.classList.add('op-invalida');
+        const tituloAntes = inp.dataset.tituloOp || inp.title || '';
+        inp.dataset.tituloOp = tituloAntes;
+        inp.title = MSG_OPERACAO_INVALIDA;
+        showToast(MSG_OPERACAO_INVALIDA);
+        clearTimeout(inp._tmOpInvalida);
+        inp._tmOpInvalida = setTimeout(() => { inp.classList.remove('op-invalida'); inp.title = tituloAntes; }, 3000);
+    }
+    /** Campo de operação (texto + lista). `aoMudar(v)` só roda com valor VÁLIDO e diferente do atual. */
+    function criarCampoOperacao(valor, classe, aoMudar) {
+        const inp = document.createElement('input');
+        inp.type = 'text'; inp.className = classe; inp.value = valor; inp.dataset.valorOk = valor;
+        inp.setAttribute('list', datalistOperacoes()); inp.autocomplete = 'off'; inp.spellcheck = false; inp.maxLength = 4;
+        inp.setAttribute('aria-label', 'Operação: I, *I, R, *R, M ou *M');
+        inp.title = 'Operação: I, *I, R, *R, M ou *M — digite ou escolha na lista';
+        inp.addEventListener('change', () => {
+            const v = normalizarOperacao(inp.value), ok = inp.dataset.valorOk;
+            if (v === ok) { inp.value = ok; return; }
+            if (!OPERACOES.includes(v)) { recusarOperacao(inp, ok); return; }
+            inp.value = v; inp.dataset.valorOk = v; inp.classList.remove('op-invalida');
+            aoMudar(v);
+        });
+        inp.addEventListener('keydown', e => { if (e.key === 'Escape') { inp.value = inp.dataset.valorOk; inp.blur(); } });
+        return inp;
+    }
 
     let extractedDataCache = [];
 
@@ -349,19 +389,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             /* ── Operação ── */
             const tdOp = document.createElement('td');
-            const selOp = document.createElement('select');
-            selOp.className = 'sel-operacao';
-            selOp.dataset.field = 'operacao';
-            preencherSelectPreguicoso(selOp, OPERACOES, row.operacao);
-            selOp.addEventListener('change', () => {
-                const old = row.operacao;
-                if (old !== selOp.value) {
-                    pushHistory();  // snapshot ANTES da mudança
-                    row.operacao = selOp.value;
-                    refreshAllFilters(type);
-                    atualizarResumoRedeUI();
-                }
+            const selOp = criarCampoOperacao(row.operacao, 'sel-operacao inp-operacao', v => {
+                pushHistory();  // snapshot ANTES da mudança
+                row.operacao = v;
+                refreshAllFilters(type);
+                atualizarResumoRedeUI();
             });
+            selOp.dataset.field = 'operacao';
             tdOp.appendChild(selOp);
             tdOp.dataset.col = '0';
             tr.appendChild(tdOp);
@@ -698,12 +732,8 @@ document.addEventListener('DOMContentLoaded', () => {
             cel('col-num', String(dados.length + i + 1));
             if (type === 'outros') cel('cel-ent', '');
             const tdOpVz = cel('vz-op', '');                                           // operação da nova linha: já vem a que ela receberia (herdada); dá para escolher ANTES de digitar o ativo
-            const selOpVz = document.createElement('select');
-            selOpVz.className = 'sel-operacao vz-sel';
+            const selOpVz = criarCampoOperacao(OPERACOES.includes(dica) ? dica : 'I', 'sel-operacao inp-operacao vz-sel', () => { selOpVz.dataset.tocada = '1'; });
             selOpVz.setAttribute('aria-label', 'Nova linha: operação (opcional; escolha antes de digitar o ativo)');
-            OPERACOES.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; selOpVz.appendChild(o); });
-            selOpVz.value = OPERACOES.includes(dica) ? dica : 'I';
-            selOpVz.addEventListener('change', () => { selOpVz.dataset.tocada = '1'; });
             tdOpVz.appendChild(selOpVz);
             const tdAt = cel('', '');
             const inp = document.createElement('input');
@@ -5956,7 +5986,20 @@ function avaliarTot(texto, origem) {
 if (window.AtivoDica) window.AtivoDica.iniciar({
     base: () => orcamentoBaseData,
     projeto: () => localStorage.getItem('projeto_selecionado') || '',
-    carregarBase: () => carregarBaseOrcamento()
+    carregarBase: () => carregarBaseOrcamento(),
+    // TASK-181: de onde vem o valor que vale em cada parâmetro (manual, vínculo, da obra, padrão, automático) — o mesmo status do balão ao passar o mouse
+    origens: (input, ativo) => {
+        try {
+            if (input.dataset.parTipo !== 'outros') return null;
+            const idx = Number(input.dataset.parIdx), c = _contextoParametros();
+            const sts = _statusParametrosDaLinha(tableStates.outros.data[idx], _parametrosVinculoPorLinha()[idx], c.assin, c.ctx, c.obra, _defineDoVinculo()[idx]);
+            const s = sts.find(x => String(AtivoParametros.nomeBase(x.ativo)).toUpperCase() === ativo);
+            if (!s) return null;
+            const m = {};
+            s.params.forEach(p => { m[String(p.nome).toUpperCase()] = { valor: p.valor, rotulo: AtivoStatus.rotuloOrigem(p.origem, p.detalhe) }; });
+            return m;
+        } catch (e) { return null; }
+    }
 });
 // TASK-128: a base de orçamento é pedida JÁ ao abrir a tela (em segundo plano) — antes só no primeiro "(" digitado, e a resposta demora no início (sincroniza com a nuvem)
 let _basePromessa = null, _baseOutraVez = false;
@@ -6293,6 +6336,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
 };
 
 window.renderTotalizadora = function() {
+    datalistOperacoes();                                            // a lista (datalist) que o campo Operação usa
     const tbody = document.getElementById('body-totalizadora');
     const emptyMsg = document.getElementById('tot-empty-msg');
     
@@ -6318,9 +6362,7 @@ window.renderTotalizadora = function() {
             <td style="font-weight: bold; color: var(--text-secondary); text-align: center;">${row.id}</td>
             <td><input type="text" class="tot-input" value="${row.obs || ''}" onchange="updateTotRow(${index}, 'obs', this.value)"></td>
             <td>
-                <select class="tot-input" style="text-align: center;" onchange="updateTotRow(${index}, 'operacao', this.value)">
-                    ${(typeof OPERACOES !== 'undefined' ? OPERACOES : ['I', 'R', 'M']).map(op => `<option value="${op}" ${row.operacao === op ? 'selected' : ''}>${op}</option>`).join('')}
-                </select>
+                <input type="text" class="tot-input tot-op-input" style="text-align: center;" list="dl-operacoes" maxlength="4" autocomplete="off" spellcheck="false" aria-label="Operação: I, *I, R, *R, M ou *M" title="Operação: I, *I, R, *R, M ou *M — digite ou escolha na lista" value="${row.operacao || ''}" onchange="validarOperacaoTot(this, ${index})">
             </td>
             <td><input type="text" class="tot-input tot-ativo-input" data-par-tipo="tot" data-par-idx="${index}" value="${row.ativo || ''}" onchange="updateTotRow(${index}, 'ativo', this.value)" onkeydown="handleTotKeydown(event, ${index}, 'ativo')" onpaste="handleTotPaste(event, ${index})"></td>
             <td><input type="number" step="0.01" class="tot-input" style="width: 70px; text-align: center;" value="${row.qtd !== undefined && row.qtd !== null ? row.qtd : ''}" onchange="updateTotRow(${index}, 'qtd', this.value)" onkeydown="handleTotKeydown(event, ${index}, 'qtd')" onpaste="handleTotPaste(event, ${index})"></td>
@@ -6341,6 +6383,14 @@ window.renderTotalizadora = function() {
     });
 };
 
+window.validarOperacaoTot = function (inp, index) {              // TASK-182 C: operação digitada na Totalizadora (mesma validação das tabelas)
+    const linha = tableStates.totalizadora.data[index], anterior = linha ? (linha.operacao || '') : '';
+    const v = normalizarOperacao(inp.value);
+    if (v === anterior) { inp.value = anterior; return; }
+    if (!OPERACOES.includes(v)) { recusarOperacao(inp, anterior); return; }
+    inp.value = v; inp.classList.remove('op-invalida');
+    updateTotRow(index, 'operacao', v);
+};
 window.updateTotRow = async function(index, field, value) {
     if (tableStates.totalizadora.data[index]) {
         if (field === 'qtd') {
