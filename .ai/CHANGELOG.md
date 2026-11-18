@@ -8,6 +8,52 @@
 
 ---
 
+## 2026-11-18 — Navegação Operação ↔ Ativo, linha "digitar" nos parâmetros e preenchimento rápido
+
+- **Operação → Ativo:** Enter no campo Operação (digitada ou escolhida na lista) leva o cursor ao **ativo da mesma linha** (Cabos, Demais Ativos, linha em branco e Totalizadora). **←** no **começo** do ativo volta para a operação (abre a lista); no meio do texto a seta continua movendo o cursor.
+- **Caixa de parâmetros:** sempre há uma linha **"✎ digitar outro valor…"** (a última): chegue nela com ↑↓ (↑ vai direto), escreva qualquer valor (a linha passa a mostrar `✎ usar "X"`); Enter/Tab mantêm o valor e avançam.
+- **Velocidade (investigada com a base real de ~3,9 mil linhas e o profiler do navegador):** cada tecla ao preencher parâmetros custava **100–350 ms** porque o contexto da base inteira (`AnotacaoOutros.contextoDaBase` + `assinaturasDoProjeto`, que chamam `analisarCelulaBase` e `compilar` da convenção de postes linha a linha) era refeito **várias vezes por tecla**: a caixa pede a origem dos valores (`cfg.origens` → `_contextoParametros()`, `_parametrosVinculoPorLinha()`, `_defineDoVinculo()`) e cada um refazia `_ctxOutros()` por linha. Agora `_ctxOutros()` e as assinaturas são guardados e só refeitos quando a base, o projeto ou a convenção de postes mudam; depois de carregar a base eles são montados em segundo plano (`aquecerCaches`, `AtivoDica.aquecer`). Medido: **7–45 ms por tecla** (antes 87–349 ms), também com 80 linhas na tabela.
+- Testes: `tests/test_navegacao_e_velocidade.py`.
+
+---
+
+## 2026-11-18 — Menu pelo teclado, Duplicar linha, Enter cria linha e sugestões só da base
+
+- **Menu do botão direito:** ↑↓ (Home/End) navegam, Enter executa, Esc fecha.
+- **Duplicar linha** (menu): copia a linha clicada ou as selecionadas e coloca a cópia **logo abaixo** (em bloco, na mesma ordem); a cópia é uma linha comum (sem bloqueio e sem o vínculo/geometria do original; congelada/comentário são mantidos); um passo de Ctrl+Z (`duplicarLinhas`).
+- **Enter** no campo Ativo (Cabos e Demais Ativos) **cria uma linha nova logo abaixo** e leva o cursor para ela; numa linha ainda em branco só desce.
+- **Sugestões ao digitar** deixam de listar as linhas já digitadas na tabela: Cabos sugere só **ativos da base** (nome/apelido do projeto, origem CABOS) enquanto se digita o nome; Demais Ativos mantém as sugestões de ativos e a caixa de parâmetros.
+- Testes: `tests/test_menu_enter_duplicar.py`.
+
+---
+
+## 2026-11-18 — Lista no estilo VS Code (Operação e parâmetros) e botões ❄ 💬 🔒
+
+- **Operação:** lista no estilo do VS Code (`static/ide_lista.js`) no lugar do `<datalist>` nativo, que só mostrava as opções que casavam com o valor atual (com "I" só apareciam `I` e `*I`). Ao entrar no campo aparecem **todas** as operações (a atual selecionada, com o detalhe instalar/remover/manter e "linha viva"); ↑↓ navegam, Enter/Tab/clique escolhem, digitar filtra, Esc cancela.
+- **Parâmetros (TASK-181, revisão):** assinatura `ATIVO(param, …)` com o parâmetro da vez em destaque e lista de valores como sugestões; **↑↓** navegam pelos valores; **Enter/Tab** aceitam o valor realçado, escrevem pelo nome e **avançam para o próximo parâmetro** (a caixa continua aberta; no último fecha com o cursor depois do `)`); Shift+Tab volta; Esc fecha mantendo o texto (Ctrl+Z desfaz); digitar filtra a lista. (Antes: ↑↓ trocavam o parâmetro, ←→ o valor e Enter fechava.)
+- **Botões ❄ 💬 🔒** no cabeçalho das tabelas Cabos e Demais Ativos: agem nas linhas selecionadas (clique no número) ou na linha do cursor; a seleção continua marcada depois de aplicar.
+- A opção **Ocultar parâmetros ao sair da linha** fica em ⚙ Configurações › Aparência › Avançado (agora já aberto por padrão).
+- Testes: `tests/test_ide_lista.py`.
+
+---
+
+## 2026-11-18 — TASK-182 C (operação digitada) e TASK-181 (seletor de parâmetros)
+
+- **Operação digitada (182 C):** a coluna Operação (Cabos, Outros, linha em branco e Totalizadora) é um campo de texto: maiúsculas e sem espaços (`*r` → `*R`); só aceita `I, *I, R, *R, M, *M` (`OPERACOES` é a fonte única); inválida não grava, a célula fica vermelha com "Operação inválida: use I, *I, R, *R, M ou *M" e o valor volta; Esc cancela; a mudança válida entra no histórico. `criarCampoOperacao`/`validarOperacaoTot` em `static/resumo.js`.
+- **Seletor de parâmetros (181)** em `static/ativo_dica.js` (parte pura testada em Node, `tests/test_ativo_dica_181.py`): `(` depois de ativo com parâmetros já escreve `()` com o cursor no meio — **corrige o bug da vírgula** em `RL, PR, ATRINT`; o valor entra **pelo nome** (`PR(CABO2=S04)`; a tabela escreve em maiúsculas); gravar de novo troca só o valor; texto posicional (`CE_4(12600D,A35P,A35P)`) é lido como o cálculo (`resolver_pedido`) e reescrito por nome ao alterar; `PR()` vira `PR`; a caixa mostra o valor e a origem (manual, vínculo, da obra, padrão, automático) com o mesmo status do balão (`cfg.origens`). `planoDeInsercao` (TASK-149) segue exportado, mas a tela não o usa.
+- Testes: `tests/test_operacao_digitada_182.py`, `tests/test_ativo_dica_181.py`.
+
+---
+
+## 2026-11-18 — TASK-182 (A e B): marcas das linhas gravadas no projeto e "#" = comentário
+
+- **Causa real das marcas perdidas:** o `deepClone` que vale em `static/resumo.js` (o segundo, declarado mais abaixo, sobrescreve o primeiro) copiava só campos conhecidos e **descartava `congelada`, `bloqueada` e `comentario`** — desfazer/refazer não as restaurava e o Salvar/abrir do projeto também as perdia. Agora o clone preserva as três marcas (regressão das linhas congeladas de 17/11).
+- **A:** `pushHistory`, desfazer e refazer chamam `GridRProjeto.marcarSujo(false)`; abrir/carregar um projeto (`restoreObraSnapshot`) não o marca alterado.
+- **B:** ativo (Cabos e Outros) que começa com `#` vira comentário ao sair do campo, ao criar a linha, ao colar e ao abrir um projeto; tirar o `#` devolve a linha ao normal; "Tirar comentário" pelo menu numa linha com `#` também tira o `#`. Linha bloqueada não muda.
+- Testes: `tests/test_linhas_congeladas.py`.
+
+---
+
 ## 2026-11-16 — TASK-173: dicionário de cabos por projeto (notação, nível, seção, ordem do "maior")
 
 - Lista `dicionario_cabos` na configuração da vinculação (a primeira linha que casa vale): `padrao`, `familia`, `valor_cabo`, `secao` (número ou `$1`, com tabela `awg`), `nivel`, `fases_padrao`, `apelidos`, `neutro` (`CAZ{valor}`), `notacao_solta`, `ativa`. Sem dicionário = regras de Pernambuco como antes.

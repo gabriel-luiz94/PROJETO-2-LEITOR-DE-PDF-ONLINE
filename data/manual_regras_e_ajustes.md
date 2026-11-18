@@ -905,3 +905,24 @@ Na tela de login, com **Lembrar de mim** marcado o programa **abre direto, sem p
 - **Configurações › Aparência › Avançado › Ocultar parâmetros ao sair da linha** (desligada por padrão). Ligada, na tabela **Demais Ativos** o ativo que tem parâmetros mostra só o nome quando você sai da linha: `RL, PR(D,X), ATRINT` aparece como `RL, PR, ATRINT`. Ao entrar na linha o texto completo volta para você editar.
 - **Passe o mouse** no ativo: o balão lista os parâmetros e de onde veio cada valor. O que você preencheu à mão aparece como **manual** (os outros mostram vínculo, da obra, padrão ou automático).
 - É só aparência: o texto da linha, o cálculo, a cópia e o projeto continuam com os parâmetros.
+
+## Linhas congeladas, bloqueadas e comentários no projeto; "#" = comentário (18/11/2026)
+
+- **Congelar, bloquear e comentar** ficam gravados no projeto: ao reabrir, as linhas voltam com ❄, 🔒 e 💬. **Ctrl+Z** também desfaz e refaz essas marcas.
+- **"#" no começo do ativo** (em Cabos ou Demais Ativos) transforma a linha em **comentário** ao sair do campo: `# conferir poste`. Apagar o `#` devolve a linha ao normal; *Tirar comentário* pelo menu também tira o `#`. Linha bloqueada não muda.
+- **Botões ❄ 💬 🔒:** no cabeçalho de **Cabos** e **Demais Ativos**; agem nas linhas selecionadas (clique no número da linha; Ctrl+clique seleciona várias) ou, sem seleção, na linha onde está o cursor. O menu do botão direito continua igual. Clicar de novo desfaz.
+
+## Operação digitada e seletor de parâmetros (18/11/2026)
+
+- **Operação:** digite (`*r` vira `*R`) ou escolha. Ao entrar no campo aparece a lista com **todas** as operações (instalar, remover, manter e as versões em linha viva); ↑↓ e Enter escolhem, clique também, digitar filtra, Esc cancela. Só vale `I`, `*I`, `R`, `*R`, `M` ou `*M`; outra coisa deixa a célula vermelha ("Operação inválida…") e o valor anterior volta. Vale em Cabos, Demais Ativos, nas linhas em branco (escolha antes do ativo) e na Totalizadora. **Enter** na operação leva ao ativo da mesma linha; **←** no começo do ativo volta à operação.
+- **Parâmetros do ativo (Demais Ativos):** ao digitar `(` depois de um ativo com parâmetros, o programa já escreve o `)` e abre a caixa, no estilo do VS Code: no topo a assinatura `ATIVO(param1, param2…)` com o parâmetro da vez em destaque e, embaixo, a lista de valores terminando na linha **✎ digitar outro valor…**. **↑↓** navegam (↑ vai direto à linha de digitar); **Enter** ou **Tab** aceitam o valor realçado e **avançam para o próximo parâmetro** (a caixa continua aberta; no último ela fecha com o cursor depois do `)`); **Shift+Tab** volta; **Esc** fecha mantendo o texto (Ctrl+Z desfaz). Digitar filtra a lista; você também pode clicar no valor.
+- O valor entra **pelo nome**: `PR(CABO2=S04)`. Dá para mudar só um parâmetro sem passar pelos anteriores. Se o texto já tinha valores por posição (`CE_4(12600D,A35P,A35P)`), ao mudar um deles o pedido é reescrito por nome. Parênteses vazios somem (`PR()` vira `PR`). A caixa mostra ao lado de cada parâmetro o valor que vale e de onde vem (**manual**, vínculo, da obra, padrão ou automático).
+- O preenchimento ficou rápido também em bases grandes: a base inteira deixou de ser reprocessada a cada tecla.
+
+## Menu pelo teclado, Duplicar linha e Enter (18/11/2026)
+
+- **Botão direito na linha:** com o menu aberto, **↑↓** navegam pelas opções, **Enter** executa e **Esc** fecha.
+- **Duplicar linha:** duplica a linha (ou as selecionadas) e coloca a cópia **logo abaixo**; a cópia sai sem bloqueio e sem o vínculo da original. Ctrl+Z desfaz.
+- **Enter no ativo:** cria uma linha nova logo abaixo da atual e vai para ela; numa linha em branco o Enter só desce.
+- **Sugestões ao digitar:** só aparecem **ativos** (da base) e **parâmetros**; as linhas já digitadas na tabela não são mais oferecidas.
+- **Onde ficam as opções de tela:** botão **⚙ Configurações** (barra de cima) › **Aparência** › **Avançado**: *Colorir ativos por parâmetros* e *Ocultar parâmetros ao sair da linha*.
