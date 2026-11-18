@@ -575,7 +575,8 @@
             transition: background 0.12s;
             user-select: none;
         }
-        .ctx-r-item:hover { background: rgba(255,255,255,0.06); }
+        .ctx-r-item:hover, .ctx-r-item.kb { background: rgba(255,255,255,0.10); }
+        .ctx-r-item.kb { outline: 1px solid rgba(88,166,255,0.55); outline-offset: -1px; }
         .ctx-r-item.danger { color: #ff7b72; }
         .ctx-r-item.danger:hover { background: rgba(255,123,114,0.1); }
         .ctx-r-sep { height: 1px; background: rgba(48,54,61,0.9); margin: 4px 0; }
@@ -1419,6 +1420,10 @@
         <div class="ctx-r-item" id="ctx-add-below">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Inserir linha abaixo
+        </div>
+        <div class="ctx-r-item" id="ctx-duplicar" title="Duplica a linha (ou as selecionadas) e coloca a cópia logo abaixo">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Duplicar linha
         </div>
         <div class="ctx-r-item" id="ctx-entidade" style="display:none;">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>

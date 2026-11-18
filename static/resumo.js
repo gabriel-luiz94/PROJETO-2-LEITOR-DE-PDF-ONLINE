@@ -473,8 +473,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const consumed = handleAcKeydown(e, inpAt, type);
                 if (e.key === 'Enter' && !consumed) {
                     e.preventDefault();
-                    // como no Excel: Enter desce; na última linha cria uma nova
-                    if (!irParaCelula(type, idx + 1, 1, 1)) addRow(type, idx);
+                    // Enter cria uma linha NOVA logo abaixo (como numa IDE); numa linha ainda em branco só desce, para não empilhar linhas vazias
+                    if (String(row.ativo == null ? '' : row.ativo).trim() === '') irParaCelula(type, idx + 1, 1, 1);
+                    else addRow(type, idx);
                 }
                 if (!consumed && !e.shiftKey && !e.ctrlKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
                     e.preventDefault();
@@ -1127,6 +1128,29 @@ document.addEventListener('DOMContentLoaded', () => {
         atualizarResumoRedeUI();
         showToast(`${alvos.length} linha(s) ${poe ? 'viraram comentário' : 'voltaram ao normal'}. Ctrl+Z desfaz.`);
     }
+    /** Duplicar linha: copia as linhas (a clicada ou as selecionadas) e coloca as cópias LOGO ABAIXO (num bloco, na mesma ordem). A cópia vira uma linha comum: sem bloqueio e sem o vínculo/geometria do original. Um passo de Ctrl+Z. */
+    function duplicarLinhas(tipo, idxs) {
+        const dados = tableStates[tipo].data;
+        const alvos = Array.from(new Set(idxs)).filter(i => dados[i]).sort((a, b) => a - b);
+        if (!alvos.length) return;
+        pushHistory();
+        const copias = alvos.map(i => {
+            const c = deepClone(dados[i]);
+            ['bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', 'vinculoEstruturas', 'vinculoOrigem', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
+            return c;
+        });
+        const depois = alvos[alvos.length - 1] + 1;
+        dados.splice(depois, 0, ...copias);
+        if (tipo === 'cabos') recalcAllQtdAtivos();
+        limparGrade();
+        renderTable(tipo);
+        buildAtivoSets(); buildDataLists();
+        refreshAllFilters(tipo);
+        atualizarResumoRedeUI();
+        restaurarSelecaoLinhas(tipo, copias.map((_, k) => depois + k));
+        showToast(`${copias.length} linha(s) duplicada(s) logo abaixo. Ctrl+Z desfaz.`);
+    }
+
     /** Depois de redesenhar a tabela, mantém selecionadas as linhas que o usuário marcou (assim ❄/💬/🔒 podem ser desfeitos no mesmo grupo). */
     function restaurarSelecaoLinhas(tipo, idxs) {
         const body = document.getElementById(tableStates[tipo].bodyId);
@@ -1159,7 +1183,19 @@ document.addEventListener('DOMContentLoaded', () => {
         ctxMenu.style.top  = Math.min(y, window.innerHeight - 140) + 'px';
         ctxMenu.classList.add('visible');
     }
-    function hideCtxMenu() { ctxMenu.classList.remove('visible'); ctxRow = null; ctxType = null; }
+    /* Menu do botão direito pelo teclado: ↑↓ (Home/End) navegam pelas opções, Enter executa, Esc fecha */
+    let ctxKb = -1;
+    const itensDoMenu = () => Array.from(ctxMenu.querySelectorAll('.ctx-r-item')).filter(el => el.offsetParent !== null);
+    function marcarItemDoMenu(i) { ctxKb = i; itensDoMenu().forEach((el, k) => el.classList.toggle('kb', k === i)); }
+    function hideCtxMenu() { ctxMenu.classList.remove('visible'); ctxMenu.querySelectorAll('.kb').forEach(el => el.classList.remove('kb')); ctxKb = -1; ctxRow = null; ctxType = null; }
+    document.addEventListener('keydown', e => {
+        if (!ctxMenu.classList.contains('visible')) return;
+        const n = itensDoMenu().length;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); if (n) marcarItemDoMenu(ctxKb < 0 ? (e.key === 'ArrowDown' ? 0 : n - 1) : (ctxKb + (e.key === 'ArrowDown' ? 1 : -1) + n) % n); }
+        else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); e.stopPropagation(); if (n) marcarItemDoMenu(e.key === 'Home' ? 0 : n - 1); }
+        else if ((e.key === 'Enter' || e.key === ' ') && ctxKb >= 0) { e.preventDefault(); e.stopPropagation(); const it = itensDoMenu()[ctxKb]; if (it) it.click(); }
+        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hideCtxMenu(); }
+    }, true);
     document.addEventListener('mousedown', e => { if (!ctxMenu.contains(e.target)) hideCtxMenu(); });
 
     document.getElementById('ctx-add-above').addEventListener('click', () => {
@@ -1173,6 +1209,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const idx = parseInt(ctxRow.dataset.index);
         addRow(ctxType, idx);
         hideCtxMenu();
+    });
+    document.getElementById('ctx-duplicar').addEventListener('click', () => {
+        if (!ctxRow || !ctxType) return;
+        const tipo = ctxType, idxs = _linhasDoMenu();
+        hideCtxMenu();
+        duplicarLinhas(tipo, idxs);
     });
     document.getElementById('ctx-congelar').addEventListener('click', () => {
         if (!ctxRow || !ctxType) return;
@@ -1718,9 +1760,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showAutocomplete(input, type) {
         hideAutocomplete();
+        // Só opções de ATIVOS da base (nunca as linhas já digitadas na tabela, que confundiam) e só enquanto digita o nome (uma palavra); em Outros quem sugere é o AtivoSugestao
         const q = input.value.trim().toUpperCase();
-        const pool = Array.from(type === 'cabos' ? ativoSets.cabos : ativoSets.outros);
-        acItems = q ? pool.filter(v => v.toUpperCase().includes(q) && v.toUpperCase() !== q) : pool.slice(0, 20);
+        if (!q || type !== 'cabos' || !/^\S+$/.test(q) || !window.AtivoSugestao) return;
+        const proj = localStorage.getItem('projeto_selecionado') || '';
+        acItems = window.AtivoSugestao.sugerir(q, window.AtivoSugestao.indiceDeNomes(orcamentoBaseData, proj, 'CABOS'), 12).map(e => e.nome);
         if (acItems.length === 0) return;
 
         acList = document.createElement('div');
