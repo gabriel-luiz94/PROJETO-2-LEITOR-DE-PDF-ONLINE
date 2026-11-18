@@ -56,6 +56,15 @@ document.addEventListener('DOMContentLoaded', () => {
     ═══════════════════════════════════════ */
     const ENTIDADES = ['0', 'CABO', 'CHAVE', 'TRAFO', 'ESTRUTURA', 'APOIO', 'IP', 'POSTE', 'RAMAIS', 'CERCA'];
     const OPERACOES = ['I', '*I', 'R', '*R', 'M', '*M'];
+    // Estado de desempenho das tabelas (declarado aqui no topo porque renderTable já roda na montagem inicial, antes das seções abaixo):
+    const _medidasTabela = { cabos: null, outros: null };      // altura da área/cabeçalho/linha, para contar as linhas em branco sem forçar layout
+    const _idsObj = new WeakMap(); let _seqId = 0;             // identidade de objetos (base, configuração) para as impressões digitais dos caches
+    let _cacheCores = null, _tmCoresRender = 0, _tmResumoRede = 0;
+    // Tabelas grandes (TASK-185): acima de LIMIAR_LAZY linhas, só as linhas perto da área visível são montadas na hora; as demais entram como linha vazia de altura fixa (_lazy)
+    // e são montadas por pedaços em segundo plano (hidratação), ao rolar, ou antes de qualquer ação do usuário que leia as células. Resultado: criar/excluir/duplicar/desfazer
+    // com 400+ linhas custa o desenho de ~50 linhas, não de todas.
+    const LIMIAR_LAZY = 60;
+    const _lazy = { cabos: [], outros: [] }, _lazyTm = { cabos: 0, outros: 0 }, _hLinhaReal = { cabos: 0, outros: 0 };                // cores por linha (verde/laranja/vermelho) e o agendamento depois do desenho
     /* TASK-182 C — Operação digitada, validada como uma célula do Excel: maiúsculas e sem espaços (*r → *R); só aceita OPERACOES (fonte única); inválida = não grava,
        a célula fica vermelha com o aviso e o valor volta ao anterior. O campo tem a lista (datalist) para quem prefere escolher. */
     const MSG_OPERACAO_INVALIDA = 'Operação inválida: use I, *I, R, *R, M ou *M';
@@ -361,18 +370,87 @@ document.addEventListener('DOMContentLoaded', () => {
         sel.addEventListener('keydown', completar);
     }
 
+    /* ── Hidratação das linhas (TASK-185) ── */
+    function hidratarLinha(tr) {
+        const m = tr && tr._montar;
+        if (!m) return false;
+        tr._montar = null;
+        tr.classList.remove('lazy-row'); tr.style.height = ''; tr.textContent = '';
+        m();
+        return true;
+    }
+    function _terminouHidratar() {
+        agendarCoresAposDesenhar();
+        if (typeof intervaloGrade === 'function' && intervaloGrade()) pintarGrade();           // seleção em intervalo: as linhas recém-montadas entram pintadas
+    }
+    /** Monta as linhas que estão (ou estarão logo) na área visível da tabela. */
+    function hidratarJanela(type, folga) {
+        const pend = _lazy[type];
+        if (!pend.length) return 0;
+        const body = document.getElementById(tableStates[type].bodyId), wrap = body && body.closest('.table-wrap');
+        let alvo;
+        if (wrap && wrap.clientHeight > 0 && wrap.offsetParent !== null) {
+            const r = wrap.getBoundingClientRect(), y0 = r.top - folga, y1 = r.bottom + folga;
+            alvo = pend.filter(tr => { const q = tr.getBoundingClientRect(); return q.height > 0 && q.bottom >= y0 && q.top <= y1; });
+        } else alvo = pend.slice(0, 40);                    // área escondida (outra aba/painel): só o começo; o resto vem ao mostrar/rolar
+        let n = 0;
+        alvo.forEach(tr => { if (hidratarLinha(tr)) n++; });
+        if (n) { _lazy[type] = pend.filter(tr => tr._montar); _terminouHidratar(); }
+        return n;
+    }
+    function hidratarTudo(type) {
+        const pend = _lazy[type];
+        if (!pend.length) return 0;
+        _lazy[type] = [];
+        if (_lazyTm[type]) { clearTimeout(_lazyTm[type]); _lazyTm[type] = 0; }
+        let n = 0;
+        pend.forEach(tr => { if (hidratarLinha(tr)) n++; });
+        if (n) _terminouHidratar();
+        return n;
+    }
+    function agendarHidratacao(type) {
+        if (_lazyTm[type] || !_lazy[type].length) return;
+        _lazyTm[type] = setTimeout(function passo() {
+            _lazyTm[type] = 0;
+            const pend = _lazy[type];
+            const t0 = performance.now();
+            let n = 0;
+            while (pend.length && performance.now() - t0 < 7) { if (hidratarLinha(pend.shift())) n++; }
+            if (pend.length) _lazyTm[type] = setTimeout(passo, 16);
+            else if (n) _terminouHidratar();
+        }, 120);
+    }
+    // Antes de qualquer ação do usuário que possa ler/alterar as células de outras linhas, tudo é montado (uma vez, só se ainda houver pendência).
+    (function ligarGatilhosHidratacao() {
+        const todas = () => { hidratarTudo('cabos'); hidratarTudo('outros'); };
+        ['mousedown', 'click', 'contextmenu', 'copy', 'cut', 'paste', 'dragstart'].forEach(ev => document.addEventListener(ev, e => { if (_lazy.cabos.length || _lazy.outros.length) todas(); }, true));
+        document.addEventListener('keydown', e => {
+            if (!(_lazy.cabos.length || _lazy.outros.length)) return;
+            if (e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) return;      // digitar um caractere não lê as outras linhas
+            todas();
+        }, true);
+        let raf = 0;
+        document.addEventListener('scroll', e => {
+            if (!(e.target && e.target.classList && e.target.classList.contains('table-wrap')) || raf) return;
+            raf = requestAnimationFrame(() => { raf = 0; hidratarJanela('cabos', 500); hidratarJanela('outros', 500); });
+        }, { capture: true, passive: true });
+    })();
+
     function renderTable(type) {
         const state = tableStates[type];
         const body = document.getElementById(state.bodyId);
         body.innerHTML = '';
+        _lazy[type] = []; if (_lazyTm[type]) { clearTimeout(_lazyTm[type]); _lazyTm[type] = 0; }
+        const lazy = state.data.length > LIMIAR_LAZY, hLazy = (_medidasTabela[type] && _medidasTabela[type].linha) || _hLinhaReal[type] || 30;
         const frag = document.createDocumentFragment();   // uma única inserção no DOM (tabelas grandes)
-        const paramsVinc = type === 'outros' ? _parametrosVinculoPorLinha() : {};     // TASK-084
         const avulsoVelho = type === 'outros' ? _indicesAvulsoVelho() : new Set();      // TASK-171
 
         state.data.forEach((row, idx) => {
             const tr = document.createElement('tr');
             tr.dataset.index = idx;
             tr.dataset.type = type;
+            let btnDel = null;
+            const montar = () => {
 
             /* ── Nº da linha (seleciona a linha) ── */
             const tdNum = document.createElement('td');
@@ -614,10 +692,10 @@ document.addEventListener('DOMContentLoaded', () => {
             /* ── Delete button ── */
             const tdDel = document.createElement('td');
             tdDel.className = 'col-del';
-            const btnDel = document.createElement('button');
+            btnDel = document.createElement('button');
             btnDel.className = 'btn-row-del';
             btnDel.title = 'Excluir linha';
-            btnDel.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>`;
+            btnDel.innerHTML = '';
             btnDel.addEventListener('click', (e) => {
                 e.stopPropagation();
                 deleteRow(type, idx);
@@ -631,6 +709,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctxRow = tr; ctxType = type;
                 showCtxMenu(e.clientX, e.clientY);
             });
+            if (row.bloqueada) {
+                tr.querySelectorAll('input').forEach(i => { i.readOnly = true; });
+                tr.querySelectorAll('select').forEach(s => { s.disabled = true; });
+                btnDel.disabled = true;
+            }
+            };          // fim de montar(): a linha completa (células, campos e eventos)
 
             // TASK-069: agrupamento visual (separador antes de cada trecho de valores iguais da coluna agrupada)
             const campoGrupo = agrupamento[type];
@@ -657,20 +741,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (row.comentario) tr.classList.add('linha-comentario');
             else if (row.congelada) tr.classList.add('linha-congelada');
-            if (row.bloqueada) {
-                tr.classList.add('linha-bloqueada');
-                tr.querySelectorAll('input').forEach(i => { i.readOnly = true; });
-                tr.querySelectorAll('select').forEach(s => { s.disabled = true; });
-                btnDel.disabled = true;
-            }
+            if (row.bloqueada) tr.classList.add('linha-bloqueada');
+            if (lazy) {
+                tr.classList.add('lazy-row'); tr.style.height = hLazy + 'px'; tr._montar = montar;
+                const td = document.createElement('td'); td.colSpan = 8; tr.appendChild(td);
+                _lazy[type].push(tr);
+            } else montar();
             frag.appendChild(tr);
         });
         body.appendChild(frag);
-        aplicarCoresParametros();                                       // TASK-167 (só com a opção ligada); Outros e Cabos
+        if (lazy) { hidratarJanela(type, 500); agendarHidratacao(type); }
+        agendarCoresAposDesenhar();                                     // TASK-167 (só com a opção ligada); Outros e Cabos — depois do desenho, uma vez só
         atualizarIndicadoresOrdem(type);
 
         updateCounters();
-        atualizarResumoRedeUI();
+        agendarResumoRede();                                            // painel de resumo da rede: depois do desenho (uma vez só)
 
         // Após render, aplica filtros ativos sem rebuildar dropdowns
         applyFilters(type);
@@ -695,6 +780,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function _reajustarVinculosAposRemoverOutros(idxRemovido) {
         tableStates.cabos.data.forEach(cabo => {
+            if (Array.isArray(cabo.vinculoPostes)) { cabo.vinculoPostes = cabo.vinculoPostes.filter(l => l !== idxRemovido).map(l => (l > idxRemovido ? l - 1 : l)); if (!cabo.vinculoPostes.length) delete cabo.vinculoPostes; }
             if (!Array.isArray(cabo.vinculoEstruturas)) return;
             const VR = window.VinculacaoRegras;       // TASK-094: o id da unidade é linha (+ posição/100); só a linha muda
             cabo.vinculoEstruturas = cabo.vinculoEstruturas
@@ -716,6 +802,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Foca no input Ativo da nova linha
         const body = document.getElementById(tableStates[type].bodyId);
         const target = afterIdx === -1 ? body.lastElementChild : body.children[afterIdx + 1];
+        hidratarLinha(target);
         if (target) {
             const inp = target.querySelector('.inp-ativo');
             if (inp) { setTimeout(() => inp.focus(), 30); }
@@ -749,6 +836,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderTable(type);
         if (!ref) return;
         const novo = Array.from(body.children).find(x => x.dataset.index === ref.idx);
+        hidratarLinha(novo);
         const el = novo && ((ref.campo && novo.querySelector(`[data-field="${ref.campo}"]`)) || (ref.cls && novo.querySelector('.' + ref.cls)));
         if (el) el.focus();
     }
@@ -769,6 +857,7 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshAllFilters(type);
         const body = document.getElementById(tableStates[type].bodyId);
         const tr = Array.from(body.children).find(x => parseInt(x.dataset.index) === dados.length - 1);
+        hidratarLinha(tr);
         const inp = tr && tr.querySelector('.inp-ativo');
         if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
         atualizarResumoRedeUI();
@@ -791,13 +880,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const wrap = body.closest('.table-wrap');
         const MIN = 4, MAX = 300;                                                  // (constantes locais: renderTable roda antes desta seção na inicialização)
         let n = MIN;
-        if (wrap && wrap.offsetParent !== null && wrap.clientHeight > 0) {            // visível: preenche o que sobra da altura
-            const tabela = body.closest('table');
-            const ocupado = (tabela.tHead ? tabela.tHead.offsetHeight : 0) + body.offsetHeight;
-            const amostra = body.querySelector('tr:not(.grupo-sep)');
-            const linhaH = (amostra && amostra.offsetHeight) || tb.querySelector('tr')?.offsetHeight || 30;
-            n = Math.max(MIN, Math.min(MAX, Math.floor((wrap.clientHeight - ocupado) / linhaH)));
+        // Quantas linhas em branco cabem na área visível: conta com as medidas guardadas (altura da área, do cabeçalho e de uma linha) em vez de ler offsetHeight/clientHeight a cada
+        // desenho — isso forçava o navegador a calcular o layout das centenas de linhas toda vez. As medidas são refeitas só quando a área muda de tamanho.
+        let m = _medidasTabela[type];
+        if (!m && wrap && wrap.offsetParent !== null && wrap.clientHeight > 0) {
+            const tabela = body.closest('table'), amostra = body.querySelector('tr:not(.grupo-sep):not(.lazy-row)');
+            m = _medidasTabela[type] = { h: wrap.clientHeight, cab: tabela.tHead ? tabela.tHead.offsetHeight : 0, linha: (amostra && amostra.offsetHeight) || tb.querySelector('tr')?.offsetHeight || 30 };
         }
+        if (m) { _hLinhaReal[type] = m.linha; n = Math.max(MIN, Math.min(MAX, Math.floor((m.h - m.cab - dados.length * m.linha) / m.linha))); }
         const dica = window.GradeTabela.operacaoHerdada(dados, dados.length);
         const assinatura = [n, dados.length, dica, type === 'outros' ? 'o' : 'c'].join('|');
         if (tb.dataset.assinatura === assinatura && tb.children.length === n) return;
@@ -847,7 +937,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const agendar = () => {
             if (pendente) return;
             pendente = true;
-            requestAnimationFrame(() => { pendente = false; ['cabos', 'outros'].forEach(ajustarLinhasVazias); });
+            requestAnimationFrame(() => { pendente = false; _medidasTabela.cabos = _medidasTabela.outros = null; ['cabos', 'outros'].forEach(ajustarLinhasVazias); });
         };
         window.addEventListener('resize', agendar);
         if (window.ResizeObserver) {
@@ -1151,7 +1241,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pushHistory();
         const copias = alvos.map(i => {
             const c = deepClone(dados[i]);
-            ['bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', 'vinculoEstruturas', 'vinculoOrigem', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
+            ['bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
             return c;
         });
         const depois = alvos[alvos.length - 1] + 1;
@@ -1270,6 +1360,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tableStates[tipo].data = ordem.map(i => dados[i]);
         if (tipo === 'outros') {
             tableStates.cabos.data.forEach(c => {
+                if (Array.isArray(c.vinculoPostes)) c.vinculoPostes = c.vinculoPostes.map(l => (mapa[l] !== undefined ? mapa[l] : l));
                 if (Array.isArray(c.vinculoEstruturas)) c.vinculoEstruturas = c.vinculoEstruturas.map(i => { const l = window.VinculacaoRegras.linhaDe(i); return mapa[l] !== undefined ? window.VinculacaoRegras.idUnidade(mapa[l], window.VinculacaoRegras.slotDe(i)) : i; });
             });
         }
@@ -1447,6 +1538,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (r < 0 || r >= n) return false;
         const tr = Array.from(body.children).find(x => parseInt(x.dataset.index) === r);
         if (!tr) return false;
+        hidratarLinha(tr);
         const td = tr.querySelector(`td[data-col="${c}"]`);
         const campo = td && td.querySelector('input,select');
         if (campo) { campo.focus(); if (campo.select && campo.tagName === 'INPUT') campo.select(); return true; }
@@ -2058,6 +2150,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return arredondado % 1 === 0 ? String(arredondado) : arredondado.toFixed(2).replace('.', ',');
     }
 
+    function agendarResumoRede() {
+        if (_tmResumoRede) return;
+        _tmResumoRede = setTimeout(() => { _tmResumoRede = 0; atualizarResumoRedeUI(); }, 0);
+    }
     function atualizarResumoRedeUI() {
         const resumo = calcularResumoRede();
         const elPostes = document.getElementById('resumo-rede-postes');
@@ -2175,6 +2271,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (geo) { c._geo = geo; c._geoTipo = obj._geoTipo || (obj._raw && obj._raw._geoTipo); }
         if (poste) c._poste = poste;
         if (Array.isArray(obj.vinculoEstruturas)) c.vinculoEstruturas = obj.vinculoEstruturas.slice();
+        if (Array.isArray(obj.vinculoPostes) && obj.vinculoPostes.length) c.vinculoPostes = obj.vinculoPostes.slice();                   // Cabos ⇄ Postes
         if (obj.vinculoOrigem) c.vinculoOrigem = obj.vinculoOrigem;                                       // TASK-084: manual | script
         if (Array.isArray(obj.estruturasFicticias) && obj.estruturasFicticias.length) c.estruturasFicticias = obj.estruturasFicticias.slice();   // TASK-095: estruturas fictícias do cabo
         if (obj.origemAvulso) { c.origemAvulso = obj.origemAvulso; if (obj.texto) c.texto = obj.texto; }                 // TASK-171: linha de Outros vinda da sugestão de avulsos da estrutura fictícia
@@ -2208,12 +2305,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const com = pvLinha ? AnotacaoOutros.interpretarLinha(item.ativo, op, _classicoTotalizadora, Object.assign({}, ctxBase, { parametros_estrutura: pvLinha })) : sem;
         return sem.itens.map((it, i) => AtivoStatus.statusDoAtivo(((com.itens[i] || it).ativo), it.ativo, assin, obra, defLinha ? defLinha[AtivoParametros.nomeBase(it.ativo)] : undefined)).filter(Boolean);
     }
+    // Impressão digital do que decide o vínculo (cabos, linhas de Outros, base, configuração): enquanto não muda, o resultado de `parametrosPorEstrutura`/`defineDeEstruturas`
+    // (que varrem as duas tabelas inteiras) é reaproveitado — antes era refeito a cada desenho de tabela, a cada tecla com a caixa de parâmetros aberta e a cada passada das cores.
+    const _idObj = o => { if (!o || typeof o !== 'object') return 0; let v = _idsObj.get(o); if (!v) { v = ++_seqId; _idsObj.set(o, v); } return v; };
+    function _impressaoVinculo() {
+        const cfg = window.__vinculacaoConfig;
+        let base = null; try { base = orcamentoBaseData; } catch (e) { /* base ainda não declarada */ }
+        const lista = (l, campos) => l.map(r => r ? campos.map(k => { const v = r[k]; return Array.isArray(v) ? v.join('.') : (v && typeof v === 'object' ? JSON.stringify(v) : (v == null ? '' : v)); }).join('|') : '').join('\n');
+        return [_idObj(cfg), cfg ? _idObj(cfg.postes) : 0, _idObj(base), base ? base.length : 0, localStorage.getItem('projeto_selecionado') || '',
+            lista(tableStates.cabos.data, ['ativo', 'operacao', 'vinculoEstruturas', 'vinculoPostes', 'vinculoOrigem', 'congelada', 'fases', 'tensao', 'nivel', 'textoOriginal', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots']),
+            lista(tableStates.outros.data, ['ativo', 'operacao', 'congelada', 'cabosFicticiosSlots', 'cabosFicticios', 'origemAvulso'])].join('##');
+    }
+    let _cacheVinculo = null;
+    function _vinculoCache() {
+        const fp = _impressaoVinculo();
+        if (!_cacheVinculo || _cacheVinculo.fp !== fp) _cacheVinculo = { fp, dv: undefined, pv: undefined };
+        return _cacheVinculo;
+    }
     function _defineDoVinculo() {                                                         // TASK-170: de onde veio cada parâmetro do `define`
         const cfg = window.__vinculacaoConfig;
         if (!cfg || typeof VinculacaoRegras === 'undefined' || !VinculacaoRegras.defineDeEstruturas) return {};
-        return VinculacaoRegras.defineDeEstruturas(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
+        const c = _vinculoCache();
+        if (c.dv === undefined) c.dv = VinculacaoRegras.defineDeEstruturas(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
+        return c.dv;
     }
-    var _cacheAssin = null;
     function _contextoParametros() {
         const proj = localStorage.getItem('projeto_selecionado') || '', base = orcamentoBaseData;
         if (!_cacheAssin || _cacheAssin.base !== base || _cacheAssin.n !== base.length || _cacheAssin.proj !== proj) _cacheAssin = { base, n: base.length, proj, assin: AtivoParametros.assinaturasDoProjeto(base, proj) };
@@ -2250,24 +2365,38 @@ document.addEventListener('DOMContentLoaded', () => {
         try { c = _contextoParametros(); } catch (e) { return; }                       // base ainda carregando: pinta quando chegar
         const pv = _parametrosVinculoPorLinha(), dv = _defineDoVinculo();
         const baseCarregada = orcamentoBaseData.length > 0;
+        // resultado por linha guardado (texto + operação + o que vem do vínculo/obra/base): só as linhas que mudaram são calculadas de novo
+        const chaveGlobal = [_idObj(orcamentoBaseData), orcamentoBaseData.length, _idObj(window.__vinculacaoConfig), localStorage.getItem('projeto_selecionado') || '', JSON.stringify(c.obra || null)].join('|');
+        if (!_cacheCores || _cacheCores.g !== chaveGlobal) _cacheCores = { g: chaveGlobal, m: new Map() };
         inputs.forEach(inp => {
             const tipo = inp.dataset.parTipo === 'cabos' ? 'cabos' : 'outros';
             const idx = Number(inp.dataset.parIdx), row = tableStates[tipo].data[idx];
             limpar(inp);
             if (!row || row.congelada) return;
-            if (baseCarregada) {
-                let fora = [];
-                try { fora = AtivoNaBase.foraDaBase(_nomesDaBaseDaTela(tipo === 'cabos' ? 'CABOS' : 'OUTROS'), _ativosPedidosDaLinha(tipo, row, c.ctx)); } catch (e) { fora = []; }
-                if (fora.length) {
-                    inp.classList.add('par-nao-base');                                  // a explicação ("ATIVO NÃO EXISTE NA BASE") aparece no balão ao passar o mouse (_statusDoAlvoDoBalao)
-                    return;
+            const chave = tipo + '|' + row.ativo + '|' + (row.operacao || '') + '|' + (tipo === 'outros' ? JSON.stringify(pv[idx] || 0) + '|' + JSON.stringify(dv[idx] || 0) : '');
+            let r = _cacheCores.m.get(chave);
+            if (r === undefined) {
+                r = '';
+                if (baseCarregada) {
+                    let fora = [];
+                    try { fora = AtivoNaBase.foraDaBase(_nomesDaBaseDaTela(tipo === 'cabos' ? 'CABOS' : 'OUTROS'), _ativosPedidosDaLinha(tipo, row, c.ctx)); } catch (e) { fora = []; }
+                    if (fora.length) r = 'par-nao-base';
                 }
+                if (!r && tipo === 'outros') {
+                    const estado = AtivoStatus.estadoDaLinha(_statusParametrosDaLinha(row, pv[idx], c.assin, c.ctx, c.obra, dv[idx]));
+                    r = estado === 'ok' ? 'par-ok' : (estado === 'falta' ? 'par-falta' : '');
+                }
+                _cacheCores.m.set(chave, r);
+                if (_cacheCores.m.size > 5000) _cacheCores.m.clear();
             }
-            if (tipo !== 'outros') return;
-            const estado = AtivoStatus.estadoDaLinha(_statusParametrosDaLinha(row, pv[idx], c.assin, c.ctx, c.obra, dv[idx]));
-            inp.classList.toggle('par-ok', estado === 'ok');
-            inp.classList.toggle('par-falta', estado === 'falta');
+            if (r) inp.classList.add(r);                                    // vermelho: a explicação ("ATIVO NÃO EXISTE NA BASE") aparece no balão ao passar o mouse (_statusDoAlvoDoBalao)
         });
+    }
+    // Depois de desenhar uma tabela, as cores são aplicadas UMA vez (as duas tabelas costumam ser desenhadas em sequência), fora do caminho do desenho.
+    function agendarCoresAposDesenhar() {
+        if (!corParametrosLigada() && !document.body.classList.contains('colorir-parametros')) return;
+        if (_tmCoresRender) return;
+        _tmCoresRender = setTimeout(() => { _tmCoresRender = 0; aplicarCoresParametros(); }, 0);
     }
     window.aplicarCoresParametros = aplicarCoresParametros;
     let _tmCoresParametros = null;
@@ -2442,7 +2571,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function _parametrosVinculoPorLinha() {
         const cfg = window.__vinculacaoConfig;
         if (!cfg || typeof VinculacaoRegras === 'undefined') return {};
-        return VinculacaoRegras.parametrosPorEstrutura(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
+        const c = _vinculoCache();
+        if (c.pv === undefined) c.pv = VinculacaoRegras.parametrosPorEstrutura(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
+        return c.pv;
     }
 
     // autoClassifyEntidade foi religada ao motor de regras do leitor (TASK-006), reusando a

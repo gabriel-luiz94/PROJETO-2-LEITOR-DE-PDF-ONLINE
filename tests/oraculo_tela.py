@@ -55,6 +55,7 @@ globalThis.AnotacaoCabos = require(%(anotacao_cabos)s);
 globalThis.VinculacaoRegras = require(%(vinculacao_regras)s);
 let extractedDataCache = entrada.exportados || [];
 const tableStates = { cabos: { data: [] }, outros: { data: [] } };
+const _idsObj = new WeakMap(); let _seqId = 0;          // identidade de objetos usada pelos caches do resumo.js (constantes do topo do arquivo, fora dos trechos extraídos)
 """
 
 

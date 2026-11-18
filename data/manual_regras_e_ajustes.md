@@ -926,3 +926,9 @@ Na tela de login, com **Lembrar de mim** marcado o programa **abre direto, sem p
 - **Enter no ativo:** cria uma linha nova logo abaixo da atual e vai para ela; numa linha em branco o Enter só desce.
 - **Sugestões ao digitar:** só aparecem **ativos** (da base) e **parâmetros**; as linhas já digitadas na tabela não são mais oferecidas.
 - **Onde ficam as opções de tela:** botão **⚙ Configurações** (barra de cima) › **Aparência** › **Avançado**: *Colorir ativos por parâmetros* e *Ocultar parâmetros ao sair da linha*.
+
+## Tabelas e vinculação rápidas com muitas linhas; aba «Cabos ⇄ Postes» (18/11/2026)
+
+- **Tabelas grandes:** com mais de 60 linhas, o Resumo desenha primeiro só o que aparece na tela e completa o resto em segundo plano. Criar, excluir, duplicar e desfazer ficam em ~50 ms mesmo com 400+ linhas em cada tabela. Se você clicar ou apertar uma tecla antes de terminar, o resto é montado na hora (uma vez).
+- **Modal «VINCULAR CABOS» › Vínculo:** compacto — **um cabo por linha** e **um poste por linha** (as estruturas do poste ficam lado a lado como `N1 1/2`). Passe o mouse na estrutura para ver o motivo/regra. A rolagem e os cliques continuam fluidos com centenas de linhas.
+- **Aba «Cabos ⇄ Postes»:** só mostra cabos e postes. Clique no cabo e no poste a que ele chega (ou o contrário; um cabo tem até 2 pontas); clique na linha para desfazer; botão direito no cabo: «Tirar este cabo dos postes». O **algoritmo por poste** escolhe sozinho, em cada poste, a estrutura que recebe o cabo (mesmas regras da Tabela de Estruturas). Com «Vincular as estruturas automaticamente» ligado isso acontece a cada ligação; senão use «Vincular estruturas agora». Ctrl+Z (ou «Desfazer») desfaz. Vínculos feitos à mão na aba Vínculo continuam mandando; cabo congelado não é alterado.

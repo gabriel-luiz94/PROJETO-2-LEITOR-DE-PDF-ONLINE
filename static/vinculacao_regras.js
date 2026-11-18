@@ -629,6 +629,12 @@
         const a = par(g[0]), b = par(g[g.length - 1]);
         return a && b ? [a, b] : null;
     }
+    /** Linhas de Outros (postes) a que o usuário atribuiu o cabo (aba Cabos ⇄ Postes); sem repetição, só inteiros >= 0. */
+    function postesAtribuidos(cabo) {
+        const v = cabo && cabo.vinculoPostes, r = [];
+        if (Array.isArray(v)) v.forEach(x => { if (Number.isInteger(x) && x >= 0 && !r.includes(x)) r.push(x); });
+        return r;
+    }
     function posteMaisPerto(pt, postes, raio) {
         let melhor = null, dmin = null;
         postes.forEach(([linha, pos]) => {
@@ -656,7 +662,7 @@
         ests.forEach(ie => { infoE[ie] = infoEstrutura(codigoFn(outros[ie].ativo, outros[ie]), cfg); const l = outros[ie]._linha; if (!porLinha.has(l)) porLinha.set(l, []); porLinha.get(l).push(ie); });
         cabos.forEach((c, ic) => { if (ehCaboValido(c)) infoC[ic] = infoCabo(prefixoFn(c.ativo) || '', c.operacao, cfg, extraCabo(c, cfg.dicionario_cabos)); });
         const linhasOrd = Array.from(porLinha.keys()).sort((a, b) => a - b);
-        const postes = linhasOrd.map(l => [l, par(outros[porLinha.get(l)[0]]._poste)]).filter(([, pos]) => pos);
+        const todosPostes = linhasOrd.map(l => [l, par(outros[porLinha.get(l)[0]]._poste)]), postes = todosPostes.filter(([, pos]) => pos);          // todosPostes: também os atribuídos à mão (sem geometria)
         const fict = {};
         ests.forEach(ie => { fict[ie] = (outros[ie].cabosFicticios || []).map(v => trim(v).toUpperCase()).filter(Boolean); });
         const icsOrd = Object.keys(infoC).map(Number).sort((a, b) => a - b);
@@ -668,6 +674,13 @@
         icsOrd.forEach(ic => {
             const c = infoC[ic];
             if (!c.vincula || manuais.has(ic) || cabos[ic].congelada) return;          // cabo congelado: só entra no vínculo se já foi ligado à mão
+            const atrib = postesAtribuidos(cabos[ic]).filter(l => porLinha.has(l));          // "Cabos ⇄ Postes": o usuário disse a que postes o cabo chega; vale no lugar da geometria
+            if (atrib.length) {
+                ligados[ic] = [];
+                restante[ic] = Math.max(0, c.pontas - estruturasFicticiasDe(cabos[ic]).length);
+                atrib.forEach(l => (chegadas[l] = chegadas[l] || []).push(ic));
+                return;
+            }
             const fim = extremos(cabos[ic]);
             if (!fim) { semGeo.push(ic); return; }
             ligados[ic] = [];
@@ -680,7 +693,7 @@
         const nomePoste = linha => `poste da linha ${linha + 1} (${outros[porLinha.get(linha)[0]].ativo})`;
         const add = (tipo, mensagem, poste, cabo, estrutura) => saida.achados.push({ tipo, poste, cabo, estrutura, mensagem });
         let estrIncompletas = 0;
-        postes.forEach(([linha]) => {
+        todosPostes.forEach(([linha]) => {
             const pend = (chegadas[linha] || []).slice(), ies = porLinha.get(linha);
             const unidades = ies.slice().sort((a, b) => ((infoE[a].regra !== null ? infoE[a].regra : 1e6) - (infoE[b].regra !== null ? infoE[b].regra : 1e6)) || (ies.indexOf(a) - ies.indexOf(b)));
             unidades.forEach(ie => {
@@ -886,7 +899,7 @@
         return erros;
     }
 
-    const api = { parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);

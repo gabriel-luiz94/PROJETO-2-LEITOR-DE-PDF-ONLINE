@@ -997,6 +997,17 @@ def _par(p):
     return None
 
 
+def postes_atribuidos(cabo) -> list:
+    """Linhas de Outros (postes) a que o usuário atribuiu o cabo (aba Cabos ⇄ Postes); sem repetição, só inteiros >= 0."""
+    v = (cabo or {}).get("vinculoPostes")
+    r = []
+    if isinstance(v, list):
+        for x in v:
+            if isinstance(x, int) and not isinstance(x, bool) and x >= 0 and x not in r:
+                r.append(x)
+    return r
+
+
 def _extremos(cabo):
     g = cabo.get("_geo")
     if not isinstance(g, (list, tuple)) or len(g) < 2:
@@ -1042,8 +1053,8 @@ def _vincular_por_poste_base(cabos, outros, cfg, prefixo_fn, codigo_fn, raio) ->
     por_linha = {}
     for ie in ests:
         por_linha.setdefault(outros[ie].get("_linha"), []).append(ie)
-    postes = [(linha, _par(outros[ies[0]].get("_poste"))) for linha, ies in sorted(por_linha.items(), key=lambda x: (x[0] is None, x[0]))]
-    postes = [(linha, pos) for linha, pos in postes if pos]
+    todos_postes = [(linha, _par(outros[ies[0]].get("_poste"))) for linha, ies in sorted(por_linha.items(), key=lambda x: (x[0] is None, x[0]))]
+    postes = [(linha, pos) for linha, pos in todos_postes if pos]          # todos_postes: também os atribuídos à mão (sem geometria)
     fict = {ie: [_trim(x).upper() for x in (outros[ie].get("cabosFicticios") or []) if _trim(x)] for ie in ests}
     manuais = {ic for ic in info_c if cabos[ic].get("vinculoOrigem") == "manual" and (cabos[ic].get("vinculoEstruturas") or [])}
     ocup = {ie: [] for ie in ests}                               # cabos ligados à estrutura (manuais primeiro; depois os que este algoritmo liga)
@@ -1056,6 +1067,13 @@ def _vincular_por_poste_base(cabos, outros, cfg, prefixo_fn, codigo_fn, raio) ->
     for ic in sorted(info_c):
         c = info_c[ic]
         if not c["vincula"] or ic in manuais or cabos[ic].get("congelada"):          # cabo congelado: só entra no vínculo se já foi ligado à mão
+            continue
+        atrib = [l for l in postes_atribuidos(cabos[ic]) if l in por_linha]          # "Cabos ⇄ Postes": postes dados pelo usuário valem no lugar da geometria
+        if atrib:
+            ligados[ic] = []
+            restante[ic] = max(0, c["pontas"] - len(estruturas_ficticias_de(cabos[ic])))
+            for linha in atrib:
+                chegadas.setdefault(linha, []).append(ic)
             continue
         fim = _extremos(cabos[ic])
         if fim is None:
@@ -1076,7 +1094,7 @@ def _vincular_por_poste_base(cabos, outros, cfg, prefixo_fn, codigo_fn, raio) ->
     def add(tipo, msg, linha=None, cabo=None, estrutura=None):
         saida["achados"].append({"tipo": tipo, "poste": linha, "cabo": cabo, "estrutura": estrutura, "mensagem": msg})
     estr_incompletas = 0
-    for linha, _pos in postes:
+    for linha, _pos in todos_postes:
         pend = list(chegadas.get(linha, []))
         unidades = sorted(por_linha[linha], key=lambda ie: ((info_e[ie]["regra"] if info_e[ie]["regra"] is not None else 10 ** 6), por_linha[linha].index(ie)))
         for ie in unidades:
