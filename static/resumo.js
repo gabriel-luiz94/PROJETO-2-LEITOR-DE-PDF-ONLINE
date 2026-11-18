@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Estado de desempenho das tabelas (declarado aqui no topo porque renderTable já roda na montagem inicial, antes das seções abaixo):
     const _medidasTabela = { cabos: null, outros: null };      // altura da área/cabeçalho/linha, para contar as linhas em branco sem forçar layout
     const _idsObj = new WeakMap(); let _seqId = 0;             // identidade de objetos (base, configuração) para as impressões digitais dos caches
-    let _cacheCores = null, _tmCoresRender = 0, _tmResumoRede = 0;
+    let _cacheCores = null, _tmCoresRender = 0, _tmResumoRede = 0, _cacheAssin = null;
     // Tabelas grandes (TASK-185): acima de LIMIAR_LAZY linhas, só as linhas perto da área visível são montadas na hora; as demais entram como linha vazia de altura fixa (_lazy)
     // e são montadas por pedaços em segundo plano (hidratação), ao rolar, ou antes de qualquer ação do usuário que leia as células. Resultado: criar/excluir/duplicar/desfazer
     // com 400+ linhas custa o desenho de ~50 linhas, não de todas.

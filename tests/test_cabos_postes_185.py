@@ -212,3 +212,11 @@ def test_script_de_desempenho_existe_com_limites():
 def test_desempenho_com_450_linhas_em_cada_tabela():
     rr = subprocess.run([NODE, os.path.join(os.path.dirname(config.STATIC_DIR), "scripts", "perf_resumo.js"), os.environ["PERF_URL"], os.environ["PERF_TOKEN"], "450"], capture_output=True, text=True, timeout=240)
     assert rr.returncode == 0, rr.stdout + rr.stderr
+
+
+def test_cache_de_assinaturas_declarado_no_topo_do_resumo():
+    """Regressão: a declaração de `_cacheAssin` foi apagada por engano e o balão de parâmetros (e as cores) pararam em silêncio (ReferenceError engolido por try/catch)."""
+    js = _ler("resumo.js")
+    topo = js.split("function renderTable(")[0]
+    assert "_cacheAssin = null" in topo
+    assert js.count("_cacheAssin = null") == 1

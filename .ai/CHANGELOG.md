@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-18 — Correção: balão de parâmetros e cores voltam a funcionar
+
+- A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
+
 ## 2026-11-18 — TASK-185b: tabelas de 1000+ linhas, teclado e achados na aba Cabos ⇄ Postes, `layer_em` com curinga, teste de desempenho
 
 - **Tabelas muito grandes (> 300 linhas):** em segundo plano só se monta ~2500 px em volta da área visível (`LIMIAR_PARCIAL`, `hidratarJanela(type, 2500)`); o resto monta ao rolar. Com 1000+1000 linhas: Enter 67 ms, excluir 34 ms, desfazer 146 ms, rolagem 16 ms/quadro.
