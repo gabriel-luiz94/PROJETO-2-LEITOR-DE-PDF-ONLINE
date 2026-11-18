@@ -121,6 +121,21 @@ document.addEventListener('DOMContentLoaded', () => {
     /** Linha CONGELADA: fica na tela (e pode ser editada), mas sai de Totalizadora, orçamento, validação, ajustes, cores, contadores e algoritmos — serve de comentário. Só um vínculo feito à mão pode usar um cabo congelado como fonte.
      *  Linha BLOQUEADA: não pode ser editada nem excluída; continua entrando nos cálculos (a menos que também esteja congelada). */
     const congelada = r => !!(r && r.congelada), bloqueada = r => !!(r && r.bloqueada);
+    /** TASK-182: texto do ativo começando por "#" (depois de espaços) = comentário. `sincronizarHash(linha, textoAnterior)`: começou com "#" → vira comentário (congelada);
+     *  tinha "#" e deixou de ter → volta ao normal (só se ainda é comentário). Linha bloqueada não muda. Devolve true se mudou a linha. */
+    const comecaComHash = t => /^\s*#/.test(String(t == null ? '' : t));
+    function sincronizarHash(row, anterior) {
+        if (!row || row.bloqueada) return false;
+        if (comecaComHash(row.ativo)) {
+            if (row.comentario) return false;
+            row.comentario = true; row.congelada = true; return true;
+        }
+        if (comecaComHash(anterior) && row.comentario) { delete row.comentario; delete row.congelada; return true; }
+        return false;
+    }
+    /** Marca o projeto como alterado a cada ação do usuário que entra no histórico (congelar/bloquear/comentar pelo menu não disparam input/change). Não vale ao abrir/carregar um projeto. */
+    let _historicoSemSujo = false;
+    function marcarProjetoAlterado() { if (!_historicoSemSujo && window.GridRProjeto && window.GridRProjeto.marcarSujo) window.GridRProjeto.marcarSujo(false); }
     const tableStates = {
         cabos: { bodyId: 'body-cabos', data: [] },
         outros: { bodyId: 'body-outros', data: [] },
@@ -455,6 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         row.ativo = snapAtivo;
                         pushHistory();  // snapshot com valor ANTES
                         row.ativo = inpAt.value;  // aplica o novo valor
+                        const mudouHash = sincronizarHash(row, snapAtivo);                    // TASK-182: "#" no começo = comentário (no mesmo passo de Ctrl+Z)
                         if (type === 'outros') {                              // TASK-065
                             reclassificarEntidade(row);
                             atualizarCelulaEntidade();
@@ -480,6 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         refreshAllFilters(type);
                         atualizarResumoRedeUI();
+                        if (mudouHash) renderPreservandoFoco(type);
                     }
                 }, 150);
             });
@@ -687,6 +704,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return tb;
     }
 
+    /** Redesenha a tabela mantendo o foco na mesma célula (a edição do "#" acontece quando o foco já foi para outra célula). */
+    function renderPreservandoFoco(type) {
+        const body = document.getElementById(tableStates[type].bodyId), a = document.activeElement;
+        const tr = a && a.closest ? a.closest('tr[data-index]') : null;
+        const ref = tr && body.contains(tr) ? { idx: tr.dataset.index, campo: a.dataset ? a.dataset.field : '', cls: a.classList && a.classList[0] } : null;
+        renderTable(type);
+        if (!ref) return;
+        const novo = Array.from(body.children).find(x => x.dataset.index === ref.idx);
+        const el = novo && ((ref.campo && novo.querySelector(`[data-field="${ref.campo}"]`)) || (ref.cls && novo.querySelector('.' + ref.cls)));
+        if (el) el.focus();
+    }
+
     function materializarLinhaVazia(type, texto, operacao) {
         const dados = tableStates[type].data;
         pushHistory();                                         // um passo de Ctrl+Z para criar a linha
@@ -694,6 +723,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const GT = window.GradeTabela;
         const row = GT.novaLinha(type, operacao || GT.operacaoHerdada(dados, dados.length));          // operação escolhida na linha em branco, ou a herdada
         row.ativo = String(texto).toUpperCase();
+        sincronizarHash(row, '');                                // TASK-182: linha nova que começa com "#" já nasce comentário
         dados.push(row);
         if (type === 'outros') reclassificarEntidade(row);
         else recalcRowAndAbove(dados.length - 1);
@@ -1066,7 +1096,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!alvos.length) { showToast('Linha bloqueada: desbloqueie antes de mudar o comentário.'); return; }
         const poe = !alvos.every(i => dados[i].comentario);
         pushHistory();
-        alvos.forEach(i => { if (poe) { dados[i].comentario = true; dados[i].congelada = true; } else { delete dados[i].comentario; delete dados[i].congelada; } });
+        alvos.forEach(i => { if (poe) { dados[i].comentario = true; dados[i].congelada = true; } else { delete dados[i].comentario; delete dados[i].congelada; if (comecaComHash(dados[i].ativo)) dados[i].ativo = String(dados[i].ativo).replace(/^\s*#\s?/, ''); } });
         limparGrade();
         renderTable(tipo);
         buildAtivoSets(); buildDataLists();
@@ -1359,7 +1389,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pushHistory();      // um único passo de Ctrl+Z para a colagem inteira
         const r = G.aplicarColagem(dados, texto, { tipo, linha, coluna });
         if (!r.linhasColadas) { showToast('Nada para colar.'); return; }
-        r.alteradas.forEach(i => { if (tipo === 'outros') reclassificarEntidade(dados[i]); else dados[i].entidade = 'CABO'; });
+        r.alteradas.forEach(i => { if (tipo === 'outros') reclassificarEntidade(dados[i]); else dados[i].entidade = 'CABO'; sincronizarHash(dados[i], ''); });
         finalizarEdicaoEmLote(tipo);
         const cols = colunasGrade(tipo);
         grade.tipo = tipo;
@@ -1740,6 +1770,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         historyDirty = true;
         updateHistoryUI();
+        marcarProjetoAlterado();                                       // TASK-182: congelar/bloquear/comentar e demais ações do histórico também gravam no projeto
     }
 
     /** Grava o estado ao vivo se ele estiver à frente do ponteiro (mudança feita depois do último push). */
@@ -1782,6 +1813,7 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshAllFilters('cabos');
         refreshAllFilters('outros');
         updateHistoryUI();
+        marcarProjetoAlterado();                                       // desfazer/refazer também são alterações do projeto
     }
 
     function updateHistoryUI() {
@@ -2029,6 +2061,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (txtOrig) c.textoOriginal = txtOrig;
         ['fases', 'tensao', 'nivel'].forEach(k => { if (obj[k] !== undefined && obj[k] !== '') c[k] = obj[k]; });
         if (obj.entidadeManual) c.entidadeManual = true;   // TASK-065: classificação definida à mão não é recalculada
+        if (obj.congelada) c.congelada = true; if (obj.bloqueada) c.bloqueada = true; if (obj.comentario) c.comentario = true;      // TASK-182: marcas da linha — sem isto o undo/redo e o SALVAR do projeto as perdiam (tudo passa por esta função)
         // TASK-032: coordenada de origem (presente em obj._raw na primeira montagem da linha, e
         // em obj diretamente depois) e vínculo cabo<->estrutura — preservados através de
         // undo/redo e salvar/carregar obra, já que tudo passa por esta função.
@@ -2689,12 +2722,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        pushHistory();  // snapshot ANTES de substituir
+        _historicoSemSujo = true;
+        try { pushHistory(); } finally { _historicoSemSujo = false; }          // abrir/carregar um projeto não o deixa "alterado"
         // TASK-059: obra gerada pelo modo autônomo -> ao salvar, o servidor compara com o que o usuário deixou (aprendizado)
         baselineManual = null;
         execucaoOrigemAutonomo = (snap.autonomo && typeof snap.autonomo.execucao_id === 'string' && !snap.autonomo.revertida) ? snap.autonomo.execucao_id : null;
         tableStates.cabos.data  = (cabosData  || []).map(deepClone);
         tableStates.outros.data = (outrosData || []).map(deepClone);
+        tableStates.cabos.data.forEach(r => sincronizarHash(r, ''));            // TASK-182: ativo que chega com "#" no começo abre como comentário
+        tableStates.outros.data.forEach(r => sincronizarHash(r, ''));
         
         if (totData) {
             tableStates.totalizadora.data = totData.map(r => JSON.parse(JSON.stringify(r)));
