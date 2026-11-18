@@ -9,7 +9,7 @@
     let host = null, st = null, overlay = null;
 
     const CSS = `
-    .vz-ov{position:fixed;inset:0;background:rgba(1,4,9,.78);z-index:9000;display:flex;align-items:center;justify-content:center}
+    .vz-ov{position:fixed;inset:0;background:#05080d;z-index:9000;display:flex;align-items:center;justify-content:center}
     .vz{width:min(1500px,96vw);height:min(900px,94vh);background:#0d1117;border:1px solid #30363d;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;color:#c9d1d9;font:13px/1.35 -apple-system,Segoe UI,Roboto,sans-serif}
     .vz *{box-sizing:border-box}
     .vz-top{display:flex;align-items:center;gap:10px;padding:12px 18px;background:#161b22;border-bottom:1px solid #30363d}.vz-top h3{margin:0;font-size:15px;color:#fff}
@@ -23,21 +23,21 @@
     .vz-btn{background:#21262d;border:1px solid #30363d;border-radius:6px;padding:5px 12px;color:#c9d1d9;font-size:12px;cursor:pointer}.vz-btn:hover{border-color:#8b949e}.vz-btn.p{background:#238636;border-color:#2ea043;color:#fff}.vz-btn.b{border-color:#58a6ff;color:#58a6ff}.vz-btn[disabled]{opacity:.45;cursor:default}
     .vz-leg{display:flex;gap:12px;align-items:center;color:#8b949e}.vz-dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px;border:2px solid #6e7681;background:#010409}
     .vz-dot.pu{border-color:#a371f7;background:#2a1d4d}.vz-dot.gr{border-color:#3fb950;background:#12361c}.vz-dot.rd{border-color:#f85149;background:#47161a}.vz-dot.fic{border-style:dashed;border-color:#a371f7}
-    .vz-cols{display:grid;grid-template-columns:minmax(300px,430px) minmax(120px,1fr) minmax(360px,560px);position:relative;align-items:start}
-    .vz-col h4{margin:0 0 8px;font-size:11px;letter-spacing:.08em;color:#8b949e;text-transform:uppercase;position:sticky;top:0;background:#0d1117;z-index:2;padding:2px 0}
-    .vz-card{display:flex;align-items:center;gap:10px;height:62px;margin-bottom:10px;padding:0 12px;border-radius:8px;border:2px solid #6e7681;background:#010409;cursor:pointer;position:relative;overflow:hidden}
-    .vz-avulso{display:flex;align-items:center;gap:8px;margin:-4px 0 10px 18px;padding:5px 10px;border-radius:6px;background:#161b22;border:1px solid #30363d;color:#8b949e;font-size:11px}.vz-avulso .n{color:#c9d1d9;white-space:nowrap}.vz-avulso .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.vz-avulso .ok{color:#3fb950}.vz-avulso .v{color:#d29922}.vz-avulso .vz-btn{padding:2px 8px;font-size:11px}
-    .vz-card.pu{border-color:#a371f7;background:#1d1537}.vz-card.gr{border-color:#3fb950;background:#0f2a17}.vz-card.rd{border-color:#f85149;background:#3a1216}.vz-card.fic{border-style:dashed;border-color:#a371f7;background:#161027}
-    .vz-card.sel,.vz-ebox.sel{box-shadow:0 0 0 3px rgba(88,166,255,.65)}.vz-card.glow,.vz-ebox.glow{box-shadow:0 0 0 3px rgba(63,185,80,.40)}.vz-dim{opacity:.35}
-    .vz-card .t{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}.vz-card .s{font-size:11px;color:#8b949e;white-space:nowrap}.vz-card .r{margin-left:auto;text-align:right;font-size:11px;white-space:nowrap}
+    /* TASK-185: painel virtualizado — só as linhas visíveis existem no DOM; cada linha tem altura fixa (compacto: 1 cabo = 1 linha, 1 poste = 1 linha) */
+    .vl-cab{display:flex;align-items:center;gap:8px;padding:0 10px;border-radius:6px;border:1.5px solid #6e7681;background:#010409;cursor:pointer;position:absolute;left:0;width:var(--lw,430px);overflow:hidden;white-space:nowrap}
+    .vl-cab.pu{border-color:#a371f7;background:#1d1537}.vl-cab.gr{border-color:#3fb950;background:#0f2a17}.vl-cab.rd{border-color:#f85149;background:#3a1216}.vl-cab.fic{border-style:dashed;border-color:#a371f7;background:#161027}
+    .vl-cab.sel,.vl-chip.sel{box-shadow:0 0 0 2px rgba(88,166,255,.8)}.vl-cab.glow,.vl-chip.glow{box-shadow:0 0 0 2px rgba(63,185,80,.5)}.vl-dim{opacity:.3}
+    .vl-cab .t{font-weight:700;font-size:12px;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}.vl-cab .s{font-size:10.5px;color:#8b949e}.vl-cab .r{font-size:10.5px;font-weight:700}.vl-cab .pp{font-size:10.5px;color:#58a6ff}
+    .vl-av{display:flex;align-items:center;gap:6px;padding:0 8px 0 18px;position:absolute;left:0;width:var(--lw,430px);font-size:10.5px;color:#8b949e;background:#161b22;border:1px solid #30363d;border-radius:5px;overflow:hidden;white-space:nowrap}
+    .vl-av .n{color:#c9d1d9}.vl-av .t{flex:1;overflow:hidden;text-overflow:ellipsis}.vl-av .v{color:#d29922}.vl-av .ok{color:#3fb950}.vl-av .vz-btn{padding:0 8px;font-size:10.5px}
+    .vl-pst{position:absolute;display:flex;align-items:center;border:1px solid #21262d;border-radius:6px;background:#0d1117;left:var(--rl,570px);right:0}
+    .vl-pst .lab{width:112px;padding:0 8px;font-size:11px;color:#8b949e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:none}
+    .vl-chip{position:absolute;top:2px;bottom:2px;width:84px;display:flex;align-items:center;justify-content:center;gap:5px;border-radius:5px;border:1.5px solid #6e7681;background:#010409;font-weight:800;font-size:12px;color:#fff;cursor:pointer;overflow:hidden;white-space:nowrap}
+    .vl-chip i{font-style:normal;font-weight:600;font-size:10px;color:#8b949e}.vl-chip.eqp{border-style:dashed;background:#161b22;color:#8b949e;cursor:default}.vl-chip.pu{border-color:#a371f7;background:#1d1537}.vl-chip.gr{border-color:#3fb950;background:#0f2a17}.vl-chip.rd{border-color:#f85149;background:#3a1216}
+    .vl-chip.poste{position:static;width:auto;min-width:84px;padding:0 8px;margin:2px 3px}
+    .vl-box{position:relative;flex:1;min-height:0;overflow:auto;will-change:transform;contain:layout paint}.vl-in{position:relative;min-width:var(--mw,1300px)}.vl-hd{display:flex;gap:0;font-size:11px;letter-spacing:.08em;color:#8b949e;text-transform:uppercase;padding:0 0 6px}
+    .vl-liga{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}.vl-liga path.hit{pointer-events:stroke;cursor:pointer;stroke:transparent;stroke-width:10;fill:none}
     .vz-op{font-size:11px;font-weight:700;border-radius:4px;padding:1px 6px;background:#1f6feb33;color:#58a6ff}.vz-op.m{background:#d2992233;color:#d29922}.vz-op.r{background:#f8514933;color:#f85149}
-    .vz-erow{display:flex;align-items:center;gap:12px;height:62px;margin-bottom:10px}
-    .vz-prow{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:8px 10px;border:1px solid #21262d;border-radius:10px;background:#0d1117}.vz-blocos{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:flex-start;flex:1;min-width:0}.vz-bloco{display:flex;flex-direction:column;gap:4px;width:150px}.vz-bloco .vz-ebox{min-width:0;width:100%;box-sizing:border-box}.vz-bloco .vz-info{padding:0 2px}
-    .vz-ebox{display:flex;align-items:center;justify-content:center;height:56px;min-width:92px;padding:0 16px;border-radius:9px;border:2px solid #6e7681;background:#010409;font-weight:800;font-size:15px;color:#fff;cursor:pointer;position:relative}
-    .vz-ebox.eqp{border-style:dashed;border-color:#6e7681;background:#161b22;color:#8b949e;cursor:default}.vz-ebox.pu{border-color:#a371f7;background:#1d1537}.vz-ebox.gr{border-color:#3fb950;background:#0f2a17}.vz-ebox.rd{border-color:#f85149;background:#3a1216}
-    .vz-info{display:flex;flex-direction:column;gap:2px;min-width:0}.vz-info .a{font-size:12px;color:#c9d1d9;white-space:nowrap}.vz-info .b{font-size:11px;color:#8b949e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .vz-pbtn{margin-left:auto;border:1px dashed #484f58;color:#6e7681;border-radius:6px;padding:4px 9px;font-size:12px;font-weight:700;background:#0d1117;cursor:default}
-    .vz-liga{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}.vz-liga path.hit{pointer-events:stroke;cursor:pointer;stroke:transparent;stroke-width:12;fill:none}
     .vz-menu{position:fixed;background:#1c2230;border:1px solid #484f58;border-radius:8px;padding:6px;min-width:260px;max-width:380px;z-index:9100;box-shadow:0 10px 30px rgba(0,0,0,.6);font-size:12px}
     .vz-menu .it{padding:6px 10px;border-radius:5px;cursor:pointer;white-space:nowrap}.vz-menu .it:hover{background:#2d3548}.vz-menu .it.off{color:#6e7681;cursor:default}.vz-menu .hd{padding:4px 10px;color:#8b949e;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em}
     .vz-menu .sep{height:1px;background:#30363d;margin:4px 0}.vz-menu .rec{color:#3fb950;font-size:10.5px;margin-left:6px}
@@ -68,7 +68,24 @@
     }
     const toast = m => { if (raiz.showToast) raiz.showToast(m); };
     const cabos = () => host.cabos(), outros = () => host.outros();
-    const analise = () => VR.analisar(cabos(), outros(), st.cfg, host.prefixoCabo, host.codigoEstrutura, host.codigosEstrutura);
+    // ── contexto memoizado (TASK-185): análise + índices calculados UMA vez por estado dos dados, nunca a cada clique/rolagem ──
+    let cx = null;
+    const metaAtivo = new Map();          // texto da linha de Outros → { soPoste, postes } (a interpretação é cara e só depende do texto)
+    function assinatura() {
+        let s = st.cfgVer + '#';
+        cabos().forEach(c => { s += c ? `${c.ativo || ''}|${c.operacao || ''}|${c.vinculoEstruturas || ''}|${c.vinculoPostes || ''}|${c.estruturasFicticias || ''}|${c.textoOriginal || ''}|${c.fases || ''}|${c.tensao || ''}|${c.nivel || ''}\n` : '\n'; });
+        outros().forEach(o => { s += o ? `${o.ativo || ''}|${o.cabosFicticios || ''}|${o.cabosFicticiosSlots ? JSON.stringify(o.cabosFicticiosSlots) : ''}|${o.origemAvulso || ''}\n` : '\n'; });
+        return s;
+    }
+    function ctx() {
+        const sig = assinatura();
+        if (cx && cx.sig === sig && cx.cfg === st.cfg) return cx;
+        const C = cabos(), a = VR.analisar(C, outros(), st.cfg, host.prefixoCabo, host.codigoEstrutura, host.codigosEstrutura);
+        cx = { sig, cfg: st.cfg, a, infoC: {}, infoE: {}, ocup: {}, avul: {}, it: {} };
+        C.forEach((c, ic) => { if (VR.ehCaboValido(c)) (c.vinculoEstruturas || []).forEach(ie => (cx.ocup[ie] = cx.ocup[ie] || []).push(ic)); });
+        return cx;
+    }
+    const analise = () => ctx().a;
     // TASK-094: cada estrutura da linha (9400D, N1, N4 → N1 e N4) é uma unidade; o id é a linha (+ posição/100 a partir da 2ª)
     const linhaDe = ie => VR.linhaDe(ie), slotDe = ie => VR.slotDe(ie), linhaOutros = ie => outros()[VR.linhaDe(ie)];
     const codigoDe = ie => { const l = linhaOutros(ie); return VR.codigosDaLinha(l, host.codigoEstrutura, host.codigosEstrutura)[VR.slotDe(ie)] || ''; };
@@ -90,13 +107,14 @@
         if (!cfg) {
             try { const r = await fetch('/api/vinculacao-config?projeto_codigo=' + encodeURIComponent(host.projeto())); cfg = r.ok ? (await r.json()).config : null; } catch (e) { cfg = null; }
         }
-        st = { cfg: clone(VR.normalizarConfig(cfg)), aba: (opcoes && opcoes.aba) || 'vinculo', sel: null, filtro: 'todos', dirty: false, scriptIdx: 0, previa: null, textoScript: null, erroScript: '', teste: {} };
+        st = { cfg: clone(VR.normalizarConfig(cfg)), aba: (opcoes && opcoes.aba) || 'vinculo', sel: null, filtro: 'todos', filtroCP: 'todos', auto: true, cfgVer: 0, resultadoPoste: null, elRes: null, dirty: false, scriptIdx: 0, previa: null, textoScript: null, erroScript: '', teste: {} };
         if (!overlay) {
             overlay = el('div', { class: 'vz-ov', onkeydown: e => { if (e.key === 'Escape') { if (menuAberto) fecharMenu(); else fechar(); } } });
             overlay.setAttribute('tabindex', '-1');
             doc.body.appendChild(overlay);
         }
         overlay.style.display = 'flex';
+        cx = null; painel = null; metaAtivo.clear();
         render();
         overlay.focus();
     }
@@ -108,7 +126,7 @@
         if (host && host.depois) host.depois();
     }
 
-    function marcarSujo() { st.dirty = true; const b = overlay.querySelector('#vz-salvar'); if (b) b.disabled = false; }
+    function marcarSujo() { st.dirty = true; st.cfgVer++; const b = overlay.querySelector('#vz-salvar'); if (b) b.disabled = false; }
 
     async function salvar() {
         const erros = [];
@@ -126,20 +144,22 @@
     // ── casca ──
     function render() {
         fecharMenu();
+        if (painel) { painel.destruir(); painel = null; }
+        st.elRes = null;
         const a = analise();
         const pend = Object.values(a.cabos).filter(c => c.estado !== 'gr').length + Object.values(a.estruturas).filter(e => e.estado === 'k' || e.estado === 'pu').length;
         overlay.innerHTML = '';
-        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''], ['casos', 'Casos', ''], ['pacote', 'Pacote', ''],
+        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabopostes', 'Cabos ⇄ Postes', ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''], ['casos', 'Casos', ''], ['pacote', 'Pacote', ''],
             ['script', 'Script', st.cfg.scripts.length], ['mapa', 'Mapa', '']];
         const vz = el('div', { class: 'vz' }, [
             el('div', { class: 'vz-top' }, [el('h3', { text: '🔗 Vinculação cabo ⇄ estrutura' }), el('span', { class: 'vz-chip', text: 'Projeto ' + host.projeto() }),
                 st.dirty ? el('span', { class: 'vz-chip', style: 'color:#d29922;border-color:#d29922', text: 'alterações não salvas' }) : null, el('button', { class: 'vz-x', text: '✕', onclick: fechar })]),
-            el('div', { class: 'vz-tabs' }, abas.map(([id, nome, n]) => el('button', { class: 'vz-tab' + (st.aba === id ? ' on' : ''), onclick: () => { st.aba = id; st.sel = null; render(); } }, [nome, n !== '' ? el('b', { text: String(n) }) : null]))),
+            el('div', { class: 'vz-tabs' }, abas.map(([id, nome, n]) => el('button', { class: 'vz-tab' + (st.aba === id ? ' on' : ''), onclick: () => { st.aba = id; st.sel = null; render(); } }, [nome, id === 'vinculo' ? el('b', { id: 'vz-pend', text: String(n), style: n === '' ? 'display:none' : '' }) : (n !== '' ? el('b', { text: String(n) }) : null)]))),
             el('div', { class: 'vz-corpo', id: 'vz-corpo' }),
             rodape()]);
         overlay.appendChild(vz);
         const corpo = vz.querySelector('#vz-corpo');
-        ({ vinculo: abaVinculo, cabos: abaCabos, estruturas: abaEstruturas, dicionario: abaDicionario, postes: abaPostes, desenho: abaDesenho, exportacao: abaExportacao, casos: abaCasos, pacote: abaPacote, script: abaScript, mapa: abaMapa })[st.aba](corpo, a);
+        ({ vinculo: abaVinculo, cabopostes: abaCabosPostes, cabos: abaCabos, estruturas: abaEstruturas, dicionario: abaDicionario, postes: abaPostes, desenho: abaDesenho, exportacao: abaExportacao, casos: abaCasos, pacote: abaPacote, script: abaScript, mapa: abaMapa })[st.aba](corpo, a);
     }
 
     function rodape() {
@@ -167,11 +187,11 @@
     }
 
     // ── ABA: VÍNCULO ──
-    function infoCabo(ic) { const c = cabos()[ic]; return VR.infoCabo(host.prefixoCabo(c.ativo) || '', c.operacao, st.cfg, VR.extraCabo(c)); }
-    function infoEst(ie) { return VR.infoEstrutura(codigoDe(ie), st.cfg); }
+    function infoCabo(ic) { const k = cx || ctx(), c = cabos()[ic]; return k.infoC[ic] || (k.infoC[ic] = VR.infoCabo(host.prefixoCabo(c.ativo) || '', c.operacao, st.cfg, VR.extraCabo(c))); }
+    function infoEst(ie) { const k = cx || ctx(); return k.infoE[ie] || (k.infoE[ie] = VR.infoEstrutura(codigoDe(ie), st.cfg)); }
     function ocupantes(ie, ignorandoCabo) {
-        const lista = [];
-        cabos().forEach((c, ic) => { if (VR.ehCaboValido(c) && ic !== ignorandoCabo && (c.vinculoEstruturas || []).includes(ie)) lista.push({ info: infoCabo(ic), ficticio: false }); });
+        const k = cx || ctx(), lista = [];
+        (k.ocup[ie] || []).forEach(ic => { if (ic !== ignorandoCabo) lista.push({ info: infoCabo(ic), ficticio: false }); });
         const e = infoEst(ie);
         ficticiosDe(ie).forEach(cod => lista.push({ info: VR.infoCabo(cod, VR.opFicticio(e), st.cfg), ficticio: true }));
         return lista;
@@ -181,10 +201,19 @@
         return VR.podeComOcupantes(c, e, oc);
     }
 
+    /** Atualização leve: refaz só os dados do painel (a análise é memoizada) em vez de reconstruir o modal inteiro. */
+    function atualizar() {
+        if (!painel) { render(); return; }
+        const k = ctx(); painel.refazer();
+        const b = overlay.querySelector('#vz-pend');
+        if (b) { const pend = Object.values(k.a.cabos).filter(c => c.estado !== 'gr').length + Object.values(k.a.estruturas).filter(e => e.estado === 'k' || e.estado === 'pu').length; b.textContent = pend ? pend + ' pend.' : ''; b.style.display = pend ? '' : 'none'; }
+        if (st.elRes) st.elRes.textContent = textoResumoPoste();
+    }
+
     function ligar(ic, ie) {
         const c = cabos()[ic], ja = (c.vinculoEstruturas || []).includes(ie);
         host.antes();
-        if (ja) { c.vinculoEstruturas = c.vinculoEstruturas.filter(x => x !== ie); toast('Vínculo removido (Ctrl+Z desfaz).'); render(); return; }
+        if (ja) { c.vinculoEstruturas = c.vinculoEstruturas.filter(x => x !== ie); toast('Vínculo removido (Ctrl+Z desfaz).'); atualizar(); return; }
         const info = infoCabo(ic);
         if (!info.vincula) { toast(`O cabo ${info.codigo} não vincula (acompanha o cabo principal).`); return; }
         if ((c.vinculoEstruturas || []).length + VR.estruturasFicticiasDe(c).length >= info.pontas) { toast(`O cabo ${info.codigo} já tem as ${info.pontas} ponta(s); remova uma antes.`); return; }
@@ -193,27 +222,15 @@
         c.vinculoEstruturas = (c.vinculoEstruturas || []).concat([ie]);
         c.vinculoOrigem = 'manual';
         st.sel = null;
-        render();
-    }
-
-    /** TASK-171: linha cinza sob o cabo — os avulsos (alças, conectores) que a estrutura fictícia usa para ESTE cabo, com [+ Outros]. */
-    function linhaAvulso(ic, av) {
-        const completos = av.itens.filter(i => !i.completar), faltam = av.itens.filter(i => i.completar);
-        const texto = completos.map(i => `${i.qtd} × ${i.ativo}`).join(' · ') + (faltam.length ? (completos.length ? ' · ' : '') + faltam.map(i => `${i.qtd} × ${i.ativo} — complete o cabo existente`).join(' · ') : '');
-        const estado = av.estado === 'adicionado' ? el('span', { class: 'ok', text: 'adicionado ✓' }) : el('button', { class: 'vz-btn', text: '+ Outros', ...(completos.length ? {} : { disabled: 'disabled' }), title: completos.length ? 'adiciona estes itens à tabela Outros (você pode editar ou apagar)' : 'complete o cabo existente antes',
-            onclick: e => { e.stopPropagation(); host.adicionarAvulsos(ic, av.ficticia); render(); } });
-        return el('div', { class: 'vz-avulso', title: texto }, [el('span', { class: 'n', text: `${av.ficticia} (fictícia) → ` }), el('span', { class: 't', text: texto }),
-            av.estado === 'desatualizado' ? el('span', { class: 'v', text: 'avulso desatualizado' }) : null, estado]);
+        atualizar();
     }
 
     function clicar(tipo, i) {
         if (tipo === 'e' && infoEst(i).ocupa === false) { toast('Equipamento (' + infoEst(i).codigo + ') lê os cabos do poste: não recebe vínculo de cabo.'); return; }          // TASK-169
         if (st.sel && st.sel.t !== tipo) { const ic = tipo === 'c' ? i : st.sel.i, ie = tipo === 'e' ? i : st.sel.i; ligar(ic, ie); return; }
         st.sel = (st.sel && st.sel.t === tipo && st.sel.i === i) ? null : { t: tipo, i };
-        render();
+        if (painel) painel.pintar(true); else render();
     }
-
-    const faixaCabos = a => (a.maximo != null && a.maximo !== a.precisa ? `${a.precisa}–${a.maximo}` : String(a.precisa));
 
     function candidatosFicticios(ie) {
         const e = infoEst(ie), oc = ocupantes(ie), codigos = [], vistos = new Set();
@@ -227,7 +244,7 @@
     function addFicticio(ie, cod) {
         host.antes();
         gravarFicticios(ie, ficticiosDe(ie).concat([cod.toUpperCase()]));
-        render();
+        atualizar();
     }
 
     function menuEstrutura(e, ie) {
@@ -241,8 +258,8 @@
         const recusados = cands.filter(c => !c.ok && c.motivo);
         if (recusados.length) itens.push({ t: `(${recusados.length} código(s) não aceito(s): ${recusados.slice(0, 3).map(c => c.cod).join(', ')}…)`, off: true, title: recusados.slice(0, 5).map(c => c.cod + ': ' + c.motivo).join('\n') });
         itens.push('-');
-        ficticiosDe(ie).forEach((cod, k) => itens.push({ t: `✖ Remover fictício ${cod}`, fn: () => { host.antes(); const l = ficticiosDe(ie).slice(); l.splice(k, 1); gravarFicticios(ie, l); render(); } }));
-        itens.push({ t: 'Desvincular todos os cabos desta estrutura', fn: () => { host.antes(); cabos().forEach(c => { if (c && c.vinculoEstruturas) c.vinculoEstruturas = c.vinculoEstruturas.filter(x => x !== ie); }); render(); } });
+        ficticiosDe(ie).forEach((cod, k) => itens.push({ t: `✖ Remover fictício ${cod}`, fn: () => { host.antes(); const l = ficticiosDe(ie).slice(); l.splice(k, 1); gravarFicticios(ie, l); atualizar(); } }));
+        itens.push({ t: 'Desvincular todos os cabos desta estrutura', fn: () => { host.antes(); cabos().forEach(c => { if (c && c.vinculoEstruturas) c.vinculoEstruturas = c.vinculoEstruturas.filter(x => x !== ie); }); atualizar(); } });
         abrirMenu(e, itens);
     }
 
@@ -256,8 +273,8 @@
     }
     function menuCabo(e, ic) {
         const c = cabos()[ic], info = infoCabo(ic), fict = VR.estruturasFicticiasDe(c), cheio = (c.vinculoEstruturas || []).length + fict.length >= info.pontas;
-        const itens = [{ hd: 'Cabo ' + (c.ativo || '') }, { t: 'Desvincular este cabo', fn: () => { host.antes(); c.vinculoEstruturas = []; render(); } }, '-', { hd: 'Estrutura fictícia' }];
-        const add = cod => { host.antes(); c.estruturasFicticias = fict.concat([cod.toUpperCase()]); render(); };
+        const itens = [{ hd: 'Cabo ' + (c.ativo || '') }, { t: 'Desvincular este cabo', fn: () => { host.antes(); c.vinculoEstruturas = []; atualizar(); } }, '-', { hd: 'Estrutura fictícia' }];
+        const add = cod => { host.antes(); c.estruturasFicticias = fict.concat([cod.toUpperCase()]); atualizar(); };
         if (cheio) itens.push({ t: `O cabo já tem as ${info.pontas} ponta(s)`, off: true });
         else {
             const cands = candidatosEstruturasFicticias(ic), aceitas = cands.filter(x => x.ok);
@@ -267,102 +284,277 @@
             const rec = cands.filter(x => !x.ok && x.motivo);
             if (rec.length) itens.push({ t: `(${rec.length} código(s) não aceito(s): ${rec.slice(0, 3).map(x => x.cod).join(', ')}…)`, off: true, title: rec.slice(0, 5).map(x => x.cod + ': ' + x.motivo).join('\n') });
         }
-        fict.forEach((cod, k) => itens.push({ t: `✖ Remover estrutura fictícia ${cod}`, fn: () => { host.antes(); const l = fict.slice(); l.splice(k, 1); if (l.length) c.estruturasFicticias = l; else delete c.estruturasFicticias; render(); } }));
+        fict.forEach((cod, k) => itens.push({ t: `✖ Remover estrutura fictícia ${cod}`, fn: () => { host.antes(); const l = fict.slice(); l.splice(k, 1); if (l.length) c.estruturasFicticias = l; else delete c.estruturasFicticias; atualizar(); } }));
         abrirMenu(e, itens);
     }
 
     const CORES = { k: '', pu: ' pu', gr: ' gr', rd: ' rd' };
     const TXT_C = { k: 'sem vínculo', pu: '◐ parcial', gr: '● completo', rd: '✖ inválido' };
+    const COR_T = { gr: '#3fb950', pu: '#a371f7', rd: '#f85149', k: '#8b949e' };
+    const faixaCabos = a => (a.maximo != null && a.maximo !== a.precisa ? `${a.precisa}–${a.maximo}` : String(a.precisa));
 
-    function abaVinculo(corpo, a) {
-        const tem = cabos().some(VR.ehCaboValido), ests = VR.estruturasDisponiveis(outros(), host.codigoEstrutura, host.codigosEstrutura);
+    // ── painel virtualizado (TASK-185): compartilhado pelas abas Vínculo e Cabos ⇄ Postes ──
+    // Só as linhas visíveis (+ margem) existem no DOM; cada linha tem altura fixa, então posição e linhas de ligação saem por aritmética (sem medir o layout).
+    const RH = 30, RA = 24, LW = 430, GUT = 140, LAB = 112, CW = 84, CG = 6;
+    let painel = null;
+
+    function criarPainel(corpo, def) {
+        const box = el('div', { class: 'vl-box' }), inn = el('div', { class: 'vl-in' }), L = el('div'), R = el('div');
+        const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'vl-liga');
+        inn.appendChild(L); inn.appendChild(R); inn.appendChild(svg); box.appendChild(inn);
+        corpo.appendChild(el('div', { class: 'vl-hd' }, [el('div', { style: `width:${LW + GUT}px`, text: def.tituloE }), el('div', { text: def.tituloD })]));
+        corpo.appendChild(box);
+        inn.style.setProperty('--lw', LW + 'px'); inn.style.setProperty('--rl', (LW + GUT) + 'px');
+        const larg = LW + GUT + LAB + 8 * (CW + CG) + 40;
+        inn.style.setProperty('--mw', larg + 'px'); svg.setAttribute('width', larg);
+        let dados = null, jan = null, raf = 0, ro = null;
+        function faixa(lista, y0, y1) {
+            let lo = 0, hi = lista.length;
+            while (lo < hi) { const m = (lo + hi) >> 1; if (lista[m].y + lista[m].h < y0) lo = m + 1; else hi = m; }
+            let i1 = lo; while (i1 < lista.length && lista[i1].y <= y1) i1++;
+            return [lo, i1];
+        }
+        function refazer() { dados = def.itens(); inn.style.height = (Math.max(dados.hE, dados.hD) + 8) + 'px'; jan = null; pintar(true); }
+        function pintar(forcar) {
+            if (!dados) return;
+            const top = box.scrollTop, alt = box.clientHeight || 700, OV = 400;
+            if (!forcar && jan && top >= jan[0] && top + alt <= jan[1]) return;
+            const y0 = top - OV, y1 = top + alt + OV; jan = [y0, y1];
+            const [a0, a1] = faixa(dados.esq, y0, y1), [b0, b1] = faixa(dados.dir, y0, y1);
+            let hE = '', hD = '';
+            for (let i = a0; i < a1; i++) hE += def.htmlE(dados.esq[i]);
+            for (let i = b0; i < b1; i++) hD += def.htmlD(dados.dir[i]);
+            L.innerHTML = hE; R.innerHTML = hD;
+            const sy = Math.max(0, y0), alturaSvg = Math.max(1, Math.min(Math.max(dados.hE, dados.hD) + 8, y1) - sy);
+            svg.style.top = sy + 'px'; svg.setAttribute('height', alturaSvg);          // o SVG cobre só a janela visível (não a lista inteira)
+            let g = '';
+            const curva = (x1, y1b, x2, y2) => { const mx = (x1 + x2) / 2; return `M${x1},${y1b} C${mx},${y1b} ${mx},${y2} ${x2},${y2}`; };
+            dados.links.forEach(l => {
+                const ie = dados.esq[l.e], id = dados.dir[l.d];
+                if (!ie || !id) return;
+                const yE = ie.y + (ie.h - 4) / 2, topo = l.slot > 0;
+                const yD = topo ? id.y + 1 : id.y + (id.h - 4) / 2, xD = LW + GUT + (topo ? LAB + l.slot * (CW + CG) + CW / 2 : 0);
+                if ((yE < y0 || yE > y1) && (yD < y0 || yD > y1)) return;
+                const d = curva(LW, yE - sy, xD, yD - sy), cor = l.cor, cyE = yE - sy, cyD = yD - sy;
+                g += `<path d="${d}" fill="none" stroke="${cor}" stroke-width="2" ${l.dash ? 'stroke-dasharray="5 4"' : ''}/><circle cx="${LW}" cy="${cyE}" r="3.5" fill="${cor}"/><circle cx="${xD}" cy="${cyD}" r="3.5" fill="${cor}"/>`;
+                if (l.hit) g += `<path class="hit" d="${d}" ${l.hit}><title>${esc(l.motivo || 'clique para desfazer o vínculo')}</title></path>`;
+            });
+            svg.innerHTML = g;
+        }
+        box.addEventListener('scroll', () => { if (!raf) raf = raiz.requestAnimationFrame(() => { raf = 0; pintar(false); }); }, { passive: true });
+        inn.addEventListener('click', ev => def.clique(ev));
+        inn.addEventListener('contextmenu', ev => def.menu(ev));
+        if (raiz.ResizeObserver) { ro = new raiz.ResizeObserver(() => pintar(true)); ro.observe(box); }
+        return { refazer, pintar: f => pintar(f !== false), box, destruir() { if (ro) ro.disconnect(); if (raf) raiz.cancelAnimationFrame(raf); } };
+    }
+
+    const metaDe = l => { const at = outros()[l].ativo || '', m = metaAtivo.get(at); if (m) return m; const n = { soPoste: host.linhaSoPoste(at), postes: host.postesDaLinha(at) }; metaAtivo.set(at, n); return n; };
+    const postesDe = l => metaDe(l).postes;
+    const avulsos = ic => { const k = cx || ctx(); return k.avul[ic] || (k.avul[ic] = host.avulsosDoCabo ? host.avulsosDoCabo(ic) : []); };
+    const attrNum = (alvo, nome) => { const e = alvo.closest('[' + nome + ']'); return e ? Number(e.getAttribute(nome)) : null; };
+    const opClasse = op => (op.indexOf('M') >= 0 ? ' m' : (op.indexOf('R') >= 0 ? ' r' : ''));
+
+    function textoLinhaAvulso(av) {
+        const completos = av.itens.filter(i => !i.completar), faltam = av.itens.filter(i => i.completar);
+        return completos.map(i => `${i.qtd} × ${i.ativo}`).join(' · ') + (faltam.length ? (completos.length ? ' · ' : '') + faltam.map(i => `${i.qtd} × ${i.ativo} — complete o cabo existente`).join(' · ') : '');
+    }
+    function htmlAvulso(it) {
+        const av = it.av, texto = textoLinhaAvulso(av), completos = av.itens.some(i => !i.completar);
+        const estado = av.estado === 'adicionado' ? '<span class="ok">adicionado ✓</span>' : `<button class="vz-btn" data-av="${it.ic}|${esc(av.ficticia)}" ${completos ? '' : 'disabled'} title="adiciona estes itens à tabela Outros (você pode editar ou apagar)">+ Outros</button>`;
+        return `<div class="vl-av" style="top:${it.y}px;height:${it.h - 3}px" title="${esc(texto)}"><span class="n">${esc(av.ficticia)} (fictícia) →</span><span class="t">${esc(texto)}</span>${av.estado === 'desatualizado' ? '<span class="v">avulso desatualizado</span>' : ''}${estado}</div>`;
+    }
+
+    // ── ABA: VÍNCULO ──
+    function abaVinculo(corpo) {
         const filtros = [['todos', 'Todos'], ['pendentes', 'Só pendentes'], ['conflitos', 'Só conflitos']];
-        corpo.appendChild(el('div', { style: 'display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap' },
-            filtros.map(([id, nome]) => el('span', { class: 'vz-chip btn' + (st.filtro === id ? ' on' : ''), text: nome, onclick: () => { st.filtro = id; render(); } }))
-                .concat([el('span', { style: 'margin-left:auto;color:#8b949e', text: 'Clique no cabo e na estrutura (ou o contrário) · botão direito na estrutura: cabo fictício · no cabo: estrutura fictícia · clique na linha: desfazer' })])));
-        if (!ests.length) {                          // TASK-126: sem cabos o modal continua listando as estruturas (cabo fictício pelo botão direito); só some quando não há estrutura
+        const chips = filtros.map(([id, nome]) => el('span', { class: 'vz-chip btn' + (st.filtro === id ? ' on' : ''), text: nome, onclick: () => { st.filtro = id; chips.forEach((c, i) => c.classList.toggle('on', filtros[i][0] === id)); painel.refazer(); } }));
+        corpo.appendChild(el('div', { style: 'display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap' },
+            chips.concat([el('span', { style: 'margin-left:auto;color:#8b949e;font-size:11px', text: 'Clique no cabo e na estrutura (ou o contrário) · botão direito: fictício · clique na linha: desfazer' })])));
+        const ests = VR.estruturasDisponiveis(outros(), host.codigoEstrutura, host.codigosEstrutura);
+        if (!ests.length) {                          // TASK-126
             corpo.appendChild(el('div', { style: 'color:#8b949e;padding:20px', text: 'Nenhuma estrutura/poste na tabela Outros ainda.' }));
             return;
         }
-        const sc = el('div', { class: 'vz-scroll' }), cols = el('div', { class: 'vz-cols' });
-        const colC = el('div', { class: 'vz-col' }, [el('h4', { text: 'Cabos' }), tem ? null : el('div', { style: 'color:#8b949e;font-size:12px;padding:6px 2px', text: 'Nenhum cabo na tabela — use o botão direito na estrutura para associar um cabo fictício.' })]), colE = el('div', { class: 'vz-col' }, [el('h4', { text: 'Estruturas (a linha liga na estrutura; o poste é só contexto)' })]);
-        const selC = st.sel && st.sel.t === 'c' ? st.sel.i : null, selE = st.sel && st.sel.t === 'e' ? st.sel.i : null;
-        const ficticiosLista = [];
-        cabos().forEach((c, ic) => {
-            if (!VR.ehCaboValido(c)) return;
-            const r = a.cabos[ic];
-            if (st.filtro === 'pendentes' && r.estado === 'gr') return;
-            if (st.filtro === 'conflitos' && r.estado !== 'rd') return;
-            let cls = 'vz-card' + CORES[r.estado] + (selC === ic ? ' sel' : ''), dim = false, tip = '';
-            if (selE !== null) { const [ok, motivo] = podeLigar(ic, selE), ja = (c.vinculoEstruturas || []).includes(selE); if (ok || ja) cls += ' glow'; else { dim = true; tip = motivo; } }
-            const op = trim(c.operacao).toUpperCase(), opc = op.indexOf('M') >= 0 ? ' m' : (op.indexOf('R') >= 0 ? ' r' : '');
-            const card = el('div', { class: cls + (dim ? ' vz-dim' : ''), 'data-c': ic, title: tip || (c.ativo || ''), onclick: () => clicar('c', ic), oncontextmenu: e => menuCabo(e, ic) }, [
-                el('span', { class: 'vz-op' + opc, text: op || 'I' }),
-                el('div', {}, [el('div', { class: 't', text: c.ativo || '' }), el('div', { class: 's', text: `${r.codigo}${r.valor_cabo ? ' · tipocabo=' + r.valor_cabo : ''} · ${r.tem}/${r.precisa} ponta(s)${r.ficticias ? ' · ' + r.ficticias + ' estrutura fictícia' : ''}` })]),
-                el('div', { class: 'r', style: { gr: 'color:#3fb950', pu: 'color:#a371f7', rd: 'color:#f85149', k: 'color:#8b949e' }[r.estado], text: r.vincula ? TXT_C[r.estado] : 'não vincula' })]);
-            colC.appendChild(card);
-            (host.avulsosDoCabo ? host.avulsosDoCabo(ic) : []).forEach(av => colC.appendChild(linhaAvulso(ic, av)));          // TASK-171
+        if (!cabos().some(VR.ehCaboValido)) corpo.appendChild(el('div', { style: 'color:#8b949e;font-size:12px;padding:2px 2px 8px', text: 'Nenhum cabo na tabela — use o botão direito na estrutura para associar um cabo fictício.' }));
+        painel = criarPainel(corpo, {
+            tituloE: 'Cabos', tituloD: 'Estruturas — um poste por linha',
+            itens() {
+                const k = ctx(), a = k.a, chave = 'v|' + st.filtro;
+                if (k.it[chave]) return k.it[chave];
+                const esq = [], dir = [], links = [], eDe = {}, dDe = {}, fict = [], C = cabos(), O = outros();
+                let yE = 0, yD = 0;
+                C.forEach((cb, ic) => {
+                    if (!VR.ehCaboValido(cb)) return;
+                    const r = a.cabos[ic];
+                    if (st.filtro === 'pendentes' && r.estado === 'gr') return;
+                    if (st.filtro === 'conflitos' && r.estado !== 'rd') return;
+                    eDe[ic] = esq.length; esq.push({ t: 'c', ic, y: yE, h: RH }); yE += RH;
+                    avulsos(ic).forEach(av => { esq.push({ t: 'a', ic, av, y: yE, h: RA }); yE += RA; });
+                });
+                const ests = VR.estruturasDisponiveis(O, host.codigoEstrutura, host.codigosEstrutura), grupos = [], porLinha = {};
+                ests.forEach(ie => { const l = linhaDe(ie); if (!(l in porLinha)) { porLinha[l] = { l, ids: [] }; grupos.push(porLinha[l]); } porLinha[l].ids.push(ie); });
+                grupos.forEach(g => {
+                    const o = O[g.l], m = metaDe(g.l);
+                    if (m.soPoste && !g.ids.some(ie => (k.ocup[ie] || []).length)) return;                                      // poste sem estrutura e sem cabo ligado: não aparece
+                    const ids = g.ids.filter(ie => { const r = a.estruturas[ie]; return !(st.filtro === 'pendentes' && r.estado === 'gr') && !(st.filtro === 'conflitos' && r.estado !== 'rd'); });
+                    if (!ids.length) return;
+                    dir.push({ t: 'p', l: g.l, ids, label: m.postes.length && !m.soPoste ? m.postes.join(' ') : (o.ativo || ''), y: yD, h: RH });
+                    ids.forEach((ie, kk) => { dDe[ie] = [dir.length - 1, kk]; });
+                    yD += RH;
+                    g.ids.forEach(ie => ficticiosDe(ie).forEach((cod, kk) => fict.push({ ie, cod, k: kk })));
+                });
+                fict.forEach(f => { esq.push({ t: 'f', ie: f.ie, cod: f.cod, k: f.k, y: yE, h: RH }); yE += RH; if (dDe[f.ie]) links.push({ e: esq.length - 1, d: dDe[f.ie][0], slot: dDe[f.ie][1], cor: '#a371f7', dash: true }); });
+                a.links.forEach(l => {
+                    const e = eDe[l.cabo], d = dDe[l.estrutura];
+                    if (e === undefined || !d) return;
+                    const est = a.cabos[l.cabo].estado;
+                    links.push({ e, d: d[0], slot: d[1], cor: !l.ok || est === 'rd' ? '#f85149' : (est === 'gr' ? '#3fb950' : '#a371f7'), dash: !l.ok, motivo: l.motivo, hit: `data-lc="${l.cabo}" data-le="${l.estrutura}"` });
+                });
+                return (k.it[chave] = { esq, dir, links, hE: yE, hD: yD });
+            },
+            htmlE(it) {
+                const k = cx, a = k.a;
+                if (it.t === 'a') return htmlAvulso(it);
+                if (it.t === 'f') return `<div class="vl-cab fic" data-f="${it.ie}|${it.k}" style="top:${it.y}px;height:${it.h - 4}px"><span class="vz-op">I</span><span class="t">${esc(it.cod)} <span style="font-size:10px;font-weight:800;color:#a371f7">FICTÍCIO</span></span><span class="s">sem comprimento</span><span class="r" style="color:#a371f7" data-rmf="${it.ie}|${it.k}">✎ remover</span></div>`;
+                const c = cabos()[it.ic], r = a.cabos[it.ic], selC = st.sel && st.sel.t === 'c' ? st.sel.i : null, selE = st.sel && st.sel.t === 'e' ? st.sel.i : null;
+                let cls = 'vl-cab' + CORES[r.estado] + (selC === it.ic ? ' sel' : ''), tip = '';
+                if (selE !== null) { const [ok, motivo] = podeLigar(it.ic, selE), ja = (c.vinculoEstruturas || []).includes(selE); if (ok || ja) cls += ' glow'; else { cls += ' vl-dim'; tip = motivo; } }
+                const op = trim(c.operacao).toUpperCase();
+                return `<div class="${cls}" data-c="${it.ic}" style="top:${it.y}px;height:${it.h - 4}px" title="${esc(tip || c.ativo || '')}"><span class="vz-op${opClasse(op)}">${esc(op || 'I')}</span><span class="t">${esc(c.ativo || '')}</span>`
+                    + `<span class="s">${esc(r.codigo)}${r.valor_cabo ? ' · tc=' + esc(r.valor_cabo) : ''} · ${r.tem}/${r.precisa}${r.ficticias ? ' · +' + r.ficticias + ' fict.' : ''}</span><span class="r" style="color:${COR_T[r.estado]}">${r.vincula ? TXT_C[r.estado] : 'não vincula'}</span></div>`;
+            },
+            htmlD(it) {
+                const k = cx, a = k.a, o = outros()[it.l], selC = st.sel && st.sel.t === 'c' ? st.sel.i : null, selE = st.sel && st.sel.t === 'e' ? st.sel.i : null;
+                let h = `<div class="vl-pst" data-p="${it.l}" style="top:${it.y}px;height:${it.h - 4}px"><span class="lab" title="${esc(o.ativo || '')}">${esc(it.label)}</span>`;
+                it.ids.forEach((ie, kk) => {
+                    const r = a.estruturas[ie], eqp = r.ocupa === false;                                                         // TASK-169: equipamento (lê do poste): cinza, sem alvo de cabo
+                    let cls = 'vl-chip' + (eqp ? ' eqp' : CORES[r.estado]) + (selE === ie ? ' sel' : ''), tip = '';
+                    if (selC !== null && !eqp) { const [ok, motivo] = podeLigar(selC, ie), ja = (cabos()[selC].vinculoEstruturas || []).includes(ie); if (ok || ja) cls += ' glow'; else { cls += ' vl-dim'; tip = motivo; } }
+                    const inf = infoEst(ie);
+                    const sub = eqp ? (r.erros.length ? '✖ ' + r.erros[0] : `lê do poste ${(r.le_do_poste && r.le_do_poste.poste) || ''}: ${r.le_do_poste && r.le_do_poste.cabos.length ? r.le_do_poste.cabos.join(', ') : 'nenhum cabo' + (r.avisos.length ? ' (' + r.avisos[0] + ')' : '')}`)
+                        : r.erros.length ? '✖ ' + r.erros[0] : (inf.regra === null ? 'sem regra na Tabela de Estruturas' : (inf.lados === 'IGUAIS' ? `exige ${inf.qtd || ''} cabos iguais` : (inf.amarracao ? 'amarração' : `${inf.qtd || ''} cabo(s)`)));
+                    const tit = (tip || (o.ativo || '')) + ' — ' + sub + (r.valor_cabo ? ' · tipocabo=' + r.valor_cabo : '') + (r.ficticios ? ' · ' + r.ficticios + ' fictício' : '');
+                    h += `<div class="${cls}" data-e="${ie}" style="left:${LAB + kk * (CW + CG)}px" title="${esc(tit)}"><b>${esc(r.codigo || '?')}</b>${eqp ? '' : `<i>${r.tem}${r.precisa ? '/' + faixaCabos(r) : ''}</i>`}</div>`;
+                });
+                return h + '</div>';
+            },
+            clique(ev) {
+                const t = ev.target, hit = t.closest && t.closest('path.hit');
+                if (hit) { ligar(Number(hit.getAttribute('data-lc')), Number(hit.getAttribute('data-le'))); return; }
+                const bt = t.closest('[data-av]'); if (bt) { ev.stopPropagation(); const [ic, fic] = bt.getAttribute('data-av').split('|'); host.adicionarAvulsos(Number(ic), fic); atualizar(); return; }
+                const rm = t.closest('[data-rmf]'); if (rm) { const [ie, kk] = rm.getAttribute('data-rmf').split('|'); host.antes(); const l = ficticiosDe(Number(ie)).slice(); l.splice(Number(kk), 1); gravarFicticios(Number(ie), l); atualizar(); return; }
+                const c = attrNum(t, 'data-c'); if (c !== null) { clicar('c', c); return; }
+                const e = attrNum(t, 'data-e'); if (e !== null) clicar('e', e);
+            },
+            menu(ev) {
+                const c = attrNum(ev.target, 'data-c'); if (c !== null) { ctx(); menuCabo(ev, c); return; }
+                const e = attrNum(ev.target, 'data-e'); if (e !== null) { ctx(); if (infoEst(e).ocupa !== false) menuEstrutura(ev, e); else ev.preventDefault(); }
+            }
         });
-        // TASK-094: uma linha por POSTE; as estruturas dela (N1, N4…) ficam lado a lado, em blocos separados. Poste sem estrutura não aparece; estrutura sem poste não tem o card do poste.
-        const bloco = (ie, o) => {
-            const r = a.estruturas[ie];
-            if (st.filtro === 'pendentes' && (r.estado === 'gr')) return null;
-            if (st.filtro === 'conflitos' && r.estado !== 'rd') return null;
-            const eqp = r.ocupa === false;                                                              // TASK-169: equipamento (lê do poste): cinza, sem alvo de cabo
-            let cls = 'vz-ebox' + (eqp ? ' eqp' : CORES[r.estado]) + (selE === ie ? ' sel' : ''), dim = false, tip = '';
-            if (selC !== null && !eqp) { const [ok, motivo] = podeLigar(selC, ie), ja = (cabos()[selC].vinculoEstruturas || []).includes(ie); if (ok || ja) cls += ' glow'; else { dim = true; tip = motivo; } }
-            const nome = r.codigo || '?', info = infoEst(ie);
-            const ebox = el('div', { class: cls, 'data-e': ie, onclick: () => clicar('e', ie), oncontextmenu: e => { if (!eqp) menuEstrutura(e, ie); }, title: tip || (o.ativo || '') }, [nome]);
-            const sub = eqp ? (r.erros.length ? '✖ ' + r.erros[0] : `lê do poste ${(r.le_do_poste && r.le_do_poste.poste) || ''}: ${r.le_do_poste && r.le_do_poste.cabos.length ? r.le_do_poste.cabos.join(', ') : 'nenhum cabo' + (r.avisos.length ? ' (' + r.avisos[0] + ')' : '')}`) : r.erros.length ? '✖ ' + r.erros[0] : (info.regra === null ? 'sem regra na Tabela de Estruturas' : (info.lados === 'IGUAIS' ? `exige ${info.qtd || ''} cabos iguais` : (info.amarracao ? 'amarração' : `${info.qtd || ''} cabo(s)`)));
-            return el('div', { class: 'vz-bloco' + (dim ? ' vz-dim' : '') }, [ebox,
-                el('div', { class: 'vz-info' }, [el('div', { class: 'a', style: r.estado === 'rd' ? 'color:#f85149' : '', text: `${r.tem}${r.precisa ? '/' + faixaCabos(r) : ''}${r.valor_cabo ? ' · tipocabo=' + r.valor_cabo : ''}${r.ficticios ? ' · ' + r.ficticios + ' fictício' : ''}` }), el('div', { class: 'b', text: sub, title: sub })])]);
-        };
-        const grupos = [], porLinha = {};
-        ests.forEach(ie => { const l = linhaDe(ie); if (!(l in porLinha)) { porLinha[l] = { l, ids: [] }; grupos.push(porLinha[l]); } porLinha[l].ids.push(ie); });
-        grupos.forEach(g => {
-            const o = outros()[g.l], soPoste = host.linhaSoPoste(o.ativo), postes = host.postesDaLinha(o.ativo);
-            if (soPoste && !g.ids.some(ie => cabos().some(c => (c.vinculoEstruturas || []).includes(ie)))) return;          // poste sem estrutura e sem cabo ligado: não aparece
-            const blocos = g.ids.map(ie => bloco(ie, o)).filter(Boolean);
-            if (!blocos.length) return;
-            colE.appendChild(el('div', { class: 'vz-prow' }, [el('div', { class: 'vz-blocos' }, blocos),
-                postes.length && !soPoste ? el('span', { class: 'vz-pbtn', title: 'poste da linha (não vincula): ' + (o.ativo || ''), text: postes.join(' ') }) : null]));
-            g.ids.forEach(ie => ficticiosDe(ie).forEach((cod, k) => ficticiosLista.push({ ie, cod, k })));
-        });
-        ficticiosLista.forEach(f => colC.appendChild(el('div', { class: 'vz-card fic', 'data-f': f.ie + '|' + f.k }, [el('span', { class: 'vz-op', text: 'I' }),
-            el('div', {}, [el('div', { class: 't' }, [f.cod + ' ', el('span', { style: 'font-size:10px;font-weight:800;color:#a371f7;background:#a371f733;border-radius:4px;padding:1px 6px', text: 'FICTÍCIO' })]),
-                el('div', { class: 's', text: 'sem comprimento · só preenche a lacuna' })]),
-            el('div', { class: 'r', style: 'color:#a371f7;cursor:pointer', text: '✎ remover', onclick: ev => { ev.stopPropagation(); host.antes(); const l = ficticiosDe(f.ie).slice(); l.splice(f.k, 1); gravarFicticios(f.ie, l); render(); } })])));
-        const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'vz-liga');
-        cols.appendChild(colC); cols.appendChild(el('div')); cols.appendChild(colE); cols.appendChild(svg);
-        sc.appendChild(cols); corpo.appendChild(sc);
-        const desenhar = () => desenharLinhas(cols, svg, a);
-        raiz.requestAnimationFrame(desenhar);
-        sc.addEventListener('scroll', () => {}, { passive: true });
+        painel.refazer();
     }
 
-    function desenharLinhas(cols, svg, a) {
-        const ar = cols.getBoundingClientRect();
-        svg.setAttribute('width', cols.scrollWidth); svg.setAttribute('height', cols.scrollHeight);
-        let h = '';
-        const pt = (elm, lado) => { const r = elm.getBoundingClientRect(); if (lado === 't') return [(r.left + r.right) / 2 - ar.left, r.top - ar.top]; return [(lado === 'r' ? r.right : r.left) - ar.left, r.top + r.height / 2 - ar.top]; };      // 't' (TASK-094): a linha chega por cima nas estruturas que não são a 1ª do poste, sem cruzar a vizinha
-        const curva = (p, q) => { const mx = (p[0] + q[0]) / 2; return `M${p[0]},${p[1]} C${mx},${p[1]} ${mx},${q[1]} ${q[0]},${q[1]}`; };
-        a.links.forEach(l => {
-            const ce = cols.querySelector(`[data-c="${l.cabo}"]`), ee = cols.querySelector(`[data-e="${l.estrutura}"]`);
-            if (!ce || !ee) return;
-            const p = pt(ce, 'r'), q = pt(ee, slotDe(l.estrutura) > 0 ? 't' : 'l'), est = a.cabos[l.cabo].estado;
-            const cor = !l.ok || est === 'rd' ? '#f85149' : (est === 'gr' ? '#3fb950' : '#a371f7');
-            const d = curva(p, q);
-            h += `<path d="${d}" fill="none" stroke="${cor}" stroke-width="2.5" ${l.ok ? '' : 'stroke-dasharray="6 4"'}/><circle cx="${p[0]}" cy="${p[1]}" r="4" fill="${cor}"/><circle cx="${q[0]}" cy="${q[1]}" r="4" fill="${cor}"/>`;
-            h += `<path class="hit" d="${d}" data-lc="${l.cabo}" data-le="${l.estrutura}"><title>${esc(l.motivo || 'clique para desfazer o vínculo')}</title></path>`;
+    // ── ABA: CABOS ⇄ POSTES (TASK-185) ──
+    // O usuário só diz a que poste(s) cada cabo chega; o algoritmo por poste (o mesmo da obra do plugin) escolhe a estrutura de cada poste que recebe o cabo.
+    function atribuirPoste(ic, l) {
+        ctx();
+        const cb = cabos()[ic], info = infoCabo(ic), at = VR.postesAtribuidos(cb), ja = at.includes(l);
+        if (!info.vincula) { toast(`O cabo ${info.codigo} não vincula (acompanha o cabo principal).`); return; }
+        if (!ja && at.length >= info.pontas) { toast(`O cabo ${info.codigo} já chega a ${info.pontas} poste(s); remova um antes.`); return; }
+        host.antes();
+        const nova = ja ? at.filter(x => x !== l) : at.concat([l]);
+        if (nova.length) cb.vinculoPostes = nova;
+        else { delete cb.vinculoPostes; if (cb.vinculoOrigem === 'poste') { cb.vinculoEstruturas = []; delete cb.vinculoOrigem; } }
+        st.sel = null;
+        if (st.auto) aplicarAlgoritmoPoste();
+        atualizar();
+    }
+    function aplicarAlgoritmoPoste() {
+        const r = VR.vincularPorPoste(cabos(), outros(), st.cfg, host.prefixoCabo, host.codigoEstrutura, host.codigosEstrutura, undefined, true);
+        st.resultadoPoste = r;
+        return r;
+    }
+    function textoResumoPoste() {
+        const s = st.resultadoPoste && st.resultadoPoste.resumo;
+        return s ? `${s.completos} cabo(s) completo(s) · ${s.parciais} parcial(is) · ${s.estruturas_incompletas} estrutura(s) incompleta(s)` : '';
+    }
+
+    function abaCabosPostes(corpo) {
+        const filtros = [['todos', 'Todos'], ['sem', 'Sem poste'], ['pend', 'Pendentes']];
+        if (!filtros.some(f => f[0] === st.filtroCP)) st.filtroCP = 'todos';
+        const res = el('span', { style: 'color:#8b949e;font-size:11px', text: textoResumoPoste() });
+        const chips = filtros.map(([id, nome]) => el('span', { class: 'vz-chip btn' + (st.filtroCP === id ? ' on' : ''), text: nome, onclick: () => { st.filtroCP = id; chips.forEach((c, i) => c.classList.toggle('on', filtros[i][0] === id)); painel.refazer(); } }));
+        const auto = el('input', { type: 'checkbox', onchange: e => { st.auto = e.target.checked; if (st.auto) { host.antes(); aplicarAlgoritmoPoste(); res.textContent = textoResumoPoste(); atualizar(); } } });
+        auto.checked = st.auto;
+        corpo.appendChild(el('div', { style: 'display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap' }, chips.concat([
+            el('label', { style: 'display:flex;gap:5px;align-items:center;color:#c9d1d9;font-size:12px;cursor:pointer', title: 'Cada vez que você liga um cabo a um poste, o algoritmo do poste já escolhe as estruturas.' }, [auto, 'Vincular as estruturas automaticamente']),
+            el('button', { class: 'vz-btn b', text: '🏗️ Vincular estruturas agora', title: 'Roda o algoritmo por poste (Ctrl+Z desfaz)', onclick: () => { host.antes(); const r = aplicarAlgoritmoPoste(), s = r.resumo; res.textContent = textoResumoPoste(); toast(`Por poste: ${s.completos} completo(s), ${s.parciais} parcial(is), ${s.sem_vinculo} sem vínculo (Ctrl+Z desfaz).`); atualizar(); } }),
+            res, el('span', { style: 'margin-left:auto;color:#8b949e;font-size:11px', text: 'Clique no cabo e no poste (ou o contrário) · clique na linha: desfazer · botão direito no cabo: limpar' })])));
+        st.elRes = res;
+        painel = criarPainel(corpo, {
+            tituloE: 'Cabos', tituloD: 'Postes — a estrutura de cada um é escolhida pelo algoritmo',
+            itens() {
+                const k = ctx(), a = k.a, chave = 'p|' + st.filtroCP;
+                if (k.it[chave]) return k.it[chave];
+                const esq = [], dir = [], links = [], eDe = {}, dDe = {}, C = cabos(), O = outros(), cont = {};
+                C.forEach(cb => { if (VR.ehCaboValido(cb)) VR.postesAtribuidos(cb).forEach(l => { cont[l] = (cont[l] || 0) + 1; }); });
+                let yE = 0, yD = 0;
+                C.forEach((cb, ic) => {
+                    if (!VR.ehCaboValido(cb)) return;
+                    const r = a.cabos[ic], at = VR.postesAtribuidos(cb);
+                    if (st.filtroCP === 'sem' && at.length) return;
+                    if (st.filtroCP === 'pend' && r.estado === 'gr') return;
+                    eDe[ic] = esq.length; esq.push({ t: 'c', ic, y: yE, h: RH }); yE += RH;
+                });
+                const ests = VR.estruturasDisponiveis(O, host.codigoEstrutura, host.codigosEstrutura), grupos = [], porLinha = {};
+                ests.forEach(ie => { const l = linhaDe(ie); if (!(l in porLinha)) { porLinha[l] = { l, ids: [] }; grupos.push(porLinha[l]); } porLinha[l].ids.push(ie); });
+                grupos.forEach(g => {
+                    const mm = metaDe(g.l), m = mm.postes;
+                    if (mm.soPoste) return;                                                              // linha só com poste (sem estrutura): não há o que o algoritmo ligar
+                    dir.push({ t: 'p', l: g.l, ids: g.ids, n: cont[g.l] || 0, label: m.length ? m.join(' ') : (O[g.l].ativo || ''), y: yD, h: RH }); dDe[g.l] = dir.length - 1; yD += RH;
+                });
+                C.forEach((cb, ic) => {
+                    if (eDe[ic] === undefined) return;
+                    const est = a.cabos[ic].estado;
+                    VR.postesAtribuidos(cb).forEach(l => { if (dDe[l] !== undefined) links.push({ e: eDe[ic], d: dDe[l], slot: 0, cor: COR_T[est] === COR_T.k ? '#58a6ff' : COR_T[est], motivo: 'clique para tirar o cabo deste poste', hit: `data-lc="${ic}" data-lp="${l}"` }); });
+                });
+                return (k.it[chave] = { esq, dir, links, hE: yE, hD: yD });
+            },
+            htmlE(it) {
+                const k = cx, c = cabos()[it.ic], r = k.a.cabos[it.ic], at = VR.postesAtribuidos(c), info = infoCabo(it.ic);
+                const selC = st.sel && st.sel.t === 'c' ? st.sel.i : null, selP = st.sel && st.sel.t === 'p' ? st.sel.i : null;
+                let cls = 'vl-cab' + CORES[r.estado] + (selC === it.ic ? ' sel' : ''), tip = '';
+                if (selP !== null) { if (at.includes(selP) || (info.vincula && at.length < info.pontas)) cls += ' glow'; else { cls += ' vl-dim'; tip = info.vincula ? 'o cabo já chega ao máximo de postes' : 'cabo que não vincula'; } }
+                const op = trim(c.operacao).toUpperCase(), nomes = at.map(l => (postesDe(l).length ? postesDe(l).join(' ') : '#' + (l + 1))).join(' · ');
+                const es = (c.vinculoEstruturas || []).map(ie => codigoDe(ie)).filter(Boolean).join(' · ');
+                return `<div class="${cls}" data-c="${it.ic}" style="top:${it.y}px;height:${it.h - 4}px" title="${esc(tip || c.ativo || '')}"><span class="vz-op${opClasse(op)}">${esc(op || 'I')}</span><span class="t">${esc(c.ativo || '')}</span>`
+                    + `<span class="pp">${nomes ? '⇒ ' + esc(nomes) : (info.vincula ? '—' : 'não vincula')}</span><span class="r" style="color:${COR_T[r.estado]}">${es ? esc(es) : ''}</span></div>`;
+            },
+            htmlD(it) {
+                const k = cx, a = k.a, o = outros()[it.l], selC = st.sel && st.sel.t === 'c' ? st.sel.i : null, selP = st.sel && st.sel.t === 'p' ? st.sel.i : null;
+                let cls = 'vl-pst';
+                if (selC !== null) { const cb = cabos()[selC], at = VR.postesAtribuidos(cb), info = infoCabo(selC); if (at.includes(it.l) || (info.vincula && at.length < info.pontas)) cls += ' glow'; else cls += ' vl-dim'; }
+                let h = `<div class="${cls}${selP === it.l ? ' sel' : ''}" data-p="${it.l}" style="top:${it.y}px;height:${it.h - 4}px;cursor:pointer" title="${esc(o.ativo || '')}"><span class="lab">${esc(it.label)}</span>`;
+                it.ids.forEach((ie, kk) => { const r = a.estruturas[ie], eqp = r.ocupa === false; h += `<div class="vl-chip${eqp ? ' eqp' : CORES[r.estado]}" style="left:${LAB + kk * (CW + CG)}px;cursor:inherit" title="${esc(r.codigo || '')}"><b>${esc(r.codigo || '?')}</b>${eqp ? '' : `<i>${r.tem}${r.precisa ? '/' + faixaCabos(r) : ''}</i>`}</div>`; });
+                return h + `<span class="pp" style="margin-left:auto;padding-right:8px;font-size:10.5px;color:${it.n ? '#58a6ff' : '#6e7681'}">${it.n} cabo(s)</span></div>`;
+            },
+            clique(ev) {
+                const t = ev.target, hit = t.closest && t.closest('path.hit');
+                if (hit) { atribuirPoste(Number(hit.getAttribute('data-lc')), Number(hit.getAttribute('data-lp'))); return; }
+                const c = attrNum(t, 'data-c'), p = c === null ? attrNum(t, 'data-p') : null, tipo = c !== null ? 'c' : (p !== null ? 'p' : null);
+                if (!tipo) return;
+                const i = c !== null ? c : p;
+                if (st.sel && st.sel.t !== tipo) { const ic = tipo === 'c' ? i : st.sel.i, l = tipo === 'p' ? i : st.sel.i; atribuirPoste(ic, l); return; }
+                st.sel = (st.sel && st.sel.t === tipo && st.sel.i === i) ? null : { t: tipo, i };
+                painel.pintar(true);
+            },
+            menu(ev) {
+                const c = attrNum(ev.target, 'data-c'); if (c === null) return;
+                ctx(); const cb = cabos()[c];
+                abrirMenu(ev, [{ hd: 'Cabo ' + (cb.ativo || '') }, VR.postesAtribuidos(cb).length ? { t: 'Tirar este cabo dos postes', fn: () => { host.antes(); delete cb.vinculoPostes; if (cb.vinculoOrigem === 'poste') { cb.vinculoEstruturas = []; delete cb.vinculoOrigem; } if (st.auto) aplicarAlgoritmoPoste(); atualizar(); } } : { t: 'Cabo sem poste atribuído', off: true }]);
+            }
         });
-        cols.querySelectorAll('[data-f]').forEach(fe => {
-            const [ie] = fe.getAttribute('data-f').split('|'), ee = cols.querySelector(`[data-e="${ie}"]`);
-            if (!ee) return;
-            const p = pt(fe, 'r'), q = pt(ee, slotDe(Number(ie)) > 0 ? 't' : 'l');
-            h += `<path d="${curva(p, q)}" fill="none" stroke="#a371f7" stroke-width="2.5" stroke-dasharray="3 5"/><circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#a371f7"/><circle cx="${q[0]}" cy="${q[1]}" r="4" fill="#a371f7"/>`;
-        });
-        svg.innerHTML = h;
-        svg.querySelectorAll('path.hit').forEach(pth => pth.addEventListener('click', () => ligar(Number(pth.getAttribute('data-lc')), Number(pth.getAttribute('data-le')))));
+        painel.refazer();
     }
 
     // ── tabelas editáveis (Cabos / Estruturas) ──
