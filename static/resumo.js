@@ -60,14 +60,35 @@ document.addEventListener('DOMContentLoaded', () => {
        a célula fica vermelha com o aviso e o valor volta ao anterior. O campo tem a lista (datalist) para quem prefere escolher. */
     const MSG_OPERACAO_INVALIDA = 'Operação inválida: use I, *I, R, *R, M ou *M';
     const normalizarOperacao = t => String(t == null ? '' : t).replace(/\s+/g, '').toUpperCase();
-    function datalistOperacoes() {
-        if (!document.getElementById('dl-operacoes')) {
-            const d = document.createElement('datalist'); d.id = 'dl-operacoes';
-            OPERACOES.forEach(v => d.appendChild(new Option(v)));
-            document.body.appendChild(d);
-        }
-        return 'dl-operacoes';
+    const DETALHE_OPERACAO = { 'I': 'instalar', '*I': 'instalar em linha viva', 'R': 'remover', '*R': 'remover em linha viva', 'M': 'manter', '*M': 'manter em linha viva' };
+    const ehCampoOperacao = el => !!(el && el.matches && el.matches('input.inp-operacao, input.tot-op-input'));
+    /* Lista de operações no estilo do VS Code (static/ide_lista.js): ao entrar no campo aparecem TODAS (a atual selecionada); digitar filtra; ↑↓ navegam; Enter/Tab escolhem; Esc fecha. */
+    let _listaOp = null;
+    function listaOperacao() {
+        return _listaOp || (_listaOp = window.IdeLista.criar({ aoEscolher: (item, campo) => { campo.value = item.valor; campo.dispatchEvent(new Event('change', { bubbles: true })); } }));
     }
+    function abrirListaOperacao(inp, filtrar) {
+        if (!window.IdeLista || inp.readOnly || inp.disabled) return;
+        const q = filtrar ? normalizarOperacao(inp.value) : '';
+        const itens = OPERACOES.filter(v => !q || v.startsWith(q)).map(v => ({ valor: v, detalhe: DETALHE_OPERACAO[v] }));
+        const atual = normalizarOperacao(inp.dataset.valorOk || inp.value);
+        listaOperacao().abrir(inp, itens, q ? (itens.length ? 0 : -1) : itens.findIndex(x => x.valor === atual));
+    }
+    document.addEventListener('focusin', e => { if (ehCampoOperacao(e.target) && !e.target.readOnly) { e.target.select(); abrirListaOperacao(e.target, false); } });
+    document.addEventListener('click', e => { if (ehCampoOperacao(e.target) && window.IdeLista && !listaOperacao().aberta()) abrirListaOperacao(e.target, false); });
+    document.addEventListener('input', e => { if (ehCampoOperacao(e.target)) abrirListaOperacao(e.target, true); });
+    document.addEventListener('keydown', e => {
+        if (!ehCampoOperacao(e.target) || !window.IdeLista) return;
+        const l = listaOperacao();
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault(); e.stopPropagation();
+            if (!l.aberta()) abrirListaOperacao(e.target, false); else l.mover(e.key === 'ArrowDown' ? 1 : -1);
+        } else if ((e.key === 'Enter' || e.key === 'Tab') && l.aberta() && l.indice() >= 0 && !e.shiftKey) {
+            e.preventDefault(); e.stopPropagation();
+            l.escolherAtual();
+        } else if (e.key === 'Enter' || e.key === 'Escape') l.fechar();
+    }, true);
+    document.addEventListener('focusout', e => { if (ehCampoOperacao(e.target)) setTimeout(() => { if (window.IdeLista && document.activeElement !== listaOperacao().doCampo()) listaOperacao().fechar(); }, 120); });
     /** Marca a célula como inválida por alguns segundos (vermelho + aviso no título) e devolve o valor anterior. */
     function recusarOperacao(inp, anterior) {
         inp.value = anterior;
@@ -83,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function criarCampoOperacao(valor, classe, aoMudar) {
         const inp = document.createElement('input');
         inp.type = 'text'; inp.className = classe; inp.value = valor; inp.dataset.valorOk = valor;
-        inp.setAttribute('list', datalistOperacoes()); inp.autocomplete = 'off'; inp.spellcheck = false; inp.maxLength = 4;
+        inp.autocomplete = 'off'; inp.spellcheck = false; inp.maxLength = 4;
         inp.setAttribute('aria-label', 'Operação: I, *I, R, *R, M ou *M');
         inp.title = 'Operação: I, *I, R, *R, M ou *M — digite ou escolha na lista';
         inp.addEventListener('change', () => {
@@ -1083,6 +1104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         alvos.forEach(i => { if (poe) dados[i][campo] = true; else delete dados[i][campo]; });
         limparGrade();
         renderTable(tipo);
+        restaurarSelecaoLinhas(tipo, alvos);
         buildAtivoSets(); buildDataLists();
         refreshAllFilters(tipo);
         atualizarResumoRedeUI();
@@ -1099,11 +1121,31 @@ document.addEventListener('DOMContentLoaded', () => {
         alvos.forEach(i => { if (poe) { dados[i].comentario = true; dados[i].congelada = true; } else { delete dados[i].comentario; delete dados[i].congelada; if (comecaComHash(dados[i].ativo)) dados[i].ativo = String(dados[i].ativo).replace(/^\s*#\s?/, ''); } });
         limparGrade();
         renderTable(tipo);
+        restaurarSelecaoLinhas(tipo, alvos);
         buildAtivoSets(); buildDataLists();
         refreshAllFilters(tipo);
         atualizarResumoRedeUI();
         showToast(`${alvos.length} linha(s) ${poe ? 'viraram comentário' : 'voltaram ao normal'}. Ctrl+Z desfaz.`);
     }
+    /** Depois de redesenhar a tabela, mantém selecionadas as linhas que o usuário marcou (assim ❄/💬/🔒 podem ser desfeitos no mesmo grupo). */
+    function restaurarSelecaoLinhas(tipo, idxs) {
+        const body = document.getElementById(tableStates[tipo].bodyId);
+        Array.from(body.querySelectorAll('tr[data-index]')).forEach(tr => { if (idxs.includes(parseInt(tr.dataset.index))) tr.classList.add('row-selected'); });
+    }
+    /** Botões ❄ 💬 🔒 do cabeçalho da tabela: agem nas linhas selecionadas (clique no número da linha) ou, sem seleção, na linha onde está o cursor. */
+    function linhasParaMarcar(tipo) {
+        const body = document.getElementById(tableStates[tipo].bodyId);
+        const sel = Array.from(body.querySelectorAll('tr.row-selected')).map(tr => parseInt(tr.dataset.index)).filter(i => !isNaN(i));
+        if (sel.length) return sel;
+        const a = document.activeElement, tr = a && a.closest ? a.closest('tr[data-index]') : null;
+        return tr && body.contains(tr) ? [parseInt(tr.dataset.index)] : [];
+    }
+    ['cabos', 'outros'].forEach(tipo => {
+        const ligar = (id, fn) => { const b = document.getElementById(id); if (b) b.addEventListener('mousedown', e => e.preventDefault()); if (b) b.addEventListener('click', () => { const idxs = linhasParaMarcar(tipo); if (!idxs.length) { showToast('Selecione linhas (clique no número) ou posicione o cursor numa linha.'); return; } fn(tipo, idxs); }); };
+        ligar('btn-congelar-' + tipo, (t, i) => alternarMarcaLinhas(t, i, 'congelada'));
+        ligar('btn-bloquear-' + tipo, (t, i) => alternarMarcaLinhas(t, i, 'bloqueada'));
+        ligar('btn-comentar-' + tipo, (t, i) => alternarComentario(t, i));
+    });
     function showCtxMenu(x, y) {
         const itemEnt = document.getElementById('ctx-entidade');
         if (itemEnt) itemEnt.style.display = ctxType === 'outros' ? '' : 'none';
@@ -6383,7 +6425,6 @@ window.syncTotalizadora = async function(forceUpdate = true) {
 };
 
 window.renderTotalizadora = function() {
-    datalistOperacoes();                                            // a lista (datalist) que o campo Operação usa
     const tbody = document.getElementById('body-totalizadora');
     const emptyMsg = document.getElementById('tot-empty-msg');
     
@@ -6409,7 +6450,7 @@ window.renderTotalizadora = function() {
             <td style="font-weight: bold; color: var(--text-secondary); text-align: center;">${row.id}</td>
             <td><input type="text" class="tot-input" value="${row.obs || ''}" onchange="updateTotRow(${index}, 'obs', this.value)"></td>
             <td>
-                <input type="text" class="tot-input tot-op-input" style="text-align: center;" list="dl-operacoes" maxlength="4" autocomplete="off" spellcheck="false" aria-label="Operação: I, *I, R, *R, M ou *M" title="Operação: I, *I, R, *R, M ou *M — digite ou escolha na lista" value="${row.operacao || ''}" onchange="validarOperacaoTot(this, ${index})">
+                <input type="text" class="tot-input tot-op-input" style="text-align: center;" maxlength="4" autocomplete="off" spellcheck="false" aria-label="Operação: I, *I, R, *R, M ou *M" title="Operação: I, *I, R, *R, M ou *M — digite ou escolha na lista" value="${row.operacao || ''}" onchange="validarOperacaoTot(this, ${index})">
             </td>
             <td><input type="text" class="tot-input tot-ativo-input" data-par-tipo="tot" data-par-idx="${index}" value="${row.ativo || ''}" onchange="updateTotRow(${index}, 'ativo', this.value)" onkeydown="handleTotKeydown(event, ${index}, 'ativo')" onpaste="handleTotPaste(event, ${index})"></td>
             <td><input type="number" step="0.01" class="tot-input" style="width: 70px; text-align: center;" value="${row.qtd !== undefined && row.qtd !== null ? row.qtd : ''}" onchange="updateTotRow(${index}, 'qtd', this.value)" onkeydown="handleTotKeydown(event, ${index}, 'qtd')" onpaste="handleTotPaste(event, ${index})"></td>

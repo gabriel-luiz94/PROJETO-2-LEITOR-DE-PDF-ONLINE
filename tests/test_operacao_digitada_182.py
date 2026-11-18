@@ -18,7 +18,7 @@ def test_uma_fonte_unica_da_lista_e_nenhum_select_de_operacao_sobrou():
     assert "criarCampoOperacao(" in JS and JS.count("criarCampoOperacao(") >= 3                  # tabelas, linha em branco e a definição
     assert "document.createElement('select');\n            selOp.className = 'sel-operacao'" not in JS
     assert 'class="tot-input" style="text-align: center;" onchange="updateTotRow(${index}, \'operacao\'' not in JS      # a Totalizadora também é campo de texto
-    assert "validarOperacaoTot" in JS and "dl-operacoes" in JS
+    assert "validarOperacaoTot" in JS and "IdeLista" in JS and "dl-operacoes" not in JS            # lista no estilo VS Code (ide_lista.js), não o datalist que filtrava pelo valor atual
 
 
 @pytest.mark.skipif(not NODE, reason="node indisponível")

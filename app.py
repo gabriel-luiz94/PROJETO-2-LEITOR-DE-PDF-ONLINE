@@ -256,6 +256,11 @@ async def serve_ativo_compacto_js():
     return _serve_js("ativo_compacto.js")
 
 
+@app.get("/static/ide_lista.js")
+async def serve_ide_lista_js():
+    return _serve_js("ide_lista.js")
+
+
 @app.get("/static/base_explica.js")
 async def serve_base_explica_js():
     return _serve_js("base_explica.js")

@@ -139,6 +139,9 @@
             cursor: pointer; transition: all 0.18s;
             font-family: 'Inter', sans-serif;
         }
+        .grupo-marcas { display: inline-flex; gap: 2px; margin: 0 2px; }
+        .btn-marca-linha { background: rgba(110,118,129,0.12); border: 1px solid rgba(110,118,129,0.35); border-radius: 7px; color: #c9d1d9; padding: 5px 8px; font-size: 0.8rem; line-height: 1; cursor: pointer; transition: all 0.18s; }
+        .btn-marca-linha:hover { background: rgba(121,192,255,0.18); border-color: #58a6ff; }
         .btn-del-row-bulk:hover { background: rgba(255,123,114,0.25); border-color: #ff7b72; }
 
         .btn-copy-table {
@@ -804,7 +807,7 @@
                     </section>
                     <section class="painel-sec"><h4>Aparência</h4>
                         <div class="painel-linha"><button class="btn-secondary" id="btn-restaurar-layout" type="button" title="Volta painéis, tabelas e layout ao padrão">↺ Restaurar layout padrão</button></div>
-                        <details class="painel-avancado" id="cfg-avancado"><summary>Avançado</summary>
+                        <details class="painel-avancado" id="cfg-avancado" open><summary>Avançado</summary>
                             <div class="painel-linha cfg-chave" title="Verde = todos os parâmetros do ativo preenchidos · Laranja = falta algum. Só na tela, não altera dados nem relatórios."><button type="button" class="cfg-switch" id="cfg-colorir-params" role="switch" aria-checked="false" aria-label="Colorir ativos por parâmetros"><i></i></button><span>Colorir ativos por parâmetros</span></div>
                             <div class="painel-linha cfg-chave" title="Ao sair da linha, o ativo mostra só o nome (PR(D,X) vira PR). Passe o mouse para ver os parâmetros; o que foi preenchido à mão aparece como manual. Só na tela, não altera dados nem relatórios."><button type="button" class="cfg-switch" id="cfg-ocultar-params" role="switch" aria-checked="false" aria-label="Ocultar parâmetros ao sair da linha"><i></i></button><span>Ocultar parâmetros ao sair da linha</span></div>
                             <div class="cfg-nota">Verde = todos os parâmetros preenchidos · Laranja = falta algum. Só na tela.</div>
@@ -844,6 +847,11 @@
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                             Copiar
                         </button>
+                        <span class="grupo-marcas" role="group" aria-label="Marcar linhas">
+                            <button class="btn-marca-linha" id="btn-congelar-cabos" type="button" title="Congelar/descongelar as linhas selecionadas (ficam na tela, mas fora dos cálculos)">❄</button>
+                            <button class="btn-marca-linha" id="btn-comentar-cabos" type="button" title="Marcar/tirar comentário nas linhas selecionadas (anotação fora dos cálculos; também vale começar o ativo com #)">💬</button>
+                            <button class="btn-marca-linha" id="btn-bloquear-cabos" type="button" title="Bloquear/desbloquear as linhas selecionadas (sem edição nem exclusão)">🔒</button>
+                        </span>
                         <button class="btn-del-row-bulk" id="btn-clear-cabos" title="Limpar Tudo">
                             Limpar Tudo
                         </button>
@@ -897,6 +905,11 @@
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                             Copiar
                         </button>
+                        <span class="grupo-marcas" role="group" aria-label="Marcar linhas">
+                            <button class="btn-marca-linha" id="btn-congelar-outros" type="button" title="Congelar/descongelar as linhas selecionadas (ficam na tela, mas fora dos cálculos)">❄</button>
+                            <button class="btn-marca-linha" id="btn-comentar-outros" type="button" title="Marcar/tirar comentário nas linhas selecionadas (anotação fora dos cálculos; também vale começar o ativo com #)">💬</button>
+                            <button class="btn-marca-linha" id="btn-bloquear-outros" type="button" title="Bloquear/desbloquear as linhas selecionadas (sem edição nem exclusão)">🔒</button>
+                        </span>
                         <button class="btn-del-row-bulk" id="btn-clear-outros" title="Limpar Tudo">
                             Limpar Tudo
                         </button>
@@ -1783,6 +1796,7 @@
     <script src="/static/ativo_status.js"></script>
     <script src="/static/base_sinal.js"></script>
     <script src="/static/ativo_compacto.js"></script>
+    <script src="/static/ide_lista.js"></script>
     <script src="/static/ativo_na_base.js"></script>
     <script src="/static/avulsos_ficticia.js"></script>
     <script src="/static/obra_params.js"></script>
