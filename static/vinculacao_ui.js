@@ -36,6 +36,7 @@
     .vl-chip i{font-style:normal;font-weight:600;font-size:10px;color:#8b949e}.vl-chip.eqp{border-style:dashed;background:#161b22;color:#8b949e;cursor:default}.vl-chip.pu{border-color:#a371f7;background:#1d1537}.vl-chip.gr{border-color:#3fb950;background:#0f2a17}.vl-chip.rd{border-color:#f85149;background:#3a1216}
     .vl-chip.poste{position:static;width:auto;min-width:84px;padding:0 8px;margin:2px 3px}
     .vl-box{position:relative;flex:1;min-height:0;overflow:auto;will-change:transform;contain:layout paint}.vl-in{position:relative;min-width:var(--mw,1300px)}.vl-hd{display:flex;gap:0;font-size:11px;letter-spacing:.08em;color:#8b949e;text-transform:uppercase;padding:0 0 6px}
+    .vl-ach{max-height:92px;overflow:auto;margin-top:8px;padding:6px 10px;border:1px solid #30363d;border-radius:8px;background:#161b22;font-size:11px;color:#8b949e}.vl-ach b{color:#d29922}.vl-ach .a{padding:1px 0}.vl-ach .a.incompleta,.vl-ach .a.sobra{color:#c9d1d9}
     .vl-liga{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}.vl-liga path.hit{pointer-events:stroke;cursor:pointer;stroke:transparent;stroke-width:10;fill:none}
     .vz-op{font-size:11px;font-weight:700;border-radius:4px;padding:1px 6px;background:#1f6feb33;color:#58a6ff}.vz-op.m{background:#d2992233;color:#d29922}.vz-op.r{background:#f8514933;color:#f85149}
     .vz-menu{position:fixed;background:#1c2230;border:1px solid #484f58;border-radius:8px;padding:6px;min-width:260px;max-width:380px;z-index:9100;box-shadow:0 10px 30px rgba(0,0,0,.6);font-size:12px}
@@ -107,9 +108,9 @@
         if (!cfg) {
             try { const r = await fetch('/api/vinculacao-config?projeto_codigo=' + encodeURIComponent(host.projeto())); cfg = r.ok ? (await r.json()).config : null; } catch (e) { cfg = null; }
         }
-        st = { cfg: clone(VR.normalizarConfig(cfg)), aba: (opcoes && opcoes.aba) || 'vinculo', sel: null, filtro: 'todos', filtroCP: 'todos', auto: true, cfgVer: 0, resultadoPoste: null, elRes: null, dirty: false, scriptIdx: 0, previa: null, textoScript: null, erroScript: '', teste: {} };
+        st = { cfg: clone(VR.normalizarConfig(cfg)), aba: (opcoes && opcoes.aba) || 'vinculo', sel: null, filtro: 'todos', filtroCP: 'todos', kbModo: 'c', kbP: null, elAch: null, auto: true, cfgVer: 0, resultadoPoste: null, elRes: null, dirty: false, scriptIdx: 0, previa: null, textoScript: null, erroScript: '', teste: {} };
         if (!overlay) {
-            overlay = el('div', { class: 'vz-ov', onkeydown: e => { if (e.key === 'Escape') { if (menuAberto) fecharMenu(); else fechar(); } } });
+            overlay = el('div', { class: 'vz-ov', onkeydown: e => { if (tecladoCabosPostes(e)) return; if (e.key === 'Escape') { if (menuAberto) fecharMenu(); else fechar(); } } });
             overlay.setAttribute('tabindex', '-1');
             doc.body.appendChild(overlay);
         }
@@ -145,7 +146,7 @@
     function render() {
         fecharMenu();
         if (painel) { painel.destruir(); painel = null; }
-        st.elRes = null;
+        st.elRes = null; st.elAch = null;
         const a = analise();
         const pend = Object.values(a.cabos).filter(c => c.estado !== 'gr').length + Object.values(a.estruturas).filter(e => e.estado === 'k' || e.estado === 'pu').length;
         overlay.innerHTML = '';
@@ -208,6 +209,7 @@
         const b = overlay.querySelector('#vz-pend');
         if (b) { const pend = Object.values(k.a.cabos).filter(c => c.estado !== 'gr').length + Object.values(k.a.estruturas).filter(e => e.estado === 'k' || e.estado === 'pu').length; b.textContent = pend ? pend + ' pend.' : ''; b.style.display = pend ? '' : 'none'; }
         if (st.elRes) st.elRes.textContent = textoResumoPoste();
+        atualizarAchados();
     }
 
     function ligar(ic, ie) {
@@ -345,7 +347,7 @@
         inn.addEventListener('click', ev => def.clique(ev));
         inn.addEventListener('contextmenu', ev => def.menu(ev));
         if (raiz.ResizeObserver) { ro = new raiz.ResizeObserver(() => pintar(true)); ro.observe(box); }
-        return { refazer, pintar: f => pintar(f !== false), box, destruir() { if (ro) ro.disconnect(); if (raf) raiz.cancelAnimationFrame(raf); } };
+        return { refazer, pintar: f => pintar(f !== false), box, dados: () => dados, rolarPara(y, h) { if (y < box.scrollTop) box.scrollTop = Math.max(0, y - 8); else if (y + h > box.scrollTop + box.clientHeight) box.scrollTop = y + h - box.clientHeight + 8; }, destruir() { if (ro) ro.disconnect(); if (raf) raiz.cancelAnimationFrame(raf); } };
     }
 
     const metaDe = l => { const at = outros()[l].ativo || '', m = metaAtivo.get(at); if (m) return m; const n = { soPoste: host.linhaSoPoste(at), postes: host.postesDaLinha(at) }; metaAtivo.set(at, n); return n; };
@@ -379,7 +381,7 @@
         painel = criarPainel(corpo, {
             tituloE: 'Cabos', tituloD: 'Estruturas — um poste por linha',
             itens() {
-                const k = ctx(), a = k.a, chave = 'v|' + st.filtro;
+                const k = cx || ctx(), a = k.a, chave = 'v|' + st.filtro;
                 if (k.it[chave]) return k.it[chave];
                 const esq = [], dir = [], links = [], eDe = {}, dDe = {}, fict = [], C = cabos(), O = outros();
                 let yE = 0, yD = 0;
@@ -479,6 +481,42 @@
         return s ? `${s.completos} cabo(s) completo(s) · ${s.parciais} parcial(is) · ${s.estruturas_incompletas} estrutura(s) incompleta(s)` : '';
     }
 
+
+    const ROTULO_ACHADO = { sobra: 'sobra', incompleta: 'incompleta', ponta_solta: 'ponta solta', sem_geometria: 'sem geometria', escolha: 'escolha' };
+    /** Achados do último «Vincular estruturas»: o que ficou incompleto ou sobrando, para o usuário saber onde mexer. */
+    function atualizarAchados() {
+        const box = st.elAch;
+        if (!box) return;
+        const ach = (st.resultadoPoste && st.resultadoPoste.achados) || [];
+        box.style.display = ach.length ? '' : 'none';
+        box.innerHTML = ach.length ? `<b>${ach.length} aviso(s) do algoritmo por poste</b>` + ach.slice(0, 200).map(a => `<div class="a ${esc(a.tipo)}">${esc(ROTULO_ACHADO[a.tipo] || a.tipo)} — ${esc(a.mensagem)}</div>`).join('') : '';
+    }
+    /** Teclado da aba Cabos ⇄ Postes: ↑↓ escolhem o cabo; → vai para os postes (↑↓ escolhem, Enter liga/desliga); ← volta aos cabos. */
+    function tecladoCabosPostes(e) {
+        if (st.aba !== 'cabopostes' || !painel || menuAberto || e.ctrlKey || e.metaKey || e.altKey) return false;
+        const t = e.target && e.target.tagName;
+        if (t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA') return false;
+        const d = painel.dados();
+        if (!d || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) return false;
+        e.preventDefault();
+        const passo = e.key === 'ArrowUp' ? -1 : 1;
+        if (e.key === 'ArrowRight') { st.kbModo = 'p'; if (st.kbP === null || !d.dir.some(x => x.l === st.kbP)) st.kbP = d.dir.length ? d.dir[0].l : null; painel.pintar(true); return true; }
+        if (e.key === 'ArrowLeft') { st.kbModo = 'c'; painel.pintar(true); return true; }
+        if (st.kbModo === 'c') {
+            if (e.key === 'Enter' || !d.esq.length) return true;
+            const cur = st.sel && st.sel.t === 'c' ? d.esq.findIndex(x => x.ic === st.sel.i) : -1;
+            const nx = d.esq[Math.max(0, Math.min(d.esq.length - 1, cur < 0 ? 0 : cur + passo))];
+            st.sel = { t: 'c', i: nx.ic }; painel.rolarPara(nx.y, nx.h); painel.pintar(true);
+            return true;
+        }
+        if (!d.dir.length) return true;
+        const i = d.dir.findIndex(x => x.l === st.kbP);
+        if (e.key === 'Enter') { if (st.sel && st.sel.t === 'c' && st.kbP !== null) { const ic = st.sel.i; atribuirPoste(ic, st.kbP); st.sel = { t: 'c', i: ic }; painel.pintar(true); } else toast('Escolha um cabo com ↑↓ antes (← volta aos cabos).'); return true; }
+        const nx = d.dir[Math.max(0, Math.min(d.dir.length - 1, i < 0 ? 0 : i + passo))];
+        st.kbP = nx.l; painel.rolarPara(nx.y, nx.h); painel.pintar(true);
+        return true;
+    }
+
     function abaCabosPostes(corpo) {
         const filtros = [['todos', 'Todos'], ['sem', 'Sem poste'], ['pend', 'Pendentes']];
         if (!filtros.some(f => f[0] === st.filtroCP)) st.filtroCP = 'todos';
@@ -489,12 +527,13 @@
         corpo.appendChild(el('div', { style: 'display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap' }, chips.concat([
             el('label', { style: 'display:flex;gap:5px;align-items:center;color:#c9d1d9;font-size:12px;cursor:pointer', title: 'Cada vez que você liga um cabo a um poste, o algoritmo do poste já escolhe as estruturas.' }, [auto, 'Vincular as estruturas automaticamente']),
             el('button', { class: 'vz-btn b', text: '🏗️ Vincular estruturas agora', title: 'Roda o algoritmo por poste (Ctrl+Z desfaz)', onclick: () => { host.antes(); const r = aplicarAlgoritmoPoste(), s = r.resumo; res.textContent = textoResumoPoste(); toast(`Por poste: ${s.completos} completo(s), ${s.parciais} parcial(is), ${s.sem_vinculo} sem vínculo (Ctrl+Z desfaz).`); atualizar(); } }),
-            res, el('span', { style: 'margin-left:auto;color:#8b949e;font-size:11px', text: 'Clique no cabo e no poste (ou o contrário) · clique na linha: desfazer · botão direito no cabo: limpar' })])));
+            res, el('span', { style: 'margin-left:auto;color:#8b949e;font-size:11px', text: 'Clique no cabo e no poste (ou o contrário) · ↑↓ cabo, → postes, Enter liga · clique na linha: desfazer · botão direito: limpar' })])));
         st.elRes = res;
+        st.elAch = el('div', { class: 'vl-ach' });
         painel = criarPainel(corpo, {
             tituloE: 'Cabos', tituloD: 'Postes — a estrutura de cada um é escolhida pelo algoritmo',
             itens() {
-                const k = ctx(), a = k.a, chave = 'p|' + st.filtroCP;
+                const k = cx || ctx(), a = k.a, chave = 'p|' + st.filtroCP;
                 if (k.it[chave]) return k.it[chave];
                 const esq = [], dir = [], links = [], eDe = {}, dDe = {}, C = cabos(), O = outros(), cont = {};
                 C.forEach(cb => { if (VR.ehCaboValido(cb)) VR.postesAtribuidos(cb).forEach(l => { cont[l] = (cont[l] || 0) + 1; }); });
@@ -534,7 +573,7 @@
                 const k = cx, a = k.a, o = outros()[it.l], selC = st.sel && st.sel.t === 'c' ? st.sel.i : null, selP = st.sel && st.sel.t === 'p' ? st.sel.i : null;
                 let cls = 'vl-pst';
                 if (selC !== null) { const cb = cabos()[selC], at = VR.postesAtribuidos(cb), info = infoCabo(selC); if (at.includes(it.l) || (info.vincula && at.length < info.pontas)) cls += ' glow'; else cls += ' vl-dim'; }
-                let h = `<div class="${cls}${selP === it.l ? ' sel' : ''}" data-p="${it.l}" style="top:${it.y}px;height:${it.h - 4}px;cursor:pointer" title="${esc(o.ativo || '')}"><span class="lab">${esc(it.label)}</span>`;
+                let h = `<div class="${cls}${selP === it.l || (st.kbModo === 'p' && st.kbP === it.l) ? ' sel' : ''}" data-p="${it.l}" style="top:${it.y}px;height:${it.h - 4}px;cursor:pointer" title="${esc(o.ativo || '')}"><span class="lab">${esc(it.label)}</span>`;
                 it.ids.forEach((ie, kk) => { const r = a.estruturas[ie], eqp = r.ocupa === false; h += `<div class="vl-chip${eqp ? ' eqp' : CORES[r.estado]}" style="left:${LAB + kk * (CW + CG)}px;cursor:inherit" title="${esc(r.codigo || '')}"><b>${esc(r.codigo || '?')}</b>${eqp ? '' : `<i>${r.tem}${r.precisa ? '/' + faixaCabos(r) : ''}</i>`}</div>`; });
                 return h + `<span class="pp" style="margin-left:auto;padding-right:8px;font-size:10.5px;color:${it.n ? '#58a6ff' : '#6e7681'}">${it.n} cabo(s)</span></div>`;
             },
@@ -555,6 +594,7 @@
             }
         });
         painel.refazer();
+        corpo.appendChild(st.elAch); atualizarAchados();
     }
 
     // ── tabelas editáveis (Cabos / Estruturas) ──

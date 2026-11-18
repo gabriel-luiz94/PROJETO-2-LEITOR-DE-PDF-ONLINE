@@ -1553,7 +1553,7 @@ function _formHtmlRegraProcessamento(r) {
         </label>
         ${_campoHtml('Cor exigida (cor_em) — nenhuma marcada = qualquer cor', _checkboxesCorHtml('rle-cor-em', r.cor_em))}
         ${_campoHtml('Cor excluída (cor_nao_em)', _checkboxesCorHtml('rle-cor-nao-em', r.cor_nao_em))}
-        ${_campoHtml('Layers (layer_em) — separados por vírgula, vazio = qualquer layer', `<input id="rle-layer-em" style="${RLE_INPUT_STYLE}" value="${esc((r.layer_em || []).join(', '))}">`)}
+        ${_campoHtml('Layers (layer_em) — separados por vírgula; aceita * (POSTE_*_LV); vazio = qualquer layer', `<input id="rle-layer-em" style="${RLE_INPUT_STYLE}" value="${esc((r.layer_em || []).join(', '))}">`)}
         ${_campoHtml('Cor exata (cor_hex_em) — hex separados por vírgula, ex.: #000000, #000001', `<input id="rle-cor-hex-em" style="${RLE_INPUT_STYLE}" value="${esc((r.cor_hex_em || []).join(', '))}">`)}
         ${_campoHtml('Cor exata excluída (cor_hex_nao_em)', `<input id="rle-cor-hex-nao-em" style="${RLE_INPUT_STYLE}" value="${esc((r.cor_hex_nao_em || []).join(', '))}">`)}
 
@@ -1619,7 +1619,7 @@ function _formHtmlRegraClassificacao(r) {
         ${_campoHtml('Operação exigida (operacao_em) — separadas por vírgula, vazio = qualquer', `<input id="rle-operacao-em" style="${RLE_INPUT_STYLE}" value="${esc((r.operacao_em || []).join(', '))}">`)}
         ${_campoHtml('Cor exigida (cor_em) — nenhuma marcada = qualquer cor', _checkboxesCorHtml('rle-cor-em', r.cor_em))}
         ${_campoHtml('Cor excluída (cor_nao_em)', _checkboxesCorHtml('rle-cor-nao-em', r.cor_nao_em))}
-        ${_campoHtml('Layers (layer_em) — separados por vírgula, vazio = qualquer layer', `<input id="rle-layer-em" style="${RLE_INPUT_STYLE}" value="${esc((r.layer_em || []).join(', '))}">`)}
+        ${_campoHtml('Layers (layer_em) — separados por vírgula; aceita * (POSTE_*_LV); vazio = qualquer layer', `<input id="rle-layer-em" style="${RLE_INPUT_STYLE}" value="${esc((r.layer_em || []).join(', '))}">`)}
         ${_campoHtml('Cor exata (cor_hex_em) — hex separados por vírgula, ex.: #000000, #000001', `<input id="rle-cor-hex-em" style="${RLE_INPUT_STYLE}" value="${esc((r.cor_hex_em || []).join(', '))}">`)}
         ${_campoHtml('Cor exata excluída (cor_hex_nao_em)', `<input id="rle-cor-hex-nao-em" style="${RLE_INPUT_STYLE}" value="${esc((r.cor_hex_nao_em || []).join(', '))}">`)}
         ${_campoHtml('Ativo (regex)', `<input id="rle-ativo-regex" style="${RLE_INPUT_STYLE}" value="${esc(r.ativo_regex || '')}">`)}

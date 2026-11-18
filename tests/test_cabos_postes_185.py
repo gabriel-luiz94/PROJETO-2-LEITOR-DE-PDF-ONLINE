@@ -152,9 +152,12 @@ def test_resumo_hidrata_as_linhas_de_tabelas_grandes_aos_poucos():
                    "if (lazy) { hidratarJanela(type, 500); agendarHidratacao(type); }", "vinculoPostes"]:
         assert trecho in js, trecho
     assert "paramsVinc" not in js                                         # cálculo que ninguém usava no desenho
-    # as ações que leem as células de outras linhas montam tudo antes
-    for ev in ["'mousedown'", "'contextmenu'", "'paste'", "'copy'"]:
-        assert ev in js.split("function ligarGatilhosHidratacao")[1].split("})();")[0]
+    # só colar/copiar/cortar/arrastar montam tudo antes; clique, Enter, excluir etc. NÃO (uma rajada de ações não paga a montagem de todas as linhas)
+    gat = js.split("function ligarGatilhosHidratacao")[1].split("let raf = 0;")[0]
+    for ev in ["'paste'", "'copy'", "'cut'", "'dragstart'"]:
+        assert ev in gat
+    for ev in ["'mousedown'", "'click'", "'contextmenu'"]:
+        assert ev not in gat
     # ícone da lixeira sem filhos no DOM
     assert "<polyline" not in js.split("btnDel = document.createElement('button')")[1].split("btnDel.addEventListener")[0]
 
@@ -171,3 +174,41 @@ def test_regras_deixam_a_inicializacao_declarar_os_caches_no_topo():
     topo = js.split("function renderTable(")[0]
     for nome in ["_lazy", "_lazyTm", "_hLinhaReal", "_tmResumoRede", "_medidasTabela", "_cacheCores"]:
         assert nome in topo.split("function ")[0] or nome in topo, nome   # (let/const mais abaixo dariam erro de inicialização: renderTable roda cedo)
+
+
+# ── melhorias seguintes (TASK-185b) ──
+@pytest.mark.skipif(not NODE, reason="node indisponível")
+def test_layer_em_aceita_curinga_no_motor_do_leitor():
+    js = ("const E = require(%s); const r = JSON.parse(require('fs').readFileSync(0, 'utf8')); "
+          "console.log(JSON.stringify(r.map(([l, x]) => E.layerCasa(l, x))));") % json.dumps(os.path.join(config.STATIC_DIR, "regras_leitor_engine.js"))
+    casos = [[["POSTE_*_LV"], "poste_instalando_lv"], [["POSTE_*_LV"], "POSTE_INSTALANDO"], [["*_LV"], "X_LV"], [["POSTE_INSTALANDO"], "poste_instalando"],
+             [["A.B"], "AXB"], [["A.B*"], "A.BC"], [[], "QUALQUER"], [["POSTE_*"], "POSTE_REMOVENDO_LV"]]
+    rr = subprocess.run([NODE, "-e", js], input=json.dumps(casos), capture_output=True, text=True, timeout=30)
+    assert rr.returncode == 0, rr.stderr
+    assert json.loads(rr.stdout) == [True, False, True, True, False, True, True, True]
+
+
+def test_aba_cabos_postes_tem_teclado_e_painel_de_achados():
+    ui = _ler("vinculacao_ui.js")
+    for trecho in ["function tecladoCabosPostes(", "function atualizarAchados(", "class: 'vl-ach'", "st.kbModo", "painel.rolarPara("]:
+        assert trecho in ui, trecho
+    aba = ui.split("function abaCabosPostes(")[1].split("// ── tabelas editáveis")[0]
+    assert "corpo.appendChild(st.elAch)" in aba                         # o painel de achados fica na aba certa (não na aba Vínculo)
+    assert "corpo.appendChild(st.elAch)" not in ui.split("function abaVinculo(")[1].split("function atualizarAchados")[0]
+
+
+def test_tabelas_muito_grandes_montam_so_a_janela_em_segundo_plano():
+    js = _ler("resumo.js")
+    assert "LIMIAR_PARCIAL = 300" in js and "hidratarJanela(type, 2500)" in js
+
+
+def test_script_de_desempenho_existe_com_limites():
+    t = open(os.path.join(os.path.dirname(config.STATIC_DIR), "scripts", "perf_resumo.js"), encoding="utf-8").read()
+    for chave in ["LIMITES", "modal: vincular", "resumo: desfazer", "process.exit(falhou ? 1 : 0)"]:
+        assert chave in t
+
+
+@pytest.mark.skipif(not (NODE and os.environ.get("PERF_URL") and os.environ.get("PERF_TOKEN")), reason="defina PERF_URL e PERF_TOKEN (servidor no ar) para medir o desempenho")
+def test_desempenho_com_450_linhas_em_cada_tabela():
+    rr = subprocess.run([NODE, os.path.join(os.path.dirname(config.STATIC_DIR), "scripts", "perf_resumo.js"), os.environ["PERF_URL"], os.environ["PERF_TOKEN"], "450"], capture_output=True, text=True, timeout=240)
+    assert rr.returncode == 0, rr.stdout + rr.stderr

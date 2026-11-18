@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Tabelas grandes (TASK-185): acima de LIMIAR_LAZY linhas, só as linhas perto da área visível são montadas na hora; as demais entram como linha vazia de altura fixa (_lazy)
     // e são montadas por pedaços em segundo plano (hidratação), ao rolar, ou antes de qualquer ação do usuário que leia as células. Resultado: criar/excluir/duplicar/desfazer
     // com 400+ linhas custa o desenho de ~50 linhas, não de todas.
-    const LIMIAR_LAZY = 60;
+    const LIMIAR_LAZY = 60, LIMIAR_PARCIAL = 300;
     const _lazy = { cabos: [], outros: [] }, _lazyTm = { cabos: 0, outros: 0 }, _hLinhaReal = { cabos: 0, outros: 0 };                // cores por linha (verde/laranja/vermelho) e o agendamento depois do desenho
     /* TASK-182 C — Operação digitada, validada como uma célula do Excel: maiúsculas e sem espaços (*r → *R); só aceita OPERACOES (fonte única); inválida = não grava,
        a célula fica vermelha com o aviso e o valor volta ao anterior. O campo tem a lista (datalist) para quem prefere escolher. */
@@ -412,6 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (_lazyTm[type] || !_lazy[type].length) return;
         _lazyTm[type] = setTimeout(function passo() {
             _lazyTm[type] = 0;
+            if (tableStates[type].data.length > LIMIAR_PARCIAL) { hidratarJanela(type, 2500); return; }          // tabelas muito grandes: só ~2500 px em volta da área visível; o resto monta ao rolar
             const pend = _lazy[type];
             const t0 = performance.now();
             let n = 0;
@@ -420,14 +421,14 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (n) _terminouHidratar();
         }, 120);
     }
-    // Antes de qualquer ação do usuário que possa ler/alterar as células de outras linhas, tudo é montado (uma vez, só se ainda houver pendência).
+    // Só colar/copiar/cortar/arrastar (e Ctrl+A) montam tudo antes. Clique, Enter, excluir, duplicar, congelar, desfazer etc. trabalham sobre os DADOS e sobre as classes da linha
+    // (`row-selected`), que existem também nas linhas ainda vazias; a seleção em intervalo é repintada quando as linhas são montadas (`_terminouHidratar`). Assim, uma
+    // sequência rápida de ações não paga a montagem de todas as linhas a cada vez.
     (function ligarGatilhosHidratacao() {
         const todas = () => { hidratarTudo('cabos'); hidratarTudo('outros'); };
-        ['mousedown', 'click', 'contextmenu', 'copy', 'cut', 'paste', 'dragstart'].forEach(ev => document.addEventListener(ev, e => { if (_lazy.cabos.length || _lazy.outros.length) todas(); }, true));
+        ['copy', 'cut', 'paste', 'dragstart'].forEach(ev => document.addEventListener(ev, () => { if (_lazy.cabos.length || _lazy.outros.length) todas(); }, true));
         document.addEventListener('keydown', e => {
-            if (!(_lazy.cabos.length || _lazy.outros.length)) return;
-            if (e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) return;      // digitar um caractere não lê as outras linhas
-            todas();
+            if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === 'a' && (_lazy.cabos.length || _lazy.outros.length)) todas();
         }, true);
         let raf = 0;
         document.addEventListener('scroll', e => {
