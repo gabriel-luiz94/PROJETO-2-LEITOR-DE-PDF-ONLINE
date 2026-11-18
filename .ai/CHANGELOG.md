@@ -8,6 +8,18 @@
 
 ---
 
+## 2026-11-18 — TASK-185b: tabelas de 1000+ linhas, teclado e achados na aba Cabos ⇄ Postes, `layer_em` com curinga, teste de desempenho
+
+- **Tabelas muito grandes (> 300 linhas):** em segundo plano só se monta ~2500 px em volta da área visível (`LIMIAR_PARCIAL`, `hidratarJanela(type, 2500)`); o resto monta ao rolar. Com 1000+1000 linhas: Enter 67 ms, excluir 34 ms, desfazer 146 ms, rolagem 16 ms/quadro.
+- **Aba «Cabos ⇄ Postes»:** teclado (↑↓ escolhem o cabo, → vai aos postes, ↑↓ escolhem o poste, Enter liga/desliga, ← volta) e painel **«aviso(s) do algoritmo por poste»** (incompleta, sobra, ponta solta, sem geometria) sob a lista.
+- **Modal:** `vincular` ~40 ms (assinatura dos dados calculada uma vez por ação).
+- **Leitor:** `layer_em` aceita **curinga `*`** (`POSTE_*_LV`, `*_LV`), sem diferenciar maiúsculas; sem `*` continua exato. Vale para as tabelas de Processamento e Classificação (`layerCasa` em `static/regras_leitor_engine.js`).
+- **Desempenho:** `scripts/perf_resumo.js <url> <token> [linhas]` mede o Resumo e o modal com limites e sai com código 1 se passar; no pytest, `test_desempenho_com_450_linhas_em_cada_tabela` roda se `PERF_URL` e `PERF_TOKEN` estiverem definidos.
+
+## 2026-11-18 — Hidratação das linhas só quando necessária (rajadas de ações)
+
+- Antes, clique/tecla/menu forçavam a montagem de TODAS as linhas ainda vazias (`lazy-row`) a cada ação; em sequência rápida o custo voltava a ~120 ms. Agora só **colar/copiar/cortar/arrastar e Ctrl+A** montam tudo; as demais ações trabalham sobre os dados e as classes da linha (`row-selected`), e a seleção em intervalo é repintada quando as linhas são montadas. Rajada de Enter/excluir/duplicar/desfazer com 450+450 linhas: 28–64 ms por ação (antes 100–330 ms).
+
 ## 2026-11-18 — TASK-185: tabelas e painel de vínculo fluidos com 400+ linhas; aba «Cabos ⇄ Postes»
 
 - **Modal de vinculação (aba Vínculo) reescrito:** lista **virtualizada** (`criarPainel` em `static/vinculacao_ui.js`): só as linhas visíveis (+ margem) existem no DOM; cada linha tem altura fixa (cabo 30 px, avulso 24 px, **poste 30 px — uma linha por poste**, com as estruturas dele lado a lado como chips `N1 1/2`), então a posição das linhas de ligação sai por aritmética (nada de `getBoundingClientRect`) e o SVG cobre só a janela visível. A **análise** (`VR.analisar`), os índices de ocupantes/`infoCabo`/`infoEstrutura` e a interpretação de cada linha de Outros (`metaAtivo`) são **memoizados** por uma assinatura dos dados (`ctx()`); selecionar um cabo só repinta a janela (~7 ms) e vincular refaz os itens (~45 ms com 450+450 linhas; antes ~300 ms). O fundo do modal ficou **opaco**: o translúcido refazia a mistura com a página a cada quadro da rolagem (rolagem 60 fps).

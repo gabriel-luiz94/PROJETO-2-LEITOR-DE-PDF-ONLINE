@@ -932,3 +932,10 @@ Na tela de login, com **Lembrar de mim** marcado o programa **abre direto, sem p
 - **Tabelas grandes:** com mais de 60 linhas, o Resumo desenha primeiro só o que aparece na tela e completa o resto em segundo plano. Criar, excluir, duplicar e desfazer ficam em ~50 ms mesmo com 400+ linhas em cada tabela. Se você clicar ou apertar uma tecla antes de terminar, o resto é montado na hora (uma vez).
 - **Modal «VINCULAR CABOS» › Vínculo:** compacto — **um cabo por linha** e **um poste por linha** (as estruturas do poste ficam lado a lado como `N1 1/2`). Passe o mouse na estrutura para ver o motivo/regra. A rolagem e os cliques continuam fluidos com centenas de linhas.
 - **Aba «Cabos ⇄ Postes»:** só mostra cabos e postes. Clique no cabo e no poste a que ele chega (ou o contrário; um cabo tem até 2 pontas); clique na linha para desfazer; botão direito no cabo: «Tirar este cabo dos postes». O **algoritmo por poste** escolhe sozinho, em cada poste, a estrutura que recebe o cabo (mesmas regras da Tabela de Estruturas). Com «Vincular as estruturas automaticamente» ligado isso acontece a cada ligação; senão use «Vincular estruturas agora». Ctrl+Z (ou «Desfazer») desfaz. Vínculos feitos à mão na aba Vínculo continuam mandando; cabo congelado não é alterado.
+
+## Aba «Cabos ⇄ Postes» pelo teclado, avisos do algoritmo e curinga nas layers (18/11/2026)
+
+- **Teclado na aba Cabos ⇄ Postes:** **↑↓** escolhem o cabo; **→** passa para os postes (**↑↓** escolhem, **Enter** liga ou desliga o cabo àquele poste); **←** volta aos cabos.
+- **Avisos do algoritmo:** sob a lista aparecem as estruturas que ficaram incompletas, os cabos que sobraram e as pontas soltas — é onde você sabe o que ainda precisa ligar.
+- **Layers com curinga:** nas regras do Leitor, o campo *Layers* aceita `*` (por exemplo `POSTE_*_LV` pega todas as variantes `_LV`; `*_LV` pega qualquer layer terminada em `_LV`). Sem `*`, o nome continua exato (sem diferenciar maiúsculas).
+- **Tabelas com 1000+ linhas** continuam fluidas: só a parte perto da tela é montada; o resto entra ao rolar.

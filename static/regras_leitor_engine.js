@@ -81,7 +81,15 @@
     function layerCasa(layerEm, layerReal) {
         if (!layerEm || layerEm.length === 0) return true;
         const lr = (layerReal || '').trim().toUpperCase();
-        return layerEm.map(function (l) { return l.toUpperCase(); }).includes(lr);
+        return layerEm.some(function (l) {
+            const t = String(l).trim().toUpperCase();
+            if (t.indexOf('*') < 0) return t === lr;                 // exato (sem diferenciar maiúsculas)
+            return globLayer(t).test(lr);                            // curinga: POSTE_*_LV, *_LV, POSTE_*
+        });
+    }
+    const _globs = {};
+    function globLayer(t) {
+        return _globs[t] || (_globs[t] = new RegExp('^' + t.split('*').map(function (p) { return p.replace(/[.+?^${}()|[\]\\]/g, '\\$&'); }).join('.*') + '$'));
     }
 
     var HIFENS_UNICODE = new RegExp('[­‐-―−]', 'g');
