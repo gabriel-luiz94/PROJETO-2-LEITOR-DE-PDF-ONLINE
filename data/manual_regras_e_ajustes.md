@@ -957,3 +957,10 @@ Com *Ocultar parâmetros ao sair da linha* ligado, clicar na linha mantém só o
 - **Sugestão de ativos:** digitou o nome completo (ex.: `PR`), ele aparece na lista. **Tab** com a sugestão igual ao texto segue para a próxima célula.
 - **Seta para baixo** na última linha preenchida vai para a primeira linha em branco.
 - **Menu de contexto** (botão direito ou tecla de menu): depois de escolher uma ação (congelar, bloquear…) ou apertar Esc, o cursor volta para a célula em que estava.
+
+## Leitor: comprimento do cabo pela posição no desenho (19/11/2026)
+
+- **Por que mudou:** a lista do DXF é ordenada por altura; a regra «próximos N itens» não acha (ou acha o de outro cabo) o comprimento que está logo abaixo do rótulo. Agora a vizinhança pode usar a **posição**.
+- **Como usar (regras do Leitor › Processamento › regra do cabo com label sozinho):** em *Vizinhança*, marque **Por posição no desenho (DXF)**, escolha o **Raio** (unidades do desenho; 12 cobre o padrão da CTW — o comprimento costuma ficar a 2–7 unidades) e **Onde** (abaixo, acima ou qualquer lado). A regex da vizinhança continua sendo a do comprimento (`^(\d+(?:[.,]\d+)?)\s*m$`).
+- Rótulos riscados/duplos e o de cima, que dividem o mesmo comprimento, passam a ler o mesmo valor. Com coordenadas e nada dentro do raio, o cabo fica sem comprimento (aumente o raio se for o caso). Em PDF (sem coordenadas) vale a ordem da lista, como antes.
+- Rótulos com neutro (`3xC16(16)+16`, `3xC35(35)+35`) também são reconhecidos.

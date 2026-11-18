@@ -92,6 +92,35 @@
         return _globs[t] || (_globs[t] = new RegExp('^' + t.split('*').map(function (p) { return p.replace(/[.+?^${}()|[\]\\]/g, '\\$&'); }).join('.*') + '$'));
     }
 
+    /**
+     * Vizinhança POR POSIÇÃO no desenho (DXF: cada item traz _x/_y): o texto mais PERTO (raio em unidades do desenho) que casa com a regex, em vez do próximo na ordem da lista
+     * (a lista sai ordenada por altura, então o comprimento de um cabo pode cair dezenas de itens adiante ou atrás). `posicao`: ABAIXO (padrão), ACIMA ou QUALQUER.
+     * Devolve o valor, null (há coordenadas mas nada casa dentro do raio) ou undefined (sem coordenadas, como no PDF: quem chama usa a ordem da lista).
+     */
+    function _vizinhoPorPosicao(item, vz, re) {
+        const todos = item.allItems || [], eu = todos[item.index];
+        const num = v => typeof v === 'number' && isFinite(v);
+        if (!eu || !num(eu._x) || !num(eu._y)) return undefined;
+        const raio = Number(vz.raio) > 0 ? Number(vz.raio) : 12, pos = String(vz.posicao || 'ABAIXO').toUpperCase(), TOL = 1;
+        let melhor = null;
+        for (let i = 0; i < todos.length; i++) {
+            if (i === item.index) continue;
+            const v = todos[i];
+            if (!v || !v.texto || !num(v._x) || !num(v._y)) continue;
+            if (vz.mesma_pagina !== false && v.pagina !== item.pagina) continue;
+            const dy = eu._y - v._y;                                       // dy > 0: o outro texto está ABAIXO
+            if (pos === 'ABAIXO' && dy < -TOL) continue;
+            if (pos === 'ACIMA' && dy > TOL) continue;
+            const dist = Math.sqrt((v._x - eu._x) * (v._x - eu._x) + dy * dy);
+            if (dist > raio) continue;
+            const m = v.texto.match(re);
+            if (!m) continue;
+            const perto = Math.abs(i - item.index);
+            if (!melhor || dist < melhor.dist - 1e-9 || (Math.abs(dist - melhor.dist) <= 1e-9 && perto < melhor.perto)) melhor = { dist: dist, perto: perto, valor: m[1] !== undefined ? m[1] : m[0] };
+        }
+        return melhor ? melhor.valor : null;
+    }
+
     var HIFENS_UNICODE = new RegExp('[­‐-―−]', 'g');
     var NBSP = new RegExp(' ', 'g');
 
@@ -183,7 +212,9 @@
                     const start = r.vizinhanca.direcao === 'DEPOIS' ? Math.min(item.index + 1, (item.allItems || []).length) : Math.max(0, item.index - janela);
                     const end = Math.min((item.allItems || []).length - 1, item.index + janela);
                     const re = _safeRegex(r.vizinhanca.regex, 'i');
-                    if (re) {
+                    let porPosicao;
+                    if (re && r.vizinhanca.geometrica) { porPosicao = _vizinhoPorPosicao(item, r.vizinhanca, re); if (porPosicao !== undefined) vizValor = porPosicao; }
+                    if (re && porPosicao === undefined) {
                         for (let i = start; i <= end; i++) {
                             if (i === item.index) continue;
                             const viz = item.allItems[i];

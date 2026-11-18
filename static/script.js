@@ -1576,6 +1576,8 @@ function _formHtmlRegraProcessamento(r) {
                             <br><input type="checkbox" id="rle-viz-mtext" ${r.vizinhanca && r.vizinhanca.mesmo_mtext ? 'checked' : ''}> Só linhas do mesmo MTEXT (DXF), consecutivas
                             <br><input type="checkbox" id="rle-viz-juntar" ${r.vizinhanca && r.vizinhanca.juntar ? 'checked' : ''}> Juntar todas ({vizinhancas})
                             <br><input type="checkbox" id="rle-viz-obrig" ${r.vizinhanca && r.vizinhanca.obrigatoria ? 'checked' : ''}> Obrigatória (sem vizinha a regra não casa)
+                            <br><input type="checkbox" id="rle-viz-geo" ${r.vizinhanca && r.vizinhanca.geometrica ? 'checked' : ''}> Por posição no desenho (DXF): o texto mais perto, não o próximo da lista
+                            <br>&nbsp;&nbsp;Raio: <input type="number" id="rle-viz-raio" min="1" step="1" style="width:70px;" value="${(r.vizinhanca && r.vizinhanca.raio) || 12}"> unid. · Onde: <select id="rle-viz-posicao"><option value="ABAIXO" ${!r.vizinhanca || !r.vizinhanca.posicao || r.vizinhanca.posicao === 'ABAIXO' ? 'selected' : ''}>abaixo</option><option value="ACIMA" ${r.vizinhanca && r.vizinhanca.posicao === 'ACIMA' ? 'selected' : ''}>acima</option><option value="QUALQUER" ${r.vizinhanca && r.vizinhanca.posicao === 'QUALQUER' ? 'selected' : ''}>qualquer lado</option></select>
                         </label>
                     </div>
                 </div>
@@ -1733,6 +1735,11 @@ function _lerFormularioRegraProcessamento() {
         if (document.getElementById('rle-viz-mtext').checked) regra.vizinhanca.mesmo_mtext = true;
         if (document.getElementById('rle-viz-juntar').checked) regra.vizinhanca.juntar = true;
         if (document.getElementById('rle-viz-obrig').checked) regra.vizinhanca.obrigatoria = true;
+        if (document.getElementById('rle-viz-geo').checked) {
+            regra.vizinhanca.geometrica = true;
+            regra.vizinhanca.raio = parseFloat(document.getElementById('rle-viz-raio').value) || 12;
+            regra.vizinhanca.posicao = document.getElementById('rle-viz-posicao').value || 'ABAIXO';
+        }
     }
     if (!regra.cor_em.length) delete regra.cor_em;
     if (!regra.cor_nao_em.length) delete regra.cor_nao_em;
