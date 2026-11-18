@@ -585,7 +585,7 @@
         /** FATOR I/R (TASK-109): a fórmula (se houver) aparece no lugar do número; o fator numérico de uma linha com fórmula fica 0. */
         function fatorTela(formula, numero) {
             const f = String(formula || '').trim();
-            if (f) return f.replace(/"/g, '&quot;');
+            if (f) return f;                                                 // (o escape para o atributo é feito UMA vez, em escAttr; escapar aqui também mostrava &quot; na tela e gravava &quot; na fórmula)
             return numero !== null && numero !== undefined ? numero : '';
         }
 

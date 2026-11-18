@@ -63,6 +63,12 @@
 
 ---
 
+## 2026-11-18 — CORREÇÃO: aspas das fórmulas viravam `&quot;` na tela da Base (regressão de 17/11)
+
+- A tela da Base escapava as aspas da fórmula duas vezes (`fatorTela` e `escAttr`, esta introduzida na correção das aspas em 17/11): o campo mostrava `&quot;` literal e "Salvar Alterações"/exportar CSV gravavam `=SE(tipo=&quot;PA&quot;;2;3)`, que o importador recusa ("fórmula inválida"). Corrigido: `fatorTela` não escapa mais (só `escAttr`); o servidor repara `&quot;` → `"` em `normalizar_fator` (salvar/importar) e em `_fator_do_uso` (cálculo), então bases já gravadas assim voltam a funcionar. Testes em `tests/test_fator_formula_109.py`.
+
+---
+
 ## 2026-11-17 — Resumo: comentário em linha, operação antes do ativo e aviso "ATIVO NÃO EXISTE NA BASE"
 
 - **Comentário** (menu de contexto da linha, Cabos e Outros): a linha vira uma anotação (💬, verde itálico) — é uma linha **congelada** com outra aparência (`comentario: true` + `congelada: true`; o `.obra` normaliza `comentario` → `congelada`). Continua editável; "Congelar" não mexe em comentário; "Tirar comentário" devolve a linha ao normal. Um passo de Ctrl+Z.

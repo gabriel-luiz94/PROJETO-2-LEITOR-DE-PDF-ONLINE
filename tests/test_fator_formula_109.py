@@ -416,3 +416,20 @@ def test_base_aterint_valores_que_so_a_formula_conhece():
     assert _calc_ater("2-ATERINT(MRT_RDC)")[0]["2411149"] == 4.0                                                      # grupo específico MRT_RDC: + grampo
     tot, nao = _calc_ater("2-ATERINT")                                                                                # sem tipo (sem padrão): só o que não depende dele
     assert tot == {"SDEMU3803II": 2.0}
+
+
+def test_aspas_escapadas_em_dobro_sao_reparadas():
+    """Bug de 17/11: a tela mostrou/gravou aspas das fórmulas como &quot; (escape em dobro). A fórmula volta ao que era ao salvar/importar e ao calcular."""
+    from services.fator_formula import normalizar_fator
+    assert normalizar_fator('=SE(tipo=&quot;PA&quot;;2;3)')[1] == '=SE(tipo="PA";2;3)'
+    from services.orcamento_calc import _fator_do_uso
+    linha = {"formula_i": '=SE(tipo=&quot;PA&quot;;2;3)', "fator_i": 0, "codigo": "1"}
+    assert _fator_do_uso(linha, "i", {"TIPO": "PA"}, []) == 2
+
+
+def test_tela_da_base_nao_escapa_aspas_em_dobro():
+    import os
+    import config
+    html = open(os.path.join(config.STATIC_DIR, "orcamento.html"), encoding="utf-8").read()
+    corpo = html[html.index("function fatorTela"):html.index("function fatorTela") + 300]
+    assert "replace(/\"/g" not in corpo                                          # o escape é feito UMA vez, em escAttr
