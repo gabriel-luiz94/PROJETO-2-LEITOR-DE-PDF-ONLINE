@@ -87,6 +87,21 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault(); e.stopPropagation();
             l.escolherAtual();
         } else if (e.key === 'Enter' || e.key === 'Escape') l.fechar();
+        if (e.key === 'Enter' && !e.shiftKey) {                                       // Enter na operação (escolhida ou digitada) → vai para o ativo da mesma linha
+            const tr = e.target.closest('tr'), alvo = tr && (tr.querySelector('.inp-ativo') || tr.querySelector('.inp-ativo-vazio') || tr.querySelector('.tot-ativo-input'));
+            if (alvo) { e.preventDefault(); e.stopPropagation(); alvo.focus(); const f = alvo.value.length; try { alvo.setSelectionRange(f, f); } catch (x) { /* sem seleção */ } }
+        }
+    }, true);
+    // ← no começo do ativo volta para a Operação da mesma linha (no meio do texto, a seta continua movendo o cursor)
+    document.addEventListener('keydown', e => {
+        if (e.key !== 'ArrowLeft' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+        const t = e.target;
+        if (!(t && t.matches && t.matches('#body-cabos .inp-ativo, #body-outros .inp-ativo, #body-cabos-vazio .inp-ativo-vazio, #body-outros-vazio .inp-ativo-vazio'))) return;
+        if (t.selectionStart !== 0 || t.selectionEnd !== 0) return;
+        const op = t.closest('tr') && t.closest('tr').querySelector('input.inp-operacao');
+        if (!op || op.readOnly) return;
+        e.preventDefault(); e.stopPropagation();
+        op.focus();                                                                    // o focusin do campo seleciona tudo e abre a lista de operações
     }, true);
     document.addEventListener('focusout', e => { if (ehCampoOperacao(e.target)) setTimeout(() => { if (window.IdeLista && document.activeElement !== listaOperacao().doCampo()) listaOperacao().fechar(); }, 120); });
     /** Marca a célula como inválida por alguns segundos (vermelho + aviso no título) e devolve o valor anterior. */
@@ -2198,8 +2213,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!cfg || typeof VinculacaoRegras === 'undefined' || !VinculacaoRegras.defineDeEstruturas) return {};
         return VinculacaoRegras.defineDeEstruturas(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
     }
+    var _cacheAssin = null;
     function _contextoParametros() {
-        return { assin: AtivoParametros.assinaturasDoProjeto(orcamentoBaseData, localStorage.getItem('projeto_selecionado') || ''), ctx: _ctxOutros(), obra: window.ObraParams ? ObraParams.valores() : null };
+        const proj = localStorage.getItem('projeto_selecionado') || '', base = orcamentoBaseData;
+        if (!_cacheAssin || _cacheAssin.base !== base || _cacheAssin.n !== base.length || _cacheAssin.proj !== proj) _cacheAssin = { base, n: base.length, proj, assin: AtivoParametros.assinaturasDoProjeto(base, proj) };
+        return { assin: _cacheAssin.assin, ctx: _ctxOutros(), obra: window.ObraParams ? ObraParams.valores() : null };
     }
 
     /** Nomes que o cálculo resolve na base (ativo/apelido → componente → código) para o projeto e a origem; recalcula só quando a base ou o projeto mudam. */
@@ -2327,10 +2345,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /** TASK-081: contexto da base (apelidos, postes, assinaturas) para traduzir a notação compacta de Outros. */
+    // O contexto da base (apelidos, postes, assinaturas) varre a base INTEIRA (milhares de linhas) e era refeito a cada chamada — várias vezes por tecla ao preencher parâmetros.
+    // Agora é guardado e só refeito quando a base, o projeto ou a convenção de postes mudam.
+    var _cacheCtxOutros = null;                       // var: a função é chamada já na montagem inicial das tabelas (antes desta linha executar)
     function _ctxOutros() {
         let base = [];
         try { base = orcamentoBaseData || []; } catch (e) { /* a base ainda não foi declarada (a tela está carregando) */ }
-        return AnotacaoOutros.contextoDaBase(base, (typeof localStorage !== 'undefined' ? localStorage.getItem('projeto_selecionado') : '') || '', window.__vinculacaoConfig ? window.__vinculacaoConfig.postes : undefined);          // TASK-174: convenção de postes do projeto
+        const proj = (typeof localStorage !== 'undefined' ? localStorage.getItem('projeto_selecionado') : '') || '';
+        const postes = window.__vinculacaoConfig ? window.__vinculacaoConfig.postes : undefined;                         // TASK-174: convenção de postes do projeto
+        const c = _cacheCtxOutros;
+        if (c && c.base === base && c.n === base.length && c.proj === proj && c.postes === postes) return c.ctx;
+        _cacheCtxOutros = { base, n: base.length, proj, postes, ctx: AnotacaoOutros.contextoDaBase(base, proj, postes) };
+        return _cacheCtxOutros.ctx;
     }
 
     /** Leitor do formato ANTIGO usado pela Totalizadora: token a token, "qtd-ativo" (o "*" na frente da quantidade é negativo). */
@@ -6135,11 +6161,13 @@ if (window.AtivoDica) window.AtivoDica.iniciar({
     }
 });
 // TASK-128: a base de orçamento é pedida JÁ ao abrir a tela (em segundo plano) — antes só no primeiro "(" digitado, e a resposta demora no início (sincroniza com a nuvem)
+/** Prepara (em segundo plano) o que varre a base inteira — contexto de Outros, assinaturas e contexto da caixa de parâmetros — para o 1º uso já sair rápido. */
+function aquecerCaches() { try { _contextoParametros(); if (window.AtivoDica && window.AtivoDica.aquecer) window.AtivoDica.aquecer(); } catch (e) { /* base ou convenção ainda carregando */ } }
 let _basePromessa = null, _baseOutraVez = false;
 function carregarBaseOrcamento(refazer) {
     // `refazer` (a base mudou agora): pedido durante um download em andamento (a base mudou agora há pouco): baixa de novo assim que terminar, em vez de ficar com a resposta antiga
     if (_basePromessa) { if (refazer) _baseOutraVez = true; return _basePromessa; }
-    _basePromessa = fetch('/api/orcamento/dados').then(r => r.json()).then(d => { orcamentoBaseData = d.dados || []; if (window.aplicarCoresParametros) window.aplicarCoresParametros(); }).catch(() => { /* sem base: sem dica */ }).finally(() => { _basePromessa = null; if (_baseOutraVez) { _baseOutraVez = false; carregarBaseOrcamento(); } });
+    _basePromessa = fetch('/api/orcamento/dados').then(r => r.json()).then(d => { orcamentoBaseData = d.dados || []; if (window.aplicarCoresParametros) window.aplicarCoresParametros(); setTimeout(aquecerCaches, 30); }).catch(() => { /* sem base: sem dica */ }).finally(() => { _basePromessa = null; if (_baseOutraVez) { _baseOutraVez = false; carregarBaseOrcamento(); } });
     return _basePromessa;
 }
 carregarBaseOrcamento();

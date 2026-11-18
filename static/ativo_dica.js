@@ -363,7 +363,8 @@
     /** Aceita o valor realçado (se houver): grava pelo nome e avança. Devolve true se havia valor realçado. */
     function aceitar(input) {
         if (!st || st.valorI === null) return false;
-        const N = nomeAtual(input, dicaVez), v = valoresVisiveis(input, dicaVez, N)[st.valorI];
+        const N = nomeAtual(input, dicaVez), vis = valoresVisiveis(input, dicaVez, N), v = vis[st.valorI];
+        if (st.valorI === vis.length) { avancar(input, 1); return true; }          // linha "digitar": o texto já está escrito no campo; só segue para o próximo parâmetro
         if (v == null) return false;
         gravar(input, dicaVez, N, v);
         if (st) { st.nome = N; st.manual = true; }
@@ -406,9 +407,9 @@
                     const vis = valoresVisiveis(input, d, N);
                     if (st && st.auto) {                                                              // digitou: realça o valor igual ao texto (se houver) ou o 1º que casa
                         const igual = vis.findIndex(v => String(v).toUpperCase() === String(escritos[N] || '').trim().toUpperCase());
-                        st.valorI = igual >= 0 ? igual : (vis.length ? 0 : null);
+                        st.valorI = igual >= 0 ? igual : (vis.length ? 0 : vis.length);                  // sem valor que case: a linha "digitar" (a última)
                     }
-                    if (st && st.valorI !== null && st.valorI >= vis.length) st.valorI = null;
+                    if (st && st.valorI !== null && st.valorI > vis.length) st.valorI = null;
                     vis.forEach((v, k) => {
                         const it = doc.createElement('div'); it.className = 'dp-item' + (st && st.valorI === k ? ' sel' : '');
                         const vs = doc.createElement('span'); vs.className = 'dp-v'; vs.textContent = v; it.appendChild(vs);
@@ -419,12 +420,19 @@
                         it.addEventListener('click', () => { if (st) st.valorI = k; aceitar(input); });
                         caixa.appendChild(it);
                     });
+                    // SEMPRE há uma linha para digitar: o usuário chega nela (↓) e escreve o valor que quiser (mesmo fora da lista)
+                    const dig = doc.createElement('div'); dig.className = 'dp-item dp-digitar' + (st && st.valorI === vis.length ? ' sel' : '');
+                    const txtDigitado = String(escritos[N] || '').trim();
+                    const dv = doc.createElement('span'); dv.className = 'dp-v'; dv.textContent = txtDigitado && !vis.some(v => String(v).toUpperCase() === txtDigitado.toUpperCase()) ? `✎ usar "${txtDigitado}"` : '✎ digitar outro valor…'; dig.appendChild(dv);
+                    const dd = doc.createElement('span'); dd.className = 'dp-d'; dd.textContent = p.aberto ? 'aceita qualquer valor' : 'valor livre'; dig.appendChild(dd);
+                    dig.addEventListener('click', () => { if (st) { st.valorI = vis.length; st.manual = true; st.nome = N; } input.focus(); irParaParametro(input, d, N); desenhar(input, d); });
+                    caixa.appendChild(dig);
                     const outras = p.mascaras.filter(m => !p.valores.includes(String(m).replace(/^%+|%+$/g, '')));            // as máscaras simples já viraram valores
                     if (outras.length) { const m = doc.createElement('div'); m.className = 'dp-mask'; m.title = '% = qualquer texto'; m.textContent = 'também: ' + outras.join('  '); caixa.appendChild(m); }
                     const sel = caixa.querySelector('.dp-item.sel'); if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: 'nearest' });
                 }
             });
-            const rod = doc.createElement('div'); rod.className = 'dp-rod'; rod.textContent = '↑↓ valores · Enter/Tab aceita e avança · Shift+Tab volta · Esc fecha'; caixa.appendChild(rod);
+            const rod = doc.createElement('div'); rod.className = 'dp-rod'; rod.textContent = '↑↓ valores (ou a linha de digitar) · Enter/Tab aceita e avança · Shift+Tab volta · Esc fecha'; caixa.appendChild(rod);
         }
         dicaVez = d;
         const r = input.getBoundingClientRect();
@@ -474,11 +482,12 @@
             if (!dentro(e) || e.ctrlKey || e.metaKey || e.altKey) return;
             const input = e.target;
             if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                const vis = valoresVisiveis(input, dicaVez, nomeAtual(input, dicaVez));
-                if (!vis.length) return;                                              // sem lista de valores: as setas movem o cursor/linha como sempre
+                const N = nomeAtual(input, dicaVez), n = valoresVisiveis(input, dicaVez, N).length + 1;          // + a linha "digitar"
+                if (!N) return;
                 e.preventDefault(); e.stopImmediatePropagation(); tocouTeclas = true;
                 st.auto = false;
-                st.valorI = st.valorI === null ? (e.key === 'ArrowDown' ? 0 : vis.length - 1) : (st.valorI + (e.key === 'ArrowDown' ? 1 : -1) + vis.length) % vis.length;
+                st.valorI = st.valorI === null ? (e.key === 'ArrowDown' ? 0 : n - 1) : (st.valorI + (e.key === 'ArrowDown' ? 1 : -1) + n) % n;
+                if (st.valorI === n - 1) { st.nome = N; st.manual = true; irParaParametro(input, dicaVez, N); }       // chegou na linha "digitar": o cursor vai para o fim do valor, é só escrever
                 desenhar(input, dicaVez);
             } else if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault(); e.stopImmediatePropagation(); tocouTeclas = true;
@@ -514,5 +523,8 @@
         raiz.addEventListener('resize', fechar);
     }
 
-    raiz.AtivoDica = Object.assign({ iniciar }, api);
+    /** Monta o contexto da base antes do 1º uso (chamado logo depois que a base chega): o primeiro "(" não paga o custo de varrer a base inteira. */
+    function aquecer() { if (cfg && cfg.base && (cfg.base() || []).length) contexto(); }
+
+    raiz.AtivoDica = Object.assign({ iniciar, aquecer }, api);
 })(typeof window !== 'undefined' ? window : globalThis);
