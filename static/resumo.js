@@ -6322,7 +6322,7 @@ if (window.AtivoBalao && window.AtivoItens) window.AtivoBalao.iniciar({
         const idx = Number(input.dataset.parIdx), row = tableStates.outros.data[idx], itens = window.AtivoItens.itens(row ? row.ativo : '');
         let sts = [];
         try { const c = _contextoParametros(); sts = _statusParametrosDaLinha(row, _parametrosVinculoPorLinha()[idx], c.assin, c.ctx, c.obra, _defineDoVinculo()[idx]); } catch (e) { sts = []; }
-        return itens.map(it => ({ nome: it.nome, params: it.params, raw: it.raw, status: sts.find(x => String(AtivoParametros.nomeBase(x.ativo)).toUpperCase() === String(AtivoParametros.nomeBase(it.nome)).toUpperCase()) || null }));
+        return itens.map(it => ({ nome: it.nome, base: it.base, params: it.params, raw: it.raw, status: sts.find(x => String(AtivoParametros.nomeBase(x.ativo)).toUpperCase() === String(AtivoParametros.nomeBase(it.base || it.nome)).toUpperCase()) || null }));
     },
     dica: nome => { try { const c = window.AtivoDica && window.AtivoDica.contextoAtual(); return c ? window.AtivoDica.dica(nome, c) : null; } catch (e) { return null; } },
     origens: (input, ativo) => {

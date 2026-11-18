@@ -40,9 +40,13 @@
         return { nome: bruto, params: '' };
     }
 
-    /** Itens do texto cheio: [{nome, params, raw}]. */
+    /** O nome do ativo SEM a quantidade: "6 CON" → "CON", "6-CON" → "CON", "*1,5-IT_2" → "IT_2". Postes e códigos que só começam com dígitos ("12600D", "3XC16") ficam como estão. */
+    const semQuantidade = nome => String(nome == null ? '' : nome).trim().replace(/^\*?\d+(?:[.,]\d+)?(?:-(?=\S)|\s+(?=\S))/, '');
+    const mk = (nome, params) => ({ nome, base: semQuantidade(nome), params: params || '', raw: nome + (params || '') });
+
+    /** Itens do texto cheio: [{nome, base, params, raw}] — `nome` é como está escrito (com a quantidade), `base` é o ativo procurado na base. */
     function itens(texto) {
-        return tokens(texto).map(k => { const s = separar(k.bruto); return { nome: s.nome, params: s.params, raw: k.bruto }; });
+        return tokens(texto).map(k => { const s = separar(k.bruto); return mk(s.nome, s.params); });
     }
     const juntar = lista => lista.map(i => i.nome + (i.params || '')).join(', ');
     /** Texto só com os nomes: "12600D, N1(XLPE,D,A), N4" → "12600D, N1, N4". */
@@ -56,7 +60,7 @@
     }
     /** Põe (ou tira, com texto vazio) os parâmetros de um item; "()" vazio vira nenhum. */
     function comParams(lista, i, params) {
-        return lista.map((it, k) => (k === i ? { nome: it.nome, params: params === '()' ? '' : (params || ''), raw: it.nome + (params === '()' ? '' : (params || '')) } : it));
+        return lista.map((it, k) => (k === i ? mk(it.nome, params === '()' ? '' : (params || '')) : it));
     }
 
     /** Onde o texto novo começa e termina de diferir do antigo (o cursor decide quando há trechos repetidos: "N1, N1" apagando o 1º ou o 2º). */
@@ -81,16 +85,16 @@
         const lenV = String(compactoAntigo).length, lenN = String(compactoNovo).length;
         const lista = novoT.map(k => {
             const s = separar(k.bruto);
-            if (s.params) return { nome: s.nome, params: s.params, raw: k.bruto };                      // colou "N1(XLPE,D,A)": os parâmetros vêm junto
+            if (s.params) return mk(s.nome, s.params);                      // colou "N1(XLPE,D,A)": os parâmetros vêm junto
             let origem = -1;
             if (k.fim <= r.p) origem = novoT.indexOf(k);                                               // inteiro antes do trecho alterado: mesma posição
             else if (k.ini >= lenN - r.s) origem = velho.findIndex(v => v.ini === k.ini + (lenV - lenN));   // inteiro depois: mesma distância do fim
             const it = origem >= 0 ? antigos[origem] : null;
-            return it && it.nome === s.nome ? { nome: it.nome, params: it.params, raw: it.nome + (it.params || '') } : { nome: s.nome, params: '', raw: s.nome };
+            return it && it.nome === s.nome ? mk(it.nome, it.params) : mk(s.nome, '');
         });
         return { itens: lista, texto: juntar(lista) };
     }
 
-    const api = { tokens, separar, itens, juntar, compacto, conteudo, comParams, regiao, aplicarEdicao };
+    const api = { semQuantidade, tokens, separar, itens, juntar, compacto, conteudo, comParams, regiao, aplicarEdicao };
     if (typeof module !== 'undefined' && module.exports) module.exports = api; else raiz.AtivoItens = api;
 })(typeof window !== 'undefined' ? window : globalThis);
