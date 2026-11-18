@@ -141,3 +141,30 @@ def test_comentario_persiste_e_vale_como_congelada():
     assert r[0]["comentario"] is True and r[0]["congelada"] is True           # comentário é uma linha congelada com outra aparência
     assert "comentario" not in r[1] and "congelada" not in r[1]               # valor inválido é descartado, como os outros campos
     assert obras_arquivo.normalizar_dados({"cabos": [], "outros": [{"ativo": "X", "operacao": "I", "entidade": "0"}]})["outros"] == [{"ativo": "X", "operacao": "I", "entidade": "0"}]
+
+
+def _deep_clone_efetivo():
+    """O `deepClone` que vale em static/resumo.js é o ÚLTIMO declarado (o de cima, JSON, é sobrescrito): ele decide o que sobrevive a desfazer/refazer e ao salvar/abrir o projeto."""
+    fonte = open(os.path.join(config.STATIC_DIR, "resumo.js"), encoding="utf-8").read()
+    i = fonte.rindex("    function deepClone(obj) {")
+    return fonte[i:fonte.index("\n    }\n", i) + 6]
+
+
+@pytest.mark.skipif(not NODE, reason="node não instalado")
+def test_marcas_da_linha_sobrevivem_ao_clone_do_historico_e_do_projeto():
+    codigo = _deep_clone_efetivo() + """
+const linha = { entidade: '0', operacao: 'I', ativo: 'N1', congelada: true, bloqueada: true, comentario: true };
+console.log(JSON.stringify([deepClone(linha), deepClone({ entidade: '0', operacao: 'I', ativo: 'N2' })]));"""
+    r = subprocess.run([NODE, "-e", codigo], capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0, r.stderr
+    com, sem = json.loads(r.stdout.strip().splitlines()[-1])
+    assert com["congelada"] is True and com["bloqueada"] is True and com["comentario"] is True
+    assert "congelada" not in sem and "bloqueada" not in sem and "comentario" not in sem            # linha comum: nada a mais
+
+
+def test_historico_e_projeto_marcam_alteracao_e_hash_vira_comentario():
+    fonte = open(os.path.join(config.STATIC_DIR, "resumo.js"), encoding="utf-8").read()
+    corpo = fonte[fonte.index("    function pushHistory() {"):fonte.index("    /** Grava o estado ao vivo")]
+    assert "marcarProjetoAlterado()" in corpo                                                          # TASK-182 A: congelar/bloquear/comentar gravam no projeto
+    assert "_historicoSemSujo = true" in fonte[fonte.index("function restoreObraSnapshot"):][:1800]    # abrir um projeto não o deixa alterado
+    assert "sincronizarHash(" in fonte and "comecaComHash" in fonte                                    # TASK-182 B: "#" = comentário

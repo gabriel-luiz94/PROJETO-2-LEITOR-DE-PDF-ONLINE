@@ -139,6 +139,9 @@
             cursor: pointer; transition: all 0.18s;
             font-family: 'Inter', sans-serif;
         }
+        .grupo-marcas { display: inline-flex; gap: 2px; margin: 0 2px; }
+        .btn-marca-linha { background: rgba(110,118,129,0.12); border: 1px solid rgba(110,118,129,0.35); border-radius: 7px; color: #c9d1d9; padding: 5px 8px; font-size: 0.8rem; line-height: 1; cursor: pointer; transition: all 0.18s; }
+        .btn-marca-linha:hover { background: rgba(121,192,255,0.18); border-color: #58a6ff; }
         .btn-del-row-bulk:hover { background: rgba(255,123,114,0.25); border-color: #ff7b72; }
 
         .btn-copy-table {
@@ -486,6 +489,13 @@
         .painel-avancado .cfg-chave { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
         .cfg-switch { position: relative; width: 34px; height: 18px; border-radius: 9px; border: none; background: #30363d; cursor: pointer; padding: 0; flex: none; } .cfg-switch i { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #8b949e; transition: left .15s; }
         .cfg-switch[aria-checked="true"] { background: #238636; } .cfg-switch[aria-checked="true"] i { left: 18px; background: #fff; } .painel-avancado .cfg-nota { color: #8b949e; font-size: 11px; margin-top: 4px; }
+        /* Ocultar parâmetros ao sair da linha (opção em Configurações › Aparência › Avançado): o <input> mantém o texto inteiro; ele só fica transparente e um rótulo mostra o nome sem os parâmetros */
+        #table-outros td.cel-ativo-comp { position: relative; }
+        #table-outros .ativo-compacto { display: none; position: absolute; left: 0; right: 0; top: 0; bottom: 0; padding: 6px 8px; font-size: 0.8rem; font-family: 'Inter', sans-serif; color: #e6edf3; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; line-height: normal; display: none; align-items: center; }
+        body.ocultar-parametros #table-outros tr:not(:focus-within) td.cel-ativo-comp.tem-params .inp-ativo { color: transparent; }
+        body.ocultar-parametros #table-outros tr:not(:focus-within) td.cel-ativo-comp.tem-params .ativo-compacto { display: flex; }
+        body.ocultar-parametros #table-outros tr.linha-congelada td.cel-ativo-comp .ativo-compacto { color: #79c0ff; font-style: italic; }
+        body.ocultar-parametros #table-outros tr.linha-comentario td.cel-ativo-comp .ativo-compacto { color: #7ee787; font-style: italic; }
         .inp-ativo {
             width: 100%;
             background: transparent;
@@ -565,7 +575,8 @@
             transition: background 0.12s;
             user-select: none;
         }
-        .ctx-r-item:hover { background: rgba(255,255,255,0.06); }
+        .ctx-r-item:hover, .ctx-r-item.kb { background: rgba(255,255,255,0.10); }
+        .ctx-r-item.kb { outline: 1px solid rgba(88,166,255,0.55); outline-offset: -1px; }
         .ctx-r-item.danger { color: #ff7b72; }
         .ctx-r-item.danger:hover { background: rgba(255,123,114,0.1); }
         .ctx-r-sep { height: 1px; background: rgba(48,54,61,0.9); margin: 4px 0; }
@@ -797,8 +808,9 @@
                     </section>
                     <section class="painel-sec"><h4>Aparência</h4>
                         <div class="painel-linha"><button class="btn-secondary" id="btn-restaurar-layout" type="button" title="Volta painéis, tabelas e layout ao padrão">↺ Restaurar layout padrão</button></div>
-                        <details class="painel-avancado" id="cfg-avancado"><summary>Avançado</summary>
+                        <details class="painel-avancado" id="cfg-avancado" open><summary>Avançado</summary>
                             <div class="painel-linha cfg-chave" title="Verde = todos os parâmetros do ativo preenchidos · Laranja = falta algum. Só na tela, não altera dados nem relatórios."><button type="button" class="cfg-switch" id="cfg-colorir-params" role="switch" aria-checked="false" aria-label="Colorir ativos por parâmetros"><i></i></button><span>Colorir ativos por parâmetros</span></div>
+                            <div class="painel-linha cfg-chave" title="Ao sair da linha, o ativo mostra só o nome (PR(D,X) vira PR). Passe o mouse para ver os parâmetros; o que foi preenchido à mão aparece como manual. Só na tela, não altera dados nem relatórios."><button type="button" class="cfg-switch" id="cfg-ocultar-params" role="switch" aria-checked="false" aria-label="Ocultar parâmetros ao sair da linha"><i></i></button><span>Ocultar parâmetros ao sair da linha</span></div>
                             <div class="cfg-nota">Verde = todos os parâmetros preenchidos · Laranja = falta algum. Só na tela.</div>
                         </details>
                     </section>
@@ -836,6 +848,11 @@
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                             Copiar
                         </button>
+                        <span class="grupo-marcas" role="group" aria-label="Marcar linhas">
+                            <button class="btn-marca-linha" id="btn-congelar-cabos" type="button" title="Congelar/descongelar as linhas selecionadas (ficam na tela, mas fora dos cálculos)">❄</button>
+                            <button class="btn-marca-linha" id="btn-comentar-cabos" type="button" title="Marcar/tirar comentário nas linhas selecionadas (anotação fora dos cálculos; também vale começar o ativo com #)">💬</button>
+                            <button class="btn-marca-linha" id="btn-bloquear-cabos" type="button" title="Bloquear/desbloquear as linhas selecionadas (sem edição nem exclusão)">🔒</button>
+                        </span>
                         <button class="btn-del-row-bulk" id="btn-clear-cabos" title="Limpar Tudo">
                             Limpar Tudo
                         </button>
@@ -889,6 +906,11 @@
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                             Copiar
                         </button>
+                        <span class="grupo-marcas" role="group" aria-label="Marcar linhas">
+                            <button class="btn-marca-linha" id="btn-congelar-outros" type="button" title="Congelar/descongelar as linhas selecionadas (ficam na tela, mas fora dos cálculos)">❄</button>
+                            <button class="btn-marca-linha" id="btn-comentar-outros" type="button" title="Marcar/tirar comentário nas linhas selecionadas (anotação fora dos cálculos; também vale começar o ativo com #)">💬</button>
+                            <button class="btn-marca-linha" id="btn-bloquear-outros" type="button" title="Bloquear/desbloquear as linhas selecionadas (sem edição nem exclusão)">🔒</button>
+                        </span>
                         <button class="btn-del-row-bulk" id="btn-clear-outros" title="Limpar Tudo">
                             Limpar Tudo
                         </button>
@@ -1399,6 +1421,10 @@
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Inserir linha abaixo
         </div>
+        <div class="ctx-r-item" id="ctx-duplicar" title="Duplica a linha (ou as selecionadas) e coloca a cópia logo abaixo">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Duplicar linha
+        </div>
         <div class="ctx-r-item" id="ctx-entidade" style="display:none;">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
             Definir entidade…
@@ -1774,6 +1800,8 @@
     <script src="/static/ativo_parametros.js"></script>
     <script src="/static/ativo_status.js"></script>
     <script src="/static/base_sinal.js"></script>
+    <script src="/static/ativo_compacto.js"></script>
+    <script src="/static/ide_lista.js"></script>
     <script src="/static/ativo_na_base.js"></script>
     <script src="/static/avulsos_ficticia.js"></script>
     <script src="/static/obra_params.js"></script>

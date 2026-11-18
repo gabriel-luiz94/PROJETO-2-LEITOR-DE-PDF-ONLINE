@@ -73,7 +73,7 @@ def test_valores_do_parametro_sem_repeticao():
 
 def test_ligacao_na_tela():
     fonte = open(MODULO, encoding="utf-8").read()
-    for t in ("beforeinput", "fecharParenteseRecemAberto", "aplicarValor", "ArrowRight", "textoAntes", "limparParentesesVazios", "cfg.origens"):
+    for t in ("fecharParenteseRecemAberto", "aplicarValor", "avancar(", "dp-item", "limparParentesesVazios", "cfg.origens"):
         assert t in fonte, t
     resumo = open(os.path.join(config.STATIC_DIR, "resumo.js"), encoding="utf-8").read()
     assert "origens: (input, ativo)" in resumo and "AtivoStatus.rotuloOrigem" in resumo[resumo.index("origens: (input, ativo)"):][:900]

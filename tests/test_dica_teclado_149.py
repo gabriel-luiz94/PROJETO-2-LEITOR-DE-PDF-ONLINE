@@ -43,7 +43,7 @@ def test_inserir_no_meio_do_texto_existente():
 
 def test_teclado_ligado_na_tela_e_inverter():
     js = open(os.path.join(config.STATIC_DIR, "ativo_dica.js"), encoding="utf-8").read()
-    for t in ("stopImmediatePropagation", "ArrowDown", "planoDeInsercao", "dp-val.sel"):
+    for t in ("stopImmediatePropagation", "ArrowDown", "planoDeInsercao", "dp-item"):
         assert t in js, t
     html = open(os.path.join(config.STATIC_DIR, "resumo.html"), encoding="utf-8").read()
     assert 'id="btn-inverter-tabelas"' in html and "Inverter" in html

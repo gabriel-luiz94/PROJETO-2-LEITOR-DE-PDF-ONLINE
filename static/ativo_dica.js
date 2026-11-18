@@ -261,15 +261,18 @@
 
     /* ───────────────────────── tela ───────────────────────── */
     const doc = raiz.document;
-    // st = estado da caixa aberta: {input, textoAntes, cursorAntes (para o Esc desfazer tudo), nome (parâmetro marcado), manual (marcado pelo teclado), valorI (null = nenhum; -1 = "—" tira o valor; 0.. = valor da lista)}
-    let cfg = null, caixa = null, ctxCache = null, alvo = null, carregando = false, st = null, antesAbrir = null, dicaVez = null, tocouTeclas = false, escrevendo = false;
+    // Estilo do VS Code (dica de parâmetros + lista de sugestões). st = estado da caixa aberta:
+    //   {input, nome (parâmetro marcado), manual (marcado pelo teclado), valorI (item realçado da lista; null = nenhum), auto (o realce vem de digitação: 1º item que casa)}
+    let cfg = null, caixa = null, ctxCache = null, alvo = null, carregando = false, st = null, dicaVez = null, tocouTeclas = false, escrevendo = false;
 
-    const CSS = '.dica-param{position:fixed;z-index:9000;min-width:280px;max-width:560px;max-height:300px;overflow:auto;background:#161b22;color:#e6edf3;border:1px solid #30363d;border-radius:8px;padding:8px 10px;font:12px Inter,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.45)}'
-        + '.dica-param .dp-tit{font-weight:700;margin-bottom:4px}.dica-param .dp-aviso{color:#d29922}.dica-param .dp-erro{color:#f85149}'
-        + '.dica-param .dp-lin{padding:3px 4px;border-radius:5px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}.dica-param .dp-lin.atual{background:rgba(217,119,6,.16);outline:1px solid rgba(217,119,6,.5)}'
-        + '.dica-param .dp-nome{font-weight:600;min-width:64px}.dica-param .dp-pad{color:#8b949e;font-size:11px}.dica-param .dp-pad b{color:#e6edf3}.dica-param .dp-mark{color:#d97706;width:10px;display:inline-block}'
-        + '.dica-param button.dp-val{background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:5px;padding:1px 7px;font-size:11px;cursor:pointer}'
-        + '.dica-param button.dp-val:hover,.dica-param button.dp-val.sel{border-color:#d97706;color:#d97706}.dica-param button.dp-val.sel{background:rgba(217,119,6,.22)}.dica-param button.dp-val.escrito{border-color:#3fb950;color:#3fb950}.dica-param .dp-mask{color:#8b949e;font-size:11px}.dica-param .dp-rod{color:#6e7681;font-size:11px;margin-top:6px}';
+    const CSS = '.dica-param{position:fixed;z-index:9000;min-width:300px;max-width:560px;max-height:340px;overflow:auto;background:#252526;color:#cccccc;border:1px solid #454545;border-radius:4px;padding:4px 0;font:12px/1.55 "Cascadia Code",Consolas,Menlo,monospace;box-shadow:0 6px 18px rgba(0,0,0,.55)}'
+        + '.dica-param .dp-tit{padding:2px 10px 4px;font-weight:600;color:#e6e6e6}.dica-param .dp-aviso{color:#d7ba7d}.dica-param .dp-erro{color:#f48771}'
+        + '.dica-param .dp-assin{padding:2px 10px 5px;border-bottom:1px solid #3c3c3c;color:#9d9d9d}.dica-param .dp-assin b{color:#e6e6e6;text-decoration:underline}.dica-param .dp-assin i{font-style:normal;color:#9cdcfe}'
+        + '.dica-param .dp-lin{padding:1px 10px;display:flex;gap:10px;align-items:baseline;border-left:2px solid transparent}.dica-param .dp-lin.atual{background:#2a2d2e;border-left-color:#007acc}'
+        + '.dica-param .dp-nome{min-width:72px;color:#9cdcfe}.dica-param .dp-pad{color:#8b8b8b;font:11px Inter,system-ui,sans-serif}.dica-param .dp-pad b{color:#ce9178;font-family:inherit}'
+        + '.dica-param .dp-item{display:flex;gap:14px;padding:1px 10px 1px 28px;cursor:pointer;white-space:nowrap}.dica-param .dp-item:hover{background:#2a2d2e}.dica-param .dp-item.sel{background:#094771;color:#fff}'
+        + '.dica-param .dp-item .dp-v{font-weight:600}.dica-param .dp-item .dp-d{margin-left:auto;color:#8b8b8b;font:11px Inter,system-ui,sans-serif}.dica-param .dp-item.sel .dp-d{color:#c5d9ea}'
+        + '.dica-param .dp-mask{padding:0 10px 0 28px;color:#8b8b8b;font:11px Inter,system-ui,sans-serif}.dica-param .dp-rod{color:#6e7681;font:11px Inter,system-ui,sans-serif;padding:5px 10px 1px;border-top:1px solid #3c3c3c;margin-top:3px}';
 
     const ehCampo = el => el && el.matches && el.matches('#body-outros .inp-ativo, #body-outros-vazio .inp-ativo-vazio');
 
@@ -281,7 +284,7 @@
         return ctxCache.ctx;
     }
 
-    function fechar() { if (caixa) { caixa.remove(); caixa = null; } alvo = null; st = null; antesAbrir = null; }
+    function fechar() { if (caixa) { caixa.remove(); caixa = null; } alvo = null; st = null; }
 
     /** Troca o texto do campo (mantém o desfazer nativo quando dá) e avisa a tela (ela guarda o valor no evento "input"). */
     function escrever(input, texto, cursor) {
@@ -305,6 +308,17 @@
         const n = parametroSobOCursor(input.value, input.selectionStart, d);
         if (n && !ehObraNome(n)) return n;
         return ed.length ? ed[0].nome.toUpperCase() : null;
+    }
+
+    /** Valores que a lista mostra para o parâmetro: todos; se há texto digitado que NÃO é um valor exato, só os que casam (começam com ele primeiro, depois os que contêm). */
+    function valoresVisiveis(input, d, N) {
+        const p = parametrosEditaveis(d).find(x => x.nome.toUpperCase() === N);
+        if (!p) return [];
+        const digitado = String((valoresEscritos(input.value, input.selectionStart, d) || {})[N] || '').trim().toUpperCase();
+        const todos = p.valores.slice();
+        if (!digitado || todos.some(v => String(v).toUpperCase() === digitado)) return todos;
+        const ini = todos.filter(v => String(v).toUpperCase().startsWith(digitado)), inc = todos.filter(v => !String(v).toUpperCase().startsWith(digitado) && String(v).toUpperCase().includes(digitado));
+        return ini.concat(inc);
     }
 
     /** Grava (ou tira) o valor de um parâmetro pelo nome e deixa o cursor no fim dele. Devolve o plano (ou null). */
@@ -335,12 +349,29 @@
         if (limpo !== input.value) { cursor = Math.max(0, cursor - (input.value.length - limpo.length)); escrever(input, limpo, cursor); } else input.setSelectionRange(cursor, cursor);
     }
 
-    function escolher(input, d, nome, valor) {            // clique num valor = escolher com → e dar Enter
-        gravar(input, d, nome, valor);
-        concluir(input);
+    /** Vai ao parâmetro seguinte (a caixa continua aberta, como os "tab stops" do VS Code); no último, fecha com o cursor depois do ")". `passo` = +1 / -1. */
+    function avancar(input, passo) {
+        const ed = parametrosEditaveis(dicaVez), nomes = ed.map(p => p.nome.toUpperCase()), i = nomes.indexOf(nomeAtual(input, dicaVez)), n = i + passo;
+        if (n < 0) return false;
+        if (n >= nomes.length) { concluir(input); return true; }
+        st.nome = nomes[n]; st.manual = true; st.valorI = null; st.auto = false;
+        irParaParametro(input, dicaVez, st.nome);
+        desenhar(input, dicaVez);
+        return true;
     }
 
-    function desenhar(input, c, d) {
+    /** Aceita o valor realçado (se houver): grava pelo nome e avança. Devolve true se havia valor realçado. */
+    function aceitar(input) {
+        if (!st || st.valorI === null) return false;
+        const N = nomeAtual(input, dicaVez), v = valoresVisiveis(input, dicaVez, N)[st.valorI];
+        if (v == null) return false;
+        gravar(input, dicaVez, N, v);
+        if (st) { st.nome = N; st.manual = true; }
+        avancar(input, 1);
+        return true;
+    }
+
+    function desenhar(input, d) {
         if (!caixa) {
             if (!doc.getElementById('dica-param-css')) { const stl = doc.createElement('style'); stl.id = 'dica-param-css'; stl.textContent = CSS; doc.head.appendChild(stl); }
             caixa = doc.createElement('div'); caixa.className = 'dica-param';
@@ -348,48 +379,56 @@
             doc.body.appendChild(caixa);
         }
         caixa.innerHTML = '';
-        const tit = doc.createElement('div'); tit.className = 'dp-tit';
         if (d.tipo !== 'parametros') {
-            tit.className += d.tipo === 'nao_encontrado' ? ' dp-erro' : ' dp-aviso';
+            const tit = doc.createElement('div'); tit.className = 'dp-tit ' + (d.tipo === 'nao_encontrado' ? 'dp-erro' : 'dp-aviso');
             tit.textContent = d.mensagem; caixa.appendChild(tit);
         } else {
-            tit.textContent = `${d.ativo} — parâmetros`; caixa.appendChild(tit);
             const atualNome = nomeAtual(input, d), escritos = valoresEscritos(input.value, input.selectionStart, d);
             const origens = (cfg.origens && cfg.origens(input, d.ativo)) || {};
+            const ed = parametrosEditaveis(d);
+            const assin = doc.createElement('div'); assin.className = 'dp-assin';                      // assinatura: ATIVO(param1, param2, …) com o parâmetro da vez em destaque (como a dica de parâmetros do VS Code)
+            assin.appendChild(doc.createTextNode(d.ativo + '('));
+            ed.forEach((p, k) => { if (k) assin.appendChild(doc.createTextNode(', ')); const e = doc.createElement(p.nome.toUpperCase() === atualNome ? 'b' : 'i'); e.textContent = p.nome.toLowerCase(); assin.appendChild(e); });
+            assin.appendChild(doc.createTextNode(')')); caixa.appendChild(assin);
             d.params.forEach(p => {
-                const N = p.nome.toUpperCase();
-                const atual = !p.obra && N === atualNome;
+                const N = p.nome.toUpperCase(), atual = !p.obra && N === atualNome;
                 const lin = doc.createElement('div'); lin.className = 'dp-lin' + (atual ? ' atual' : '');
-                const mk = doc.createElement('span'); mk.className = 'dp-mark'; mk.textContent = atual ? '▸' : ''; lin.appendChild(mk);
                 const nm = doc.createElement('span'); nm.className = 'dp-nome'; nm.textContent = p.nome.toLowerCase(); lin.appendChild(nm);
                 const pad = doc.createElement('span'); pad.className = 'dp-pad';
-                const ori = origens[N];
-                const vObra = p.obra && raiz.ObraParams ? raiz.ObraParams.valores()[N] : null;
+                const ori = origens[N], vObra = p.obra && raiz.ObraParams ? raiz.ObraParams.valores()[N] : null;
+                const dest = (txt, valor) => { pad.innerHTML = ''; if (valor != null) { const b = doc.createElement('b'); b.textContent = valor; pad.appendChild(b); } pad.appendChild(doc.createTextNode(txt)); };
                 if (p.obra) pad.textContent = `da obra (não editável) · ${vObra ? N + '=' + vObra + ' ‹obra›' : (p.padrao != null ? 'sem dado na obra: usa ' + p.padrao : 'sem dado na obra')}`;
-                else if (N in escritos) pad.innerHTML = '<b></b> · manual';
-                else if (ori && ori.valor != null && ori.valor !== '') pad.innerHTML = '<b></b>' + (ori.rotulo ? ' · ' + ori.rotulo : '');
+                else if (N in escritos) dest(' · manual', escritos[N]);
+                else if (ori && ori.valor != null && ori.valor !== '') dest(ori.rotulo ? ' · ' + ori.rotulo : '', ori.valor);
                 else pad.textContent = p.porNome ? '(só na fórmula: informe por nome)' : (p.padrao != null ? `padrão ${p.padrao}` : 'sem padrão') + (p.aberto ? ' · aceita qualquer valor' : '');
-                const b = pad.querySelector && pad.querySelector('b'); if (b) b.textContent = N in escritos ? escritos[N] : ori.valor;
-                lin.appendChild(pad);
-                if (atual && p.valores.length) {
-                    const vazio = doc.createElement('button'); vazio.type = 'button'; vazio.className = 'dp-val' + (st && st.valorI === -1 ? ' sel' : ''); vazio.textContent = '—'; vazio.title = 'Tira o valor deste parâmetro';
-                    vazio.addEventListener('click', () => escolher(input, d, N, '')); lin.appendChild(vazio);
+                lin.appendChild(pad); caixa.appendChild(lin);
+                if (atual) {                                                                          // a lista de valores do parâmetro da vez, no estilo da lista de sugestões
+                    const vis = valoresVisiveis(input, d, N);
+                    if (st && st.auto) {                                                              // digitou: realça o valor igual ao texto (se houver) ou o 1º que casa
+                        const igual = vis.findIndex(v => String(v).toUpperCase() === String(escritos[N] || '').trim().toUpperCase());
+                        st.valorI = igual >= 0 ? igual : (vis.length ? 0 : null);
+                    }
+                    if (st && st.valorI !== null && st.valorI >= vis.length) st.valorI = null;
+                    vis.forEach((v, k) => {
+                        const it = doc.createElement('div'); it.className = 'dp-item' + (st && st.valorI === k ? ' sel' : '');
+                        const vs = doc.createElement('span'); vs.className = 'dp-v'; vs.textContent = v; it.appendChild(vs);
+                        const det = [];
+                        if (p.padrao != null && String(p.padrao).toUpperCase() === String(v).toUpperCase()) det.push('padrão');
+                        if (String(escritos[N] || '').toUpperCase() === String(v).toUpperCase()) det.push('escrito');
+                        if (det.length) { const ds = doc.createElement('span'); ds.className = 'dp-d'; ds.textContent = det.join(' · '); it.appendChild(ds); }
+                        it.addEventListener('click', () => { if (st) st.valorI = k; aceitar(input); });
+                        caixa.appendChild(it);
+                    });
+                    const outras = p.mascaras.filter(m => !p.valores.includes(String(m).replace(/^%+|%+$/g, '')));            // as máscaras simples já viraram valores
+                    if (outras.length) { const m = doc.createElement('div'); m.className = 'dp-mask'; m.title = '% = qualquer texto'; m.textContent = 'também: ' + outras.join('  '); caixa.appendChild(m); }
+                    const sel = caixa.querySelector('.dp-item.sel'); if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: 'nearest' });
                 }
-                p.valores.forEach((v, k) => {
-                    if (!atual) { const t = doc.createElement('span'); t.className = 'dp-mask'; t.textContent = v; lin.appendChild(t); return; }      // só o parâmetro marcado recebe valor
-                    const bt = doc.createElement('button'); bt.type = 'button';
-                    bt.className = 'dp-val' + (st && st.valorI === k ? ' sel' : '') + (String(escritos[N] || '').toUpperCase() === String(v).toUpperCase() ? ' escrito' : '');
-                    bt.textContent = v; bt.addEventListener('click', () => escolher(input, d, N, v)); lin.appendChild(bt);
-                });
-                const outras = p.mascaras.filter(m => !p.valores.includes(String(m).replace(/^%+|%+$/g, '')));            // as máscaras simples já viraram botões
-                if (outras.length) { const m = doc.createElement('span'); m.className = 'dp-mask'; m.title = '% = qualquer texto'; m.textContent = 'também: ' + outras.join('  '); lin.appendChild(m); }
-                caixa.appendChild(lin);
             });
-            const rod = doc.createElement('div'); rod.className = 'dp-rod'; rod.textContent = '↑↓ parâmetro · ←→ valor · Enter grava e fecha · Esc desfaz tudo · ou clique no valor'; caixa.appendChild(rod);
+            const rod = doc.createElement('div'); rod.className = 'dp-rod'; rod.textContent = '↑↓ valores · Enter/Tab aceita e avança · Shift+Tab volta · Esc fecha'; caixa.appendChild(rod);
         }
         dicaVez = d;
         const r = input.getBoundingClientRect();
-        caixa.style.left = Math.max(4, Math.min(r.left, raiz.innerWidth - 320)) + 'px';
+        caixa.style.left = Math.max(4, Math.min(r.left, raiz.innerWidth - 340)) + 'px';
         caixa.style.top = (r.bottom + 3) + 'px';
     }
 
@@ -406,37 +445,15 @@
             }
             return;
         }
-        if (!st || st.input !== input) {                                           // a caixa abriu agora: guarda o texto de antes (o Esc volta a ele)
-            const antes = antesAbrir && antesAbrir.input === input ? antesAbrir : { valor: input.value, cursor: input.selectionStart };
-            st = { input, textoAntes: antes.valor, cursorAntes: antes.cursor, nome: null, manual: false, valorI: null };
-            antesAbrir = null;
-        }
+        if (!st || st.input !== input) st = { input, nome: null, manual: false, valorI: null, auto: false };
         alvo = input;
-        desenhar(input, c, dica(c.nome, contexto()));
+        desenhar(input, dica(c.nome, contexto()));
     }
 
     function iniciar(opcoes) {
         cfg = opcoes || {};
         const dentro = e => caixa && st && st.input === e.target && dicaVez && dicaVez.tipo === 'parametros' && grupoDoCursor(e.target.value, e.target.selectionStart);
-        const mover = (input, passo) => {                                          // ↑↓: muda o parâmetro marcado (sem marcar valor)
-            const ed = parametrosEditaveis(dicaVez);
-            if (!ed.length) return;
-            const nomes = ed.map(p => p.nome.toUpperCase()), i = nomes.indexOf(nomeAtual(input, dicaVez));
-            const n = Math.max(0, Math.min(nomes.length - 1, (i === -1 ? 0 : i) + passo));
-            st.nome = nomes[n]; st.manual = true; st.valorI = null;
-            irParaParametro(input, dicaVez, st.nome);
-            desenhar(input, contextoDoParentese(input.value, input.selectionStart) || {}, dicaVez);
-        };
-        const gravarMarcado = input => {                                           // grava o valor marcado (se houver) no parâmetro da vez
-            if (!st || st.valorI === null) return false;
-            const N = nomeAtual(input, dicaVez), p = parametrosEditaveis(dicaVez).find(x => x.nome.toUpperCase() === N);
-            if (!p) return false;
-            gravar(input, dicaVez, N, st.valorI === -1 ? '' : p.valores[st.valorI]);
-            if (st) st.valorI = null;
-            return true;
-        };
         // "(" logo depois do nome de um ativo com parâmetros: já escreve o ")" e deixa o cursor no meio
-        doc.addEventListener('beforeinput', e => { if (ehCampo(e.target) && e.inputType === 'insertText' && e.data === '(') antesAbrir = { input: e.target, valor: e.target.value, cursor: e.target.selectionStart }; }, true);
         doc.addEventListener('input', e => {
             if (!ehCampo(e.target) || escrevendo) return;
             if (e.inputType === 'insertText' && e.data === '(' && cfg.base && (cfg.base() || []).length) {
@@ -446,42 +463,30 @@
                     if (f) { escrever(input, f.texto, f.cursor); atualizar(input); return; }
                 }
             }
+            if (st && st.input === e.target) { st.auto = true; st.manual = false; }          // digitou: realça o 1º valor que casa (como a lista do VS Code)
             atualizar(e.target);
         });
-        // teclado dentro dos parênteses (em captura e ANTES dos demais tratadores, que o consumido não pode alcançar)
+        // teclado (em captura e ANTES dos demais tratadores, que o consumido não pode alcançar)
         doc.addEventListener('keydown', e => {
             if (e.isComposing || !ehCampo(e.target)) return;
             tocouTeclas = false;
-            if (e.key === 'Escape' && caixa && st) {                                // desfaz tudo o que foi feito desde que a caixa abriu
-                e.preventDefault(); e.stopImmediatePropagation();
-                const input = st.input, antes = st.textoAntes, cur = st.cursorAntes;
-                fechar();
-                escrever(input, antes, cur);
-                return;
-            }
-            if (!dentro(e)) return;
-            const input = e.target, ed = parametrosEditaveis(dicaVez);
-            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            if (e.key === 'Escape' && caixa) { e.preventDefault(); e.stopImmediatePropagation(); fechar(); return; }       // fecha a caixa e mantém o texto (Ctrl+Z desfaz)
+            if (!dentro(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+            const input = e.target;
             if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                const vis = valoresVisiveis(input, dicaVez, nomeAtual(input, dicaVez));
+                if (!vis.length) return;                                              // sem lista de valores: as setas movem o cursor/linha como sempre
                 e.preventDefault(); e.stopImmediatePropagation(); tocouTeclas = true;
-                if (e.key === 'ArrowDown' && st.valorI !== null) { const N = nomeAtual(input, dicaVez); gravarMarcado(input); st.nome = N; st.manual = true; mover(input, 1); }     // grava o valor marcado e vai para o próximo parâmetro
-                else mover(input, e.key === 'ArrowDown' ? 1 : -1);
-            } else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !e.shiftKey) {
-                const p = ed.find(x => x.nome.toUpperCase() === nomeAtual(input, dicaVez));
-                if (!p || !p.valores.length) return;                                // sem lista de valores: as setas movem o cursor como sempre
-                e.preventDefault(); e.stopImmediatePropagation(); tocouTeclas = true;
-                const n = p.valores.length;
-                if (e.key === 'ArrowRight') st.valorI = st.valorI === null ? 0 : Math.min(n - 1, st.valorI + 1);
-                else st.valorI = st.valorI === null ? -1 : Math.max(-1, st.valorI - 1);
-                desenhar(input, contextoDoParentese(input.value, input.selectionStart) || {}, dicaVez);
+                st.auto = false;
+                st.valorI = st.valorI === null ? (e.key === 'ArrowDown' ? 0 : vis.length - 1) : (st.valorI + (e.key === 'ArrowDown' ? 1 : -1) + vis.length) % vis.length;
+                desenhar(input, dicaVez);
             } else if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault(); e.stopImmediatePropagation(); tocouTeclas = true;
-                gravarMarcado(input);
-                concluir(input);
-            } else if (e.key === 'Tab' && !e.shiftKey && st.valorI !== null) {
+                if (!aceitar(input)) concluir(input);                                // com valor realçado: aceita e avança; sem: só fecha (cursor depois do ")")
+            } else if (e.key === 'Tab') {
                 e.preventDefault(); e.stopImmediatePropagation(); tocouTeclas = true;
-                const N = nomeAtual(input, dicaVez);
-                gravarMarcado(input); st.nome = N; st.manual = true; mover(input, 1);
+                if (e.shiftKey) { if (!avancar(input, -1)) concluir(input); }
+                else if (!aceitar(input)) avancar(input, 1);
             } else if (e.key.length === 1 && st.manual && st.nome) {
                 // digitar com um parâmetro marcado pelo teclado: o texto entra nele (se ainda não existe, escreve "nome=" antes)
                 const N = st.nome, escritos = valoresEscritos(input.value, input.selectionStart, dicaVez);
@@ -490,13 +495,11 @@
                     const rotulo = (inner ? ',' : '') + N.toLowerCase() + '=';
                     escrever(input, t.slice(0, fim) + rotulo + t.slice(fim), fim + rotulo.length);
                 } else irParaParametro(input, dicaVez, N);
-                st.manual = false; st.valorI = null;                                // daqui em diante o parâmetro vem do cursor
             }
         }, true);
-        doc.addEventListener('keyup', e => { if (ehCampo(e.target) && e.key !== 'Escape' && !tocouTeclas) { if (st && (e.key.indexOf('Arrow') === 0 || e.key === 'Home' || e.key === 'End')) { st.manual = false; st.valorI = null; } atualizar(e.target); } tocouTeclas = false; });
-        doc.addEventListener('click', e => { if (ehCampo(e.target)) { if (st) { st.manual = false; st.valorI = null; } atualizar(e.target); } });
+        doc.addEventListener('keyup', e => { if (ehCampo(e.target) && e.key !== 'Escape' && !tocouTeclas) { if (st && (e.key.indexOf('Arrow') === 0 || e.key === 'Home' || e.key === 'End')) { st.manual = false; st.valorI = null; st.auto = false; } atualizar(e.target); } tocouTeclas = false; });
+        doc.addEventListener('click', e => { if (ehCampo(e.target)) { if (st) { st.manual = false; st.valorI = null; st.auto = false; } atualizar(e.target); } });
         doc.addEventListener('focusout', e => { if (ehCampo(e.target)) setTimeout(() => { if (doc.activeElement !== alvo) fechar(); }, 120); });
-        doc.addEventListener('keydown', e => { if (e.key === 'Escape' && caixa) { fechar(); } }, true);
         // TASK-129: Enter ou sair do campo completa o ")" que falta (em captura: roda antes dos tratadores da própria tela, que leem o valor); TASK-181: parênteses vazios (PR()) viram PR
         const completar = input => {
             const novo = limparParentesesVazios(completarParenteses(input.value));

@@ -899,3 +899,9 @@ Na tela de login, com **Lembrar de mim** marcado o programa **abre direto, sem p
 - **Comentário:** botão direito na linha › *Marcar como comentário* (💬). Serve para anotar na tabela (por exemplo, o limite de uma seção): fica fora de todos os cálculos, como a linha congelada, e continua editável. *Tirar comentário* devolve a linha ao normal.
 - **Operação antes do ativo:** nas linhas em branco de Cabos e Outros, escolha a **Operação** na coluna antes de digitar o ativo; a nova linha nasce com ela. Se não escolher, vale a operação da linha de cima, como antes.
 - **Ativo que não existe na base:** com *Colorir ativos por parâmetros* ligado, passe o mouse no ativo vermelho: o balão mostra "**ATIVO NÃO EXISTE NA BASE**". Um nome que é **componente** ou **código** da base não é marcado.
+
+## Ocultar parâmetros ao sair da linha (18/11/2026)
+
+- **Configurações › Aparência › Avançado › Ocultar parâmetros ao sair da linha** (desligada por padrão). Ligada, na tabela **Demais Ativos** o ativo que tem parâmetros mostra só o nome quando você sai da linha: `RL, PR(D,X), ATRINT` aparece como `RL, PR, ATRINT`. Ao entrar na linha o texto completo volta para você editar.
+- **Passe o mouse** no ativo: o balão lista os parâmetros e de onde veio cada valor. O que você preencheu à mão aparece como **manual** (os outros mostram vínculo, da obra, padrão ou automático).
+- É só aparência: o texto da linha, o cálculo, a cópia e o projeto continuam com os parâmetros.

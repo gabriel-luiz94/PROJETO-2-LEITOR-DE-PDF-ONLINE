@@ -58,7 +58,7 @@
         return l.every(s => s.completo) ? 'ok' : 'falta';
     }
 
-    const ROTULO_ORIGEM = { pedido: 'do pedido', vinculo: 'vínculo', obra: 'da obra', padrao: 'padrão', define: 'automático' };
+    const ROTULO_ORIGEM = { pedido: 'manual', vinculo: 'vínculo', obra: 'da obra', padrao: 'padrão', define: 'automático' };
     function rotuloOrigem(o, detalhe) { return (ROTULO_ORIGEM[o] || '') + (o === 'define' && detalhe ? ' ‹' + detalhe + '›' : ''); }
 
     const api = { statusDoAtivo, estadoDaLinha, rotuloOrigem, ligadosPeloTexto };

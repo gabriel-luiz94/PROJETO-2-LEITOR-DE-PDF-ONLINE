@@ -60,14 +60,35 @@ document.addEventListener('DOMContentLoaded', () => {
        a célula fica vermelha com o aviso e o valor volta ao anterior. O campo tem a lista (datalist) para quem prefere escolher. */
     const MSG_OPERACAO_INVALIDA = 'Operação inválida: use I, *I, R, *R, M ou *M';
     const normalizarOperacao = t => String(t == null ? '' : t).replace(/\s+/g, '').toUpperCase();
-    function datalistOperacoes() {
-        if (!document.getElementById('dl-operacoes')) {
-            const d = document.createElement('datalist'); d.id = 'dl-operacoes';
-            OPERACOES.forEach(v => d.appendChild(new Option(v)));
-            document.body.appendChild(d);
-        }
-        return 'dl-operacoes';
+    const DETALHE_OPERACAO = { 'I': 'instalar', '*I': 'instalar em linha viva', 'R': 'remover', '*R': 'remover em linha viva', 'M': 'manter', '*M': 'manter em linha viva' };
+    const ehCampoOperacao = el => !!(el && el.matches && el.matches('input.inp-operacao, input.tot-op-input'));
+    /* Lista de operações no estilo do VS Code (static/ide_lista.js): ao entrar no campo aparecem TODAS (a atual selecionada); digitar filtra; ↑↓ navegam; Enter/Tab escolhem; Esc fecha. */
+    let _listaOp = null;
+    function listaOperacao() {
+        return _listaOp || (_listaOp = window.IdeLista.criar({ aoEscolher: (item, campo) => { campo.value = item.valor; campo.dispatchEvent(new Event('change', { bubbles: true })); } }));
     }
+    function abrirListaOperacao(inp, filtrar) {
+        if (!window.IdeLista || inp.readOnly || inp.disabled) return;
+        const q = filtrar ? normalizarOperacao(inp.value) : '';
+        const itens = OPERACOES.filter(v => !q || v.startsWith(q)).map(v => ({ valor: v, detalhe: DETALHE_OPERACAO[v] }));
+        const atual = normalizarOperacao(inp.dataset.valorOk || inp.value);
+        listaOperacao().abrir(inp, itens, q ? (itens.length ? 0 : -1) : itens.findIndex(x => x.valor === atual));
+    }
+    document.addEventListener('focusin', e => { if (ehCampoOperacao(e.target) && !e.target.readOnly) { e.target.select(); abrirListaOperacao(e.target, false); } });
+    document.addEventListener('click', e => { if (ehCampoOperacao(e.target) && window.IdeLista && !listaOperacao().aberta()) abrirListaOperacao(e.target, false); });
+    document.addEventListener('input', e => { if (ehCampoOperacao(e.target)) abrirListaOperacao(e.target, true); });
+    document.addEventListener('keydown', e => {
+        if (!ehCampoOperacao(e.target) || !window.IdeLista) return;
+        const l = listaOperacao();
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault(); e.stopPropagation();
+            if (!l.aberta()) abrirListaOperacao(e.target, false); else l.mover(e.key === 'ArrowDown' ? 1 : -1);
+        } else if ((e.key === 'Enter' || e.key === 'Tab') && l.aberta() && l.indice() >= 0 && !e.shiftKey) {
+            e.preventDefault(); e.stopPropagation();
+            l.escolherAtual();
+        } else if (e.key === 'Enter' || e.key === 'Escape') l.fechar();
+    }, true);
+    document.addEventListener('focusout', e => { if (ehCampoOperacao(e.target)) setTimeout(() => { if (window.IdeLista && document.activeElement !== listaOperacao().doCampo()) listaOperacao().fechar(); }, 120); });
     /** Marca a célula como inválida por alguns segundos (vermelho + aviso no título) e devolve o valor anterior. */
     function recusarOperacao(inp, anterior) {
         inp.value = anterior;
@@ -83,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function criarCampoOperacao(valor, classe, aoMudar) {
         const inp = document.createElement('input');
         inp.type = 'text'; inp.className = classe; inp.value = valor; inp.dataset.valorOk = valor;
-        inp.setAttribute('list', datalistOperacoes()); inp.autocomplete = 'off'; inp.spellcheck = false; inp.maxLength = 4;
+        inp.autocomplete = 'off'; inp.spellcheck = false; inp.maxLength = 4;
         inp.setAttribute('aria-label', 'Operação: I, *I, R, *R, M ou *M');
         inp.title = 'Operação: I, *I, R, *R, M ou *M — digite ou escolha na lista';
         inp.addEventListener('change', () => {
@@ -121,6 +142,21 @@ document.addEventListener('DOMContentLoaded', () => {
     /** Linha CONGELADA: fica na tela (e pode ser editada), mas sai de Totalizadora, orçamento, validação, ajustes, cores, contadores e algoritmos — serve de comentário. Só um vínculo feito à mão pode usar um cabo congelado como fonte.
      *  Linha BLOQUEADA: não pode ser editada nem excluída; continua entrando nos cálculos (a menos que também esteja congelada). */
     const congelada = r => !!(r && r.congelada), bloqueada = r => !!(r && r.bloqueada);
+    /** TASK-182: texto do ativo começando por "#" (depois de espaços) = comentário. `sincronizarHash(linha, textoAnterior)`: começou com "#" → vira comentário (congelada);
+     *  tinha "#" e deixou de ter → volta ao normal (só se ainda é comentário). Linha bloqueada não muda. Devolve true se mudou a linha. */
+    const comecaComHash = t => /^\s*#/.test(String(t == null ? '' : t));
+    function sincronizarHash(row, anterior) {
+        if (!row || row.bloqueada) return false;
+        if (comecaComHash(row.ativo)) {
+            if (row.comentario) return false;
+            row.comentario = true; row.congelada = true; return true;
+        }
+        if (comecaComHash(anterior) && row.comentario) { delete row.comentario; delete row.congelada; return true; }
+        return false;
+    }
+    /** Marca o projeto como alterado a cada ação do usuário que entra no histórico (congelar/bloquear/comentar pelo menu não disparam input/change). Não vale ao abrir/carregar um projeto. */
+    let _historicoSemSujo = false;
+    function marcarProjetoAlterado() { if (!_historicoSemSujo && window.GridRProjeto && window.GridRProjeto.marcarSujo) window.GridRProjeto.marcarSujo(false); }
     const tableStates = {
         cabos: { bodyId: 'body-cabos', data: [] },
         outros: { bodyId: 'body-outros', data: [] },
@@ -437,8 +473,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const consumed = handleAcKeydown(e, inpAt, type);
                 if (e.key === 'Enter' && !consumed) {
                     e.preventDefault();
-                    // como no Excel: Enter desce; na última linha cria uma nova
-                    if (!irParaCelula(type, idx + 1, 1, 1)) addRow(type, idx);
+                    // Enter cria uma linha NOVA logo abaixo (como numa IDE); numa linha ainda em branco só desce, para não empilhar linhas vazias
+                    if (String(row.ativo == null ? '' : row.ativo).trim() === '') irParaCelula(type, idx + 1, 1, 1);
+                    else addRow(type, idx);
                 }
                 if (!consumed && !e.shiftKey && !e.ctrlKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
                     e.preventDefault();
@@ -455,6 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         row.ativo = snapAtivo;
                         pushHistory();  // snapshot com valor ANTES
                         row.ativo = inpAt.value;  // aplica o novo valor
+                        const mudouHash = sincronizarHash(row, snapAtivo);                    // TASK-182: "#" no começo = comentário (no mesmo passo de Ctrl+Z)
                         if (type === 'outros') {                              // TASK-065
                             reclassificarEntidade(row);
                             atualizarCelulaEntidade();
@@ -480,6 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         refreshAllFilters(type);
                         atualizarResumoRedeUI();
+                        if (mudouHash) renderPreservandoFoco(type);
                     }
                 }, 150);
             });
@@ -489,6 +528,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             tdAt.appendChild(inpAt);
+            if (type === 'outros' && window.AtivoCompacto) {                         // "Ocultar parâmetros ao sair da linha": rótulo com o nome sem os parâmetros (o CSS só o mostra com a opção ligada e a linha sem foco)
+                const rotulo = document.createElement('span');
+                rotulo.className = 'ativo-compacto';
+                rotulo.setAttribute('aria-hidden', 'true');
+                tdAt.classList.add('cel-ativo-comp');
+                tdAt.appendChild(rotulo);
+                const atualizarCompacto = () => { const c = window.AtivoCompacto.compactar(inpAt.value); rotulo.textContent = c; tdAt.classList.toggle('tem-params', c !== inpAt.value); };
+                atualizarCompacto();
+                inpAt.addEventListener('blur', atualizarCompacto);
+                inpAt.addEventListener('input', atualizarCompacto);
+            }
             tdAt.dataset.col = '1';
             tr.appendChild(tdAt);
 
@@ -676,6 +726,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return tb;
     }
 
+    /** Redesenha a tabela mantendo o foco na mesma célula (a edição do "#" acontece quando o foco já foi para outra célula). */
+    function renderPreservandoFoco(type) {
+        const body = document.getElementById(tableStates[type].bodyId), a = document.activeElement;
+        const tr = a && a.closest ? a.closest('tr[data-index]') : null;
+        const ref = tr && body.contains(tr) ? { idx: tr.dataset.index, campo: a.dataset ? a.dataset.field : '', cls: a.classList && a.classList[0] } : null;
+        renderTable(type);
+        if (!ref) return;
+        const novo = Array.from(body.children).find(x => x.dataset.index === ref.idx);
+        const el = novo && ((ref.campo && novo.querySelector(`[data-field="${ref.campo}"]`)) || (ref.cls && novo.querySelector('.' + ref.cls)));
+        if (el) el.focus();
+    }
+
     function materializarLinhaVazia(type, texto, operacao) {
         const dados = tableStates[type].data;
         pushHistory();                                         // um passo de Ctrl+Z para criar a linha
@@ -683,6 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const GT = window.GradeTabela;
         const row = GT.novaLinha(type, operacao || GT.operacaoHerdada(dados, dados.length));          // operação escolhida na linha em branco, ou a herdada
         row.ativo = String(texto).toUpperCase();
+        sincronizarHash(row, '');                                // TASK-182: linha nova que começa com "#" já nasce comentário
         dados.push(row);
         if (type === 'outros') reclassificarEntidade(row);
         else recalcRowAndAbove(dados.length - 1);
@@ -1042,6 +1105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         alvos.forEach(i => { if (poe) dados[i][campo] = true; else delete dados[i][campo]; });
         limparGrade();
         renderTable(tipo);
+        restaurarSelecaoLinhas(tipo, alvos);
         buildAtivoSets(); buildDataLists();
         refreshAllFilters(tipo);
         atualizarResumoRedeUI();
@@ -1055,14 +1119,57 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!alvos.length) { showToast('Linha bloqueada: desbloqueie antes de mudar o comentário.'); return; }
         const poe = !alvos.every(i => dados[i].comentario);
         pushHistory();
-        alvos.forEach(i => { if (poe) { dados[i].comentario = true; dados[i].congelada = true; } else { delete dados[i].comentario; delete dados[i].congelada; } });
+        alvos.forEach(i => { if (poe) { dados[i].comentario = true; dados[i].congelada = true; } else { delete dados[i].comentario; delete dados[i].congelada; if (comecaComHash(dados[i].ativo)) dados[i].ativo = String(dados[i].ativo).replace(/^\s*#\s?/, ''); } });
         limparGrade();
         renderTable(tipo);
+        restaurarSelecaoLinhas(tipo, alvos);
         buildAtivoSets(); buildDataLists();
         refreshAllFilters(tipo);
         atualizarResumoRedeUI();
         showToast(`${alvos.length} linha(s) ${poe ? 'viraram comentário' : 'voltaram ao normal'}. Ctrl+Z desfaz.`);
     }
+    /** Duplicar linha: copia as linhas (a clicada ou as selecionadas) e coloca as cópias LOGO ABAIXO (num bloco, na mesma ordem). A cópia vira uma linha comum: sem bloqueio e sem o vínculo/geometria do original. Um passo de Ctrl+Z. */
+    function duplicarLinhas(tipo, idxs) {
+        const dados = tableStates[tipo].data;
+        const alvos = Array.from(new Set(idxs)).filter(i => dados[i]).sort((a, b) => a - b);
+        if (!alvos.length) return;
+        pushHistory();
+        const copias = alvos.map(i => {
+            const c = deepClone(dados[i]);
+            ['bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', 'vinculoEstruturas', 'vinculoOrigem', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
+            return c;
+        });
+        const depois = alvos[alvos.length - 1] + 1;
+        dados.splice(depois, 0, ...copias);
+        if (tipo === 'cabos') recalcAllQtdAtivos();
+        limparGrade();
+        renderTable(tipo);
+        buildAtivoSets(); buildDataLists();
+        refreshAllFilters(tipo);
+        atualizarResumoRedeUI();
+        restaurarSelecaoLinhas(tipo, copias.map((_, k) => depois + k));
+        showToast(`${copias.length} linha(s) duplicada(s) logo abaixo. Ctrl+Z desfaz.`);
+    }
+
+    /** Depois de redesenhar a tabela, mantém selecionadas as linhas que o usuário marcou (assim ❄/💬/🔒 podem ser desfeitos no mesmo grupo). */
+    function restaurarSelecaoLinhas(tipo, idxs) {
+        const body = document.getElementById(tableStates[tipo].bodyId);
+        Array.from(body.querySelectorAll('tr[data-index]')).forEach(tr => { if (idxs.includes(parseInt(tr.dataset.index))) tr.classList.add('row-selected'); });
+    }
+    /** Botões ❄ 💬 🔒 do cabeçalho da tabela: agem nas linhas selecionadas (clique no número da linha) ou, sem seleção, na linha onde está o cursor. */
+    function linhasParaMarcar(tipo) {
+        const body = document.getElementById(tableStates[tipo].bodyId);
+        const sel = Array.from(body.querySelectorAll('tr.row-selected')).map(tr => parseInt(tr.dataset.index)).filter(i => !isNaN(i));
+        if (sel.length) return sel;
+        const a = document.activeElement, tr = a && a.closest ? a.closest('tr[data-index]') : null;
+        return tr && body.contains(tr) ? [parseInt(tr.dataset.index)] : [];
+    }
+    ['cabos', 'outros'].forEach(tipo => {
+        const ligar = (id, fn) => { const b = document.getElementById(id); if (b) b.addEventListener('mousedown', e => e.preventDefault()); if (b) b.addEventListener('click', () => { const idxs = linhasParaMarcar(tipo); if (!idxs.length) { showToast('Selecione linhas (clique no número) ou posicione o cursor numa linha.'); return; } fn(tipo, idxs); }); };
+        ligar('btn-congelar-' + tipo, (t, i) => alternarMarcaLinhas(t, i, 'congelada'));
+        ligar('btn-bloquear-' + tipo, (t, i) => alternarMarcaLinhas(t, i, 'bloqueada'));
+        ligar('btn-comentar-' + tipo, (t, i) => alternarComentario(t, i));
+    });
     function showCtxMenu(x, y) {
         const itemEnt = document.getElementById('ctx-entidade');
         if (itemEnt) itemEnt.style.display = ctxType === 'outros' ? '' : 'none';
@@ -1076,7 +1183,19 @@ document.addEventListener('DOMContentLoaded', () => {
         ctxMenu.style.top  = Math.min(y, window.innerHeight - 140) + 'px';
         ctxMenu.classList.add('visible');
     }
-    function hideCtxMenu() { ctxMenu.classList.remove('visible'); ctxRow = null; ctxType = null; }
+    /* Menu do botão direito pelo teclado: ↑↓ (Home/End) navegam pelas opções, Enter executa, Esc fecha */
+    let ctxKb = -1;
+    const itensDoMenu = () => Array.from(ctxMenu.querySelectorAll('.ctx-r-item')).filter(el => el.offsetParent !== null);
+    function marcarItemDoMenu(i) { ctxKb = i; itensDoMenu().forEach((el, k) => el.classList.toggle('kb', k === i)); }
+    function hideCtxMenu() { ctxMenu.classList.remove('visible'); ctxMenu.querySelectorAll('.kb').forEach(el => el.classList.remove('kb')); ctxKb = -1; ctxRow = null; ctxType = null; }
+    document.addEventListener('keydown', e => {
+        if (!ctxMenu.classList.contains('visible')) return;
+        const n = itensDoMenu().length;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); if (n) marcarItemDoMenu(ctxKb < 0 ? (e.key === 'ArrowDown' ? 0 : n - 1) : (ctxKb + (e.key === 'ArrowDown' ? 1 : -1) + n) % n); }
+        else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); e.stopPropagation(); if (n) marcarItemDoMenu(e.key === 'Home' ? 0 : n - 1); }
+        else if ((e.key === 'Enter' || e.key === ' ') && ctxKb >= 0) { e.preventDefault(); e.stopPropagation(); const it = itensDoMenu()[ctxKb]; if (it) it.click(); }
+        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hideCtxMenu(); }
+    }, true);
     document.addEventListener('mousedown', e => { if (!ctxMenu.contains(e.target)) hideCtxMenu(); });
 
     document.getElementById('ctx-add-above').addEventListener('click', () => {
@@ -1090,6 +1209,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const idx = parseInt(ctxRow.dataset.index);
         addRow(ctxType, idx);
         hideCtxMenu();
+    });
+    document.getElementById('ctx-duplicar').addEventListener('click', () => {
+        if (!ctxRow || !ctxType) return;
+        const tipo = ctxType, idxs = _linhasDoMenu();
+        hideCtxMenu();
+        duplicarLinhas(tipo, idxs);
     });
     document.getElementById('ctx-congelar').addEventListener('click', () => {
         if (!ctxRow || !ctxType) return;
@@ -1348,7 +1473,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pushHistory();      // um único passo de Ctrl+Z para a colagem inteira
         const r = G.aplicarColagem(dados, texto, { tipo, linha, coluna });
         if (!r.linhasColadas) { showToast('Nada para colar.'); return; }
-        r.alteradas.forEach(i => { if (tipo === 'outros') reclassificarEntidade(dados[i]); else dados[i].entidade = 'CABO'; });
+        r.alteradas.forEach(i => { if (tipo === 'outros') reclassificarEntidade(dados[i]); else dados[i].entidade = 'CABO'; sincronizarHash(dados[i], ''); });
         finalizarEdicaoEmLote(tipo);
         const cols = colunasGrade(tipo);
         grade.tipo = tipo;
@@ -1635,9 +1760,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showAutocomplete(input, type) {
         hideAutocomplete();
+        // Só opções de ATIVOS da base (nunca as linhas já digitadas na tabela, que confundiam) e só enquanto digita o nome (uma palavra); em Outros quem sugere é o AtivoSugestao
         const q = input.value.trim().toUpperCase();
-        const pool = Array.from(type === 'cabos' ? ativoSets.cabos : ativoSets.outros);
-        acItems = q ? pool.filter(v => v.toUpperCase().includes(q) && v.toUpperCase() !== q) : pool.slice(0, 20);
+        if (!q || type !== 'cabos' || !/^\S+$/.test(q) || !window.AtivoSugestao) return;
+        const proj = localStorage.getItem('projeto_selecionado') || '';
+        acItems = window.AtivoSugestao.sugerir(q, window.AtivoSugestao.indiceDeNomes(orcamentoBaseData, proj, 'CABOS'), 12).map(e => e.nome);
         if (acItems.length === 0) return;
 
         acList = document.createElement('div');
@@ -1729,6 +1856,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         historyDirty = true;
         updateHistoryUI();
+        marcarProjetoAlterado();                                       // TASK-182: congelar/bloquear/comentar e demais ações do histórico também gravam no projeto
     }
 
     /** Grava o estado ao vivo se ele estiver à frente do ponteiro (mudança feita depois do último push). */
@@ -1771,6 +1899,7 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshAllFilters('cabos');
         refreshAllFilters('outros');
         updateHistoryUI();
+        marcarProjetoAlterado();                                       // desfazer/refazer também são alterações do projeto
     }
 
     function updateHistoryUI() {
@@ -2018,6 +2147,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (txtOrig) c.textoOriginal = txtOrig;
         ['fases', 'tensao', 'nivel'].forEach(k => { if (obj[k] !== undefined && obj[k] !== '') c[k] = obj[k]; });
         if (obj.entidadeManual) c.entidadeManual = true;   // TASK-065: classificação definida à mão não é recalculada
+        if (obj.congelada) c.congelada = true; if (obj.bloqueada) c.bloqueada = true; if (obj.comentario) c.comentario = true;      // TASK-182: marcas da linha — sem isto o undo/redo e o SALVAR do projeto as perdiam (tudo passa por esta função)
         // TASK-032: coordenada de origem (presente em obj._raw na primeira montagem da linha, e
         // em obj diretamente depois) e vínculo cabo<->estrutura — preservados através de
         // undo/redo e salvar/carregar obra, já que tudo passa por esta função.
@@ -2678,12 +2808,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        pushHistory();  // snapshot ANTES de substituir
+        _historicoSemSujo = true;
+        try { pushHistory(); } finally { _historicoSemSujo = false; }          // abrir/carregar um projeto não o deixa "alterado"
         // TASK-059: obra gerada pelo modo autônomo -> ao salvar, o servidor compara com o que o usuário deixou (aprendizado)
         baselineManual = null;
         execucaoOrigemAutonomo = (snap.autonomo && typeof snap.autonomo.execucao_id === 'string' && !snap.autonomo.revertida) ? snap.autonomo.execucao_id : null;
         tableStates.cabos.data  = (cabosData  || []).map(deepClone);
         tableStates.outros.data = (outrosData || []).map(deepClone);
+        tableStates.cabos.data.forEach(r => sincronizarHash(r, ''));            // TASK-182: ativo que chega com "#" no começo abre como comentário
+        tableStates.outros.data.forEach(r => sincronizarHash(r, ''));
         
         if (totData) {
             tableStates.totalizadora.data = totData.map(r => JSON.parse(JSON.stringify(r)));
@@ -6336,7 +6469,6 @@ window.syncTotalizadora = async function(forceUpdate = true) {
 };
 
 window.renderTotalizadora = function() {
-    datalistOperacoes();                                            // a lista (datalist) que o campo Operação usa
     const tbody = document.getElementById('body-totalizadora');
     const emptyMsg = document.getElementById('tot-empty-msg');
     
@@ -6362,7 +6494,7 @@ window.renderTotalizadora = function() {
             <td style="font-weight: bold; color: var(--text-secondary); text-align: center;">${row.id}</td>
             <td><input type="text" class="tot-input" value="${row.obs || ''}" onchange="updateTotRow(${index}, 'obs', this.value)"></td>
             <td>
-                <input type="text" class="tot-input tot-op-input" style="text-align: center;" list="dl-operacoes" maxlength="4" autocomplete="off" spellcheck="false" aria-label="Operação: I, *I, R, *R, M ou *M" title="Operação: I, *I, R, *R, M ou *M — digite ou escolha na lista" value="${row.operacao || ''}" onchange="validarOperacaoTot(this, ${index})">
+                <input type="text" class="tot-input tot-op-input" style="text-align: center;" maxlength="4" autocomplete="off" spellcheck="false" aria-label="Operação: I, *I, R, *R, M ou *M" title="Operação: I, *I, R, *R, M ou *M — digite ou escolha na lista" value="${row.operacao || ''}" onchange="validarOperacaoTot(this, ${index})">
             </td>
             <td><input type="text" class="tot-input tot-ativo-input" data-par-tipo="tot" data-par-idx="${index}" value="${row.ativo || ''}" onchange="updateTotRow(${index}, 'ativo', this.value)" onkeydown="handleTotKeydown(event, ${index}, 'ativo')" onpaste="handleTotPaste(event, ${index})"></td>
             <td><input type="number" step="0.01" class="tot-input" style="width: 70px; text-align: center;" value="${row.qtd !== undefined && row.qtd !== null ? row.qtd : ''}" onchange="updateTotRow(${index}, 'qtd', this.value)" onkeydown="handleTotKeydown(event, ${index}, 'qtd')" onpaste="handleTotPaste(event, ${index})"></td>
@@ -6701,6 +6833,22 @@ window.handleTotPaste = function(e, index) {
         });
         document.addEventListener('mouseout', e => { const el = e.target && e.target.closest ? e.target.closest('[data-par-tipo]') : null; if (el && el === alvo && !(e.relatedTarget && el.contains(e.relatedTarget))) esconder(); });
         ['mousedown', 'keydown', 'scroll'].forEach(ev => document.addEventListener(ev, esconder, true));
+    })();
+
+    /* Ocultar parâmetros ao sair da linha (preferência de tela, desligada por padrão): classe no body; o resto é CSS */
+    const OCULTAR_PARAMS_CHAVE = 'ocultar_parametros_ao_sair';
+    function ocultarParametrosLigado() { try { return localStorage.getItem(OCULTAR_PARAMS_CHAVE) === '1'; } catch (e) { return false; } }
+    window.definirOcultarParametros = function (ligado) {
+        try { localStorage.setItem(OCULTAR_PARAMS_CHAVE, ligado ? '1' : '0'); } catch (e) { /* vale só nesta sessão */ }
+        document.body.classList.toggle('ocultar-parametros', !!ligado);
+    };
+    (function ligarChaveOcultarParametros() {
+        const chave = document.getElementById('cfg-ocultar-params');
+        document.body.classList.toggle('ocultar-parametros', ocultarParametrosLigado());
+        if (!chave) return;
+        const pintar = () => chave.setAttribute('aria-checked', ocultarParametrosLigado() ? 'true' : 'false');
+        pintar();
+        chave.addEventListener('click', () => { window.definirOcultarParametros(!ocultarParametrosLigado()); pintar(); });         // botão (não checkbox): preferência de tela, não marca o projeto como alterado
     })();
 
     (function ligarChaveCoresParametros() {
