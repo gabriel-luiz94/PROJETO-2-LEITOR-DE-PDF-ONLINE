@@ -219,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* ─── Context menu state ─── */
     const ctxMenu = document.getElementById('ctx-menu-resumo');
-    let ctxRow = null, ctxType = null;
+    let ctxRow = null, ctxType = null, ctxFoco = null;          // ctxFoco: a célula que tinha o foco quando o menu abriu (volta para ela ao fechar)
 
     /* ═══════════════════════════════════════
        INICIALIZAÇÃO
@@ -732,6 +732,8 @@ document.addEventListener('DOMContentLoaded', () => {
             tr.addEventListener('contextmenu', e => {
                 e.preventDefault();
                 ctxRow = tr; ctxType = type;
+                const a = document.activeElement, td = a && a.closest ? a.closest('td[data-col]') : null;
+                ctxFoco = td && tr.contains(td) ? { tipo: type, idx: parseInt(tr.dataset.index), col: parseInt(td.dataset.col) } : null;
                 showCtxMenu(e.clientX, e.clientY);
             });
             if (row.bloqueada) {
@@ -1317,7 +1319,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let ctxKb = -1;
     const itensDoMenu = () => Array.from(ctxMenu.querySelectorAll('.ctx-r-item')).filter(el => el.offsetParent !== null);
     function marcarItemDoMenu(i) { ctxKb = i; itensDoMenu().forEach((el, k) => el.classList.toggle('kb', k === i)); }
-    function hideCtxMenu() { ctxMenu.classList.remove('visible'); ctxMenu.querySelectorAll('.kb').forEach(el => el.classList.remove('kb')); ctxKb = -1; ctxRow = null; ctxType = null; }
+    function hideCtxMenu(naoFocar) {
+        ctxMenu.classList.remove('visible'); ctxMenu.querySelectorAll('.kb').forEach(el => el.classList.remove('kb')); ctxKb = -1; ctxRow = null; ctxType = null;
+        const f = ctxFoco; ctxFoco = null;
+        if (f && !naoFocar) setTimeout(() => {                                          // depois da ação (que pode redesenhar a tabela): o cursor volta para a célula em que estava (Tab continua dali)
+            const n = tableStates[f.tipo].data.length;
+            if (n) focarCelula(f.tipo, Math.min(f.idx, n - 1), f.col);
+        }, 0);
+    }
     document.addEventListener('keydown', e => {
         if (!ctxMenu.classList.contains('visible')) return;
         const n = itensDoMenu().length;
@@ -1326,7 +1335,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if ((e.key === 'Enter' || e.key === ' ') && ctxKb >= 0) { e.preventDefault(); e.stopPropagation(); const it = itensDoMenu()[ctxKb]; if (it) it.click(); }
         else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hideCtxMenu(); }
     }, true);
-    document.addEventListener('mousedown', e => { if (!ctxMenu.contains(e.target)) hideCtxMenu(); });
+    document.addEventListener('mousedown', e => { if (!ctxMenu.contains(e.target)) hideCtxMenu(true); });          // clicou em outro lugar: o foco vai para onde ele clicou
 
     document.getElementById('ctx-add-above').addEventListener('click', () => {
         if (!ctxRow || !ctxType) return;
@@ -1572,6 +1581,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function irParaCelula(tipo, r, c, passo) {
         const n = tableStates[tipo].data.length;
         const body = bodyDe(tipo);
+        if (passo > 0 && r >= n && c === 1) return focarLinhaVazia(tipo, 0);              // depois da última linha preenchida: a primeira linha em branco
         while (r >= 0 && r < n) {      // pula linhas escondidas por filtro
             const tr = Array.from(body.children).find(x => parseInt(x.dataset.index) === r);
             if (linhaVisivel(tr)) return focarCelula(tipo, r, c);
@@ -2322,13 +2332,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.corParametrosLigada = corParametrosLigada;
 
     /** Status (por estrutura) de uma linha de Outros: o que o pedido liga, o que o vínculo injeta, a obra e os padrões da base. */
-    function _statusParametrosDaLinha(item, pvLinha, assin, ctxBase, obra, defLinha) {          // defLinha (TASK-170): {CODIGO: {define, faltou}} desta linha
+    function _statusParametrosDaLinha(item, pvLinha, assin, ctxBase, obra, defLinha, alinhado) {          // alinhado: um resultado POR ITEM do texto (null quando o ativo não declara parâmetros)          // defLinha (TASK-170): {CODIGO: {define, faltou}} desta linha
         if (!item || !String(item.ativo || '').trim() || typeof AtivoStatus === 'undefined') return [];
         const op = item.operacao || 'I';
         const sem = AnotacaoOutros.interpretarLinha(item.ativo, op, _classicoTotalizadora, ctxBase);
         if (sem.erros.length) return [];
         const com = pvLinha ? AnotacaoOutros.interpretarLinha(item.ativo, op, _classicoTotalizadora, Object.assign({}, ctxBase, { parametros_estrutura: pvLinha })) : sem;
-        return sem.itens.map((it, i) => AtivoStatus.statusDoAtivo(((com.itens[i] || it).ativo), it.ativo, assin, obra, defLinha ? defLinha[AtivoParametros.nomeBase(it.ativo)] : undefined)).filter(Boolean);
+        const lista = sem.itens.map((it, i) => AtivoStatus.statusDoAtivo(((com.itens[i] || it).ativo), it.ativo, assin, obra, defLinha ? defLinha[AtivoParametros.nomeBase(it.ativo)] : undefined) || null);
+        return alinhado ? lista : lista.filter(Boolean);
     }
     // Impressão digital do que decide o vínculo (cabos, linhas de Outros, base, configuração): enquanto não muda, o resultado de `parametrosPorEstrutura`/`defineDeEstruturas`
     // (que varrem as duas tabelas inteiras) é reaproveitado — antes era refeito a cada desenho de tabela, a cada tecla com a caixa de parâmetros aberta e a cada passada das cores.
@@ -6320,9 +6331,15 @@ if (window.AtivoDica) window.AtivoDica.iniciar({
 if (window.AtivoBalao && window.AtivoItens) window.AtivoBalao.iniciar({
     itens: input => {
         const idx = Number(input.dataset.parIdx), row = tableStates.outros.data[idx], itens = window.AtivoItens.itens(row ? row.ativo : '');
-        let sts = [];
-        try { const c = _contextoParametros(); sts = _statusParametrosDaLinha(row, _parametrosVinculoPorLinha()[idx], c.assin, c.ctx, c.obra, _defineDoVinculo()[idx]); } catch (e) { sts = []; }
-        return itens.map(it => ({ nome: it.nome, base: it.base, params: it.params, raw: it.raw, status: sts.find(x => String(AtivoParametros.nomeBase(x.ativo)).toUpperCase() === String(AtivoParametros.nomeBase(it.base || it.nome)).toUpperCase()) || null }));
+        let al = [], sts = [];
+        try {
+            const c = _contextoParametros(), pv = _parametrosVinculoPorLinha()[idx], dv = _defineDoVinculo()[idx];
+            al = _statusParametrosDaLinha(row, pv, c.assin, c.ctx, c.obra, dv, true); sts = al.filter(Boolean);
+        } catch (e) { al = []; sts = []; }
+        // cada item do texto casa com o item interpretado NA MESMA POSIÇÃO (o interpretador mantém a ordem e converte nomes: 11300D → DT11/300, apelidos…); sem o mesmo número de itens, cai para o casamento pelo nome
+        const porPosicao = al.length === itens.length;
+        return itens.map((it, i) => ({ nome: it.nome, base: it.base, params: it.params, raw: it.raw,
+            status: porPosicao ? al[i] : (sts.find(x => String(AtivoParametros.nomeBase(x.ativo)).toUpperCase() === String(AtivoParametros.nomeBase(it.base || it.nome)).toUpperCase()) || null) }));
     },
     dica: nome => { try { const c = window.AtivoDica && window.AtivoDica.contextoAtual(); return c ? window.AtivoDica.dica(nome, c) : null; } catch (e) { return null; } },
     origens: (input, ativo) => {

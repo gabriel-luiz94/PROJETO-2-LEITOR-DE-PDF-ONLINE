@@ -79,7 +79,7 @@ def test_tela_campo_compacto_editavel_e_atalhos():
 def test_balao_teclado_e_mouse():
     b = _ler("ativo_balao.js")
     for trecho in ["DEMORA_HOVER = 1500", "'dblclick'", "k === 'ArrowDown' || (k === 'Tab' && !e.shiftKey)", "if (k === 'Tab') { consumir(); moverParametro", "k === 'Delete' && !noLivre", "irParaProximoComPendencia",
-                   "S.modo = 'ativos'; S.livre = ''", "sugestao-ativos"]:
+                   "S.modo = 'ativos'; S.livre = ''", "ab-aberto"]:
         assert trecho in b, trecho
     assert "AtivoDica.parametrosEditaveis" in b.replace("raiz.AtivoDica", "AtivoDica") or "AD.parametrosEditaveis" in b
 
@@ -112,3 +112,35 @@ def test_ativo_com_quantidade_e_procurado_pelo_nome_sem_a_quantidade():
     assert r[1] == [["12600D", "12600D", ""], ["6 CON", "CON", ""], ["6-N1", "N1", "(XLPE)"], ["*2-IT_2", "IT_2", ""]]
     b, js = _ler("ativo_balao.js"), _ler("resumo.js")
     assert "cfg.dica(it.base || it.nome)" in b and "it.base || it.nome" in js
+
+
+# ── ajustes do uso (TASK-187) ──
+def test_balao_por_mouse_so_na_linha_selecionada_e_com_teclado():
+    b = _ler("ativo_balao.js")
+    assert "if (doc.activeElement !== el) return;" in b                                 # mouse em linha não selecionada: nada abre
+    assert "abrir(el, { foco: true, hover: true })" in b                                # aberto pelo mouse já com o teclado ativo (setas, Tab, Esc)
+    assert "S.hover = false;" in b                                                      # mexeu no teclado: deixa de fechar quando o mouse sai
+    assert "body.ab-aberto .sugestao-ativos { display: none !important; }" in _ler("resumo.html")   # a sugestão some por classe (não por style, que ficaria escondida para sempre)
+
+
+def test_status_do_balao_casa_por_posicao_com_o_interpretador():
+    js = _ler("resumo.js")
+    assert "const porPosicao = al.length === itens.length;" in js and "defLinha, alinhado)" in js
+    assert "lista.filter(Boolean)" in js
+
+
+@pytest.mark.skipif(not NODE, reason="node indisponível")
+def test_sugestao_mostra_o_nome_exato_ao_digitar_mas_nao_ao_clicar():
+    r = subprocess.run([NODE, "-e", "const S = require(%s); const ind = [{ nome: 'PR' }]; console.log(JSON.stringify([S.sugerir('PR', ind, 12).length, S.sugerir('PR', ind, 12, true).length]));" % json.dumps(os.path.join(config.STATIC_DIR, "ativo_sugestao.js"))],
+                       capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0, r.stderr
+    assert json.loads(r.stdout) == [0, 1]
+    js = _ler("ativo_sugestao.js")
+    assert "atualizar(e.target, true)" in js and "o Tab segue para a próxima célula" in js
+
+
+def test_seta_para_baixo_da_ultima_linha_vai_para_a_linha_em_branco_e_menu_devolve_o_foco():
+    js = _ler("resumo.js")
+    assert "if (passo > 0 && r >= n && c === 1) return focarLinhaVazia(tipo, 0);" in js
+    for trecho in ["ctxFoco = td && tr.contains(td)", "function hideCtxMenu(naoFocar)", "focarCelula(f.tipo, Math.min(f.idx, n - 1), f.col)", "hideCtxMenu(true)"]:
+        assert trecho in js, trecho

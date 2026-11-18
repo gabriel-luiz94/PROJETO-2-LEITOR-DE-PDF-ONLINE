@@ -16,6 +16,14 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-18 — TASK-187: ajustes do uso do balão, sugestões, setas e menu de contexto
+
+- **Balão aberto pelo mouse:** só abre com o mouse parado (~1,5 s) na linha **selecionada** (campo com o foco); em linha não selecionada nada abre. Aberto assim, já tem o teclado: setas, Tab, Enter e Esc funcionam com o mouse em cima; mexeu no teclado, ele deixa de fechar quando o mouse sai.
+- **«sem parâmetros» indevido:** o status de cada item agora casa com o item interpretado **na mesma posição** (`_statusParametrosDaLinha(..., alinhado)`); o casamento por nome falhava com postes (`11300D` → `DT11/300`), apelidos e conversões. Sem o mesmo número de itens, cai para o nome. Origem dos valores vem do status do próprio item.
+- **Sugestão de ativos:** ao **digitar** o nome exato («PR») a sugestão aparece (`sugerir(..., incluirExato)`); ao só clicar num campo já preenchido continua não abrindo à toa; Tab com a sugestão igual ao texto segue para a próxima célula. A sugestão fica escondida enquanto o balão está aberto por classe (`body.ab-aberto`), não por `style` (que a deixava invisível para sempre).
+- **Seta ↓** da última linha preenchida vai para a primeira linha em branco.
+- **Menu de contexto** (botão direito ou tecla de menu): a célula em foco é guardada e **volta a ter o foco** depois da ação ou do Esc (Tab continua dali); clicar em outro lugar mantém o foco onde o clique foi.
+
 ## 2026-11-18 — Correção: ativo com quantidade (`6 CON`, `6-CON`) é reconhecido no balão
 
 - O balão procurava na base o texto inteiro do item («6 CON»), por isso mostrava «ativo não encontrado na base». Cada item agora tem `base` (o nome **sem a quantidade**, `AtivoItens.semQuantidade`: `6 CON`/`6-CON` → `CON`, `*1,5-IT_2` → `IT_2`; postes/códigos como `12600D` ficam como estão) usada na busca da dica, no status e nas origens; `nome` continua como foi escrito. Em linhas com vírgula o formato é `6 CON` (o antigo `6-CON` continua sendo aviso da tabela, mas o balão já edita os parâmetros dele).

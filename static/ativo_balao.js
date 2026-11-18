@@ -24,7 +24,8 @@
         const AD = raiz.AtivoDica, AI = raiz.AtivoItens;
         const editaveis = AD.parametrosEditaveis(d);
         const escritos = AD.lerPedido(AI.conteudo(it.params), d.params.map(p => p.nome)).valores;
-        const orig = (cfg.origens && cfg.origens(S.input, String(d.ativo || it.base || it.nome).toUpperCase())) || {};
+        const orig = {};                                                                                    // o que vale hoje em cada parâmetro (e de onde vem), do status que já veio com o item
+        if (it.status && it.status.params) it.status.params.forEach(q => { orig[String(q.nome).toUpperCase()] = { valor: q.falta || q.invalido ? null : q.valor, rotulo: raiz.AtivoStatus ? raiz.AtivoStatus.rotuloOrigem(q.origem, q.detalhe) : '' }; });
         return {
             d, it, params: editaveis.map(p => {
                 const N = p.nome.toUpperCase(), escrito = escritos[N], o = orig[N];
@@ -58,7 +59,6 @@
 
     function desenhar() {
         if (!S) return;
-        if (S.foco) { const sg = doc.querySelector('.sugestao-ativos'); if (sg) sg.style.display = 'none'; }
         if (!balao) {
             balao = doc.createElement('div'); balao.className = 'ab-balao';
             balao.addEventListener('mousedown', e => { if (!(e.target.closest && e.target.closest('input'))) e.preventDefault(); });          // clicar no balão não tira o foco do campo
@@ -119,8 +119,8 @@
         if (!cfg || !input) return;
         const itens = cfg.itens(input);
         if (!itens.length && !o.modo) { if (cfg.mensagem) cfg.mensagem('Escreva um ativo na linha primeiro.'); return; }
-        const sg = doc.querySelector('.sugestao-ativos'); if (sg) sg.style.display = 'none';                 // a lista de sugestões de ativos não fica por cima do balão
-        S = { input, modo: o.modo || 'ativos', i: o.i != null ? o.i : Math.max(0, itens.findIndex(pendente)), p: 0, v: 0, foco: !!o.foco, hover: !o.foco, livre: '' };
+        doc.body.classList.add('ab-aberto');                                                                  // a lista de sugestões de ativos não fica por cima do balão (CSS)
+        S = { input, modo: o.modo || 'ativos', i: o.i != null ? o.i : Math.max(0, itens.findIndex(pendente)), p: 0, v: 0, foco: !!o.foco, hover: !!o.hover, livre: '' };
         if (S.modo === 'params') iniciarParams();
         desenhar();
     }
@@ -132,6 +132,7 @@
     function fechar(devolver) {
         clearTimeout(timerHover); clearTimeout(timerFecha);
         const in_ = S && S.input; S = null;
+        doc.body.classList.remove('ab-aberto');
         if (balao) balao.style.display = 'none';
         if (devolver && in_) { in_.focus(); }
     }
@@ -203,6 +204,7 @@
         const alvoOk = e.target === S.input || (balao && balao.contains(e.target));
         if (!alvoOk || !S.foco) return;
         const k = e.key, consumir = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+        if (k !== 'Shift' && k !== 'Control' && k !== 'Alt' && k !== 'Meta') S.hover = false;          // mexeu pelo teclado: o balão deixa de fechar sozinho quando o mouse sai
         if (e.ctrlKey || e.metaKey || e.altKey) { if (k === 'Enter' && e.ctrlKey) { consumir(); } return; }
         if (S.modo === 'ativos') {
             const n = cfg.itens(S.input).length;
@@ -234,13 +236,13 @@
         doc.addEventListener('mousedown', e => { if (S && !(balao && balao.contains(e.target)) && e.target !== S.input) fechar(false); }, true);
         doc.addEventListener('focusout', e => { if (S && S.foco && e.target === S.input) setTimeout(() => { if (S && doc.activeElement !== S.input && !(balao && balao.contains(doc.activeElement))) fechar(false); }, 120); });
         doc.addEventListener('dblclick', e => { const el = e.target && e.target.closest ? e.target.closest('input[data-par-tipo="outros"]') : null; if (el) { e.preventDefault(); abrir(el, { foco: true }); } });
+        // Mouse parado ~1,5 s sobre a linha SELECIONADA (o campo está com o foco): abre o balão já com o teclado ativo (setas, Tab, Enter, Esc). Em linha não selecionada, nada abre.
         doc.addEventListener('mouseover', e => {
             const el = e.target && e.target.closest ? e.target.closest('[data-par-tipo="outros"]') : null;
             if (!el || (S && S.input === el)) return;
             clearTimeout(timerHover);
-            if (S && S.hover) fechar(false);
-            if (doc.activeElement === el && S) return;
-            timerHover = setTimeout(() => { if (!S || S.hover) abrir(el, { foco: false }); }, DEMORA_HOVER);
+            if (doc.activeElement !== el) return;
+            timerHover = setTimeout(() => { if (!S && doc.activeElement === el) abrir(el, { foco: true, hover: true }); }, DEMORA_HOVER);
         });
         doc.addEventListener('mouseout', e => {
             const el = e.target && e.target.closest ? e.target.closest('[data-par-tipo="outros"]') : null;
