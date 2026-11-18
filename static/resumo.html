@@ -486,6 +486,13 @@
         .painel-avancado .cfg-chave { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
         .cfg-switch { position: relative; width: 34px; height: 18px; border-radius: 9px; border: none; background: #30363d; cursor: pointer; padding: 0; flex: none; } .cfg-switch i { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #8b949e; transition: left .15s; }
         .cfg-switch[aria-checked="true"] { background: #238636; } .cfg-switch[aria-checked="true"] i { left: 18px; background: #fff; } .painel-avancado .cfg-nota { color: #8b949e; font-size: 11px; margin-top: 4px; }
+        /* Ocultar parâmetros ao sair da linha (opção em Configurações › Aparência › Avançado): o <input> mantém o texto inteiro; ele só fica transparente e um rótulo mostra o nome sem os parâmetros */
+        #table-outros td.cel-ativo-comp { position: relative; }
+        #table-outros .ativo-compacto { display: none; position: absolute; left: 0; right: 0; top: 0; bottom: 0; padding: 6px 8px; font-size: 0.8rem; font-family: 'Inter', sans-serif; color: #e6edf3; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; line-height: normal; display: none; align-items: center; }
+        body.ocultar-parametros #table-outros tr:not(:focus-within) td.cel-ativo-comp.tem-params .inp-ativo { color: transparent; }
+        body.ocultar-parametros #table-outros tr:not(:focus-within) td.cel-ativo-comp.tem-params .ativo-compacto { display: flex; }
+        body.ocultar-parametros #table-outros tr.linha-congelada td.cel-ativo-comp .ativo-compacto { color: #79c0ff; font-style: italic; }
+        body.ocultar-parametros #table-outros tr.linha-comentario td.cel-ativo-comp .ativo-compacto { color: #7ee787; font-style: italic; }
         .inp-ativo {
             width: 100%;
             background: transparent;
@@ -799,6 +806,7 @@
                         <div class="painel-linha"><button class="btn-secondary" id="btn-restaurar-layout" type="button" title="Volta painéis, tabelas e layout ao padrão">↺ Restaurar layout padrão</button></div>
                         <details class="painel-avancado" id="cfg-avancado"><summary>Avançado</summary>
                             <div class="painel-linha cfg-chave" title="Verde = todos os parâmetros do ativo preenchidos · Laranja = falta algum. Só na tela, não altera dados nem relatórios."><button type="button" class="cfg-switch" id="cfg-colorir-params" role="switch" aria-checked="false" aria-label="Colorir ativos por parâmetros"><i></i></button><span>Colorir ativos por parâmetros</span></div>
+                            <div class="painel-linha cfg-chave" title="Ao sair da linha, o ativo mostra só o nome (PR(D,X) vira PR). Passe o mouse para ver os parâmetros; o que foi preenchido à mão aparece como manual. Só na tela, não altera dados nem relatórios."><button type="button" class="cfg-switch" id="cfg-ocultar-params" role="switch" aria-checked="false" aria-label="Ocultar parâmetros ao sair da linha"><i></i></button><span>Ocultar parâmetros ao sair da linha</span></div>
                             <div class="cfg-nota">Verde = todos os parâmetros preenchidos · Laranja = falta algum. Só na tela.</div>
                         </details>
                     </section>
@@ -1774,6 +1782,7 @@
     <script src="/static/ativo_parametros.js"></script>
     <script src="/static/ativo_status.js"></script>
     <script src="/static/base_sinal.js"></script>
+    <script src="/static/ativo_compacto.js"></script>
     <script src="/static/ativo_na_base.js"></script>
     <script src="/static/avulsos_ficticia.js"></script>
     <script src="/static/obra_params.js"></script>

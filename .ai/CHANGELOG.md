@@ -63,6 +63,16 @@
 
 ---
 
+## 2026-11-18 — Ocultar parâmetros ao sair da linha (Outros) + rótulo "manual" no balão
+
+- Nova opção **Configurações › Aparência › Avançado › "Ocultar parâmetros ao sair da linha"** (desligada por padrão; `localStorage 'ocultar_parametros_ao_sair'`, classe `body.ocultar-parametros`). Ligada, o ativo de Outros que tem parâmetros mostra só o nome quando a linha perde o foco (`RL, PR(D,X), ATRINT` → `RL, PR, ATRINT`); ao entrar na linha o texto inteiro volta; passar o mouse mostra o balão com os parâmetros.
+- Só aparência: o `<input>` mantém o texto inteiro (cálculo, cópia, filtros e `.obra` inalterados); um rótulo (`.ativo-compacto`) cobre o campo via CSS. `static/ativo_compacto.js` (`AtivoCompacto.compactar`, testado em Node): tira `(...)` colado ao nome; parêntese sem fechar (digitando) não é mexido.
+- Balão de parâmetros: o que o usuário preencheu à mão passa a aparecer como **manual** (antes "do pedido") — `ativo_status.js`.
+- Avaliadas as TASK-181 e TASK-182 (seções "Avaliação para implementação" nos arquivos de `.ai/tasks/`).
+- Testes: `tests/test_ativo_compacto.py`.
+
+---
+
 ## 2026-11-18 — CORREÇÃO: aspas das fórmulas viravam `&quot;` na tela da Base (regressão de 17/11)
 
 - A tela da Base escapava as aspas da fórmula duas vezes (`fatorTela` e `escAttr`, esta introduzida na correção das aspas em 17/11): o campo mostrava `&quot;` literal e "Salvar Alterações"/exportar CSV gravavam `=SE(tipo=&quot;PA&quot;;2;3)`, que o importador recusa ("fórmula inválida"). Corrigido: `fatorTela` não escapa mais (só `escAttr`); o servidor repara `&quot;` → `"` em `normalizar_fator` (salvar/importar) e em `_fator_do_uso` (cálculo), então bases já gravadas assim voltam a funcionar. Testes em `tests/test_fator_formula_109.py`.

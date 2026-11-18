@@ -489,6 +489,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             tdAt.appendChild(inpAt);
+            if (type === 'outros' && window.AtivoCompacto) {                         // "Ocultar parâmetros ao sair da linha": rótulo com o nome sem os parâmetros (o CSS só o mostra com a opção ligada e a linha sem foco)
+                const rotulo = document.createElement('span');
+                rotulo.className = 'ativo-compacto';
+                rotulo.setAttribute('aria-hidden', 'true');
+                tdAt.classList.add('cel-ativo-comp');
+                tdAt.appendChild(rotulo);
+                const atualizarCompacto = () => { const c = window.AtivoCompacto.compactar(inpAt.value); rotulo.textContent = c; tdAt.classList.toggle('tem-params', c !== inpAt.value); };
+                atualizarCompacto();
+                inpAt.addEventListener('blur', atualizarCompacto);
+                inpAt.addEventListener('input', atualizarCompacto);
+            }
             tdAt.dataset.col = '1';
             tr.appendChild(tdAt);
 
@@ -6701,6 +6712,22 @@ window.handleTotPaste = function(e, index) {
         });
         document.addEventListener('mouseout', e => { const el = e.target && e.target.closest ? e.target.closest('[data-par-tipo]') : null; if (el && el === alvo && !(e.relatedTarget && el.contains(e.relatedTarget))) esconder(); });
         ['mousedown', 'keydown', 'scroll'].forEach(ev => document.addEventListener(ev, esconder, true));
+    })();
+
+    /* Ocultar parâmetros ao sair da linha (preferência de tela, desligada por padrão): classe no body; o resto é CSS */
+    const OCULTAR_PARAMS_CHAVE = 'ocultar_parametros_ao_sair';
+    function ocultarParametrosLigado() { try { return localStorage.getItem(OCULTAR_PARAMS_CHAVE) === '1'; } catch (e) { return false; } }
+    window.definirOcultarParametros = function (ligado) {
+        try { localStorage.setItem(OCULTAR_PARAMS_CHAVE, ligado ? '1' : '0'); } catch (e) { /* vale só nesta sessão */ }
+        document.body.classList.toggle('ocultar-parametros', !!ligado);
+    };
+    (function ligarChaveOcultarParametros() {
+        const chave = document.getElementById('cfg-ocultar-params');
+        document.body.classList.toggle('ocultar-parametros', ocultarParametrosLigado());
+        if (!chave) return;
+        const pintar = () => chave.setAttribute('aria-checked', ocultarParametrosLigado() ? 'true' : 'false');
+        pintar();
+        chave.addEventListener('click', () => { window.definirOcultarParametros(!ocultarParametrosLigado()); pintar(); });         // botão (não checkbox): preferência de tela, não marca o projeto como alterado
     })();
 
     (function ligarChaveCoresParametros() {
