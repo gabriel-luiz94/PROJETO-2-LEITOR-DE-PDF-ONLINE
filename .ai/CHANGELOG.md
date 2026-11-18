@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-18 — Ocultar parâmetros: com a linha em foco continua só o nome; "(" abre o balão
+
+- Com «Ocultar parâmetros ao sair da linha» ligado, clicar na linha **não** mostra os parâmetros na linha: continua `PR`. Ao **digitar `(`** (ou levar o cursor para depois dele: End, →, clique) os parâmetros **preenchidos** aparecem no **balão** (o mesmo do mouse: `cabo = XLPE · manual`…), ancorado no campo; some ao sair do campo ou ao voltar ao nome. API: `window.mostrarBalaoParametros(el)`/`esconderBalaoParametros(el)` (`resumo.js`); o balão de outra linha nunca fica na tela. O texto do campo e os cálculos não mudam.
+
 ## 2026-11-18 — Correção: balão de parâmetros e cores voltam a funcionar
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).

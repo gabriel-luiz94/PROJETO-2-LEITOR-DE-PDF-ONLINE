@@ -939,3 +939,7 @@ Na tela de login, com **Lembrar de mim** marcado o programa **abre direto, sem p
 - **Avisos do algoritmo:** sob a lista aparecem as estruturas que ficaram incompletas, os cabos que sobraram e as pontas soltas — é onde você sabe o que ainda precisa ligar.
 - **Layers com curinga:** nas regras do Leitor, o campo *Layers* aceita `*` (por exemplo `POSTE_*_LV` pega todas as variantes `_LV`; `*_LV` pega qualquer layer terminada em `_LV`). Sem `*`, o nome continua exato (sem diferenciar maiúsculas).
 - **Tabelas com 1000+ linhas** continuam fluidas: só a parte perto da tela é montada; o resto entra ao rolar.
+
+## Ocultar parâmetros: clicar na linha não mostra os parâmetros; "(" abre o balão (18/11/2026)
+
+Com *Ocultar parâmetros ao sair da linha* ligado, clicar na linha mantém só o nome do ativo (`PR`). Ao **digitar `(`** (ou levar o cursor para dentro do parêntese com **End**/**→**), os parâmetros **preenchidos** aparecem no **balão** junto ao campo — não na linha. Passar o mouse mostra o mesmo balão.

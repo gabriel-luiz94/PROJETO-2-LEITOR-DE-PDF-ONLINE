@@ -492,8 +492,8 @@
         /* Ocultar parâmetros ao sair da linha (opção em Configurações › Aparência › Avançado): o <input> mantém o texto inteiro; ele só fica transparente e um rótulo mostra o nome sem os parâmetros */
         #table-outros td.cel-ativo-comp { position: relative; }
         #table-outros .ativo-compacto { display: none; position: absolute; left: 0; right: 0; top: 0; bottom: 0; padding: 6px 8px; font-size: 0.8rem; font-family: 'Inter', sans-serif; color: #e6edf3; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; line-height: normal; display: none; align-items: center; }
-        body.ocultar-parametros #table-outros tr:not(:focus-within) td.cel-ativo-comp.tem-params .inp-ativo { color: transparent; }
-        body.ocultar-parametros #table-outros tr:not(:focus-within) td.cel-ativo-comp.tem-params .ativo-compacto { display: flex; }
+        body.ocultar-parametros #table-outros td.cel-ativo-comp.tem-params .inp-ativo { color: transparent; }
+        body.ocultar-parametros #table-outros td.cel-ativo-comp.tem-params .ativo-compacto { display: flex; }          /* a linha fica só com o nome (mesmo em foco); os parâmetros preenchidos aparecem no balão ao digitar "(" ou ao passar o mouse */
         body.ocultar-parametros #table-outros tr.linha-congelada td.cel-ativo-comp .ativo-compacto { color: #79c0ff; font-style: italic; }
         body.ocultar-parametros #table-outros tr.linha-comentario td.cel-ativo-comp .ativo-compacto { color: #7ee787; font-style: italic; }
         .inp-ativo {

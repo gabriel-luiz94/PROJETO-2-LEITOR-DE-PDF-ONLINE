@@ -35,3 +35,16 @@ def test_compactar(entrada, saida):
 def test_balao_chama_de_manual_o_que_o_usuario_preencheu():
     assert js("console.log(JSON.stringify(require('./ativo_status.js').rotuloOrigem('pedido')))") == "manual"
     assert js("console.log(JSON.stringify(require('./ativo_status.js').rotuloOrigem('vinculo')))") == "vínculo"
+
+
+def test_com_a_linha_em_foco_a_linha_fica_so_com_o_nome_e_o_parentese_abre_o_balao():
+    """Pedido de 18/11: clicar na linha mantém só o nome; ao digitar "(" os parâmetros PREENCHIDOS aparecem no balão (não na linha)."""
+    import os
+    import config
+    html = open(os.path.join(config.STATIC_DIR, "resumo.html"), encoding="utf-8").read()
+    js = open(os.path.join(config.STATIC_DIR, "resumo.js"), encoding="utf-8").read()
+    assert "td.cel-ativo-comp.tem-params .ativo-compacto { display: flex; }" in html
+    assert "tr:not(:focus-within) td.cel-ativo-comp.tem-params" not in html          # não depende mais de a linha ter foco
+    assert "editando-par" not in html and "editando-par" not in js
+    assert "window.mostrarBalaoParametros = el =>" in js and "window.esconderBalaoParametros" in js
+    assert "(inpAt.selectionStart || 0) > i && window.mostrarBalaoParametros" in js

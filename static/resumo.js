@@ -632,6 +632,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 atualizarCompacto();
                 inpAt.addEventListener('blur', atualizarCompacto);
                 inpAt.addEventListener('input', atualizarCompacto);
+                // Com a linha em foco os parâmetros continuam ocultos na linha; ao digitar "(" (ou andar para dentro do parêntese) os PREENCHIDOS aparecem no balão, não na linha
+                const mostrarNoBalao = () => { const i = inpAt.value.indexOf('('); if (i >= 0 && (inpAt.selectionStart || 0) > i && window.mostrarBalaoParametros) window.mostrarBalaoParametros(inpAt); else if (window.esconderBalaoParametros) window.esconderBalaoParametros(inpAt); };
+                ['input', 'keyup', 'click'].forEach(ev => inpAt.addEventListener(ev, () => setTimeout(mostrarNoBalao, 0)));
+                inpAt.addEventListener('blur', () => { if (window.esconderBalaoParametros) window.esconderBalaoParametros(inpAt); });
             }
             tdAt.dataset.col = '1';
             tr.appendChild(tdAt);
@@ -6975,22 +6979,27 @@ window.handleTotPaste = function(e, index) {
     (function ligarBalaoParametros() {
         let balao = null, timer = null, alvo = null;
         const esconder = () => { clearTimeout(timer); alvo = null; if (balao) balao.style.display = 'none'; };
+        const mostrar = el => {
+            let status = [];
+            try { status = _statusDoAlvoDoBalao(el); } catch (x) { status = []; }
+            if (alvo !== el) return;
+            if (!status.length) { if (balao) balao.style.display = 'none'; return; }          // nada a mostrar: não deixa o balão de outra linha na tela
+            if (!balao) { balao = document.createElement('div'); balao.className = 'par-balao'; document.body.appendChild(balao); }
+            balao.innerHTML = _htmlBalaoParametros(status);
+            const r = el.getBoundingClientRect();
+            balao.style.display = 'block';
+            balao.style.left = Math.max(8, Math.min(r.left, window.innerWidth - balao.offsetWidth - 8)) + 'px';
+            balao.style.top = (r.bottom + balao.offsetHeight + 12 > window.innerHeight ? Math.max(8, r.top - balao.offsetHeight - 6) : r.bottom + 4) + 'px';
+        };
         document.addEventListener('mouseover', e => {
             const el = e.target && e.target.closest ? e.target.closest('[data-par-tipo]') : null;
             if (!el || el === alvo) return;
             esconder(); alvo = el;
-            timer = setTimeout(() => {
-                let status = [];
-                try { status = _statusDoAlvoDoBalao(el); } catch (x) { status = []; }
-                if (!status.length || alvo !== el) return;
-                if (!balao) { balao = document.createElement('div'); balao.className = 'par-balao'; document.body.appendChild(balao); }
-                balao.innerHTML = _htmlBalaoParametros(status);
-                const r = el.getBoundingClientRect();
-                balao.style.display = 'block';
-                balao.style.left = Math.max(8, Math.min(r.left, window.innerWidth - balao.offsetWidth - 8)) + 'px';
-                balao.style.top = (r.bottom + balao.offsetHeight + 12 > window.innerHeight ? Math.max(8, r.top - balao.offsetHeight - 6) : r.bottom + 4) + 'px';
-            }, 250);
+            timer = setTimeout(() => mostrar(el), 250);
         });
+        // Digitando no ativo (depois do "("): mostra já, sem esperar o mouse; some ao sair do campo ou fora do parêntese
+        window.mostrarBalaoParametros = el => { clearTimeout(timer); alvo = el; mostrar(el); };
+        window.esconderBalaoParametros = el => { if (!el || el === alvo) esconder(); };
         document.addEventListener('mouseout', e => { const el = e.target && e.target.closest ? e.target.closest('[data-par-tipo]') : null; if (el && el === alvo && !(e.relatedTarget && el.contains(e.relatedTarget))) esconder(); });
         ['mousedown', 'keydown', 'scroll'].forEach(ev => document.addEventListener(ev, esconder, true));
     })();
