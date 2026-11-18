@@ -93,3 +93,22 @@ def test_dica_exporta_contexto_atual():
 def test_sintaxe(arq):
     r = subprocess.run([NODE, "--check", os.path.join(config.STATIC_DIR, arq)], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
+
+
+def test_balao_sempre_tem_a_linha_digitar_e_escrever_direto_vai_para_ela():
+    """Regressão: a linha «✎ digitar outro valor…» só existia em parâmetros 'abertos'; agora está em todos, e uma letra digitada com o parâmetro marcado cai nela."""
+    b = _ler("ativo_balao.js")
+    assert "l.push({ custom: true }); return l; };" in b and "p.aberto || !l.length" not in b
+    assert "S.livre = k; S.focoLivre = true; desenhar();" in b                       # escrever direto
+    assert "function posicionar(p)" in b and "o.custom && p.atual != null" in b      # valor atual fora da lista já vem escrito na linha «digitar»
+
+
+@pytest.mark.skipif(not NODE, reason="node indisponível")
+def test_ativo_com_quantidade_e_procurado_pelo_nome_sem_a_quantidade():
+    """Regressão: «6 CON» / «6-CON» aparecia como «ativo não encontrado na base» no balão (a quantidade ia junto na busca)."""
+    r = _node("console.log(JSON.stringify([e.t.map(A.semQuantidade), A.itens('12600D, 6 CON, 6-N1(XLPE), *2-IT_2').map(i => [i.nome, i.base, i.params])]));",
+              {"t": ["6 CON", "6-CON", "*1,5-IT_2", "12600D", "3XC16", "9200D", "N1", "2 N1"]})
+    assert r[0] == ["CON", "CON", "IT_2", "12600D", "3XC16", "9200D", "N1", "N1"]
+    assert r[1] == [["12600D", "12600D", ""], ["6 CON", "CON", ""], ["6-N1", "N1", "(XLPE)"], ["*2-IT_2", "IT_2", ""]]
+    b, js = _ler("ativo_balao.js"), _ler("resumo.js")
+    assert "cfg.dica(it.base || it.nome)" in b and "it.base || it.nome" in js

@@ -16,6 +16,14 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-18 — Correção: ativo com quantidade (`6 CON`, `6-CON`) é reconhecido no balão
+
+- O balão procurava na base o texto inteiro do item («6 CON»), por isso mostrava «ativo não encontrado na base». Cada item agora tem `base` (o nome **sem a quantidade**, `AtivoItens.semQuantidade`: `6 CON`/`6-CON` → `CON`, `*1,5-IT_2` → `IT_2`; postes/códigos como `12600D` ficam como estão) usada na busca da dica, no status e nas origens; `nome` continua como foi escrito. Em linhas com vírgula o formato é `6 CON` (o antigo `6-CON` continua sendo aviso da tabela, mas o balão já edita os parâmetros dele).
+
+## 2026-11-18 — Correção: o balão volta a ter a linha «✎ digitar outro valor…» em todo parâmetro
+
+- No balão de parâmetros (TASK-186) a linha de digitar só aparecia em parâmetros «abertos»; em listas fechadas (ex.: `tipocabo`) o usuário não conseguia escrever. Agora **todo** parâmetro tem a linha «✎ digitar outro valor…» (a última), uma **letra digitada** com o parâmetro marcado cai direto nela (Enter grava, Esc volta) e, se o valor atual não está na lista, ele já vem escrito ali.
+
 ## 2026-11-18 — TASK-186: «Ocultar parâmetros» com campo só de nomes, balão interativo dos ativos/parâmetros e Tab na tabela Outros
 
 - **Campo do ativo (Outros) com «Ocultar parâmetros» ligado:** mostra e edita só os **nomes** (`12600D, N1, N4`) — cursor, escrever, selecionar, colar, copiar normais; `row.ativo` guarda o texto cheio. Os **parâmetros ficam presos a cada item** (`static/ativo_itens.js`: `itens`, `compacto`, `aplicarEdicao` por diferença de texto + posição do cursor): apagou ou renomeou = item novo, sem parâmetros; item repetido (`N1, N1`) guarda os SEUS. Colar texto com parênteses leva os parâmetros junto. Desligada: texto inteiro, como antes. Acabou o rótulo sobreposto/campo transparente (`ativo-compacto`); sem selinho de contagem.

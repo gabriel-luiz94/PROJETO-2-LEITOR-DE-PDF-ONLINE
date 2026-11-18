@@ -18,13 +18,13 @@
     function paramsDe(i) {
         const itens = cfg.itens(S.input), it = itens[i];
         if (!it) return { msg: 'Ativo não encontrado na linha.' };
-        const d = cfg.dica(it.nome);
+        const d = cfg.dica(it.base || it.nome);
         if (!d) return { carregando: true };
         if (d.tipo !== 'parametros') return { msg: d.mensagem || (it.nome + ': ativo sem parâmetros declarados') };
         const AD = raiz.AtivoDica, AI = raiz.AtivoItens;
         const editaveis = AD.parametrosEditaveis(d);
         const escritos = AD.lerPedido(AI.conteudo(it.params), d.params.map(p => p.nome)).valores;
-        const orig = (cfg.origens && cfg.origens(S.input, String(d.ativo || it.nome).toUpperCase())) || {};
+        const orig = (cfg.origens && cfg.origens(S.input, String(d.ativo || it.base || it.nome).toUpperCase())) || {};
         return {
             d, it, params: editaveis.map(p => {
                 const N = p.nome.toUpperCase(), escrito = escritos[N], o = orig[N];
@@ -32,7 +32,15 @@
             })
         };
     }
-    const opcoes = p => { const l = p.valores.map(v => ({ v, padrao: p.padrao != null && String(p.padrao).toUpperCase() === String(v).toUpperCase() })); if (p.aberto || !l.length) l.push({ custom: true }); return l; };
+    const opcoes = p => { const l = p.valores.map(v => ({ v, padrao: p.padrao != null && String(p.padrao).toUpperCase() === String(v).toUpperCase() })); l.push({ custom: true }); return l; };          // a última linha é sempre «✎ digitar outro valor…»
+    /** Ao chegar num parâmetro: realça o valor atual (ou o padrão); se o valor atual não está na lista, ele vem escrito na linha «digitar». */
+    function posicionar(p) {
+        const k = valorInicial(p);
+        S.v = k; S.livre = '';
+        const o = opcoes(p)[k];
+        if (o && o.custom && p.atual != null) S.livre = String(p.atual);
+        S.focoLivre = false;
+    }
     function valorInicial(p) {
         const l = opcoes(p), atual = p.atual == null ? null : String(p.atual).toUpperCase();
         let k = atual == null ? -1 : l.findIndex(o => !o.custom && String(o.v).toUpperCase() === atual);
@@ -102,7 +110,7 @@
         balao.style.top = (r.bottom + alto + 8 > raiz.innerHeight && r.top - alto - 6 > 8 ? r.top - alto - 6 : r.bottom + 3) + 'px';
         const on = balao.querySelector('.on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
         const inp = balao.querySelector('.ab-v.on .ab-in');
-        if (inp && S.foco && S.focoLivre) { inp.focus(); S.focoLivre = false; }
+        if (inp && S.foco && S.focoLivre) { inp.focus(); const f = inp.value.length; try { inp.setSelectionRange(f, f); } catch (x) { /* sem seleção */ } S.focoLivre = false; }
     }
 
     function abrir(input, opcoesAbrir) {
@@ -119,7 +127,7 @@
     function iniciarParams() {
         const pd = paramsDe(S.i);
         S.p = 0; S.livre = '';
-        if (pd.params && pd.params.length) { const primeiro = Math.max(0, pd.params.findIndex(p => p.atual == null)); S.p = primeiro; S.v = valorInicial(pd.params[S.p]); }
+        if (pd.params && pd.params.length) { const primeiro = Math.max(0, pd.params.findIndex(p => p.atual == null)); S.p = primeiro; posicionar(pd.params[S.p]); }
     }
     function fechar(devolver) {
         clearTimeout(timerHover); clearTimeout(timerFecha);
@@ -155,7 +163,7 @@
         if (valor != null && (String(valor) !== String(p.atual == null ? '' : p.atual) || !p.manual)) cfg.gravar(S.input, S.i, p.nome, valor);
         S.livre = '';
         const novo = paramsDe(S.i);
-        if (novo.params && S.p < novo.params.length - 1) { S.p++; S.v = valorInicial(novo.params[S.p]); S.focoLivre = false; desenhar(); return; }
+        if (novo.params && S.p < novo.params.length - 1) { S.p++; posicionar(novo.params[S.p]); desenhar(); return; }
         const prox = irParaProximoComPendencia(S.i);                                                // acabou os parâmetros: próximo ativo com pendência; sem pendência, fecha
         if (prox >= 0) { S.i = prox; iniciarParams(); desenhar(); } else fechar(true);
     }
@@ -177,7 +185,7 @@
     function moverParametro(passo) {
         const pd = paramsDe(S.i);
         if (!pd.params || !pd.params.length) return;
-        S.p = (S.p + passo + pd.params.length) % pd.params.length; S.v = valorInicial(pd.params[S.p]); S.livre = ''; S.focoLivre = false;
+        S.p = (S.p + passo + pd.params.length) % pd.params.length; posicionar(pd.params[S.p]);
         desenhar();
         if (S.input) S.input.focus();
     }
@@ -186,7 +194,7 @@
         if (!S) return;
         const t = e.target;
         const v = t.closest && t.closest('[data-v]'); if (v && S.modo === 'params') { S.v = Number(v.getAttribute('data-v')); const pd = paramsDe(S.i), o = pd.params && opcoes(pd.params[S.p])[S.v]; if (o && o.custom) { S.focoLivre = true; desenhar(); } else aceitarValor(); return; }
-        const p = t.closest && t.closest('[data-p]'); if (p && S.modo === 'params') { const pd = paramsDe(S.i); S.p = Number(p.getAttribute('data-p')); S.v = valorInicial(pd.params[S.p]); S.livre = ''; desenhar(); return; }
+        const p = t.closest && t.closest('[data-p]'); if (p && S.modo === 'params') { const pd = paramsDe(S.i); S.p = Number(p.getAttribute('data-p')); posicionar(pd.params[S.p]); desenhar(); return; }
         const it = t.closest && t.closest('[data-i]'); if (it && S.modo === 'ativos') { S.i = Number(it.getAttribute('data-i')); S.modo = 'params'; S.hover = false; S.foco = true; iniciarParams(); desenhar(); S.input.focus(); }
     }
 
@@ -213,7 +221,11 @@
         if (k === 'ArrowUp') { consumir(); moverValor(-1); return; }
         if (k === 'Delete' && !noLivre) { consumir(); limparValor(); return; }
         if (noLivre) { S.livre = e.target.value; setTimeout(() => { if (S && balao) { const inp = balao.querySelector('.ab-in'); if (inp) S.livre = inp.value; } }, 0); return; }
-        if (k.length === 1) { consumir(); }                                                                // letras soltas não vão para o texto da célula enquanto edita parâmetros
+        if (k.length === 1) {                                                                              // escrever direto: o caractere vai para a linha «✎ digitar outro valor…» do parâmetro
+            consumir();
+            const pd = paramsDe(S.i);
+            if (pd.params && pd.params.length) { const l = opcoes(pd.params[S.p]); S.v = l.findIndex(o => o.custom); S.livre = k; S.focoLivre = true; desenhar(); }
+        }
     }
 
     function iniciar(opcoesIniciar) {
