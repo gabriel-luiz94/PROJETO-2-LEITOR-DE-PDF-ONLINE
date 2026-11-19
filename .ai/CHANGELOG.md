@@ -16,6 +16,10 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-19 — TASK-196: congelar e bloquear grupos de linhas
+
+- Congelar/bloquear (menu do botão direito e botões ❄ 🔒) na linha do grupo («@») age em **todos os membros**; o menu passa a dizer «Congelar/Descongelar/Bloquear/Desbloquear grupo». A declaração continua sempre congelada (não desce disso); o bloqueio vale também para ela. `expandirGrupos` em `static/resumo.js`; teste em `tests/test_grupos_linhas_195.py`.
+
 ## 2026-11-19 — TASK-195: grupos de linhas («@P1») em Outros e Cabos, mover linhas e menu de contexto que não corta
 
 - **Declaração:** linha cujo Ativo começa com `@` (ex.: `@P1 Rua das Flores`) é um grupo (`#` continua sendo comentário). Fica **congelada** (fora de totalizadora/orçamento/validação/Resumo da rede), com `grupoDecl`+`gid`; os **membros** (`grupoDe`) ficam sempre colados logo abaixo. Digitar `@` marca ao sair da célula (ou no Enter); apagar o `@` desfaz o grupo e solta os membros.

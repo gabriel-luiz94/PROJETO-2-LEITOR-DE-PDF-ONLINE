@@ -1370,14 +1370,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return sel.includes(idx) ? sel : [idx];
     }
     /** Congelar/descongelar e bloquear/desbloquear linhas (um passo de Ctrl+Z). Se todas já têm a marca, tira; senão, põe em todas. Linha bloqueada só aceita ser desbloqueada. */
+    /** TASK-196: marcar a linha do grupo («@») vale para o grupo todo — junta os membros aos índices. */
+    function expandirGrupos(tipo, idxs) {
+        const dados = tableStates[tipo].data, saida = new Set(idxs);
+        idxs.forEach(i => { const r = dados[i]; if (r && r.grupoDecl) dados.forEach((m, k) => { if (m.grupoDe === r.gid) saida.add(k); }); });
+        return Array.from(saida).sort((a, b) => a - b);
+    }
     function alternarMarcaLinhas(tipo, idxs, campo) {
         const dados = tableStates[tipo].data;
+        idxs = expandirGrupos(tipo, idxs);
         let alvos = idxs.filter(i => dados[i]);
         if (campo === 'congelada') {
             const comentarios = alvos.filter(i => dados[i].comentario).length;
             const decls = alvos.filter(i => dados[i].grupoDecl).length;
-            alvos = alvos.filter(i => !bloqueada(dados[i]) && !dados[i].comentario && !dados[i].grupoDecl);
-            if (!alvos.length) { showToast(decls ? 'Linha de grupo (@) é sempre congelada: use «Desfazer o grupo» para mudar.' : comentarios ? 'Comentário já fica fora de todos os cálculos: tire o comentário para mudar o congelamento.' : 'Linha bloqueada: desbloqueie antes de congelar ou descongelar.'); return; }
+            alvos = alvos.filter(i => !bloqueada(dados[i]) && !dados[i].comentario && !dados[i].grupoDecl);          // a linha «@» já é sempre congelada: congelar o grupo age nos membros
+            if (!alvos.length) { showToast(decls ? 'O grupo não tem linhas para congelar/descongelar (ou estão bloqueadas).' : comentarios ? 'Comentário já fica fora de todos os cálculos: tire o comentário para mudar o congelamento.' : 'Linha bloqueada: desbloqueie antes de congelar ou descongelar.'); return; }
         } else if (!alvos.length) return;
         const poe = !alvos.every(i => dados[i][campo]);
         pushHistory();
@@ -1454,12 +1461,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function showCtxMenu(x, y) {
         const itemEnt = document.getElementById('ctx-entidade');
         if (itemEnt) itemEnt.style.display = ctxType === 'outros' ? '' : 'none';
-        const alvos = _linhasDoMenu().map(i => tableStates[ctxType].data[i]).filter(Boolean);
+        const alvos = expandirGrupos(ctxType, _linhasDoMenu()).map(i => tableStates[ctxType].data[i]).filter(Boolean);
+        const temGrupo = alvos.some(r => r.grupoDecl), alvosCong = alvos.filter(r => !r.grupoDecl);
         const tc = document.getElementById('ctx-congelar-txt'), tb = document.getElementById('ctx-bloquear-txt');
-        if (tc) tc.textContent = alvos.length && alvos.every(r => r.congelada) ? 'Descongelar linha' : 'Congelar linha';
+        if (tc) tc.textContent = (alvosCong.length && alvosCong.every(r => r.congelada) ? 'Descongelar ' : 'Congelar ') + (temGrupo ? 'grupo' : 'linha');
         const tcm = document.getElementById('ctx-comentario-txt');
         if (tcm) tcm.textContent = alvos.length && alvos.every(r => r.comentario) ? 'Tirar comentário' : 'Marcar como comentário';
-        if (tb) tb.textContent = alvos.length && alvos.every(r => r.bloqueada) ? 'Desbloquear linha' : 'Bloquear linha';
+        if (tb) tb.textContent = (alvos.length && alvos.every(r => r.bloqueada) ? 'Desbloquear ' : 'Bloquear ') + (temGrupo ? 'grupo' : 'linha');
         ctxView = 'main'; ctxMenu.classList.remove('sub'); ctxPos = { x, y };
         ctxMenu.classList.add('visible');
         posicionarMenu(ctxMenu, x, y);                                            // TASK-195: mede o menu aberto — vira para cima/esquerda e rola se não couber (antes cortava nas linhas de baixo)
