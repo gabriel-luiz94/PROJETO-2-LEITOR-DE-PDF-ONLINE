@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-19 — integração nanoCAD
+
+TASK-025 e TASK-026: plugin 0.10.3, N3 removido na tabela Outros e teste de paridade incluindo chamadas múltiplas. A abertura no Windows depende também da correção no OrçaCore (TASK-197). Testar com a nota real nas duas versões do nanoCAD.
+
 ## 2026-11-19 — 0.10.2 para avaliação no CAD
 
 - TASK-022: leitura das cores e do modo do projeto, curingas nas layers, cópia local e edição do modo no CAD.

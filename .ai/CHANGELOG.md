@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-19 — integração nanoCAD
+
+TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 removido e extração de chamadas MULTILEADER no DXF. Testar com a nota real nas duas versões do nanoCAD.
+
 ## 2026-11-18 — Ocultar parâmetros: com a linha em foco continua só o nome; "(" abre o balão
 
 - Com «Ocultar parâmetros ao sair da linha» ligado, clicar na linha **não** mostra os parâmetros na linha: continua `PR`. Ao **digitar `(`** (ou levar o cursor para depois dele: End, →, clique) os parâmetros **preenchidos** aparecem no **balão** (o mesmo do mouse: `cabo = XLPE · manual`…), ancorado no campo; some ao sair do campo ou ao voltar ao nome. API: `window.mostrarBalaoParametros(el)`/`esconderBalaoParametros(el)` (`resumo.js`); o balão de outra linha nunca fica na tela. O texto do campo e os cálculos não mudam.

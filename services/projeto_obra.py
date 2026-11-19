@@ -146,6 +146,11 @@ def ler(texto, projeto_selecionado: str) -> dict:
         carga = json.loads(texto)
     except (ValueError, TypeError):
         raise ErroProjeto(["O arquivo não é um .obra válido (JSON inválido)."])
+    return ler_carga(carga, projeto_selecionado)
+
+
+def ler_carga(carga, projeto_selecionado: str) -> dict:
+    """Valida o envelope já decodificado e prepara os dados de trabalho."""
     try:
         pronta = obras_arquivo.validar_importacao(carga, projeto_selecionado)
     except obras_arquivo.ErroArquivoObra as e:

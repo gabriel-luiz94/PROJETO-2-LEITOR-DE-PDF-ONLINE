@@ -82,9 +82,11 @@ def validar_projeto(caminho) -> tuple:
     try:
         with open(caminho, "rb") as f:
             bruto = f.read(projeto_obra.LIMITE_BYTES + 1)
+        if len(bruto) > projeto_obra.LIMITE_BYTES:
+            return None, None, "arquivo de projeto grande demais"
         carga = json.loads(bruto.decode("utf-8-sig"))
         codigo = str(carga.get("projeto") or "").strip()
-        projeto_obra.ler(bruto, codigo)                              # mesmo exame do menu Abrir
+        projeto_obra.ler_carga(carga, codigo)                              # mesmo exame do menu Abrir
         return caminho, codigo, ""
     except projeto_obra.ErroProjeto as e:
         return None, None, " ".join(e.mensagens)

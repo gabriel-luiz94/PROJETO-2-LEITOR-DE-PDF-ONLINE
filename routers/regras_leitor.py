@@ -175,12 +175,18 @@ def _atualizar_seed_do_pacote(tabela: str, projeto_codigo: str, regras):
     from services import pacote_projeto as pp
     pacote = pp.pacote_inicial_de(projeto_codigo)
     antigos = set(((pacote or {}).get("seeds_antigos") or {}).get(tabela) or [])
-    if not pacote or _hash_regras(regras) not in antigos:
+    digest = _hash_regras(regras)
+    complementos = ((pacote or {}).get("complementos_leitor") or {}).get(tabela, {}).get(digest)
+    if not pacote or (digest not in antigos and not complementos):
         return regras
     novas = pp.parte_embutida(pacote["id"], f"leitor_{tabela}")
     if not isinstance(novas, list):
         logger.warning(f"Seed atual do pacote '{pacote['id']}' ilegível ({tabela}).")
         return regras
+    if complementos:
+        # Perfil personalizado conhecido: acrescentar apenas as regras indicadas na leitura.
+        # A tabela cadastrada permanece disponível no histórico e não é substituída pelo seed.
+        return [r for r in novas if r.get("id") in complementos] + regras
     valor = json.dumps(novas, ensure_ascii=False)
     conn = get_connection()
     try:

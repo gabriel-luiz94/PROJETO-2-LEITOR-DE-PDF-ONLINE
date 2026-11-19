@@ -72,11 +72,17 @@ namespace OrcamentoNanoCAD.Nucleo
         {
             JObj corpo = new JObj().Set("chave", chave ?? "").Set("caminho", caminho ?? "");
             RespostaHttp r = http.Enviar("POST", Base(porta) + "/api/plugin/receber", Json.Escrever(corpo, false), null, 30000);
-            if (r.Status == 200) return null;
-            JObj o = Json.Ler(r.Corpo ?? "") as JObj;
+            if (r.Status == 0) return r.Erro ?? "sem resposta do OrçaCore";
+            JObj o = null;
+            try { o = Json.Ler(r.Corpo ?? "") as JObj; } catch (ErroJson) { }
+            if (r.Status == 200)
+            {
+                if (o == null || string.IsNullOrEmpty(o.Str("id"))) return "o programa não confirmou o recebimento do projeto";
+                return o.Bool("janela", true) ? null : "o programa recebeu o projeto, mas a janela desktop está indisponível";
+            }
             string det = o != null ? (Json.ComoTexto(o["detail"]) ?? "") : "";
             if (r.Status == 422) return "o OrçaCore aberto é de uma versão antiga (não recebe projetos): atualize o programa";
-            return r.Status == 0 ? (r.Erro ?? "sem resposta") : "HTTP " + r.Status + (det.Length > 0 ? ": " + det : "");
+            return "HTTP " + r.Status + (det.Length > 0 ? ": " + det : "");
         }
 
         /// <summary>Argumentos para abrir o .exe já com o projeto.</summary>

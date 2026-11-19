@@ -104,6 +104,10 @@ def vincular(window) -> None:
     _janela = window
 
 
+def disponivel() -> bool:
+    return _janela is not None
+
+
 def mostrar(url_relativa: str, porta: int = None) -> bool:
     """Leva a janela do programa para a URL (ex.: /resumo?plugin_pendente=…) e a traz para a frente. False se não há janela."""
     if _janela is None:

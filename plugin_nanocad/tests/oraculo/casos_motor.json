@@ -322,5 +322,35 @@
     "_y": 32
    }
   ]
+ },
+ {
+  "nome": "pe_estrutura_removida_com_metragem_de_outro_item",
+  "regras": "081",
+  "itens": [
+   {
+    "texto": "N3",
+    "cor": "#000000",
+    "layer": "01_REMOVER",
+    "pagina": 1,
+    "_x": 10,
+    "_y": 20
+   },
+   {
+    "texto": "35 m",
+    "cor": "#000000",
+    "layer": "01_REMOVER",
+    "pagina": 1,
+    "_x": 10,
+    "_y": 19
+   },
+   {
+    "texto": "3xA185P(7,94)-13,8kV 23 m",
+    "cor": "#000000",
+    "layer": "01_REMOVER",
+    "pagina": 1,
+    "_x": 10,
+    "_y": 18
+   }
+  ]
  }
 ]

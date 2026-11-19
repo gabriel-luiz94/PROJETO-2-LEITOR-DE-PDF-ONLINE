@@ -248,9 +248,10 @@ def test_regras_antigas_do_081_sao_atualizadas_e_editadas_nao(tmp_path, monkeypa
     con = sqlite3.connect(tmp_path / "t.db")
     con.execute("UPDATE regras_leitor_processamento SET regras_json = ? WHERE projeto_codigo = '081'", (json.dumps(antigo, ensure_ascii=False),)); con.commit(); con.close()
     novas = rl._get_regras("processamento", "081")
-    assert any(r.get("fase") == 3 and r.get("ordem") == 4 for r in novas) and len(novas) == 13
+    assert any(r.get("fase") == 3 and r.get("ordem") == 4 for r in novas)
+    assert any(r.get("id") == "estrutura-n3-remocao" for r in novas)
     con = sqlite3.connect(tmp_path / "t.db")
-    assert len(json.loads(con.execute("SELECT regras_json FROM regras_leitor_processamento WHERE projeto_codigo = '081'").fetchone()[0])) == 13
+    assert json.loads(con.execute("SELECT regras_json FROM regras_leitor_processamento WHERE projeto_codigo = '081'").fetchone()[0]) == novas
     editado = [dict(r) for r in antigo]; editado[0]["ordem"] = 11
     con.execute("UPDATE regras_leitor_processamento SET regras_json = ? WHERE projeto_codigo = '081'", (json.dumps(editado, ensure_ascii=False),)); con.commit(); con.close()
     assert rl._get_regras("processamento", "081") == editado          # regras editadas pelo admin ficam como estão

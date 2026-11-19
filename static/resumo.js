@@ -2422,20 +2422,35 @@ document.addEventListener('DOMContentLoaded', () => {
         return String(u || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
     }
 
+    let pedidoConfigVinculo = null;
     window.__vinculacaoConfig = null;
-    window.carregarRegrasVinculacaoResumo = async function (projetoCodigo) {
-        if (!projetoCodigo) return;
+    window.carregarRegrasVinculacaoResumo = function (projetoCodigo) {
+        if (!projetoCodigo) return Promise.resolve(null);
+        if (pedidoConfigVinculo && pedidoConfigVinculo.codigo === projetoCodigo) return pedidoConfigVinculo.resposta;
+        const pedido = { codigo: projetoCodigo };
+        pedidoConfigVinculo = pedido;
+        pedido.resposta = buscarConfigVinculo(pedido);
+        return pedido.resposta;
+    };
+    async function buscarConfigVinculo(pedido) {
+        const projetoCodigo = pedido.codigo;
         try {                                                                  // TASK-084: Tabela de Cabos + Tabela de Estruturas
             const rc = await fetch(`/api/vinculacao-config?projeto_codigo=${encodeURIComponent(projetoCodigo)}`);
-            window.__vinculacaoConfig = rc.ok ? (await rc.json()).config : null;
+            const config = rc.ok ? (await rc.json()).config : null;
+            if (pedido !== pedidoConfigVinculo) return;
+            window.__vinculacaoConfig = config;
             AnotacaoCabos.definirDicionario(window.__vinculacaoConfig && window.__vinculacaoConfig.dicionario_cabos);          // TASK-173
             if (window.PerfilExportacao) PerfilExportacao.definir(window.__vinculacaoConfig && window.__vinculacaoConfig.exportacao);          // TASK-176
+            return config;
         } catch (e) {
+            if (pedido !== pedidoConfigVinculo) return;
             window.__vinculacaoConfig = null;
             AnotacaoCabos.definirDicionario(null);
             console.error('Erro ao carregar a configuração de vinculação:', e);
+        } finally {
+            if (pedido === pedidoConfigVinculo) pedidoConfigVinculo = null;
         }
-    };
+    }
 
     /** TASK-084: o que o modal de vinculação (vinculacao_ui.js) precisa saber/fazer na tela do Resumo. */
     window.VinculacaoHost = {
@@ -7302,8 +7317,7 @@ window.handleTotPaste = function(e, index) {
             carregar: dados => restoreObraSnapshot(dados),
             mesclar: dados => adicionarObraAoProjeto(dados),
             vincularPorPoste: async () => {                                  // TASK-166: obra do plugin (com geometria) abre já vinculada pelo que chega em cada poste
-                if (!window.__vinculacaoConfig && window.carregarRegrasVinculacaoResumo) await window.carregarRegrasVinculacaoResumo(localStorage.getItem('projeto_selecionado_codigo') || '');
-                const cfg = window.__vinculacaoConfig;
+                const cfg = await window.carregarRegrasVinculacaoResumo(localStorage.getItem('projeto_selecionado_codigo') || 'DEFAULT');
                 if (!cfg || typeof VinculacaoRegras === 'undefined') return null;
                 const r = VinculacaoRegras.vincularPorPoste(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo, undefined, true);
                 try { renderTable('outros'); atualizarResumoRedeUI(); } catch (e) { /* tela ainda carregando */ }

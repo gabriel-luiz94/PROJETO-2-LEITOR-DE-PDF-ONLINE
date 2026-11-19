@@ -151,8 +151,20 @@ def _process_entity(entity, doc, base_color=None, block_name=None) -> list[dict]
     Suporta quebra de parágrafos MTEXT e herança de cor.
     """
     tp = entity.dxftype()
-    # TEXT e ATTRIB usam .dxf.text, MTEXT usa .text
-    raw = entity.dxf.text if tp in ("TEXT", "ATTRIB") else entity.text
+    if tp == "MULTILEADER":
+        ctx = entity.context
+        if ctx.mtext is None or not ctx.mtext.default_content:
+            return []
+        raw = ctx.mtext.default_content
+        pos = ctx.mtext.insert
+        height = ctx.char_height
+        style = "Standard"
+    else:
+        # TEXT e ATTRIB usam .dxf.text, MTEXT usa .text
+        raw = entity.dxf.text if tp in ("TEXT", "ATTRIB") else entity.text
+        height = getattr(entity.dxf, "height" if tp in ("TEXT", "ATTRIB") else "char_height", 0)
+        style = getattr(entity.dxf, "style", "Standard")
+        pos = entity.dxf.insert
 
     # Cor base da entidade (sem codigos inline — esses sao por paragrafo)
     if base_color and entity.dxf.color == 0:
@@ -160,15 +172,7 @@ def _process_entity(entity, doc, base_color=None, block_name=None) -> list[dict]
     else:
         entity_base = _get_entity_base_color(entity, doc)
 
-    if tp == "TEXT" or tp == "ATTRIB":
-        height = getattr(entity.dxf, "height", 0)
-    else:
-        height = getattr(entity.dxf, "char_height", 0)
-
-    style = getattr(entity.dxf, "style", "Standard")
-    pos = entity.dxf.insert
-
-    if tp == "MTEXT":
+    if tp in ("MTEXT", "MULTILEADER"):
         # Passo 1: remove \pxql; \pxqc; \pxqr; etc.
         pre = _RE_PARA_FMT.sub('', raw)
         # Passo 2: divide por \P, quebras de linha ou mudanças de cor internas
@@ -191,7 +195,7 @@ def _process_entity(entity, doc, base_color=None, block_name=None) -> list[dict]
         is_block = p_stripped.startswith('{') and p_stripped.endswith('}')
         item_color = _resolve_part_color(part, current_color)
 
-        if tp == "MTEXT":
+        if tp in ("MTEXT", "MULTILEADER"):
             # Passo 4: limpa o texto do paragrafo/bloco.
             txt = clean_dxf_text(part)
         else:
@@ -230,7 +234,7 @@ def extract_dxf_content(doc, com_geometria: bool = False, leitura=None):
     all_rows: list[dict] = []
 
     # 1. Entidades diretas no model space (Texto e MText)
-    for entity in msp.query("TEXT MTEXT"):
+    for entity in msp.query("TEXT MTEXT MULTILEADER"):
         all_rows.extend(_process_entity(entity, doc))
 
     # 2. Entidades dentro de blocos (INSERT)
