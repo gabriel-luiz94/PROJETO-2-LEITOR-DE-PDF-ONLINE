@@ -58,6 +58,16 @@
     </div>
 
     <script>
+        // TASK-193: sessão lembrada e ainda válida → não mostra o login (vai direto para onde iria). Token vencido: a 1ª chamada da tela volta 401 e o auth_fetch.js limpa a sessão e volta aqui.
+        (function() {
+            try {
+                const q = new URLSearchParams(window.location.search);
+                if (q.get('new_session') !== '1' && localStorage.getItem('auth_token') && localStorage.getItem('auth_lembrar') === 'true') {
+                    const prox = q.get('next') || '';
+                    window.location.replace((prox.startsWith('/') && !prox.startsWith('//') && !prox.startsWith('/\\')) ? prox : '/');
+                }
+            } catch (e) { /* sem storage: mostra o login */ }
+        })();
         // Ao iniciar com ?new_session=1, limpa sessão anterior e pré-preenche email
         (function() {
             const params = new URLSearchParams(window.location.search);

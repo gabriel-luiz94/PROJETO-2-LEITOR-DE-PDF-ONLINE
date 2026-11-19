@@ -1005,3 +1005,8 @@ O quadro **Postes · Média · Baixa · Equip.** (e o modal «Resumo da rede») 
 - **Média / Baixa:** cabo com tensão no rótulo (`3xA35P(7,94)-13,8kV 25 m`) = média (o vão conta uma vez e o **neutro não entra**); sem tensão (`3xC16(16) 20 m`) = baixa (cabo + neutro). No formato clássico: `CAA`/`CAL`/`P…` = média, `M2X`/`M3X` = baixa. Cabo sem comprimento usa o da linha de baixo.
 - Se um projeto novo tiver outro tipo de poste, cadastre-o na **convenção de postes** do projeto; o resumo passa a contá-lo sozinho.
 
+## Login lembrado e abertura de arquivos no programa (19/11/2026)
+
+- **Lembrar de mim:** com a caixa marcada no login, o programa abre direto na tela inicial por 30 dias (sem a tela de login). Se o token vencer, ou se você sair (**Sair**), o login volta. Sem marcar, o login aparece a cada vez que abre o programa.
+- **Escolher arquivo (Ler projeto, importar…):** assim que a caixa «Abrir» do Windows fecha, aparece «Abrindo <arquivo> (N MB)…» no pé da tela; o arquivo chega à tela logo em seguida (os bytes não passam mais pela ponte lenta da janela).
+

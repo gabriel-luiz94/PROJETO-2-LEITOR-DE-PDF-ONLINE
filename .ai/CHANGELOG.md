@@ -16,6 +16,12 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-19 — TASK-193: «Lembrar de mim» realmente entra direto no desktop e escolher arquivo não trava a tela
+
+- **Login:** o desktop (`app.py`) abria SEMPRE em `/login?new_session=1`, e `login.html` apagava token e «lembrar» ao ver esse parâmetro: a sessão de 30 dias (commit 70d5994) era destruída a cada abertura. Agora a janela abre na tela inicial (`inicio_url`; com obra do nanoCAD, direto na tela da obra) e `login.html` encaminha para `next`/`/` quando há sessão lembrada. Sem sessão, token vencido ou «lembrar» desmarcado, as telas e o `auth_fetch.js` mandam ao login como antes (uma vez, sem laço). `?new_session=1` digitado à mão ainda limpa a sessão.
+- **Arquivo escolhido (desktop):** a caixa «Abrir» fazia o Python ler o arquivo todo, virar base64 (+33%) e cruzar a ponte JSON do WebView2, e o JS decodificava antes de a tela reagir (segundos sem sinal em DXF/PDF grande). Agora `abrir_arquivos` devolve só `{id, nome, tamanho}` (sem ler o arquivo), a janela mostra «Abrindo <nome> (N MB)…» na hora e os bytes vêm por `GET /api/desktop/arquivo/<id>` (binário, id aleatório de 10 min, só arquivos escolhidos na caixa nativa, exige login). `services/arquivos_desktop.py`, `routers/desktop_arquivos.py`, `static/desktop_arquivos.js`.
+- Verificado no navegador: aviso em ~1 ms e 40 MB no campo em ~240 ms (a ponte real do WebView2 não dá para medir fora do Windows; o ganho principal é tirá-la do caminho dos bytes). Testes: `tests/test_desktop_abrir_193.py`.
+
 ## 2026-11-19 — TASK-192: Resumo da rede conta corretamente em Pernambuco (poste compacto e linha viva)
 
 - **Sintoma:** na nota real de Pernambuco (DXF 9101578729, 74 cabos, 35 linhas de Outros) o resumo mostrava **0 postes, 282 m de média, 276 m de baixa, 0 equipamentos**. As regras fixas serviam à Paraíba.

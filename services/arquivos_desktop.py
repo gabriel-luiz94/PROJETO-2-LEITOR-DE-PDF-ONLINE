@@ -2,13 +2,15 @@
 services/arquivos_desktop.py — Ponte de arquivos da janela desktop (pywebview), TASK-142.
 
 No executável o programa roda numa janela nativa (WebView2), onde baixar um arquivo (`<a download>`) e escolher um arquivo (`<input type=file>`) nem sempre funcionam.
-Esta classe é entregue à janela como `js_api` e abre as caixas NATIVAS do Windows: `salvar_arquivo` (Salvar como) e `abrir_arquivos` (Abrir); o navegador entrega/recebe
-os bytes em base64 (static/desktop_arquivos.js troca os downloads e os seletores de arquivo por estas chamadas). Só existe na versão desktop; na online nada disto roda.
+Esta classe é entregue à janela como `js_api` e abre as caixas NATIVAS do Windows: `salvar_arquivo` (Salvar como) e `abrir_arquivos` (Abrir); ao SALVAR o navegador entrega os bytes em base64; ao ABRIR os bytes vêm por HTTP local (TASK-193) (static/desktop_arquivos.js troca os downloads e os seletores de arquivo por estas chamadas). Só existe na versão desktop; na online nada disto roda.
 """
 import base64
 import binascii
 import os
 import re
+import secrets
+import threading
+import time
 
 from config import logger
 
@@ -30,6 +32,33 @@ def filtros_de_arquivo(aceita: str, rotulo: str = "Arquivos permitidos") -> tupl
     if not exts:
         return ("Todos os arquivos (*.*)",)
     return (f"{rotulo} ({';'.join('*.' + e for e in exts)})", "Todos os arquivos (*.*)")
+
+
+# TASK-193: «Abrir» devolve só nome, tamanho e um id; os bytes saem por HTTP local (GET /api/desktop/arquivo/<id>, routers/desktop_arquivos.py), binário e em fluxo.
+# Antes o Python lia o arquivo todo, virava base64 (+33%) e atravessava a ponte JSON da janela: em DXF/PDF grande a tela ficava segundos sem reagir.
+VALIDADE_ESCOLHIDOS_S = 600
+_escolhidos = {}                  # id → (caminho, validade): SÓ arquivos que o usuário escolheu na caixa nativa desta sessão
+_trava = threading.Lock()
+
+
+def registrar_escolhido(caminho: str) -> str:
+    """Guarda o caminho escolhido na caixa «Abrir» e devolve o id (aleatório, impossível de adivinhar) que a página usa para buscar os bytes."""
+    agora = time.monotonic()
+    with _trava:
+        for k in [k for k, (_c, ate) in _escolhidos.items() if ate < agora]:
+            del _escolhidos[k]
+        i = secrets.token_urlsafe(24)
+        _escolhidos[i] = (caminho, agora + VALIDADE_ESCOLHIDOS_S)
+        return i
+
+
+def caminho_escolhido(i: str):
+    """O caminho registrado para o id (ainda válido e existente) ou None."""
+    with _trava:
+        c = _escolhidos.get(str(i or ""))
+    if not c or c[1] < time.monotonic() or not os.path.isfile(c[0]):
+        return None
+    return c[0]
 
 
 def _escolhido(r):
@@ -81,7 +110,7 @@ class ApiArquivos:
             return {"ok": False, "erro": str(e)}
 
     def abrir_arquivos(self, aceita="", multiplos=False):
-        """Abre o "Abrir" e devolve {arquivos: [{nome, tipo, base64}]} | {cancelado: True} | {ok: False, erro}."""
+        """Abre o "Abrir" e devolve {arquivos: [{id, nome, tamanho}]} | {cancelado: True} | {ok: False, erro}. Não lê o arquivo: a página busca os bytes em /api/desktop/arquivo/<id>."""
         try:
             if self._janela is None:
                 return {"ok": False, "erro": "janela indisponível"}
@@ -94,8 +123,7 @@ class ApiArquivos:
                 total += tamanho
                 if total > LIMITE_BYTES:
                     return {"ok": False, "erro": "arquivo(s) grande(s) demais"}
-                with open(caminho, "rb") as f:
-                    saida.append({"nome": os.path.basename(caminho), "base64": base64.b64encode(f.read()).decode("ascii")})
+                saida.append({"id": registrar_escolhido(caminho), "nome": os.path.basename(caminho), "tamanho": tamanho})
             return {"ok": True, "arquivos": saida}
         except Exception as e:  # noqa: BLE001
             logger.warning(f"abrir_arquivos falhou: {e}")

@@ -490,6 +490,8 @@ app.include_router(orcamento.router)
 app.include_router(ai_chat.router)
 from routers import assistente as _assistente_router            # TASK-191: assistente com ferramentas e skills
 app.include_router(_assistente_router.router)
+from routers import desktop_arquivos as _desktop_arquivos_router            # TASK-193: bytes do arquivo escolhido na caixa nativa
+app.include_router(_desktop_arquivos_router.router)
 app.include_router(validacao_prompts.router)
 app.include_router(validacao_regras.router)
 app.include_router(validacao_ajustes.router)
@@ -598,9 +600,10 @@ if __name__ == "__main__":
         server_thread = threading.Thread(target=run_uvicorn, args=("127.0.0.1", port), daemon=True)
         server_thread.start()
 
-        # Abre sempre na tela de login com ?new_session=1 para limpar sessão anterior
+        # TASK-193: abre na TELA INICIAL (antes abria no login com um parâmetro que apagava a sessão a cada abertura e anulava o «Lembrar de mim»):
+        # com sessão lembrada entra direto; sem sessão (ou token vencido, ou «lembrar» desmarcado) as próprias telas mandam para o login (static/auth_fetch.js, script.js).
         app_url = f"http://127.0.0.1:{port}"
-        login_url = f"{app_url}/login?new_session=1"
+        inicio_url = f"{app_url}/"
         # TASK-143: o plugin do nanoCAD acha o programa (programa.json) e pode abri-lo já com uma obra (--abrir-obra <arquivo>)
         from services import programa_local
         programa_local.registrar(port, APP_VERSION)
@@ -616,8 +619,7 @@ if __name__ == "__main__":
         elif _arquivo_obra:
             _id_obra = programa_local.carregar_arquivo(_arquivo_obra)
         if _id_obra:
-            from urllib.parse import quote as _quote
-            login_url += "&next=" + _quote(programa_local.url_pendente(_id_obra), safe="")
+            inicio_url = app_url + programa_local.url_pendente(_id_obra)          # a tela da obra pede o login (com ?next=) se não houver sessão
 
         from services.inicio_janela import TELA_ERRO, TELA_INICIAL, esperar_servidor
 
@@ -649,7 +651,7 @@ if __name__ == "__main__":
             def _abrir_quando_pronto(win):
                 threading.Thread(target=janela_desktop.ligar_senhas_salvas, args=(win,), daemon=True).start()      # TASK-133/151: login oferece as senhas salvas (espera o WebView2 ficar pronto, sem travar a abertura)
                 if esperar_servidor("127.0.0.1", port):
-                    win.load_url(login_url)
+                    win.load_url(inicio_url)
                 else:
                     win.load_html(TELA_ERRO)
 
@@ -661,5 +663,5 @@ if __name__ == "__main__":
         except Exception as e:
             logger.warning(f"Janela nativa indisponível ({e}). Abrindo no navegador...")
             esperar_servidor("127.0.0.1", port)
-            webbrowser.open(login_url)
+            webbrowser.open(inicio_url)
             server_thread.join()
