@@ -97,10 +97,10 @@ namespace OrcamentoNanoCAD.Nucleo
             foreach (IGrouping<string, LinhaDesenho> g in d.Linhas.Where(l => !l.Leader && cfg.TipoPelaLayer(l.Layer) == null && l.Pontos.Count >= 2
                         && noPoste(l.Pontos[0]) && noPoste(l.Pontos[l.Pontos.Count - 1])).GroupBy(l => l.Layer))
             {
-                int mt = g.Count(l => ConfigLeitura.TipoPelaCor(l.Cor) == "MT"), bt = g.Count(l => ConfigLeitura.TipoPelaCor(l.Cor) == "BT");
+                int mt = g.Count(l => cfg.CorDoProjeto(l.Cor) == "MT"), bt = g.Count(l => cfg.CorDoProjeto(l.Cor) == "BT");
                 string nome = g.Key.Length <= 2 ? "=" + g.Key : g.Key;
-                if (mt >= 2) r.Add(mt + " linhas VERMELHAS de poste a poste na layer " + g.Key + " — se forem rede de MT, inclua \"" + nome + "\" em Layers da rede de MÉDIA (⚙ Leitura)");
-                if (bt >= 2) r.Add(bt + " linhas VERDES de poste a poste na layer " + g.Key + " — se forem rede de BT, inclua \"" + nome + "\" em Layers da rede de BAIXA (⚙ Leitura)");
+                if (mt >= 2) r.Add(mt + " linhas com cor de MT de poste a poste na layer " + g.Key + " — se forem rede de MT, inclua \"" + nome + "\" em Layers da rede de MÉDIA (⚙ Leitura)");
+                if (bt >= 2) r.Add(bt + " linhas com cor de BT de poste a poste na layer " + g.Key + " — se forem rede de BT, inclua \"" + nome + "\" em Layers da rede de BAIXA (⚙ Leitura)");
             }
             return r;
         }

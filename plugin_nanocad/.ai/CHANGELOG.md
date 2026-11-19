@@ -4,6 +4,12 @@
 
 ---
 
+## 2026-11-19 — 0.10.2 para avaliação no CAD
+
+- TASK-022: leitura das cores e do modo do projeto, curingas nas layers, cópia local e edição do modo no CAD.
+- TASK-023: distribuição por poste e por prioridade de regra, reserva de vínculos manuais e comparação do exemplo com o motor da aplicação.
+- TASK-024: menus Projeto, Conferir e Configurações, origem das regras no cabeçalho, ações de entrega visíveis e Atualizar como ação principal.
+
 ## 2026-11-15 — TASK-021: "+ Cabo" lê o texto como cabo e pega o comprimento da mesma linha ou da vizinhança (0.10.1)
 
 `Construtor.LerCaboDeTexto`: em "+ Cabo" (e quando as regras leem cabo em "+ Outros"), o texto escolhido é SEMPRE lido como cabo — rótulo pelo que as

@@ -5,25 +5,25 @@
 
 ## Trabalho de 19/11/2026
 
-TASK-022 em andamento (leitura por projeto). TASK-023 (vínculos por poste) e TASK-024 (painel) planejadas. Validação operacional pendente nos dois CADs.
+TASK-022 (leitura), TASK-023 (alocação por poste) e TASK-024 (painel) implementadas para teste. Conferência operacional pendente no nanoCAD 5 e 26. A comparação de vínculos cobre o exemplo de Pernambuco; regras avançadas de derivação, parâmetros herdados e elementos fictícios exigem casos adicionais.
 
 ## Versão
 
-`0.10.1` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
+`0.10.2` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
 
-Branch de trabalho: `ccr-7ee2beaa-e39rup`
+Branch de trabalho: `codex/nanocad-paridade`
 
 ## Entregáveis
 
 | Arquivo | Situação |
 |---|---|
 | `appload/nanoCAD26/OrcamentoNanoCAD.dll` | ✅ compila contra a API real do nanoCAD 26 (`hostmgd`/`hostdbmgd` net6.0) · 🟡 carregar no nanoCAD 26 |
-| `build_nanocad5.bat` → `appload/nanoCAD5/OrcamentoNanoCAD.dll` | 🟡 núcleo conferido em .NET 4/C# 5; a camada do CAD só compila no Windows com o nanoCAD 5 |
+| `build_nanocad5.bat` → `appload/nanoCAD5/OrcamentoNanoCAD.dll` | ✅ build .NET 4/C# 5 com referências geradas · 🟡 teste no host real |
 | `exemplos/Projeto_Rua_das_Flores.obra.json` | ✅ importado pela API no teste de contrato |
 
 ## Implementado
 
-- [x] (aplicação, TASK-166) o programa refaz o vínculo cabo ⇄ estrutura **por poste** ao abrir o `.obra` do plugin (usa `_geo` do vão e `_poste`); o vínculo guloso do `Vinculador.cs` fica como pré-visão no CAD. ⏳ Portar o algoritmo por poste para o C# (precisa de .NET no ambiente).
+- [x] TASK-023: o núcleo distribui cabos pelas estruturas de cada poste em ordem de regra. Vínculo manual ocupa a unidade e conserva as pontas escolhidas.
 
 ### Núcleo (sem CAD) — ✅
 - [x] Motor do leitor portado (`MotorLeitor`), paridade com o JS em 39 casos (Pernambuco 081 + padrão)

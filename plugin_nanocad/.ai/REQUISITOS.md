@@ -10,7 +10,7 @@
 |---|---|---|---|
 | RQ-01 | Comando `ORCAMENTO` abre a tela com **Construir do zero**, **Ler projeto** e **Continuar obra salva**; escolha das regras do projeto (mockup A) | 🟡 | `Plugin/Telas.cs › TelaInicio`, `Comandos.Orcamento` |
 | RQ-02 | **Construir do zero**: selecionar postes (bloco + anotação) e vãos (linha + anotação); cada um ganha número; o plugin sugere os postes das pontas e a anotação, o usuário confirma ou troca (mockup B) | 🟡 | `ORC_POSTE`, `ORC_VAO`, `Nucleo/Construtor.cs` |
-| RQ-03 | **Ler projeto**: leitor por **layer + cor** (a cor decide, a layer confirma) monta postes, vãos e vínculos; sobra a conferência com filtros Ok/Conferir/Erro (mockup C) | ✅ núcleo · 🟡 CAD | `Nucleo/LeitorProjeto.cs`, `Plugin/PainelObra.cs` |
+| RQ-03 | **Ler projeto**: leitor conforme **layers, cores e precedência do projeto** monta postes, vãos e vínculos; sobra a conferência com filtros Ok/Conferir/Erro (mockup C) | ✅ núcleo · 🟡 CAD | `Nucleo/LeitorProjeto.cs`, `Plugin/PainelObra.cs` |
 | RQ-04 | Numeração: cada poste (P1…) e vão (V1…) tem número **exibido no desenho** | ✅ núcleo · 🟡 CAD | `LeitorProjeto.Numerar` (segue a rede), `Plugin/Marcas.cs` |
 | RQ-05 | Vínculo vão ⇄ poste **sempre visível** (linhas/marcas) e usado internamente com as estruturas | ✅ núcleo · 🟡 CAD | `Nucleo/Vinculador.cs`, `Marcas` (tracejado ciano) |
 | RQ-06 | **Pop-up** ao clicar num vão/poste: entrada (lida do desenho), saída (para a obra), ajustes (operação…) (mockup F) | 🟡 | `Plugin/Telas.cs › TelaElemento`, `ORC_EDITAR` |
@@ -37,7 +37,7 @@
 | ID | Requisito | Situação | Onde |
 |---|---|---|---|
 | RQ-30 | DLL pronta para o APPLOAD do **nanoCAD 26** nesta pasta | ✅ (compila contra a API real) · 🟡 carregar no CAD | `appload/nanoCAD26/OrcamentoNanoCAD.dll` |
-| RQ-31 | **nanoCAD 5** (.NET, confirmado pelo usuário): DLL gerada nesta pasta | 🟡 | `build_nanocad5.bat` → `appload/nanoCAD5/` (compila no Windows do usuário) |
+| RQ-31 | **nanoCAD 5** (.NET, confirmado pelo usuário): DLL .NET 4 compilada e versionada | 🟡 | `build_nanocad5.bat` → `appload/nanoCAD5/` (alternativa no Windows com API instalada) |
 | RQ-32 | Núcleo independente do CAD, testável fora dele | ✅ | `src/Nucleo/`, `tests/Nucleo.Testes` |
 | RQ-33 | Uma só fonte de regras (sem terceira cópia das REGRAS) | ✅ regras · ⚠️ motor portado | ADR-001 |
 

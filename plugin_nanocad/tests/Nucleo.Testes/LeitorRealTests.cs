@@ -35,7 +35,7 @@ namespace OrcamentoNanoCAD.Testes
             DesenhoBruto b = Bruto();
             Desenho d = MontadorDesenho.Montar(b, rg.Leitura);
             List<string> l = Diagnostico.Linhas(Diagnostico.Gerar(b, d, LeitorProjeto.Ler(d, rg), rg, DateTime.Now));
-            Assert.Contains(l, x => x.Contains("VERMELHAS de poste a poste na layer ANOTACOES"));
+            Assert.Contains(l, x => x.Contains("com cor de MT de poste a poste na layer ANOTACOES"));
             Assert.Contains(l, x => x.Contains("na layer 0") && x.Contains("\"=0\""));
         }
 
