@@ -6279,16 +6279,11 @@ if (window.AtivoBalao && window.AtivoItens) window.AtivoBalao.iniciar({
         } catch (e) { return null; }
     },
     gravar: (input, i, nomeParam, valor) => {
-        const idx = Number(input.dataset.parIdx), row = tableStates.outros.data[idx], AI = window.AtivoItens, itens = AI.itens(row.ativo), it = itens[i];
-        if (!it) return;
-        const c = window.AtivoDica.contextoAtual(), d = c && window.AtivoDica.dica(it.nome, c);
-        if (!d || d.tipo !== 'parametros') return;
-        const inner = AI.conteudo(it.params), base = it.nome + '(' + inner + ')';
-        const r = window.AtivoDica.aplicarValor(base, it.nome.length + 1 + inner.length, d, nomeParam, valor);
-        if (!r) return;
-        const params = r.texto.slice(it.nome.length);
-        const novos = AI.comParams(itens, i, params);
-        input._gravarCheio(AI.juntar(novos));
+        const idx = Number(input.dataset.parIdx), row = tableStates.outros.data[idx], AD = window.AtivoDica;
+        const c = AD.contextoAtual();
+        // TASK-194: a base conhece «CON», não «6 CON» — a gravação procura a dica pelo nome SEM a quantidade (como a leitura já fazia) e mantém a quantidade no texto
+        const novo = window.AtivoItens.gravarParametro(row.ativo, i, nomeParam, valor, nome => c && AD.dica(nome, c), AD.aplicarValor);
+        if (novo !== null) input._gravarCheio(novo);
     },
     carregarBase: () => carregarBaseOrcamento(),
     mensagem: t => showToast(t)
