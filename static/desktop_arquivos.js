@@ -1,7 +1,7 @@
 /*
  * desktop_arquivos.js (TASK-142) — no aplicativo desktop (janela nativa/pywebview), baixar e importar arquivos pelas caixas NATIVAS do Windows.
  *   • download (`<a download>` com blob:/data:) e `showSaveFilePicker` → "Salvar como" nativo (api.salvar_arquivo)
- *   • `<input type="file">` (clique do usuário ou `.click()` do código) → "Abrir" nativo (api.abrir_arquivos); os bytes viram `File`s no input e o `change` dispara
+ *   • `<input type="file">` (clique do usuário ou `.click()` do código) → "Abrir" nativo (api.abrir_arquivos); a janela mostra «Abrindo…» na hora, os bytes chegam por HTTP local (TASK-193) e viram `File`s no input, e o `change` dispara
  * No navegador comum (versão online) a ponte não existe e NADA aqui muda o comportamento. Parte pura (base64) exposta em `DesktopArquivos` e testada em Node.
  */
 (function (raiz) {
@@ -90,16 +90,35 @@
     }
 
     /* ── escolher arquivo ── */
+    /** Aviso imediato («Abrindo arquivo…») do momento em que a caixa nativa fecha até o arquivo chegar à tela. */
+    function mostrarAbrindo(arquivos) {
+        const el = doc.createElement('div');
+        const mb = arquivos.reduce((t, a) => t + (a.tamanho || 0), 0) / 1048576;
+        el.setAttribute('role', 'status');
+        el.textContent = 'Abrindo ' + (arquivos.length === 1 ? arquivos[0].nome : arquivos.length + ' arquivos') + (mb >= 1 ? ' (' + mb.toFixed(1).replace('.', ',') + ' MB)' : '') + '…';
+        el.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:100000;background:#161b22;color:#e6edf3;border:1px solid #58a6ff;border-radius:8px;padding:8px 16px;font:600 13px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.45);';
+        doc.body.appendChild(el);
+        return el;
+    }
     async function escolher(input) {
         const p = ponte();
         const r = await p.abrir_arquivos(input.getAttribute('accept') || '', !!input.multiple);
         if (!r || r.cancelado) return;
         if (!r.ok) { avisar('Não foi possível abrir o arquivo' + (r.erro ? ': ' + r.erro : '.')); return; }
-        const dt = new DataTransfer();
-        r.arquivos.forEach(a => dt.items.add(new File([deBase64(a.base64)], a.nome)));
-        input.files = dt.files;
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
+        const aviso = mostrarAbrindo(r.arquivos);
+        try {
+            const dt = new DataTransfer();
+            for (const a of r.arquivos) {
+                const resp = await raiz.fetch('/api/desktop/arquivo/' + encodeURIComponent(a.id));          // bytes por HTTP local: binário, sem base64 nem ponte JSON
+                if (!resp.ok) throw new Error('o programa não conseguiu ler «' + a.nome + '» (HTTP ' + resp.status + ')');
+                dt.items.add(new File([await resp.blob()], a.nome));
+            }
+            input.files = dt.files;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        } finally {
+            aviso.remove();
+        }
     }
     const cliqueOriginalInput = raiz.HTMLInputElement.prototype.click;
     raiz.HTMLInputElement.prototype.click = function () {

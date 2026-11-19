@@ -55,7 +55,10 @@ def test_abrir_arquivos_devolve_nome_e_conteudo(tmp_path, webview_falso):
     f = tmp_path / "base.csv"; f.write_bytes("a;b\n1;ç".encode("utf-8"))
     api = ad.ApiArquivos(); api.vincular(Janela((str(f),)))
     r = api.abrir_arquivos(".csv", False)
-    assert r["ok"] and r["arquivos"][0]["nome"] == "base.csv" and base64.b64decode(r["arquivos"][0]["base64"]) == "a;b\n1;ç".encode("utf-8")
+    a = r["arquivos"][0]
+    assert r["ok"] and a["nome"] == "base.csv" and a["tamanho"] == len("a;b\n1;ç".encode("utf-8")) and "base64" not in a      # TASK-193: não lê o arquivo; entrega um id
+    from services import arquivos_desktop
+    assert open(arquivos_desktop.caminho_escolhido(a["id"]), "rb").read() == "a;b\n1;ç".encode("utf-8")
     assert api._janela.chamadas[0][1]["allow_multiple"] is False and api._janela.chamadas[0][0] == 10
     api2 = ad.ApiArquivos(); api2.vincular(Janela([]))
     assert api2.abrir_arquivos() == {"cancelado": True}

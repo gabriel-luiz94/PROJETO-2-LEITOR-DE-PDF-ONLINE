@@ -34,8 +34,8 @@ def test_telas_de_inicio_e_erro():
 
 def test_app_abre_a_janela_com_a_tela_inicial_e_carrega_o_login_depois():
     src = open(os.path.join(os.path.dirname(config.STATIC_DIR), "app.py"), encoding="utf-8").read()
-    assert "html=TELA_INICIAL" in src and "win.load_url(login_url)" in src and "esperar_servidor(\"127.0.0.1\", port)" in src
-    assert "url=login_url" not in src          # a janela não abre mais direto no login (o servidor ainda podia estar subindo)
+    assert "html=TELA_INICIAL" in src and "win.load_url(inicio_url)" in src and "esperar_servidor(\"127.0.0.1\", port)" in src
+    assert "url=inicio_url" not in src          # a janela não abre mais direto no login (o servidor ainda podia estar subindo)
 
 
 # ───────────────────────── campos de chave / senha ─────────────────────────
