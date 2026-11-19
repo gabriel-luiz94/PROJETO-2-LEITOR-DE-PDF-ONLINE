@@ -16,6 +16,13 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-19 — TASK-192: Resumo da rede conta corretamente em Pernambuco (poste compacto e linha viva)
+
+- **Sintoma:** na nota real de Pernambuco (DXF 9101578729, 74 cabos, 35 linhas de Outros) o resumo mostrava **0 postes, 282 m de média, 276 m de baixa, 0 equipamentos**. As regras fixas serviam à Paraíba.
+- **Causas:** (1) a base de Pernambuco cadastra o poste com o nome oficial compacto (`12600D=12600D(fases=TRI), DT12/600`), o item chegava como `12600D` e a regra `^(DT|RC|CV|FV)` não o reconhecia (postes = 0; os `TR` do poste também sumiam das linhas `*I`); (2) só a operação `I` exata contava: as linhas `*I` (linha viva), metade da nota, ficavam fora de postes, equipamentos e cabos.
+- **Correção:** a regra saiu de `resumo.js` para `static/resumo_rede.js` (sem DOM, testável em Node). Poste = lista fixa (Paraíba) OU a **convenção de postes do projeto** (`AnotacaoOutros.ehPoste`), com ou sem parâmetros; «instalando» = `I` ou `*I` (R, *R, M, *M e vazia não contam). Equipamento (TR/CFU/CFA) e as regras de média/baixa não mudaram. Resultado na mesma nota: **14 postes, 443 m, 340 m, 1 equipamento**, iguais a uma contagem independente feita nos dados.
+- **Atenção (todos os projetos):** `*I` agora conta como instalando também na Paraíba. Testes: `tests/test_resumo_rede_192.py` (Pernambuco com base, sem base, parâmetros, falsos positivos, linha viva, Paraíba no formato antigo, cabos). `tests/test_resumo_rede_116.py` agora lê o módulo novo.
+
 ## 2026-11-19 — TASK-191 (ajuste 3): assistente rápido e sem travar em «Gerando»
 
 - **Nunca mais «Gerando» para sempre:** cada chamada ao provedor tem tempo máximo (45 s; 20 s se há reserva configurado; `ErroTempo` troca de modelo/provedor sem repetir) e a pergunta inteira tem teto de 120 s. A tela mostra «Pensando · N s» (e o nome da etapa: «Consultando a base», «Calculando o orçamento»…), avisa quando demora (15 s) e o botão de enviar vira **■ Parar** (aborta o pedido).

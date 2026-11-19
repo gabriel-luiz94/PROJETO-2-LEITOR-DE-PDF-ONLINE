@@ -217,6 +217,11 @@ async def serve_regras_leitor_engine_js():
     return _serve_js("regras_leitor_engine.js")
 
 
+@app.get("/static/resumo_rede.js")
+async def serve_resumo_rede_js():
+    return _serve_js("resumo_rede.js")          # TASK-192
+
+
 @app.get("/static/assistente.js")
 async def serve_assistente_js():
     return _serve_js("assistente.js")          # TASK-191
