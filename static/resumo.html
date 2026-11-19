@@ -1064,6 +1064,7 @@
             <aside class="painel painel-dir" id="painel-ia" aria-label="Assistente de IA" hidden>
                 <div class="painel-topo">
                     <span class="painel-titulo">✨ Assistente IA</span>
+                    <button class="painel-btn" type="button" id="btn-assistente-skills" title="Skills do assistente: guias que ele consulta (catálogo de ativos, como montar, como orçar)">📚</button>
                     <button class="painel-btn" type="button" data-acao="fixar" title="Fixar (empurra as tabelas) / soltar (flutua sobre elas)" aria-pressed="false">📌</button>
                     <button class="painel-btn" type="button" data-acao="fechar" title="Ocultar o painel">✕</button>
                 </div>
@@ -1071,7 +1072,7 @@
                     <div class="ai-chat-container">
                 <div class="ai-chat-messages" id="chat-messages">
                     <div class="chat-message system">
-                        Olá! Sou seu assistente de redes elétricas. Você pode me pedir para gerar obras, adicionar ativos, ou me ensinar novas regras técnicas (ex: "Lembre-se que trafo X usa IP Y").
+                        Olá! Sou seu assistente de redes elétricas. Posso consultar a base do projeto, montar linhas, conferir o que não é reconhecido, calcular o orçamento e usar suas obras salvas. Sempre mostro um plano antes de mudar a tabela. Ensine-me com "Lembre-se que…" ou nas Skills (📚).
                     </div>
                 </div>
                 <div class="ai-chat-input-area">
@@ -1842,7 +1843,8 @@
     <script src="/static/barra_modais.js?v=1"></script>
     <script src="/static/perfil_exportacao.js"></script>
     <script src="/static/projeto.js?v=1"></script>
-    <script src="/static/resumo.js?v=5.4"></script>
+    <script src="/static/assistente.js?v=1"></script>
+    <script src="/static/resumo.js?v=5.5"></script>
     <script src="/static/resumo_layout.js?v=2"></script>
     <script src="/static/painel_regras.js"></script>
     <script src="/static/voz.js"></script>
