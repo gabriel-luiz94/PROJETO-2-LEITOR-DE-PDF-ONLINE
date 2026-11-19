@@ -73,7 +73,7 @@ def _chaves_do_perfil(projeto) -> tuple:
 
 def sap_limpo(sap, projeto="") -> dict:
     """Cabeçalho do relatório gravado no `.obra`: os campos de sempre mais as chaves do perfil de exportação do projeto (TASK-176, ex.: `contrato`)."""
-    if not isinstance(sap, dict):
+    if not isinstance(sap, dict) or not sap:
         return {}
     chaves = CAMPOS_SAP + (("titulo",)) + _chaves_do_perfil(projeto)          # `titulo` = título do SAP guardado só para os relatórios (o nome do projeto pode ser a nota)
     return {k: _texto(sap.get(k), LIMITE_TEXTO) for k in chaves if isinstance(sap.get(k), str)}

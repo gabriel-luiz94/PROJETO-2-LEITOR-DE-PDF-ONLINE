@@ -1,5 +1,5 @@
 // GerarApiNanoCAD5 — gera src/ApiNanoCAD5/hostmgd.cs e hostdbmgd.cs: declarações (sem corpo de verdade) de TUDO que o plugin usa da API
-// do nanoCAD, com os mesmos nomes, namespaces e assinaturas da API (lidos do nanoCAD 26). Compiladas para .NET 4, viram as referências
+// do nanoCAD, com os mesmos nomes, namespaces e assinaturas da API (lidos do nanoCAD 26). Compiladas para .NET 3.5, viram as referências
 // para gerar a DLL do nanoCAD 5 aqui (não existe pacote da API do nanoCAD 5). Em tempo de execução, o nanoCAD 5 usa as DLLs dele
 // (hostmgd/hostdbmgd, sem assinatura forte): o que existir lá com o mesmo nome e assinatura funciona; o que não existir só falha no
 // trecho isolado que o usa (ver Plugin/Compat.cs).
@@ -98,7 +98,7 @@ static class Program
         {
             var sb = new StringBuilder();
             sb.AppendLine("// GERADO por ferramentas/GerarApiNanoCAD5 — não editar à mão. Só as declarações que o plugin usa da API do nanoCAD (" + asm + "),");
-            sb.AppendLine("// para compilar a DLL do nanoCAD 5 (.NET 4). Em tempo de execução valem as DLLs do próprio nanoCAD.");
+            sb.AppendLine("// para compilar a DLL do nanoCAD 5 (.NET 3.5). Em tempo de execução valem as DLLs do próprio nanoCAD.");
             sb.AppendLine("#pragma warning disable 67, 108, 114, 169, 649, 659, 660, 661, 809");
             foreach (var g in Usados.Keys.Where(t => t.ContainingAssembly.Name == asm && t.ContainingType == null).GroupBy(t => t.ContainingNamespace.ToDisplayString()).OrderBy(g => g.Key))
             {

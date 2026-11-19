@@ -102,7 +102,7 @@ def test_programa_fechado_abre_com_o_projeto(tmp_path):
 
 def test_telas_ligadas():
     js = (RAIZ / "static" / "projeto.js").read_text(encoding="utf-8")
-    assert "async function abrirDoPlugin(caminho, projetoCodigo)" in js and "abrirDoPlugin," in js
+    assert "async function abrirDoPlugin(caminho, projetoCodigo, selecionarProjeto)" in js and "abrirDoPlugin," in js
     resumo = (RAIZ / "static" / "resumo.js").read_text(encoding="utf-8")
     assert "GridRProjeto.abrirDoPlugin(d.caminho" in resumo and "/api/plugin/obra" not in resumo
 
@@ -124,3 +124,8 @@ def test_contrato_o_programa_abre_o_obra_gerado_pelo_plugin(tmp_path):
     assert depois["cad"] == gerado["cad"]
     linhas = lambda env: [(t, (l.get("operacao") or "").strip(), (l.get("ativo") or "").strip()) for t in ("cabos", "outros") for l in env["dados"][t]]
     assert linhas(depois) == linhas(gerado)
+
+
+def test_sap_vazio_do_plugin_dispensa_consulta_ao_perfil(monkeypatch):
+    monkeypatch.setattr(projeto_obra, "_chaves_do_perfil", lambda _: pytest.fail("consulta sem campos SAP"))
+    assert projeto_obra.sap_limpo({}, "081") == {}

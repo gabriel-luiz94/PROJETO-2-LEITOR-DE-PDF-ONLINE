@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-19 — Abrir no OrçaCore
+
+A entrega ao Resumo aberto usa a tela atual. A leitura de cabeçalho SAP vazio dispensa o acesso ao perfil do projeto. O instalador verifica o conteúdo da DLL ao encontrar a mesma versão.
+
 ## 2026-11-19 — integração nanoCAD
 
 TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 removido e extração de chamadas MULTILEADER no DXF. Testar com a nota real nas duas versões do nanoCAD.

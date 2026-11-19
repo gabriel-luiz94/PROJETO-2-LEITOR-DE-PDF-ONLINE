@@ -8,9 +8,9 @@
 `src/Nucleo/` não usa `HostMgd.*`, `Teigha.*`, WinForms nem pacotes NuGet. Decisões (o que é vão, quem vincula com quem,
 estado, o que vai para o arquivo) ficam no núcleo e têm teste. A camada `src/Plugin/` só lê o desenho, mostra e grava.
 
-## Regra P2 — C# 5 e .NET Framework 4.0
+## Regra P2 — C# 5 e .NET Framework 3.5 para o nanoCAD 5
 
-Todo código de `src/` compila com o csc do .NET Framework 4 (nanoCAD 5): **sem** interpolação `$""`, `?.`, `nameof`,
+Todo código de `src/` compila com o csc do .NET Framework 4 usando referências 3.5 para o nanoCAD 5: **sem** interpolação `$""`, `?.`, `nameof`,
 membros `=>`, inicializador de auto-propriedade, `out var`, tuplas, `using static`, pattern matching. O `.csproj` fixa
 `LangVersion=5`; `tests/Net40` confere o núcleo em `net40`. Testes (`tests/`) podem usar C# moderno.
 

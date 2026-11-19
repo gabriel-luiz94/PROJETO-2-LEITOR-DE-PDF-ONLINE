@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    Plugin para o nanoCAD 5 (.NET Framework 4, C# 5) — TASK-014. MESMO código do nanoCAD 26 (src/Nucleo + src/Plugin), compilado aqui contra
+    Plugin para o nanoCAD 5 (.NET Framework 3.5 x86, C# 5) — TASK-014. MESMO código do nanoCAD 26 (src/Nucleo + src/Plugin), compilado aqui contra
     as referências de src/ApiNanoCAD5 (geradas do que o plugin usa da API). No nanoCAD 5 valem as hostmgd/hostdbmgd dele; o que a API
     dele não tiver é desligado em tempo de execução (Plugin/Compat.cs).
     Saída: appload/nanoCAD5/OrcamentoNanoCAD.dll. Alternativa no próprio computador: build_nanocad5.bat (com as DLLs do nanoCAD 5 instalado).
   -->
   <Import Project="../Versao.props" />
   <PropertyGroup>
-    <TargetFramework>net40</TargetFramework>
+    <TargetFramework>net35</TargetFramework>
     <OutputType>Library</OutputType>
     <AssemblyName>OrcamentoNanoCAD</AssemblyName>
     <RootNamespace>OrcamentoNanoCAD</RootNamespace>
@@ -15,7 +15,7 @@
     <DefineConstants>$(DefineConstants);NANOCAD5</DefineConstants>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <Nullable>disable</Nullable>
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x86</PlatformTarget>
     <Product>OrçaCore para nanoCAD 5</Product>
     <Authors>Gabriel Sales</Authors>
     <Deterministic>true</Deterministic>
@@ -38,7 +38,7 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Security" />
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net40" Version="1.0.3" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
   <Target Name="CopiarParaAppload5" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildProjectDirectory)/../../appload/nanoCAD5" />

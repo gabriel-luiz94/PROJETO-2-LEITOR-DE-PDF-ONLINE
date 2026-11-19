@@ -1,6 +1,6 @@
 @echo off
 rem ==========================================================================
-rem  Compila o plugin para o nanoCAD 5 (.NET Framework 4) NESTE computador,
+rem  Compila o plugin para o nanoCAD 5 (.NET Framework 3.5 x86) NESTE computador,
 rem  usando o compilador C# que ja vem no Windows e as DLLs do nanoCAD 5
 rem  instalado (hostmgd.dll / hostdbmgd.dll). Nao precisa de Visual Studio.
 rem
@@ -17,6 +17,7 @@ if "%NCAD%"=="" (
     if exist "%%~P" (
       for /d %%D in ("%%~P\nanoCAD*5*") do (
         if exist "%%~D\hostmgd.dll" set "NCAD=%%~D"
+        if exist "%%~D\SDK\include\hostmgd.dll" set "NCAD=%%~D\SDK\include"
         if exist "%%~D\bin\hostmgd.dll" set "NCAD=%%~D\bin"
       )
     )
@@ -27,6 +28,7 @@ if "%NCAD%"=="" (
   echo   build_nanocad5.bat "C:\Program Files\Nanosoft\nanoCAD 5.0"
   exit /b 1
 )
+if exist "%NCAD%\SDK\include\hostmgd.dll" set "NCAD=%NCAD%\SDK\include"
 if exist "%NCAD%\bin\hostmgd.dll" set "NCAD=%NCAD%\bin"
 if not exist "%NCAD%\hostmgd.dll" (
   echo Pasta sem hostmgd.dll: "%NCAD%"
@@ -47,11 +49,24 @@ set "RES=%RES% /resource:%DATA%\regras_leitor_classificacao_pernambuco_seed.json
 set "RES=%RES% /resource:%DATA%\vinculacao_pernambuco_seed.json,regras.081.vinculacao.json"
 set "RES=%RES% /resource:%DATA%\regras_leitor_processamento_seed.json,regras.padrao.processamento.json"
 set "RES=%RES% /resource:%DATA%\regras_leitor_classificacao_seed.json,regras.padrao.classificacao.json"
-set "REFS=/r:"%NCAD%\hostmgd.dll" /r:"%NCAD%\hostdbmgd.dll" /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Security.dll"
+set "FX2=%WINDIR%\Microsoft.NET\Framework\v2.0.50727"
+set "FX35=%WINDIR%\Microsoft.NET\Framework\v3.5"
+if exist "%ProgramFiles%\Reference Assemblies\Microsoft\Framework\v3.5\System.Core.dll" set "FX35=%ProgramFiles%\Reference Assemblies\Microsoft\Framework\v3.5"
+if exist "%ProgramFiles(x86)%\Reference Assemblies\Microsoft\Framework\v3.5\System.Core.dll" set "FX35=%ProgramFiles(x86)%\Reference Assemblies\Microsoft\Framework\v3.5"
+if not exist "%FX35%\System.Core.dll" (
+  echo Ative o recurso .NET Framework 3.5 do Windows antes de compilar.
+  exit /b 1
+)
+if not exist "%NCAD%\hostdbmgd.dll" (
+  echo Referencia hostdbmgd.dll ausente em "%NCAD%". Informe a pasta bin ou SDK\include com as referencias.
+  exit /b 1
+)
+set "REFS=/noconfig /nostdlib+ /r:"%NCAD%\hostmgd.dll" /r:"%NCAD%\hostdbmgd.dll" /r:"%FX2%\mscorlib.dll" /r:"%FX2%\System.dll" /r:"%FX35%\System.Core.dll" /r:"%FX2%\System.Drawing.dll" /r:"%FX2%\System.Windows.Forms.dll" /r:"%FX2%\System.Security.dll""
+if exist "%NCAD%\nrxgatemgd.dll" set "REFS=%REFS% /r:"%NCAD%\nrxgatemgd.dll""
 
 if not exist appload\nanoCAD5 mkdir appload\nanoCAD5
 set "SAIDA=appload\nanoCAD5\OrcamentoNanoCAD.dll"
-set "OPCOES=/nologo /define:NANOCAD5 /target:library /platform:anycpu /optimize+ /codepage:65001 /out:%SAIDA%"
+set "OPCOES=/nologo /define:NANOCAD5 /target:library /platform:x86 /optimize+ /codepage:65001 /out:%SAIDA%"
 
 echo Compilando...
 "%CSC%" %OPCOES% %REFS% %RES% src\Nucleo\*.cs src\Plugin\*.cs > appload\nanoCAD5\compilacao.log 2>&1

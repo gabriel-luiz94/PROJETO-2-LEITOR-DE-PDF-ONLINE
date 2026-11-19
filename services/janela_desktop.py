@@ -7,9 +7,11 @@ services/janela_desktop.py — comportamento da janela do programa no computador
   %APPDATA%\\OrcaCore\\janela) e liga no WebView2 o salvamento de senhas e o preenchimento automático — o login oferece as senhas
   já salvas e pergunta se quer salvar uma nova.
 """
+import json
 import os
 import threading
 import time
+from urllib.parse import parse_qs, urlsplit
 
 from config import logger
 
@@ -112,21 +114,6 @@ def mostrar(url_relativa: str, porta: int = None) -> bool:
     """Leva a janela do programa para a URL (ex.: /resumo?plugin_pendente=…) e a traz para a frente. False se não há janela."""
     if _janela is None:
         return False
-    try:
-        base = _janela.get_current_url() or ""
-    except Exception:  # noqa: BLE001
-        base = ""
-    if base.startswith("http"):
-        from urllib.parse import urlsplit
-        p = urlsplit(base)
-        destino = f"{p.scheme}://{p.netloc}{url_relativa}"
-    else:
-        destino = f"http://127.0.0.1:{porta or int(os.environ.get('PORT', 8000))}{url_relativa}"
-    try:
-        _janela.load_url(destino)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"Janela não carregou a obra do nanoCAD: {e}")
-        return False
     for passo in (lambda: _janela.restore(), lambda: _janela.show()):
         try:
             passo()
@@ -137,4 +124,23 @@ def mostrar(url_relativa: str, porta: int = None) -> bool:
         _janela.on_top = False
     except Exception:  # noqa: BLE001
         pass
+    origem = f"http://127.0.0.1:{porta or int(os.environ.get('PORT', 8000))}"
+    destino = origem + url_relativa
+    try:
+        pedido = urlsplit(url_relativa)
+        pendente = parse_qs(pedido.query).get("plugin_pendente", [None])[0]
+        entregue = False
+        if pendente and pedido.path == "/resumo":
+            script = (f"Boolean(location.origin === {json.dumps(origem)} && location.pathname === '/resumo' && "
+                      "localStorage.getItem('auth_token') && window.abrirPendenteNanoCAD && "
+                      "(window.abrirPendenteNanoCAD(" + json.dumps(pendente) + "), true))")
+            try:
+                entregue = _janela.evaluate_js(script) is True
+            except Exception:
+                pass  # a página pode ainda estar carregando
+        if not entregue:
+            _janela.load_url(destino)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Janela não carregou a obra do nanoCAD: {e}")
+        return False
     return True

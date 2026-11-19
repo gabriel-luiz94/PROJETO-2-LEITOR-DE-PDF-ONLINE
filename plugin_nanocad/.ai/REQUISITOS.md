@@ -37,7 +37,7 @@
 | ID | Requisito | Situação | Onde |
 |---|---|---|---|
 | RQ-30 | DLL pronta para o APPLOAD do **nanoCAD 26** nesta pasta | ✅ (compila contra a API real) · 🟡 carregar no CAD | `appload/nanoCAD26/OrcamentoNanoCAD.dll` |
-| RQ-31 | **nanoCAD 5** (.NET, confirmado pelo usuário): DLL .NET 4 compilada e versionada | 🟡 | `build_nanocad5.bat` → `appload/nanoCAD5/` (alternativa no Windows com API instalada) |
+| RQ-31 | **nanoCAD 5** (.NET, confirmado pelo usuário): DLL .NET 3.5 x86 compilada e versionada | 🟡 | `build_nanocad5.bat` → `appload/nanoCAD5/` (alternativa no Windows com API instalada) |
 | RQ-32 | Núcleo independente do CAD, testável fora dele | ✅ | `src/Nucleo/`, `tests/Nucleo.Testes` |
 | RQ-33 | Uma só fonte de regras (sem terceira cópia das REGRAS) | ✅ regras · ⚠️ motor portado | ADR-001 |
 
@@ -68,7 +68,7 @@
 | RQ-70 | Painel com Cabos separados de Postes/estruturas (como o Resumo da aplicação), ícones fáceis de ver | ✅ · 🟡 CAD | `PainelObra`, `Relatorios.Cabos/Outros`, `Icones` |
 | RQ-71 | Ler mostra só o que as regras do leitor classificaram; Construir é livre (sem filtro das regras) | ✅ | `Relatorios.Visivel` |
 | RQ-72 | Atualização automática do plugin (baixa da aplicação, confere, vale ao reabrir; voltar versão) | ✅ · 🟡 CAD | `Atualizacao`, `AtualizacaoPlugin`, `/api/plugin/atualizacao` |
-| RQ-73 | DLL pronta para o nanoCAD 5 (.NET 4), degradando o que a API dele não tiver | ✅ build · 🟡 CAD | `src/nanoCAD5`, `src/ApiNanoCAD5`, `Compat` |
+| RQ-73 | DLL pronta para o nanoCAD 5 (.NET 3.5 x86), degradando o que a API dele não tiver | ✅ build · 🟡 CAD | `src/nanoCAD5`, `src/ApiNanoCAD5`, `Compat` |
 | RQ-74 | Tela inicial com todos os projetos da aplicação; regras sempre do projeto escolhido | ✅ · 🟡 CAD | `/api/plugin/projetos`, `RegrasFrescas` |
 | RQ-75 | Configuração de leitura guardada na aplicação por projeto (qualquer computador) | ✅ · 🟡 CAD | `/api/plugin/leitura`, `RegrasDe` |
 | RQ-76 | Instalado junto com o programa principal | ✅ · 🟡 Windows | `services/plugin_instalador.py`, botão "Plugin nanoCAD" |

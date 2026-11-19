@@ -643,7 +643,7 @@ namespace OrcamentoNanoCAD
                                   + " regras do leitor, " + r.Vinculo.Cabos.Count + "+" + r.Vinculo.Estruturas.Count + " de vínculo (" + r.Origem + ")");
                 RegrasProjeto atual = Aplicacao.Regras.FirstOrDefault(x => s.Regras != null && x.Nome == s.Regras.Nome);
                 s.Regras = atual ?? Aplicacao.Regras.FirstOrDefault();
-                Aplicacao.Msg("Pasta para regras próprias: " + Path.Combine(Aplicacao.PastaDaDll, "regras", "<codigo>") + " (processamento.json, classificacao.json, vinculacao.json, nome.txt)");
+                Aplicacao.Msg("Pasta para regras próprias: " + Path.Combine(Path.Combine(Aplicacao.PastaDaDll, "regras"), "<codigo>") + " (processamento.json, classificacao.json, vinculacao.json, nome.txt)");
             });
         }
 

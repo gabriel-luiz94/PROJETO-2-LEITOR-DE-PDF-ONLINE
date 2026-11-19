@@ -103,7 +103,7 @@ namespace OrcamentoNanoCAD
                 string h;
                 using (SHA1 sha = SHA1.Create())
                     h = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(Dados.Base.ToLowerInvariant()))).Replace("-", "").Substring(0, 12);
-                return Path.Combine(Pasta, "cache", h);
+                return Path.Combine(Path.Combine(Pasta, "cache"), h);
             }
         }
 

@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-19 — 0.10.4
+
+DLL para nanoCAD 5 Free compilada em x86, CLR 2 e .NET Framework 3.5. A versão 26 continua em .NET 6.
+
 ## 2026-11-19 — integração nanoCAD
 
 TASK-025 e TASK-026: plugin 0.10.3, N3 removido na tabela Outros e teste de paridade incluindo chamadas múltiplas. A abertura no Windows depende também da correção no OrçaCore (TASK-197). Testar com a nota real nas duas versões do nanoCAD.
