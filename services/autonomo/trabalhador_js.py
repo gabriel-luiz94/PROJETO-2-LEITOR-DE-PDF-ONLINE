@@ -77,7 +77,10 @@ def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if "--trabalhador-leitor-js" in argv:
         argv = argv[argv.index("--trabalhador-leitor-js") + 1:]
-    _servir(int(argv[0]), argv[1])
+    try:
+        _servir(int(argv[0]), argv[1])
+    except (ConnectionError, BrokenPipeError, OSError):
+        return                                      # o programa principal fechou (ou derrubou o socket) enquanto o trabalhador lia/escrevia: encerra quieto, sem traceback
 
 
 if __name__ == "__main__":

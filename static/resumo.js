@@ -63,6 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Tabelas grandes (TASK-185): acima de LIMIAR_LAZY linhas, só as linhas perto da área visível são montadas na hora; as demais entram como linha vazia de altura fixa (_lazy)
     // e são montadas por pedaços em segundo plano (hidratação), ao rolar, ou antes de qualquer ação do usuário que leia as células. Resultado: criar/excluir/duplicar/desfazer
     // com 400+ linhas custa o desenho de ~50 linhas, não de todas.
+    // Estado da seleção em intervalo da grade: declarado AQUI, antes do 1º renderTable (que pode repintar a seleção ao montar linhas) — `const` mais abaixo dava «Cannot access 'grade' before initialization» ao abrir a tela com muitas linhas
+    const grade = { tipo: null, ancora: null, foco: null, arrastando: false, ultimaLinha: null };
     const LIMIAR_LAZY = 60, LIMIAR_PARCIAL = 300;
     const _lazy = { cabos: [], outros: [] }, _lazyTm = { cabos: 0, outros: 0 }, _hLinhaReal = { cabos: 0, outros: 0 };                // cores por linha (verde/laranja/vermelho) e o agendamento depois do desenho
     /* TASK-182 C — Operação digitada, validada como uma célula do Excel: maiúsculas e sem espaços (*r → *R); só aceita OPERACOES (fonte única); inválida = não grava,
@@ -1518,7 +1520,6 @@ document.addEventListener('DOMContentLoaded', () => {
        Seleção de intervalo (arrastar, Shift, nº da linha, Ctrl+A), copiar/colar em TSV, Delete.
        A lógica pura está em static/grade_tabela.js; aqui só a ligação com a tela e o histórico.
     ═══════════════════════════════════════ */
-    const grade = { tipo: null, ancora: null, foco: null, arrastando: false, ultimaLinha: null };
     const G = window.GradeTabela;
 
     function colunasGrade(tipo) { return G.colunasDe(tipo); }
