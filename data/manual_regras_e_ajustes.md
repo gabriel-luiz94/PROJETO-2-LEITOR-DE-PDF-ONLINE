@@ -964,3 +964,7 @@ Com *Ocultar parâmetros ao sair da linha* ligado, clicar na linha mantém só o
 - **Como usar (regras do Leitor › Processamento › regra do cabo com label sozinho):** em *Vizinhança*, marque **Por posição no desenho (DXF)**, escolha o **Raio** (unidades do desenho; 12 cobre o padrão da CTW — o comprimento costuma ficar a 2–7 unidades) e **Onde** (abaixo, acima ou qualquer lado). A regex da vizinhança continua sendo a do comprimento (`^(\d+(?:[.,]\d+)?)\s*m$`).
 - Rótulos riscados/duplos e o de cima, que dividem o mesmo comprimento, passam a ler o mesmo valor. Com coordenadas e nada dentro do raio, o cabo fica sem comprimento (aumente o raio se for o caso). Em PDF (sem coordenadas) vale a ordem da lista, como antes.
 - Rótulos com neutro (`3xC16(16)+16`, `3xC35(35)+35`) também são reconhecidos.
+
+## Cabo com condutor extra: `3xC16(16)+16` (19/11/2026)
+
+No label do cabo, `+N` (sem kV) depois do neutro é **mais um condutor da mesma família** com a seção N. `3xC16(16)+16 35 m` vira, na Totalizadora, **5 linhas** `C16` de 35 m (3 fases + neutro + o `+16`). `+20kV` continua sendo a tensão da rede. A coluna «Qtd ativos» da tabela Cabos conta só as fases (3).

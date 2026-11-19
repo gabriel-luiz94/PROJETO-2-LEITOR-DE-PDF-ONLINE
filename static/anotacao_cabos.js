@@ -12,6 +12,7 @@
     const RE_SEPARA = /^(.*\S)\s+(\d+(?:[.,]\d+)?)\s*[mM]?$/;
     const RE_TENSAO = /\s*[-+]\s*(\d+(?:[.,]\d+)?)\s*KV\s*$/i;      // 13,8kV ou 13.8KV
     const RE_SOLTO = /^[(\[]\s*([A-Z]\w*)\s*[)\]]$/;
+    const RE_EXTRA = /^(.*\S)\s*\+\s*(\d+(?:[.,]\d+)?)$/;          // "3xC16(16)+16": o "+16" é mais um condutor da mesma família (sem kV: com kV é a tensão)
     const RE_POTENCIA = /^C\s*\d[xX]/;
     const RE_CODIGO = /^(?:(\d)[xX])?([A-Z]{0,4}\d[\dA-Z/,.]*)(?:\(([^)]*)\))?$/;
     const RE_SECAO = /^([A-Z]*)(\d+)([A-Z]*)$/;
@@ -75,7 +76,10 @@
         else if (dic && DC && DC.apelido(dic, rotulo)[0]) { const ap = DC.apelido(dic, rotulo)[1]; add(ap, DC.fasesPadrao(dic, ap) || 1, false); }
         else if (RE_NUMERO_SOZINHO.test(rotulo)) add('C' + rotulo, 1, false);
         else {
-            const c = rotulo.replace(/ /g, '').match(RE_CODIGO) || porDicionario(rotulo, dic);
+            let c = null, extra = null;
+            const me = rotulo.match(RE_EXTRA);
+            if (me) { c = me[1].replace(/ /g, '').match(RE_CODIGO) || porDicionario(me[1].trim(), dic); if (c) extra = me[2]; }
+            if (!c) c = rotulo.replace(/ /g, '').match(RE_CODIGO) || porDicionario(rotulo, dic);
             if (!c) { r.erros.push(`rótulo '${rotulo}' não reconhecido (ex.: 3xA35P(7,94)-13,8kV 45 m)`); return r; }
             const codigo = c[2], fases = c[1] ? parseInt(c[1], 10) : ((dic && DC ? DC.fasesPadrao(dic, codigo) : null) || 1);
             add(codigo, fases, false);
@@ -83,6 +87,10 @@
                 const neutro = neutroDe(codigo, c[3], dic);
                 if (neutro === null) r.erros.push(`neutro vazio em '${rotulo}'`);
                 else add(neutro, 1, true);
+            }
+            if (extra !== null) {                                                         // "+16": mais um condutor (seção 16) da mesma família — 3xC16(16)+16 = 3 fases + neutro + 1 = 5 ativos
+                const ex = neutroDe(codigo, extra, dic);
+                if (ex === null) r.erros.push(`condutor extra vazio em '${rotulo}'`); else add(ex, 1, true);
             }
         }
         return r;
