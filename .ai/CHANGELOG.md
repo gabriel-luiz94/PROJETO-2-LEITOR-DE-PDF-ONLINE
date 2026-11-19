@@ -16,6 +16,18 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-19 — TASK-195: grupos de linhas («@P1») em Outros e Cabos, mover linhas e menu de contexto que não corta
+
+- **Declaração:** linha cujo Ativo começa com `@` (ex.: `@P1 Rua das Flores`) é um grupo (`#` continua sendo comentário). Fica **congelada** (fora de totalizadora/orçamento/validação/Resumo da rede), com `grupoDecl`+`gid`; os **membros** (`grupoDe`) ficam sempre colados logo abaixo. Digitar `@` marca ao sair da célula (ou no Enter); apagar o `@` desfaz o grupo e solta os membros.
+- **Enter** numa linha de grupo (declaração ou membro) cria um membro no **fim** do grupo; **Shift+Enter** cria linha **solta imediatamente abaixo do grupo**. Em linha comum nada muda (Enter e Shift+Enter continuam iguais).
+- **Menu do botão direito:** novo 1º item **Grupo ▸** (as vistas trocam o conteúdo do mesmo menu): *Adicionar ao grupo ▸ [lista de grupos]*, *Criar grupo…* (pede o nome; vale para uma ou várias linhas selecionadas), *Tirar do grupo*, *Recolher/Expandir o grupo*, *Desfazer o grupo*, *Mover para cima/baixo*.
+- **Recolher/expandir (+/−):** botão no número da linha da declaração com a contagem de linhas; reaproveita o mecanismo de linhas ocultas do filtro (navegação por teclado, seleção e cópia já ignoram oculta). Alt+←/→ também. O estado é salvo.
+- **Mover:** Alt+↑/↓ (linhas selecionadas ou a atual; numa declaração, o bloco todo). Item que passa da borda sai do grupo; linha solta que desce sobre a declaração entra nele; grupo recolhido é atravessado de uma vez. Em Outros os vínculos cabo↔estrutura (por índice) são remapeados.
+- **Integração:** `deepClone` leva os campos (desfazer/refazer/salvar obra); ordenar por coluna mantém os membros colados; excluir a declaração solta os membros; duplicar a declaração não gera 2º grupo; importar/subtrair obra gera ids novos de grupo; congelar/comentar não se aplicam à declaração.
+- **Menu cortado (correção):** o menu de contexto, o menu de ordenar e o «Exibir» agora são medidos depois de abertos e **viram para cima/esquerda** quando não cabem, com rolagem se for mais alto que a tela (antes a altura era fixa em `innerHeight-140`).
+- Sem nenhuma linha `@` nada muda: bateria de regressão de 44 passos (Enter, Tab, #, congelar, bloquear, duplicar, ordenar, vincular, Ctrl+Z…) idêntica à anterior, exceto o novo item no menu.
+- Arquivos: `static/grupos_linhas.js` (lógica pura, `/static/grupos_linhas.js` sem cache), `static/resumo.js`, `static/resumo.html`, `app.py`, `tests/test_grupos_linhas_195.py`.
+
 ## 2026-11-19 — TASK-194: balão de parâmetros grava também quando o ativo tem quantidade («6 CON»)
 
 - **Sintoma:** com «CON» o balão preenchia os parâmetros; com «6 CON» (ou `6-CON`, `*2 CON`, `11300D, 2 N4`) as setas navegavam, o Enter «escolhia» e nada era gravado. **Causa:** a leitura dos parâmetros procurava a dica pelo nome SEM a quantidade (`it.base`, «CON») e a gravação (`gravar` em `resumo.js`) pelo nome COM ela (`it.nome`, «6 CON», que não existe na base): a dica vinha vazia e a função saía em silêncio.

@@ -173,12 +173,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const comecaComHash = t => /^\s*#/.test(String(t == null ? '' : t));
     function sincronizarHash(row, anterior) {
         if (!row || row.bloqueada) return false;
+        let mudou = false;
+        const GL = window.GruposLinhas;
+        if (GL) {                                                 // TASK-195: «@» no começo = declaração de grupo (congelada, como o comentário)
+            const g = GL.sincronizar(row, anterior);
+            if (g) { mudou = true; if (g.tipo === 'deixou') ['outros', 'cabos'].forEach(t => GL.liberar(tableStates[t].data, g.gid)); }
+        }
         if (comecaComHash(row.ativo)) {
-            if (row.comentario) return false;
+            if (row.comentario) return mudou;
             row.comentario = true; row.congelada = true; return true;
         }
         if (comecaComHash(anterior) && row.comentario) { delete row.comentario; delete row.congelada; return true; }
-        return false;
+        return mudou;
     }
     /** Marca o projeto como alterado a cada ação do usuário que entra no histórico (congelar/bloquear/comentar pelo menu não disparam input/change). Não vale ao abrir/carregar um projeto. */
     let _historicoSemSujo = false;
@@ -460,7 +466,8 @@ document.addEventListener('DOMContentLoaded', () => {
             tdNum.className = 'col-num';
             tdNum.textContent = idx + 1;
             if (row.comentario) { const m = document.createElement('span'); m.className = 'marca-linha'; m.textContent = '💬'; m.title = 'Comentário: anotação da tabela, fora de todos os cálculos (botão direito para tirar o comentário)'; tdNum.appendChild(m); }
-            else if (row.congelada) { const m = document.createElement('span'); m.className = 'marca-linha'; m.textContent = '❄'; m.title = 'Linha congelada: fora da Totalizadora, do orçamento e da validação (botão direito para descongelar)'; tdNum.appendChild(m); }
+            else if (row.congelada && !row.grupoDecl) { const m = document.createElement('span'); m.className = 'marca-linha'; m.textContent = '❄'; m.title = 'Linha congelada: fora da Totalizadora, do orçamento e da validação (botão direito para descongelar)'; tdNum.appendChild(m); }
+            if (row.grupoDecl) tdNum.appendChild(criarBotaoGrupo(type, row));            // TASK-195: +/− do grupo e quantas linhas ele tem
             if (row.bloqueada) { const m = document.createElement('span'); m.className = 'marca-linha'; m.textContent = '🔒'; m.title = 'Linha bloqueada: não pode ser editada nem excluída (botão direito para desbloquear)'; tdNum.appendChild(m); }
             tr.appendChild(tdNum);
 
@@ -582,6 +589,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         return;
                     }
                 }
+                if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {          // TASK-195: Alt+↑/↓ move a linha (ou as selecionadas; numa linha de grupo, o grupo todo)
+                    e.preventDefault(); e.stopPropagation();
+                    moverLinhas(type, linhasParaMover(type, idx), e.key === 'ArrowUp' ? -1 : 1);
+                    return;
+                }
+                if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && row.grupoDecl) {    // TASK-195: Alt+← recolhe, Alt+→ expande o grupo
+                    e.preventDefault(); e.stopPropagation();
+                    alternarRecolhido(type, row, e.key === 'ArrowLeft');
+                    return;
+                }
                 if (e.key === 'Delete' && inpAt.value.trim() === '') {
                     e.preventDefault();
                     e.stopPropagation();          // TASK-087: o tratador global da grade (Delete = limpar a seleção) também limparia a linha de cima
@@ -594,7 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     e.preventDefault();
                     // Enter cria uma linha NOVA logo abaixo (como numa IDE); numa linha ainda em branco só desce, para não empilhar linhas vazias
                     if (String(row.ativo == null ? '' : row.ativo).trim() === '') irParaCelula(type, idx + 1, 1, 1);
-                    else addRow(type, idx);
+                    else if (!enterEmLinhaDeGrupo(type, idx, row, e.shiftKey)) addRow(type, idx);          // TASK-195: linha de grupo → Enter cria membro no fim do grupo; Shift+Enter, linha solta logo abaixo do grupo
                 }
                 if (!consumed && !e.shiftKey && !e.ctrlKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
                     e.preventDefault();
@@ -768,8 +785,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     frag.appendChild(sep);
                 }
             }
+            if (row.grupoDecl) { tr.classList.add('linha-grupo-decl'); tr.dataset.grupo = row.gid; tr.dataset.gcor = String(Math.max(0, window.GruposLinhas.ordemDoGrupo(state.data, row.gid)) % 6); }      // TASK-195
+            else if (row.grupoDe) { tr.classList.add('linha-grupo-membro'); tr.dataset.grupo = row.grupoDe; tr.dataset.gcor = String(Math.max(0, window.GruposLinhas.ordemDoGrupo(state.data, row.grupoDe)) % 6); }
             if (row.comentario) tr.classList.add('linha-comentario');
-            else if (row.congelada) tr.classList.add('linha-congelada');
+            else if (row.congelada && !row.grupoDecl) tr.classList.add('linha-congelada');
             if (row.bloqueada) tr.classList.add('linha-bloqueada');
             if (lazy) {
                 tr.classList.add('lazy-row'); tr.style.height = hLazy + 'px'; tr._montar = montar;
@@ -799,6 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pushHistory();  // snapshot ANTES da exclusão
         limparGrade();  // TASK-087: a seleção apontava para posições que mudaram
         tableStates[type].data.splice(idx, 1);
+        limparOrfasDeGrupo(type);
         // TASK-032: ao remover uma linha de Outros, os vínculos cabo<->estrutura são baseados em
         // índice — reajusta as referências pra não apontarem para a linha errada depois do shift.
         if (type === 'outros') _reajustarVinculosAposRemoverOutros(idx);
@@ -825,7 +845,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const newRow = { entidade: '0', operacao: op, ativo: '' };
         if (afterIdx === -1) tableStates[type].data.push(newRow);
-        else tableStates[type].data.splice(afterIdx + 1, 0, newRow);
+        else {
+            const dd = tableStates[type].data, acima = dd[afterIdx], abaixo = dd[afterIdx + 1], gu = acima && (acima.grupoDecl ? acima.gid : acima.grupoDe);
+            if (gu && abaixo && abaixo.grupoDe === gu) { newRow.grupoDe = gu; const dc = dd.find(r => r.grupoDecl && r.gid === gu); if (dc) delete dc.grupoRecolhido; }          // TASK-195: entre dois itens do mesmo grupo (ou logo abaixo da declaração) a linha nova é do grupo
+            dd.splice(afterIdx + 1, 0, newRow);
+        }
         limparGrade();  // TASK-087: a seleção antiga (linha de cima) não pode sobreviver ao foco na linha nova
         renderTable(type);
         // Foca no input Ativo da nova linha
@@ -837,6 +861,123 @@ document.addEventListener('DOMContentLoaded', () => {
             if (inp) { setTimeout(() => inp.focus(), 30); }
         }
         refreshAllFilters(type);
+    }
+
+
+    /* ═══════════════════════════════════════
+       GRUPOS DE LINHAS (TASK-195) — static/grupos_linhas.js tem a lógica pura
+       «@P1 Rua X» declara um grupo (linha congelada); os membros ficam logo abaixo e podem ser recolhidos (+/−). Sem nenhuma linha «@» nada disto entra em ação.
+    ═══════════════════════════════════════ */
+    const temGrupoNaTabela = type => tableStates[type].data.some(r => r && (r.grupoDecl || r.grupoDe));
+    /** Vínculos cabo↔estrutura são por índice de Outros: depois de reordenar, `mapa[antigo] = novo` (linha que saiu: undefined → vínculo descartado). */
+    function _remapearVinculosOutros(mapa) {
+        const VR = window.VinculacaoRegras;
+        tableStates.cabos.data.forEach(c => {
+            if (Array.isArray(c.vinculoPostes)) { c.vinculoPostes = c.vinculoPostes.map(l => mapa[l]).filter(l => l !== undefined); if (!c.vinculoPostes.length) delete c.vinculoPostes; }
+            if (Array.isArray(c.vinculoEstruturas)) c.vinculoEstruturas = c.vinculoEstruturas.map(i => { const l = mapa[VR.linhaDe(i)]; return l !== undefined ? VR.idUnidade(l, VR.slotDe(i)) : null; }).filter(i => i !== null);
+        });
+    }
+    /** Marca de grupo que ficou sem declaração (linha excluída) some; os membros viram linhas comuns. */
+    function limparOrfasDeGrupo(type) {
+        const GL = window.GruposLinhas; if (!GL || !temGrupoNaTabela(type)) return;
+        tableStates[type].data = GL.normalizar(tableStates[type].data);
+    }
+    /** Depois de inserir linhas: os membros voltam para junto da declaração (e, em Outros, os vínculos acompanham). */
+    function reorganizarGrupos(type) {
+        const GL = window.GruposLinhas; if (!GL || !temGrupoNaTabela(type)) return;
+        const antiga = tableStates[type].data, nova = GL.normalizar(antiga);
+        if (nova.length === antiga.length && nova.every((r, k) => r === antiga[k])) return;
+        if (type === 'outros') _remapearVinculosOutros(GL.mapa(antiga, nova));
+        tableStates[type].data = nova;
+    }
+    /** Troca a lista da tabela (já reordenada por GruposLinhas), acerta os vínculos, redesenha e põe o cursor no Ativo da linha `foco`. */
+    function aplicarLista(type, nova, foco) {
+        const GL = window.GruposLinhas, antiga = tableStates[type].data;
+        if (type === 'outros') _remapearVinculosOutros(GL.mapa(antiga, nova));
+        tableStates[type].data = nova;
+        limparGrade();
+        document.querySelectorAll('tr.row-selected').forEach(x => x.classList.remove('row-selected'));
+        renderTable(type);
+        buildAtivoSets(); buildDataLists();
+        refreshAllFilters(type);
+        atualizarResumoRedeUI();
+        if (!foco) return;
+        const i = nova.indexOf(foco), body = document.getElementById(tableStates[type].bodyId);
+        const tr = Array.from(body.children).find(x => parseInt(x.dataset.index) === i);
+        if (!tr) return;
+        hidratarLinha(tr);
+        try { tr.scrollIntoView({ block: 'nearest' }); } catch (e) { /* sem scroll */ }
+        setTimeout(() => { const inp = tr.querySelector('.inp-ativo'); if (inp && document.body.contains(inp)) inp.focus(); }, 30);
+    }
+    /** Enter / Shift+Enter numa linha de grupo. Devolve false quando a linha não é de grupo (aí vale o Enter de sempre). */
+    function addRowGrupo(type, idx, solta) {
+        const GL = window.GruposLinhas, dados = tableStates[type].data, row = dados[idx];
+        if (!GL || !row) return false;
+        const marcar = GL.ehDeclaracao(row.ativo) && !row.grupoDecl && !row.bloqueada;       // acabou de digitar «@P1» e deu Enter sem sair da célula
+        if (!marcar && !GL.bloco(dados, idx)) return false;
+        pushHistory();
+        if (marcar) sincronizarHash(row, '');
+        const b = GL.bloco(dados, idx); if (!b) return false;
+        const nova = { entidade: '0', operacao: window.GradeTabela.operacaoHerdada(dados, b.fim + 1), ativo: '' };          // igual ao addRow de sempre
+        if (!solta) { const dc = dados.find(x => x.grupoDecl && x.gid === b.gid); if (dc) delete dc.grupoRecolhido; }                 // a linha nova do grupo não pode nascer escondida
+        const r = solta ? GL.novaLinhaSolta(dados, idx, nova) : GL.novaLinhaNoGrupo(dados, idx, nova);
+        aplicarLista(type, r.lista, r.foco);
+        return true;
+    }
+    /** true quando a linha é de grupo (ou acabou de ser digitada como «@…») e o Enter já foi tratado aqui. */
+    function enterEmLinhaDeGrupo(type, idx, row, shift) {
+        const GL = window.GruposLinhas; if (!GL) return false;
+        if (!(GL.ehDeclaracao(row.ativo) || GL.bloco(tableStates[type].data, idx))) return false;
+        return addRowGrupo(type, idx, shift);
+    }
+    function criarBotaoGrupo(type, row) {
+        const GL = window.GruposLinhas, w = document.createElement('span');
+        w.className = 'grupo-ctl';
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'grupo-toggle'; b.tabIndex = -1;
+        const n = GL.contar(tableStates[type].data, row.gid);
+        const pinta = () => { b.textContent = row.grupoRecolhido ? '+' : '−'; b.title = (row.grupoRecolhido ? 'Expandir' : 'Recolher') + ' o grupo (Alt+→ / Alt+←)'; };
+        pinta();
+        b.addEventListener('mousedown', e => e.preventDefault());
+        b.addEventListener('click', e => { e.stopPropagation(); alternarRecolhido(type, row, !row.grupoRecolhido); });
+        const c = document.createElement('span'); c.className = 'grupo-conta'; c.textContent = n; c.title = n + ' linha(s) no grupo';
+        w.appendChild(b); w.appendChild(c);
+        return w;
+    }
+    /** Recolhe/expande o grupo (só esconde as linhas; vale também depois de salvar). */
+    function alternarRecolhido(type, row, recolher) {
+        if (!row || !row.grupoDecl) return;
+        if (!!row.grupoRecolhido === !!recolher) return;
+        if (recolher) row.grupoRecolhido = true; else delete row.grupoRecolhido;
+        const body = document.getElementById(tableStates[type].bodyId), tr = Array.from(body.children).find(x => x.dataset.index === String(tableStates[type].data.indexOf(row)));
+        const btn = tr && tr.querySelector('.grupo-toggle');
+        if (btn) { btn.textContent = row.grupoRecolhido ? '+' : '−'; btn.title = (row.grupoRecolhido ? 'Expandir' : 'Recolher') + ' o grupo (Alt+→ / Alt+←)'; }
+        applyFilters(type);
+        marcarProjetoAlterado();
+    }
+    /** Linhas que Alt+↑/↓ move: as selecionadas (se a atual está entre elas) ou só a atual. */
+    function linhasParaMover(type, idx) {
+        const body = document.getElementById(tableStates[type].bodyId);
+        const sel = Array.from(body.querySelectorAll('tr.row-selected')).map(tr => parseInt(tr.dataset.index)).filter(i => !isNaN(i));
+        return sel.includes(idx) ? sel : [idx];
+    }
+    /** Move linhas uma posição (Alt+↑/↓ e menu). Numa linha de grupo move o grupo inteiro; um item sai do grupo ao passar da borda e uma linha solta entra ao descer sobre a declaração. */
+    function moverLinhas(type, idxs, dir) {
+        const GL = window.GruposLinhas; if (!GL) return;
+        const dados = tableStates[type].data;
+        const alvos = Array.from(new Set(idxs)).filter(i => dados[i]).sort((a, b) => dir < 0 ? a - b : b - a);
+        if (!alvos.length) return;
+        const executar = lista => {                                // quem se mexe: as linhas (por objeto), na ordem que não as atropela
+            const objs = alvos.map(i => lista[i]); let cur = lista, movido = false;
+            objs.forEach(r => { const res = GL.mover(cur, cur.indexOf(r), dir); if (res) { cur = res.lista; movido = true; } });
+            return { lista: cur, movido, foco: objs[objs.length - 1] };
+        };
+        if (!executar(dados.map(r => Object.assign({}, r))).movido) return;                  // ensaio em cópias: nada a mover não gasta passo de Ctrl+Z
+        pushHistory();
+        const r = executar(dados);
+        aplicarLista(type, r.lista, r.foco);
+        const tr = Array.from(document.getElementById(tableStates[type].bodyId).children).find(x => parseInt(x.dataset.index) === r.lista.indexOf(r.foco));
+        if (tr) restaurarSelecaoLinhas(type, alvos.length > 1 ? alvos.map(i => r.lista.indexOf(dados[i])).filter(i => i >= 0) : []);
     }
 
     /* ═══════════════════════════════════════
@@ -1123,12 +1264,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const body  = document.getElementById(state.bodyId);
         if (!body) return;
         const sels = filterSelections[type];
+        const recolhidos = new Set(state.data.filter(r => r && r.grupoDecl && r.grupoRecolhido).map(r => r.gid));      // TASK-195: grupo recolhido esconde os membros (mesmo mecanismo do filtro)
         Array.from(body.children).forEach(tr => {
             const idx = parseInt(tr.dataset.index);
             if (isNaN(idx)) return;
             const row = state.data[idx];
             if (!row) return;
-            let visible = true;
+            let visible = !(recolhidos.size && row.grupoDe && recolhidos.has(row.grupoDe));
             for (const field of camposFiltro(type)) {
                 const sel = sels[field];
                 if (sel.size > 0 && !sel.has(row[field] || '')) {
@@ -1162,6 +1304,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tableStates[type].data.splice(i, 1);
                 if (type === 'outros') _reajustarVinculosAposRemoverOutros(i);
             });
+            limparOrfasDeGrupo(type);
             limparGrade();
             renderTable(type);
             buildAtivoSets(); buildDataLists();
@@ -1172,6 +1315,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (tableStates[type].data.length > 0) {
                 pushHistory();  // snapshot ANTES da exclusão
                 tableStates[type].data.pop();
+                limparOrfasDeGrupo(type);
                 renderTable(type);
                 buildAtivoSets(); buildDataLists();
                 refreshAllFilters(type);
@@ -1231,8 +1375,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let alvos = idxs.filter(i => dados[i]);
         if (campo === 'congelada') {
             const comentarios = alvos.filter(i => dados[i].comentario).length;
-            alvos = alvos.filter(i => !bloqueada(dados[i]) && !dados[i].comentario);
-            if (!alvos.length) { showToast(comentarios ? 'Comentário já fica fora de todos os cálculos: tire o comentário para mudar o congelamento.' : 'Linha bloqueada: desbloqueie antes de congelar ou descongelar.'); return; }
+            const decls = alvos.filter(i => dados[i].grupoDecl).length;
+            alvos = alvos.filter(i => !bloqueada(dados[i]) && !dados[i].comentario && !dados[i].grupoDecl);
+            if (!alvos.length) { showToast(decls ? 'Linha de grupo (@) é sempre congelada: use «Desfazer o grupo» para mudar.' : comentarios ? 'Comentário já fica fora de todos os cálculos: tire o comentário para mudar o congelamento.' : 'Linha bloqueada: desbloqueie antes de congelar ou descongelar.'); return; }
         } else if (!alvos.length) return;
         const poe = !alvos.every(i => dados[i][campo]);
         pushHistory();
@@ -1249,8 +1394,8 @@ document.addEventListener('DOMContentLoaded', () => {
     /** Comentário (menu de contexto): a linha vira uma anotação — congelada (fora de todos os cálculos), com outra aparência. Tirar o comentário devolve a linha ao normal. Um passo de Ctrl+Z. */
     function alternarComentario(tipo, idxs) {
         const dados = tableStates[tipo].data;
-        const alvos = idxs.filter(i => dados[i] && !bloqueada(dados[i]));
-        if (!alvos.length) { showToast('Linha bloqueada: desbloqueie antes de mudar o comentário.'); return; }
+        const alvos = idxs.filter(i => dados[i] && !bloqueada(dados[i]) && !dados[i].grupoDecl);
+        if (!alvos.length) { showToast(idxs.some(i => dados[i] && dados[i].grupoDecl) ? 'Linha de grupo (@) não vira comentário.' : 'Linha bloqueada: desbloqueie antes de mudar o comentário.'); return; }
         const poe = !alvos.every(i => dados[i].comentario);
         pushHistory();
         alvos.forEach(i => { if (poe) { dados[i].comentario = true; dados[i].congelada = true; } else { delete dados[i].comentario; delete dados[i].congelada; if (comecaComHash(dados[i].ativo)) dados[i].ativo = String(dados[i].ativo).replace(/^\s*#\s?/, ''); } });
@@ -1270,11 +1415,13 @@ document.addEventListener('DOMContentLoaded', () => {
         pushHistory();
         const copias = alvos.map(i => {
             const c = deepClone(dados[i]);
-            ['bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
+            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
             return c;
         });
         const depois = alvos[alvos.length - 1] + 1;
         dados.splice(depois, 0, ...copias);
+        copias.forEach(c => { if (window.GruposLinhas && window.GruposLinhas.ehDeclaracao(c.ativo)) { c.ativo = String(c.ativo).replace(/^(\s*)@+\s*/, '$1'); delete c.congelada; } });          // TASK-195: a cópia de «@P1» não vira um 2º grupo
+        reorganizarGrupos(tipo);
         if (tipo === 'cabos') recalcAllQtdAtivos();
         limparGrade();
         renderTable(tipo);
@@ -1313,16 +1460,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const tcm = document.getElementById('ctx-comentario-txt');
         if (tcm) tcm.textContent = alvos.length && alvos.every(r => r.comentario) ? 'Tirar comentário' : 'Marcar como comentário';
         if (tb) tb.textContent = alvos.length && alvos.every(r => r.bloqueada) ? 'Desbloquear linha' : 'Bloquear linha';
-        ctxMenu.style.left = Math.min(x, window.innerWidth - 180) + 'px';
-        ctxMenu.style.top  = Math.min(y, window.innerHeight - 140) + 'px';
+        ctxView = 'main'; ctxMenu.classList.remove('sub'); ctxPos = { x, y };
         ctxMenu.classList.add('visible');
+        posicionarMenu(ctxMenu, x, y);                                            // TASK-195: mede o menu aberto — vira para cima/esquerda e rola se não couber (antes cortava nas linhas de baixo)
+    }
+    /** Põe um menu flutuante (position:fixed) no ponto (x, y) sem deixá-lo sair da tela: sem espaço embaixo/à direita ele abre para cima/esquerda; mais alto que a tela, ganha rolagem. `yAcima` = onde acaba o menu quando abre para cima. */
+    function posicionarMenu(el, x, y, yAcima) {
+        const M = 8, W = window.innerWidth, H = window.innerHeight;
+        el.style.maxHeight = (H - 2 * M) + 'px'; el.style.overflowY = 'auto';
+        const w = el.offsetWidth, h = el.offsetHeight;
+        let left = x, top = y;
+        if (left + w > W - M) left = (x - w >= M) ? x - w : Math.max(M, W - M - w);
+        if (top + h > H - M) { const ac = (yAcima === undefined ? y : yAcima) - h; top = ac >= M ? ac : Math.max(M, H - M - h); }
+        el.style.left = Math.max(M, left) + 'px'; el.style.top = Math.max(M, top) + 'px';
     }
     /* Menu do botão direito pelo teclado: ↑↓ (Home/End) navegam pelas opções, Enter executa, Esc fecha */
-    let ctxKb = -1;
+    let ctxKb = -1, ctxView = 'main', ctxPos = { x: 0, y: 0 };
     const itensDoMenu = () => Array.from(ctxMenu.querySelectorAll('.ctx-r-item')).filter(el => el.offsetParent !== null);
     function marcarItemDoMenu(i) { ctxKb = i; itensDoMenu().forEach((el, k) => el.classList.toggle('kb', k === i)); }
     function hideCtxMenu(naoFocar) {
-        ctxMenu.classList.remove('visible'); ctxMenu.querySelectorAll('.kb').forEach(el => el.classList.remove('kb')); ctxKb = -1; ctxRow = null; ctxType = null;
+        ctxMenu.classList.remove('visible', 'sub'); ctxView = 'main'; ctxMenu.querySelectorAll('.kb').forEach(el => el.classList.remove('kb')); ctxKb = -1; ctxRow = null; ctxType = null;
         const f = ctxFoco; ctxFoco = null;
         if (f && !naoFocar) setTimeout(() => {                                          // depois da ação (que pode redesenhar a tabela): o cursor volta para a célula em que estava (Tab continua dali)
             const n = tableStates[f.tipo].data.length;
@@ -1335,9 +1492,100 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); if (n) marcarItemDoMenu(ctxKb < 0 ? (e.key === 'ArrowDown' ? 0 : n - 1) : (ctxKb + (e.key === 'ArrowDown' ? 1 : -1) + n) % n); }
         else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); e.stopPropagation(); if (n) marcarItemDoMenu(e.key === 'Home' ? 0 : n - 1); }
         else if ((e.key === 'Enter' || e.key === ' ') && ctxKb >= 0) { e.preventDefault(); e.stopPropagation(); const it = itensDoMenu()[ctxKb]; if (it) it.click(); }
+        else if (e.key === 'ArrowLeft' && ctxView !== 'main' && !(e.target && e.target.tagName === 'INPUT')) { e.preventDefault(); e.stopPropagation(); abrirVistaGrupo(ctxView === 'lista' ? 'grupo' : 'main', true); }
         else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hideCtxMenu(); }
     }, true);
     document.addEventListener('mousedown', e => { if (!ctxMenu.contains(e.target)) hideCtxMenu(true); });          // clicou em outro lugar: o foco vai para onde ele clicou
+
+
+    /* ── Menu «Grupo ▸» (TASK-195): as vistas trocam o conteúdo do MESMO menu (sem janelas soltas que possam sair da tela): Grupo → Adicionar ao grupo → lista de grupos ── */
+    let ctxSub = null;
+    function _subEl() {
+        if (!ctxSub) { ctxSub = document.createElement('div'); ctxSub.className = 'ctx-sub'; ctxMenu.appendChild(ctxSub); }
+        return ctxSub;
+    }
+    function abrirVistaGrupo(vista, porTeclado) {
+        const GL = window.GruposLinhas, tipo = ctxType; if (!GL || !tipo) return;
+        ctxView = vista;
+        if (vista === 'main') { ctxMenu.classList.remove('sub'); ctxKb = -1; ctxMenu.querySelectorAll('.kb').forEach(el => el.classList.remove('kb')); posicionarMenu(ctxMenu, ctxPos.x, ctxPos.y); if (porTeclado) { const it = document.getElementById('ctx-grupo'); marcarItemDoMenu(itensDoMenu().indexOf(it)); } return; }
+        const dados = tableStates[tipo].data, idxs = _linhasDoMenu(), linhas = idxs.map(i => dados[i]).filter(Boolean);
+        const sub = _subEl(); sub.innerHTML = '';
+        const item = (txt, acao, extra) => { const d = document.createElement('div'); d.className = 'ctx-r-item'; d.textContent = txt; if (extra) { const c = document.createElement('span'); c.className = 'ctx-cont'; c.textContent = extra; d.appendChild(c); } d.addEventListener('click', acao); sub.appendChild(d); return d; };
+        const sep = () => { const d = document.createElement('div'); d.className = 'ctx-r-sep'; sub.appendChild(d); };
+        const titulo = txt => { const d = document.createElement('div'); d.className = 'ctx-r-titulo'; d.textContent = txt; sub.appendChild(d); };
+        item('‹ Voltar', () => abrirVistaGrupo(vista === 'lista' || vista === 'criar' ? 'grupo' : 'main', true));
+        sep();
+        if (vista === 'grupo') {
+            const comuns = linhas.filter(r => !r.grupoDecl), gids = new Set(linhas.map(r => r.grupoDecl ? r.gid : r.grupoDe).filter(Boolean));
+            const gid = gids.size === 1 ? Array.from(gids)[0] : null, decl = gid ? dados.find(r => r.grupoDecl && r.gid === gid) : null;
+            item('Adicionar ao grupo ▸', () => abrirVistaGrupo('lista', true)).style.display = comuns.length ? '' : 'none';
+            item('Criar grupo…', () => abrirVistaGrupo('criar')).style.display = comuns.length ? '' : 'none';
+            if (linhas.some(r => r.grupoDe)) item('Tirar do grupo', () => { const ix = idxs; hideCtxMenu(); acaoTirarDoGrupo(tipo, ix); });
+            if (decl) { item(decl.grupoRecolhido ? 'Expandir o grupo' : 'Recolher o grupo', () => { hideCtxMenu(); alternarRecolhido(tipo, decl, !decl.grupoRecolhido); }); item('Desfazer o grupo', () => { hideCtxMenu(); acaoDesfazerGrupo(tipo, gid); }); }
+            sep();
+            item('Mover para cima', () => { const ix = idxs; hideCtxMenu(true); moverLinhas(tipo, ix, -1); }, 'Alt+↑');
+            item('Mover para baixo', () => { const ix = idxs; hideCtxMenu(true); moverLinhas(tipo, ix, 1); }, 'Alt+↓');
+        } else if (vista === 'lista') {
+            titulo('Adicionar ao grupo');
+            const gs = GL.grupos(dados);
+            if (!gs.length) { const d = document.createElement('div'); d.className = 'ctx-r-info'; d.textContent = 'Nenhum grupo nesta tabela ainda. Use «Criar grupo…» ou digite uma linha começando com @ (ex.: @P1).'; sub.appendChild(d); }
+            gs.forEach(g => item(GL.rotuloDe(g) || '(sem nome)', () => { const ix = idxs; hideCtxMenu(true); acaoAdicionarAoGrupo(tipo, ix, g.gid); }, GL.contar(dados, g.gid) + ' lin.'));
+        } else if (vista === 'criar') {
+            titulo('Nome do novo grupo');
+            const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'ctx-r-input'; inp.placeholder = 'ex.: P1 Rua das Flores — Enter cria'; inp.autocomplete = 'off';
+            inp.addEventListener('input', () => { inp.value = inp.value.toUpperCase(); });
+            inp.addEventListener('keydown', e => {
+                if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); const nome = inp.value.trim(); if (!nome) return; const ix = idxs; hideCtxMenu(true); acaoCriarGrupo(tipo, ix, nome); }
+                else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hideCtxMenu(); }
+                else e.stopPropagation();                                          // as demais teclas são do campo (o menu e a grade não as interceptam)
+            });
+            sub.appendChild(inp);
+            const ok = item('Criar grupo', () => { const nome = inp.value.trim(); if (!nome) { inp.focus(); return; } const ix = idxs; hideCtxMenu(true); acaoCriarGrupo(tipo, ix, nome); });
+            ctxMenu.classList.add('sub'); ctxKb = -1; ctxMenu.querySelectorAll('.kb').forEach(el => el.classList.remove('kb'));
+            posicionarMenu(ctxMenu, ctxPos.x, ctxPos.y);
+            setTimeout(() => inp.focus(), 0);
+            return;
+        }
+        ctxMenu.classList.add('sub');
+        posicionarMenu(ctxMenu, ctxPos.x, ctxPos.y);
+        ctxKb = -1; ctxMenu.querySelectorAll('.kb').forEach(el => el.classList.remove('kb'));
+        if (porTeclado) marcarItemDoMenu(1);                                      // 0 = Voltar; o cursor já cai na 1ª opção
+    }
+    function acaoAdicionarAoGrupo(tipo, idxs, gid) {
+        const GL = window.GruposLinhas, dados = tableStates[tipo].data;
+        if (!GL.selecionadas(dados, idxs).length) { showToast('Selecione linhas comuns (a linha «@» é o próprio grupo).'); return; }
+        pushHistory();
+        const r = GL.adicionarAoGrupo(dados, idxs, gid); if (!r) return;
+        aplicarLista(tipo, r.lista, r.foco);
+        showToast(`${r.n} linha(s) adicionada(s) ao grupo. Ctrl+Z desfaz.`);
+    }
+    function acaoCriarGrupo(tipo, idxs, nome) {
+        const GL = window.GruposLinhas, dados = tableStates[tipo].data;
+        if (!GL.selecionadas(dados, idxs).length) { showToast('Selecione linhas comuns (a linha «@» é o próprio grupo).'); return; }
+        pushHistory();
+        const op = window.GradeTabela.operacaoHerdada(dados, Math.min.apply(null, idxs));
+        const r = GL.criarGrupo(dados, idxs, nome, texto => { const l = window.GradeTabela.novaLinha(tipo, op); l.entidade = '0'; l.ativo = texto.toUpperCase(); return l; });
+        if (!r) return;
+        aplicarLista(tipo, r.lista, r.foco);
+        showToast(`Grupo criado com ${r.n} linha(s). Ctrl+Z desfaz.`);
+    }
+    function acaoTirarDoGrupo(tipo, idxs) {
+        const GL = window.GruposLinhas, dados = tableStates[tipo].data;
+        if (!idxs.some(i => dados[i] && dados[i].grupoDe)) return;
+        pushHistory();
+        const r = GL.tirarDoGrupo(dados, idxs); if (!r) return;
+        aplicarLista(tipo, r.lista, r.foco);
+        showToast(`${r.n} linha(s) fora do grupo. Ctrl+Z desfaz.`);
+    }
+    function acaoDesfazerGrupo(tipo, gid) {
+        const GL = window.GruposLinhas, dados = tableStates[tipo].data;
+        if (!dados.some(r => r.grupoDecl && r.gid === gid)) return;
+        pushHistory();
+        const r = GL.desfazerGrupo(dados, gid); if (!r) return;
+        aplicarLista(tipo, r.lista, r.foco);
+        showToast('Grupo desfeito: as linhas continuam na tabela. Ctrl+Z desfaz.');
+    }
+    document.getElementById('ctx-grupo').addEventListener('click', () => { if (ctxRow && ctxType) abrirVistaGrupo('grupo', ctxKb >= 0); });
 
     document.getElementById('ctx-add-above').addEventListener('click', () => {
         if (!ctxRow || !ctxType) return;
@@ -1392,8 +1640,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (dados.length < 2) { showToast('Nada para ordenar.'); return; }
         pushHistory();
         const ordem = GT.ordenarLinhas(dados, criterios);
-        const mapa = GT.mapaDeOrdem(ordem);
+        let mapa = GT.mapaDeOrdem(ordem);
         tableStates[tipo].data = ordem.map(i => dados[i]);
+        if (window.GruposLinhas && dados.some(r => r.grupoDecl || r.grupoDe)) {                 // TASK-195: com grupos, os membros continuam colados na declaração
+            tableStates[tipo].data = window.GruposLinhas.normalizar(tableStates[tipo].data);
+            mapa = window.GruposLinhas.mapa(dados, tableStates[tipo].data);
+        }
         if (tipo === 'outros') {
             tableStates.cabos.data.forEach(c => {
                 if (Array.isArray(c.vinculoPostes)) c.vinculoPostes = c.vinculoPostes.map(l => (mapa[l] !== undefined ? mapa[l] : l));
@@ -1455,9 +1707,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (campo !== 'qtdAtivos') item('Agrupar por esta coluna', () => { agrupamento[tipo] = campo; ordenarTabela(tipo, [{ campo, dir: 'asc' }]); });
             if (agrupamento[tipo]) item('Limpar agrupamento', () => { agrupamento[tipo] = null; renderTable(tipo); });
             if (!menu.children.length) { fechar(); return; }
-            menu.style.left = Math.min(e.clientX, window.innerWidth - 230) + 'px';
-            menu.style.top = (e.clientY + 4) + 'px';
             menu.classList.add('visible');
+            posicionarMenu(menu, e.clientX, e.clientY + 4, e.clientY - 4);
         });
         document.addEventListener('keydown', e => { if (e.key === 'Escape') fechar(); });
     })();
@@ -1509,7 +1760,7 @@ document.addEventListener('DOMContentLoaded', () => {
             item('Agrupar por Entidade', () => { agrupamento.outros = 'entidade'; ordenarTabela('outros', [{ campo: 'entidade', dir: 'asc' }]); });
             if (agrupamento.outros) item('Limpar agrupamento', () => { agrupamento.outros = null; renderTable('outros'); });
             const r = btn.getBoundingClientRect();
-            menu.style.left = Math.min(r.left, window.innerWidth - 250) + 'px'; menu.style.top = (r.bottom + 4) + 'px'; menu.style.display = 'block';
+            menu.style.display = 'block'; posicionarMenu(menu, r.left, r.bottom + 4, r.top - 4);
         });
         document.addEventListener('click', e => { if (!menu.contains(e.target)) fechar(); });
         document.addEventListener('keydown', e => { if (e.key === 'Escape') fechar(); });
@@ -2248,7 +2499,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (txtOrig) c.textoOriginal = txtOrig;
         ['fases', 'tensao', 'nivel'].forEach(k => { if (obj[k] !== undefined && obj[k] !== '') c[k] = obj[k]; });
         if (obj.entidadeManual) c.entidadeManual = true;   // TASK-065: classificação definida à mão não é recalculada
-        if (obj.congelada) c.congelada = true; if (obj.bloqueada) c.bloqueada = true; if (obj.comentario) c.comentario = true;      // TASK-182: marcas da linha — sem isto o undo/redo e o SALVAR do projeto as perdiam (tudo passa por esta função)
+        if (obj.congelada) c.congelada = true; if (obj.bloqueada) c.bloqueada = true; if (obj.comentario) c.comentario = true;
+        if (obj.grupoDecl) { c.grupoDecl = true; c.gid = obj.gid; if (obj.grupoRecolhido) c.grupoRecolhido = true; } else if (obj.grupoDe) c.grupoDe = obj.grupoDe;      // TASK-195: grupos de linhas (@)
+        // TASK-182: marcas da linha — sem isto o undo/redo e o SALVAR do projeto as perdiam (tudo passa por esta função)
         // TASK-032: coordenada de origem (presente em obj._raw na primeira montagem da linha, e
         // em obj diretamente depois) e vínculo cabo<->estrutura — preservados através de
         // undo/redo e salvar/carregar obra, já que tudo passa por esta função.
@@ -2803,7 +3056,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ['cabos', 'outros'].forEach(type => {
             const linhas = linhasDoSnap(snap, type);
             if (!linhas.length) return;
-            linhas.forEach(row => tableStates[type].data.push(JSON.parse(JSON.stringify(row))));
+            const novas = linhas.map(row => JSON.parse(JSON.stringify(row)));
+            if (window.GruposLinhas) window.GruposLinhas.reidentificar(novas);                   // TASK-195: grupos da obra ganham ids novos (a mesma obra pode entrar duas vezes)
+            novas.forEach(row => tableStates[type].data.push(row));
             if (type === 'cabos') recalcAllQtdAtivos();
             renderTable(type);
             refreshAllFilters(type);
@@ -2821,8 +3076,10 @@ document.addEventListener('DOMContentLoaded', () => {
         ['cabos', 'outros'].forEach(type => {
             const linhas = linhasDoSnap(snap, type);
             if (!linhas.length) return;
-            linhas.forEach(row => {
-                const clonada = JSON.parse(JSON.stringify(row));
+            const clonadas = linhas.map(row => JSON.parse(JSON.stringify(row)));
+            if (window.GruposLinhas) window.GruposLinhas.reidentificar(clonadas);
+            clonadas.forEach(clonada => {
+                if (clonada.grupoDecl) { tableStates[type].data.push(clonada); return; }       // TASK-195: a declaração do grupo («@P1») continua sendo só um título
                 if (type === 'cabos') clonada.qtdAtivos = "-" + Math.abs(clonada.qtdAtivos || 0);
                 else clonada.ativo = "*" + clonada.ativo;
                 tableStates[type].data.push(clonada);

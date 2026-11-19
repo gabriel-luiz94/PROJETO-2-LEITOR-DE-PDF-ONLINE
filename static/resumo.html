@@ -580,6 +580,28 @@
             backdrop-filter: blur(12px);
         }
         #ctx-menu-resumo.visible { display: block; animation: fadeInDown 0.1s ease-out; }
+        #ctx-menu-resumo { overflow-y: auto; overscroll-behavior: contain; }              /* TASK-195: nunca passa da tela (a altura máxima é ajustada ao abrir) */
+        #ctx-menu-resumo .ctx-seta { margin-left: auto; padding-left: 14px; opacity: .6; }
+        #ctx-menu-resumo > .ctx-sub { display: none; }
+        #ctx-menu-resumo.sub > :not(.ctx-sub) { display: none; }
+        #ctx-menu-resumo.sub > .ctx-sub { display: block; }
+        .ctx-sub .ctx-r-info { padding: 8px 15px; font-size: .78rem; color: #8b949e; max-width: 260px; }
+        .ctx-sub .ctx-r-titulo { padding: 4px 15px 6px; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: #8b949e; }
+        .ctx-sub .ctx-r-input { margin: 4px 12px 8px; width: calc(100% - 24px); box-sizing: border-box; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; padding: 6px 8px; font-size: .82rem; }
+        .ctx-sub .ctx-r-input:focus { outline: none; border-color: #58a6ff; }
+        .ctx-sub .ctx-r-item .ctx-cont { margin-left: auto; padding-left: 14px; opacity: .6; font-size: .72rem; }
+        /* grupos de linhas (@) — TASK-195 */
+        tr.linha-grupo-decl { background: rgba(var(--gcor, 88,166,255), 0.10); box-shadow: inset 4px 0 0 rgb(var(--gcor, 88,166,255)); }
+        tr.linha-grupo-decl > td { opacity: 1; }
+        tr.linha-grupo-decl > td:not(.col-num) input, tr.linha-grupo-decl > td:not(.col-num) select { font-weight: 700; color: rgb(var(--gcor, 88,166,255)); }
+        tr.linha-grupo-membro { box-shadow: inset 4px 0 0 rgba(var(--gcor, 88,166,255), 0.55); }
+        tr.linha-grupo-membro > td:nth-child(3) .inp-ativo, tr.linha-grupo-membro > td .inp-ativo { padding-left: 14px; }
+        tr[data-gcor="0"] { --gcor: 88,166,255; } tr[data-gcor="1"] { --gcor: 63,185,80; } tr[data-gcor="2"] { --gcor: 210,153,34; }
+        tr[data-gcor="3"] { --gcor: 188,140,255; } tr[data-gcor="4"] { --gcor: 255,123,114; } tr[data-gcor="5"] { --gcor: 57,197,207; }
+        .grupo-ctl { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; vertical-align: middle; }
+        .grupo-toggle { width: 16px; height: 16px; line-height: 12px; padding: 0; border-radius: 4px; border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.06); color: inherit; cursor: pointer; font-size: .8rem; font-weight: 700; }
+        .grupo-toggle:hover { background: rgba(255,255,255,.18); }
+        .grupo-conta { font-size: .62rem; opacity: .75; }
         .ctx-r-item {
             display: flex; align-items: center; gap: 9px;
             padding: 8px 15px;
@@ -1430,6 +1452,11 @@
 
     <!-- Context menu -->
     <div id="ctx-menu-resumo">
+        <div class="ctx-r-item" id="ctx-grupo" title="Grupos de linhas: adicionar a um grupo, criar um grupo, tirar do grupo e mover linhas">
+            <span style="width:13px;display:inline-block;text-align:center;">@</span>
+            <span>Grupo</span><span class="ctx-seta">▸</span>
+        </div>
+        <div class="ctx-r-sep" id="ctx-grupo-sep"></div>
         <div class="ctx-r-item" id="ctx-add-above">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Inserir linha acima
@@ -1847,7 +1874,8 @@
     <script src="/static/projeto.js?v=1"></script>
     <script src="/static/resumo_rede.js?v=1"></script>
     <script src="/static/assistente.js?v=2"></script>
-    <script src="/static/resumo.js?v=5.5"></script>
+    <script src="/static/grupos_linhas.js?v=1"></script>
+    <script src="/static/resumo.js?v=5.6"></script>
     <script src="/static/resumo_layout.js?v=2"></script>
     <script src="/static/painel_regras.js"></script>
     <script src="/static/voz.js"></script>
