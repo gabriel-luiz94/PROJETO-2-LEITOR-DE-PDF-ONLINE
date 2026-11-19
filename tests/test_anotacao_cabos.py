@@ -79,7 +79,7 @@ def test_fases_e_prefixo():
 BASE_T = [{"ativo": a, "desc_ativo": a, "componente": a, "projeto": "P1", "codigo": f"c{i}", "desc_codigo": "d"} for i, a in
           enumerate(["A35P", "CAZ7,94", "C16", "S1/0", "RAMA25", "S50P", "S35P"])]
 LINHAS = ["3xA35P(7,94)-13,8kV 45 m", "3xC16(16) 30M", "1xS1/0-7,9kV 20", "RAMA25 12", "(S04) 8 m", "16 9 m", "3xS50P(35) 40", "CAA2 ABC 35 m",
-          "C 3x1x95(95)+20kV 60 m", "3xA35P(7,94)", "3xW2,25 15"]
+          "C 3x1x95(95)+20kV 60 m", "3xA35P(7,94)", "3xW2,25 15", "3XC16(16)+16 35 M", "3xC35(35)+35 29 m"]
 
 
 @pytest.mark.skipif(not NODE, reason="node indisponível")
@@ -273,3 +273,19 @@ def test_leitor_pernambuco_cabo_com_tensao_de_ponto_decimal():
         r = _leitor_pe(itens_)
         assert r[0]["entidade"] == "CABO" and r[0]["operacao"] == "I" and r[0]["ativo"].upper() == "3XS1/0-13.8KV 35 M", r
     assert itens("3XS1/0-13.8KV 35 M") == ([("S1/0", 3, 35.0, False)], "13.8", [])
+
+
+# ── «+16»: mais um condutor da mesma família (3xC16(16)+16 = 3 fases + neutro + 1 = 5 ativos na Totalizadora) ──
+def test_condutor_extra_depois_do_neutro():
+    assert itens("3XC16(16)+16 35 M") == ([("C16", 3, 35.0, False), ("C16", 1, 35.0, True), ("C16", 1, 35.0, True)], None, [])
+    assert itens("3xC35(35)+35 29 m")[0] == [("C35", 3, 29.0, False), ("C35", 1, 29.0, True), ("C35", 1, 29.0, True)]
+    assert itens("3xC16(16) 35 m")[0] == [("C16", 3, 35.0, False), ("C16", 1, 35.0, True)]                              # sem o "+16": como sempre
+    assert itens("C 3x1x95(95)+20kV 60 m") == ([("C3X1X95(95)", 1, 60.0, False)], "20", [])                                # "+20kV" continua sendo a tensão
+
+
+def test_totalizadora_divide_o_cabo_com_condutor_extra_em_5_ativos():
+    cabos = [{"entidade": "CABO", "operacao": "I", "ativo": "3XC16(16)+16 35 M"}]
+    mt.recalcular_qtd_ativos(cabos)
+    tot = tt.montar_totalizadora(cabos, [], [], BASE_T, "P1")
+    assert [(l["ativo"], l["qtd"]) for l in tot] == [("C16", 35.0)] * 5
+    assert tt.payload_calculo(tot)["cabos"] == [{"entidade": "CABO", "operacao": "I", "ativo": "C16 1 35"}] * 5

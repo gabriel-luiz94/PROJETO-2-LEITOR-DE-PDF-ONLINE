@@ -7,6 +7,7 @@ e o vínculo:
 
     [Nx]CODIGO[(neutro)][-TENSÃOkV] COMPRIMENTO [m]
     * Nx = fases (1x implícito); a tensão é ignorada (mas guardada: com tensão = rede de média, sem = baixa).
+    * "+N" depois do neutro (sem kV), ex.: 3xC16(16)+16 = mais um condutor da mesma família com a seção N (3 fases + neutro + 1 = 5 ativos); "+20kV" continua sendo a tensão;
     * neutro entre parênteses: com vírgula (7,94) → CAZ7,94; numérico (16) → mesma família do cabo com a seção do parêntese
       (C16(16) → C16; S50P(35) → S35P); (S04) → o próprio cabo S04. Vira um item à parte (qtd 1, mesmo comprimento).
     * (S04) / [C16] soltos = cabo de neutro próprio; "16" sozinho = C16; RAMA25/PB35 = 1xRAMA25 / 1xPB35;
@@ -27,6 +28,7 @@ _A = re.ASCII
 _RE_SEPARA = re.compile(r"^(.*[^" + _WS + r"])" + _S + r"+([0-9]+(?:[.,][0-9]+)?)" + _S + r"*[mM]?\Z", _A | re.S)
 _RE_TENSAO = re.compile(_S + r"*[-+]" + _S + r"*([0-9]+(?:[.,][0-9]+)?)" + _S + r"*KV" + _S + r"*\Z", _A | re.I)
 _RE_SOLTO = re.compile(r"^[(\[]" + _S + r"*([A-Z][A-Za-z0-9_]*)" + _S + r"*[)\]]\Z", _A)
+_RE_EXTRA = re.compile(r"^(.*[^" + _WS + r"])" + _S + r"*\+" + _S + r"*([0-9]+(?:[.,][0-9]+)?)\Z", _A | re.S)          # "3xC16(16)+16": o "+16" é mais um condutor da mesma família
 _RE_POTENCIA = re.compile(r"^C" + _S + r"*[0-9][xX]", _A)
 _RE_CODIGO = re.compile(r"^(?:([0-9])[xX])?([A-Z]{0,4}[0-9][0-9A-Z/,.]*)(?:\(([^)]*)\))?\Z", _A)
 _RE_SECAO = re.compile(r"^([A-Z]*)([0-9]+)([A-Z]*)\Z", _A)
@@ -121,7 +123,14 @@ def interpretar(texto, dic=None) -> dict:
     elif _RE_NUMERO_SOZINHO.match(rotulo):
         add("C" + rotulo, 1, False)
     else:
-        c = _RE_CODIGO.match(rotulo.replace(" ", ""))
+        c, extra = None, None
+        me = _RE_EXTRA.match(rotulo)
+        if me:
+            c = _RE_CODIGO.match(me.group(1).replace(" ", "")) or _por_dicionario(_trim(me.group(1)), dic)
+            if c:
+                extra = me.group(2)
+        if not c:
+            c = _RE_CODIGO.match(rotulo.replace(" ", ""))
         if not c:
             c = _por_dicionario(rotulo, dic)
         if not c:
@@ -136,6 +145,12 @@ def interpretar(texto, dic=None) -> dict:
                 r["erros"].append(f"neutro vazio em '{rotulo}'")
             else:
                 add(neutro, 1, True)
+        if extra is not None:                                    # "+16": mais um condutor (seção 16) da mesma família — 3xC16(16)+16 = 3 fases + neutro + 1 = 5 ativos
+            ex = _neutro_de(codigo, extra, dic)
+            if ex is None:
+                r["erros"].append(f"condutor extra vazio em '{rotulo}'")
+            else:
+                add(ex, 1, True)
     return r
 
 

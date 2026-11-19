@@ -16,6 +16,10 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-19 — TASK-190: cabo com condutor extra «+16» (`3XC16(16)+16 35 M`) é reconhecido e vira 5 ativos na Totalizadora
+
+- A notação do label (`anotacao_cabos`) só conhecia `+TENSÃOkV`; `3xC16(16)+16` dava «rótulo não reconhecido» e o cabo não entrava na Totalizadora. Agora `+N` (sem kV) é **mais um condutor da mesma família com a seção N** (`neutroDe`): `3xC16(16)+16 35 m` = 3 fases C16 + neutro C16 + 1 C16 = **5 linhas** `C16 35` na Totalizadora/payload. `+20kV` segue como tensão. JS (`static/anotacao_cabos.js`) e Python (`services/anotacao_cabos.py`) em paridade; a coluna «Qtd ativos» do Cabos continua contando as fases (3), como em `3xA35P(7,94)`. Testes em `tests/test_anotacao_cabos.py`.
+
 ## 2026-11-19 — TASK-189: correção — Resumo com muitas linhas ao abrir e aviso ao fechar o programa
 
 - **Botões do Resumo sem resposta e só Cabos aparecendo** depois de ler um DXF e abrir a aba: o primeiro `renderTable` (com mais de 60 linhas já gravadas) repinta a seleção em intervalo ao montar as linhas (`_terminouHidratar` → `intervaloGrade`), e a `const grade` ainda não tinha sido declarada (era mais abaixo no arquivo): «Cannot access 'grade' before initialization» derrubava a inicialização — nenhum botão era ligado e a tabela Outros nem era desenhada. A TASK-185 só aparecia com linhas coladas depois do carregamento; agora `grade` fica no topo, com os demais estados do 1º desenho. Reproduzido no navegador com as 662 linhas do DXF da nota 9101578729 (Cabos 74 / Outros 49).
