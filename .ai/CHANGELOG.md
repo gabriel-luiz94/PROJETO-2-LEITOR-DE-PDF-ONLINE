@@ -16,6 +16,13 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-19 — TASK-194: balão de parâmetros grava também quando o ativo tem quantidade («6 CON»)
+
+- **Sintoma:** com «CON» o balão preenchia os parâmetros; com «6 CON» (ou `6-CON`, `*2 CON`, `11300D, 2 N4`) as setas navegavam, o Enter «escolhia» e nada era gravado. **Causa:** a leitura dos parâmetros procurava a dica pelo nome SEM a quantidade (`it.base`, «CON») e a gravação (`gravar` em `resumo.js`) pelo nome COM ela (`it.nome`, «6 CON», que não existe na base): a dica vinha vazia e a função saía em silêncio.
+- **Correção:** a gravação virou `AtivoItens.gravarParametro` (pura, `static/ativo_itens.js`): pergunta a base pelo nome sem quantidade e mantém a quantidade escrita no texto (`6 CON(cabo=A70,…)`, `*2 CON(tipo=COMP)`). Também: vírgula entre dígitos (`0,5 CON`) deixou de ser tratada como separador de itens em `AtivoItens.tokens`.
+- Verificado no navegador com a base de Pernambuco (`CON`, `6 CON`, `6-CON`, `*2 CON`, `11300D, 2 N4`, `3 CON, 2 CON`). Testes: `tests/test_balao_quantidade_194.py`.
+- **Ainda em aberto (outro comportamento):** parâmetros declarados abertos na base (`cabo=%`, `cabo2=%`) só oferecem «✎ digitar outro valor…»; o Enter com o campo vazio não grava e segue para o próximo.
+
 ## 2026-11-19 — TASK-193: «Lembrar de mim» realmente entra direto no desktop e escolher arquivo não trava a tela
 
 - **Login:** o desktop (`app.py`) abria SEMPRE em `/login?new_session=1`, e `login.html` apagava token e «lembrar» ao ver esse parâmetro: a sessão de 30 dias (commit 70d5994) era destruída a cada abertura. Agora a janela abre na tela inicial (`inicio_url`; com obra do nanoCAD, direto na tela da obra) e `login.html` encaminha para `next`/`/` quando há sessão lembrada. Sem sessão, token vencido ou «lembrar» desmarcado, as telas e o `auth_fetch.js` mandam ao login como antes (uma vez, sem laço). `?new_session=1` digitado à mão ainda limpa a sessão.

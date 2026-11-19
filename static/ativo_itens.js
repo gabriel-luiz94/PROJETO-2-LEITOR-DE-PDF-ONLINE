@@ -6,7 +6,7 @@
 (function (raiz) {
     'use strict';
 
-    /** Divide no 1º nível (vírgula fora de ( ) e [ ]): [{ini, fim, bruto}] com as posições do trecho SEM espaços nas pontas; trechos vazios saem. */
+    /** Divide no 1º nível (vírgula fora de ( ) e [ ], e que não seja decimal entre dígitos): [{ini, fim, bruto}] com as posições do trecho SEM espaços nas pontas; trechos vazios saem. */
     function tokens(texto) {
         const t = String(texto == null ? '' : texto), saida = [];
         let prof = 0, colchete = false, ini = 0;
@@ -22,7 +22,7 @@
             else if (c === ']') colchete = false;
             else if (!colchete && c === '(') prof++;
             else if (!colchete && c === ')') prof = Math.max(0, prof - 1);
-            else if (!colchete && prof === 0 && c === ',') { fecha(i); ini = i + 1; }
+            else if (!colchete && prof === 0 && c === ',' && !(/\d/.test(t[i - 1] || '') && /\d/.test(t[i + 1] || ''))) { fecha(i); ini = i + 1; }          // vírgula entre dígitos é decimal («0,5 CON»), não separador
         }
         fecha(t.length);
         return saida;
@@ -95,6 +95,22 @@
         return { itens: lista, texto: juntar(lista) };
     }
 
-    const api = { semQuantidade, tokens, separar, itens, juntar, compacto, conteudo, comParams, regiao, aplicarEdicao };
+    /**
+     * Grava UM parâmetro do item `i` do texto cheio da linha e devolve o texto novo (ou null se não deu): usado pelo balão (Enter no valor escolhido).
+     * A base conhece o ativo SEM a quantidade («CON», não «6 CON»): `resolverDica(base)` recebe `it.base`, e o nome escrito (com a quantidade) é o que fica no texto
+     * («6 CON(cabo=A70)»). `aplicarValor(texto, cursor, dica, nomeParam, valor)` é o AtivoDica.aplicarValor.
+     */
+    function gravarParametro(texto, i, nomeParam, valor, resolverDica, aplicarValor) {
+        const lista = itens(texto), it = lista[i];
+        if (!it) return null;
+        const d = resolverDica(it.base || it.nome);
+        if (!d || d.tipo !== 'parametros') return null;
+        const inner = conteudo(it.params), base = it.nome + '(' + inner + ')';
+        const r = aplicarValor(base, it.nome.length + 1 + inner.length, d, nomeParam, valor);
+        if (!r) return null;
+        return juntar(comParams(lista, i, r.texto.slice(it.nome.length)));
+    }
+
+    const api = { gravarParametro, semQuantidade, tokens, separar, itens, juntar, compacto, conteudo, comParams, regiao, aplicarEdicao };
     if (typeof module !== 'undefined' && module.exports) module.exports = api; else raiz.AtivoItens = api;
 })(typeof window !== 'undefined' ? window : globalThis);
