@@ -8,6 +8,7 @@ Mensagens NEUTRAS (independem do provedor):
 Cada Adaptador converte isso para o formato do seu SDK (Gemini / OpenAI / Claude) e lê a resposta de volta num `Turno`. O laço (`rodar`) é um gerador de
 eventos {"tipo": ...} que a rota manda ao navegador em NDJSON: ferramenta, texto, plano, acao_ui, erro, fim.
 """
+import asyncio
 import json
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Optional
@@ -44,17 +45,38 @@ def _resumo_args(args: dict) -> str:
     return ""
 
 
+# Falhas de momento (provedor sobrecarregado, rede): vale tentar de novo o MESMO modelo antes de trocar; cota esgotada/modelo inexistente trocam direto.
+TRANSITORIOS = ("503", "502", "504", "unavailable", "overloaded", "high demand", "timeout", "timed out", "connection")
+ESPERAS = (1.5, 4.0)                # segundos antes da 2ª e da 3ª tentativa no mesmo modelo
+
+
+def eh_transitorio(e) -> bool:
+    return any(k in str(e).lower() for k in TRANSITORIOS)
+
+
+def mensagem_amigavel(e) -> str:
+    """O erro do provedor em português quando é de momento; senão o texto original (cortado)."""
+    if eh_transitorio(e):
+        return ("O provedor de IA está sobrecarregado agora (erro 503/indisponível). Tentei de novo e troquei de modelo, sem sucesso. "
+                "Aguarde um instante e repita, ou mude o provedor/modelo em «Configuração de IA».")
+    return str(e)[:400]
+
+
 async def com_fallback(modelos: list, chamar):
-    """Tenta cada modelo até um responder; erro de cota/indisponibilidade passa ao próximo, os demais sobem."""
+    """Para cada modelo: até 3 tentativas se a falha for de momento (503…); cota/indisponibilidade que persiste passa ao próximo modelo; os demais erros sobem."""
     ultimo = None
     for m in modelos:
-        try:
-            return await chamar(m)
-        except Exception as e:
-            if any(k in str(e).lower() for k in GATILHOS_FALLBACK):
-                ultimo = e
-                continue
-            raise
+        for tentativa in range(len(ESPERAS) + 1):
+            try:
+                return await chamar(m)
+            except Exception as e:
+                if eh_transitorio(e) and tentativa < len(ESPERAS):
+                    await asyncio.sleep(ESPERAS[tentativa])
+                    continue
+                if any(k in str(e).lower() for k in GATILHOS_FALLBACK):
+                    ultimo = e
+                    break
+                raise
     raise RuntimeError(str(ultimo) if ultimo else "Nenhum modelo disponível.")
 
 
@@ -235,7 +257,7 @@ async def rodar(adaptador: AdaptadorBase, system: str, historico: list, prompt: 
         else:
             texto_final = "Parei por excesso de passos nesta pergunta. Diga o que falta e continuo daqui."
     except Exception as e:
-        yield {"tipo": "erro", "mensagem": str(e)[:400]}
+        yield {"tipo": "erro", "mensagem": mensagem_amigavel(e)}
         yield {"tipo": "fim"}
         return
     if texto_final.strip():

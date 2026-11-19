@@ -390,6 +390,46 @@ def test_fallback_de_modelo_em_erro_de_cota_e_erro_real_sobe():
         correr(agente.com_fallback(["a"], _sempre_cota))
 
 
+def test_503_tenta_de_novo_o_mesmo_modelo_antes_de_trocar(monkeypatch):
+    monkeypatch.setattr(agente, "ESPERAS", (0, 0))
+    usados = []
+
+    async def chamar(m):
+        usados.append(m)
+        if len(usados) < 3:
+            raise RuntimeError("503 UNAVAILABLE. This model is currently experiencing high demand")
+        return m
+    assert correr(agente.com_fallback(["a", "b"], chamar)) == "a" and usados == ["a", "a", "a"]      # o 3º try do mesmo modelo deu certo, sem trocar
+
+
+def test_503_persistente_esgota_tentativas_e_modelos_com_mensagem_amigavel(monkeypatch):
+    monkeypatch.setattr(agente, "ESPERAS", (0, 0))
+    usados = []
+
+    async def chamar(m):
+        usados.append(m)
+        raise RuntimeError("503 UNAVAILABLE high demand")
+    with pytest.raises(RuntimeError) as e:
+        correr(agente.com_fallback(["a", "b"], chamar))
+    assert usados == ["a"] * 3 + ["b"] * 3
+    assert "sobrecarregado" in agente.mensagem_amigavel(e.value) and "Configuração de IA" in agente.mensagem_amigavel(e.value)
+    assert agente.mensagem_amigavel(ValueError("chave inválida")) == "chave inválida"
+    ev = eventos(Roteiro([e.value]), ctx_com())
+    assert ev[0]["tipo"] == "erro" and "sobrecarregado" in ev[0]["mensagem"]
+
+
+def test_cota_esgotada_nao_espera_troca_direto(monkeypatch):
+    monkeypatch.setattr(agente, "ESPERAS", (99, 99))                 # se esperasse, o teste travaria
+    usados = []
+
+    async def chamar(m):
+        usados.append(m)
+        if m == "a":
+            raise RuntimeError("429 RESOURCE_EXHAUSTED quota")
+        return m
+    assert correr(agente.com_fallback(["a", "b"], chamar)) == "b" and usados == ["a", "b"]
+
+
 async def _sempre_cota(m):
     raise RuntimeError("quota")
 

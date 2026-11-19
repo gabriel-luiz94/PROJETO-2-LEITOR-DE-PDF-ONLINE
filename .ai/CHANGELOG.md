@@ -16,6 +16,10 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-19 — TASK-191 (ajuste): assistente tenta de novo quando o provedor está sobrecarregado (503)
+
+- Erro `503 UNAVAILABLE … high demand` do Gemini derrubava a pergunta: o fallback trocava de modelo sem repetir o mesmo antes. Agora cada modelo é tentado até 3 vezes (esperas de 1,5 s e 4 s) quando a falha é de momento (503/502/504, indisponível, sobrecarga, timeout, conexão); cota esgotada ou modelo inexistente trocam direto, sem esperar. Se tudo falhar, a tela mostra «O provedor de IA está sobrecarregado agora… repita ou mude o provedor/modelo em Configuração de IA» em vez do JSON cru. `services/assistente/agente.py` (`com_fallback`, `mensagem_amigavel`); testes em `tests/test_assistente_191.py`.
+
 ## 2026-11-19 — TASK-191: assistente de IA com ferramentas e skills (consulta a base, monta, totaliza e orça)
 
 - **Antes:** chat de uma volta só, com o catálogo de ativos colado num prompt estático; a IA respondia uma tabela markdown que o front lia por regex. **Agora:** laço de agente com **ferramentas** (`services/assistente/agente.py`: Gemini, OpenAI e Claude por adaptadores; fallback de modelo; até 8 passos por pergunta) e **skills** (arquivos `.md`).
