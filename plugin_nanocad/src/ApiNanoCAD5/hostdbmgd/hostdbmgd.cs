@@ -1,5 +1,5 @@
 // GERADO por ferramentas/GerarApiNanoCAD5 — não editar à mão. Só as declarações que o plugin usa da API do nanoCAD (hostdbmgd),
-// para compilar a DLL do nanoCAD 5 (.NET 4). Em tempo de execução valem as DLLs do próprio nanoCAD.
+// para compilar a DLL do nanoCAD 5 (.NET 3.5). Em tempo de execução valem as DLLs do próprio nanoCAD.
 #pragma warning disable 67, 108, 114, 169, 649, 659, 660, 661, 809
 namespace Teigha.Colors
 {

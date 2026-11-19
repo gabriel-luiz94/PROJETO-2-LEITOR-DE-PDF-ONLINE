@@ -41,7 +41,7 @@ Contrato do arquivo: [ADR-002](decisions/ADR-002-contrato-obra-json.md).
 | Versão | Runtime | Entrega |
 |---|---|---|
 | nanoCAD 26 | .NET 6+ (assemblies `hostmgd`/`hostdbmgd` net6.0) | DLL pronta em `appload/nanoCAD26/` (compilada contra `ModPlus.nanoCAD.API.26`) |
-| nanoCAD 5 | .NET Framework 4 | `build_nanocad5.bat` no Windows do usuário (csc do Windows, C# 5, DLLs do nanoCAD 5 instalado) |
+| nanoCAD 5 | .NET Framework 3.5 x86 | `build_nanocad5.bat` no Windows do usuário (csc do Windows, C# 5, DLLs do nanoCAD 5 instalado) |
 
 O usuário confirmou que o nanoCAD 5 aceita plugin .NET. A API do 5 **não** foi verificada aqui (sem SDK/DLLs do 5); o
 núcleo é conferido em .NET 4/C# 5 (`tests/Net40`), a camada do CAD só no Windows do usuário.

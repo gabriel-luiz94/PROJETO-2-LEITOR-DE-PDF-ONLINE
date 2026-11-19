@@ -22,7 +22,7 @@ namespace OrcamentoNanoCAD
         {
             StringBuilder sb = new StringBuilder();
             foreach (char c in projeto ?? "") sb.Append(char.IsLetterOrDigit(c) ? c : '_');
-            return Path.Combine(Conexao.Pasta, "cache", "catalogo_" + sb + ".json");
+            return Path.Combine(Path.Combine(Conexao.Pasta, "cache"), "catalogo_" + sb + ".json");
         }
 
         public static CatalogoBase Obter(string projeto, Control tela, Action<CatalogoBase, string> pronto)

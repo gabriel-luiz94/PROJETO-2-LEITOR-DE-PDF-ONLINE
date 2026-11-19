@@ -12,6 +12,7 @@ ao lado da DLL; o programa nunca volta uma versão). Com o nanoCAD aberto a DLL 
 uso, então a atual vira .anterior e a nova entra no lugar (vale ao reabrir o nanoCAD) — o mesmo jeito do plugin (Nucleo/Atualizacao.cs).
 No nanoCAD, uma vez: APPLOAD → "Inicialização" (Startup Suite) → adicionar o arquivo da pasta acima.
 """
+import filecmp
 import json
 import os
 import shutil
@@ -20,7 +21,7 @@ import threading
 
 from config import logger
 
-ALVOS = {"nanocad26": ("nanoCAD26", "nanoCAD 26 (.NET 6+)"), "nanocad5": ("nanoCAD5", "nanoCAD 5 (.NET Framework 4)")}
+ALVOS = {"nanocad26": ("nanoCAD26", "nanoCAD 26 (.NET 6+)"), "nanocad5": ("nanoCAD5", "nanoCAD 5 (.NET Framework 3.5)")}
 ARQUIVO_DLL = "OrcamentoNanoCAD.dll"
 
 
@@ -58,6 +59,15 @@ def _ler_versao(pasta: str):
         return None
 
 
+def _precisa_reparo(origem_dll, dll, v_prog, v_inst):
+    if not v_prog or _versao(v_prog) != _versao(v_inst):
+        return False
+    try:
+        return not filecmp.cmp(origem_dll, dll, shallow=False)
+    except OSError:
+        return True
+
+
 def situacao() -> list:
     """Por alvo: versão que o programa traz, versão instalada, caminho da DLL para o APPLOAD."""
     r = []
@@ -68,7 +78,8 @@ def situacao() -> list:
         v_prog = _ler_versao(origem) if os.path.isfile(os.path.join(origem, ARQUIVO_DLL)) else None
         v_inst = _ler_versao(destino) if os.path.isfile(dll) else None
         r.append({"alvo": alvo, "nome": nome, "versao_programa": v_prog, "versao_instalada": v_inst,
-                  "desatualizado": bool(v_prog) and os.path.isfile(dll) and _versao(v_inst) < _versao(v_prog),
+                  "desatualizado": bool(v_prog) and os.path.isfile(dll) and (_versao(v_inst) < _versao(v_prog) or
+                      _precisa_reparo(os.path.join(origem, ARQUIVO_DLL), dll, v_prog, v_inst)),
                   "caminho": dll, "pasta": destino, "instalado": os.path.isfile(dll)})
     return r
 
@@ -89,7 +100,15 @@ def _trocar(origem_dll: str, dll: str):
         raise
 
 
+_trava_instalacao = threading.Lock()
+
+
 def instalar(forcar: bool = False) -> list:
+    with _trava_instalacao:
+        return _instalar(forcar)
+
+
+def _instalar(forcar: bool) -> list:
     """Instala/atualiza cada alvo que o programa traz. Devolve o resultado por alvo (instalado | em dia | erro | ausente)."""
     res = []
     for alvo, (pasta, nome) in ALVOS.items():
@@ -103,7 +122,7 @@ def instalar(forcar: bool = False) -> list:
             res.append(dict(item, resultado="ausente", detalhe="o programa não traz o plugin para este nanoCAD"))
             continue
         v_inst = _ler_versao(destino) if os.path.isfile(dll) else None
-        if v_inst and not forcar and _versao(v_inst) >= _versao(v_prog):
+        if v_inst and not forcar and _versao(v_inst) >= _versao(v_prog) and not _precisa_reparo(origem_dll, dll, v_prog, v_inst):
             res.append(dict(item, resultado="em dia", versao=v_inst))
             continue
         try:

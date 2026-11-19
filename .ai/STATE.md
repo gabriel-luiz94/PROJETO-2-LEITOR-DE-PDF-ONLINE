@@ -6,6 +6,10 @@
 
 ---
 
+## Abertura pelo nanoCAD · TASK-199
+
+A NOTA 9101578729 abre no Resumo em Chromium com 71 linhas de Cabos e 52 de Outros. A confirmação em Windows/WebView2 continua pendente.
+
 ## Validação pendente em 19/11/2026
 
 TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 removido e extração de chamadas MULTILEADER no DXF. Testar com a nota real nas duas versões do nanoCAD.

@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Distribuição 0.10.4
+
+Build do 5 em x86/.NET 3.5 conferido pelos metadados do binário. A compatibilidade dos comandos com a API instalada segue pendente. O fornecedor distribui a versão 5 mediante login.
+
 ## Validação pendente em 19/11/2026
 
 TASK-025 e TASK-026: plugin 0.10.3, N3 removido na tabela Outros e teste de paridade incluindo chamadas múltiplas. A abertura no Windows depende também da correção no OrçaCore (TASK-197). Testar com a nota real nas duas versões do nanoCAD.
@@ -22,7 +26,7 @@ Branch de trabalho: `codex/nanocad-paridade`
 | Arquivo | Situação |
 |---|---|
 | `appload/nanoCAD26/OrcamentoNanoCAD.dll` | ✅ compila contra a API real do nanoCAD 26 (`hostmgd`/`hostdbmgd` net6.0) · 🟡 carregar no nanoCAD 26 |
-| `build_nanocad5.bat` → `appload/nanoCAD5/OrcamentoNanoCAD.dll` | ✅ build .NET 4/C# 5 com referências geradas · 🟡 teste no host real |
+| `build_nanocad5.bat` → `appload/nanoCAD5/OrcamentoNanoCAD.dll` | ✅ build .NET 3.5 x86/C# 5 com referências geradas · 🟡 teste no host real |
 | `exemplos/Projeto_Rua_das_Flores.obra.json` | ✅ importado pela API no teste de contrato |
 
 ## Implementado
@@ -71,7 +75,7 @@ Branch de trabalho: `codex/nanocad-paridade`
 ### "Abrir na aplicação" no GridReader deste computador (TASK-016, 0.8.0) — ✅ · 🟡 Windows
 
 ### nanoCAD 5 pronto + projetos e leitura da aplicação (TASK-014/015, 0.7.0) — ✅ núcleo, API e build · 🟡 CAD
-- [x] `appload/nanoCAD5/OrcamentoNanoCAD.dll` (.NET 4) gerada aqui contra `src/ApiNanoCAD5` (gerador `ferramentas/GerarApiNanoCAD5`); `Compat` desliga o que faltar
+- [x] `appload/nanoCAD5/OrcamentoNanoCAD.dll` (.NET 3.5 x86) gerada aqui contra `src/ApiNanoCAD5` (gerador `ferramentas/GerarApiNanoCAD5`); `Compat` desliga o que faltar
 - [x] Tela inicial com todos os projetos da aplicação; regras sempre do projeto; configuração de leitura na aplicação (vale em qualquer computador)
 - [x] Programa principal traz e instala as duas DLLs (TASK-131 do principal)
 - [ ] Testar no nanoCAD 5 de verdade: carregar a DLL, `ORC_AJUDA` mostra os recursos indisponíveis; mandar o log se não carregar
