@@ -467,9 +467,9 @@ def test_laco_executa_ferramenta_devolve_resultado_e_emite_plano():
     assert ev[0]["texto"] == "vou olhar" and ev[2]["nome"] == "propor_alteracoes" and ev[2]["detalhe"] == "1 alteração(ões)"
     plano = next(e for e in ev if e["tipo"] == "plano")
     assert plano["resumo"] == "mais um" and plano["itens"][0]["acao"] == "editar" and plano["itens"][0]["antes"]["ativo"] == "1-CFU"
-    # o 2º turno viu o resultado da ferramenta (ler_tabela) e o 3º viu o do propor_alteracoes
+    # o 2º turno viu o resultado da ferramenta (ler_tabela); plano limpo ENCERRA a pergunta sem uma 3ª volta ao modelo (o resumo é local)
     assert ad.recebido[1][-1]["role"] == "tool" and ad.recebido[1][-1]["resultados"][0]["resultado"]["outros"]["total"] == 1
-    assert ad.recebido[2][-1]["resultados"][0]["resultado"]["aceitas"] == 1
+    assert len(ad.recebido) == 2 and len(ad.turnos) == 1 and ev[4]["texto"] == "Proponho 1 alteração(ões): mais um. Confira o cartão e clique em Aplicar."
     assert ad.recebido[0][-1] == {"role": "user", "texto": "dobre a chave"}
 
 
@@ -765,3 +765,158 @@ def test_rota_testar_reserva(client, monkeypatch):
     monkeypatch.setattr(agente, "criar_adaptador", lambda provider, api_key, modelos, base_url="": Falha("401 invalid api key"))
     j = client.post("/api/assistente/reserva/testar", headers=cab()).json()
     assert j["ok"] is False and "invalid api key" in j["erro"]
+
+
+# ── velocidade: prazo, terminais, atalho rápido, prompt ─────────────────────────────────────────────
+def test_plano_com_aviso_ou_rejeicao_continua_o_laco_para_o_modelo_corrigir():
+    ctx = ctx_com(outros=[{"id": 0, "operacao": "I", "ativo": "1 CFU"}])
+    ad = Roteiro([agente.Turno("", [agente.Chamada("a", "propor_alteracoes", {"alteracoes": [{"acao": "adicionar", "tabela": "outros", "ativo": "1-ZZZ"}]})]),
+                  agente.Turno("", [agente.Chamada("b", "propor_alteracoes", {"substituir": True, "alteracoes": [{"acao": "adicionar", "tabela": "outros", "ativo": "1-CFU"}]})]),
+                  agente.Turno("não devia ser chamado")])
+    ev = eventos(ad, ctx)
+    assert len(ad.recebido) == 2 and len(ad.turnos) == 1                       # 1ª tinha aviso (ZZZ fora da base): voltou ao modelo; a 2ª, limpa, encerrou
+    assert ev[-1] == {"tipo": "fim"} and next(e for e in ev if e["tipo"] == "plano")["itens"][0]["ativo"] == "1-CFU"
+    ad = Roteiro([agente.Turno("", [agente.Chamada("a", "propor_alteracoes", {"alteracoes": [{"acao": "remover", "tabela": "outros", "id": 99}]})]), agente.Turno("Corrigi.")])
+    assert [e["tipo"] for e in eventos(ad, ctx_com())][-2:] == ["texto", "fim"] and len(ad.recebido) == 2                      # id inexistente: rejeição, volta ao modelo
+
+
+def test_texto_do_modelo_junto_do_plano_nao_e_repetido_pelo_resumo_local():
+    ad = Roteiro([agente.Turno("Dobrei a chave.", [agente.Chamada("a", "propor_alteracoes", {"alteracoes": [{"acao": "adicionar", "tabela": "outros", "ativo": "2-CFU"}]})])])
+    ev = eventos(ad, ctx_com())
+    assert [e["tipo"] for e in ev] == ["texto", "ferramenta", "plano", "fim"] and ev[0]["texto"] == "Dobrei a chave."
+
+
+def test_ferramenta_consultiva_nao_encerra():
+    ad = Roteiro([agente.Turno("", [agente.Chamada("a", "buscar_ativo", {"texto": "cfu"})]), agente.Turno("Achei o CFU.")])
+    assert len(ad.turnos) == 2 and eventos(ad, ctx_com())[-2]["texto"] == "Achei o CFU." and not ad.turnos
+
+
+def test_ajustar_tela_sozinho_encerra_com_pronto():
+    ad = Roteiro([agente.Turno("", [agente.Chamada("a", "ajustar_tela", {"acao": "limpar_filtros"})])])
+    ev = eventos(ad, ctx_com())
+    assert [e["tipo"] for e in ev] == ["ferramenta", "texto", "acao_ui", "fim"] and ev[1]["texto"] == "Pronto."
+
+
+class Trava(agente.AdaptadorBase):
+    def __init__(self):
+        self.chamadas = 0
+
+    async def turno(self, system, mensagens, specs):
+        self.chamadas += 1
+        await asyncio.sleep(60)
+
+
+def test_provedor_que_trava_estoura_o_tempo_em_vez_de_ficar_gerando_para_sempre(monkeypatch):
+    monkeypatch.setattr(agente, "TIMEOUT_CHAMADA", 0.05)
+    monkeypatch.setattr(agente, "ESPERAS", (0, 0))
+    usados = []
+
+    async def chamar(m):
+        usados.append(m)
+        await asyncio.sleep(60)
+    with pytest.raises(agente.ErroTempo) as e:
+        correr(agente.com_fallback(["a", "b"], chamar))
+    assert usados == ["a", "b"]                                                  # tempo esgotado troca de modelo, sem repetir o mesmo
+    assert "demorou demais" in agente.mensagem_amigavel(e.value)
+    t0 = __import__("time").monotonic()
+    ev = eventos(agente.AdaptadorComReserva(_Lento(), Resposta("do reserva"), "k-tempo", "R"), ctx_com())
+    assert [x["tipo"] for x in ev] == ["aviso", "texto", "fim"] and "demorou demais" in ev[0]["texto"] and __import__("time").monotonic() - t0 < 5
+
+
+class _Lento(agente.AdaptadorBase):
+    async def turno(self, system, mensagens, specs):
+        await agente.com_fallback(["m"], lambda m: asyncio.sleep(60), (), 0.05)     # estoura como o provedor real estouraria
+
+
+def test_com_reserva_o_principal_tem_menos_tempo():
+    p = Resposta()
+    agente.AdaptadorComReserva(p, Resposta(), "k-t", "R")
+    assert p.timeout == agente.TIMEOUT_COM_RESERVA < agente.TIMEOUT_CHAMADA
+
+
+def test_prazo_total_da_pergunta(monkeypatch):
+    relogio = [0.0]
+    monkeypatch.setattr(agente, "_agora", lambda: relogio[0])
+
+    class Passo(agente.AdaptadorBase):
+        async def turno(self, system, mensagens, specs):
+            relogio[0] += agente.PRAZO_TOTAL / 2 + 1
+            return agente.Turno("", [agente.Chamada("x", "listar_skills", {})])
+    ev = eventos(Passo(), ctx_com())
+    assert "tempo máximo" in ev[-2]["texto"] and ev[-1] == {"tipo": "fim"}
+
+
+def test_gemini_3_usa_pensamento_baixo_e_outros_nao(monkeypatch):
+    from google.genai import types as gt
+    vistos = []
+
+    async def gerar(model, contents, config):
+        vistos.append((model, getattr(config.thinking_config, "thinking_level", None)))
+        if model == "gemini-3-x" and len(vistos) == 1 and False:
+            raise RuntimeError("x")
+        return types.SimpleNamespace(candidates=[types.SimpleNamespace(content=gt.Content(role="model", parts=[gt.Part(text="ok")]))])
+    cli = types.SimpleNamespace(aio=types.SimpleNamespace(models=types.SimpleNamespace(generate_content=gerar)))
+    correr(agente.AdaptadorGemini(cli, ["gemini-3.1-flash-lite"]).turno("S", [MSGS[0]], ferramentas.especificacoes()))
+    correr(agente.AdaptadorGemini(cli, ["gemini-2.5-flash"]).turno("S", [MSGS[0]], ferramentas.especificacoes()))
+    assert str(vistos[0][1]).endswith("LOW") and vistos[1][1] is None
+
+
+def test_gemini_sem_suporte_a_pensamento_repete_sem_ele():
+    from google.genai import types as gt
+    vistos = []
+
+    async def gerar(model, contents, config):
+        vistos.append(config.thinking_config is not None)
+        if config.thinking_config is not None:
+            raise RuntimeError("400 thinking_level is not supported for this model")
+        return types.SimpleNamespace(candidates=[types.SimpleNamespace(content=gt.Content(role="model", parts=[gt.Part(text="ok")]))])
+    cli = types.SimpleNamespace(aio=types.SimpleNamespace(models=types.SimpleNamespace(generate_content=gerar)))
+    assert correr(agente.AdaptadorGemini(cli, ["gemini-3.1-flash-lite"]).turno("S", [MSGS[0]], [])).texto == "ok" and vistos == [True, False]
+
+
+@pytest.mark.parametrize("prompt,esperado", [
+    ("adicionar 2 con", [("I", "2-CON")]),
+    ("Adicione 3 PR220, 2 CFU e 1 TR125", [("I", "3-PR220"), ("I", "2-CFU"), ("I", "1-TR125")]),
+    ("remova 1,5 IT; 2x CON", [("R", "1.5-IT"), ("R", "2-CON")]),
+    ("tire 2-CON", [("R", "2-CON")]),
+])
+def test_atalho_rapido_aceita_varios_itens(prompt, esperado):
+    from routers.assistente import _fast_path
+    ev = _fast_path(prompt)
+    assert ev and ev["auto"] is True and [(i["operacao"], i["ativo"]) for i in ev["itens"]] == esperado and [i["n"] for i in ev["itens"]] == list(range(1, len(esperado) + 1))
+
+
+@pytest.mark.parametrize("prompt", [
+    "adicionar 2 postes de 11 metros", "adicionar poste DT11/300", "adicionar 11300D", "adicionar 2 CON e depois ordene", "adicionar 2 CON, ", "oi",
+    "adicionar 2 obra Rede Norte", "adicionar 2 CON, 3", "remover tudo",
+])
+def test_atalho_rapido_nao_pega_frases_com_ia(prompt):
+    from routers.assistente import _fast_path
+    assert _fast_path(prompt) is None
+
+
+def test_prompt_traz_formato_e_a_tela_pequena_mas_nao_a_grande(pastas):
+    from routers import assistente as ra
+    (pastas[0] / "_geral" / "formato_ativos.md").write_text("descricao: formato\nREGRA-DE-FORMATO-X\n", encoding="utf-8")
+    c = ctx_com(cabos=[{"id": 0, "operacao": "I", "ativo": "CAA2 3 35 m"}], outros=[{"id": 4, "operacao": "R", "ativo": "11300D, 1 CFU"}, {"id": 5, "operacao": "I", "ativo": "x", "congelada": True}])
+    s = ra.montar_system(c, "081")
+    assert "JÁ CARREGADA" in s and "REGRA-DE-FORMATO-X" in s and "[cabos-0] I | CAA2 3 35 m" in s and "[outros-4] R | 11300D, 1 CFU" in s and "[outros-5]" not in s
+    grande = ctx_com(outros=[{"id": i, "operacao": "I", "ativo": f"{i} CFU"} for i in range(ra.LIMITE_TELA_NO_PROMPT + 1)])
+    assert "use ler_tabela" in ra.montar_system(grande, "081") and "[outros-7] I" not in ra.montar_system(grande, "081")
+    assert "TELA ATUAL: vazia." in ra.montar_system(ctx_com(), "081")
+
+
+def test_ferramentas_rodam_fora_do_loop_de_eventos():
+    import threading
+    visto = {}
+    original = ferramentas.executar
+
+    def espia(ctx, nome, args):
+        visto["thread"] = threading.current_thread()
+        return original(ctx, nome, args)
+    ferramentas.executar, ctx = espia, ctx_com()
+    try:
+        eventos(Roteiro([agente.Turno("", [agente.Chamada("a", "listar_skills", {})]), agente.Turno("ok")]), ctx)
+    finally:
+        ferramentas.executar = original
+    assert visto["thread"] is not threading.main_thread()

@@ -3486,6 +3486,15 @@ document.addEventListener('DOMContentLoaded', () => {
         projeto: () => localStorage.getItem('projeto_selecionado_codigo') || '229', toast: showToast
     }));
 
+    let chatAbort = null;                                     // enquanto a IA responde, o botão de enviar vira «Parar» (aborta o pedido)
+    const iconeEnviar = btnSendChat.innerHTML;
+    const iconeParar = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>';
+    function modoParar(ligado) {
+        btnSendChat.innerHTML = ligado ? iconeParar : iconeEnviar;
+        btnSendChat.title = ligado ? 'Parar (interrompe a resposta)' : 'Enviar Mensagem (Enter)';
+        btnSendChat.disabled = false;
+    }
+
     async function sendToGemini() {
         const text = aiChatInput.value.trim();
         if (!text) return;
@@ -3500,7 +3509,8 @@ document.addEventListener('DOMContentLoaded', () => {
         addChatMessage(text, 'user');
         aiChatInput.value = '';
         aiChatInput.disabled = true;
-        btnSendChat.disabled = true;
+        chatAbort = new AbortController();
+        modoParar(true);
 
         // Se for uma regra, salva no banco e informa a IA
         const isRule = text.toLowerCase().includes('lembre-se') || text.toLowerCase().includes('regra:');
@@ -3520,9 +3530,20 @@ document.addEventListener('DOMContentLoaded', () => {
         // Indicador carregando
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'chat-message ai';
-        loadingDiv.innerHTML = '<span class="loading-dots">Gerando</span>';
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'loading-dots';
+        loadingDiv.appendChild(statusSpan);
         aiChatMessages.appendChild(loadingDiv);
         aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+        // Andamento visível: o que está sendo feito + há quantos segundos (a IA pode demorar; o usuário vê que não travou e pode parar)
+        let rotuloAtual = 'Pensando';
+        const t0 = Date.now();
+        const desenharStatus = () => {
+            const seg = Math.floor((Date.now() - t0) / 1000);
+            statusSpan.textContent = rotuloAtual + (seg >= 2 ? ` · ${seg} s` : '') + (seg >= 15 ? ' · demorando… (■ para parar)' : '');
+        };
+        desenharStatus();
+        const relogio = setInterval(desenharStatus, 1000);
 
         try {
             const tabelas = Assistente.tabelaParaServidor(tableStates);      // TASK-191: o servidor lê a tabela sob demanda (ferramenta ler_tabela) e nunca a altera
@@ -3543,7 +3564,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     [camposChat.keyHeader]: apiKey,
                     [camposChat.modelHeader]: customModel
                 },
-                body: JSON.stringify(reqBody)
+                body: JSON.stringify(reqBody),
+                signal: chatAbort.signal
             });
 
             if (!response.ok) {
@@ -3570,12 +3592,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 listar_skills: 'Consultando as skills', listar_obras: 'Vendo as obras', consultar_obra: 'Lendo a obra', propor_obra: 'Preparando a obra', ajustar_tela: 'Ajustando a tela' };
             const tratar = ev => {
                 if (ev.tipo === 'ferramenta') {
-                    const r = (rotuloFerramenta[ev.nome] || ev.nome) + (ev.detalhe ? ' · ' + ev.detalhe : '');
-                    loadingDiv.textContent = '';
-                    const sp = document.createElement('span');
-                    sp.className = 'loading-dots';
-                    sp.textContent = r;
-                    loadingDiv.appendChild(sp);
+                    rotuloAtual = (rotuloFerramenta[ev.nome] || ev.nome) + (ev.detalhe ? ' · ' + ev.detalhe : '');
+                    desenharStatus();
                 } else if (ev.tipo === 'texto') {
                     replyText += (replyText ? '\n\n' : '') + ev.texto;
                     if (!div) {
@@ -3620,15 +3638,18 @@ document.addEventListener('DOMContentLoaded', () => {
             planos.forEach(p => mostrarPlanoAssistente(p));
         } catch (error) {
             if (loadingDiv.parentNode) aiChatMessages.removeChild(loadingDiv);
-            addChatMessage(`Erro de conexão: ${error.message}`, 'error');
+            if (error && error.name === 'AbortError') addChatMessage('Interrompido por você.', 'system');
+            else addChatMessage(`Erro de conexão: ${error.message}`, 'error');
         } finally {
+            clearInterval(relogio);
+            chatAbort = null;
+            modoParar(false);
             aiChatInput.disabled = false;
-            btnSendChat.disabled = false;
             aiChatInput.focus();
         }
     }
 
-    btnSendChat.addEventListener('click', sendToGemini);
+    btnSendChat.addEventListener('click', () => { if (chatAbort) chatAbort.abort(); else sendToGemini(); });
     aiChatInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
