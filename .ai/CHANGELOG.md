@@ -16,6 +16,12 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-19 — TASK-189: correção — Resumo com muitas linhas ao abrir e aviso ao fechar o programa
+
+- **Botões do Resumo sem resposta e só Cabos aparecendo** depois de ler um DXF e abrir a aba: o primeiro `renderTable` (com mais de 60 linhas já gravadas) repinta a seleção em intervalo ao montar as linhas (`_terminouHidratar` → `intervaloGrade`), e a `const grade` ainda não tinha sido declarada (era mais abaixo no arquivo): «Cannot access 'grade' before initialization» derrubava a inicialização — nenhum botão era ligado e a tabela Outros nem era desenhada. A TASK-185 só aparecia com linhas coladas depois do carregamento; agora `grade` fica no topo, com os demais estados do 1º desenho. Reproduzido no navegador com as 662 linhas do DXF da nota 9101578729 (Cabos 74 / Outros 49).
+- **Aviso ao fechar** (`ConnectionResetError: [WinError 10054]` em `trabalhador_js.py`): o trabalhador do leitor (QuickJS) lia o socket enquanto o programa principal fechava; agora `main()` encerra quieto nos erros de conexão.
+- Testes: `tests/test_resumo_carrega_com_dados_189.py`.
+
 ## 2026-11-19 — TASK-188: Leitor lê o comprimento do cabo POR POSIÇÃO no desenho
 
 - **Problema (conferido no DXF da nota 9101578729):** a vizinhança das regras do Leitor olha os N itens seguintes **da lista**, e a lista do DXF sai **ordenada por altura (Y)**; o comprimento de um cabo caía a 26–37 itens do rótulo (janela 16) ou antes dele. Resultado: cabo sem comprimento (rótulos riscados `2xC25-13,8kV`/`1xS04-13,8kV` do print) ou, pior, com o comprimento de OUTRO cabo — de 40 rótulos, 22 pegavam um texto a 14–134 unidades de distância enquanto o certo estava a 2–7 unidades logo abaixo.
