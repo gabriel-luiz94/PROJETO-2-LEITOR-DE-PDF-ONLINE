@@ -96,7 +96,24 @@
     /** Texto seguro (sem HTML) com quebras de linha preservadas por CSS (white-space: pre-wrap). */
     function textoSeguro(el, texto) { el.textContent = texto; return el; }
 
-    const api = { linhasNdjson, tabelaParaServidor, descreverItem, aplicarPlano, resumoAplicacao, textoSeguro };
+    /** Atalhos do formulário do provedor reserva: DeepSeek, Qwen etc. entram como «OpenAI-compatível» (URL base + nome do modelo). Confira o nome do modelo na doc de cada serviço: eles mudam. */
+    const PRESETS_RESERVA = [
+        { id: 'deepseek', rotulo: 'DeepSeek', provider: 'openai', url: 'https://api.deepseek.com', modelo: 'deepseek-chat', dica: 'Chave em platform.deepseek.com. Se o nome do modelo mudou, veja a doc (ex.: deepseek-v4-flash).' },
+        { id: 'qwen', rotulo: 'Qwen (Alibaba · Singapura)', provider: 'openai', url: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', modelo: 'qwen-plus', dica: 'Chave do Model Studio (região Singapura): ela só vale na região em que foi criada.' },
+        { id: 'openrouter', rotulo: 'OpenRouter', provider: 'openai', url: 'https://openrouter.ai/api/v1', modelo: '', dica: 'Informe o modelo (os gratuitos terminam em :free e têm limite de 20 pedidos/min e 50/dia).' },
+        { id: 'ollama', rotulo: 'Ollama (no seu PC)', provider: 'openai', url: 'http://localhost:11434/v1', modelo: '', dica: 'Informe o modelo instalado (ex.: um Qwen). O Ollama não usa chave: digite qualquer texto.' },
+        { id: 'gemini', rotulo: 'Gemini (outra chave)', provider: 'gemini', url: '', modelo: '', dica: '' },
+        { id: 'claude', rotulo: 'Claude', provider: 'claude', url: '', modelo: '', dica: '' },
+    ];
+
+    /** Corpo do PUT /api/assistente/reserva a partir do formulário: URL só vale para OpenAI-compatível; chave vazia = manter a salva. */
+    function corpoReserva(f) {
+        const provider = String(f.provider || 'openai');
+        return { ativa: !!f.ativa, provider, base_url: provider === 'openai' ? String(f.url || '').trim() : '', model: String(f.modelo || '').trim(),
+                 api_key: String(f.chave || '').trim() || null, limpar_chave: !!f.limparChave };
+    }
+
+    const api = { PRESETS_RESERVA, corpoReserva, linhasNdjson, tabelaParaServidor, descreverItem, aplicarPlano, resumoAplicacao, textoSeguro };
 
     // ── DOM ───────────────────────────────────────────────────────────────────────────────────────────
     if (typeof document !== 'undefined') {
@@ -150,6 +167,84 @@
                 } catch (e) { fim('Erro ao aplicar: ' + e.message, false); }
             });
             return card;
+        };
+
+
+        /** Formulário do provedor reserva automático (dentro da «Configuração de IA»). Devolve {recarregar}. */
+        api.reservaUI = function (el, opcoes) {
+            const toast = (opcoes && opcoes.toast) || (m => alert(m));
+            el.textContent = '';
+            const caixa = mk('div', 'rs-caixa');
+            caixa.appendChild(mk('p', 'rs-titulo', 'PROVEDOR RESERVA (AUTOMÁTICO)'));
+            caixa.appendChild(mk('p', 'rs-ajuda', 'Se o provedor principal falhar (sobrecarga, cota, chave, rede), o assistente continua sozinho neste, e avisa no chat. DeepSeek, Qwen, OpenRouter e Ollama entram como «OpenAI-compatível».'));
+            const lAtiva = mk('label', 'rs-ativa');
+            const ativa = mk('input'); ativa.type = 'checkbox';
+            lAtiva.append(ativa, document.createTextNode(' Usar provedor reserva'));
+            const preset = mk('select', 'rs-campo');
+            const o0 = mk('option', '', 'Escolher um atalho…'); o0.value = ''; preset.appendChild(o0);
+            PRESETS_RESERVA.forEach(p => { const o = mk('option', '', p.rotulo); o.value = p.id; preset.appendChild(o); });
+            const provider = mk('select', 'rs-campo');
+            [['openai', 'OpenAI-compatível (DeepSeek, Qwen, OpenRouter, Ollama…)'], ['gemini', 'Gemini'], ['claude', 'Claude']].forEach(([v, t]) => { const o = mk('option', '', t); o.value = v; provider.appendChild(o); });
+            const url = mk('input', 'rs-campo'); url.placeholder = 'URL base (ex.: https://api.deepseek.com)'; url.autocomplete = 'off';
+            const modelo = mk('input', 'rs-campo'); modelo.placeholder = 'Nome do modelo (ex.: deepseek-chat)'; modelo.autocomplete = 'off';
+            const chave = mk('input', 'rs-campo'); chave.type = 'password'; chave.autocomplete = 'new-password'; chave.placeholder = 'Chave da API do reserva';
+            const estadoChave = mk('p', 'rs-ajuda');
+            const dica = mk('p', 'rs-dica');
+            const barra = mk('div', 'rs-barra');
+            const salvar = mk('button', 'btn-primary', 'Salvar reserva'); salvar.type = 'button';
+            const testar = mk('button', 'btn-secondary', 'Testar'); testar.type = 'button';
+            const estado = mk('span', 'rs-estado');
+            barra.append(salvar, testar, estado);
+            caixa.append(lAtiva, preset, provider, url, modelo, chave, estadoChave, dica, barra);
+            el.appendChild(caixa);
+            let temChave = false, pode = true;
+            const ajustarProvider = () => { url.style.display = provider.value === 'openai' ? '' : 'none'; };
+            provider.addEventListener('change', ajustarProvider);
+            preset.addEventListener('change', () => {
+                const p = PRESETS_RESERVA.find(x => x.id === preset.value);
+                if (!p) return;
+                provider.value = p.provider; url.value = p.url; if (p.modelo) modelo.value = p.modelo; else if (p.provider === 'openai') modelo.value = '';
+                dica.textContent = p.dica || ''; ajustarProvider();
+            });
+            const marcarEstado = (txt, ruim) => { estado.textContent = txt; estado.style.color = ruim ? '#ff7b72' : '#3fb950'; };
+            async function recarregar(manterMensagem) {
+                try {
+                    const r = await fetch('/api/assistente/reserva');
+                    if (!r.ok) return;
+                    const j = await r.json();
+                    ativa.checked = !!j.ativa; provider.value = j.provider; url.value = j.base_url; modelo.value = j.model; temChave = !!j.tem_chave; pode = !!j.pode_editar;
+                    chave.value = '';
+                    estadoChave.textContent = temChave ? 'Chave salva ✓ (deixe em branco para manter).' : 'Nenhuma chave salva.';
+                    [ativa, preset, provider, url, modelo, chave, salvar, testar].forEach(c => { c.disabled = !pode; });
+                    if (!pode) marcarEstado('Só o administrador configura o reserva.', true); else if (!manterMensagem) estado.textContent = '';
+                    ajustarProvider();
+                } catch (e) { /* sem rede: mantém o formulário como está */ }
+            }
+            async function gravar() {
+                const r = await fetch('/api/assistente/reserva', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(corpoReserva({ ativa: ativa.checked, provider: provider.value, url: url.value, modelo: modelo.value, chave: chave.value })) });
+                const j = await r.json().catch(() => ({}));
+                if (!r.ok) throw new Error(j.detail || 'HTTP ' + r.status);
+                return j;
+            }
+            salvar.addEventListener('click', async () => {
+                salvar.disabled = true;
+                try { await gravar(); marcarEstado('Reserva salvo.', false); toast('Provedor reserva salvo.'); await recarregar(true); }
+                catch (e) { marcarEstado(e.message, true); } finally { salvar.disabled = !pode; }
+            });
+            testar.addEventListener('click', async () => {
+                testar.disabled = true; marcarEstado('Salvando e testando…', false);
+                try {
+                    await gravar();
+                    const r = await fetch('/api/assistente/reserva/testar', { method: 'POST' });
+                    const j = await r.json().catch(() => ({}));
+                    if (j.ok) marcarEstado(`Funcionou: ${j.modelo} respondeu em ${(j.ms / 1000).toFixed(1)} s.`, false); else marcarEstado(j.erro || ('HTTP ' + r.status), true);
+                    await recarregar(true);
+                } catch (e) { marcarEstado(e.message, true); } finally { testar.disabled = !pode; }
+            });
+            ajustarProvider();
+            recarregar();
+            return { recarregar };
         };
 
         /** Janela de Skills: lista à esquerda, editor à direita. `opcoes.projeto()` = código do projeto; `opcoes.toast(msg)`. */
