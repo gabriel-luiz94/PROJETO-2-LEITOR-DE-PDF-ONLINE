@@ -27,6 +27,22 @@ namespace OrcamentoNanoCAD.Testes
 
         private static Obra Ler(RegrasProjeto rg) { return LeitorProjeto.Ler(MontadorDesenho.Montar(Bruto(), rg.Leitura), rg); }
 
+        [Theory]
+        [InlineData("01_REMOVER")]
+        [InlineData("POSTE_REMOVENDO")]
+        public void N3_removido_nao_recebe_o_comprimento_do_cabo_vizinho(string layer)
+        {
+            RegrasProjeto regras = Regras("REDE_MT", "ANOTACOES", "=0");
+            Desenho desenho = MontadorDesenho.Montar(Bruto(), regras.Leitura);
+            var n3 = desenho.Textos.Single(t => t.Texto == "N3" && t.Layer == "01_REMOVER");
+            n3.Layer = layer;
+            desenho.Textos.Add(new TextoDesenho { Texto = "35 m", X = n3.X, Y = n3.Y - 1, Layer = layer, Altura = 1 });
+            Obra obra = LeitorProjeto.Ler(desenho, regras);
+            JObj dados = ObraArquivo.Dados(obra);
+            Assert.Contains(dados.Lista("outros").Cast<JObj>(), l => l.Str("ativo") == "N3" && l.Str("operacao") == "R");
+            Assert.DoesNotContain(dados.Lista("cabos").Cast<JObj>(), l => l.Str("textoOriginal") == "N3");
+        }
+
         [Fact]
         public void Diagnostico_sugere_as_layers_e_blocos_que_faltam()
         {

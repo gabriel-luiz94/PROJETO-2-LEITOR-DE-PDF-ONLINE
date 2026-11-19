@@ -75,6 +75,13 @@ def coletar_geometria(doc, cfg=None) -> dict:
                         postes.append((float(p.x), float(p.y)))
                     elif prof < _PROF_BLOCOS:
                         varrer(ent.virtual_entities(), prof + 1)
+                elif tp == "MULTILEADER":
+                    for chamada in ent.context.leaders:
+                        for linha in chamada.lines:
+                            pts = [(float(v.x), float(v.y)) for v in linha.vertices]
+                            if pts:
+                                ponta = chamada.last_leader_point
+                                guias.append(pts + [(float(ponta.x), float(ponta.y))])
                 elif tp in ("LINE", "LWPOLYLINE", "POLYLINE", "LEADER"):
                     pts = _pontos(ent)
                     if len(pts) < 2:

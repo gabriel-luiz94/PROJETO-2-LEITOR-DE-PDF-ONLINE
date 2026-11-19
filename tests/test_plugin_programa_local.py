@@ -40,6 +40,7 @@ def test_programa_se_apresenta_sem_login(client, monkeypatch):
 
 def test_plugin_antigo_so_com_a_obra_ainda_e_recebido_sem_gravar_no_banco(client, monkeypatch):
     urls = []
+    monkeypatch.setattr(janela_desktop, "disponivel", lambda: True)
     monkeypatch.setattr(janela_desktop, "mostrar", lambda url, porta=None: urls.append(url) or True)
     r = client.post("/api/plugin/receber", json={"chave": "C:/obras/rua.dwg", "envelope": ENV})       # sem token: é o plugin
     assert r.status_code == 200 and r.json()["janela"] is True
@@ -85,3 +86,26 @@ def test_app_e_resumo_ligados():
     assert "programa_local.url_pendente(_id_obra)" in app_py
     js = (RAIZ / "static" / "resumo.js").read_text(encoding="utf-8")
     assert "plugin_pendente" in js and "/api/plugin/pendente/" in js
+
+def test_resposta_do_cad_precede_a_navegacao_da_janela(monkeypatch):
+    import asyncio
+    from fastapi import BackgroundTasks
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse
+    from routers import plugin_cad
+
+    ordem = []
+    monkeypatch.setattr(config, "APP_MODE", "desktop")
+    monkeypatch.setattr(janela_desktop, "disponivel", lambda: True)
+    monkeypatch.setattr(janela_desktop, "mostrar", lambda *args: ordem.append("janela"))
+    req = Request({"type": "http", "scheme": "http", "method": "POST", "path": "/api/plugin/receber",
+                   "headers": [], "query_string": b"", "server": ("localhost", 8000), "client": ("127.0.0.1", 1234)})
+    tarefas = BackgroundTasks()
+    resposta = plugin_cad.receber_obra(plugin_cad.ReceberPayload(chave="cad", envelope=ENV), req, tarefas)
+
+    async def enviar(evento):
+        if evento["type"] == "http.response.body":
+            ordem.append("resposta")
+
+    asyncio.run(JSONResponse(resposta, background=tarefas)(req.scope, None, enviar))
+    assert ordem == ["resposta", "janela"]

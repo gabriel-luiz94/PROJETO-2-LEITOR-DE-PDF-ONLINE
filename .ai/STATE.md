@@ -6,6 +6,10 @@
 
 ---
 
+## Validação pendente em 19/11/2026
+
+TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 removido e extração de chamadas MULTILEADER no DXF. Testar com a nota real nas duas versões do nanoCAD.
+
 ## Versão
 
 `2.0.0` — `config.py:APP_VERSION`

@@ -1,5 +1,30 @@
 [
  {
+  "ordem": 1,
+  "descricao": "N3 isolado em remoção é estrutura sem metragem",
+  "layer_em": [
+   "01_REMOVER",
+   "POSTE_REMOVENDO"
+  ],
+  "texto_regex": "^\\s*N3\\s*$",
+  "parar": true,
+  "entidade": "ESTRUTURA",
+  "id": "estrutura-n3-remocao",
+  "operacao_ajustada": "R"
+ },
+ {
+  "ordem": 1,
+  "descricao": "N3 isolado em remoção de linha viva",
+  "layer_em": [
+   "POSTE_REMOVENDO_LV"
+  ],
+  "texto_regex": "^\\s*N3\\s*$",
+  "parar": true,
+  "entidade": "ESTRUTURA",
+  "id": "estrutura-n3-remocao-lv",
+  "operacao_ajustada": "*R"
+ },
+ {
   "ordem": 10,
   "descricao": "Poste compacto, sozinho ou com itens (11300D, 9200D, N1)",
   "ativo_regex": "^\\d{4,6}(?:FV|D|R|F)(?:,\\s*.+)?$",

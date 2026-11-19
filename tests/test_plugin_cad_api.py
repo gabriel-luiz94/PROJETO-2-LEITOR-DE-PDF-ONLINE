@@ -55,7 +55,8 @@ def test_regras_do_projeto_numa_chamada(client):
     r = client.get("/api/plugin/regras?projeto=081", headers=cab()).json()
     seed = json.loads((RAIZ / "data" / "regras_leitor_processamento_pernambuco_seed.json").read_text(encoding="utf-8"))
     assert r["projeto"] == {"codigo": "081", "nome": "PERNAMBUCO"}
-    assert r["processamento"] == seed and len(r["classificacao"]) == 2
+    assert r["processamento"] == seed
+    assert r["classificacao"] == json.loads((RAIZ / "data" / "regras_leitor_classificacao_pernambuco_seed.json").read_text(encoding="utf-8"))
     assert {"cabos", "estruturas"} <= set(r["vinculacao"]) and r["vinculacao_origem"] == "pernambuco"
     assert set(r["versao"]) == {"regras", "conversao", "base", "geral"}
 

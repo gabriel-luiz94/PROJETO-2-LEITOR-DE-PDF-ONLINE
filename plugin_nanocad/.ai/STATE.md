@@ -3,13 +3,17 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Validação pendente em 19/11/2026
+
+TASK-025 e TASK-026: plugin 0.10.3, N3 removido na tabela Outros e teste de paridade incluindo chamadas múltiplas. A abertura no Windows depende também da correção no OrçaCore (TASK-197). Testar com a nota real nas duas versões do nanoCAD.
+
 ## Trabalho de 19/11/2026
 
 TASK-022 (leitura), TASK-023 (alocação por poste) e TASK-024 (painel) implementadas para teste. Conferência operacional pendente no nanoCAD 5 e 26. A comparação de vínculos cobre o exemplo de Pernambuco; regras avançadas de derivação, parâmetros herdados e elementos fictícios exigem casos adicionais.
 
 ## Versão
 
-`0.10.2` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
+`0.10.3` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
 
 Branch de trabalho: `codex/nanocad-paridade`
 

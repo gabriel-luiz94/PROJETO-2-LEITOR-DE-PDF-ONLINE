@@ -19,7 +19,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public const string Formato = "leitor-obra";
         public const int Versao = 1;
         public const int VersaoCad = 1;
-        public const string VersaoPlugin = "0.10.2";
+        public const string VersaoPlugin = "0.10.3";
         private const int MaxPontosGeo = 60;
 
         public static string NomeDoArquivo(string desenho)

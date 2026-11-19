@@ -72,6 +72,14 @@
   "entidade": "0"
  },
  {
+  "texto": "3xA35P(7,94)-13,8kV 45 m",
+  "cor": "#000000",
+  "layer": "01_INSTALANDO",
+  "operacao": "I",
+  "ativo": "3xA35P(7,94)-13,8kV 45 m",
+  "entidade": "CABO"
+ },
+ {
   "texto": "9400D",
   "cor": "#000000",
   "layer": "01_INSTALANDO",

@@ -61,6 +61,7 @@ def test_montar_sem_cad_continua_igual():
 
 def test_plugin_entrega_o_caminho_e_a_janela_abre_o_projeto(client, tmp_path, monkeypatch):
     urls = []
+    monkeypatch.setattr(janela_desktop, "disponivel", lambda: True)
     monkeypatch.setattr(janela_desktop, "mostrar", lambda url, porta=None: urls.append(url) or True)
     caminho = projeto_do_plugin(tmp_path)
     r = client.post("/api/plugin/receber", json={"chave": "C:/obras/rua.dwg", "caminho": str(caminho)})     # sem token: é o plugin
