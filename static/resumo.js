@@ -2123,62 +2123,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Calcula as 4 contagens da "Resumo da rede": postes, rede de média, rede de baixa e
-     * equipamentos — todas considerando só linhas com operação "I" (instalando).
+     * Calcula as 4 contagens da "Resumo da rede": postes, rede de média, rede de baixa e equipamentos — só linhas instalando (I e *I).
+     * A regra mora em resumo_rede.js (TASK-192), que também reconhece o poste pela convenção de postes do projeto (Pernambuco: `12600D`).
      */
     function calcularResumoRede() {
-        const resumo = { postes: 0, redeMedia: 0, redeBaixa: 0, equipamentos: 0 };
-        const ctxOutros = _ctxOutros();
-
-        tableStates.outros.data.forEach(row => {
-            if (row.congelada || (row.operacao || '').toUpperCase() !== 'I') return;
-            AnotacaoOutros.interpretarLinha(row.ativo, 'I', extrairParesQtdAtivoOutros, ctxOutros).itens.forEach(({ ativo, qtd }) => {
-                if (/^(DT|RC|CV|FV)/i.test(ativo)) {
-                    resumo.postes += qtd;
-                } else if (/^(TR|CFU|CFA)/i.test(ativo)) {
-                    resumo.equipamentos += qtd;
-                }
-            });
+        return ResumoRede.calcular({
+            cabos: tableStates.cabos.data, outros: tableStates.outros.data, ctxOutros: _ctxOutros(),
+            convencaoPostes: window.__vinculacaoConfig ? window.__vinculacaoConfig.postes : undefined,
+            AnotacaoOutros, AnotacaoCabos, extrairPares: extrairParesQtdAtivoOutros,
+            extrairPrefixoEComprimento: extrairPrefixoEComprimentoCabo, extrairPrefixoSemComprimento: extrairPrefixoCaboSemComprimento
         });
-
-        const linhasCabos = tableStates.cabos.data;
-        linhasCabos.forEach((row, idx) => {
-            if (row.congelada || (row.operacao || '').toUpperCase() !== 'I') return;
-            // TASK-116/118: cabo reconhecido, mas sem comprimento na própria linha → vale o comprimento da linha de baixo: só o número ("45 m")
-            // ou outro cabo com comprimento ("CAZ9,5 abc 50 m"). A linha de baixo continua sendo contada por si mesma.
-            const abaixo = () => {
-                const p = linhasCabos[idx + 1];
-                if (!p || p.congelada) return null;
-                const solto = AnotacaoCabos.comprimentoSozinho(p.ativo);
-                if (solto !== null) return solto;
-                const info = extrairPrefixoEComprimentoCabo(p.ativo);
-                return info ? info.comprimento : null;
-            };
-            if (AnotacaoCabos.ehNotacao(row.ativo)) {                                             // TASK-083: com tensão = média; sem = baixa
-                const nr = AnotacaoCabos.interpretar(row.ativo);
-                nr.itens.forEach(it => {
-                    const comp = it.comprimento !== null ? it.comprimento : abaixo();
-                    if (comp === null) return;
-                    if (nr.tensao !== null) { if (!it.neutro) resumo.redeMedia += comp; }          // TASK-116: o neutro não entra na Média
-                    else resumo.redeBaixa += comp;
-                });
-                return;
-            }
-            let info = extrairPrefixoEComprimentoCabo(row.ativo);
-            if (!info) {
-                const pref = extrairPrefixoCaboSemComprimento(row.ativo);
-                const comp = pref ? abaixo() : null;
-                if (comp === null) return;
-                info = { prefixo: pref, comprimento: comp };
-            }
-            if (/^(CAA|CAL|P)/i.test(info.prefixo)) {
-                resumo.redeMedia += info.comprimento;
-            } else if (/^(M2X|M3X)/i.test(info.prefixo)) {
-                resumo.redeBaixa += info.comprimento;
-            }
-        });
-
-        return resumo;
     }
 
     function formatarNumeroResumoRede(n) {

@@ -996,3 +996,12 @@ Para o assistente ficar sempre disponível, configure um **segundo provedor de I
 - **Enquanto a IA trabalha** o chat mostra o que está fazendo e há quantos segundos («Consultando a base · 4 s»). O botão de enviar vira **■** (Parar): clique para interromper. Se uma chamada passar de 45 segundos (20 s com provedor reserva), o assistente desiste dela e troca de modelo/provedor; a pergunta inteira tem teto de 2 minutos.
 - **Para ficar mais rápido:** use o modelo Flash Lite do Gemini (padrão) ou um provedor de resposta rápida; peça tudo numa frase só; deixe as skills curtas (a skill `formato_ativos` e as linhas da tela entram em TODA pergunta, então skills enormes deixam o assistente lento).
 
+## Resumo da rede: como conta (19/11/2026)
+
+O quadro **Postes · Média · Baixa · Equip.** (e o modal «Resumo da rede») soma só as linhas **instalando**: operação `I` ou `*I` (linha viva). `R`, `*R`, `M`, `*M`, linhas vazias e congeladas não entram.
+
+- **Postes:** itens que são poste. Vale o nome `DT…`/`RC…`/`CV…`/`FV…` e também qualquer poste que a **convenção de postes do projeto** reconheça (modal Vinculação → Postes): em Pernambuco, `12600D` = DT12/600, `121000R` = RC12/1000, mesmo que a base guarde o nome compacto como oficial. Quantidade vale (`2 9600R` = 2 postes); parâmetros são ignorados (`12600D(fases=TRI)`).
+- **Equipamentos:** itens que começam por `TR`, `CFU` ou `CFA` (ex.: o `TR` de um poste de trafo).
+- **Média / Baixa:** cabo com tensão no rótulo (`3xA35P(7,94)-13,8kV 25 m`) = média (o vão conta uma vez e o **neutro não entra**); sem tensão (`3xC16(16) 20 m`) = baixa (cabo + neutro). No formato clássico: `CAA`/`CAL`/`P…` = média, `M2X`/`M3X` = baixa. Cabo sem comprimento usa o da linha de baixo.
+- Se um projeto novo tiver outro tipo de poste, cadastre-o na **convenção de postes** do projeto; o resumo passa a contá-lo sozinho.
+

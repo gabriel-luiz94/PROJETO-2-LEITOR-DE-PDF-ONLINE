@@ -26,10 +26,9 @@ def test_comprimento_sozinho():
 
 
 def test_resumo_js_usa_a_regra_nova():
-    js = open(os.path.join(config.STATIC_DIR, "resumo.js"), encoding="utf-8").read()
-    i = js.index("function calcularResumoRede")
-    corpo = js[i:js.index("function formatarNumeroResumoRede")]
+    # TASK-192: a regra mora em static/resumo_rede.js (resumo.js só a chama); o comportamento está em tests/test_resumo_rede_192.py
+    corpo = open(os.path.join(config.STATIC_DIR, "resumo_rede.js"), encoding="utf-8").read()
     assert "if (!it.neutro) resumo.redeMedia" in corpo                    # neutro fora da Média
     assert "AnotacaoCabos.comprimentoSozinho" in corpo and "linhasCabos[idx + 1]" in corpo          # comprimento na linha de baixo
-    assert "extrairPrefixoCaboSemComprimento" in corpo
-    assert "extrairPrefixoEComprimentoCabo(p.ativo)" in corpo                # TASK-118: a linha de baixo também pode ser outro cabo com comprimento
+    assert "extrairPrefixoSemComprimento" in corpo
+    assert "d.extrairPrefixoEComprimento(p.ativo)" in corpo                # TASK-118: a linha de baixo também pode ser outro cabo com comprimento
