@@ -16,6 +16,17 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-19 — TASK-191 (ajuste 2): provedor reserva automático no assistente
+
+- **Configuração** (Configuração de IA → «Provedor reserva»): ativar, provedor (OpenAI-compatível / Gemini / Claude), URL base, modelo e chave, com atalhos DeepSeek, Qwen (Alibaba · Singapura), OpenRouter, Ollama, Gemini e Claude. DeepSeek/Qwen/OpenRouter/Ollama entram como «OpenAI-compatível». Gravado em `configuracoes` (`ai_reserva_*`); a chave nunca volta para a tela (`GET /api/assistente/reserva` só diz `tem_chave`). `PUT /reserva` e `POST /reserva/testar` (chamada mínima ao reserva salvo): só admin.
+- **Comportamento** (`services/assistente/agente.py`, `AdaptadorComReserva`): qualquer falha do principal (503, cota, chave, rede) passa ao reserva na MESMA pergunta e o chat mostra um aviso («Usando o provedor reserva…»). Com reserva, o principal desiste mais cedo (2 tentativas por modelo em vez de 3). Falha pausa o principal por 90 s (as perguntas seguintes vão direto ao reserva, sem esperar); depois volta a ser tentado. Se os dois falharem, a mensagem traz os dois motivos. Sem chave no principal mas com reserva ativo, o reserva atende (antes: 401). O atalho «adicionar 2 CON» agora roda ANTES de resolver a chave (funciona sem chave nenhuma).
+- **Correção:** `static/auth_fetch.js` tratava QUALQUER 401 de `/api/` como sessão expirada; o chat e a lista de modelos respondem 401 quando falta a chave da IA («API Key não encontrada…»), o que mandava o usuário sem chave do Gemini para o login ao abrir a Configuração de IA. Agora 401 com `detail` começando por «API Key» não derruba a sessão.
+- Testes: `tests/test_assistente_191.py` (reserva, pausa com relógio falso, rotas, validações, sem expor a chave) e `tests/test_assistente_front_191.py` (atalhos, corpo do PUT, `auth_fetch`). Verificado no navegador: atalho DeepSeek, salvar com e sem chave, aviso da troca no chat.
+
+## 2026-11-19 — TASK-191 (ajuste): assistente tenta de novo quando o provedor está sobrecarregado (503)
+
+- Erro `503 UNAVAILABLE … high demand` do Gemini derrubava a pergunta: o fallback trocava de modelo sem repetir o mesmo antes. Agora cada modelo é tentado até 3 vezes (esperas de 1,5 s e 4 s) quando a falha é de momento (503/502/504, indisponível, sobrecarga, timeout, conexão); cota esgotada ou modelo inexistente trocam direto, sem esperar. Se tudo falhar, a tela mostra «O provedor de IA está sobrecarregado agora… repita ou mude o provedor/modelo em Configuração de IA» em vez do JSON cru. `services/assistente/agente.py` (`com_fallback`, `mensagem_amigavel`); testes em `tests/test_assistente_191.py`.
+
 ## 2026-11-19 — TASK-191: assistente de IA com ferramentas e skills (consulta a base, monta, totaliza e orça)
 
 - **Antes:** chat de uma volta só, com o catálogo de ativos colado num prompt estático; a IA respondia uma tabela markdown que o front lia por regex. **Agora:** laço de agente com **ferramentas** (`services/assistente/agente.py`: Gemini, OpenAI e Claude por adaptadores; fallback de modelo; até 8 passos por pergunta) e **skills** (arquivos `.md`).

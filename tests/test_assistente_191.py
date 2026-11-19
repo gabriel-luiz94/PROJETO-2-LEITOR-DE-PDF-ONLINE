@@ -390,6 +390,46 @@ def test_fallback_de_modelo_em_erro_de_cota_e_erro_real_sobe():
         correr(agente.com_fallback(["a"], _sempre_cota))
 
 
+def test_503_tenta_de_novo_o_mesmo_modelo_antes_de_trocar(monkeypatch):
+    monkeypatch.setattr(agente, "ESPERAS", (0, 0))
+    usados = []
+
+    async def chamar(m):
+        usados.append(m)
+        if len(usados) < 3:
+            raise RuntimeError("503 UNAVAILABLE. This model is currently experiencing high demand")
+        return m
+    assert correr(agente.com_fallback(["a", "b"], chamar)) == "a" and usados == ["a", "a", "a"]      # o 3º try do mesmo modelo deu certo, sem trocar
+
+
+def test_503_persistente_esgota_tentativas_e_modelos_com_mensagem_amigavel(monkeypatch):
+    monkeypatch.setattr(agente, "ESPERAS", (0, 0))
+    usados = []
+
+    async def chamar(m):
+        usados.append(m)
+        raise RuntimeError("503 UNAVAILABLE high demand")
+    with pytest.raises(RuntimeError) as e:
+        correr(agente.com_fallback(["a", "b"], chamar))
+    assert usados == ["a"] * 3 + ["b"] * 3
+    assert "sobrecarregado" in agente.mensagem_amigavel(e.value) and "Configuração de IA" in agente.mensagem_amigavel(e.value)
+    assert agente.mensagem_amigavel(ValueError("chave inválida")) == "chave inválida"
+    ev = eventos(Roteiro([e.value]), ctx_com())
+    assert ev[0]["tipo"] == "erro" and "sobrecarregado" in ev[0]["mensagem"]
+
+
+def test_cota_esgotada_nao_espera_troca_direto(monkeypatch):
+    monkeypatch.setattr(agente, "ESPERAS", (99, 99))                 # se esperasse, o teste travaria
+    usados = []
+
+    async def chamar(m):
+        usados.append(m)
+        if m == "a":
+            raise RuntimeError("429 RESOURCE_EXHAUSTED quota")
+        return m
+    assert correr(agente.com_fallback(["a", "b"], chamar)) == "b" and usados == ["a", "b"]
+
+
 async def _sempre_cota(m):
     raise RuntimeError("quota")
 
@@ -556,3 +596,172 @@ def test_rota_gerar_catalogo_grava_a_skill_ativos(client, monkeypatch):
 def test_chat_antigo_continua_resolvendo_provedor_igual(client):
     """A extração de resolver_provedor não muda o /api/gemini/chat: sem chave, 401 como antes."""
     assert client.post("/api/gemini/chat", headers=cab(), json={"prompt": "oi", "history": []}).status_code == 401
+
+
+# ── provedor reserva ────────────────────────────────────────────────────────────────────────────────
+@pytest.fixture(autouse=True)
+def _sem_pausas():
+    agente.limpar_pausas()
+    yield
+    agente.limpar_pausas()
+
+
+class Falha(agente.AdaptadorBase):
+    def __init__(self, erro="503 UNAVAILABLE high demand"):
+        self.erro, self.chamadas = erro, 0
+
+    async def turno(self, system, mensagens, specs):
+        self.chamadas += 1
+        raise RuntimeError(self.erro)
+
+
+class Resposta(agente.AdaptadorBase):
+    def __init__(self, texto="do reserva"):
+        self.texto, self.chamadas = texto, 0
+
+    async def turno(self, system, mensagens, specs):
+        self.chamadas += 1
+        return agente.Turno(self.texto)
+
+
+def test_reserva_nao_e_usado_quando_o_principal_responde():
+    p, r = Resposta("do principal"), Resposta()
+    ad = agente.AdaptadorComReserva(p, r, "k1", "OpenAI-compatível · deepseek-chat")
+    assert correr(ad.turno("S", [MSGS[0]], [])).texto == "do principal" and r.chamadas == 0 and ad.pegar_avisos() == []
+    assert p.esperas == agente.ESPERAS_COM_RESERVA                               # com reserva o principal desiste mais cedo
+
+
+def test_falha_do_principal_passa_ao_reserva_avisa_e_pausa_o_principal():
+    p, r = Falha(), Resposta()
+    ad = agente.AdaptadorComReserva(p, r, "k2", "DeepSeek")
+    assert correr(ad.turno("S", [MSGS[0]], [])).texto == "do reserva"
+    av = ad.pegar_avisos()
+    assert len(av) == 1 and "reserva (DeepSeek)" in av[0] and "sobrecarregado" in av[0] and ad.pegar_avisos() == []
+    # o 2º turno da mesma pergunta continua no reserva, sem tocar no principal
+    correr(ad.turno("S", [MSGS[0]], []))
+    assert p.chamadas == 1 and r.chamadas == 2
+    # uma NOVA pergunta (novo adaptador) com o principal em pausa vai direto ao reserva
+    p2, r2 = Resposta("do principal"), Resposta()
+    ad2 = agente.AdaptadorComReserva(p2, r2, "k2", "DeepSeek")
+    assert correr(ad2.turno("S", [MSGS[0]], [])).texto == "do reserva" and p2.chamadas == 0 and "em pausa" in ad2.pegar_avisos()[0]
+
+
+def test_pausa_acaba_e_o_principal_volta(monkeypatch):
+    relogio = [1000.0]
+    monkeypatch.setattr(agente, "_agora", lambda: relogio[0])
+    ad = agente.AdaptadorComReserva(Falha(), Resposta(), "k3", "R")
+    correr(ad.turno("S", [MSGS[0]], []))
+    relogio[0] += agente.PAUSA_S - 1
+    p2 = Resposta("do principal")
+    assert correr(agente.AdaptadorComReserva(p2, Resposta(), "k3", "R").turno("S", [MSGS[0]], [])).texto == "do reserva" and p2.chamadas == 0     # ainda em pausa
+    relogio[0] += 2
+    assert correr(agente.AdaptadorComReserva(p2, Resposta(), "k3", "R").turno("S", [MSGS[0]], [])).texto == "do principal"                        # voltou
+    assert "k3" not in agente._pausa                                              # o sucesso limpa a pausa
+
+
+def test_qualquer_erro_do_principal_aciona_o_reserva_ate_chave_invalida():
+    ad = agente.AdaptadorComReserva(Falha("401 invalid api key"), Resposta(), "k4", "R")
+    assert correr(ad.turno("S", [MSGS[0]], [])).texto == "do reserva"
+
+
+def test_os_dois_falham_mensagem_traz_os_dois_motivos():
+    ad = agente.AdaptadorComReserva(Falha("503 high demand"), Falha("401 chave inválida"), "k5", "R")
+    with pytest.raises(agente.ErroProvedores) as e:
+        correr(ad.turno("S", [MSGS[0]], []))
+    m = agente.mensagem_amigavel(e.value)
+    assert "Nenhum provedor respondeu" in m and "Principal:" in m and "sobrecarregado" in m and "Reserva:" in m and "chave inválida" in m
+
+
+def test_laco_emite_aviso_do_reserva_antes_do_texto():
+    ev = eventos(agente.AdaptadorComReserva(Falha(), Resposta("pronto"), "k6", "DeepSeek"), ctx_com())
+    assert [e["tipo"] for e in ev] == ["aviso", "texto", "fim"] and "DeepSeek" in ev[0]["texto"] and ev[1]["texto"] == "pronto"
+    ev = eventos(agente.AdaptadorComReserva(Falha(), Falha("500 quebrou"), "k7", "R"), ctx_com())
+    assert [e["tipo"] for e in ev] == ["aviso", "erro", "fim"] and "Nenhum provedor respondeu" in ev[1]["mensagem"]
+
+
+def test_sem_ferramentas_openai_e_claude_nao_mandam_tools():
+    visto = {}
+
+    async def criar(**kw):
+        visto.update(kw)
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(content="ok", tool_calls=None))], content=[types.SimpleNamespace(type="text", text="ok")])
+    cli = types.SimpleNamespace(chat=types.SimpleNamespace(completions=types.SimpleNamespace(create=criar)), messages=types.SimpleNamespace(create=criar))
+    assert correr(agente.AdaptadorOpenAI(cli, ["m"]).turno("S", [MSGS[0]], [])).texto == "ok" and "tools" not in visto
+    visto.clear()
+    assert correr(agente.AdaptadorClaude(cli, ["m"]).turno("S", [MSGS[0]], [])).texto == "ok" and "tools" not in visto
+
+
+def _salvar_reserva(client, **kw):
+    corpo = {"ativa": True, "provider": "openai", "base_url": "https://api.deepseek.com", "model": "deepseek-chat", "api_key": "sk-segredo-123"}
+    corpo.update(kw)
+    return client.put("/api/assistente/reserva", headers=cab(), json=corpo)
+
+
+def test_rota_reserva_padrao_permissoes_e_chave_nunca_volta(client):
+    j = client.get("/api/assistente/reserva", headers=cab("operador")).json()
+    assert j == {"ativa": False, "provider": "openai", "base_url": "", "model": "", "tem_chave": False, "pode_editar": False}
+    assert client.put("/api/assistente/reserva", headers=cab("operador"), json={"ativa": False}).status_code == 403
+    assert client.post("/api/assistente/reserva/testar", headers=cab("operador")).status_code == 403
+    assert _salvar_reserva(client).status_code == 200
+    r = client.get("/api/assistente/reserva", headers=cab())
+    assert r.json() == {"ativa": True, "provider": "openai", "base_url": "https://api.deepseek.com", "model": "deepseek-chat", "tem_chave": True, "pode_editar": True}
+    assert "sk-segredo-123" not in r.text
+    # sem api_key mantém a chave salva; limpar_chave apaga
+    assert _salvar_reserva(client, api_key=None, model="deepseek-v4-flash").status_code == 200
+    assert client.get("/api/assistente/reserva", headers=cab()).json()["tem_chave"] is True
+    assert _salvar_reserva(client, api_key=None, ativa=False, limpar_chave=True).status_code == 200
+    assert client.get("/api/assistente/reserva", headers=cab()).json()["tem_chave"] is False
+
+
+@pytest.mark.parametrize("corpo,trecho", [
+    ({"provider": "deepseek"}, "Provedor deve ser"),
+    ({"base_url": "ftp://x"}, "http://"),
+    ({"base_url": "https://x.com/v1", "model": ""}, "nome do modelo"),
+    ({"provider": "gemini", "base_url": "https://x.com"}, "só vale para"),
+    ({"model": "m" * 121}, "grande demais"),
+    ({"api_key": None}, "Informe a chave"),
+])
+def test_rota_reserva_valida(client, corpo, trecho):
+    r = _salvar_reserva(client, **corpo)
+    assert r.status_code == 400 and trecho in r.json()["detail"]
+
+
+def test_chat_usa_o_reserva_quando_o_principal_falha(client, monkeypatch):
+    assert _salvar_reserva(client).status_code == 200
+    criados = []
+
+    def criar(provider, api_key, modelos, base_url=""):
+        criados.append((provider, api_key, modelos, base_url))
+        return Falha() if provider == "gemini" else Resposta("resposta do reserva")
+    monkeypatch.setattr(agente, "criar_adaptador", criar)
+    r = client.post("/api/assistente/chat", headers={**cab(), "X-Gemini-Key": "k1"}, json={"prompt": "oi", "projeto_codigo": "081"})
+    ev = linhas(r)
+    assert [e["tipo"] for e in ev] == ["aviso", "texto", "fim"] and "deepseek-chat" in ev[0]["texto"] and ev[1]["texto"] == "resposta do reserva"
+    assert ("openai", "sk-segredo-123", ["deepseek-chat"], "https://api.deepseek.com") in criados and any(c[0] == "gemini" and c[1] == "k1" for c in criados)
+
+
+def test_chat_sem_chave_no_principal_mas_com_reserva_funciona_e_sem_nenhum_da_401(client, monkeypatch):
+    monkeypatch.setattr(agente, "criar_adaptador", lambda provider, api_key, modelos, base_url="": Resposta("só o reserva"))
+    assert client.post("/api/assistente/chat", headers=cab(), json={"prompt": "oi"}).status_code == 401
+    assert _salvar_reserva(client).status_code == 200
+    ev = linhas(client.post("/api/assistente/chat", headers=cab(), json={"prompt": "oi"}))
+    assert [e["tipo"] for e in ev] == ["texto", "fim"] and ev[0]["texto"] == "só o reserva"
+    # desligado = como antes
+    assert _salvar_reserva(client, ativa=False, api_key=None).status_code == 200
+    assert client.post("/api/assistente/chat", headers=cab(), json={"prompt": "oi"}).status_code == 401
+
+
+def test_atalho_rapido_funciona_sem_chave_nenhuma(client):
+    ev = linhas(client.post("/api/assistente/chat", headers=cab(), json={"prompt": "adicionar 3 con"}))
+    assert ev[0]["tipo"] == "plano" and ev[0]["itens"][0]["ativo"] == "3-CON"
+
+
+def test_rota_testar_reserva(client, monkeypatch):
+    assert client.post("/api/assistente/reserva/testar", headers=cab()).json() == {"ok": False, "erro": "Sem chave salva para o provedor reserva."}
+    assert _salvar_reserva(client).status_code == 200
+    monkeypatch.setattr(agente, "criar_adaptador", lambda provider, api_key, modelos, base_url="": Resposta("ok"))
+    j = client.post("/api/assistente/reserva/testar", headers=cab()).json()
+    assert j["ok"] is True and j["modelo"] == "deepseek-chat" and j["resposta"] == "ok" and "sk-segredo" not in json.dumps(j)
+    monkeypatch.setattr(agente, "criar_adaptador", lambda provider, api_key, modelos, base_url="": Falha("401 invalid api key"))
+    j = client.post("/api/assistente/reserva/testar", headers=cab()).json()
+    assert j["ok"] is False and "invalid api key" in j["erro"]

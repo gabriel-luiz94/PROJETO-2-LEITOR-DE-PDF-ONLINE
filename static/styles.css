@@ -1024,3 +1024,13 @@ select option:checked { background-color: #30363d; color: #ffffff; }
 .sk-editor .sk-texto { flex: 1; min-height: 240px; resize: none; font-family: ui-monospace, Consolas, monospace; line-height: 1.4; }
 .sk-barra, .sk-rodape { display: flex; gap: 8px; }
 .sk-rodape { justify-content: flex-end; }
+
+/* ── Provedor reserva (Configuração de IA) ── */
+.rs-caixa { margin-top: 14px; padding-top: 12px; border-top: 1px solid #30363d; display: flex; flex-direction: column; gap: 6px; }
+.rs-titulo { margin: 0; font-size: 0.75rem; color: #8b949e; }
+.rs-ajuda { margin: 0; font-size: 0.7rem; color: #8b949e; }
+.rs-dica { margin: 0; font-size: 0.7rem; color: #d29922; }
+.rs-ativa { font-size: 0.8rem; color: #c9d1d9; display: flex; align-items: center; gap: 4px; }
+.rs-caixa .rs-campo { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e6edf3; padding: 6px 8px; font-size: 0.8rem; font-family: inherit; }
+.rs-barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rs-estado { font-size: 0.72rem; }

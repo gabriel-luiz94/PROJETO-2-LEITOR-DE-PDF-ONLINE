@@ -107,3 +107,48 @@ def test_servido_sem_cache(tmp_path):
     import app as appmod
     r = TestClient(appmod.app).get("/static/assistente.js")
     assert r.status_code == 200 and "no-store" in r.headers["cache-control"] and "aplicarPlano" in r.text
+
+
+def test_presets_e_corpo_do_reserva():
+    r = _node("console.log(JSON.stringify({ p: A.PRESETS_RESERVA, a: A.corpoReserva({ ativa: true, provider: 'openai', url: ' https://api.deepseek.com ', modelo: ' deepseek-chat ', chave: '  ' }), "
+              "b: A.corpoReserva({ ativa: false, provider: 'gemini', url: 'https://x', modelo: '', chave: 'k', limparChave: true }) }))")
+    ids = {p["id"]: p for p in r["p"]}
+    assert {"deepseek", "qwen", "openrouter", "ollama", "gemini", "claude"} <= set(ids)
+    assert ids["deepseek"]["url"].startswith("https://api.deepseek.com") and ids["qwen"]["url"].startswith("https://dashscope-intl.aliyuncs.com/compatible-mode")
+    assert all(p["provider"] in ("openai", "gemini", "claude") for p in r["p"]) and all(p["provider"] == "openai" for p in r["p"] if p["url"])
+    assert r["a"] == {"ativa": True, "provider": "openai", "base_url": "https://api.deepseek.com", "model": "deepseek-chat", "api_key": None, "limpar_chave": False}
+    assert r["b"] == {"ativa": False, "provider": "gemini", "base_url": "", "model": "", "api_key": "k", "limpar_chave": True}      # URL só vale para OpenAI-compatível
+
+
+def test_resumo_trata_o_aviso_do_reserva_e_monta_o_formulario():
+    js, html = _ler("resumo.js"), _ler("resumo.html")
+    assert "ev.tipo === 'aviso'" in js and "Assistente.reservaUI" in js and 'id="assistente-reserva"' in html
+
+
+def _auth_fetch(corpo_401, status=401):
+    """Roda static/auth_fetch.js numa «janela» falsa e devolve {redirecionou, tokenRestou}."""
+    js = r"""
+        const fs = require('fs'); const store = { auth_token: 'T', auth_lembrar: 'true' }; let destino = null;
+        global.window = { location: { pathname: '/resumo', search: '', set href(v) { destino = v; }, replace(v) { destino = v; } }, fetch: async () => ({ status: %d, clone() { return { json: async () => (%s) }; } }) };
+        global.localStorage = { getItem: k => (k in store ? store[k] : null), removeItem: k => { delete store[k]; }, setItem: (k, v) => { store[k] = v; } };
+        global.sessionStorage = { getItem: () => '1' }; global.Headers = class {}; global.alert = () => {};
+        eval(fs.readFileSync(%s, 'utf8'));
+        window.fetch('/api/assistente/chat', {}).then(() => console.log(JSON.stringify({ redirecionou: destino, tokenRestou: !!store.auth_token })));
+    """ % (status, json.dumps(corpo_401) if isinstance(corpo_401, dict) else corpo_401, json.dumps(os.path.join(config.STATIC_DIR, "auth_fetch.js")))
+    r = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0, r.stderr
+    return json.loads(r.stdout)
+
+
+def test_401_de_falta_de_chave_da_ia_nao_derruba_a_sessao():
+    for detalhe in ("API Key não encontrada.", "API Key não fornecida, não salva e sem chave padrão do sistema."):
+        r = _auth_fetch({"detail": detalhe})
+        assert r["redirecionou"] is None and r["tokenRestou"] is True, detalhe
+
+
+def test_401_de_sessao_expirada_continua_voltando_ao_login():
+    r = _auth_fetch({"detail": "Não autenticado."})
+    assert r["redirecionou"] == "/login?next=%2Fresumo" and r["tokenRestou"] is False
+    r = _auth_fetch("(() => { throw new Error('sem json'); })()")                 # corpo ilegível: trata como sessão expirada, como sempre
+    assert r["redirecionou"] == "/login?next=%2Fresumo"
+    assert _auth_fetch({"detail": "x"}, status=500)["redirecionou"] is None

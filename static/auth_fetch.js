@@ -43,12 +43,18 @@
         // TASK-076: 401 = sessão expirada/inválida → volta ao login (uma vez só), em vez de falhar em silêncio.
         return p.then(function(res) {
             if (res && res.status === 401 && token && !window.__sessaoExpiradaTratada) {
-                window.__sessaoExpiradaTratada = true;
-                ['auth_token', 'user_id', 'user_email', 'is_admin', 'auth_lembrar'].forEach(function(k) { localStorage.removeItem(k); });
-                try { alert('Sessão expirada. Entre novamente.'); } catch (e) {}
-                // TASK-106: volta para onde estava depois do login (ex.: obra aberta pelo plugin do nanoCAD)
-                var aqui = (window.location.pathname || '') + (window.location.search || '');
-                window.location.href = aqui && aqui !== '/' && aqui.indexOf('/login') !== 0 ? '/login?next=' + encodeURIComponent(aqui) : '/login';
+                // TASK-191: o chat e a lista de modelos também respondem 401 quando FALTA A CHAVE DA IA («API Key não encontrada…»): isso não é sessão expirada.
+                var corpo; try { corpo = res.clone().json(); } catch (e) { corpo = null; }          // sem clone()/JSON: trata como sessão expirada, como sempre
+                return Promise.resolve(corpo).catch(function() { return {}; }).then(function(j) {
+                    if (j && typeof j.detail === 'string' && /^API Key/i.test(j.detail)) return res;
+                    window.__sessaoExpiradaTratada = true;
+                    ['auth_token', 'user_id', 'user_email', 'is_admin', 'auth_lembrar'].forEach(function(k) { localStorage.removeItem(k); });
+                    try { alert('Sessão expirada. Entre novamente.'); } catch (e) {}
+                    // TASK-106: volta para onde estava depois do login (ex.: obra aberta pelo plugin do nanoCAD)
+                    var aqui = (window.location.pathname || '') + (window.location.search || '');
+                    window.location.href = aqui && aqui !== '/' && aqui.indexOf('/login') !== 0 ? '/login?next=' + encodeURIComponent(aqui) : '/login';
+                    return res;
+                });
             }
             return res;
         });

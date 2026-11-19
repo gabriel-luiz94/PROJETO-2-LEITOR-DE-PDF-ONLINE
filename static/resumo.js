@@ -3474,6 +3474,13 @@ document.addEventListener('DOMContentLoaded', () => {
         aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
     }
 
+    // Provedor reserva automático (dentro da «Configuração de IA»): recarrega o estado sempre que a janela abre
+    const caixaReserva = document.getElementById('assistente-reserva');
+    if (caixaReserva && modalApikey) {
+        const reservaUI = Assistente.reservaUI(caixaReserva, { toast: showToast });
+        new MutationObserver(() => { if (!modalApikey.classList.contains('hidden')) reservaUI.recarregar(); }).observe(modalApikey, { attributes: true, attributeFilter: ['class'] });
+    }
+
     const btnAssistenteSkills = document.getElementById('btn-assistente-skills');
     if (btnAssistenteSkills) btnAssistenteSkills.addEventListener('click', () => Assistente.abrirSkills({
         projeto: () => localStorage.getItem('projeto_selecionado_codigo') || '229', toast: showToast
@@ -3578,6 +3585,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         aiChatMessages.insertBefore(div, loadingDiv.parentNode ? loadingDiv : null);
                     }
                     div.textContent = replyText;
+                } else if (ev.tipo === 'aviso') {                       // o assistente trocou para o provedor reserva
+                    const av = document.createElement('div');
+                    av.className = 'chat-message system';
+                    av.textContent = ev.texto;
+                    aiChatMessages.insertBefore(av, loadingDiv.parentNode ? loadingDiv : null);
                 } else if (ev.tipo === 'plano') planos.push(ev);
                 else if (ev.tipo === 'acao_ui') acoesUi.push(ev);
                 else if (ev.tipo === 'erro') erroIA = ev.mensagem || 'Falha na IA.';

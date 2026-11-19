@@ -8,7 +8,9 @@ Mensagens NEUTRAS (independem do provedor):
 Cada Adaptador converte isso para o formato do seu SDK (Gemini / OpenAI / Claude) e lê a resposta de volta num `Turno`. O laço (`rodar`) é um gerador de
 eventos {"tipo": ...} que a rota manda ao navegador em NDJSON: ferramenta, texto, plano, acao_ui, erro, fim.
 """
+import asyncio
 import json
+import time
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Optional
 
@@ -44,26 +46,114 @@ def _resumo_args(args: dict) -> str:
     return ""
 
 
-async def com_fallback(modelos: list, chamar):
-    """Tenta cada modelo até um responder; erro de cota/indisponibilidade passa ao próximo, os demais sobem."""
+# Falhas de momento (provedor sobrecarregado, rede): vale tentar de novo o MESMO modelo antes de trocar; cota esgotada/modelo inexistente trocam direto.
+TRANSITORIOS = ("503", "502", "504", "unavailable", "overloaded", "high demand", "timeout", "timed out", "connection")
+ESPERAS = (1.5, 4.0)                # segundos antes da 2ª e da 3ª tentativa no mesmo modelo
+
+
+def eh_transitorio(e) -> bool:
+    return any(k in str(e).lower() for k in TRANSITORIOS)
+
+
+class ErroProvedores(RuntimeError):
+    """Principal e reserva falharam: `mensagem_pronta` já é o texto para o usuário."""
+    def __init__(self, mensagem_pronta: str):
+        super().__init__(mensagem_pronta)
+        self.mensagem_pronta = mensagem_pronta
+
+
+def mensagem_amigavel(e) -> str:
+    """O erro do provedor em português quando é de momento; senão o texto original (cortado)."""
+    if isinstance(e, ErroProvedores):
+        return e.mensagem_pronta
+    if eh_transitorio(e):
+        return ("O provedor de IA está sobrecarregado agora (erro 503/indisponível). Tentei de novo e troquei de modelo, sem sucesso. "
+                "Aguarde um instante e repita, ou mude o provedor/modelo em «Configuração de IA».")
+    return str(e)[:400]
+
+
+async def com_fallback(modelos: list, chamar, esperas=None):
+    """Para cada modelo: até 3 tentativas se a falha for de momento (503…); cota/indisponibilidade que persiste passa ao próximo modelo; os demais erros sobem.
+    `esperas` (segundos entre tentativas) troca o padrão: com provedor reserva o principal desiste mais cedo."""
+    esperas = ESPERAS if esperas is None else esperas
     ultimo = None
     for m in modelos:
-        try:
-            return await chamar(m)
-        except Exception as e:
-            if any(k in str(e).lower() for k in GATILHOS_FALLBACK):
-                ultimo = e
-                continue
-            raise
+        for tentativa in range(len(esperas) + 1):
+            try:
+                return await chamar(m)
+            except Exception as e:
+                if eh_transitorio(e) and tentativa < len(esperas):
+                    await asyncio.sleep(esperas[tentativa])
+                    continue
+                if any(k in str(e).lower() for k in GATILHOS_FALLBACK):
+                    ultimo = e
+                    break
+                raise
     raise RuntimeError(str(ultimo) if ultimo else "Nenhum modelo disponível.")
 
 
 # ── adaptadores ───────────────────────────────────────────────────────────────────────────────────────
 class AdaptadorBase:
     modelos: list = []
+    esperas = None                  # None = ESPERAS padrão
 
     async def turno(self, system: str, mensagens: list, specs: list) -> Turno:   # pragma: no cover - interface
         raise NotImplementedError
+
+    def pegar_avisos(self) -> list:
+        """Avisos para o usuário gerados desde a última leitura (ex.: «usando o provedor reserva»); lê e limpa."""
+        return []
+
+
+# ── provedor reserva ──────────────────────────────────────────────────────────────────────────────────
+PAUSA_S = 90                        # depois de uma falha, o principal fica de lado este tempo (as próximas perguntas vão direto ao reserva)
+ESPERAS_COM_RESERVA = (1.0,)        # com reserva configurado o principal desiste cedo: 2 tentativas por modelo
+_pausa = {}                         # chave do principal → instante (monotônico) em que volta a ser tentado
+
+
+def _agora() -> float:
+    return time.monotonic()
+
+
+def limpar_pausas():
+    _pausa.clear()
+
+
+class AdaptadorComReserva(AdaptadorBase):
+    """Tenta o principal; se falhar (qualquer erro), segue com o reserva NA MESMA pergunta e avisa. Falha do principal pausa-o por PAUSA_S segundos
+    (não repetir a espera de cada mensagem). Se os dois falharem, o erro traz os dois motivos."""
+
+    def __init__(self, principal: AdaptadorBase, reserva: AdaptadorBase, chave: str, rotulo_reserva: str = "reserva"):
+        self.principal, self.reserva, self.chave, self.rotulo_reserva = principal, reserva, chave, rotulo_reserva
+        principal.esperas = ESPERAS_COM_RESERVA
+        self.no_reserva, self.erro_principal, self._avisos = False, None, []
+
+    def _ir_para_reserva(self, motivo: str):
+        self.no_reserva = True
+        self._avisos.append(f"Usando o provedor reserva ({self.rotulo_reserva}): {motivo}")
+
+    async def turno(self, system, mensagens, specs) -> Turno:
+        if not self.no_reserva and _pausa.get(self.chave, 0) > _agora():
+            self._ir_para_reserva("o principal falhou há pouco e está em pausa")
+        if not self.no_reserva:
+            try:
+                t = await self.principal.turno(system, mensagens, specs)
+                _pausa.pop(self.chave, None)
+                return t
+            except Exception as e:
+                self.erro_principal = e
+                _pausa[self.chave] = _agora() + PAUSA_S
+                self._ir_para_reserva(mensagem_amigavel(e)[:120])
+        try:
+            return await self.reserva.turno(system, mensagens, specs)
+        except Exception as e2:
+            if self.erro_principal is None:
+                raise
+            raise ErroProvedores(f"Nenhum provedor respondeu. Principal: {mensagem_amigavel(self.erro_principal)[:160]} Reserva: {mensagem_amigavel(e2)[:160]}")
+
+    def pegar_avisos(self) -> list:
+        a, self._avisos = self._avisos, []
+        return a
 
 
 class AdaptadorGemini(AdaptadorBase):
@@ -90,13 +180,13 @@ class AdaptadorGemini(AdaptadorBase):
     async def turno(self, system, mensagens, specs) -> Turno:
         from google.genai import types
         decl = [types.FunctionDeclaration(name=s["name"], description=s["description"], parameters_json_schema=s["parameters"]) for s in specs]
-        cfg = types.GenerateContentConfig(system_instruction=system, tools=[types.Tool(function_declarations=decl)],
+        cfg = types.GenerateContentConfig(system_instruction=system, tools=[types.Tool(function_declarations=decl)] if decl else None,
                                           automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True))
         contents = self.converter(mensagens)
 
         async def chamar(modelo):
             return await self.client.aio.models.generate_content(model=modelo, contents=contents, config=cfg)
-        resp = await com_fallback(self.modelos, chamar)
+        resp = await com_fallback(self.modelos, chamar, self.esperas)
         cand = resp.candidates[0] if getattr(resp, "candidates", None) else None
         conteudo = getattr(cand, "content", None)
         texto, chamadas = [], []
@@ -133,8 +223,9 @@ class AdaptadorOpenAI(AdaptadorBase):
         msgs = self.converter(system, mensagens)
 
         async def chamar(modelo):
-            return await self.client.chat.completions.create(model=modelo, messages=msgs, tools=tools)
-        resp = await com_fallback(self.modelos, chamar)
+            extra = {"tools": tools} if tools else {}
+            return await self.client.chat.completions.create(model=modelo, messages=msgs, **extra)
+        resp = await com_fallback(self.modelos, chamar, self.esperas)
         msg = resp.choices[0].message
         chamadas = []
         for tc in getattr(msg, "tool_calls", None) or []:
@@ -168,8 +259,9 @@ class AdaptadorClaude(AdaptadorBase):
         msgs = self.converter(mensagens)
 
         async def chamar(modelo):
-            return await self.client.messages.create(model=modelo, max_tokens=4096, system=system, tools=tools, messages=msgs)
-        resp = await com_fallback(self.modelos, chamar)
+            extra = {"tools": tools} if tools else {}
+            return await self.client.messages.create(model=modelo, max_tokens=4096, system=system, messages=msgs, **extra)
+        resp = await com_fallback(self.modelos, chamar, self.esperas)
         texto, chamadas = [], []
         for b in resp.content:
             if getattr(b, "type", "") == "text":
@@ -220,6 +312,8 @@ async def rodar(adaptador: AdaptadorBase, system: str, historico: list, prompt: 
     try:
         for _ in range(MAX_PASSOS):
             turno = await adaptador.turno(system, mensagens, specs)
+            for aviso in adaptador.pegar_avisos():
+                yield {"tipo": "aviso", "texto": aviso}
             if not turno.chamadas:
                 texto_final = turno.texto
                 break
@@ -235,7 +329,9 @@ async def rodar(adaptador: AdaptadorBase, system: str, historico: list, prompt: 
         else:
             texto_final = "Parei por excesso de passos nesta pergunta. Diga o que falta e continuo daqui."
     except Exception as e:
-        yield {"tipo": "erro", "mensagem": str(e)[:400]}
+        for aviso in adaptador.pegar_avisos():
+            yield {"tipo": "aviso", "texto": aviso}
+        yield {"tipo": "erro", "mensagem": mensagem_amigavel(e)}
         yield {"tipo": "fim"}
         return
     if texto_final.strip():

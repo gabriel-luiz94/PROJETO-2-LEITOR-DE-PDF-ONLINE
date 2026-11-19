@@ -980,3 +980,13 @@ O assistente (painel ✨ Assistente IA) agora **consulta e calcula de verdade**:
 - **Regras aprendidas:** continuam valendo («lembre-se…», «regra:»). Skills servem para procedimentos e catálogos maiores.
 - Precisa de chave de IA (Gemini, OpenAI ou Claude) como antes. Sem chave, as skills continuam abrindo e editando.
 
+## Provedor reserva do assistente (19/11/2026)
+
+Para o assistente ficar sempre disponível, configure um **segundo provedor de IA** que entra sozinho quando o principal falha (sobrecarga/503, cota esgotada, chave inválida, sem rede).
+
+- **Onde:** botão **Chave API** → **Configuração de IA** → seção **Provedor reserva (automático)**. Marque **Usar provedor reserva**, escolha um atalho (**DeepSeek**, **Qwen**, **OpenRouter**, **Ollama**, Gemini ou Claude) ou preencha **URL base**, **nome do modelo** e **chave**, e clique **Salvar reserva**. **Testar** salva e faz uma chamada mínima, dizendo se funcionou e em quanto tempo. Só o administrador configura.
+- **DeepSeek, Qwen, OpenRouter e Ollama** usam o formato «OpenAI-compatível»: o que muda é a URL e o nome do modelo (os nomes mudam com o tempo: confira na documentação do serviço). Ollama roda no seu PC e não usa chave (digite qualquer texto). Modelos pequenos erram mais nas ferramentas do assistente.
+- **Na prática:** se o principal falhar, o chat mostra «Usando o provedor reserva…» e a pergunta continua no reserva. O principal fica em pausa por cerca de 90 segundos (você não espera a falha a cada mensagem) e depois volta a ser tentado. Se os dois falharem, a mensagem mostra o motivo de cada um.
+- A chave do reserva fica guardada no programa e nunca é mostrada de volta. Deixe o campo em branco para manter a chave salva.
+- Sem chave no provedor principal mas com o reserva ativo, o assistente usa o reserva.
+

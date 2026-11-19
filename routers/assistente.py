@@ -3,13 +3,16 @@ routers/assistente.py (TASK-191) — Assistente de IA com FERRAMENTAS e SKILLS.
 
 POST /api/assistente/chat       conversa em NDJSON (uma linha JSON por evento: ferramenta, texto, plano, acao_ui, erro, fim). A tabela vem do navegador a cada pedido;
                                 nada é alterado aqui: o PLANO volta para a tela, que mostra, pede confirmação e aplica (com desfazer).
+GET/PUT /api/assistente/reserva  provedor reserva automático (PUT/testar: só admin; a chave nunca volta para a tela);  POST /api/assistente/reserva/testar
 GET  /api/assistente/skills     skills visíveis ao projeto;  GET/PUT/DELETE /api/assistente/skills/{escopo}/{nome}  ler/gravar/apagar (gravar e apagar: só admin)
 POST /api/assistente/skills/gerar-catalogo   lê a Base de Orçamento e grava a skill `ativos` do projeto (só admin)
 Sem chave de IA não há chat; as skills (arquivos) funcionam sempre.
 """
+import asyncio
 import json
 import os
 import re
+import time
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -19,7 +22,7 @@ from pydantic import BaseModel
 import database
 from config import PROMPT_ASSISTENTE_PATH, logger
 from middleware.auth_middleware import require_role
-from routers.ai_chat import _checar_rate_limit, resolver_provedor
+from routers.ai_chat import _checar_rate_limit, _ler_configuracao, resolver_credencial, resolver_provedor
 from services.assistente import agente, catalogo, ferramentas, skills
 
 router = APIRouter(prefix="/api/assistente", tags=["assistente"])
@@ -45,6 +48,15 @@ class AssistenteRequest(BaseModel):
 
 class SkillRequest(BaseModel):
     texto: str
+
+
+class ReservaRequest(BaseModel):
+    ativa: bool = False
+    provider: str = "openai"
+    base_url: str = ""
+    model: str = ""
+    api_key: Optional[str] = None            # None/vazio = mantém a chave já salva
+    limpar_chave: bool = False
 
 
 def _user(request: Request) -> dict:
@@ -99,17 +111,42 @@ def _ndjson(eventos):
     return StreamingResponse(gerar(), media_type="application/x-ndjson", headers={"Cache-Control": "no-store"})
 
 
+def _rotulo(provider: str, modelos: list) -> str:
+    return f"{ {'gemini': 'Gemini', 'openai': 'OpenAI-compatível', 'claude': 'Claude'}.get(provider, provider) } · {modelos[0] if modelos else ''}".strip(" ·")
+
+
+def _reserva_ativa() -> Optional[dict]:
+    """A configuração do provedor reserva pronta para uso ({provider, api_key, base_url, modelos}) ou None (desligado, sem chave ou inválido)."""
+    if _ler_configuracao("ai_reserva_ativa") != "1":
+        return None
+    provider = _ler_configuracao("ai_reserva_provider", "openai")
+    if provider not in MODELOS_PADRAO:
+        return None
+    chave, _origem = resolver_credencial(None, _ler_configuracao("ai_reserva_api_key"), provider)
+    if not chave:
+        return None
+    modelo = (_ler_configuracao("ai_reserva_model") or "").strip()
+    return {"provider": provider, "api_key": chave, "base_url": _ler_configuracao("ai_reserva_base_url", "") or "", "modelos": [modelo] if modelo else list(MODELOS_PADRAO[provider])}
+
+
 @router.post("/chat")
 async def chat(req: AssistenteRequest, request: Request):
-    prov = resolver_provedor(request, req.provider, req.openai_base_url)          # 401 sem chave
-    if prov["origem_chave"] == "padrao":
-        _checar_rate_limit(request)
-    rapido = _fast_path(req.prompt)
+    rapido = _fast_path(req.prompt)                       # sem IA: vale mesmo sem chave nenhuma
     if rapido:
         async def so_o_plano():
             yield rapido
             yield {"tipo": "fim"}
         return _ndjson(so_o_plano())
+
+    reserva = _reserva_ativa()
+    prov = None
+    try:
+        prov = resolver_provedor(request, req.provider, req.openai_base_url)          # 401 sem chave
+    except HTTPException as e:
+        if e.status_code != 401 or not reserva:
+            raise                                          # sem chave no principal mas com reserva: o reserva atende
+    if prov and prov["origem_chave"] == "padrao":
+        _checar_rate_limit(request)
 
     user = _user(request)
     from routers.obras import buscar_obra, listar_visiveis
@@ -117,9 +154,85 @@ async def chat(req: AssistenteRequest, request: Request):
         projeto_codigo=req.projeto_codigo, projeto_nome=_nome_do_projeto(req.projeto_codigo), user=user, cabos=req.cabos[:2000], outros=req.outros[:2000], obra=req.obra,
         carregar_obras=lambda: listar_visiveis(user, req.projeto_codigo) if user else [],
         buscar_obra=lambda oid: buscar_obra(user, oid, req.projeto_codigo) if user else None)
-    modelos = [prov["custom_model"]] if prov["custom_model"] else MODELOS_PADRAO[prov["provider"]]
-    adaptador = agente.criar_adaptador(prov["provider"], prov["api_key"], modelos, prov["openai_base_url"])
+    adaptador_reserva = agente.criar_adaptador(reserva["provider"], reserva["api_key"], reserva["modelos"], reserva["base_url"]) if reserva else None
+    if prov:
+        modelos = [prov["custom_model"]] if prov["custom_model"] else MODELOS_PADRAO[prov["provider"]]
+        adaptador = agente.criar_adaptador(prov["provider"], prov["api_key"], modelos, prov["openai_base_url"])
+        if adaptador_reserva:
+            chave = f"{prov['provider']}|{prov['openai_base_url']}|{modelos[0]}"
+            adaptador = agente.AdaptadorComReserva(adaptador, adaptador_reserva, chave, _rotulo(reserva["provider"], reserva["modelos"]))
+    else:
+        adaptador = adaptador_reserva
     return _ndjson(agente.rodar(adaptador, montar_system(ctx, req.projeto_codigo), agente.historico_neutro(req.history), req.prompt.strip(), ctx))
+
+
+# ── provedor reserva ──────────────────────────────────────────────────────────────────────────────────
+def _gravar_config(pares: dict):
+    conn = database.get_connection()
+    try:
+        for k, v in pares.items():
+            conn.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES (?, ?)", (k, v))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@router.get("/reserva")
+def ler_reserva(request: Request):
+    provider = _ler_configuracao("ai_reserva_provider", "openai")
+    return {"ativa": _ler_configuracao("ai_reserva_ativa") == "1", "provider": provider if provider in MODELOS_PADRAO else "openai",
+            "base_url": _ler_configuracao("ai_reserva_base_url", "") or "", "model": _ler_configuracao("ai_reserva_model", "") or "",
+            "tem_chave": bool(_ler_configuracao("ai_reserva_api_key")), "pode_editar": _user(request).get("role") == "admin"}
+
+
+@router.put("/reserva", dependencies=[Depends(require_role("admin"))])
+def gravar_reserva(req: ReservaRequest):
+    provider, base, modelo = req.provider.strip().lower(), req.base_url.strip(), req.model.strip()
+    if provider == "anthropic":
+        provider = "claude"
+    if provider not in MODELOS_PADRAO:
+        raise HTTPException(status_code=400, detail="Provedor deve ser gemini, openai (compatível) ou claude.")
+    if base and (not re.match(r"^https?://\S+$", base) or len(base) > 300):
+        raise HTTPException(status_code=400, detail="A URL base deve começar com http:// ou https://.")
+    if provider != "openai" and base:
+        raise HTTPException(status_code=400, detail="URL base só vale para o provedor OpenAI-compatível.")
+    if provider == "openai" and base and not modelo:
+        raise HTTPException(status_code=400, detail="Com URL base própria, informe o nome do modelo (ex.: deepseek-chat).")
+    if len(modelo) > 120:
+        raise HTTPException(status_code=400, detail="Nome de modelo grande demais.")
+    chave_nova = (req.api_key or "").strip()
+    if req.limpar_chave:
+        chave_nova = ""
+    chave_final = chave_nova or ("" if req.limpar_chave else (_ler_configuracao("ai_reserva_api_key") or ""))
+    if req.ativa and not resolver_credencial(None, chave_final, provider)[0]:
+        raise HTTPException(status_code=400, detail="Informe a chave do provedor reserva para ativá-lo.")
+    pares = {"ai_reserva_ativa": "1" if req.ativa else "0", "ai_reserva_provider": provider, "ai_reserva_base_url": base, "ai_reserva_model": modelo}
+    if chave_nova or req.limpar_chave:
+        pares["ai_reserva_api_key"] = chave_nova
+    _gravar_config(pares)
+    agente.limpar_pausas()
+    return {"ok": True, "ativa": req.ativa, "tem_chave": bool(chave_final)}
+
+
+@router.post("/reserva/testar", dependencies=[Depends(require_role("admin"))])
+async def testar_reserva():
+    """Uma chamada mínima (sem ferramentas) ao reserva SALVO: diz se a chave, a URL e o modelo funcionam."""
+    provider = _ler_configuracao("ai_reserva_provider", "openai")
+    if provider not in MODELOS_PADRAO:
+        return {"ok": False, "erro": "Provedor reserva não configurado."}
+    chave, _o = resolver_credencial(None, _ler_configuracao("ai_reserva_api_key"), provider)
+    if not chave:
+        return {"ok": False, "erro": "Sem chave salva para o provedor reserva."}
+    modelo = (_ler_configuracao("ai_reserva_model") or "").strip()
+    modelos = [modelo] if modelo else list(MODELOS_PADRAO[provider])
+    ad = agente.criar_adaptador(provider, chave, modelos, _ler_configuracao("ai_reserva_base_url", "") or "")
+    ad.esperas = (0,)
+    t0 = time.monotonic()
+    try:
+        t = await asyncio.wait_for(ad.turno("Responda apenas: ok", [{"role": "user", "texto": "Teste de conexão."}], []), timeout=40)
+    except Exception as e:
+        return {"ok": False, "erro": agente.mensagem_amigavel(e)}
+    return {"ok": True, "modelo": modelos[0], "ms": int((time.monotonic() - t0) * 1000), "resposta": (t.texto or "")[:80]}
 
 
 # ── skills ────────────────────────────────────────────────────────────────────────────────────────────
