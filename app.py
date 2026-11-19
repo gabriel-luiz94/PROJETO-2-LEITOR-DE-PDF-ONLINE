@@ -217,6 +217,11 @@ async def serve_regras_leitor_engine_js():
     return _serve_js("regras_leitor_engine.js")
 
 
+@app.get("/static/assistente.js")
+async def serve_assistente_js():
+    return _serve_js("assistente.js")          # TASK-191
+
+
 @app.get("/static/vinculacao_regras.js")
 async def serve_vinculacao_regras_js():
     return _serve_js("vinculacao_regras.js")
@@ -478,6 +483,8 @@ app.include_router(recs.router)
 app.include_router(projetos.router)
 app.include_router(orcamento.router)
 app.include_router(ai_chat.router)
+from routers import assistente as _assistente_router            # TASK-191: assistente com ferramentas e skills
+app.include_router(_assistente_router.router)
 app.include_router(validacao_prompts.router)
 app.include_router(validacao_regras.router)
 app.include_router(validacao_ajustes.router)

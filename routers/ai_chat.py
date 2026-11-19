@@ -188,12 +188,12 @@ def _contexto_obras(req, request):
         return "", ""
 
 
-@router.post("/chat")
-async def gemini_chat(req: ChatRequest, request: Request):
-    provider = req.provider or "gemini"
+def resolver_provedor(request: Request, provider_req, openai_base_url_req) -> dict:
+    """Provedor, chave e modelo efetivos do pedido (usuário > salvo > padrão do ambiente); persiste só o que o usuário digitou. Usado pelo chat e pelo assistente com ferramentas (TASK-191)."""
+    provider = provider_req or "gemini"
     if provider == "anthropic":
         provider = "claude"
-    openai_base_url = req.openai_base_url or ""
+    openai_base_url = openai_base_url_req or ""
 
     # Headers e configuração salva são por provedor (TASK-055), mesma precedência de sempre
     # (usuário > salva > padrão do ambiente), com os nomes já usados pro Gemini preservados.
@@ -247,6 +247,14 @@ async def gemini_chat(req: ChatRequest, request: Request):
         cursor.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES (?, ?)", (modelo_config, custom_model))
         conn.commit()
     conn.close()
+    return {"provider": provider, "api_key": api_key, "origem_chave": origem_chave, "custom_model": custom_model, "openai_base_url": openai_base_url}
+
+
+@router.post("/chat")
+async def gemini_chat(req: ChatRequest, request: Request):
+    prov = resolver_provedor(request, req.provider, req.openai_base_url)
+    provider, api_key, origem_chave = prov["provider"], prov["api_key"], prov["origem_chave"]
+    custom_model, openai_base_url = prov["custom_model"], prov["openai_base_url"]
 
     # Fast-Path
     fast_match = re.match(

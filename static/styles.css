@@ -991,3 +991,36 @@ select option:checked { background-color: #30363d; color: #ffffff; }
 .inicio-projeto select { background: transparent; color: #fff; border: none; outline: none; font-size: 0.85rem; cursor: pointer; font-family: inherit; }
 #btn-admin { border-color: rgba(217, 119, 6, 0.5); color: var(--accent-primary); }
 #btn-admin:hover { background: rgba(217, 119, 6, 0.12); border-color: var(--accent-primary); color: #f0883e; }
+
+/* ── Assistente com ferramentas (TASK-191): cartão do plano e janela de Skills ── */
+.chat-plano { align-self: stretch; background: rgba(31, 111, 235, 0.08); border: 1px solid rgba(88, 166, 255, 0.35); border-radius: 8px; padding: 10px 12px; font-size: 0.8rem; color: #c9d1d9; }
+.chat-plano .cp-topo { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.chat-plano .cp-qtd { color: #8b949e; font-size: 0.72rem; }
+.chat-plano .cp-resumo { color: #8b949e; margin-bottom: 6px; }
+.chat-plano .cp-lista { list-style: none; margin: 0 0 8px; padding: 0; max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+.chat-plano .cp-lista li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding: 3px 6px; border-radius: 4px; background: rgba(13, 17, 23, 0.5); }
+.chat-plano .cp-simb { width: 1.2em; text-align: center; font-weight: 700; }
+.chat-plano .cp-adicionar .cp-simb { color: #3fb950; }
+.chat-plano .cp-editar .cp-simb { color: #d29922; }
+.chat-plano .cp-remover .cp-simb, .chat-plano .cp-remover code { color: #ff7b72; }
+.chat-plano .cp-tab, .chat-plano .cp-op { font-size: 0.68rem; padding: 0 5px; border-radius: 8px; background: #21262d; color: #8b949e; }
+.chat-plano code { font-family: ui-monospace, Consolas, monospace; word-break: break-all; }
+.chat-plano .cp-antes { color: #8b949e; font-size: 0.72rem; }
+.chat-plano .cp-aviso { flex-basis: 100%; color: #d29922; font-size: 0.72rem; }
+.chat-plano .cp-acoes { display: flex; align-items: center; gap: 8px; }
+.chat-plano .cp-estado { color: #8b949e; font-size: 0.75rem; flex: 1; }
+.sk-caixa { width: 860px; max-width: 94vw; display: flex; flex-direction: column; gap: 8px; }
+.sk-caixa h3 { margin: 0; }
+.sk-ajuda { margin: 0; font-size: 0.75rem; color: #8b949e; }
+.sk-corpo { display: flex; gap: 12px; min-height: 340px; max-height: 60vh; }
+.sk-lista { width: 250px; flex: none; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.sk-item { text-align: left; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; padding: 6px 8px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; font-family: inherit; }
+.sk-item:hover { border-color: #58a6ff; }
+.sk-item small { color: #8b949e; font-size: 0.68rem; line-height: 1.25; }
+.sk-tag { font-size: 0.65rem; color: #79c0ff; }
+.sk-vazio { color: #8b949e; font-size: 0.75rem; padding: 6px; }
+.sk-editor { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sk-editor .sk-nome, .sk-editor .sk-escopo, .sk-editor .sk-texto { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e6edf3; padding: 6px 8px; font-family: inherit; font-size: 0.8rem; }
+.sk-editor .sk-texto { flex: 1; min-height: 240px; resize: none; font-family: ui-monospace, Consolas, monospace; line-height: 1.4; }
+.sk-barra, .sk-rodape { display: flex; gap: 8px; }
+.sk-rodape { justify-content: flex-end; }

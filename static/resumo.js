@@ -3442,6 +3442,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ── Plano do assistente (TASK-191) ───────────────────────────────────────────────────────────────
+    /** Aplica as alterações propostas nas tabelas (uma entrada no histórico: Ctrl+Z desfaz tudo de uma vez). */
+    function aplicarPlanoAssistente(itens) {
+        pushHistory();      // snapshot ANTES de mudar (como as obras): o Ctrl+Z volta ao estado de agora
+        const r = Assistente.aplicarPlano(tableStates, itens, (ativo, tabela) => {
+            const n = autoClassifyEntidade(ativo);
+            return n !== '0' ? n : (tabela === 'cabos' ? 'CABO' : '0');
+        });
+        recalcAllQtdAtivos();
+        renderTable('cabos');
+        renderTable('outros');
+        buildAtivoSets();
+        buildDataLists();
+        refreshAllFilters('cabos');
+        refreshAllFilters('outros');
+        const msg = Assistente.resumoAplicacao(r);
+        showToast(msg);
+        return msg;
+    }
+
+    /** Mostra o plano no chat: o atalho rápido («adicionar 2 CON») aplica na hora; o resto pede o clique em Aplicar. */
+    function mostrarPlanoAssistente(plano) {
+        if (plano.auto) { aplicarPlanoAssistente(plano.itens); return; }
+        const card = Assistente.renderPlano(plano, {
+            aplicar: async itens => aplicarPlanoAssistente(itens),
+            desfazer: () => undo(),
+            obra: async item => (await executarAcaoObra({ acao_ui: 'obra', acao: item.modo, obra_id: item.obra_id })).msg
+        });
+        aiChatMessages.appendChild(card);
+        aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+    }
+
+    const btnAssistenteSkills = document.getElementById('btn-assistente-skills');
+    if (btnAssistenteSkills) btnAssistenteSkills.addEventListener('click', () => Assistente.abrirSkills({
+        projeto: () => localStorage.getItem('projeto_selecionado_codigo') || '229', toast: showToast
+    }));
+
     async function sendToGemini() {
         const text = aiChatInput.value.trim();
         if (!text) return;
@@ -3480,28 +3517,19 @@ document.addEventListener('DOMContentLoaded', () => {
         aiChatMessages.appendChild(loadingDiv);
         aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
 
-        // Montar contexto da tabela apenas quando o prompt pede análise/edição
-        const palavrasContexto = ['analis', 'alterar', 'editar', 'excluir', 'remover', 'substituir',
-            'tudo', 'todas', 'tabela', 'leia', 'leitura', 'completo', 'lista',
-            'quantos', 'total', 'verifique', 'cheque', 'corrig'];
-        const precisaContexto = palavrasContexto.some(kw => text.toLowerCase().includes(kw));
-        let tableContext = "";
-        if (precisaContexto) {
-            tableContext = "\n\nESTADO ATUAL DA TABELA:\n";
-            tableStates.cabos.data.forEach((r, i) => { if(r && !r.congelada) tableContext += `[CABOS-${i}] | ${r.operacao} | ${r.ativo}\n`; });
-            tableStates.outros.data.forEach((r, i) => { if(r && !r.congelada) tableContext += `[OUTROS-${i}] | ${r.operacao} | ${r.ativo}\n`; });
-        }
-
         try {
+            const tabelas = Assistente.tabelaParaServidor(tableStates);      // TASK-191: o servidor lê a tabela sob demanda (ferramenta ler_tabela) e nunca a altera
             const reqBody = {
                 prompt: text,
-                table_context: tableContext,
                 history: chatHistory,
                 provider: providerChat,
                 openai_base_url: providerChat === 'openai' ? (localStorage.getItem('openai_base_url') || '') : '',
-                projeto_codigo: localStorage.getItem('projeto_selecionado_codigo') || '229'
+                projeto_codigo: localStorage.getItem('projeto_selecionado_codigo') || '229',
+                cabos: tabelas.cabos,
+                outros: tabelas.outros,
+                obra: window.ObraParams ? ObraParams.obraDoProjeto() : null
             };
-            const response = await fetch('/api/gemini/chat', {
+            const response = await fetch('/api/assistente/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -3511,14 +3539,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(reqBody)
             });
 
-            aiChatMessages.removeChild(loadingDiv);
-
             if (!response.ok) {
+                if (loadingDiv.parentNode) aiChatMessages.removeChild(loadingDiv);
                 if (response.status === 401) {
                     modalApikey.classList.remove('hidden');
                     addChatMessage("Chave da API não encontrada. Por favor, insira e tente novamente.", 'error');
                 } else {
-                    const err = await response.json();
+                    const err = await response.json().catch(() => ({}));
                     addChatMessage(`Erro: ${err.detail || 'Falha na comunicação'}`, 'error');
                 }
                 aiChatInput.disabled = false;
@@ -3526,148 +3553,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Ler a resposta em stream
+            // Stream NDJSON: ferramenta (progresso) · texto · plano · acao_ui · erro · fim
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
-            let replyText = "";
-            
-            // Cria a bolha da IA vazia
-            const div = document.createElement('div');
-            div.className = 'chat-message ai';
-            aiChatMessages.appendChild(div);
-
+            let buffer = '', replyText = '', erroIA = '', div = null;
+            const planos = [], acoesUi = [];
+            const rotuloFerramenta = { buscar_ativo: 'Consultando a base', detalhar_ativo: 'Lendo o ativo', ler_tabela: 'Lendo a tabela', validar_linhas: 'Conferindo as linhas',
+                propor_alteracoes: 'Montando o plano', totalizar: 'Totalizando', calcular_orcamento: 'Calculando o orçamento', carregar_skill: 'Consultando uma skill',
+                listar_skills: 'Consultando as skills', listar_obras: 'Vendo as obras', consultar_obra: 'Lendo a obra', propor_obra: 'Preparando a obra', ajustar_tela: 'Ajustando a tela' };
+            const tratar = ev => {
+                if (ev.tipo === 'ferramenta') {
+                    const r = (rotuloFerramenta[ev.nome] || ev.nome) + (ev.detalhe ? ' · ' + ev.detalhe : '');
+                    loadingDiv.textContent = '';
+                    const sp = document.createElement('span');
+                    sp.className = 'loading-dots';
+                    sp.textContent = r;
+                    loadingDiv.appendChild(sp);
+                } else if (ev.tipo === 'texto') {
+                    replyText += (replyText ? '\n\n' : '') + ev.texto;
+                    if (!div) {
+                        div = document.createElement('div');
+                        div.className = 'chat-message ai';
+                        div.style.whiteSpace = 'pre-wrap';
+                        aiChatMessages.insertBefore(div, loadingDiv.parentNode ? loadingDiv : null);
+                    }
+                    div.textContent = replyText;
+                } else if (ev.tipo === 'plano') planos.push(ev);
+                else if (ev.tipo === 'acao_ui') acoesUi.push(ev);
+                else if (ev.tipo === 'erro') erroIA = ev.mensagem || 'Falha na IA.';
+            };
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                replyText += decoder.decode(value, { stream: true });
-                div.innerHTML = replyText.replace(/\n/g, '<br>');
+                buffer += decoder.decode(value, { stream: true });
+                const lido = Assistente.linhasNdjson(buffer);
+                buffer = lido.resto;
+                lido.eventos.forEach(tratar);
                 aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
             }
-            
-            // Finaliza decodificação
-            replyText += decoder.decode();
+            Assistente.linhasNdjson(buffer + decoder.decode() + '\n').eventos.forEach(tratar);
+            if (loadingDiv.parentNode) aiChatMessages.removeChild(loadingDiv);
 
-            // Detectar se a resposta é vazia ou um erro do backend
-            if (!replyText.trim()) {
-                div.className = 'chat-message error';
-                div.innerHTML = 'A IA não retornou resposta. Verifique a API Key e o modelo selecionado.';
-                aiChatInput.disabled = false;
-                btnSendChat.disabled = false;
-                return;
-            }
-            if (replyText.trim().startsWith('[ERRO]')) {
-                div.className = 'chat-message error';
-                div.innerHTML = replyText.replace(/\n/g, '<br>');
+            if (erroIA) addChatMessage('Erro: ' + erroIA, 'error');
+            else if (!replyText.trim() && !planos.length && !acoesUi.length) addChatMessage('A IA não retornou resposta. Verifique a API Key e o modelo selecionado.', 'error');
+            if (erroIA && !replyText.trim() && !planos.length) {
                 aiChatInput.disabled = false;
                 btnSendChat.disabled = false;
                 return;
             }
 
-            // --- NOVO: Interceptar Ações de UI (JSON) ---
-            const uiActionMatch = replyText.match(/\{[\s\S]*?"acao_ui"[\s\S]*?\}/);
-            if (uiActionMatch) {
-                try {
-                    const action = JSON.parse(uiActionMatch[0]);
-                    if (action.acao_ui === 'obra') {   // comando de obra (TASK-028): confirmação obrigatória, id validado
-                        div.textContent = 'Comando de obra recebido. Confirme na janela para aplicar.';
-                        chatHistory.push({ role: 'user', parts: [{ text: text }] });
-                        chatHistory.push({ role: 'model', parts: [{ text: '*(Comando de obra)*' }] });
-                        aiChatInput.disabled = false;
-                        btnSendChat.disabled = false;
-                        const resultado = await executarAcaoObra(action);
-                        div.textContent = resultado.msg;
-                        showToast(resultado.msg);
-                        aiChatInput.focus();
-                        return;
-                    }
-                    div.innerHTML = `<span style="color:#3fb950;">Ação de interface concluída: ${action.acao_ui}</span>`;
-                    chatHistory.push({ role: 'user', parts: [{ text: text }] });
-                    chatHistory.push({ role: 'model', parts: [{ text: "*(Ação de UI executada)*" }] });
-                    executeUiAction(action);
-                    aiChatInput.disabled = false;
-                    btnSendChat.disabled = false;
-                    aiChatInput.focus();
-                    return;
-                } catch(e) {
-                    console.error("Erro ao parsear JSON de UI:", e);
-                    div.innerHTML = `<span style="color:#ff0000;">Falha ao executar ação de interface. Verifique o console.</span><br>` + replyText.replace(/\n/g, '<br>');
-                }
-            } else {
-                div.innerHTML = replyText.replace(/\n/g, '<br>');
-            }
-            // --------------------------------------------
-
+            acoesUi.forEach(a => executeUiAction(a));
             chatHistory.push({ role: 'user', parts: [{ text: text }] });
-            chatHistory.push({ role: 'model', parts: [{ text: replyText }] });
-
-            // Processar a tabela retornada, se houver
-            const tableData = extractTableFromMarkdown(replyText);
-            if (tableData.length > 0) {
-                tableData.forEach(row => {
-                    const cmd = row.comando.toUpperCase().replace(/\*/g, '').trim();
-                    
-                    if (cmd === 'EDITAR' || cmd === 'EXCLUIR' || cmd === 'REMOVER') {
-                        const idParts = row.idStr.split('-');
-                        if (idParts.length === 2) {
-                            const type = idParts[0].toLowerCase();
-                            const idx = parseInt(idParts[1], 10);
-                            
-                            if (tableStates[type] && tableStates[type].data[idx]) {
-                                if (cmd === 'EXCLUIR' || cmd === 'REMOVER') {
-                                    // Apenas anula (null) e depois limpa com filter, para não quebrar 
-                                    // a ordem dos índices caso a IA mande excluir múltiplos itens
-                                    tableStates[type].data[idx] = null;
-                                } else {
-                                    const isCabo = autoClassifyEntidade(row.ativosStr) === 'CABO';
-                                    const novaEnt = autoClassifyEntidade(row.ativosStr);
-                                    tableStates[type].data[idx].operacao = row.operacao.trim() || 'I';
-                                    tableStates[type].data[idx].ativo = row.ativosStr;
-                                    tableStates[type].data[idx].entidade = novaEnt !== '0' ? novaEnt : (isCabo ? 'CABO' : '0');
-                                }
-                            }
-                        }
-                        return; // Se for edição/exclusão, NUNCA adiciona uma nova linha (mesmo se o ID for inválido)
-                    }
-                    
-                    // Roteamento baseado no formato estrito
-                    let isCabo = false;
-                    const ativoTest = row.ativosStr.trim().toUpperCase();
-                    // Se termina em 'm' ou 'M' precedido por numero e espaço (ex: "35 m")
-                    if (/\d+[\.,]?\d*\s*M$/.test(ativoTest)) {
-                        isCabo = true;
-                    } else if (/^\d+\s*-/.test(ativoTest)) { 
-                        // Formato Quantidade-Ativo vai sempre para Outros
-                        isCabo = false;
-                    } else if (ativoTest.startsWith('DT') || ativoTest.startsWith('CV')) {
-                        // Poste vai sempre para Outros
-                        isCabo = false;
-                    } else {
-                        // Fallback original
-                        isCabo = autoClassifyEntidade(row.ativosStr) === 'CABO';
-                    }
-                    
-                    const type = isCabo ? 'cabos' : 'outros';
-                    const novaEnt = autoClassifyEntidade(row.ativosStr);
-                    tableStates[type].data.push({
-                        entidade: novaEnt !== '0' ? novaEnt : (isCabo ? 'CABO' : '0'),
-                        operacao: row.operacao.trim() || 'I', // Mantém asteriscos
-                        ativo: row.ativosStr
-                    });
-                });
-                
-                // Limpar os nulos deixados por exclusões
-                tableStates.cabos.data = tableStates.cabos.data.filter(r => r !== null);
-                tableStates.outros.data = tableStates.outros.data.filter(r => r !== null);
-                pushHistory();  // snapshot ANTES do render/atualização -- já inserimos, agora registramos a ação
-                recalcAllQtdAtivos();
-                renderTable('cabos');
-                renderTable('outros');
-                buildAtivoSets(); 
-                buildDataLists();
-                refreshAllFilters('cabos');
-                refreshAllFilters('outros');
-                showToast(`+${tableData.length} ativos inseridos!`);
-            }
+            chatHistory.push({ role: 'model', parts: [{ text: replyText.trim() || (planos.length ? '*(Plano proposto)*' : '*(Ação de interface executada)*') }] });
+            planos.forEach(p => mostrarPlanoAssistente(p));
         } catch (error) {
             if (loadingDiv.parentNode) aiChatMessages.removeChild(loadingDiv);
             addChatMessage(`Erro de conexão: ${error.message}`, 'error');

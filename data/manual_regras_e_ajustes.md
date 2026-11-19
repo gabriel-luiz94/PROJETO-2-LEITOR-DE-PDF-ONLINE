@@ -968,3 +968,15 @@ Com *Ocultar parâmetros ao sair da linha* ligado, clicar na linha mantém só o
 ## Cabo com condutor extra: `3xC16(16)+16` (19/11/2026)
 
 No label do cabo, `+N` (sem kV) depois do neutro é **mais um condutor da mesma família** com a seção N. `3xC16(16)+16 35 m` vira, na Totalizadora, **5 linhas** `C16` de 35 m (3 fases + neutro + o `+16`). `+20kV` continua sendo a tensão da rede. A coluna «Qtd ativos» da tabela Cabos conta só as fases (3).
+
+## Assistente de IA: ferramentas, plano e skills (19/11/2026)
+
+O assistente (painel ✨ Assistente IA) agora **consulta e calcula de verdade**: busca ativos na Base de Orçamento do projeto, lê as suas tabelas, confere linhas, totaliza e calcula o orçamento. Exemplos: «monte uma rede com 3 postes DT11/300 e um trafo de 25», «tire o PR220 do poste 2», «o que não foi encontrado na base?», «calcule o orçamento disso», «e se eu adicionar mais 2 CFU?».
+
+- **Nada muda sem você aceitar.** Quando o assistente quer mudar a tabela, aparece um **cartão do plano** no chat (＋ adicionar, ✎ editar, − remover, com avisos como «ativo não encontrado na base»). **Aplicar** faz tudo de uma vez (Ctrl+Z ou **Desfazer** volta); **Descartar** ignora. Se você mexer numa linha depois do pedido, a alteração daquela linha é ignorada. Obras salvas também passam pelo cartão e pela janela de confirmação de sempre.
+- **Atalho rápido:** «adicionar 2 CON» / «remover 1 TR125» continua sem IA e aplica na hora.
+- **Skills (📚 no topo do painel):** guias em texto que o assistente lê antes de agir. Vêm `formato_ativos` (como escrever Outros e Cabos), `montar_projeto` (regras técnicas e passo a passo), `orcamento` (como calcular e conferir) e `projeto` do Pernambuco. O administrador pode **editar, criar e apagar** skills (as suas valem mais que as que vêm com o programa) e usar **Gerar catálogo de ativos**, que lê a Base de Orçamento do projeto selecionado e grava a skill `ativos` (famílias, códigos e descrições). Gere de novo quando a base mudar.
+- **Como escrever uma skill:** a 1ª linha pode ser `descricao: quando usar` (é o que o assistente vê antes de abrir); o resto é texto livre, com regras curtas. Nome em minúsculas, números, `_` e `-`. «Deste projeto» vale só para o projeto selecionado; «Todos os projetos» vale para todos. No .exe elas ficam na pasta `skills/` ao lado do programa.
+- **Regras aprendidas:** continuam valendo («lembre-se…», «regra:»). Skills servem para procedimentos e catálogos maiores.
+- Precisa de chave de IA (Gemini, OpenAI ou Claude) como antes. Sem chave, as skills continuam abrindo e editando.
+
