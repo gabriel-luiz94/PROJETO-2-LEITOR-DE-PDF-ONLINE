@@ -19,7 +19,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public const string Formato = "leitor-obra";
         public const int Versao = 1;
         public const int VersaoCad = 1;
-        public const string VersaoPlugin = "0.10.1";
+        public const string VersaoPlugin = "0.10.2";
         private const int MaxPontosGeo = 60;
 
         public static string NomeDoArquivo(string desenho)
@@ -108,7 +108,11 @@ namespace OrcamentoNanoCAD.Nucleo
                 List<object> ids = new List<object>();
                 foreach (Vinculo vi in v.Vinculos)
                     if (linhas.ContainsKey(vi.Poste)) ids.Add(IdUnidade(linhas[vi.Poste], vi.K));
-                if (v.ParticipaVinculo) l.Set("vinculoEstruturas", ids);
+                if (v.ParticipaVinculo)
+                {
+                    l.Set("vinculoEstruturas", ids);
+                    if (ids.Count > 0 && v.Vinculos.Any(x => x.Manual)) l.Set("vinculoOrigem", "manual");
+                }
                 cabos.Add(l);
             }
             foreach (Avulso a in obra.Avulsos)

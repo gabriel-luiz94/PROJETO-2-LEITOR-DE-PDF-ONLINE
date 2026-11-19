@@ -140,7 +140,7 @@ namespace OrcamentoNanoCAD.Nucleo
             v.Pontos = new List<Ponto>(linha.Pontos);
             v.LinhaLayer = linha.Layer;
             v.LinhaCor = linha.Cor;
-            v.Tipo = regras.Leitura.ClassificarRede(linha.Layer, linha.Cor) ?? ConfigLeitura.TipoPelaCor(linha.Cor) ?? "";
+            v.Tipo = regras.Leitura.ClassificarRede(linha.Layer, linha.Cor) ?? (regras.Leitura.Regra == "SO_LAYER" ? null : regras.Leitura.CorDoProjeto(linha.Cor)) ?? "";
             v.PosteA = a != null ? a.Numero : null;
             v.PosteB = b != null ? b.Numero : null;
             TextoLido tl = LerAnotacao(textos, regras, "CABO", desenho);

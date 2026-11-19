@@ -12,6 +12,30 @@ namespace OrcamentoNanoCAD.Testes
         private static Obra Ler() { return LeitorProjeto.Ler(DesenhoExemplo.Montar(), Apoio.Pernambuco); }
 
         [Fact]
+        public void Prioriza_a_regra_da_estrutura_mesmo_se_o_texto_a_traz_por_ultimo()
+        {
+            Obra obra = Ler();
+            Poste p = obra.PostePorNumero("P2");
+            p.Lido.Estruturas.Reverse();
+            Vinculador.Vincular(obra, Apoio.Pernambuco, false);
+            Assert.Equal("N1", obra.VaoPorNumero("V1").VinculoB.Estrutura);
+            Assert.Equal(1, obra.VaoPorNumero("V1").VinculoB.K);
+            Assert.Equal("N1", obra.VaoPorNumero("V2").VinculoA.Estrutura);
+        }
+
+        [Fact]
+        public void Vinculo_manual_parcial_preserva_a_ponta_deixada_livre()
+        {
+            Obra obra = Ler();
+            Vao vao = obra.VaoPorNumero("V1");
+            vao.VinculoB.Manual = true;
+            vao.VinculoA = null;
+            Vinculador.Vincular(obra, Apoio.Pernambuco, true);
+            Assert.Null(vao.VinculoA);
+            Assert.True(vao.VinculoB.Manual);
+        }
+
+        [Fact]
         public void Numeracao_segue_a_rede_como_no_mockup()
         {
             Obra o = Ler();

@@ -39,36 +39,53 @@ namespace OrcamentoNanoCAD.Nucleo
                 if (!v.ParticipaVinculo || v.InfoCabo == null) { v.VinculoA = null; v.VinculoB = null; continue; }
                 foreach (Vinculo vi in v.Vinculos) Ocupar(ocup, vi, v.InfoCabo);
             }
-            foreach (Vao v in obra.Vaos)
+            // Mantém a ordem dos vãos dentro de cada poste, inclusive em empates.
+            var chegadas = obra.Vaos.Where(v => v.ParticipaVinculo && v.InfoCabo != null && v.InfoCabo.Vincula && !v.Vinculos.Any(x => x.Manual))
+                .SelectMany(v => new[] { v.PosteObjA, v.PosteObjB }, (v, poste) => new { Vao = v, Poste = poste })
+                .Where(x => x.Poste != null).ToLookup(x => x.Poste.IrmaoDe ?? x.Poste.Numero, x => x.Vao);
+            foreach (var grupo in obra.Postes.GroupBy(p => p.IrmaoDe ?? p.Numero))
             {
-                if (!v.ParticipaVinculo || v.InfoCabo == null || !v.InfoCabo.Vincula) continue;
-                int tem = v.Vinculos.Count();
-                for (int ponta = 0; ponta < 2 && tem < v.InfoCabo.Pontas; ponta++)
+                List<Vao> vaos = chegadas[grupo.Key].Distinct().ToList();
+                if (vaos.Count == 0) continue;
+                var unidades = grupo.Where(PosteParticipa)
+                    .SelectMany(p => p.Lido.Estruturas.Select((est, k) => new { Poste = p, K = k, Info = regras.Vinculo.InfoEstrutura(est.Nome) }))
+                    .Where(u => u.Info.Regra.HasValue && u.Info.Qtd.HasValue && u.Info.Ocupa)
+                    .OrderBy(u => u.Info.Regra);
+                foreach (var u in unidades)
                 {
-                    if ((ponta == 0 ? v.VinculoA : v.VinculoB) != null) continue;
-                    Poste p0 = ponta == 0 ? v.PosteObjA : v.PosteObjB;
-                    bool ligou = false;
-                    foreach (Poste p in obra.GrupoDoPoste(p0))                // o poste e as outras anotações dele (troca de poste etc.)
+                    List<Ocupante> ocupantes = Lista(ocup, Chave(u.Poste.Numero, u.K));
+                    int vagas = u.Info.Qtd.Value - ocupantes.Count;
+                    var candidatos = new List<Vao>();
+                    foreach (Vao v in vaos)
                     {
-                    if (ligou || !PosteParticipa(p)) continue;
-                    for (int k = 0; k < p.Lido.Estruturas.Count; k++)
-                    {
-                        InfoEstrutura e = regras.Vinculo.InfoEstrutura(p.Lido.Estruturas[k].Nome);
-                        List<Ocupante> l = Lista(ocup, Chave(p.Numero, k));
-                        string motivo = RegrasVinculo.PodeComOcupantes(v.InfoCabo, e, l, false);
-                        if (motivo != null) { v.MotivoVinculo = motivo; continue; }
-                        Vinculo vi = new Vinculo();
-                        vi.Poste = p.Numero; vi.Estrutura = e.Codigo; vi.K = k;
-                        if (ponta == 0) v.VinculoA = vi; else v.VinculoB = vi;
-                        Ocupar(ocup, vi, v.InfoCabo);
-                        tem++;
-                        ligou = true;
-                        break;
+                        if (v.Vinculos.Count() >= v.InfoCabo.Pontas || PontaLivre(v, grupo.Key) < 0) continue;
+                        string motivo = RegrasVinculo.PodeComOcupantes(v.InfoCabo, u.Info, ocupantes, false);
+                        if (motivo != null) v.MotivoVinculo = motivo;
+                        else candidatos.Add(v);
                     }
+                    if (u.Info.Lados == "IGUAIS" && ocupantes.Count == 0 && candidatos.Count > 0)
+                        candidatos = candidatos.GroupBy(v => new { v.InfoCabo.Codigo, v.InfoCabo.Op })
+                            .OrderByDescending(g => Math.Min(vagas, g.Count())).First().ToList();
+                    foreach (Vao v in candidatos)
+                    {
+                        string motivo = RegrasVinculo.PodeComOcupantes(v.InfoCabo, u.Info, ocupantes, false);
+                        if (motivo != null) { v.MotivoVinculo = motivo; continue; }
+                        Vinculo vi = new Vinculo { Poste = u.Poste.Numero, Estrutura = u.Info.Codigo, K = u.K };
+                        if (PontaLivre(v, grupo.Key) == 0) v.VinculoA = vi;
+                        else v.VinculoB = vi;
+                        Ocupar(ocup, vi, v.InfoCabo);
+                        // Os próximos candidatos recebem na conferência o motivo de a estrutura estar cheia.
                     }
                 }
             }
             AtualizarParametros(obra, regras);
+        }
+
+        private static int PontaLivre(Vao v, string grupo)
+        {
+            if (v.VinculoA == null && v.PosteObjA != null && (v.PosteObjA.IrmaoDe ?? v.PosteA) == grupo) return 0;
+            if (v.VinculoB == null && v.PosteObjB != null && (v.PosteObjB.IrmaoDe ?? v.PosteB) == grupo) return 1;
+            return -1;
         }
 
         private static List<Ocupante> Lista(Dictionary<string, List<Ocupante>> ocup, string chave)

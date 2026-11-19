@@ -30,6 +30,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public int? Qtd;
         public int? QtdMin;
         public int? MaxReais;
+        public bool Ocupa = true;
         public string Lados = "LIVRE";
         public bool Amarracao;
         public bool AceitaI = true;
@@ -214,6 +215,7 @@ namespace OrcamentoNanoCAD.Nucleo
             d.Qtd = Inteiro(r["qtd_max"]) ?? Inteiro(r["qtd_cabos"]);
             d.QtdMin = Inteiro(r["qtd_min"]) ?? d.Qtd;
             d.MaxReais = Inteiro(r["max_reais"]);
+            d.Ocupa = r.Bool("ocupa", true);
             d.Lados = r.Str("lados") == "IGUAIS" ? "IGUAIS" : "LIVRE";
             d.Amarracao = r.Bool("amarracao", false);
             d.AceitaI = !(r["aceita_i"] is bool && !(bool)r["aceita_i"]);

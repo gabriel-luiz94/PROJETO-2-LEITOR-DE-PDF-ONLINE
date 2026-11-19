@@ -44,9 +44,7 @@ Leitura do DXF inteiro (TASK-005): ao mudar `services/dxf_service.py` ou o monta
 
 ## Regra P6 — A DLL versionada
 
-`appload/nanoCAD26/OrcamentoNanoCAD.dll` é versionada (o usuário usa direto). Toda mudança em `src/` que for para o
-repositório vai junto com a DLL recompilada (`./compilar.sh`, build determinístico). `appload/nanoCAD5/` é gerada no
-Windows do usuário e **não** é versionada pelo agente.
+As DLLs em `appload/nanoCAD26/` e `appload/nanoCAD5/` e seus manifestos são versionados. Mudanças em `src/` acompanham a recompilação com `./compilar.sh`. Para a versão 5, o build compartilhado usa referências geradas; o build no Windows pode usar as DLLs instaladas. A validação no CAD segue P7.
 
 ## Regra P7 — Testes no CAD são do usuário
 

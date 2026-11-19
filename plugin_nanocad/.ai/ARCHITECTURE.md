@@ -53,8 +53,7 @@ O mesmo `DesenhoBruto` sai do conversor de DXF (`tests/oraculo/dxf_para_bruto.py
 1. **Textos** ordenados como o leitor de DXF (Y decrescente, depois X; ordenação estável → parágrafos do mesmo MTEXT
    ficam juntos, mesma posição/layer = "mesmo MTEXT" para a vizinhança). Cada um passa por `MotorLeitor.ProcessarEClassificar`.
    Blocos entram como `[BLOCO: nome]` (o leitor de DXF da aplicação também lista).
-2. **Redes**: linha nas layers `REDE_MT`/`REDE_BT` cuja cor confirma a layer (vermelho = MT, verde = BT; cor neutra vale
-   a layer; divergente descarta). Linhas fora das redes com até 40 × altura típica viram **guias** (linha da anotação).
+2. **Redes** seguem o perfil do projeto. COR_MANDA exige uma layer de rede e descarta a cor contraditória. LAYER_MANDA classifica pela layer, com a cor como alternativa. SO_LAYER usa a layer. Cores aceitam ACI, hexadecimal, faixas e listas.
 3. **Vãos**: cada rede é cortada nos postes que estão sobre ela (distância ≤ 1,5 × altura típica). Pedaço entre dois
    postes = vão; ponta sem poste = vão com ponta solta (**Erro**). Uma polilinha pode virar vários vãos (`Trecho`).
 4. **Associação**: anotação de CABO → vão mais próximo; de POSTE/ESTRUTURA → poste mais próximo; raio = 4 × altura do
@@ -63,9 +62,7 @@ O mesmo `DesenhoBruto` sai do conversor de DXF (`tests/oraculo/dxf_para_bruto.py
 5. **Numeração** (`Numerar`): DFS a partir do poste mais à esquerda; em cada poste segue primeiro o vão que mais continua
    a direção de chegada. Resultado no desenho dos mockups: V1 P1-P2, V2 P2-P3, V3 P3-P4, V4 P2-P5, … (teste `Numeracao_segue_a_rede_como_no_mockup`).
    A ponta A de cada vão é a do poste de número menor.
-6. **Vínculo** (`Vinculador.Vincular`): para cada vão I/M (na ordem dos números), em cada ponta, a 1ª estrutura do poste
-   (na ordem da anotação) que aceita o cabo pelas regras (`PodeComOcupantes`: regra do cabo × regra da estrutura,
-   capacidade, lados iguais, I/M) — até completar as `pontas` do cabo (I: 2, M: 1, ou o que a regra disser). Vínculos manuais ficam.
+6. **Vínculo** reserva as escolhas manuais, agrupa pontas por poste e considera unidades em ordem de regra. Para lados iguais, prefere o grupo que preenche mais vagas. A ordem dos cabos desempata.
 7. **Parâmetros** por estrutura = os da aplicação (`_analisar_base`): `tipocabo` (VALOR DE CABO; consolidado C > P > A),
    `cabo`/`cabo2` (descrição completa), na ordem cadastrada.
 8. **Conferência**: Erro = vão sem poste na ponta; Conferir = sem anotação, cabo sem regra, vínculo incompleto,

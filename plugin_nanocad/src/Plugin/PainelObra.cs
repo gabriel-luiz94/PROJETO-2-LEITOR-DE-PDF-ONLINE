@@ -1,5 +1,5 @@
 // Plugin/PainelObra.cs — painel (janela não modal) da obra, no visual da aplicação (TASK-012 do plugin):
-//   barra       ícones: Início · Fechar obra · Leitura · Diagnóstico | Salvar · Abrir na aplicação · Vínculos · Ativos · Marcas | Conectar · Sincronizar
+//   barra       Projeto, Conferir e Configurações; Salvar e Abrir no OrçaCore ficam visíveis.
 //   obra        Ler: Reler (do zero) · Atualizar   |   Construir: + Poste · + Vão · Vincular automático
 //   filtros     Todos / Ok / Conferir / Erro / Ignorados (textos que as regras descartaram, com o motivo)
 //   listas      CABOS (vãos) e POSTES E ESTRUTURAS (outros) separadas, como a Tabela de Cabos e a Tabela de Outros do Resumo.
@@ -26,7 +26,6 @@ namespace OrcamentoNanoCAD.UI
         private readonly FlowLayoutPanel _botoesLer, _botoesConstruir;
         private readonly ListView _cabos, _outros, _listaIgnorados;
         private readonly SplitContainer _split;
-        private readonly ToolTip _dicas;
         private int _nCabos, _nOutros;
 
         public static void Abrir(Sessao s)
@@ -65,9 +64,16 @@ namespace OrcamentoNanoCAD.UI
             return new FlowLayoutPanel { AutoSize = true, WrapContents = true, MaximumSize = new Size(640, 0), Margin = new Padding(0, 2, 0, 2) };
         }
 
-        private static Control Separador()
+        private static ToolStripMenuItem Grupo(MenuStrip menu, string nome)
         {
-            return new Panel { Width = 1, Height = 26, Margin = new Padding(6, 5, 6, 0), BackColor = Visual.Borda, Tag = "sep" };
+            ToolStripMenuItem grupo = new ToolStripMenuItem(nome);
+            menu.Items.Add(grupo);
+            return grupo;
+        }
+
+        private static void Acao(ToolStripMenuItem grupo, string nome, string comando)
+        {
+            grupo.DropDownItems.Add(nome, null, (o, e) => Visual.Executar(comando));
         }
 
         private PainelObra()
@@ -78,27 +84,8 @@ namespace OrcamentoNanoCAD.UI
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - Width - 20, Screen.PrimaryScreen.WorkingArea.Top + 40);
             Font = Visual.Normal;
             ShowInTaskbar = false;
-            _dicas = new ToolTip();
 
             FlowLayoutPanel topo = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(10, 8, 10, 4) };
-
-            // barra de ícones (nome na dica)
-            FlowLayoutPanel barra = Linha();
-            barra.Controls.Add(Visual.BotaoIcone("inicio", "Início (ORCAMENTO)", (o, e) => Visual.Executar("ORCAMENTO"), _dicas));
-            barra.Controls.Add(Visual.BotaoIcone("fechar", "Fechar obra (ORC_FECHAR)", (o, e) => Visual.Executar("ORC_FECHAR"), _dicas));
-            barra.Controls.Add(Visual.BotaoIcone("leitura", "Configurar leitura: layers da rede, blocos de poste, guias (ORC_LEITURA)", (o, e) => Visual.Executar("ORC_LEITURA"), _dicas));
-            barra.Controls.Add(Visual.BotaoIcone("diagnostico", "Diagnóstico: o que o plugin leu em cada texto (ORC_DIAGNOSTICO)", (o, e) => Visual.Executar("ORC_DIAGNOSTICO"), _dicas));
-            barra.Controls.Add(Separador());
-            barra.Controls.Add(Visual.BotaoIcone("salvar", "Salvar o projeto <desenho>.obra (o mesmo do 📁 Projeto do OrçaCore) e a cópia no DWG (ORC_SALVAR)", (o, e) => Visual.Executar("ORC_SALVAR"), _dicas));
-            barra.Controls.Add(Visual.BotaoIcone("ativos", "Projeto: nome e número de obra (ORC_PROJETO)", (o, e) => Visual.Executar("ORC_PROJETO"), _dicas));
-            barra.Controls.Add(Visual.BotaoIcone("app", "Salvar e abrir o projeto no OrçaCore deste computador (ORC_ABRIR_APP)", (o, e) => Visual.Executar("ORC_ABRIR_APP"), _dicas));
-            barra.Controls.Add(Visual.BotaoIcone("vinculos", "Tabela de vínculos cabo ⇄ estrutura (ORC_VINCULOS)", (o, e) => Visual.Executar("ORC_VINCULOS"), _dicas));
-            barra.Controls.Add(Visual.BotaoIcone("ativos", "Ativos com parâmetros (ORC_ATIVOS)", (o, e) => Visual.Executar("ORC_ATIVOS"), _dicas));
-            barra.Controls.Add(Visual.BotaoIcone("marcas", "Mostrar/ocultar números e vínculos no desenho (ORC_MARCAS)", (o, e) => Visual.Executar("ORC_MARCAS"), _dicas));
-            barra.Controls.Add(Separador());
-            barra.Controls.Add(Visual.BotaoIcone("conectar", "Conectar à aplicação (ORC_CONECTAR)", (o, e) => Visual.Executar("ORC_CONECTAR"), _dicas));
-            barra.Controls.Add(Visual.BotaoIcone("sincronizar", "Sincronizar regras e base agora (ORC_SINCRONIZAR)", (o, e) => Visual.Executar("ORC_SINCRONIZAR"), _dicas));
-            topo.Controls.Add(barra);
 
             _titulo = Visual.Rotulo("", Visual.Titulo);
             _titulo.Margin = new Padding(0, 6, 0, 0);
@@ -110,9 +97,29 @@ namespace OrcamentoNanoCAD.UI
             _conexao.MaximumSize = new Size(620, 0);
             topo.Controls.Add(_conexao);
 
+            FlowLayoutPanel barra = Linha();
+            MenuStrip menu = new MenuStrip { AutoSize = true, Dock = DockStyle.None, GripStyle = ToolStripGripStyle.Hidden };
+            ToolStripMenuItem projeto = Grupo(menu, "Projeto");
+            Acao(projeto, "Início", "ORCAMENTO");
+            Acao(projeto, "Nome e número da obra", "ORC_PROJETO");
+            Acao(projeto, "Fechar obra", "ORC_FECHAR");
+            ToolStripMenuItem conferir = Grupo(menu, "Conferir");
+            Acao(conferir, "Vínculos", "ORC_VINCULOS");
+            Acao(conferir, "Ativos com parâmetros", "ORC_ATIVOS");
+            Acao(conferir, "Mostrar ou ocultar marcas", "ORC_MARCAS");
+            ToolStripMenuItem config = Grupo(menu, "Configurações");
+            Acao(config, "Leitura do desenho", "ORC_LEITURA");
+            Acao(config, "Conectar à aplicação", "ORC_CONECTAR");
+            Acao(config, "Sincronizar regras", "ORC_SINCRONIZAR");
+            Acao(config, "Diagnóstico", "ORC_DIAGNOSTICO");
+            barra.Controls.Add(menu);
+            barra.Controls.Add(Visual.Botao("Salvar", (o, e) => Visual.Executar("ORC_SALVAR"), false, "salvar"));
+            barra.Controls.Add(Visual.Botao("Abrir no OrçaCore", (o, e) => Visual.Executar("ORC_ABRIR_APP"), false, "app"));
+            topo.Controls.Add(barra);
+
             _botoesLer = Linha();
-            _botoesLer.Controls.Add(Visual.Botao("Reler (do zero)", (o, e) => Visual.Executar("ORC_RELER"), true, "reler"));
-            _botoesLer.Controls.Add(Visual.Botao("Atualizar (mantém ajustes)", (o, e) => Visual.Executar("ORC_ATUALIZAR"), false, "atualizar"));
+            _botoesLer.Controls.Add(Visual.Botao("Atualizar (mantém ajustes)", (o, e) => Visual.Executar("ORC_ATUALIZAR"), true, "atualizar"));
+            _botoesLer.Controls.Add(Visual.Botao("Reler (do zero)", (o, e) => Visual.Executar("ORC_RELER"), false, "reler"));
             _botoesLer.Controls.Add(Visual.Botao("+ Cabo", (o, e) => Visual.Executar("ORC_NOVO_CABO"), false, "cabos"));
             _botoesLer.Controls.Add(Visual.Botao("+ Outros", (o, e) => Visual.Executar("ORC_NOVO_OUTROS"), false, "ativos"));
             _botoesConstruir = Linha();
@@ -159,7 +166,6 @@ namespace OrcamentoNanoCAD.UI
             _split.BackColor = Visual.Borda;                        // a faixa entre as listas
             _split.Panel1.BackColor = Visual.Fundo;
             _split.Panel2.BackColor = Visual.Fundo;
-            foreach (Control c in barra.Controls) if ((c.Tag as string) == "sep") c.BackColor = Visual.Borda;
             Shown += (o, e) => { try { _split.SplitterDistance = Math.Max(120, (_split.Height - _split.SplitterWidth) * 55 / 100); } catch (Exception) { } };
         }
 
@@ -193,7 +199,7 @@ namespace OrcamentoNanoCAD.UI
             if (o == null) return;
             bool construir = o.Modo == "construir";
             _titulo.Text = (construir ? "Construir do zero" : "Projeto lido — conferência") + (s.Modificada ? "  •" : "");
-            _subtitulo.Text = o.Nome + (string.IsNullOrEmpty(o.NumeroObra) ? "" : " · obra nº " + o.NumeroObra) + " · projeto " + (string.IsNullOrEmpty(o.Projeto) ? "(sem código)" : o.Projeto) + " · " + (s.Regras != null ? s.Regras.Nome : "")
+            _subtitulo.Text = o.Nome + (string.IsNullOrEmpty(o.NumeroObra) ? "" : " · obra nº " + o.NumeroObra) + " · projeto " + (string.IsNullOrEmpty(o.Projeto) ? "(sem código)" : o.Projeto) + " · " + (s.Regras != null ? s.Regras.Nome + " · regras: " + s.Regras.Origem : "")
                               + (s.Modificada ? " · mudanças não salvas" : (o.SalvoEm != null ? " · salvo " + o.SalvoEm : ""));
             _botoesLer.Visible = !construir;
             _botoesConstruir.Visible = construir;
