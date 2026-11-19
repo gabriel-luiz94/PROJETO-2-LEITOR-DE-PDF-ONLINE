@@ -1010,3 +1010,13 @@ O quadro **Postes · Média · Baixa · Equip.** (e o modal «Resumo da rede») 
 - **Lembrar de mim:** com a caixa marcada no login, o programa abre direto na tela inicial por 30 dias (sem a tela de login). Se o token vencer, ou se você sair (**Sair**), o login volta. Sem marcar, o login aparece a cada vez que abre o programa.
 - **Escolher arquivo (Ler projeto, importar…):** assim que a caixa «Abrir» do Windows fecha, aparece «Abrindo <arquivo> (N MB)…» no pé da tela; o arquivo chega à tela logo em seguida (os bytes não passam mais pela ponte lenta da janela).
 
+## Grupos de linhas e mover linhas (19/11/2026)
+
+Nas tabelas **Demais Ativos** e **Cabos** você pode agrupar linhas e recolhê-las.
+
+- **Criar:** digite uma linha começando com `@` (ex.: `@P1 Rua das Flores`). Ela vira o título do grupo (fica congelada: não entra em nenhum cálculo). `#` continua sendo comentário.
+- **Enter / Shift+Enter** na linha do grupo (ou numa linha dele): **Enter** cria uma linha nova já dentro do grupo (no fim); **Shift+Enter** cria uma linha **solta** logo abaixo do grupo. Nas demais linhas nada mudou.
+- **Botão direito → Grupo ▸:** *Adicionar ao grupo* (mostra a lista de grupos), *Criar grupo…* (pede o nome e leva as linhas selecionadas para ele), *Tirar do grupo*, *Recolher/Expandir*, *Desfazer o grupo* (as linhas ficam na tabela), *Mover para cima/baixo*. Funciona com uma ou várias linhas selecionadas.
+- **+ / −** no número da linha do grupo recolhe ou expande (Alt+← / Alt+→ também); o número ao lado é a quantidade de linhas. O estado é salvo com a obra.
+- **Mover:** **Alt+↑ / Alt+↓** move a linha (ou as selecionadas); na linha do grupo move o grupo todo. Passar da borda tira a linha do grupo; uma linha solta que desce sobre o título entra nele. Ctrl+Z desfaz.
+- O menu do botão direito agora abre para cima (ou para a esquerda) quando não há espaço embaixo, em vez de ficar cortado.
