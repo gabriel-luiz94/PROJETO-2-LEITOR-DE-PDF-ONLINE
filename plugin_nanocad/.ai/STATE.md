@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Trabalho de 19/11/2026
+
+TASK-022 em andamento (leitura por projeto). TASK-023 (vínculos por poste) e TASK-024 (painel) planejadas. Validação operacional pendente nos dois CADs.
+
 ## Versão
 
 `0.10.1` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
