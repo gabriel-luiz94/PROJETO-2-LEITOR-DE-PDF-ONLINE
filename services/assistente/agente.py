@@ -46,6 +46,16 @@ def _resumo_args(args: dict) -> str:
     return ""
 
 
+# Tempo máximo de UMA chamada ao provedor: sem isto, um provedor que trava deixa o chat em «Gerando» para sempre.
+TIMEOUT_CHAMADA = 45.0
+TIMEOUT_COM_RESERVA = 20.0          # com reserva configurado o principal tem menos tempo antes de passar a vez
+PRAZO_TOTAL = 120.0                 # teto da pergunta inteira (várias idas e vindas com ferramentas)
+
+
+class ErroTempo(RuntimeError):
+    """O provedor não respondeu no tempo: passa ao próximo modelo SEM repetir (repetir custaria outro tempo inteiro)."""
+
+
 # Falhas de momento (provedor sobrecarregado, rede): vale tentar de novo o MESMO modelo antes de trocar; cota esgotada/modelo inexistente trocam direto.
 TRANSITORIOS = ("503", "502", "504", "unavailable", "overloaded", "high demand", "timeout", "timed out", "connection")
 ESPERAS = (1.5, 4.0)                # segundos antes da 2ª e da 3ª tentativa no mesmo modelo
@@ -66,21 +76,34 @@ def mensagem_amigavel(e) -> str:
     """O erro do provedor em português quando é de momento; senão o texto original (cortado)."""
     if isinstance(e, ErroProvedores):
         return e.mensagem_pronta
+    if isinstance(e, ErroTempo):
+        return "O provedor de IA demorou demais para responder. Tente de novo, escolha outro modelo ou configure um provedor reserva em «Configuração de IA»."
     if eh_transitorio(e):
         return ("O provedor de IA está sobrecarregado agora (erro 503/indisponível). Tentei de novo e troquei de modelo, sem sucesso. "
                 "Aguarde um instante e repita, ou mude o provedor/modelo em «Configuração de IA».")
     return str(e)[:400]
 
 
-async def com_fallback(modelos: list, chamar, esperas=None):
-    """Para cada modelo: até 3 tentativas se a falha for de momento (503…); cota/indisponibilidade que persiste passa ao próximo modelo; os demais erros sobem.
-    `esperas` (segundos entre tentativas) troca o padrão: com provedor reserva o principal desiste mais cedo."""
+async def _com_tempo(chamar, modelo, limite):
+    try:
+        return await asyncio.wait_for(chamar(modelo), limite)
+    except (asyncio.TimeoutError, TimeoutError):
+        raise ErroTempo(f"sem resposta em {limite:.0f} s ({modelo})")
+
+
+async def com_fallback(modelos: list, chamar, esperas=None, timeout=None):
+    """Para cada modelo: até 3 tentativas se a falha for de momento (503…); cota/indisponibilidade/tempo esgotado passam ao próximo modelo; os demais erros sobem.
+    `esperas` (segundos entre tentativas) e `timeout` (por chamada) trocam o padrão: com provedor reserva o principal desiste mais cedo."""
     esperas = ESPERAS if esperas is None else esperas
+    limite = TIMEOUT_CHAMADA if timeout is None else timeout
     ultimo = None
     for m in modelos:
         for tentativa in range(len(esperas) + 1):
             try:
-                return await chamar(m)
+                return await _com_tempo(chamar, m, limite)
+            except ErroTempo as e:
+                ultimo = e
+                break
             except Exception as e:
                 if eh_transitorio(e) and tentativa < len(esperas):
                     await asyncio.sleep(esperas[tentativa])
@@ -89,6 +112,8 @@ async def com_fallback(modelos: list, chamar, esperas=None):
                     ultimo = e
                     break
                 raise
+    if isinstance(ultimo, ErroTempo):
+        raise ultimo
     raise RuntimeError(str(ultimo) if ultimo else "Nenhum modelo disponível.")
 
 
@@ -96,6 +121,7 @@ async def com_fallback(modelos: list, chamar, esperas=None):
 class AdaptadorBase:
     modelos: list = []
     esperas = None                  # None = ESPERAS padrão
+    timeout = None                  # None = TIMEOUT_CHAMADA
 
     async def turno(self, system: str, mensagens: list, specs: list) -> Turno:   # pragma: no cover - interface
         raise NotImplementedError
@@ -126,6 +152,7 @@ class AdaptadorComReserva(AdaptadorBase):
     def __init__(self, principal: AdaptadorBase, reserva: AdaptadorBase, chave: str, rotulo_reserva: str = "reserva"):
         self.principal, self.reserva, self.chave, self.rotulo_reserva = principal, reserva, chave, rotulo_reserva
         principal.esperas = ESPERAS_COM_RESERVA
+        principal.timeout = TIMEOUT_COM_RESERVA
         self.no_reserva, self.erro_principal, self._avisos = False, None, []
 
     def _ir_para_reserva(self, motivo: str):
@@ -180,13 +207,22 @@ class AdaptadorGemini(AdaptadorBase):
     async def turno(self, system, mensagens, specs) -> Turno:
         from google.genai import types
         decl = [types.FunctionDeclaration(name=s["name"], description=s["description"], parameters_json_schema=s["parameters"]) for s in specs]
-        cfg = types.GenerateContentConfig(system_instruction=system, tools=[types.Tool(function_declarations=decl)] if decl else None,
-                                          automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True))
+        def cfg_de(modelo, pensar_pouco):
+            extra = {}
+            if pensar_pouco and str(modelo).startswith("gemini-3"):          # Gemini 3 pensa muito por padrão: «low» corta segundos de cada volta
+                extra["thinking_config"] = types.ThinkingConfig(thinking_level="low")
+            return types.GenerateContentConfig(system_instruction=system, tools=[types.Tool(function_declarations=decl)] if decl else None,
+                                               automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True), **extra)
         contents = self.converter(mensagens)
 
         async def chamar(modelo):
-            return await self.client.aio.models.generate_content(model=modelo, contents=contents, config=cfg)
-        resp = await com_fallback(self.modelos, chamar, self.esperas)
+            try:
+                return await self.client.aio.models.generate_content(model=modelo, contents=contents, config=cfg_de(modelo, True))
+            except Exception as e:
+                if "thinking" not in str(e).lower():
+                    raise
+                return await self.client.aio.models.generate_content(model=modelo, contents=contents, config=cfg_de(modelo, False))      # esta versão não aceita o nível de pensamento
+        resp = await com_fallback(self.modelos, chamar, self.esperas, self.timeout)
         cand = resp.candidates[0] if getattr(resp, "candidates", None) else None
         conteudo = getattr(cand, "content", None)
         texto, chamadas = [], []
@@ -225,7 +261,7 @@ class AdaptadorOpenAI(AdaptadorBase):
         async def chamar(modelo):
             extra = {"tools": tools} if tools else {}
             return await self.client.chat.completions.create(model=modelo, messages=msgs, **extra)
-        resp = await com_fallback(self.modelos, chamar, self.esperas)
+        resp = await com_fallback(self.modelos, chamar, self.esperas, self.timeout)
         msg = resp.choices[0].message
         chamadas = []
         for tc in getattr(msg, "tool_calls", None) or []:
@@ -261,7 +297,7 @@ class AdaptadorClaude(AdaptadorBase):
         async def chamar(modelo):
             extra = {"tools": tools} if tools else {}
             return await self.client.messages.create(model=modelo, max_tokens=4096, system=system, messages=msgs, **extra)
-        resp = await com_fallback(self.modelos, chamar, self.esperas)
+        resp = await com_fallback(self.modelos, chamar, self.esperas, self.timeout)
         texto, chamadas = [], []
         for b in resp.content:
             if getattr(b, "type", "") == "text":
@@ -304,13 +340,43 @@ def historico_neutro(history: list) -> list:
     return saida
 
 
+# Ferramentas que ENCERRAM a pergunta: depois delas não vale outra volta ao modelo só para «resumir» (o cartão do plano já mostra tudo).
+TERMINAIS = {"propor_alteracoes", "propor_obra", "ajustar_tela"}
+
+
+def _terminal_ok(chamadas, resultados) -> bool:
+    """Só chamadas terminais, todas aceitas, sem rejeição nem aviso (aviso/rejeição = o modelo deve corrigir numa nova volta)."""
+    if not chamadas or any(c.nome not in TERMINAIS for c in chamadas):
+        return False
+    for r in resultados:
+        res = r["resultado"]
+        if not isinstance(res, dict) or res.get("erro") or res.get("rejeitadas") or res.get("avisos") or res.get("aviso"):
+            return False
+    return True
+
+
+def _resumo_local(ctx, chamadas) -> str:
+    """O texto que o modelo escreveria depois de um plano limpo, sem gastar outra chamada."""
+    nomes = {c.nome for c in chamadas}
+    if "propor_obra" in nomes:
+        return "Confira o cartão e continue para aplicar a obra."
+    if "propor_alteracoes" in nomes and ctx.plano:
+        n = len(ctx.plano)
+        return (f"Proponho {n} alteração(ões)" + (f": {ctx.resumo_plano}" if ctx.resumo_plano else "") + ". Confira o cartão e clique em Aplicar.")
+    return "Pronto."
+
+
 async def rodar(adaptador: AdaptadorBase, system: str, historico: list, prompt: str, ctx: ferramentas.Contexto) -> AsyncIterator[dict]:
     """Gera os eventos da conversa. O último é sempre {"tipo": "fim"}; falhas viram {"tipo": "erro"} (nunca exceção para a rota)."""
     mensagens = list(historico) + [{"role": "user", "texto": prompt}]
     specs = ferramentas.especificacoes()
     texto_final = ""
+    inicio = _agora()
     try:
         for _ in range(MAX_PASSOS):
+            if _agora() - inicio > PRAZO_TOTAL:
+                texto_final = "Esta pergunta passou do tempo máximo. Diga o que falta e continuo daqui."
+                break
             turno = await adaptador.turno(system, mensagens, specs)
             for aviso in adaptador.pegar_avisos():
                 yield {"tipo": "aviso", "texto": aviso}
@@ -324,8 +390,12 @@ async def rodar(adaptador: AdaptadorBase, system: str, historico: list, prompt: 
             resultados = []
             for c in turno.chamadas:
                 yield {"tipo": "ferramenta", "nome": c.nome, "detalhe": _resumo_args(c.args)}
-                resultados.append({"id": c.id, "nome": c.nome, "resultado": ferramentas.executar(ctx, c.nome, c.args)})
+                # em outra thread: cálculo/base grandes não travam o servidor (nem as outras telas)
+                resultados.append({"id": c.id, "nome": c.nome, "resultado": await asyncio.to_thread(ferramentas.executar, ctx, c.nome, c.args)})
             mensagens.append({"role": "tool", "resultados": resultados})
+            if _terminal_ok(turno.chamadas, resultados):
+                texto_final = "" if turno.texto.strip() else _resumo_local(ctx, turno.chamadas)
+                break
         else:
             texto_final = "Parei por excesso de passos nesta pergunta. Diga o que falta e continuo daqui."
     except Exception as e:

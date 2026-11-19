@@ -16,6 +16,13 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-19 — TASK-191 (ajuste 3): assistente rápido e sem travar em «Gerando»
+
+- **Nunca mais «Gerando» para sempre:** cada chamada ao provedor tem tempo máximo (45 s; 20 s se há reserva configurado; `ErroTempo` troca de modelo/provedor sem repetir) e a pergunta inteira tem teto de 120 s. A tela mostra «Pensando · N s» (e o nome da etapa: «Consultando a base», «Calculando o orçamento»…), avisa quando demora (15 s) e o botão de enviar vira **■ Parar** (aborta o pedido).
+- **Menos idas ao modelo por comando:** plano limpo (sem aviso nem rejeição) ENCERRA a pergunta com um resumo local («Proponho N alterações… clique em Aplicar») em vez de mais uma volta só para o modelo resumir; a skill `formato_ativos` e a tela atual (até 60 linhas, com ids) já vão no prompt (sem `carregar_skill`/`ler_tabela`); o prompt manda fazer o mínimo de passos e chamar ferramentas em paralelo; `propor_alteracoes` já confere a base (sem `validar_linhas` antes). Gemini 3 usa pensamento baixo (`thinking_level=low`, com recuo automático se o modelo não aceitar). As ferramentas rodam em outra thread (cálculo grande não trava o servidor).
+- **Atalho sem IA ampliado:** «adicione 2 CON, 3 PR220 e 1 CFU», «remova 1,5 IT; 2x CON», «tire 2-CON» (vários itens, verbos adicione/coloque/insira/remova/tire/retire/exclua); frase que não seja só «quantidade ativo» (ex.: «adicionar 2 postes de 11 metros») vai para a IA em vez de virar um ativo errado.
+- Testes: `tests/test_assistente_191.py` (terminais, prazo, tempo esgotado, thinking, atalho, prompt) e `tests/test_assistente_front_191.py`; verificado no navegador (contador, Parar, atalho com 3 itens em ~0,8 s).
+
 ## 2026-11-19 — TASK-191 (ajuste 2): provedor reserva automático no assistente
 
 - **Configuração** (Configuração de IA → «Provedor reserva»): ativar, provedor (OpenAI-compatível / Gemini / Claude), URL base, modelo e chave, com atalhos DeepSeek, Qwen (Alibaba · Singapura), OpenRouter, Ollama, Gemini e Claude. DeepSeek/Qwen/OpenRouter/Ollama entram como «OpenAI-compatível». Gravado em `configuracoes` (`ai_reserva_*`); a chave nunca volta para a tela (`GET /api/assistente/reserva` só diz `tem_chave`). `PUT /reserva` e `POST /reserva/testar` (chamada mínima ao reserva salvo): só admin.

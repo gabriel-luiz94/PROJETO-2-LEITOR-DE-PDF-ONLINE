@@ -152,3 +152,10 @@ def test_401_de_sessao_expirada_continua_voltando_ao_login():
     r = _auth_fetch("(() => { throw new Error('sem json'); })()")                 # corpo ilegível: trata como sessão expirada, como sempre
     assert r["redirecionou"] == "/login?next=%2Fresumo"
     assert _auth_fetch({"detail": "x"}, status=500)["redirecionou"] is None
+
+
+def test_chat_tem_andamento_visivel_e_botao_parar():
+    js = _ler("resumo.js")
+    assert "new AbortController()" in js and "signal: chatAbort.signal" in js and "modoParar(true)" in js and "modoParar(false)" in js
+    assert "'Pensando'" in js and "setInterval(desenharStatus, 1000)" in js and "clearInterval(relogio)" in js
+    assert "error.name === 'AbortError'" in js and "if (chatAbort) chatAbort.abort(); else sendToGemini();" in js

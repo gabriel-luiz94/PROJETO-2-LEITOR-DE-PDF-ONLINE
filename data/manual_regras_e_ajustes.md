@@ -990,3 +990,9 @@ Para o assistente ficar sempre disponível, configure um **segundo provedor de I
 - A chave do reserva fica guardada no programa e nunca é mostrada de volta. Deixe o campo em branco para manter a chave salva.
 - Sem chave no provedor principal mas com o reserva ativo, o assistente usa o reserva.
 
+## Assistente: rápido, com andamento e botão Parar (19/11/2026)
+
+- **Atalho instantâneo (sem IA):** comandos só de quantidade e ativo aplicam na hora, mesmo sem chave: `adicionar 2 CON`, `adicione 3 PR220, 2 CFU e 1 TR125`, `remova 1,5 IT; 2x CON`, `tire 2-CON`. Frases de verdade («adicionar 2 postes de 11 metros») vão para a IA.
+- **Enquanto a IA trabalha** o chat mostra o que está fazendo e há quantos segundos («Consultando a base · 4 s»). O botão de enviar vira **■** (Parar): clique para interromper. Se uma chamada passar de 45 segundos (20 s com provedor reserva), o assistente desiste dela e troca de modelo/provedor; a pergunta inteira tem teto de 2 minutos.
+- **Para ficar mais rápido:** use o modelo Flash Lite do Gemini (padrão) ou um provedor de resposta rápida; peça tudo numa frase só; deixe as skills curtas (a skill `formato_ativos` e as linhas da tela entram em TODA pergunta, então skills enormes deixam o assistente lento).
+
