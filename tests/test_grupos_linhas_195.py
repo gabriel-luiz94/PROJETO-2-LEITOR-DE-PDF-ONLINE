@@ -116,3 +116,12 @@ def test_ligacao_com_a_tela_e_rota_sem_cache():
     import app as appmod
     r = TestClient(appmod.app).get("/static/grupos_linhas.js")
     assert r.status_code == 200 and "no-store" in r.headers["cache-control"]
+
+
+def test_congelar_e_bloquear_grupo_age_nos_membros():
+    """TASK-196: marcar a linha «@» vale para o grupo todo (os membros entram nos alvos; a declaração continua sempre congelada)."""
+    js = open(os.path.join(S, "resumo.js"), encoding="utf-8").read()
+    assert "function expandirGrupos(tipo, idxs)" in js
+    corpo = js[js.index("function alternarMarcaLinhas"):js.index("function alternarComentario")]
+    assert "idxs = expandirGrupos(tipo, idxs)" in corpo and "!dados[i].grupoDecl" in corpo
+    assert "'grupo' : 'linha'" in js

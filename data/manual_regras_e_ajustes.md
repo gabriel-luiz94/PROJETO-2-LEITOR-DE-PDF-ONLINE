@@ -1020,3 +1020,4 @@ Nas tabelas **Demais Ativos** e **Cabos** você pode agrupar linhas e recolhê-l
 - **+ / −** no número da linha do grupo recolhe ou expande (Alt+← / Alt+→ também); o número ao lado é a quantidade de linhas. O estado é salvo com a obra.
 - **Mover:** **Alt+↑ / Alt+↓** move a linha (ou as selecionadas); na linha do grupo move o grupo todo. Passar da borda tira a linha do grupo; uma linha solta que desce sobre o título entra nele. Ctrl+Z desfaz.
 - O menu do botão direito agora abre para cima (ou para a esquerda) quando não há espaço embaixo, em vez de ficar cortado.
+- **Congelar / bloquear o grupo:** com a linha do grupo (`@…`) selecionada ou com o cursor nela, **Congelar grupo** e **Bloquear grupo** (botão direito ou botões ❄ 🔒) valem para todas as linhas dele; repetir desfaz.
