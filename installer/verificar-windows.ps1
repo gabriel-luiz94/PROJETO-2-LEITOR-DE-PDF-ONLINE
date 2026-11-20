@@ -26,7 +26,10 @@ function Confirmar-SemElevacao($executavel) {
 }
 
 function Instalar-OrcaCore {
-    return (Start-Process -FilePath $setup -ArgumentList $argumentos -Wait -PassThru).ExitCode
+    $log = Join-Path $env:RUNNER_TEMP 'orcacore-setup.log'
+    $resultado = Start-Process -FilePath $setup -ArgumentList ($argumentos + ('/LOG="{0}"' -f $log)) -Wait -PassThru
+    Get-Content -LiteralPath $log -Tail 12 | ForEach-Object { Write-Host $_ }
+    return $resultado.ExitCode
 }
 
 Confirmar-SemElevacao $setup
@@ -71,8 +74,8 @@ if ($LASTEXITCODE -ne 0 -or (Get-ItemPropertyValue $chave DisplayVersion) -ne $v
 $dados = Join-Path $pasta 'banco_resumo.db'
 Set-Content -LiteralPath $dados -Value 'dados do usuario'
 $hashDados = (Get-FileHash $dados).Hash
-Set-ItemProperty -LiteralPath $chave -Name DisplayVersion -Value '65534.0.0'
-if ((Instalar-OrcaCore) -eq 0 -or (Get-ItemPropertyValue $chave DisplayVersion) -ne '65534.0.0') {
+Set-ItemProperty -LiteralPath $chave -Name DisplayVersion -Value '9999.0.0'
+if ((Instalar-OrcaCore) -eq 0 -or (Get-ItemPropertyValue $chave DisplayVersion) -ne '9999.0.0') {
     throw 'O instalador deixou uma versão anterior substituir a mais recente.'
 }
 Set-ItemProperty -LiteralPath $chave -Name DisplayVersion -Value $versao

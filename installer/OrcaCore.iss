@@ -52,7 +52,10 @@ begin
     Exit;
   if not RegQueryStringValue(HKCU, '{#ChaveDesinstalacao}', 'DisplayVersion', VersaoInstalada) then
     Exit;
-  if StrToVersion(VersaoInstalada, Instalada) and StrToVersion('{#AppVersion}', Pacote) then
+  Log('Versão registrada: ' + VersaoInstalada + '; versão do pacote: {#AppVersion}');
+  if not StrToVersion(VersaoInstalada, Instalada) then
+    Exit;
+  if StrToVersion('{#AppVersion}', Pacote) then
     if ComparePackedVersion(Instalada, Pacote) > 0 then
     begin
       SuppressibleMsgBox('Uma versão mais recente do OrçaCore já está instalada.', mbInformation, MB_OK, IDOK);
