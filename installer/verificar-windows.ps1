@@ -74,9 +74,11 @@ if ($LASTEXITCODE -ne 0 -or (Get-ItemPropertyValue $chave DisplayVersion) -ne $v
 $dados = Join-Path $pasta 'banco_resumo.db'
 Set-Content -LiteralPath $dados -Value 'dados do usuario'
 $hashDados = (Get-FileHash $dados).Hash
-Set-ItemProperty -LiteralPath $chave -Name DisplayVersion -Value '9999.0.0'
-if ((Instalar-OrcaCore) -eq 0 -or (Get-ItemPropertyValue $chave DisplayVersion) -ne '9999.0.0') {
-    throw 'O instalador deixou uma versão anterior substituir a mais recente.'
+foreach ($maisNova in '9999.0.0', '65534.0.0') {
+    Set-ItemProperty -LiteralPath $chave -Name DisplayVersion -Value $maisNova
+    if ((Instalar-OrcaCore) -eq 0 -or (Get-ItemPropertyValue $chave DisplayVersion) -ne $maisNova) {
+        throw "O instalador deixou uma versão anterior substituir $maisNova."
+    }
 }
 Set-ItemProperty -LiteralPath $chave -Name DisplayVersion -Value $versao
 if ((Instalar-OrcaCore) -ne 0 -or (Get-FileHash $dados).Hash -ne $hashDados) {
