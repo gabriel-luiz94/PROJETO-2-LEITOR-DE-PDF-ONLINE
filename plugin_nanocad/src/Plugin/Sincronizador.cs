@@ -374,7 +374,7 @@ namespace OrcamentoNanoCAD
                 if (antiga.Modo == "ler" && (s.UltimoBruto != null || s.UltimoDesenho != null))
                 {
                     if (s.UltimoBruto != null) s.UltimoDesenho = MontadorDesenho.Montar(s.UltimoBruto, novas.Leitura);
-                    Obra nova = LeitorProjeto.Ler(s.UltimoDesenho, novas);
+                    Obra nova = LeitorProjeto.Ler(s.UltimoDesenho, novas, s.Obra.Associacoes);
                     nova.Projeto = antiga.Projeto; nova.Nome = antiga.Nome; nova.SalvoEm = antiga.SalvoEm;
                     Construtor.ReaplicarAjustes(nova, antiga, novas);
                     s.Obra = nova;

@@ -37,6 +37,7 @@ namespace OrcamentoNanoCAD.Nucleo
     public class TextoIgnorado
     {
         public string Handle, Texto, Layer, Cor, Motivo, Tipo;
+        public int Parte;
         public double X, Y;
     }
 
@@ -93,8 +94,13 @@ namespace OrcamentoNanoCAD.Nucleo
     {
         public string Numero;
         public string TextoHandle;    // anotação associada
+        public int ParteTexto;
+        public TextoDesenho OrigemMetros;
+        public List<string> Candidatos = new List<string>();
         public string TextoOriginal = "";
         public string TextoLayer = "";
+        public string LayerAplicada;
+        public string LayerAtual { get { return LayerAplicada ?? TextoLayer; } }
         public string TextoCor = "";
         public double? TextoX, TextoY;
         public string Entidade = "0";
@@ -188,6 +194,9 @@ namespace OrcamentoNanoCAD.Nucleo
 
     public class Obra
     {
+        public JObj Conferidos = new JObj();
+        public JObj Associacoes = new JObj();
+        public JObj LeituraAnterior;
         public string Nome = "obra";
         public string NumeroObra;     // TASK-020: número de obra do projeto de trabalho (REC); null = ainda não informado (fica o do arquivo)
         public string Projeto = "081";

@@ -15,6 +15,8 @@ namespace OrcamentoNanoCAD.Nucleo
     {
         public TextoDesenho T;
         public ResultadoLeitor R;
+        public TextoDesenho Comprimento;
+        public List<string> Candidatos = new List<string>();
     }
 
     public static class LeitorProjeto
@@ -36,6 +38,7 @@ namespace OrcamentoNanoCAD.Nucleo
                 TextoLido tl = new TextoLido();
                 tl.T = ordem[k];
                 tl.R = MotorLeitor.ProcessarEClassificar(itens, k, regras.Processamento, regras.Classificacao);
+                if (tl.R.Entidade == "CABO") tl.Comprimento = tl.R.Vizinhos.Select(i => ordem[i]).FirstOrDefault(t => Construtor.EhComprimento(t.Texto));
                 saida.Add(tl);
             }
             return saida;
@@ -51,6 +54,7 @@ namespace OrcamentoNanoCAD.Nucleo
 
         private class Contexto
         {
+            public JObj Associacoes;
             public RegrasProjeto Regras;
             public ConfigLeitura Cfg;
             public double H;
@@ -68,9 +72,10 @@ namespace OrcamentoNanoCAD.Nucleo
             return h > 0 ? h : 1.0;
         }
 
-        public static Obra Ler(Desenho d, RegrasProjeto regras)
+        public static Obra Ler(Desenho d, RegrasProjeto regras, JObj associacoes = null)
         {
             Contexto ctx = new Contexto();
+            ctx.Associacoes = associacoes ?? new JObj();
             ctx.Regras = regras;
             ctx.Cfg = regras.Leitura ?? _padrao;
             ctx.H = AlturaTipica(d.Textos);
@@ -100,6 +105,7 @@ namespace OrcamentoNanoCAD.Nucleo
             Dictionary<Elemento, List<TextoLido>> extras = AssociarTextos(ctx.Lidos, ctx, avulsos);
 
             Obra obra = new Obra();
+            obra.Associacoes = ctx.Associacoes;
             obra.Projeto = regras.Codigo;
             obra.NomeRegras = regras.Nome;
             obra.Desenho = d.Arquivo ?? "";
@@ -114,6 +120,11 @@ namespace OrcamentoNanoCAD.Nucleo
             Numerar(obra);
             CriarIrmaos(obra, extras);
             LerPlacas(obra, ctx);
+            var componentes = new HashSet<TextoDesenho>(ctx.Lidos.Where(t => t.R.Entidade != "0")
+                .SelectMany(t => t.R.Vizinhos.Select(i => ctx.Lidos[i].T)));
+            var usados = new HashSet<string>(componentes.Select(t => Auditoria.Origem(t.Handle,t.Parte,t.Texto)));
+            foreach (TextoIgnorado t in obra.Ignorados)
+                if (usados.Contains(Auditoria.Origem(t.Handle,t.Parte,t.Texto))) t.Motivo = "parte de outra anotação classificada";
             _layerDaGuia.Clear();
             Vinculador.Vincular(obra, regras, false);
             Conferencia.Avaliar(obra, regras);
@@ -357,6 +368,9 @@ namespace OrcamentoNanoCAD.Nucleo
 
         public static void Anotar(Elemento e, TextoLido tl)
         {
+            e.OrigemMetros = tl.Comprimento;
+            e.Candidatos = tl.Candidatos;
+            e.ParteTexto = tl.T.Parte;
             e.TextoHandle = tl.T.Handle;
             e.TextoOriginal = tl.T.Texto;
             e.TextoLayer = tl.T.Layer;
@@ -384,7 +398,7 @@ namespace OrcamentoNanoCAD.Nucleo
 
         private static void Ignorar(Contexto ctx, TextoLido tl, string motivo)
         {
-            ctx.Ignorados.Add(new TextoIgnorado { Handle = tl.T.Handle, Texto = tl.T.Texto, Layer = tl.T.Layer, Cor = tl.T.Cor, Tipo = tl.T.Tipo, X = tl.T.X, Y = tl.T.Y, Motivo = motivo });
+            ctx.Ignorados.Add(new TextoIgnorado { Handle = tl.T.Handle, Parte = tl.T.Parte, Texto = tl.T.Texto, Layer = tl.T.Layer, Cor = tl.T.Cor, Tipo = tl.T.Tipo, X = tl.T.X, Y = tl.T.Y, Motivo = motivo });
         }
 
         /// <summary>Liga cada anotação a um poste/vão. Devolve as anotações a MAIS de cada elemento (viram "irmãos": V7b, P3b).</summary>
@@ -415,6 +429,13 @@ namespace OrcamentoNanoCAD.Nucleo
             {
                 double h = tl.T.Altura > 0 ? tl.T.Altura : ctx.H;
                 List<Candidato> c = Candidatos(tl, ctx, EhCabo(tl.R.Entidade), cfg.RaioAlturas * h, false);
+                if (c.Count > 1)
+                {
+                    tl.Candidatos = c.Where(x => x.Nota <= c[0].Nota + 1).Select(x => Auditoria.Alvo(x.E)).Distinct().ToList();
+                    string pedido = ctx.Associacoes.Str(Auditoria.Origem(tl.T.Handle, tl.T.Parte, tl.T.Texto));
+                    Candidato manual = tl.Candidatos.Contains(pedido) ? c.First(x => Auditoria.Alvo(x.E) == pedido) : null;
+                    if (manual != null) c = new List<Candidato> { manual };
+                }
                 cands[tl] = c;
                 if (c.Count == 0) { sobra.Add(tl); continue; }
                 Lista(por, c[0].E).Add(c[0]);

@@ -61,12 +61,23 @@ namespace OrcamentoNanoCAD.Nucleo
         public string LayerDaOperacao(string operacao)
         {
             string op = (operacao ?? "").Trim().ToUpperInvariant();
-            foreach (JObj r in Processamento.Where(x => (int)(x.Num("fase") ?? 3) == 3).OrderBy(x => x.Num("ordem") ?? 0))
+            return OperacoesPorLayer().Where(x => x.Value == op).Select(x => x.Key).FirstOrDefault();
+        }
+
+        public Dictionary<string,string> OperacoesPorLayer()
+        {
+            var mapa = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
+            List<string> operacoes = Operacoes();
+            foreach (JObj r in Processamento.OrderBy(x => x.Num("ordem") ?? 0))
             {
-                List<string> layers = Json.ListaDeTextos(r["layer_em"]);
-                if (layers.Count == 1 && (r.Str("operacao") ?? "").ToUpperInvariant() == op) return layers[0];
+                string op = r.Str("operacao");
+                if (!r.Bool("ativa",true) || (r.Num("fase") ?? 3) != 3 || !operacoes.Contains(op) ||
+                    !string.IsNullOrEmpty(r.Str("texto_regex")) || !string.IsNullOrEmpty(r.Str("ativo_regex")) || r.Obj("vizinhanca") != null ||
+                    new[] { "cor_em","cor_nao_em","cor_hex_em","cor_hex_nao_em" }.Any(k => Json.ListaDeTextos(r[k]).Count > 0)) continue;
+                foreach (string layer in Json.ListaDeTextos(r["layer_em"]))
+                    if (!string.IsNullOrEmpty(layer) && layer.IndexOfAny(new[] { '*','?' }) < 0 && !mapa.ContainsKey(layer)) mapa.Add(layer,op);
             }
-            return null;
+            return mapa;
         }
 
         /// <summary>Operações que o pop-up oferece (as das regras + as padrão).</summary>

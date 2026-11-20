@@ -28,6 +28,15 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 4. **🌐 Abrir na aplicação** (`ORC_ABRIR_APP`): salva o projeto e o abre no OrçaCore deste computador (aberto: a janela vem para a frente
    com o projeto; fechado: o programa abre já com ele). Ou, no OrçaCore: 📁 Projeto → Abrir → `<desenho>.obra`. Nada é gravado no banco.
 
+### Conferir uma leitura
+
+- Abra **Pendências** para ver avisos sobre destino, vínculos, duplicidades, operação e textos de interesse fora da obra. Use **Buscar** ou selecione o poste pela placa.
+- Um clique destaca a anotação e a geometria. Duplo clique aproxima a vista. **Conferido** avança a fila. **Só mudanças** compara o resultado com a leitura anterior após **Atualizar leitura**.
+- **Escolher destino** permite confirmar um dos candidatos exibidos. **Ajustar** abre os campos de ativo, operação, metros e vínculos para o item selecionado.
+- Use Ctrl ou Shift para selecionar várias linhas e abrir **Operação em lote**. A prévia mostra o que mudará na obra e oferece uma opção explícita para trocar a layer do texto no DWG.
+- Em **Conferir → Cores por operação**, vermelho indica instalação, magenta indica remoção e azul indica reaplicação. O asterisco e o rótulo LV identificam linha viva. O modo usa marcas temporárias.
+- Em **Configurações → Leitura do desenho**, configure a tolerância de metragem em metros para o projeto. O valor inicial zero desativa esse aviso. O detalhe do vão sempre pode mostrar as três medidas disponíveis.
+
 ### Comandos
 
 | Comando | O que faz |

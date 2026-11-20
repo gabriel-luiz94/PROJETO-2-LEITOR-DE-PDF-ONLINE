@@ -44,6 +44,7 @@ namespace OrcamentoNanoCAD
 
         public void Limpar()
         {
+            if (_desenhadas.Count == 0 && !_vetores) return;
             List<Entity> l = new List<Entity>(_desenhadas);
             _desenhadas.Clear();
             if (!_vetores && l.Count > 0 && Compat.Tentar(RecursoTransientes, () => ApagarTransientes(l))) { foreach (Entity e in l) e.Dispose(); return; }
@@ -124,10 +125,21 @@ namespace OrcamentoNanoCAD
 
         private static Point3d P(Ponto p) { return new Point3d(p.X, p.Y, 0); }
 
-        public void Mostrar(Obra obra, RegrasProjeto regras)
+        public void Mostrar(Obra obra, RegrasProjeto regras, bool analise = false)
         {
             Limpar();
             double h = Math.Max(obra.AlturaTexto, 1e-3) * 1.1;
+            if (analise)
+            {
+                foreach (Elemento e in Relatorios.DoPainel(obra,null))
+                {
+                    if (!e.TextoX.HasValue || !e.TextoY.HasValue) continue;
+                    string op = (e.Operacao ?? "").Replace("*","");
+                    short cor = op == "I" ? Vermelho : op == "R" ? Magenta : op == "M" ? Azul : Cinza;
+                    MarcarTexto(new Ponto(e.TextoX.Value,e.TextoY.Value), h, e.Numero + " " + e.Operacao + (e.Operacao.StartsWith("*") ? " LV" : ""),cor);
+                }
+                return;
+            }
             Dictionary<string, int> pilha = new Dictionary<string, int>();      // irmãos (P3b, V7b…) empilhados embaixo do principal
             // só o que o painel mostra: na leitura, o que as regras do leitor classificaram (rede existente sem anotação não ganha número)
             foreach (Poste p in obra.Postes)
@@ -165,6 +177,11 @@ namespace OrcamentoNanoCAD
         }
 
         /// <summary>Destaque passageiro de um elemento (pop-up / clique na lista): círculo em volta.</summary>
+        public void MarcarTexto(Ponto p, double h, string rotulo, short cor)
+        {
+            Rotulo(rotulo,P(p),Math.Max(0.01,h),cor);
+        }
+
         public void Destacar(Obra obra, Elemento e)
         {
             double h = Math.Max(obra.AlturaTexto, 1e-3);
@@ -175,7 +192,10 @@ namespace OrcamentoNanoCAD
             else if (v != null && v.Pontos.Count > 0) c = P(Geometria.Meio(v.Pontos));
             else if (e.TextoX.HasValue) c = new Point3d(e.TextoX.Value, e.TextoY.Value, 0);
             else return;
+            Rotulo(e.Numero,c,h,Amarelo);
+            if (e.TextoX.HasValue && e.TextoY.HasValue) MarcarTexto(new Ponto(e.TextoX.Value,e.TextoY.Value),h,"Texto",Amarelo);
             Add(new Circle(c, Vector3d.ZAxis, h * 3), Amarelo);
+            if (e.OrigemMetros != null) MarcarTexto(new Ponto(e.OrigemMetros.X,e.OrigemMetros.Y),h,"m",Ciano);
             if (e.GuiaUsada != null)                       // a linha guia que ligou a anotação a este elemento
                 for (int i = 0; i + 1 < e.GuiaUsada.Count; i++)
                     Add(new Line(P(e.GuiaUsada[i]), P(e.GuiaUsada[i + 1])), Ciano);

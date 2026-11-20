@@ -1,10 +1,4 @@
-// Plugin/PainelObra.cs — painel (janela não modal) da obra, no visual da aplicação (TASK-012 do plugin):
-//   barra       Projeto, Conferir e Configurações; Salvar e Abrir no OrçaCore ficam visíveis.
-//   obra        Ler: Reler (do zero) · Atualizar   |   Construir: + Poste · + Vão · Vincular automático
-//   filtros     Todos / Ok / Conferir / Erro / Ignorados (textos que as regras descartaram, com o motivo)
-//   listas      CABOS (vãos) e POSTES E ESTRUTURAS (outros) separadas, como a Tabela de Cabos e a Tabela de Outros do Resumo.
-//               Ler: só o que as regras do leitor classificaram; Construir: tudo o que o usuário montou (sem filtro das regras).
-// Os botões disparam comandos (ORC_*), que rodam no contexto de comando do nanoCAD.
+// Painel de auditoria e revisão da leitura.
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -17,16 +11,22 @@ namespace OrcamentoNanoCAD.UI
     public class PainelObra : Form
     {
         private static PainelObra _aberto;
-        private const string Ignorados = "IGNORADOS";
-
         private Sessao _s;
-        private string _filtro;                    // null = todos; Estados.*; ou Ignorados
-        private readonly Label _titulo, _subtitulo, _rodape, _conexao;
-        private readonly RadioButton _todos, _ok, _conf, _erro, _ign;
+        private Obra _ultima;
+        private readonly TabControl _abas = new TabControl { Dock = DockStyle.Fill };
+        private readonly ListView _pendencias, _cabos, _outros, _ignorados;
+        private readonly TextBox _detalhe = new TextBox { Multiline = true, ReadOnly = true, Dock = DockStyle.Bottom, Height = 114, ScrollBars = ScrollBars.Vertical };
+        private readonly ComboBox _poste = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 155 };
+        private readonly ComboBox _estado = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 85 };
+        private readonly CheckBox _mudancas = new CheckBox { Text = "Só mudanças", AutoSize = true };
+        private readonly Label _titulo, _subtitulo;
+        private readonly ToolTip _dicas = new ToolTip();
+        private readonly TextBox _busca = new TextBox { Width = 145, AccessibleName = "Buscar texto, placa ou layer" };
         private readonly FlowLayoutPanel _botoesLer, _botoesConstruir;
-        private readonly ListView _cabos, _outros, _listaIgnorados;
-        private readonly SplitContainer _split;
-        private int _nCabos, _nOutros;
+        private readonly Button _editar, _associar, _conferir, _lote;
+        private bool _preenchendo;
+        private Dictionary<string, TextoIgnorado> _fora = new Dictionary<string, TextoIgnorado>();
+        private Dictionary<string, string> _avisos = new Dictionary<string, string>();
 
         public static void Abrir(Sessao s)
         {
@@ -51,7 +51,7 @@ namespace OrcamentoNanoCAD.UI
 
         public static void AtualizarStatusConexao()
         {
-            if (_aberto != null && !_aberto.IsDisposed) _aberto._conexao.Text = Sincronizador.Status;
+            if (_aberto != null && !_aberto.IsDisposed) _aberto._dicas.SetToolTip(_aberto._subtitulo, Sincronizador.Status);
         }
 
         public static void AtualizarSeAberto(Sessao s)
@@ -79,7 +79,8 @@ namespace OrcamentoNanoCAD.UI
         private PainelObra()
         {
             Text = "Orçamento — obra";
-            Width = 660; Height = 820;
+            Width = 670; Height = Math.Min(820, Screen.PrimaryScreen.WorkingArea.Height);
+            MinimumSize = new Size(500, 470);
             StartPosition = FormStartPosition.Manual;
             Location = new Point(Screen.PrimaryScreen.WorkingArea.Right - Width - 20, Screen.PrimaryScreen.WorkingArea.Top + 40);
             Font = Visual.Normal;
@@ -93,9 +94,7 @@ namespace OrcamentoNanoCAD.UI
             _subtitulo = Visual.Rotulo("", Visual.Normal, Visual.Suave);
             _subtitulo.MaximumSize = new Size(620, 0);
             topo.Controls.Add(_subtitulo);
-            _conexao = Visual.Rotulo(Sincronizador.Status, Visual.Normal, Visual.Suave);
-            _conexao.MaximumSize = new Size(620, 0);
-            topo.Controls.Add(_conexao);
+            _dicas.SetToolTip(_subtitulo, Sincronizador.Status);
 
             FlowLayoutPanel barra = Linha();
             MenuStrip menu = new MenuStrip { AutoSize = true, Dock = DockStyle.None, GripStyle = ToolStripGripStyle.Hidden };
@@ -112,14 +111,21 @@ namespace OrcamentoNanoCAD.UI
             Acao(config, "Conectar à aplicação", "ORC_CONECTAR");
             Acao(config, "Sincronizar regras", "ORC_SINCRONIZAR");
             Acao(config, "Diagnóstico", "ORC_DIAGNOSTICO");
+            Acao(projeto, "Reler do zero…", "ORC_RELER");
+            conferir.DropDownItems.Add("Cores por operação · I vermelho / R magenta / M azul / * LV",null,(o,e) => {
+                if (!Ativa) return;
+                _s.AnaliseCores = !_s.AnaliseCores;
+                if (_s.AnaliseCores) _s.MarcasVisiveis = true;
+                _s.Atualizar();
+            });
             barra.Controls.Add(menu);
             barra.Controls.Add(Visual.Botao("Salvar", (o, e) => Visual.Executar("ORC_SALVAR"), false, "salvar"));
             barra.Controls.Add(Visual.Botao("Abrir no OrçaCore", (o, e) => Visual.Executar("ORC_ABRIR_APP"), false, "app"));
             topo.Controls.Add(barra);
 
             _botoesLer = Linha();
-            _botoesLer.Controls.Add(Visual.Botao("Atualizar (mantém ajustes)", (o, e) => Visual.Executar("ORC_ATUALIZAR"), true, "atualizar"));
-            _botoesLer.Controls.Add(Visual.Botao("Reler (do zero)", (o, e) => Visual.Executar("ORC_RELER"), false, "reler"));
+            _botoesLer.Controls.Add(Visual.Botao("Atualizar leitura", (o, e) => Visual.Executar("ORC_ATUALIZAR"), true, "atualizar"));
+
             _botoesLer.Controls.Add(Visual.Botao("+ Cabo", (o, e) => Visual.Executar("ORC_NOVO_CABO"), false, "cabos"));
             _botoesLer.Controls.Add(Visual.Botao("+ Outros", (o, e) => Visual.Executar("ORC_NOVO_OUTROS"), false, "ativos"));
             _botoesConstruir = Linha();
@@ -132,109 +138,233 @@ namespace OrcamentoNanoCAD.UI
             topo.Controls.Add(_botoesConstruir);
 
             FlowLayoutPanel filtros = Linha();
-            _todos = Filtro(filtros, null, "todos");
-            _ok = Filtro(filtros, Estados.Ok, "ok");
-            _conf = Filtro(filtros, Estados.Conferir, "conferir");
-            _erro = Filtro(filtros, Estados.Erro, "erro");
-            _ign = Filtro(filtros, Ignorados, "ignorados");
+            _estado.Items.AddRange(new object[] { "Todos", Estados.Ok, Estados.Conferir, Estados.Erro });
+            _estado.SelectedIndex = 0;
+            filtros.Controls.Add(Visual.Rotulo("Buscar", Visual.Normal));
+            filtros.Controls.Add(_busca);
+            filtros.Controls.Add(_poste); filtros.Controls.Add(_estado); filtros.Controls.Add(_mudancas);
             topo.Controls.Add(filtros);
-
-            // as duas listas, separadas como no Resumo da aplicação
-            _cabos = Visual.Lista(Relatorios.ColunasCabos);
-            _outros = Visual.Lista(Relatorios.ColunasOutros);
-            foreach (ListView l in new[] { _cabos, _outros }) Ligar(l, true);
-            _split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterWidth = 6, BackColor = Visual.Fundo };
-            _split.Panel1.Controls.Add(_cabos);
-            _split.Panel1.Controls.Add(Visual.Cabecalho("cabos", () => "CABOS (vãos) · " + _nCabos));
-            _split.Panel2.Controls.Add(_outros);
-            _split.Panel2.Controls.Add(Visual.Cabecalho("outros", () => "POSTES E ESTRUTURAS (outros) · " + _nOutros));
-
-            _listaIgnorados = Visual.Lista(Relatorios.ColunasIgnorados);
-            _listaIgnorados.Visible = false;
-            Ligar(_listaIgnorados, false);
-            // TASK-017: as linhas excluídas aparecem aqui; duplo clique abre o pop-up com "Restaurar à obra"
-            _listaIgnorados.ItemActivate += (o, e) => { string n = Selecionado(_listaIgnorados); if (n != null && !n.StartsWith("H:")) Visual.Executar("ORC_EDITAR " + n); };
-
-            _rodape = Visual.Rotulo("", Visual.Normal, Visual.Suave);
-            _rodape.Dock = DockStyle.Bottom; _rodape.AutoSize = false; _rodape.Height = 58; _rodape.Padding = new Padding(10, 6, 10, 6);
-
-            Controls.Add(_split);
-            Controls.Add(_listaIgnorados);
-            Controls.Add(_rodape);
-            Controls.Add(topo);
+            _pendencias = Aba("Pendências", new[] { "Item", "Operação", "Conferir" });
+            _outros = Aba("Postes e estruturas", Relatorios.ColunasOutros);
+            _cabos = Aba("Vãos e cabos", Relatorios.ColunasCabos);
+            _ignorados = Aba("Fora da obra", Relatorios.ColunasIgnorados);
+            FlowLayoutPanel acoes = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(5) };
+            acoes.Controls.Add(Visual.Botao("Anterior", (o,e) => Avancar(-1)));
+            acoes.Controls.Add(Visual.Botao("Próxima", (o,e) => Avancar(1)));
+            _editar = Visual.Botao("Ajustar", (o,e) => Comando("ORC_EDITAR"));
+            _associar = Visual.Botao("Escolher destino", (o,e) => Comando("ORC_REASSOCIAR"));
+            _conferir = Visual.Botao("Conferido", (o,e) => Conferir());
+            _lote = Visual.Botao("Operação em lote…", (o,e) => Lote());
+            acoes.Controls.AddRange(new Control[] { _editar, _associar, _conferir, _lote });
+            Controls.Add(_abas); Controls.Add(_detalhe); Controls.Add(acoes); Controls.Add(topo);
+            _abas.SelectedIndexChanged += (o,e) => Selecao();
+            _estado.SelectedIndexChanged += (o,e) => Preencher();
+            _poste.SelectedIndexChanged += (o,e) => Preencher();
+            _mudancas.CheckedChanged += (o,e) => Preencher();
+            _busca.TextChanged += (o,e) => Preencher();
             Visual.Aplicar(this);
-            _split.BackColor = Visual.Borda;                        // a faixa entre as listas
-            _split.Panel1.BackColor = Visual.Fundo;
-            _split.Panel2.BackColor = Visual.Fundo;
-            Shown += (o, e) => { try { _split.SplitterDistance = Math.Max(120, (_split.Height - _split.SplitterWidth) * 55 / 100); } catch (Exception) { } };
         }
 
-        private void Ligar(ListView l, bool editar)
+        private ListView Aba(string titulo, string[] colunas)
         {
-            l.Click += (o, e) => { string n = Selecionado(l); if (n != null) Visual.Executar("ORC_ZOOM " + n); };
-            if (editar) l.ItemActivate += (o, e) => { string n = Selecionado(l); if (n != null) Visual.Executar("ORC_EDITAR " + n); };
+            TabPage tab = new TabPage(titulo);
+            ListView lista = Visual.Lista(colunas);
+            lista.MultiSelect = true;
+            tab.Controls.Add(lista);
+            _abas.TabPages.Add(tab);
+            lista.SelectedIndexChanged += (o,e) => Selecao();
+            lista.ItemActivate += (o,e) => Comando("ORC_ZOOM");
+            return lista;
         }
 
-        private RadioButton Filtro(FlowLayoutPanel onde, string estado, string icone)
+        private ListView Lista { get { return (ListView)_abas.SelectedTab.Controls[0]; } }
+        private string Id { get { return Lista.SelectedItems.Count == 0 ? null : Lista.SelectedItems[0].Tag as string; } }
+        private bool Ativa { get { return _s != null && _s.Obra != null && Aplicacao.Doc() == _s.Doc; } }
+        private void Comando(string cmd)
         {
-            RadioButton r = new RadioButton { Appearance = Appearance.Button, AutoSize = true, Tag = estado, Checked = estado == null, Margin = new Padding(2), Padding = new Padding(4, 2, 6, 2) };
-            r.ForeColor = estado == null || estado == Ignorados ? Visual.Texto : Visual.DoEstado(estado);
-            r.Image = Icones.Imagem(icone, estado == null || estado == Ignorados ? Visual.Texto : Visual.DoEstado(estado));
-            r.ImageAlign = ContentAlignment.MiddleLeft;
-            r.TextImageRelation = TextImageRelation.ImageBeforeText;
-            r.CheckedChanged += (o, e) => { if (r.Checked) { _filtro = (string)r.Tag; Preencher(); } };
-            onde.Controls.Add(r);
-            return r;
-        }
-
-        private static string Selecionado(ListView l)
-        {
-            return l.SelectedItems.Count > 0 ? l.SelectedItems[0].Tag as string : null;
+            if (!Ativa || Id == null) return;
+            TextoIgnorado t;
+            Visual.Executar(cmd + " " + (_fora.TryGetValue(Id, out t) ? "H:" + t.Handle : Id));
         }
 
         private void Mostrar(Sessao s)
         {
-            _s = s;
-            Obra o = s.Obra;
-            if (o == null) return;
-            bool construir = o.Modo == "construir";
-            _titulo.Text = (construir ? "Construir do zero" : "Projeto lido — conferência") + (s.Modificada ? "  •" : "");
-            _subtitulo.Text = o.Nome + (string.IsNullOrEmpty(o.NumeroObra) ? "" : " · obra nº " + o.NumeroObra) + " · projeto " + (string.IsNullOrEmpty(o.Projeto) ? "(sem código)" : o.Projeto) + " · " + (s.Regras != null ? s.Regras.Nome + " · regras: " + s.Regras.Origem : "")
-                              + (s.Modificada ? " · mudanças não salvas" : (o.SalvoEm != null ? " · salvo " + o.SalvoEm : ""));
-            _botoesLer.Visible = !construir;
-            _botoesConstruir.Visible = construir;
-            _todos.Text = "Todos " + Relatorios.Contar(o, null, null);
-            _ok.Text = "Ok " + Relatorios.Contar(o, null, Estados.Ok);
-            _conf.Text = "Conferir " + Relatorios.Contar(o, null, Estados.Conferir);
-            _erro.Text = "Erro " + Relatorios.Contar(o, null, Estados.Erro);
-            _ign.Text = "Ignorados " + (o.Ignorados.Count + Relatorios.Excluidos(o));
-            int ocultos = Relatorios.Ocultos(o);
-            _rodape.Text = Relatorios.Resumo(o) + "\nClique numa linha para localizar no desenho; duplo clique abre o pop-up de ajuste. "
-                           + (construir ? "Construir: você escolhe poste/vão e anotação — as regras do leitor não filtram nada aqui."
-                                        : "Só aparece o que as regras do leitor classificaram" + (ocultos > 0 ? " (" + ocultos + " sem anotação: rede existente/postes sem anotação)" : "") + ".");
-            _conexao.Text = Sincronizador.Status;
+            if (s.Obra == null) return;
+            bool mudou = _s != s || _ultima != s.Obra;
+            string poste = _s == s ? _poste.Text : "";
+            _s = s; _ultima = s.Obra; _preenchendo = true;
+            _titulo.Text = s.Obra.Nome + (s.Modificada ? "   • Alterações por salvar" : "");
+            _subtitulo.Text = s.Regras.Nome + " · " + s.Obra.Projeto + "   |   " + s.Regras.Origem;
+            _botoesLer.Visible = s.Obra.Modo != "construir"; _botoesConstruir.Visible = !_botoesLer.Visible;
+            _poste.Items.Clear(); _poste.Items.Add("Todos os postes");
+            foreach (Poste p in s.Obra.Postes.Where(x => x.IrmaoDe == null))
+                _poste.Items.Add((p.Numero + " " + p.Placa).Trim());
+            _poste.SelectedIndex = Math.Max(0, _poste.Items.IndexOf(poste));
+            _mudancas.Enabled = s.Obra.LeituraAnterior != null;
+            if (!_mudancas.Enabled) _mudancas.Checked = false;
+            _preenchendo = false;
             Preencher();
+            if (mudou)
+            {
+                _abas.SelectedIndex = _pendencias.Items.Count > 0 ? 0 : (_outros.Items.Count > 0 ? 1 : 2);
+                if (Lista.SelectedItems.Count == 0 && Lista.Items.Count > 0) Lista.Items[0].Selected = true;
+            }
+        }
+
+        private bool NoPoste(Elemento e)
+        {
+            if (_poste.SelectedIndex <= 0) return true;
+            string n = _poste.Text.Split(' ')[0];
+            Vao v = e as Vao;
+            return e.Numero == n || e.IrmaoDe == n || (v != null && (v.PosteA == n || v.PosteB == n));
+        }
+
+        private bool Corresponde(params string[] campos)
+        {
+            string termo = _busca.Text.Trim();
+            return termo.Length == 0 || campos.Any(c => (c ?? "").IndexOf(termo, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         private void Preencher()
         {
-            if (_s == null || _s.Obra == null) return;
-            bool ign = _filtro == Ignorados;
-            _split.Visible = !ign;
-            _listaIgnorados.Visible = ign;
-            if (ign) { Visual.Preencher(_listaIgnorados, Relatorios.TextosIgnorados(_s.Obra)); return; }
-            List<LinhaTabela> cabos = Relatorios.Cabos(_s.Obra, _filtro), outros = Relatorios.Outros(_s.Obra, _filtro);
-            _nCabos = cabos.Count;
-            _nOutros = outros.Count;
-            Visual.Preencher(_cabos, cabos);
-            Visual.Preencher(_outros, outros);
-            _split.Panel1.Invalidate(true);
-            _split.Panel2.Invalidate(true);
+            if (_preenchendo || _s == null || _s.Obra == null) return;
+            _preenchendo = true;
+            try
+            {
+                Obra o = _s.Obra;
+                var layers = _s.Regras.OperacoesPorLayer();
+                var elementos = Relatorios.DoPainel(o, null).ToList();
+                var textos = new HashSet<string>(elementos.Select(e => (e.TextoOriginal ?? "").Trim()), StringComparer.OrdinalIgnoreCase);
+                var mostrar = new HashSet<string>();
+                var pend = new List<LinhaTabela>();
+                _avisos.Clear();
+                foreach (Elemento e in elementos)
+                {
+                    Poste p = e as Poste;
+                    if (!Corresponde(e.Numero, e.TextoOriginal, e.LayerAtual, e.AtivoLido, p == null ? null : p.Placa) || !NoPoste(e) || (_estado.SelectedIndex > 0 && _estado.Text != e.Estado)) continue;
+                    string chave = Auditoria.Chave(e);
+                    string conferido = o.Conferidos.Str(chave);
+                    string assinatura = _mudancas.Checked || conferido != null ? Auditoria.Assinatura(e) : null;
+                    string anterior = o.LeituraAnterior == null ? null : o.LeituraAnterior.Str(chave);
+                    if (_mudancas.Checked && anterior == assinatura) continue;
+                    mostrar.Add(e.Numero);
+                    string aviso = string.Join("; ", Auditoria.Motivos(o, e, _s.Regras,layers).Distinct().ToArray());
+                    if (aviso.Length == 0 && _mudancas.Checked) aviso = anterior == null ? "Novo na leitura" : "Alterado desde a leitura anterior";
+                    _avisos[e.Numero] = aviso;
+                    if (aviso.Length == 0 || conferido == assinatura + aviso) continue;
+                    pend.Add(new LinhaTabela { Chave = e.Numero, Estado = e.Estado == Estados.Erro ? Estados.Erro : Estados.Conferir,
+                        Celulas = new[] { e.Numero, e.Operacao, aviso } });
+                }
+                var fora = Relatorios.TextosIgnorados(o).Where(x => !x.Chave.StartsWith("H:") && NoPoste(o.PorNumero(x.Chave))).ToList();
+                _fora.Clear();
+                foreach (TextoIgnorado t in o.Ignorados)
+                {
+                    string id = "H:" + t.Handle + "/" + t.Parte;
+                    _fora[id] = t;
+                    if (_poste.SelectedIndex > 0 || _mudancas.Checked || _estado.SelectedIndex > 0 || !Corresponde(t.Texto,t.Layer)) continue;
+                    fora.Add(new LinhaTabela { Chave = id, Celulas = new[] { t.Texto, t.Layer, t.Cor, t.Motivo } });
+                    if (Auditoria.Suspeito(o,t,_s.Regras,textos,layers) && o.Conferidos.Str(id) != AssinaturaIgnorado(t))
+                        pend.Add(new LinhaTabela { Chave = id, Estado = Estados.Conferir, Celulas = new[] { t.Texto, "—", t.Motivo } });
+                }
+                Popular(_pendencias, pend.OrderByDescending(x => x.Estado == Estados.Erro).ToList());
+                Popular(_outros, Relatorios.Outros(o,null).Where(x => mostrar.Contains(x.Chave)).ToList());
+                Popular(_cabos, Relatorios.Cabos(o,null).Where(x => mostrar.Contains(x.Chave)).ToList());
+                Popular(_ignorados, fora);
+                List<Elemento> cabos, outros;
+                ObraArquivo.ElementosDasLinhas(o, out cabos, out outros);
+                _abas.TabPages[0].Text = "Pendências (" + pend.Count + ")";
+                _abas.TabPages[1].Text = "Postes e estruturas (" + outros.Count + ")";
+                _abas.TabPages[2].Text = "Vãos e cabos (" + cabos.Count + ")";
+                _abas.TabPages[3].Text = "Fora (" + (o.Ignorados.Count + Relatorios.Excluidos(o)) + ")";
+            }
+            finally { _preenchendo = false; }
+            Selecao();
+        }
+
+        private static string AssinaturaIgnorado(TextoIgnorado t)
+        {
+            return OrigemIgnorado(t) + "|" + t.Motivo;
+        }
+
+        private static string OrigemIgnorado(TextoIgnorado t)
+        {
+            return Auditoria.Origem(t.Layer, t.Parte, t.Texto) + "|" + t.X + "|" + t.Y;
+        }
+
+        private static void Popular(ListView lista, List<LinhaTabela> linhas)
+        {
+            var ids = new HashSet<string>(lista.SelectedItems.Cast<ListViewItem>().Select(i => (string)i.Tag));
+            int topo = lista.Items.Count > 0 && lista.TopItem != null ? lista.TopItem.Index : 0;
+            Visual.Preencher(lista, linhas);
+            foreach (ListViewItem i in lista.Items) if (ids.Contains((string)i.Tag)) i.Selected = true;
+            if (lista.Visible && lista.Items.Count > 0) lista.TopItem = lista.Items[Math.Min(topo, lista.Items.Count-1)];
+        }
+
+        private void Selecao()
+        {
+            if (_preenchendo || _s == null || _s.Obra == null) return;
+            string id = Id;
+            Elemento e = _s.Obra.PorNumero(id);
+            TextoIgnorado t = null;
+            if (id != null) _fora.TryGetValue(id, out t);
+            _editar.Enabled = e != null;
+            _editar.Text = e != null && e.Excluido ? "Restaurar…" : e is Vao ? "Ajustar vão…" : "Ajustar…";
+            _associar.Enabled = e != null && e.Candidatos.Count > 1;
+            _conferir.Enabled = id != null && Lista == _pendencias;
+            _lote.Enabled = e != null && !e.Excluido;
+            _detalhe.Text = e != null ? Auditoria.Detalhe(_s.Obra,e) + Environment.NewLine + (_avisos.ContainsKey(id) ? _avisos[id] : "") :
+                t != null ? t.Texto + Environment.NewLine + "Layer " + t.Layer + " · " + t.Cor + Environment.NewLine + t.Motivo + " · Fora da exportação" : "";
+            if (Ativa && Visible) _s.Destacar(e,t);
+        }
+
+        private void Avancar(int passo)
+        {
+            if (Lista.Items.Count == 0) return;
+            int i = Lista.SelectedIndices.Count == 0 ? 0 : Math.Max(0,Math.Min(Lista.Items.Count-1, Lista.SelectedIndices[0]+passo));
+            Lista.SelectedIndices.Clear(); Lista.Items[i].Selected = true; Lista.Items[i].EnsureVisible(); Lista.Focus();
+        }
+
+        private void Conferir()
+        {
+            if (!Ativa) return;
+            int indice = Lista.SelectedIndices.Count > 0 ? Lista.SelectedIndices[0] : 0;
+            foreach (ListViewItem item in Lista.SelectedItems)
+            {
+                string id = (string)item.Tag;
+                TextoIgnorado t;
+                if (_fora.TryGetValue(id,out t)) _s.Obra.Conferidos.Set(id,AssinaturaIgnorado(t));
+                else
+                {
+                    Elemento e = _s.Obra.PorNumero(id);
+                    if (e != null) _s.Obra.Conferidos.Set(Auditoria.Chave(e), Auditoria.Assinatura(e) + _avisos[id]);
+                }
+            }
+            _s.Modificada = true; Mostrar(_s);
+            if (Lista.Items.Count > 0) { var item = Lista.Items[Math.Min(indice,Lista.Items.Count-1)]; item.Selected = true; item.EnsureVisible(); }
+        }
+
+        private void Lote()
+        {
+            if (!Ativa) return;
+            var itens = Lista.SelectedItems.Cast<ListViewItem>().Select(i => _s.Obra.PorNumero((string)i.Tag)).ToList();
+            if (itens.Count == 0 || itens.Any(e => e == null || e.Excluido)) return;
+            using (var janela = new LoteOperacao(_s, itens))
+                if (janela.ShowDialog(this) == DialogResult.OK && Ativa) Comandos.AplicarLote(_s,itens,janela.Operacao,janela.AlterarLayer);
+        }
+
+        protected override void OnVisibleChanged(EventArgs e)
+        {
+            base.OnVisibleChanged(e);
+            if (!Visible && Ativa)
+            {
+                _s.Destacar(null,null);
+                if (_s.AnaliseCores) { _s.AnaliseCores = false; _s.Atualizar(); }
+            }
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            if (e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; Hide(); }   // reabre com ORC_PAINEL
+            if (e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; Hide(); }
             base.OnFormClosing(e);
         }
     }

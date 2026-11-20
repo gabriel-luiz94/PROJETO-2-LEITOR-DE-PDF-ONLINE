@@ -6,6 +6,10 @@
 
 ---
 
+## Auditoria visual do nanoCAD
+
+TASK-200 e TASK-028 entregam a fila e os detalhes de conferência. O projeto pode definir a tolerância de metragem na configuração da leitura. A validação visual no CAD está pendente.
+
 ## Abertura pelo nanoCAD · TASK-199
 
 A NOTA 9101578729 abre no Resumo em Chromium com 71 linhas de Cabos e 52 de Outros. A confirmação em Windows/WebView2 continua pendente.

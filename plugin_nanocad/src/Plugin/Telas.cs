@@ -172,7 +172,7 @@ namespace OrcamentoNanoCAD.UI
         private readonly TextBox _mt, _bt, _blocos, _layersPoste, _layersGuia;
         private readonly ComboBox _regra;
         private readonly ConfigLeitura _original;
-        private readonly NumericUpDown _raio, _guia, _tol, _toque, _reserva;
+        private readonly NumericUpDown _raio, _guia, _tol, _toque, _reserva, _metros;
         private readonly TextBox _placa;
 
         public TelaLeitura(RegrasProjeto regras, IEnumerable<string> layersDoDesenho, IEnumerable<string> blocosDoDesenho)
@@ -212,6 +212,10 @@ namespace OrcamentoNanoCAD.UI
             _toque = Numero(nums2, "Guia começa a até (× altura do texto)", c.GuiaToqueAlturas);
             _reserva = Numero(nums2, "Sem guia: elemento livre até (× altura)", c.RaioReservaAlturas);
             f.Controls.Add(nums2);
+            FlowLayoutPanel auditoria = new FlowLayoutPanel { AutoSize = true };
+            _metros = Numero(auditoria, "Conferir diferença de comprimento acima de (m; 0 desliga)", c.ToleranciaMetros);
+            _metros.Minimum = 0; _metros.Value = (decimal)Math.Min(c.ToleranciaMetros, 1000);
+            f.Controls.Add(auditoria);
             _placa = Campo(f, "Placa do poste (expressão regular; vazio = não procurar)", c.PlacaRegex);
             Label ajuda = Visual.Rotulo("Layers deste desenho: " + Resumir(layersDoDesenho) + "\nBlocos deste desenho: " + Resumir(blocosDoDesenho), Visual.Normal, Visual.Suave);
             ajuda.MaximumSize = new Size(640, 0);
@@ -263,6 +267,7 @@ namespace OrcamentoNanoCAD.UI
             c.GuiaMaxAlturas = (double)_guia.Value;
             c.TolPosteAlturas = (double)_tol.Value;
             c.GuiaToqueAlturas = (double)_toque.Value;
+            c.ToleranciaMetros = (double)_metros.Value;
             c.RaioReservaAlturas = (double)_reserva.Value;
             c.PlacaRegex = (_placa.Text ?? "").Trim();
             if (c.LayersRedeMT.Count + c.LayersRedeBT.Count == 0 || c.BlocosPoste.Count + c.LayersPoste.Count == 0)

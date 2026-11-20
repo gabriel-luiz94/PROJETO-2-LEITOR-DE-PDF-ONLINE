@@ -28,7 +28,7 @@ def cab():
 
 
 LEITURA = {"layers_rede_mt": ["REDE_MT", "ANOTACOES", "=0"], "layers_rede_bt": ["REDE_BT"], "blocos_poste": ["pg", "KMLP"],
-           "cor_confirma": True, "raio_alturas": 4, "placa_regex": r"^[A-Z]{1,2}\d{5,7}$"}
+           "cor_confirma": True, "raio_alturas": 4, "auditoria_tolerancia_m": 2.5, "placa_regex": r"^[A-Z]{1,2}\d{5,7}$"}
 
 
 def test_lista_todos_os_projetos_com_login(client):
@@ -46,6 +46,7 @@ def test_leitura_guardada_vai_nas_regras_e_muda_a_versao(client):
     assert r.status_code == 200 and r.json()["aviso"] is None
     assert "campo_estranho" not in r.json()["leitura"]
     regras = client.get("/api/plugin/regras?projeto=081", headers=cab()).json()
+    assert regras["leitura"]["auditoria_tolerancia_m"] == 2.5
     assert regras["leitura"]["blocos_poste"] == ["pg", "KMLP"]
     assert client.get("/api/plugin/versao?projeto=081", headers=cab()).json()["versao"]["regras"] != antes   # o plugin percebe e baixa de novo
     assert client.get("/api/plugin/leitura?projeto=081", headers=cab()).json()["leitura"]["layers_rede_mt"] == ["REDE_MT", "ANOTACOES", "=0"]
@@ -54,7 +55,7 @@ def test_leitura_guardada_vai_nas_regras_e_muda_a_versao(client):
 
 
 @pytest.mark.parametrize("ruim", [{"layers_rede_mt": "REDE_MT"}, {"raio_alturas": -1}, {"raio_alturas": True}, {"placa_regex": "(["},
-                                  {"cor_confirma": "sim"}, {"blocos_poste": [1, 2]}])
+                                  {"auditoria_tolerancia_m": -1}, {"cor_confirma": "sim"}, {"blocos_poste": [1, 2]}])
 def test_configuracao_invalida_e_recusada(client, ruim):
     r = client.put("/api/plugin/leitura?projeto=081", json={"leitura": ruim}, headers=cab())
     assert r.status_code == 400 and r.json()["detail"]["erros"]
