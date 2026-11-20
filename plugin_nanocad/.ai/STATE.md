@@ -3,31 +3,14 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
-## Plugin 0.12.0
+## Versão e acompanhamento
 
-TASK-029 integra os comandos de notas e a auditoria de layers. O build do 5 usa referências geradas. A execução no 5 e no 26, incluindo atualização após comandos nativos e desfazer, aguarda validação no Windows.
+A `main` contém a versão `0.12.0` em `src/Versao.props` e nos dois manifestos de distribuição. A [tabela de entregas](../../.ai/STATE.md#entregas-recentes) liga cada alteração às tasks e aos PRs.
 
-## Plugin 0.11.0
-
-TASK-028 implementa a fila de pendências, revisão por poste, alterações entre leituras, destaque temporário e operação em lote. Validação da interface e dos gráficos no nanoCAD 5 e 26 pendente.
-
-## Distribuição 0.10.4
-
-Build do 5 em x86/.NET 3.5 conferido pelos metadados do binário. A compatibilidade dos comandos com a API instalada segue pendente. O fornecedor distribui a versão 5 mediante login.
-
-## Validação pendente em 19/11/2026
-
-TASK-025 e TASK-026: plugin 0.10.3, N3 removido na tabela Outros e teste de paridade incluindo chamadas múltiplas. A abertura no Windows depende também da correção no OrçaCore (TASK-197). Testar com a nota real nas duas versões do nanoCAD.
-
-## Trabalho de 19/11/2026
-
-TASK-022 (leitura), TASK-023 (alocação por poste) e TASK-024 (painel) implementadas para teste. Conferência operacional pendente no nanoCAD 5 e 26. A comparação de vínculos cobre o exemplo de Pernambuco; regras avançadas de derivação, parâmetros herdados e elementos fictícios exigem casos adicionais.
-
-## Versão
-
-`0.10.3` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
-
-Branch de trabalho: `codex/nanocad-paridade`
+- [TASK-028](tasks/TASK-028-19-11-2026.md) entregou a auditoria visual na versão 0.11.0. A interface e os gráficos ainda aguardam teste no CAD.
+- [TASK-029](tasks/TASK-029-19-11-2026.md) entregou notas, guias e auditoria de layers na versão 0.12.0. O uso dos comandos, a atualização após movimentos nativos e o desfazer ainda aguardam teste no Windows.
+- TASK-030 prepara o plugin 0.12.1, com uma linha por cabo selecionado. A task e os binários estão no [PR #188](https://github.com/gabriel-luiz94/PROJETO-2-LEITOR-DE-PDF-ONLINE/pull/188). A interface ainda aguarda teste no CAD.
+- A abertura no OrçaCore foi confirmada pelo usuário. [TASK-027](tasks/TASK-027-19-11-2026.md) registra a compilação x86/.NET 3.5 e a validação pendente com a API instalada do nanoCAD 5.
 
 ## Entregáveis
 
@@ -157,5 +140,7 @@ Branch de trabalho: `codex/nanocad-paridade`
 | API do plugin na aplicação | `pytest tests/test_plugin_cad_api.py` (raiz) | 8 ✅ |
 
 ## Última atualização
+
+2026-11-20 — TASK-203 da aplicação conferiu o estado de integração, as versões distribuídas e a validação pendente no CAD.
 
 2026-11-11 — TASK-014 (nanoCAD 5 pronto) e TASK-015 (projetos/leitura da aplicação). Antes: TASK-013 (atualização automática), TASK-012 (painel Cabos/Postes, filtro do leitor, ícones), TASK-011, TASK-004 a 010, TASK-003 e TASK-001.

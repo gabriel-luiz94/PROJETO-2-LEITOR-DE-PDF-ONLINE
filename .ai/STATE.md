@@ -6,28 +6,21 @@
 
 ---
 
-## Mapa de vinculação · TASK-202
+## Entregas recentes
 
-Grafo implementado no Resumo. O teste em Chromium cobre edição dentro do nó e preservação do zoom. A topologia usa a geometria ou as atribuições do projeto.
-
-## Auditoria visual do nanoCAD
-
-TASK-200 e TASK-028 entregam a fila e os detalhes de conferência. O projeto pode definir a tolerância de metragem na configuração da leitura. A validação visual no CAD está pendente.
-
-## Abertura pelo nanoCAD · TASK-199
-
-A NOTA 9101578729 abre no Resumo em Chromium com 71 linhas de Cabos e 52 de Outros. A confirmação em Windows/WebView2 continua pendente.
-
-## Validação pendente em 19/11/2026
-
-TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 removido e extração de chamadas MULTILEADER no DXF. Testar com a nota real nas duas versões do nanoCAD.
+| PR | Tasks da aplicação | Tasks do plugin | Evidência e pendências |
+|---|---|---|---|
+| [#183](https://github.com/gabriel-luiz94/PROJETO-2-LEITOR-DE-PDF-ONLINE/pull/183) · `ee6540e` | — | [TASK-022](../plugin_nanocad/.ai/tasks/TASK-022-19-11-2026.md), [TASK-023](../plugin_nanocad/.ai/tasks/TASK-023-19-11-2026.md), [TASK-024](../plugin_nanocad/.ai/tasks/TASK-024-19-11-2026.md) | Leitura por projeto, vínculo por poste e painel. Validação no CAD pendente. |
+| [#184](https://github.com/gabriel-luiz94/PROJETO-2-LEITOR-DE-PDF-ONLINE/pull/184) · `99b4629` | [TASK-197](tasks/TASK-197-19-11-2026.md), [TASK-198](tasks/TASK-198-19-11-2026.md) | [TASK-025](../plugin_nanocad/.ai/tasks/TASK-025-19-11-2026.md), [TASK-026](../plugin_nanocad/.ai/tasks/TASK-026-19-11-2026.md) | Entrega do projeto ao desktop, N3 removido e MULTILEADER. A abertura foi confirmada pelo usuário após a entrega #185. |
+| [#185](https://github.com/gabriel-luiz94/PROJETO-2-LEITOR-DE-PDF-ONLINE/pull/185) · `f477bfc` | [TASK-199](tasks/TASK-199-19-11-2026.md) | [TASK-027](../plugin_nanocad/.ai/tasks/TASK-027-19-11-2026.md) | Abertura com o Resumo em uso e build x86/.NET 3.5. Carregamento no nanoCAD 5 pendente. |
+| [#186](https://github.com/gabriel-luiz94/PROJETO-2-LEITOR-DE-PDF-ONLINE/pull/186) · `dff2166` | [TASK-200](tasks/TASK-200-19-11-2026.md) | [TASK-028](../plugin_nanocad/.ai/tasks/TASK-028-19-11-2026.md) | Painel de auditoria, revisão por poste e prévia de lote. Validação visual no CAD pendente. |
+| [#187](https://github.com/gabriel-luiz94/PROJETO-2-LEITOR-DE-PDF-ONLINE/pull/187) · `cc646fe` | [TASK-201](tasks/TASK-201-19-11-2026.md) | [TASK-029](../plugin_nanocad/.ai/tasks/TASK-029-19-11-2026.md) | Notas, guias e auditoria de layers. Execução dos comandos, eventos nativos e desfazer pendentes no Windows. |
+| [#189](https://github.com/gabriel-luiz94/PROJETO-2-LEITOR-DE-PDF-ONLINE/pull/189) · `1e1f0fb` | [TASK-202](tasks/TASK-202-20-11-2026.md) | — | Grafo, vínculos por nó, visual grafite e destaques MT/BT. Validação no Chromium e 111 testes de vinculação. |
+| [#188](https://github.com/gabriel-luiz94/PROJETO-2-LEITOR-DE-PDF-ONLINE/pull/188) · rascunho | — | [TASK-030](https://github.com/gabriel-luiz94/PROJETO-2-LEITOR-DE-PDF-ONLINE/blob/561816c3f7304901b525b7c5a8c824d803fe64c5/plugin_nanocad/.ai/tasks/TASK-030-19-11-2026.md) | Um cabo por rótulo selecionado. Build 0.12.1 para 5 e 26, 116 testes C# e 53 Python. Validação visual pendente. |
 
 ## Versão
 
-`2.0.0` — `config.py:APP_VERSION`
-
-Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
-Último commit analisado: `530d5cc`
+`2.6.2` em `config.py:APP_VERSION`. O grafo entrou na `main` depois do commit de versão `368ea5e`.
 
 ---
 
@@ -764,7 +757,11 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-11-12
+**Data:** 2026-11-20
+
+**Motivo:** [TASK-203](tasks/TASK-203-20-11-2026.md) conferiu versões, entregas, validação e referências aos PRs.
+
+**Anterior — Data:** 2026-11-12
 **Motivo:** TASK-153 — usabilidade e design (telas sem internet, hierarquia de botões, menus no Resumo). As tarefas
 TASK-107 a TASK-152 estão no `CHANGELOG.md` e em `.ai/tasks/` (esta seção não foi atualizada nelas).
 

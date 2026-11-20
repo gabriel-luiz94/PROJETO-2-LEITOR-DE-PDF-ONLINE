@@ -68,6 +68,12 @@ O mesmo `DesenhoBruto` sai do conversor de DXF (`tests/oraculo/dxf_para_bruto.py
 8. **Conferência**: Erro = vão sem poste na ponta; Conferir = sem anotação, cabo sem regra, vínculo incompleto,
    estrutura com menos cabos que o mínimo, cabos diferentes, anotação extra/sem bloco. R/*R: Ok ("R não vincula").
 
+### 2b. Auditoria e anotações no DWG
+
+`Nucleo/Auditoria.cs` monta as pendências de leitura. `Plugin/PainelObra.cs` apresenta os itens por poste, aplica filtros e aciona as edições. A seção `cad` do projeto registra as conferências e as escolhas de destino. A tolerância de comprimento vem do campo `auditoria_tolerancia_m` da configuração por projeto.
+
+`Plugin/ComandosNotas.cs` cria, edita ou move MTEXT. `GuiasDeNota.cs` associa a guia à nota e ao alvo por referências no DWG. O extrator e o montador tratam essa geometria como guia do MTEXT associado. `TelaAuditoriaLayers.cs` e `AuditoriaLayersCad.cs` usam as layers de operação do projeto. O modo de análise filtra os MTEXT na viewport do 26 e filtra as marcas no 5. [TASK-028](tasks/TASK-028-19-11-2026.md) e [TASK-029](tasks/TASK-029-19-11-2026.md).
+
 ## 3. Contrato — `.obra.json` (ADR-002)
 
 ```json

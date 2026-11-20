@@ -98,6 +98,8 @@ RESULTADO                  Lista {operacao, mdo, codigo, desc_codigo, filtro, to
 ARMAZENAMENTO              historico_rec (SQLite + Supabase), exportação .rec / CSV
 ```
 
+O Resumo também recebe projetos `.obra` do plugin. As coordenadas de poste e a geometria do cabo, ou as atribuições de Cabos ⇄ Postes, alimentam o grafo em **Vinculação → Mapa**. Na janela de cada poste, os vínculos manuais passam pelas regras do projeto e pelo histórico do Resumo. [TASK-202](tasks/TASK-202-20-11-2026.md).
+
 Diagramas por componente e detalhamento de cada etapa: ver [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---

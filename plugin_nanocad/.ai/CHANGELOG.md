@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-20 — Estado das entregas
+
+Os PRs, as versões integradas e a validação pendente no CAD estão no [estado do plugin](STATE.md). A versão 0.12.1 tem task registrada no PR #188.
+
 ## 2026-11-19 — 0.12.0
 
 Criação e edição de MTEXT, movimentação de grupo, reapontamento de guias associativas e auditoria das layers de operação ficam disponíveis no menu Anotações. O modo Análise usa marcas temporárias e filtra os MTEXT na viewport quando a API oferece o recurso.

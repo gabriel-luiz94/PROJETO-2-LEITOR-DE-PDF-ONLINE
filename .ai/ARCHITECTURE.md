@@ -447,6 +447,8 @@ TASK-083: a linha de Cabos pode vir no formato antigo (`ATIVO FASE COMPRIMENTO`)
 
 TASK-084: a vinculação cabo⇄estrutura tem duas tabelas por projeto (`vinculacao_config`: cabos, estruturas, ordem_maior, scripts). A lógica pura vive em `services/vinculacao_regras.py` (espelho `static/vinculacao_regras.js`): `analisar` dá o estado de cada cabo/estrutura e o valor do parâmetro `cabo`; a Totalizadora injeta esse valor na estrutura (`parametros_linha` em `interpretar_linha`) quando o pedido não o traz. O cabo fictício é só um código guardado na linha de Outros (`cabosFicticios`). O modal é `static/vinculacao_ui.js` (host = `window.VinculacaoHost` em `resumo.js`).
 
+TASK-202: `grafoDaRede` agrupa linhas de Outros pela coordenada `_poste`. Usa as pontas de `_geo` com o raio de associação por poste ou as atribuições manuais de `vinculoPostes`. Quando a geometria é insuficiente, informa os cabos sem vão e preserva os vínculos existentes para revisão. A janela do nó usa o mesmo ponto de edição e validação do modal. Os destaques de MT, BT e postes completos são calculados a partir do resultado de `analisar`.
+
 ### 8.8 Soma por código — RN-09
 ```
 ENTRADA   3 itens resolvidos para o código 1015 (MAO-DE-OBRA):
