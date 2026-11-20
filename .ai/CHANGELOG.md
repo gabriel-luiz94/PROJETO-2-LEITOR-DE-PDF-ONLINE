@@ -8,9 +8,13 @@
 
 ---
 
+## 2026-11-20 — Registro das entregas recentes
+
+A [TASK-203](tasks/TASK-203-20-11-2026.md) consolidou o histórico de PRs e as evidências de validação do mapa, da integração e do plugin.
+
 ## 2026-11-20 — Grafo de vinculação
 
-O mapa mostra postes como nós e vãos como arestas. A janela do poste lista os cabos e as estruturas e permite aplicar ou desfazer vínculos pelas regras do projeto.
+O mapa mostra postes como nós e vãos como arestas. A janela do poste permite aplicar ou desfazer vínculos pelas regras do projeto. O visual usa grafite, rótulos curtos e uma janela que se adapta à largura da tela. MT aparece em vermelho, BT em verde, e o traço mais forte indica vinculação completa. Postes com todas as estruturas vinculáveis atendidas ficam verdes. [TASK-202](tasks/TASK-202-20-11-2026.md).
 
 ## 2026-11-19 — Layers das notas de Pernambuco
 
