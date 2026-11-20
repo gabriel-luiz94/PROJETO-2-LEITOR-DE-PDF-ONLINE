@@ -184,7 +184,15 @@ namespace OrcamentoNanoCAD.UI
             return lista;
         }
 
-        private ListView Lista { get { return (ListView)_abas.SelectedTab.Controls[0]; } }
+        private ListView Lista
+        {
+            get
+            {
+                // Mostrar preenche o painel antes de o nanoCAD exibir o formulário.
+                TabPage aba = _abas.SelectedTab;
+                return aba == null ? _pendencias : (ListView)aba.Controls[0];
+            }
+        }
         private string Id { get { return Lista.SelectedItems.Count == 0 ? null : Lista.SelectedItems[0].Tag as string; } }
         private bool Ativa { get { return _s != null && _s.Obra != null && Aplicacao.Doc() == _s.Doc; } }
         private void Comando(string cmd)

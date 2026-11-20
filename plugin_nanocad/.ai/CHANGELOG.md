@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-20 — 0.12.2
+
+O painel abre mesmo durante o preenchimento inicial, quando o WinForms ainda está sem aba selecionada. A correção trata o erro em `ORCAMENTO` ao entrar em Construir. [TASK-031](tasks/TASK-031-20-11-2026.md).
+
 ## 2026-11-19 — 0.12.0
 
 Criação e edição de MTEXT, movimentação de grupo, reapontamento de guias associativas e auditoria das layers de operação ficam disponíveis no menu Anotações. O modo Análise usa marcas temporárias e filtra os MTEXT na viewport quando a API oferece o recurso.
