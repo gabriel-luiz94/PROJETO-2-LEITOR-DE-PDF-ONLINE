@@ -73,6 +73,28 @@ def test_plugin_entrega_o_caminho_e_a_janela_abre_o_projeto(client, tmp_path, mo
     assert client.get("/api/obras?projeto=081", headers=cab()).json() == []                                 # nada no banco
 
 
+def test_projeto_grande_entregue_pelo_plugin_vem_pela_api_local(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(janela_desktop, "disponivel", lambda: False)
+    caminho = projeto_do_plugin(tmp_path)
+    carga = json.loads(caminho.read_text(encoding="utf-8"))
+    cabo = {"entidade": "CABO", "operacao": "I", "ativo": "A35P 3 30", "_geo": [[i, i] for i in range(200)]}
+    carga["dados"]["cabos"] = [cabo] * 4800
+    caminho.write_text(json.dumps(carga), encoding="utf-8")
+    assert caminho.stat().st_size > 8 * 1024 ** 2
+
+    entrega = client.post("/api/plugin/receber", json={"caminho": str(caminho)})
+    assert entrega.status_code == 200, entrega.text
+    url = f"/api/plugin/pendente/{entrega.json()['id']}/projeto"
+    assert client.get(url).status_code == 401
+    assert client.get("/api/plugin/pendente/naoexiste/projeto", headers=cab()).status_code == 404
+    resposta = client.get(url, headers=cab())
+    assert resposta.status_code == 200
+    assert resposta.headers["Cache-Control"] == "no-store"
+    assert resposta.json() == projeto_desktop.abrir(str(caminho), "081")
+    caminho.unlink()
+    assert not client.get(url, headers=cab()).json()["ok"]
+
+
 @pytest.mark.parametrize("ruim", ["C:/nao/existe.obra", "projeto.obra.json", "x.txt"])
 def test_caminho_invalido_e_recusado(client, ruim, monkeypatch):
     monkeypatch.setattr(janela_desktop, "mostrar", lambda url, porta=None: True)
@@ -102,9 +124,9 @@ def test_programa_fechado_abre_com_o_projeto(tmp_path):
 
 def test_telas_ligadas():
     js = (RAIZ / "static" / "projeto.js").read_text(encoding="utf-8")
-    assert "async function abrirDoPlugin(caminho, projetoCodigo, selecionarProjeto)" in js and "abrirDoPlugin," in js
+    assert "async function abrirDoPlugin(carregarProjeto, selecionarProjeto)" in js and "abrirDoPlugin," in js
     resumo = (RAIZ / "static" / "resumo.js").read_text(encoding="utf-8")
-    assert "GridRProjeto.abrirDoPlugin(d.caminho" in resumo and "/api/plugin/obra" not in resumo
+    assert "GridRProjeto.abrirDoPlugin(async" in resumo and "/api/plugin/obra" not in resumo
 
 
 def test_contrato_o_programa_abre_o_obra_gerado_pelo_plugin(tmp_path):

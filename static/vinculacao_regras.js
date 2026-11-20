@@ -635,13 +635,45 @@
         if (Array.isArray(v)) v.forEach(x => { if (Number.isInteger(x) && x >= 0 && !r.includes(x)) r.push(x); });
         return r;
     }
-    function posteMaisPerto(pt, postes, raio) {
-        let melhor = null, dmin = null;
-        postes.forEach(([linha, pos]) => {
-            const d = Math.sqrt((pt[0] - pos[0]) ** 2 + (pt[1] - pos[1]) ** 2);
-            if (d <= raio && (dmin === null || d < dmin)) { melhor = linha; dmin = d; }
-        });
-        return melhor;
+    /** Indexa as posições uma vez por rede. Empates mantêm a ordem original dos postes. */
+    function buscaPosteMaisPerto(postes, raio) {
+        const largura = raio * 2;
+        const celula = v => Math.floor(v / largura);
+        const segura = v => Math.abs(v) < 2 ** 48;
+        const todos = postes.map(([linha, pos], ordem) => ({ linha, pos, ordem }));
+        const grade = new Map();
+        // Em escalas extremas, a distância pode arredondar por baixo ou estourar. Nelas vale a busca direta.
+        let indexada = Number.isFinite(largura) && raio >= Math.sqrt(Number.MIN_VALUE);
+        if (indexada) {
+            for (const poste of todos) {
+                const x = celula(poste.pos[0]), y = celula(poste.pos[1]);
+                if (!segura(x) || !segura(y)) { indexada = false; break; }
+                const chave = x + ',' + y;
+                if (!grade.has(chave)) grade.set(chave, []);
+                grade.get(chave).push(poste);
+            }
+        }
+
+        return pt => {
+            let melhor = null, dmin = Infinity;
+            const medir = poste => {
+                const d = Math.sqrt((pt[0] - poste.pos[0]) ** 2 + (pt[1] - poste.pos[1]) ** 2);
+                if (d <= raio && (melhor === null || d < dmin || (d === dmin && poste.ordem < melhor.ordem))) {
+                    melhor = poste;
+                    dmin = d;
+                }
+            };
+            const x = celula(pt[0]), y = celula(pt[1]);
+            if (indexada && segura(x) && segura(y)) {
+                for (let cx = x - 1; cx <= x + 1; cx++) {
+                    for (let cy = y - 1; cy <= y + 1; cy++) {
+                        const grupo = grade.get(cx + ',' + cy);
+                        if (grupo) grupo.forEach(medir);
+                    }
+                }
+            } else todos.forEach(medir);
+            return melhor === null ? null : melhor.linha;
+        };
     }
 
     /** Topologia do mapa. Linhas de Outros com a mesma coordenada representam o mesmo poste. */
@@ -670,6 +702,7 @@
             if (no) no.estruturas.push(ie);
         });
         const coords = [...nos.values()].filter(n => n.pos).map(n => [n.id, n.pos]);
+        const posteMaisPerto = buscaPosteMaisPerto(coords, RAIO_POSTE_PADRAO);
         const vaos = new Map();
         let semVao = 0, pontasSoltas = 0;
         cabos.forEach((c, ic) => {
@@ -679,7 +712,7 @@
             const atribuicoes = [...new Set(postesAtribuidos(c).map(l => postes.get(l)).filter(Boolean))];
             const ligados = [...new Set((c.vinculoEstruturas || []).map(ie => postes.get(linhaDe(ie))).filter(Boolean))];
             const pontas = geo && [geo[0], geo[geo.length - 1]];
-            const idsGeo = pontas ? pontas.map(p => posteMaisPerto(p, coords, RAIO_POSTE_PADRAO)) : [null, null];
+            const idsGeo = pontas ? pontas.map(posteMaisPerto) : [null, null];
             let ids = idsGeo.slice();
             if (atribuicoes.length) {
                 const restantes = atribuicoes.map(n => n.id);
@@ -743,6 +776,7 @@
         cabos.forEach((c, ic) => { if (ehCaboValido(c)) infoC[ic] = infoCabo(prefixoFn(c.ativo) || '', c.operacao, cfg, extraCabo(c, cfg.dicionario_cabos)); });
         const linhasOrd = Array.from(porLinha.keys()).sort((a, b) => a - b);
         const todosPostes = linhasOrd.map(l => [l, par(outros[porLinha.get(l)[0]]._poste)]), postes = todosPostes.filter(([, pos]) => pos);          // todosPostes: também os atribuídos à mão (sem geometria)
+        const posteMaisPerto = buscaPosteMaisPerto(postes, raio);
         const fict = {};
         ests.forEach(ie => { fict[ie] = (outros[ie].cabosFicticios || []).map(v => trim(v).toUpperCase()).filter(Boolean); });
         const icsOrd = Object.keys(infoC).map(Number).sort((a, b) => a - b);
@@ -766,7 +800,7 @@
             ligados[ic] = [];
             restante[ic] = Math.max(0, c.pontas - estruturasFicticiasDe(cabos[ic]).length);
             fim.forEach((pt, k) => {
-                const linha = posteMaisPerto(pt, postes, raio);
+                const linha = posteMaisPerto(pt);
                 if (linha === null) soltas.push([ic, k]); else (chegadas[linha] = chegadas[linha] || []).push(ic);
             });
         });

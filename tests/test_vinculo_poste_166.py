@@ -159,6 +159,10 @@ def test_paridade_com_o_js():
         {"outros": [poste(0, "9100D, N3"), poste(100, "9100D, N3")], "cabos": [vao(0, 100, op="M")]},
         {"outros": [poste(100, "9100D, N3, B1MT")], "cabos": [vao(0, 100), vao(100, 200)]},
         {"outros": [poste(100, "9100D, N3")], "cabos": [vao(0, 103), {"entidade": "CABO", "operacao": "I", "ativo": "MT1 40"}], "raio": 1},
+        # Empate entre células diferentes: a primeira estrutura da tabela ainda tem prioridade.
+        {"outros": [poste(2, "9100D, N3"), poste(-2, "9100D, N3"), poste(95, "9100D, N3")], "cabos": [vao(0, 100)]},
+        # Há um poste na célula vizinha, um candidato mais distante e uma ponta fora do raio.
+        {"outros": [poste(-13, "9100D, N3"), poste(-8, "9100D, N3"), poste(5, "9100D, N3")], "cabos": [vao(-10, 10.01)]},
     ]
     for c in casos:
         c.setdefault("raio", None)

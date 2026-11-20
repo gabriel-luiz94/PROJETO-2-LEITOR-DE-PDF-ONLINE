@@ -20,7 +20,8 @@ regras GRAVADAS AQUI e a conferir a obra contra a Base de Orçamento, sem repeti
     GET  /api/plugin/desktop               (TASK-143, pública) "sou o OrçaCore (antes GridReader) instalado neste computador?"
     POST /api/plugin/receber               (TASK-143, pública, só 127.0.0.1 e só no programa instalado) o plugin entrega o PROJETO
                                            {chave, caminho: "<desenho>.obra"} (TASK-163; plugin antigo: {chave, envelope}); a janela vem para a frente
-                                           em /resumo?plugin_pendente=<id> e abre o projeto · GET /api/plugin/pendente/<id> (login) o devolve.
+                                           em /resumo?plugin_pendente=<id>. GET /api/plugin/pendente/<id> traz os metadados;
+                                           GET /api/plugin/pendente/<id>/projeto devolve o projeto para a janela local autenticada.
     GET  /api/plugin/instalacao            (TASK-131) o programa traz o plugin: versão trazida × instalada e caminho para o APPLOAD
     POST /api/plugin/instalacao            (desktop) instalar/atualizar agora · POST /api/plugin/instalacao/abrir-pasta (desktop)
     GET  /api/plugin/atualizacao?alvo=nanocad26          (TASK-130) versão do plugin publicada aqui + SHA-256 + endereço do arquivo.
@@ -39,7 +40,7 @@ from urllib.parse import quote
 import os
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from typing import Any, Dict, Optional
 
@@ -494,6 +495,20 @@ def obra_pendente(i: str):
         return {"chave": v["chave"], "caminho": v["caminho"], "projeto": p}
     return {"chave": v["chave"], "envelope": v["envelope"]}
 
+
+
+@router.get("/pendente/{i}/projeto")
+def abrir_projeto_pendente(i: str, request: Request):
+    """Devolve os dados de uma entrega local sem transferir a obra pela ponte nativa da janela."""
+    from services import programa_local, projeto_desktop
+
+    if not _desktop() or not _do_proprio_computador(request):
+        raise HTTPException(status_code=403, detail="Só o OrçaCore deste computador pode abrir a entrega.")
+    entrega = programa_local.pegar(i)
+    if not entrega or not entrega.get("caminho"):
+        raise HTTPException(status_code=404, detail="Projeto pendente não encontrado. Envie de novo pelo nanoCAD.")
+    abertura = projeto_desktop.abrir(entrega["caminho"], entrega.get("projeto") or "")
+    return JSONResponse(abertura, headers={"Cache-Control": "no-store"})
 
 
 # ── catálogo para o autocompletar do plugin (TASK-144) ──
