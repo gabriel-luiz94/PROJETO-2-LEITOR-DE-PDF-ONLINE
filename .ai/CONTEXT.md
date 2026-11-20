@@ -104,6 +104,8 @@ O Assistente de IA consulta a base e as regras do projeto. Em **Vinculação →
 
 O nanoCAD entrega ao OrçaCore o caminho do `.obra` local. A janela autenticada carrega as tabelas e a geometria pela API local e usa as regras do projeto para vincular cabos e estruturas por poste. [TASK-209](tasks/TASK-209-20-11-2026.md).
 
+No Resumo, a ação **Comparar** de Ler Projeto, Carregar Obra e Importar JSON usa a obra aberta como referência e apresenta as diferenças no preenchimento de Cabos e Outros. [TASK-211](tasks/TASK-211-20-11-2026.md).
+
 Diagramas por componente e detalhamento de cada etapa: ver [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---

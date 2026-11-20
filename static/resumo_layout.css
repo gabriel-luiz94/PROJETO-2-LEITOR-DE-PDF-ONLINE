@@ -199,3 +199,44 @@ body { display: block; overflow: hidden; }
 .cfgm-tag.t-mm { background: rgba(163,113,247,0.2); color: #a371f7; }
 .cfgm-linha button[disabled] { opacity: 0.35; cursor: not-allowed; }
 
+
+/* TASK-211 — leitura lado a lado das tabelas de duas obras */
+#modal-comparar-obras {
+    width: min(1120px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    border: 1px solid var(--border-default, #30363d);
+    border-radius: 12px;
+    padding: 0;
+    color: var(--text-primary, #e6edf3);
+    background: var(--bg-canvas, #0d1117);
+    box-shadow: 0 20px 72px #0008;
+    overflow: hidden;
+}
+#modal-comparar-obras::backdrop { background: #05070dbb; }
+.co-painel { display: flex; flex-direction: column; gap: 12px; max-height: 85vh; padding: 16px; }
+.co-painel header, .co-painel footer, .co-controles, .co-abas { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.co-painel header, .co-controles { justify-content: space-between; }
+.co-painel h2 { margin: 0; font-size: 1.1rem; }
+.co-painel button, .co-painel select { font: inherit; font-size: .8rem; }
+.co-controles label { font-size: .8rem; }
+.co-controles select { background: var(--bg-surface, #161b22); color: inherit; border: 1px solid var(--border-default, #30363d); border-radius: 6px; padding: 6px; }
+.co-abas [aria-pressed="true"] { border-color: #8b75e0; background: #382d5a; color: #f3efff; }
+.co-abas small { margin-left: 4px; opacity: .85; }
+.co-tabela { overflow: auto; border: 1px solid var(--border-default, #30363d); border-radius: 8px; }
+.co-tabela table { width: 100%; min-width: 630px; border-collapse: collapse; table-layout: fixed; font-size: .82rem; }
+.co-tabela th, .co-tabela td {
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border-default, #30363d);
+    overflow-wrap: anywhere;
+}
+.co-tabela th { position: sticky; top: 0; background: var(--bg-surface, #161b22); }
+.co-tabela th:first-child, .co-tabela th:last-child { width: 18%; }
+.co-tabela small { display: block; color: var(--text-secondary, #8b949e); margin-top: 3px; }
+.co-tabela td button { margin-top: 5px; }
+.co-tabela [data-estado="conferir"] { color: #d29922; }
+.co-tabela [data-estado="diferente"] { color: #bda6ff; }
+.co-tabela [data-estado="comparada"] { color: #67c788; }
+.co-tabela [data-estado="referencia"] { color: #ff918a; }
+.co-painel footer [role="status"] { margin-right: auto; font-size: .8rem; }
