@@ -41,6 +41,65 @@ namespace OrcamentoNanoCAD.Testes
         }
 
         [Fact]
+        public void Codigo_027_carrega_o_pacote_da_aplicacao_independente_da_selecao_antiga()
+        {
+            var transporte = new TransporteFalso();
+            transporte.Rotas["GET /api/plugin/regras"] = (c, tok) => TransporteFalso.Ok(
+                @"{""projeto"":{""codigo"":""027"",""nome"":""PARAIBA""},""processamento"":[{""id"":""processar027""}],
+                    ""classificacao"":[{""id"":""classificar027""}],""vinculacao"":{},
+                    ""leitura"":{""layers_rede_mt"":[""PB_MT""],""blocos_poste"":[""PB_POSTE""]}}");
+            var cliente = Cliente(transporte);
+
+            var regras = CatalogoRegras.Resolver("027", Apoio.Pernambuco, codigo =>
+            {
+                Assert.Equal("027", codigo);
+                return ClienteAplicacao.RegrasDe(cliente.RegrasCruas(codigo), "http://teste", codigo);
+            }, () => new[] { Apoio.Pernambuco });
+
+            Assert.Equal("027", regras.Codigo);
+            Assert.Equal("processar027", Assert.Single(regras.Processamento).Str("id"));
+            Assert.Equal("classificar027", Assert.Single(regras.Classificacao).Str("id"));
+            Assert.True(regras.LeituraDaAplicacao);
+            Assert.Equal(new[] { "PB_MT" }, regras.Leitura.LayersRedeMT);
+            Assert.Equal(new[] { "PB_POSTE" }, regras.Leitura.BlocosPoste);
+        }
+
+        [Fact]
+        public void Sem_download_usa_cache_de_027_ou_o_seed_de_027()
+        {
+            var cache = new RegrasProjeto { Codigo = "027", DaAplicacao = true, Versao = "versao-027" };
+            var pendente = new RegrasProjeto { Codigo = "027", DaAplicacao = true };
+            var catalogo = CatalogoRegras.Carregar(nome =>
+            {
+                if (nome == "regras.padrao.processamento.json") return Apoio.Dados("regras_leitor_processamento_seed.json");
+                if (nome == "regras.padrao.classificacao.json") return Apoio.Dados("regras_leitor_classificacao_seed.json");
+                return null;
+            }, new[] { Apoio.Pernambuco });
+
+            var regras = CatalogoRegras.Resolver("027", pendente, _ => null, () => new[] { pendente, cache }.Concat(catalogo));
+            Assert.Same(cache, regras);
+
+            var fabrica = CatalogoRegras.Resolver("027", pendente, null, () => catalogo);
+            Assert.Equal("027", fabrica.Codigo);
+            Assert.Equal("embutida", fabrica.Origem);
+            Assert.NotEmpty(fabrica.Processamento);
+            Assert.NotEmpty(fabrica.Classificacao);
+            Assert.Equal(Json.Escrever(Apoio.Padrao.Processamento.Cast<object>().ToList(), false),
+                         Json.Escrever(fabrica.Processamento.Cast<object>().ToList(), false));
+            Assert.Equal(Json.Escrever(Apoio.Padrao.Classificacao.Cast<object>().ToList(), false),
+                         Json.Escrever(fabrica.Classificacao.Cast<object>().ToList(), false));
+            Assert.Null(CatalogoRegras.Resolver("999", Apoio.Pernambuco, _ => null, () => catalogo));
+            Assert.Same(cache, CatalogoRegras.Resolver("027", fabrica, _ => cache, () => catalogo));
+        }
+
+        [Fact]
+        public void Rejeita_resposta_da_aplicacao_com_codigo_diferente()
+        {
+            var resposta = new JObj().Set("projeto", new JObj().Set("codigo", "081"));
+            Assert.Throws<ErroAplicacao>(() => ClienteAplicacao.RegrasDe(resposta, "http://teste", "027"));
+        }
+
+        [Fact]
         public void Salvar_leitura_manda_a_configuracao_para_o_projeto()
         {
             TransporteFalso t = new TransporteFalso();

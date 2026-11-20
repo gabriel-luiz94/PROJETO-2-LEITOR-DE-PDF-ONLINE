@@ -63,6 +63,8 @@ namespace OrcamentoNanoCAD.UI
             {
                 using (TelaConexao tc = new TelaConexao()) tc.ShowDialog(this);
                 PreencherRegras(_regras.SelectedItem as RegrasProjeto);
+                SelecionarProjeto();
+                if (Conexao.Logado) AtualizarProjetos();
                 _status.Text = Sincronizador.Status;
             }));
             colRegras.Controls.Add(botoesRegras);
@@ -70,14 +72,13 @@ namespace OrcamentoNanoCAD.UI
             colProj.Controls.Add(Visual.Rotulo("PROJETO NA APLICAÇÃO", Visual.Secao, Visual.Suave));
             _projeto = new TextBox { Width = 90, Text = s.Obra != null ? s.Obra.Projeto : (s.Regras != null ? s.Regras.Codigo : "") };
             colProj.Controls.Add(_projeto);
-            _regras.SelectedIndexChanged += (o, e) => { RegrasProjeto r = _regras.SelectedItem as RegrasProjeto; if (r != null && r.Codigo.Length > 0 && _projeto.Text != r.Codigo) _projeto.Text = r.Codigo; };
-            // digitou o código de um projeto da aplicação: escolhe as regras dele
-            _projeto.TextChanged += (o, e) =>
+            _regras.SelectionChangeCommitted += (o, e) =>
             {
-                string cod = (_projeto.Text ?? "").Trim();
-                foreach (RegrasProjeto r in _regras.Items)
-                    if (r.DaAplicacao && r.Codigo == cod) { if (_regras.SelectedItem != r) _regras.SelectedItem = r; break; }
+                RegrasProjeto r = _regras.SelectedItem as RegrasProjeto;
+                if (r != null) _projeto.Text = r.Codigo;
             };
+            _projeto.TextChanged += (o, e) => SelecionarProjeto();
+            SelecionarProjeto();
             if (Conexao.Logado) AtualizarProjetos();
             FlowLayoutPanel colSalva = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, Margin = new Padding(12, 0, 0, 0) };
             colSalva.Controls.Add(Visual.Rotulo("OBRA SALVA NESTE DESENHO", Visual.Secao, Visual.Suave));
@@ -114,14 +115,21 @@ namespace OrcamentoNanoCAD.UI
                     BeginInvoke((Action)(() =>
                     {
                         if (IsDisposed) return;
-                        string cod = (_projeto.Text ?? "").Trim();
                         PreencherRegras(_regras.SelectedItem as RegrasProjeto);
-                        foreach (RegrasProjeto r in _regras.Items) if (r.DaAplicacao && r.Codigo == cod) { _regras.SelectedItem = r; break; }
+                        SelecionarProjeto();
                         if (erro != null) _status.Text = "Lista de projetos da aplicação indisponível (" + erro + "): mostrando a última guardada.";
                     }));
                 }
                 catch (Exception) { }
             });
+        }
+
+        private void SelecionarProjeto()
+        {
+            string codigo = _projeto.Text.Trim();
+            RegrasProjeto atual = _regras.SelectedItem as RegrasProjeto;
+            if (atual != null && atual.Codigo == codigo) return;
+            _regras.SelectedItem = _regras.Items.OfType<RegrasProjeto>().FirstOrDefault(r => r.Codigo == codigo);
         }
 
         private void PreencherRegras(RegrasProjeto atual)

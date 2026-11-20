@@ -83,52 +83,64 @@ namespace OrcamentoNanoCAD
                 {
                     if (Application.ShowModalDialog(t) != DialogResult.OK || t.Escolha == Escolha.Nada) return;
                     if (t.Escolha == Escolha.Painel) { PainelObra.Abrir(s); return; }
-                    if (t.Regras != null) s.Regras = RegrasFrescas(t.Regras, t.Projeto);
-                    if (t.Escolha == Escolha.Leitura) { ConfigurarLeitura(s); return; }
-                    if (t.Escolha == Escolha.Ler) Ler(s, false, t.Projeto);
-                    else if (t.Escolha == Escolha.Construir) Construir(s, t.Projeto);
-                    else if (t.Escolha == Escolha.Continuar) Continuar(s, salva);
+                    if (t.Escolha == Escolha.Continuar) { Continuar(s, salva); return; }
+                    RegrasProjeto regras = RegrasFrescas(t.Regras, t.Projeto);
+                    if (regras == null) return;
+                    if (t.Escolha == Escolha.Leitura) { ConfigurarLeitura(s, regras); return; }
+                    s.Regras = regras;
+                    if (t.Escolha == Escolha.Ler) Ler(s, false, regras.Codigo);
+                    else if (t.Escolha == Escolha.Construir) Construir(s, regras.Codigo);
                 }
             });
         }
 
-        /// <summary>Regras da aplicação escolhidas: baixa a versão atual (se conectado); sem conexão, fica a do cache.</summary>
-        private static RegrasProjeto RegrasFrescas(RegrasProjeto escolhidas, string projeto)
+        private static RegrasProjeto RegrasFrescas(RegrasProjeto escolhidas, string codigo)
         {
-            if (!escolhidas.DaAplicacao) return escolhidas;
-            string codigo = string.IsNullOrEmpty(projeto) ? escolhidas.Codigo : projeto;
+            RegrasProjeto baixadas = null;
+            Func<string, RegrasProjeto> baixar = null;
             if (Conexao.Logado)
-            {
-                try
+                baixar = projeto =>
                 {
-                    RegrasProjeto r = Conexao.BaixarRegras(codigo);
-                    Aplicacao.Msg("Regras do projeto " + r.Nome + " baixadas da aplicação" + (r.LeituraDaAplicacao ? " (com a configuração de leitura do projeto)." : "."));
-                    return r;
-                }
-                catch (ErroAplicacao e) { Aplicacao.Msg("Não deu para baixar as regras do projeto " + codigo + ": " + e.Message); }
-            }
-            if (escolhidas.Processamento.Count > 0 || escolhidas.Classificacao.Count > 0)
-            {
-                Aplicacao.Msg("Usando a última cópia das regras da aplicação para " + escolhidas.Nome + ".");
-                return escolhidas;
-            }
-            // projeto nunca baixado e sem a aplicação: regras embutidas (Pernambuco para 081, senão o padrão)
-            RegrasProjeto emb = Aplicacao.Regras.FirstOrDefault(x => x.Codigo == codigo) ?? Aplicacao.Regras.FirstOrDefault();
-            Aplicacao.Msg("Sem as regras da aplicação para " + codigo + ": usando as regras embutidas " + (emb != null ? emb.Nome : "") + ".");
-            return emb ?? escolhidas;
+                    try { return baixadas = Conexao.BaixarRegras(projeto); }
+                    catch (ErroAplicacao e)
+                    {
+                        Aplicacao.Msg("Não deu para baixar as regras do projeto " + projeto + ": " + e.Message);
+                        return null;
+                    }
+                };
+
+            RegrasProjeto r = CatalogoRegras.Resolver(codigo, escolhidas, baixar, Aplicacao.RegrasParaEscolher);
+            if (r == null)
+                Aplicacao.Msg("Regras indisponíveis para o projeto " + codigo + ". Conecte ao OrçaCore ou carregue o pacote desse projeto.");
+            else if (r == baixadas)
+                Aplicacao.Msg("Regras do projeto " + r.Nome + " baixadas da aplicação" + (r.LeituraDaAplicacao ? " (com a configuração de leitura do projeto)." : "."));
+            else if (r.DaAplicacao)
+                Aplicacao.Msg("Usando a última cópia das regras da aplicação para " + r.Nome + ".");
+            else if (r.Codigo == CatalogoRegras.Paraiba && r.Origem == "embutida")
+                Aplicacao.Msg("Usando as regras de fábrica de Paraíba (027). Conecte ao OrçaCore para carregar as regras salvas do projeto.");
+            return r;
         }
 
         private static void Ler(Sessao s, bool manterAjustes, string projeto, JObj escolhas = null)
         {
+            string codigo = projeto ?? (s.Obra != null && !string.IsNullOrEmpty(s.Obra.Projeto) ? s.Obra.Projeto : s.Regras.Codigo);
+            if (s.Regras.Codigo != codigo)
+            {
+                RegrasProjeto regras = RegrasFrescas(s.Regras, codigo);
+                if (regras == null) return;
+                s.Regras = regras;
+            }
             Obra antiga = s.Obra;
             DesenhoBruto bruto = ExtratorDesenho.Ler(s.Doc);
             s.UltimoBruto = bruto;
             Desenho d = MontadorDesenho.Montar(bruto, s.Regras.Leitura);
             s.UltimoDesenho = d;
             Obra nova = LeitorProjeto.Ler(d, s.Regras, escolhas ?? (manterAjustes && antiga != null ? antiga.Associacoes : null));
-            nova.Projeto = !string.IsNullOrEmpty(projeto) ? projeto : (antiga != null && !string.IsNullOrEmpty(antiga.Projeto) ? antiga.Projeto : s.Regras.Codigo);
+            nova.Projeto = codigo;
             if (manterAjustes && antiga != null) { nova.NumeroObra = antiga.NumeroObra; nova.Nome = antiga.Nome; Construtor.ReaplicarAjustes(nova, antiga, s.Regras); nova.SalvoEm = antiga.SalvoEm; }
             s.Obra = nova;
+            Aplicacao.Msg("Regras da leitura: " + s.Regras.Nome + " — " + s.Regras.Processamento.Count + " de processamento, "
+                          + s.Regras.Classificacao.Count + " de classificação.");
             Aplicacao.Msg("ORC_LER " + Relatorios.Resumo(nova) + " (" + d.Textos.Count + " textos, " + d.Postes.Count + " postes no desenho, " + d.Linhas.Count
                           + " linhas; " + nova.Ignorados.Count + " textos ignorados pelas regras)");
             foreach (string sug in Diagnostico.SugestoesDeRede(d, nova, s.Regras.Leitura).Concat(Diagnostico.SugestoesDeBlocos(bruto, nova, s.Regras.Leitura)))
@@ -153,9 +165,16 @@ namespace OrcamentoNanoCAD
         private static void Continuar(Sessao s, PersistenciaDwg.ObraSalva salva)
         {
             if (salva == null) { Aplicacao.Msg("Não há obra salva neste desenho."); return; }
-            Obra o = ObraArquivo.Ler(salva.Json, s.Regras);
-            RegrasProjeto r = Aplicacao.RegrasParaEscolher().FirstOrDefault(x => x.Nome == o.NomeRegras);
-            if (r != null && r != s.Regras) { s.Regras = r; o = ObraArquivo.Ler(salva.Json, r); }
+            JObj env = Json.Ler(salva.Json) as JObj ?? new JObj();
+            string codigo = (env.Str("projeto") ?? "").Trim();
+            string nome = (env.Obj("cad") ?? new JObj()).Str("regras");
+            RegrasProjeto escolhidas = Aplicacao.RegrasParaEscolher().FirstOrDefault(x => x.Nome == nome
+                && (codigo.Length == 0 || x.Codigo == codigo));
+            if (codigo.Length == 0 && escolhidas != null) codigo = escolhidas.Codigo;
+            RegrasProjeto r = RegrasFrescas(escolhidas, codigo);
+            if (r == null) return;
+            Obra o = ObraArquivo.Ler(salva.Json, r);
+            s.Regras = r;
             s.Obra = o;
             s.Modificada = false;
             Aplicacao.Msg("Obra salva aberta (" + salva.Onde + "): " + Relatorios.Resumo(o));
@@ -698,8 +717,8 @@ namespace OrcamentoNanoCAD
                 foreach (RegrasProjeto r in Aplicacao.Regras)
                     Aplicacao.Msg("  " + r.Nome + " [" + (r.Codigo.Length > 0 ? r.Codigo : "sem código") + "] — " + r.Processamento.Count + "+" + r.Classificacao.Count
                                   + " regras do leitor, " + r.Vinculo.Cabos.Count + "+" + r.Vinculo.Estruturas.Count + " de vínculo (" + r.Origem + ")");
-                RegrasProjeto atual = Aplicacao.Regras.FirstOrDefault(x => s.Regras != null && x.Nome == s.Regras.Nome);
-                s.Regras = atual ?? Aplicacao.Regras.FirstOrDefault();
+                if (!s.Regras.DaAplicacao)
+                    s.Regras = Aplicacao.Regras.FirstOrDefault(x => x.Codigo == s.Regras.Codigo) ?? s.Regras;
                 Aplicacao.Msg("Pasta para regras próprias: " + Path.Combine(Path.Combine(Aplicacao.PastaDaDll, "regras"), "<codigo>") + " (processamento.json, classificacao.json, vinculacao.json, nome.txt)");
             });
         }
@@ -830,34 +849,36 @@ namespace OrcamentoNanoCAD
             blocos = b.Entidades.Where(e => e.Tipo == "INSERT").Select(e => e.Bloco ?? "").Distinct().ToList();
         }
 
-        private static void ConfigurarLeitura(Sessao s)
+        private static void ConfigurarLeitura(Sessao s, RegrasProjeto regras)
         {
             List<string> layers, blocos;
             ListasDoDesenho(s, out layers, out blocos);
-            using (TelaLeitura t = new TelaLeitura(s.Regras, layers, blocos))
+            using (TelaLeitura t = new TelaLeitura(regras, layers, blocos))
             {
                 if (Application.ShowModalDialog(t) != DialogResult.OK || t.Resultado == null) return;
-                s.Regras.Leitura = t.Resultado;
-                ConfigsLocais.Salvar(s.Regras.Codigo, t.Resultado);         // cópia neste computador (vale sem a aplicação)
+                regras.Leitura = t.Resultado;
+                ConfigsLocais.Salvar(regras.Codigo, t.Resultado);         // cópia neste computador (vale sem a aplicação)
                 string onde = "neste computador";
-                if (s.Regras.DaAplicacao && Conexao.Logado)
+                if (regras.DaAplicacao && Conexao.Logado)
                 {
                     try
                     {
-                        string aviso = Conexao.Cliente.SalvarLeitura(s.Regras.Codigo, t.Resultado);
-                        s.Regras.LeituraDaAplicacao = true;
+                        string aviso = Conexao.Cliente.SalvarLeitura(regras.Codigo, t.Resultado);
+                        regras.LeituraDaAplicacao = true;
                         onde = "na aplicação (vale em todos os computadores)" + (string.IsNullOrEmpty(aviso) ? "" : " — " + aviso);
                     }
                     catch (ErroAplicacao e) { onde = "só neste computador (a aplicação recusou: " + e.Message + ")"; }
                 }
-                Aplicacao.Msg("Configuração de leitura de " + s.Regras.Nome + " salva " + onde + ".");
+                Aplicacao.Msg("Configuração de leitura de " + regras.Nome + " salva " + onde + ".");
             }
+            if (s.Obra != null && s.Obra.Projeto != regras.Codigo) return;
+            s.Regras = regras;
             if (s.Obra != null && s.Obra.Modo == "ler") Ler(s, true, null);
             else if (s.Obra == null && Confirmar(s.Doc.Editor, "Ler o projeto agora com essa configuração?")) Ler(s, false, null);
         }
 
         [CommandMethod("ORC_LEITURA")]
-        public void CmdLeitura() { Rodar("ORC_LEITURA", ConfigurarLeitura); }
+        public void CmdLeitura() { Rodar("ORC_LEITURA", s => ConfigurarLeitura(s, s.Regras)); }
 
         private static TelaTabela _diag;
 

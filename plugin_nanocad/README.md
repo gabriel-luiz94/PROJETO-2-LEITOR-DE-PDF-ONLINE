@@ -79,7 +79,12 @@ inicial passa a listar **todos os projetos cadastrados** ("Aplicação: PERNAMBU
 junto com a **configuração de leitura** guardada na aplicação (⚙ Leitura salva lá e vale em qualquer computador). O plugin consulta a aplicação a cada 5 s (ajustável): regras
 do leitor/vínculo mudaram → refaz a obra (mantendo os ajustes); base de orçamento mudou → confere de novo. Estrutura, cabo
 ou poste que **não está na base** vira *Conferir* no painel ("não está na base de orçamento"). Sem a aplicação, segue com a
-última cópia das regras (ou as embutidas). A senha não é guardada; o acesso vale até 30 dias.
+última cópia das regras do mesmo projeto, se já baixada. A senha não é guardada e o acesso vale até 30 dias.
+
+Para **Paraíba**, digite `027` no campo **Projeto na aplicação** ou selecione **Aplicação: PARAIBA (027)**. Ao clicar em **Ler projeto**,
+confira no log se foram baixadas as regras de 027. Se o OrçaCore estiver indisponível e ainda não houver cópia local, o plugin avisa
+que está usando as regras de fábrica do leitor de Paraíba. A configuração personalizada de layers, blocos e vínculo vem do pacote
+da aplicação ou da última cópia baixada. Quando a aplicação não tiver salvo um perfil de geometria, configure o desenho em **⚙ Leitura**.
 
 ### Quando a leitura não acha a rede, os postes ou as guias
 
@@ -97,7 +102,7 @@ ou poste que **não está na base** vira *Conferir* no painel ("não está na ba
 ### Regras
 
 As regras do leitor e do vínculo são **os mesmos arquivos** de `../data/` do projeto principal, embutidos na DLL
-(Pernambuco 081 e o padrão genérico). Para usar outras, crie ao lado da DLL a pasta `regras\<codigo>\` com
+(Pernambuco 081, regras de fábrica do leitor de Paraíba 027 e padrão genérico). Para usar outras, crie ao lado da DLL a pasta `regras\<codigo>\` com
 `processamento.json`, `classificacao.json`, `vinculacao.json` (exportados da aplicação) e, opcionalmente, `nome.txt`;
 depois `ORC_REGRAS`.
 

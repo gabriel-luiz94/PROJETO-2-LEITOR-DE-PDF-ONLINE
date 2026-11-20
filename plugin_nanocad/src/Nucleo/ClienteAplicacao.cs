@@ -250,10 +250,12 @@ namespace OrcamentoNanoCAD.Nucleo
         // projeto <desenho>.obra na pasta do desenho e o abre no OrçaCore deste computador (ProgramaLocal / Plugin/ProgramaNoComputador).
 
         /// <summary>Resposta de /api/plugin/regras → regras do projeto (origem = endereço da aplicação).</summary>
-        public static RegrasProjeto RegrasDe(JObj resposta, string origem)
+        public static RegrasProjeto RegrasDe(JObj resposta, string origem, string solicitado = null)
         {
             JObj p = resposta.Obj("projeto") ?? new JObj();
             string codigo = p.Str("codigo") ?? "";
+            if (solicitado != null && codigo != solicitado.Trim())
+                throw new ErroAplicacao(0, "A aplicação retornou regras de outro projeto (esperado: " + solicitado + ").");
             RegrasProjeto r = RegrasProjeto.MontarDeObjetos(codigo, "Aplicação: " + (p.Str("nome") ?? codigo) + " (" + codigo + ")", origem,
                 (resposta.Lista("processamento") ?? new List<object>()).OfType<JObj>().ToList(),
                 (resposta.Lista("classificacao") ?? new List<object>()).OfType<JObj>().ToList(),

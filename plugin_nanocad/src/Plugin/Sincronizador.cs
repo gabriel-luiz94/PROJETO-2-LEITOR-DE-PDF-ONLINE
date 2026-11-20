@@ -172,8 +172,16 @@ namespace OrcamentoNanoCAD
         public static RegrasProjeto BaixarRegras(string projeto)
         {
             JObj cru = Cliente.RegrasCruas(projeto);
-            SalvarCache(projeto, cru);
-            return ConfigsLocais.Aplicar(ClienteAplicacao.RegrasDe(cru, Dados.Base));
+            return GuardarRegras(projeto, cru);
+        }
+
+        internal static RegrasProjeto GuardarRegras(string projeto, JObj cru)
+        {
+            RegrasProjeto r = ConfigsLocais.Aplicar(ClienteAplicacao.RegrasDe(cru, Dados.Base, projeto));
+            try { SalvarCache(projeto, cru); }
+            catch (IOException e) { Aplicacao.Log("cache das regras de " + projeto + ": " + e.Message); }
+            catch (UnauthorizedAccessException e) { Aplicacao.Log("cache das regras de " + projeto + ": " + e.Message); }
+            return r;
         }
     }
 
@@ -348,8 +356,7 @@ namespace OrcamentoNanoCAD
             }
             else if (t.Tipo == Tipo.Regras)
             {
-                Conexao.SalvarCache(t.Projeto, t.RegrasCruas);
-                TrocarRegras(s, ConfigsLocais.Aplicar(ClienteAplicacao.RegrasDe(t.RegrasCruas, Conexao.Dados.Base)));
+                TrocarRegras(s, Conexao.GuardarRegras(t.Projeto, t.RegrasCruas));
                 Aplicacao.Msg("Regras do projeto " + t.Projeto + " atualizadas pela aplicação; obra refeita (ajustes mantidos). " + Relatorios.Resumo(s.Obra));
             }
             else if (t.Revisao == s.Revisao)
