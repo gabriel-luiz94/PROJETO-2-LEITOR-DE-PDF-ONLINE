@@ -3,6 +3,9 @@ import hashlib
 import http.server
 import os
 import threading
+import sys
+from contextlib import nullcontext
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -230,3 +233,31 @@ def test_release_so_com_o_nome_antigo_ainda_oferece_e_traz_as_duas_copias():
     assert "dist\\OrcaCore.exe" in fluxo and "Leitor_Projetos.exe.sha256" in fluxo and "dist/OrcaCore.exe dist/OrcaCore.exe.sha256 dist/GridR.exe dist/GridR.exe.sha256 dist/Leitor_Projetos.exe dist/Leitor_Projetos.exe.sha256" in fluxo
     bat = open(os.path.join(config.BASE_DIR, "build.bat"), encoding="utf-8").read()
     assert '--name "OrcaCore"' in bat and '--icon "static\\gridr.ico"' in bat
+
+@pytest.mark.parametrize("cenario", ["instalado", "mesma_versao", "portatil", "sem_registro", "outra_plataforma"])
+def test_sincroniza_versao_so_no_executavel_da_instalacao(monkeypatch, tmp_path, cenario):
+    pasta = tmp_path / "Programs" / "OrcaCore"
+    executavel = (tmp_path if cenario == "portatil" else pasta) / au.NOME_EXE
+    valores = {"InstallLocation": str(pasta), "DisplayVersion": "1.9.9"}
+    if cenario == "mesma_versao":
+        valores["DisplayVersion"] = au.APP_VERSION
+    escritas = []
+
+    def abrir(raiz, caminho, *, access):
+        assert raiz == "HKCU" and caminho == au.CHAVE_INSTALACAO_WINDOWS and access == 3
+        if cenario == "sem_registro":
+            raise FileNotFoundError(caminho)
+        return nullcontext(valores)
+
+    def gravar(chave, campo, reservado, tipo, valor):
+        assert chave is valores and reservado == 0 and tipo == 1
+        escritas.append((campo, valor))
+
+    registro = SimpleNamespace(HKEY_CURRENT_USER="HKCU", KEY_QUERY_VALUE=1, KEY_SET_VALUE=2, REG_SZ=1,
+                               OpenKey=abrir, QueryValueEx=lambda chave, campo: (chave[campo], 1), SetValueEx=gravar)
+    monkeypatch.setitem(sys.modules, "winreg", registro)
+    monkeypatch.setattr(au, "sys", SimpleNamespace(executable=str(executavel),
+                                                 platform="linux" if cenario == "outra_plataforma" else "win32"))
+    monkeypatch.setattr(au, "IS_FROZEN", True)
+    au.sincronizar_versao_instalada()
+    assert escritas == ([("DisplayVersion", au.APP_VERSION)] if cenario == "instalado" else [])

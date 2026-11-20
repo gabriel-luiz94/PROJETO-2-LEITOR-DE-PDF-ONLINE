@@ -36,6 +36,8 @@
 
 ---
 
+No Windows, o workflow de release empacota `dist/OrcaCore.exe` em `OrcaCore-Setup.exe` com Inno Setup. O manifesto do instalador pede o mesmo nível de privilégio do usuário atual. A instalação escreve em `%LOCALAPPDATA%\Programs\OrcaCore` e cria a entrada de desinstalação em HKCU. `services/auto_updater.py` sincroniza `DisplayVersion` quando o executável registrado inicia. [ADR-008](decisions/ADR-008-instalador-windows-por-usuario.md).
+
 ## 2. Fluxo de dados completo (pipeline do orçamento)
 
 ```

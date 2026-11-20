@@ -6,6 +6,14 @@ Sistema para leitura e análise de projetos de rede elétrica a partir de arquiv
 
 Funciona tanto como aplicativo desktop nativo (via `pywebview`, empacotável em `.exe`) quanto como serviço web hospedado na nuvem.
 
+## Instalação no Windows
+
+1. Baixe `OrcaCore-Setup.exe` nos arquivos da [release mais recente](https://github.com/gabriel-luiz94/PROJETO-2-LEITOR-DE-PDF-ONLINE/releases/latest).
+2. Execute o instalador na sua conta. O programa fica em `%LOCALAPPDATA%\Programs\OrcaCore` e aparece no menu Iniciar e em **Configurações → Aplicativos → Aplicativos instalados**. A instalação e a desinstalação usam as permissões da conta atual.
+3. Para atualizar, abra o OrçaCore e, quando uma nova release estiver disponível, use **Instalar e Reiniciar**.
+
+O arquivo `OrcaCore.exe` continua disponível para uso portátil. Se você já usa uma cópia portátil com dados locais, feche o OrçaCore antes de copiar o banco `banco_resumo.db`, a pasta `skills` e o `.env` (se existirem) para a nova pasta. Faça essa migração antes de começar a trabalhar pela instalação e preserve uma cópia de segurança se a pasta de destino já tiver dados. Guarde os arquivos de obra que você salvou nos locais escolhidos.
+
 ## 🚀 Tecnologias Utilizadas
 
 * **FastAPI**: backend do servidor e das APIs.
