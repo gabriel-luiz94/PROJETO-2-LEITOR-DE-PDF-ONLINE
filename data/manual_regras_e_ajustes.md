@@ -1021,3 +1021,7 @@ Nas tabelas **Demais Ativos** e **Cabos** você pode agrupar linhas e recolhê-l
 - **Mover:** **Alt+↑ / Alt+↓** move a linha (ou as selecionadas); na linha do grupo move o grupo todo. Passar da borda tira a linha do grupo; uma linha solta que desce sobre o título entra nele. Ctrl+Z desfaz.
 - O menu do botão direito agora abre para cima (ou para a esquerda) quando não há espaço embaixo, em vez de ficar cortado.
 - **Congelar / bloquear o grupo:** com a linha do grupo (`@…`) selecionada ou com o cursor nela, **Congelar grupo** e **Bloquear grupo** (botão direito ou botões ❄ 🔒) valem para todas as linhas dele; repetir desfaz.
+
+## Pernambuco: estrutura solta (20/11/2026)
+
+No projeto Pernambuco, uma linha de Outros que seja só estrutura (`N3`, `2 N3`, `N1, N4`, `B2`, `CE1`, `ISOL`…) classifica como **ESTRUTURA**. Linha com poste (`11300D, N3`) continua **POSTE**, cabo continua **CABO**, e materiais (`CON`, `PR220`, `FLABIT`) seguem sem classificação (`0`). Projetos cujas regras do leitor foram editadas à mão não mudam sozinhos: acrescente a regra em Regras do leitor › Classificação (ou importe o pacote).

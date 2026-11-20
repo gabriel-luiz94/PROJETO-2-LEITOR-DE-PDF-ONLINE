@@ -16,6 +16,11 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-20 — TASK-197: Pernambuco classifica estrutura solta como ESTRUTURA
+
+- Antes: no Pernambuco (081) só havia regras de POSTE e CABO; `N3`, `B2`… soltos ficavam com entidade `0`. Nova regra (ordem 30) no seed `data/regras_leitor_classificacao_pernambuco_seed.json`: estrutura (`N`, `U`, `T`, `R`, `B`, `S`, `CE`, `SI`, `RA`, `BI` + número, `ISOL`), sozinha ou em lista, com quantidade e `(parâmetros)` → `ESTRUTURA`. Poste (`11300D, N3`) e cabo seguem antes; `CON`, `PR220`, `FLABIT` continuam `0`.
+- O hash do seed anterior entrou em `seeds_antigos.classificacao` do pacote 081: projetos com as regras **intocadas** atualizam sozinhos; quem editou as regras precisa importar/acrescentar a regra à mão. Na vinculação `ESTRUTURA` e `0` já valiam igual (sem mudança). Teste: `tests/test_estrutura_solta_pe_197.py`.
+
 ## 2026-11-19 — TASK-196: congelar e bloquear grupos de linhas
 
 - Congelar/bloquear (menu do botão direito e botões ❄ 🔒) na linha do grupo («@») age em **todos os membros**; o menu passa a dizer «Congelar/Descongelar/Bloquear/Desbloquear grupo». A declaração continua sempre congelada (não desce disso); o bloqueio vale também para ela. `expandirGrupos` em `static/resumo.js`; teste em `tests/test_grupos_linhas_195.py`.
