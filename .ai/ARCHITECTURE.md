@@ -103,6 +103,8 @@ No Windows, o workflow de release empacota `dist/OrcaCore.exe` em `OrcaCore-Setu
    REC (historico_rec)  ·  export .rec/CSV  ·  impressão
 ```
 
+No desktop, `POST /api/plugin/receber` valida o caminho da obra do nanoCAD e cria um identificador pendente. O Resumo autenticado carrega o arquivo com `GET /api/plugin/pendente/{id}/projeto`, que reutiliza a leitura de `services/projeto_desktop.py`. `GridRProjeto.abrirDoPlugin` aplica os dados e usa os diálogos do projeto. A vinculação por poste consulta um índice espacial local à rede. [TASK-209](tasks/TASK-209-20-11-2026.md).
+
 ---
 
 ## 3. Módulos e responsabilidades

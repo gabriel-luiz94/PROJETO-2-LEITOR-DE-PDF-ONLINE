@@ -480,11 +480,10 @@
     const mesmoArquivo = (a, b) => String(a || '').replace(/\//g, '\\').toLowerCase() === String(b || '').replace(/\//g, '\\').toLowerCase();
     /** Abre o projeto que o plugin gravou. Se ele já é o projeto aberto, relê do arquivo (o desenho atualizou as linhas); senão, o mesmo
      *  caminho do menu Abrir (pergunta Abrir/Mesclar/Sobrescrever se o Resumo já tem dados). Devolve true se abriu. */
-    async function abrirDoPlugin(caminho, projetoCodigo, selecionarProjeto) {
+    async function abrirDoPlugin(carregarProjeto, selecionarProjeto) {
         await inicioResumo;
-        const p = ponte();
-        if (!p) return false;
-        const r = await p.projeto_abrir(caminho, projetoCodigo || codigoRegras());
+        if (!ponte()) return false;
+        const r = await carregarProjeto();
         if (!r || !r.ok) {
             await perguntar('Projeto do nanoCAD', 'Não foi possível abrir o projeto do desenho: ' + ((r && r.erro) || 'erro ao ler o arquivo.'), [{ texto: 'Entendi', valor: 'ok', ok: true }]);
             return false;

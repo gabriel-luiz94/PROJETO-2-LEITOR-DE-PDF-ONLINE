@@ -7301,10 +7301,13 @@ window.handleTotPaste = function(e, index) {
         try {
             // O login por sessão expirada precisa voltar ao mesmo pedido.
             window.history.replaceState(null, '', '/resumo?plugin_pendente=' + encodeURIComponent(pend));
-            const r = await fetch(`/api/plugin/pendente/${encodeURIComponent(pend)}`);
+            const url = `/api/plugin/pendente/${encodeURIComponent(pend)}`;
+            const r = await fetch(url);
             const d = await r.json().catch(() => ({}));
             if (!r.ok) { showToast(d.detail || `Não consegui receber o projeto do nanoCAD (HTTP ${r.status}).`); return; }
-            try { window.history.replaceState(null, '', window.location.pathname); } catch (e) { /* navegador antigo */ }
+            const limparPendente = () => {
+                try { window.history.replaceState(null, '', window.location.pathname); } catch (e) { /* navegador antigo */ }
+            };
             const proj = d.projeto || {};
             const selecionarProjeto = () => {
                 if (proj.codigo) localStorage.setItem('projeto_selecionado_codigo', proj.codigo);
@@ -7318,12 +7321,19 @@ window.handleTotPaste = function(e, index) {
                 // a ponte do aplicativo (pywebview) chega logo depois da página: espera até ~10 s
                 for (let k = 0; k < 40 && !(window.GridRProjeto && window.GridRProjeto.temPonte && window.GridRProjeto.temPonte()); k++) await new Promise(ok => setTimeout(ok, 250));
                 if (!(window.GridRProjeto && window.GridRProjeto.temPonte && window.GridRProjeto.temPonte())) {
+                    limparPendente();
                     showToast('O projeto do nanoCAD só abre no OrçaCore instalado. Arquivo: ' + d.caminho);
                     return;
                 }
-                await window.GridRProjeto.abrirDoPlugin(d.caminho, proj.codigo, selecionarProjeto);
+                await window.GridRProjeto.abrirDoPlugin(async () => {
+                    const resposta = await fetch(url + '/projeto');
+                    const projeto = await resposta.json();
+                    if (resposta.status !== 401) limparPendente();
+                    return resposta.ok ? projeto : { ok: false, erro: projeto.detail };
+                }, selecionarProjeto);
                 return;
             }
+            limparPendente();
             const env = d.envelope || {};
             if (env.dados) {
                 selecionarProjeto();

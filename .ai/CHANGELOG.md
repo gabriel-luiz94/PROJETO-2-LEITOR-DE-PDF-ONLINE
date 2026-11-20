@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-20 — Abertura de projetos grandes do nanoCAD
+
+O Resumo carrega a obra entregue pelo nanoCAD pela API local autenticada. A vinculação automática e o mapa indexam os postes por região para localizar as pontas dos vãos. [TASK-209](tasks/TASK-209-20-11-2026.md).
+
 ## 2026-11-20 — Instalador Windows por usuário
 
 A distribuição passa a gerar `OrcaCore-Setup.exe` com o mesmo binário e versão do portátil. O instalador cria o atalho e o registro de desinstalação para a conta atual. Após uma autoatualização, a versão exibida pelo Windows acompanha o executável que abriu. [TASK-206](tasks/TASK-206-20-11-2026.md).
