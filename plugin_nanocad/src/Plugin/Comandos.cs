@@ -25,7 +25,7 @@ using Application = HostMgd.ApplicationServices.Application;
 
 namespace OrcamentoNanoCAD
 {
-    public class Comandos
+    public partial class Comandos
     {
         // ── utilidades ──
         private static Sessao Sessao() { return Aplicacao.Sessao(Aplicacao.Doc(), true); }
@@ -558,7 +558,7 @@ namespace OrcamentoNanoCAD
             }
         }
 
-        private static string DefinirLayer(Database db, Transaction tr, ObjectId id, string layer)
+        internal static string DefinirLayer(Database db, Transaction tr, ObjectId id, string layer)
         {
             LayerTable lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
             if (!lt.Has(layer))
@@ -913,6 +913,8 @@ namespace OrcamentoNanoCAD
                 + "  ORC_ABRIR_APP  salva e abre o projeto no OrçaCore deste computador (aberto ou fechado)\n"
                 + "  ORC_LEITURA    configurar layers da rede, bloco de poste e guias · ORC_DIAGNOSTICO o que foi lido\n"
                 + "  ORC_FECHAR     fechar a obra · log: " + Aplicacao.ArquivoLog + "\n"
+                + "  ORC_NOTA / ORC_EDITAR_NOTA / ORC_MOVER_NOTA   notas no DWG\n"
+                + "  ORC_AUDITAR_LAYERS / ORC_ATUALIZAR_GUIAS   auditoria de MTEXT e guias\n"
                 + "  ORC_ATUALIZAR_PLUGIN conferir agora se há versão nova · ORC_VOLTAR_VERSAO voltar para a anterior\n"
                 + "  Plugin " + ObraArquivo.VersaoPlugin + ": " + AtualizacaoPlugin.Status + "\n"
                 + "  " + Sincronizador.Status);

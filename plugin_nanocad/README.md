@@ -37,6 +37,14 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 - Em **Conferir → Cores por operação**, vermelho indica instalação, magenta indica remoção e azul indica reaplicação. O asterisco e o rótulo LV identificam linha viva. O modo usa marcas temporárias.
 - Em **Configurações → Leitura do desenho**, configure a tolerância de metragem em metros para o projeto. O valor inicial zero desativa esse aviso. O detalhe do vão sempre pode mostrar as três medidas disponíveis.
 
+### Anotações e auditoria de layers
+
+- **Anotações → Criar nota** (`ORC_NOTA`) cria um MTEXT com operação, altura, alinhamento e guia opcional. **Editar nota** e **Mover nota** trabalham com MTEXT. No movimento, você pode selecionar textos acompanhantes, alinhar o grupo ou limitar o deslocamento à vertical.
+- **Reapontar guia** (`ORC_REAPONTAR_NOTA`) associa uma nota a outro objeto. **Atualizar guias** recalcula os extremos. A atualização automática usa os eventos de movimento do nanoCAD quando disponíveis.
+- **Auditoria de layers** (`ORC_AUDITAR_LAYERS`) lista as notas por operação e as que estão fora. Ctrl+A seleciona a aba. Um clique destaca e duplo clique aproxima. Alterar layers, alternar LV e excluir usam os comandos de desenho. A exclusão pede confirmação.
+- A aba **Análise** permite atribuir operações apontando no desenho. O filtro de visibilidade do 26 atua na viewport. No 5, o filtro controla as marcas de análise.
+- Use **Atualizar leitura** após editar o DWG para incorporar as mudanças à obra e enviar a versão revisada ao OrçaCore.
+
 ### Comandos
 
 | Comando | O que faz |

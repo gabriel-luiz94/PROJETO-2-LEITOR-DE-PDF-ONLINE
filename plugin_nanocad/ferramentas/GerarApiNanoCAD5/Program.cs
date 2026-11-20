@@ -140,8 +140,9 @@ static class Program
     {
         if (s == null) return;
         s = s.OriginalDefinition;
-        if (s is IMethodSymbol ms && ms.MethodKind == MethodKind.PropertyGet || s is IMethodSymbol ms2 && ms2.MethodKind == MethodKind.PropertySet)
-            s = ((IMethodSymbol)s).AssociatedSymbol!;
+        if (s is IMethodSymbol acessor && (acessor.MethodKind == MethodKind.PropertyGet || acessor.MethodKind == MethodKind.PropertySet
+            || acessor.MethodKind == MethodKind.EventAdd || acessor.MethodKind == MethodKind.EventRemove))
+            s = acessor.AssociatedSymbol!;
         if (s is IMethodSymbol red && red.ReducedFrom != null) s = red.ReducedFrom;
         if (!DaApi(s)) return;
         var t = s.ContainingType;
@@ -244,7 +245,7 @@ static class Program
                         if (par != null && !usados.OfType<IMethodSymbol>().Any(x => x.Name == par))
                             sb.AppendLine(i2 + "public static " + N(m.ReturnType) + " operator " + Operador(par) + "(" + Params(m, false) + ") { throw null; }");
                     }
-                    else if (m.MethodKind == MethodKind.Ordinary || m.MethodKind == MethodKind.EventAdd)
+                    else if (m.MethodKind == MethodKind.Ordinary)
                     {
                         string mod = interfaceT ? "" : Acesso(m) + (m.IsStatic ? "static " : "") + ((m.IsVirtual || m.IsOverride || m.IsAbstract) && !t.IsSealed && t.TypeKind == TypeKind.Class ? "virtual " : "");
                         string corpo = interfaceT ? ";" : " { throw null; }";

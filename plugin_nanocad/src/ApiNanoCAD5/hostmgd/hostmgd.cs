@@ -10,8 +10,15 @@ namespace HostMgd.ApplicationServices
         public static global::HostMgd.ApplicationServices.DocumentCollection DocumentManager { get { throw null; }  }
         protected Application() { }
     }
+    public sealed class CommandEventArgs : global::System.EventArgs
+    {
+        public string GlobalCommandName { get { throw null; }  }
+        protected CommandEventArgs() { }
+    }
+    public delegate void CommandEventHandler(object sender, global::HostMgd.ApplicationServices.CommandEventArgs e);
     public sealed class Document : global::Teigha.Runtime.DisposableWrapper
     {
+        public event global::HostMgd.ApplicationServices.CommandEventHandler CommandEnded;
         public global::HostMgd.ApplicationServices.DocumentLock LockDocument() { throw null; }
         public void SendStringToExecute(string command, bool activate, bool wrapUpInactiveDoc, bool echoCommand) { throw null; }
         public string CommandInProgress { get { throw null; }  }
@@ -23,10 +30,17 @@ namespace HostMgd.ApplicationServices
     }
     public sealed class DocumentCollection : global::System.MarshalByRefObject, System.IDisposable
     {
+        public event global::HostMgd.ApplicationServices.DocumentCollectionEventHandler DocumentActivated;
         public global::HostMgd.ApplicationServices.Document MdiActiveDocument { get { throw null; } set { } }
         protected DocumentCollection() { }
         void System.IDisposable.Dispose() { }
     }
+    public sealed class DocumentCollectionEventArgs : global::System.EventArgs
+    {
+        public global::HostMgd.ApplicationServices.Document Document { get { throw null; }  }
+        protected DocumentCollectionEventArgs() { }
+    }
+    public delegate void DocumentCollectionEventHandler(object sender, global::HostMgd.ApplicationServices.DocumentCollectionEventArgs e);
     public sealed class DocumentLock : System.IDisposable
     {
         protected DocumentLock() { }
@@ -39,14 +53,16 @@ namespace HostMgd.EditorInput
     {
         public void DrawVector(global::Teigha.Geometry.Point3d from, global::Teigha.Geometry.Point3d to, int color, bool drawHighlighted) { throw null; }
         public global::Teigha.DatabaseServices.ViewTableRecord GetCurrentView() { throw null; }
-        public global::HostMgd.EditorInput.PromptEntityResult GetEntity(global::HostMgd.EditorInput.PromptEntityOptions options) { throw null; }
         public global::HostMgd.EditorInput.PromptEntityResult GetEntity(string message) { throw null; }
+        public global::HostMgd.EditorInput.PromptEntityResult GetEntity(global::HostMgd.EditorInput.PromptEntityOptions options) { throw null; }
         public global::HostMgd.EditorInput.PromptResult GetKeywords(global::HostMgd.EditorInput.PromptKeywordOptions options) { throw null; }
+        public global::HostMgd.EditorInput.PromptPointResult GetPoint(global::HostMgd.EditorInput.PromptPointOptions options) { throw null; }
         public global::HostMgd.EditorInput.PromptSelectionResult GetSelection(global::HostMgd.EditorInput.PromptSelectionOptions options, global::HostMgd.EditorInput.SelectionFilter filter) { throw null; }
         public global::HostMgd.EditorInput.PromptResult GetString(global::HostMgd.EditorInput.PromptStringOptions options) { throw null; }
         public void Regen() { throw null; }
         public void SetCurrentView(global::Teigha.DatabaseServices.ViewTableRecord value) { throw null; }
         public void WriteMessage(string message) { throw null; }
+        public global::Teigha.Geometry.Matrix3d CurrentUserCoordinateSystem { get { throw null; } set { } }
         protected Editor() { }
         void System.IDisposable.Dispose() { }
     }
@@ -56,6 +72,11 @@ namespace HostMgd.EditorInput
         protected KeywordCollection() { }
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { throw null; }
     }
+    public class PromptCornerOptions : global::HostMgd.EditorInput.PromptEditorOptions
+    {
+        public bool AllowNone { get { throw null; } set { } }
+        protected PromptCornerOptions() { }
+    }
     public abstract class PromptEditorOptions : global::HostMgd.EditorInput.PromptOptions
     {
         protected PromptEditorOptions() { }
@@ -63,6 +84,8 @@ namespace HostMgd.EditorInput
     public sealed class PromptEntityOptions : global::HostMgd.EditorInput.PromptEditorOptions
     {
         public PromptEntityOptions(string message) { }
+        public void AddAllowedClass(global::System.Type type, bool exactMatch) { throw null; }
+        public void SetRejectMessage(string message) { throw null; }
         public bool AllowNone { get { throw null; } set { } }
         protected PromptEntityOptions() { }
     }
@@ -82,6 +105,16 @@ namespace HostMgd.EditorInput
     {
         public global::HostMgd.EditorInput.KeywordCollection Keywords { get { throw null; }  }
         protected PromptOptions() { }
+    }
+    public class PromptPointOptions : global::HostMgd.EditorInput.PromptCornerOptions
+    {
+        public PromptPointOptions(string message) { }
+        protected PromptPointOptions() { }
+    }
+    public sealed class PromptPointResult : global::HostMgd.EditorInput.PromptResult
+    {
+        public global::Teigha.Geometry.Point3d Value { get { throw null; }  }
+        protected PromptPointResult() { }
     }
     public class PromptResult
     {

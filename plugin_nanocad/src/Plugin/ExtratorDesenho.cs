@@ -196,6 +196,7 @@ namespace OrcamentoNanoCAD
             Line ln = ent as Line;
             if (ln == null) return false;
             b = ComPontos(ent, "LINE", new List<Ponto> { P(ln.StartPoint), P(ln.EndPoint) });
+            b.NotaDaGuia = GuiasDeNota.NotaDaGuia(ln);
             return true;
         }
 

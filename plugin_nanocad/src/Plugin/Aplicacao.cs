@@ -27,6 +27,8 @@ namespace OrcamentoNanoCAD
             catch (System.Exception) { /* sem documento aberto: tudo bem */ }
             try { AtualizacaoPlugin.Iniciar(); }
             catch (System.Exception e) { Log("atualização: " + e); }
+            try { Compat.Tentar("atualização automática das guias", GuiasDeNota.Iniciar); }
+            catch (System.Exception e) { Log("guias de notas: " + e.Message); }
             try { Sincronizador.Iniciar(); }
             catch (System.Exception e) { Msg("Ligação com a aplicação indisponível: " + e.Message); }
         }
