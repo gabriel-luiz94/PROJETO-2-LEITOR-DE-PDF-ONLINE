@@ -33,6 +33,8 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-207](tasks/TASK-207-20-11-2026.md) — Pernambuco classifica estrutura solta (N3, B2…) como ESTRUTURA (regra ordem 30 no seed; atualiza sozinho se as regras estão intocadas).
+
 - [x] [TASK-206](tasks/TASK-206-20-11-2026.md) — Instalador Windows por usuário, empacotado com o portátil e sincronizado com o autoatualizador.
 
 - [x] [TASK-204](tasks/TASK-204-20-11-2026.md) — Assistente preserva operações e vínculos no Resumo, exige confirmação inclusive nos atalhos e simula o orçamento com a Totalizadora da tela.

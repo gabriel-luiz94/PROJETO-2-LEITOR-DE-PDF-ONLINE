@@ -37,5 +37,12 @@
   "ativo_regex": "\\s\\d+(?:[.,]\\d+)?\\s*m$",
   "entidade": "CABO",
   "parar": true
+ },
+ {
+  "ordem": 30,
+  "descricao": "Estrutura solta (N1, N3, B2, U1, CE1…), sozinha ou em lista, com quantidade e parâmetros opcionais",
+  "ativo_regex": "^\\s*(?:\\*?\\d+\\s*-?\\s*)?(?:ISOL|(?:N|U|T|R|B|S|CE|SI|RA|BI)\\d+[A-Z]?)(?:\\([^()]*\\))?(?:\\s*,\\s*(?:\\*?\\d+\\s*-?\\s*)?(?:ISOL|(?:N|U|T|R|B|S|CE|SI|RA|BI)\\d+[A-Z]?)(?:\\([^()]*\\))?)*\\s*$",
+  "entidade": "ESTRUTURA",
+  "parar": true
  }
 ]
