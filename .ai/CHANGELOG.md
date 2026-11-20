@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-20 — Assistente de IA no Resumo e no mapa
+
+Planos preservam a operação existente, respeitam linhas protegidas e remapeiam vínculos quando uma linha é removida. A prévia usa a Totalizadora do Resumo e compara quantidades de orçamento antes da aplicação. Os atalhos passam pelo mesmo cartão de confirmação. O mapa permite consultar o poste ou vão selecionado. Skills publicadas têm revisão por código de projeto e o teste do provedor reserva verifica uma ferramenta. [TASK-204](tasks/TASK-204-20-11-2026.md) · [TASK-205](tasks/TASK-205-20-11-2026.md).
+
 ## 2026-11-20 — Grafo de vinculação
 
 O mapa mostra postes como nós e vãos como arestas. A janela do poste lista os cabos e as estruturas e permite aplicar ou desfazer vínculos pelas regras do projeto.

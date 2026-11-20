@@ -33,6 +33,9 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-204](tasks/TASK-204-20-11-2026.md) — Assistente preserva operações e vínculos no Resumo, exige confirmação inclusive nos atalhos e simula o orçamento com a Totalizadora da tela.
+- [x] [TASK-205](tasks/TASK-205-20-11-2026.md) — Consulta pelo poste ou vão, paginação das tabelas, skills com revisão por código e teste de ferramenta no provedor reserva. Validação com base de produção e provedor externo pendente.
+
 - [x] **TASK-168** — O programa sempre abre no projeto default (o usuário abre o projeto): `SESSAO_ID`/cookie `gridr_sessao` + `GridRProjeto.reiniciarNoDefault`
 
 - [x] **TASK-167** — Balão dos parâmetros (preenchidos × que faltam) no ativo e cores opcionais (Configurações › Aparência › Avançado), `static/ativo_status.js`
@@ -764,7 +767,11 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-11-12
+**Data:** 2026-11-20
+
+**Motivo:** [TASK-204](tasks/TASK-204-20-11-2026.md) e [TASK-205](tasks/TASK-205-20-11-2026.md) atualizaram os planos, o orçamento e o contexto de projeto do assistente.
+
+**Anterior — Data:** 2026-11-12
 **Motivo:** TASK-153 — usabilidade e design (telas sem internet, hierarquia de botões, menus no Resumo). As tarefas
 TASK-107 a TASK-152 estão no `CHANGELOG.md` e em `.ai/tasks/` (esta seção não foi atualizada nelas).
 

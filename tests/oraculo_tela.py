@@ -35,7 +35,7 @@ def _trechos():
         # allProcessed + separação Cabos/Outros/RAMAIS + valores padrão
         # aplicarOperacoesAjuste (usa PREFIXO_TABELA e textoOperacao ao lado)
         "aplicar": _fatia(t, "    const PREFIXO_TABELA = {", "    /** Mostra o diff e deixa escolher"),
-        "sync_totalizadora": _fatia(t, "window.syncTotalizadora = async function(forceUpdate = true) {", "    showToast(\"Tabela Totalizadora atualizada!\");\n};") + "\n    showToast(\"x\");\n};",
+        "sync_totalizadora": _fatia(t, "window.syncTotalizadora = async function(forceUpdate = true) {", "window.renderTotalizadora = function() {"),
         "payload": _fatia(t, "    async function obterPayloadCalculo() {", "    /* ═══════════════════════════════════════\n       VALIDAÇÃO DAS PLANILHAS"),
         "ramais_calculo": _fatia(t, "window.recalcularAtivosRamais = function() {", "window.adicionarAtivosRamais = function() {"),
         "ramais_adicionar": _fatia(t, "window.adicionarAtivosRamais = function() {", "window.copyRamaisTable"),

@@ -91,6 +91,7 @@
     .vz-mapa [data-no] text{fill:#e6dff3;font-size:11px;font-weight:600;paint-order:stroke;stroke:#17161c;stroke-width:3px;pointer-events:none}
     .vz-mapa .vz-rotulo-denso text{visibility:hidden}.vz-mapa .vz-rotulo-denso:hover text,.vz-mapa .vz-rotulo-denso:focus-visible text{visibility:visible}
     .vz-mapa .vz-aresta{stroke:var(--g-gray);stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
+    .vz-mapa .vz-aresta[data-vao]{cursor:pointer}.vz-mapa .vz-aresta[data-vao]:focus-visible{outline:none;stroke-width:6}
     .vz-mapa .vz-aresta.mt{stroke:#b95f6a}.vz-mapa .vz-aresta.bt{stroke:#4e9875}
     .vz-mapa .vz-aresta.completo{stroke-width:3.6}.vz-mapa .vz-aresta.mt.completo{stroke:#ff6478}
     .vz-mapa .vz-aresta.bt.completo{stroke:#54e1a3}
@@ -198,12 +199,13 @@
     }
 
     function fechar() {
-        if (st && st.dirty && !raiz.confirm('Há alterações nas tabelas/scripts que não foram salvas. Fechar mesmo assim?')) return;
+        if (st && st.dirty && !raiz.confirm('Há alterações nas tabelas/scripts que não foram salvas. Fechar mesmo assim?')) return false;
         fecharMenu();
         const dialogoMapa = overlay?.querySelector('.vz-no-dialog[open]');
         if (dialogoMapa) dialogoMapa.close();
         if (overlay) overlay.style.display = 'none';
         if (host && host.depois) host.depois();
+        return true;
     }
 
     function marcarSujo() { st.dirty = true; st.cfgVer++; const b = overlay.querySelector('#vz-salvar'); if (b) b.disabled = false; }
@@ -1205,7 +1207,7 @@
         };
         const botao = (text, onclick, title = text) => el('button', { class: 'vz-btn', text, title, 'aria-label': title, onclick });
         const barra = el('div', { class: 'vz-grafo-barra' }, [
-            el('div', {}, [el('h4', { text: 'Grafo da rede' }), el('p', { text: 'Selecione um poste para editar os vínculos.' })]), contagem
+            el('div', {}, [el('h4', { text: 'Grafo da rede' }), el('p', { text: 'Selecione um poste para editar os vínculos ou um vão para consultar no assistente.' })]), contagem
         ]);
         const acoesMapa = el('div', { class: 'vz-grafo-acoes' }, [
             botao('−', () => zoom(1.25), 'Afastar'), botao('+', () => zoom(.8), 'Aproximar'),
@@ -1239,7 +1241,7 @@
                     margem + Math.floor(i / colunas) * (H - 2 * margem) / Math.max(1, linhas - 1)]);
             });
             const a = analise();
-            const rede = grafo.vaos.map(v => {
+            const rede = grafo.vaos.map((v, indice) => {
                 const extremidades = v.ids.map((id, i) => id ? posicoes.get(id) : ponto(v.pontas[i]));
                 const pts = v.pontos ? v.pontos.map(ponto) : extremidades.slice();
                 pts[0] = extremidades[0]; pts[pts.length - 1] = extremidades[1];
@@ -1252,7 +1254,8 @@
                     const estado = grupo.completo ? 'Vinculado' : 'Pendente';
                     const rotulo = `${grupo.tipo} · ${estado}\n${grupo.cabos.map(ic => cabos()[ic].ativo).join('\n')}`;
                     const classeRede = grupo.tipo === 'MT' ? 'mt' : grupo.tipo === 'BT' ? 'bt' : '';
-                    return `<polyline class="vz-aresta ${classeRede}${grupo.completo ? ' completo' : ''}" points="${linha}" fill="none" vector-effect="non-scaling-stroke" ${v.ids.includes(null) ? 'stroke-dasharray="5 4"' : ''}><title>${esc(rotulo)}</title></polyline>`;
+                    const interacao = host.consultarAssistente ? `data-vao="${indice}" data-grupo="${i}" tabindex="0" role="button" aria-label="Consultar vão ${esc(grupo.tipo)} ${indice + 1} no assistente"` : '';
+                    return `<polyline ${interacao} class="vz-aresta ${classeRede}${grupo.completo ? ' completo' : ''}" points="${linha}" fill="none" vector-effect="non-scaling-stroke" ${v.ids.includes(null) ? 'stroke-dasharray="5 4"' : ''}><title>${esc(rotulo)}</title></polyline>`;
                 }).join('');
             }).join('');
             const labels = [];
@@ -1296,6 +1299,9 @@
             const estruturas = estruturasDoNo(no);
             const completo = VR.posteCompletoNoGrafo(estruturas, a);
             const fecharNo = botao('Fechar', () => dialogo.close());
+            const consultarNo = host.consultarAssistente && botao('Consultar no assistente', () => consultar({
+                tipo: 'poste', rotulo: nomeDoNo(no), outros: no.linhas, cabos: [...no.cabos]
+            }));
             const desfazer = botao('Desfazer', () => {
                 host.desfazer();
                 ultimoStatus = 'Histórico atualizado.';
@@ -1360,7 +1366,7 @@
             dialogo.replaceChildren(el('header', { class: 'vz-no-topo' }, [
                 el('div', {}, [el('h4', { id: 'vz-no-titulo', text: nomeDoNo(no) }),
                     el('p', { class: completo ? 'vz-no-completo' : '', text: completo ? 'Vinculação completa' : 'Vinculação pendente' }),
-                    el('p', { text: no.pos ? `X ${no.pos[0].toFixed(2)} · Y ${no.pos[1].toFixed(2)}` : 'Poste atribuído sem coordenadas' })]), el('div', { class: 'vz-no-topo-acoes' }, [desfazer, fecharNo])
+                    el('p', { text: no.pos ? `X ${no.pos[0].toFixed(2)} · Y ${no.pos[1].toFixed(2)}` : 'Poste atribuído sem coordenadas' })]), el('div', { class: 'vz-no-topo-acoes' }, [consultarNo, desfazer, fecharNo].filter(Boolean))
             ]), el('div', { class: 'vz-no-conteudo' }, [lateral, painelNo]));
         }
 
@@ -1388,10 +1394,28 @@
             aplicarVista();
         });
         for (const evento of ['pointerup', 'pointerleave', 'pointercancel']) svg.addEventListener(evento, () => { arrasto = null; svg.classList.remove('arrastando'); });
-        svg.addEventListener('click', e => { const no = e.target.closest('[data-no]'); if (no && !mover) editarNo(no.dataset.no, no); });
+        function consultar(selecao) {
+            if (host.consultarAssistente && fechar()) host.consultarAssistente(selecao);
+        }
+        function ativarMapa(alvo) {
+            const no = alvo.closest('[data-no]');
+            if (no) { editarNo(no.dataset.no, no); return; }
+            const aresta = alvo.closest('[data-vao]');
+            if (!aresta) return;
+            const v = grafo.vaos[Number(aresta.dataset.vao)];
+            const grupos = VR.gruposVisuaisDoVao(v.cabos, cabos(), analise(), st.cfg.dicionario_cabos);
+            const grupo = grupos[Number(aresta.dataset.grupo)];
+            if (!grupo) return;
+            const nos = v.ids.map(id => grafo.nos.get(id)).filter(Boolean);
+            consultar({ tipo: 'vão', rotulo: ['Vão ' + grupo.tipo + ' ' + (Number(aresta.dataset.vao) + 1), nos.map(nomeDoNo).join(' ↔ ')].filter(Boolean).join(' · '),
+                cabos: grupo.cabos, outros: nos.flatMap(n => n.linhas) });
+        }
+        svg.addEventListener('click', e => { if (!mover) ativarMapa(e.target); });
         svg.addEventListener('keydown', e => {
-            const no = e.target.closest('[data-no]');
-            if (no && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); editarNo(no.dataset.no, no); }
+            if (e.target.closest('[data-no], [data-vao]') && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                ativarMapa(e.target);
+            }
         });
 
         mapaAtualizar = () => { pintar(); if (dialogo.open) preencherNo(); };
