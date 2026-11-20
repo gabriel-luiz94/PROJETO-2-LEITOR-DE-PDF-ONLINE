@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.12.4
+
+TASK-033 registra `ORCACORE` e `OC` para a tela inicial nos builds do nanoCAD 5 e 26. `ORCAMENTO` permanece disponível como alias. A execução no nanoCAD aguarda confirmação no Windows.
+
 ## Plugin 0.12.3
 
 TASK-032 corrige a seleção das regras de Paraíba (027) na leitura do nanoCAD. As regras da aplicação, o cache e a base de fábrica são resolvidos pelo código do projeto. A leitura de um DWG real da Paraíba aguarda validação no nanoCAD 5 e 26.
@@ -33,9 +37,9 @@ TASK-022 (leitura), TASK-023 (alocação por poste) e TASK-024 (painel) implemen
 
 ## Versão
 
-`0.12.3` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
+`0.12.4` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
 
-Branch de trabalho: `codex/leitura-paraiba`
+Branch de trabalho: `codex/comando-orcacore-vinculacao`
 
 ## Entregáveis
 

@@ -251,7 +251,8 @@ namespace OrcamentoNanoCAD.UI
             if (d == null) return;
             string atual = "";
             try { atual = Compat.Tentar("comando em andamento", () => d.CommandInProgress ?? "", ""); } catch (Exception) { }
-            if (atual.Length > 0 && !atual.StartsWith("ORC_", StringComparison.OrdinalIgnoreCase) && atual != "ORCAMENTO")
+            if (atual.Length > 0 && !atual.StartsWith("ORC_", StringComparison.OrdinalIgnoreCase) && !atual.Equals("ORCACORE", StringComparison.OrdinalIgnoreCase)
+                && !atual.Equals("OC", StringComparison.OrdinalIgnoreCase) && !atual.Equals("ORCAMENTO", StringComparison.OrdinalIgnoreCase))
             {
                 Aplicacao.Msg("Termine (ou cancele com Esc) o comando " + atual + " antes de usar o painel.");
                 return;

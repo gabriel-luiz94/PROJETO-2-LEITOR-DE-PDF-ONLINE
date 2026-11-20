@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-20 — Modal de vinculação e comando do nanoCAD
+
+A análise de equipamentos que leem cabos do poste usa o índice espacial. O modal mantém o aviso e os controles de saída se uma aba falhar. No nanoCAD, `ORCACORE` e `OC` abrem a tela inicial. [TASK-210](tasks/TASK-210-20-11-2026.md) · [TASK-033 do plugin](../plugin_nanocad/.ai/tasks/TASK-033-20-11-2026.md).
+
 ## 2026-11-20 — Abertura de projetos grandes do nanoCAD
 
 O Resumo carrega a obra entregue pelo nanoCAD pela API local autenticada. A vinculação automática e o mapa indexam os postes por região para localizar as pontas dos vãos. [TASK-209](tasks/TASK-209-20-11-2026.md).

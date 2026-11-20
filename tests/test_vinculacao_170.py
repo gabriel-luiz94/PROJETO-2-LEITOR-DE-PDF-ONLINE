@@ -216,10 +216,14 @@ def test_paridade_com_o_js():
         {"vincular": False, "cabos": [cabo("C120", 0, 100, [0]), cabo("C35", 100, 200, [0])], "outros": [poste(100, "12600D, B4MT_RL, RL, PARA_RAIO, ATRINT_EQ")]},
         {"vincular": False, "cabos": [cabo("S4/0", 0, 100, [0])], "outros": [poste(100, "12600D, B4MT_RL, RL, PARA_RAIO, ATRINT_EQ")]},
         {"vincular": False, "cabos": [cabo("A35P", 0, 100, [0])], "outros": [poste(100, "12600D, N3, PARA_RAIO, ATRINT_EQ")]},
+        # Equipamento sem cabo vinculado na linha encontra pela geometria o cabo que chega ao poste.
+        {"vincular": False, "cabos": [cabo("A35P", 0, 99), cabo("C35", 108, 200)],
+         "outros": [poste(100, "12600D, RL"), poste(200, "12600D, N3")]},
     ]
     rr = subprocess.run([NODE, "-e", _JS % {"v": json.dumps(os.path.join(config.STATIC_DIR, "vinculacao_regras.js"))}], input=json.dumps({"casos": casos, "cfg": CFG}), capture_output=True, text=True, timeout=30)
     assert rr.returncode == 0, rr.stderr
     js = json.loads(rr.stdout)
+    assert js[-1]["a"]["estruturas"]["0"]["le_do_poste"]["cabos"] == ["A35P"]
     for c, got in zip(casos, js):
         cabos, outros = copy.deepcopy(c["cabos"]), copy.deepcopy(c["outros"])
         r = vr.vincular_por_poste(cabos, outros, CFG, primeiro, cod_est, codigos, aplicar=True) if c["vincular"] else None

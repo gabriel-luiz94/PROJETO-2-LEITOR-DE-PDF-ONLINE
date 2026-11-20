@@ -81,5 +81,5 @@ if errorlevel 1 (
 )
 echo.
 echo OK: %SAIDA%
-echo No nanoCAD 5: APPLOAD (ou NETLOAD) e escolha esse arquivo. Depois: ORCAMENTO
+echo No nanoCAD 5: APPLOAD (ou NETLOAD) e escolha esse arquivo. Depois: ORCACORE ou OC
 endlocal

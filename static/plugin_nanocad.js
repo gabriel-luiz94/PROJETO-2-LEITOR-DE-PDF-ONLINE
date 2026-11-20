@@ -66,7 +66,7 @@
         h += `<p style="margin-bottom:4px;"><b>No nanoCAD (uma vez):</b></p>
               <ol style="margin-top:0; padding-left:20px; line-height:1.6;">
                 <li>Para carregar agora, use <code>NETLOAD</code> e escolha a DLL da sua versão. Para as próximas sessões, use <code>APPLOAD</code> → em <b>Inicialização</b> (Startup Suite) → <b>Adicionar</b> → escolha o arquivo do seu nanoCAD (caminho acima).</li>
-                <li>Feche e abra o nanoCAD. Comando <code>ORCAMENTO</code>.</li>
+                <li>Feche e abra o nanoCAD. Digite <code>ORCACORE</code> ou <code>OC</code> para abrir o painel. Nas versões anteriores à 0.12.4, use <code>ORCAMENTO</code>.</li>
                 <li><code>ORC_CONECTAR</code> com o endereço desta aplicação e o seu login: a tela inicial passa a listar todos os projetos.</li>
               </ol>
               <p style="font-size:0.8rem; color:#8b949e;">Se o nanoCAD 5 recusar a DLL, confira a mensagem na linha de comando (F2).

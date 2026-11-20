@@ -449,7 +449,7 @@
                 avisos_vinculo: avisosVinculo, define: defineObj, define_faltou: d.faltou };
         });
         // TASK-169 — 2ª passada: equipamento (RL, CFU, para-raio…) lê os cabos do POSTE, sem ocupar pontas
-        const postes = mapaPostes(outros, ests);
+        const posteMaisPerto = buscaPosteMaisPerto(mapaPostes(outros, ests), RAIO_POSTE_PADRAO);
         ests.forEach(ie => {
             const e = infoE[ie];
             if (e.ocupa) return;
@@ -458,7 +458,7 @@
             if (par(outros[ie]._poste)) {
                 Object.keys(infoC).map(Number).sort((a, b) => a - b).forEach(ic => {
                     const ext = extremos(cabos[ic]);
-                    if (!vistos.has(ic) && ext && ext.some(pt => posteMaisPerto(pt, postes, RAIO_POSTE_PADRAO) === linha)) { vistos.add(ic); candidatos.push({ info: infoC[ic], ficticio: false }); }
+                    if (!vistos.has(ic) && ext && ext.some(pt => posteMaisPerto(pt) === linha)) { vistos.add(ic); candidatos.push({ info: infoC[ic], ficticio: false }); }
                 });
             }
             unidades.forEach(j => (outros[j].cabosFicticios || []).forEach(x => { if (trim(x)) candidatos.push({ info: infoCaboFicticio(trim(x).toUpperCase(), infoE[j].codigo, opFicticio(infoE[j]), cfg), ficticio: true }); }));

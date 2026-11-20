@@ -99,7 +99,7 @@ namespace OrcamentoNanoCAD.UI
             FlowLayoutPanel barra = Linha();
             MenuStrip menu = new MenuStrip { AutoSize = true, Dock = DockStyle.None, GripStyle = ToolStripGripStyle.Hidden };
             ToolStripMenuItem projeto = Grupo(menu, "Projeto");
-            Acao(projeto, "Início", "ORCAMENTO");
+            Acao(projeto, "Início", "ORCACORE");
             Acao(projeto, "Nome e número da obra", "ORC_PROJETO");
             Acao(projeto, "Fechar obra", "ORC_FECHAR");
             ToolStripMenuItem notas = Grupo(menu, "Anotações");
