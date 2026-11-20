@@ -23,6 +23,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public List<string> LayersPoste = new List<string>();
         // guias: vazio = qualquer linha curta fora da rede (como a aplicação); preenchido = só linhas nessas layers. LEADER/MLEADER sempre valem.
         public List<string> LayersGuia = new List<string>();
+        public double ToleranciaMetros; // zero desliga o aviso de metragem até o projeto definir uma tolerância
         public double RaioAlturas = 4;          // texto → rede/poste: até 4 × a altura do texto
         public double GuiaMaxAlturas = 40;      // linha fora da rede vale como guia até 40 × a altura típica
         public double TolPosteAlturas = 2.5;    // poste "na" rede (e blocos juntos = um poste): até 2,5 × a altura típica
@@ -132,7 +133,7 @@ namespace OrcamentoNanoCAD.Nucleo
                 .Set("regra", Regra).Set("cor_mt", CorMT).Set("cor_bt", CorBT)
                 .Set("blocos_poste", L(BlocosPoste)).Set("layers_poste", L(LayersPoste)).Set("layers_guia", L(LayersGuia))
                 .Set("raio_alturas", RaioAlturas).Set("guia_max_alturas", GuiaMaxAlturas).Set("tol_poste_alturas", TolPosteAlturas)
-                .Set("guia_toque_alturas", GuiaToqueAlturas).Set("raio_reserva_alturas", RaioReservaAlturas).Set("placa_regex", PlacaRegex);
+                .Set("auditoria_tolerancia_m", ToleranciaMetros).Set("guia_toque_alturas", GuiaToqueAlturas).Set("raio_reserva_alturas", RaioReservaAlturas).Set("placa_regex", PlacaRegex);
         }
 
         public static ConfigLeitura De(JObj o)
@@ -152,6 +153,7 @@ namespace OrcamentoNanoCAD.Nucleo
             c.GuiaMaxAlturas = Positivo(o.Num("guia_max_alturas"), 40);
             c.TolPosteAlturas = Positivo(o.Num("tol_poste_alturas"), 2.5);
             c.GuiaToqueAlturas = Positivo(o.Num("guia_toque_alturas"), 6);
+            c.ToleranciaMetros = Math.Max(0, o.Num("auditoria_tolerancia_m") ?? 0);
             c.RaioReservaAlturas = Positivo(o.Num("raio_reserva_alturas"), 12);
             if (o.Has("placa_regex")) c.PlacaRegex = o.Str("placa_regex") ?? "";
             return c;

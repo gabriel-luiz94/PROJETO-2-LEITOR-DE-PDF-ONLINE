@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-19 — 0.11.0
+
+Painel de auditoria com busca e filtros, seleção de candidatos, destaque de origem e destino, cores temporárias por operação e prévia de lote. A saída Cabos e Outros continua usando a leitura e as regras do projeto.
+
 ## 2026-11-19 — 0.10.4
 
 DLL para nanoCAD 5 Free compilada em x86, CLR 2 e .NET Framework 3.5. A versão 26 continua em .NET 6.

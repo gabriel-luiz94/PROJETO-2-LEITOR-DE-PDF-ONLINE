@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-19 — Auditoria da leitura no nanoCAD
+
+O plugin mostra a origem da anotação, a metragem lida, a geometria e a saída da obra. A configuração por projeto aceita o campo opcional `auditoria_tolerancia_m` de 0 a 1000. Zero desativa o aviso. A revisão e as escolhas de destino são armazenadas na seção `cad` da obra.
+
 ## 2026-11-19 — Abrir no OrçaCore
 
 A entrega ao Resumo aberto usa a tela atual. A leitura de cabeçalho SAP vazio dispensa o acesso ao perfil do projeto. O instalador verifica o conteúdo da DLL ao encontrar a mesma versão.

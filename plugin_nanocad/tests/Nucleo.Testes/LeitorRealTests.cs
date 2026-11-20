@@ -41,6 +41,10 @@ namespace OrcamentoNanoCAD.Testes
             JObj dados = ObraArquivo.Dados(obra);
             Assert.Contains(dados.Lista("outros").Cast<JObj>(), l => l.Str("ativo") == "N3" && l.Str("operacao") == "R");
             Assert.DoesNotContain(dados.Lista("cabos").Cast<JObj>(), l => l.Str("textoOriginal") == "N3");
+            var elemento = obra.Elementos.Single(e => e.TextoOriginal == "N3" && e.Operacao == "R");
+            var detalhe = Auditoria.Detalhe(obra, elemento);
+            Assert.Contains("OUTROS  ·  ESTRUTURA  ·  R  ·  N3", detalhe);
+            Assert.DoesNotContain("35 m", detalhe);
         }
 
         [Fact]

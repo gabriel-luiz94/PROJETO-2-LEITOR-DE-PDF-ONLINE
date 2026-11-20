@@ -177,6 +177,26 @@ namespace OrcamentoNanoCAD
         public bool Modificada;
         public bool MarcasVisiveis = true;
         public readonly Marcas Marcas = new Marcas();
+        public bool AnaliseCores;
+        private readonly Marcas _destaque = new Marcas();
+        public void Destacar(Elemento e, TextoIgnorado t)
+        {
+            try
+            {
+                _destaque.Limpar();
+                if (t != null) _destaque.MarcarTexto(new Ponto(t.X,t.Y), Obra.AlturaTexto,"Fora",2);
+                if (e == null) return;
+                _destaque.Destacar(Obra,e);
+                foreach (Elemento outro in Obra.Elementos.Where(x => x != e && x.IrmaoDe == null && e.Candidatos.Contains(Auditoria.Alvo(x))))
+                    _destaque.Destacar(Obra,outro);
+                if (e.Mensagens.Any(x => x.Contains("repetida")))
+                {
+                    Elemento primeiro = Obra.Elementos.FirstOrDefault(x => x != e && (x.IrmaoDe ?? x.Numero) == (e.IrmaoDe ?? e.Numero) && x.AtivoLido == e.AtivoLido && x.Operacao == e.Operacao);
+                    if (primeiro != null) _destaque.Destacar(Obra,primeiro);
+                }
+            }
+            catch (System.Exception ex) { Aplicacao.Log("Destaque: " + ex.Message); }
+        }
         public DesenhoBruto UltimoBruto;       // o último DWG lido, cru (refaz a obra quando regras/configuração mudam, sem reler o DWG)
         public Desenho UltimoDesenho;
         // ligação com a aplicação (Sincronizador): cada mudança na obra sobe a revisão; a conferência com a base vale para uma revisão
@@ -213,7 +233,7 @@ namespace OrcamentoNanoCAD
         public void Atualizar()
         {
             if (Obra == null) return;
-            try { if (MarcasVisiveis) Marcas.Mostrar(Obra, Regras); else Marcas.Limpar(); }
+            try { if (MarcasVisiveis) Marcas.Mostrar(Obra, Regras, AnaliseCores); else Marcas.Limpar(); }
             catch (System.Exception e) { Aplicacao.Msg("Marcas na tela indisponíveis: " + e.Message); }
             UI.PainelObra.AtualizarSeAberto(this);
         }

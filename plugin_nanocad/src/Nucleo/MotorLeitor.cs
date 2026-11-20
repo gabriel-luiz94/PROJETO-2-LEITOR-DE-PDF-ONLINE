@@ -26,6 +26,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public string Operacao;
         public string Ativo;
         public string Entidade;
+        public List<int> Vizinhos = new List<int>();
     }
 
     public static class MotorLeitor
@@ -160,7 +161,7 @@ namespace OrcamentoNanoCAD.Nucleo
             return o;
         }
 
-        private class Estado { public string Operacao; public string Ativo = ""; }
+        private class Estado { public List<int> Vizinhos = new List<int>(); public string Operacao; public string Ativo = ""; }
 
         private static List<string> L(JObj r, string k) { return r.Has(k) && r[k] is List<object> ? Json.ListaDeTextos(r[k]) : null; }
 
@@ -177,6 +178,7 @@ namespace OrcamentoNanoCAD.Nucleo
                 if (string.IsNullOrEmpty(modo)) modo = "DEFINIR";
                 bool casou = false;
                 string resultado = null;
+                List<int> usados = null;
 
                 if (modo == "DEFINIR")
                 {
@@ -208,6 +210,8 @@ namespace OrcamentoNanoCAD.Nucleo
                             Match m = re.Match(viz.Texto);
                             if (!m.Success) { if (juntar) break; continue; }
                             achados.Add(Grupo1OuTudo(m));
+                            if (usados == null) usados = new List<int>();
+                            usados.Add(j);
                             if (!juntar) break;
                         }
                         if (vz.Bool("obrigatoria", false) && achados.Count == 0) continue;
@@ -235,7 +239,7 @@ namespace OrcamentoNanoCAD.Nucleo
                                 if (viz == null || string.IsNullOrEmpty(viz.Texto)) continue;
                                 if (mesmaPagina && viz.Pagina != item.Pagina) continue;
                                 Match m = re.Match(viz.Texto);
-                                if (m.Success) { vizValor = Grupo1OuTudo(m); break; }
+                                if (m.Success) { vizValor = Grupo1OuTudo(m); usados = new List<int> { i }; break; }
                             }
                         }
                         resultado = vizValor == null ? null : Template(r.Str("ativo_template"), match, textoLimpo, vizValor, item.Texto, null);
@@ -265,7 +269,15 @@ namespace OrcamentoNanoCAD.Nucleo
                 else if (op == "0") estado.Operacao = "0";
                 else if (!string.IsNullOrEmpty(op)) estado.Operacao = op;
 
-                if (resultado != null) estado.Ativo = resultado;
+                if (resultado != null)
+                {
+                    estado.Ativo = resultado;
+                    if (modo == "DEFINIR" || modo == "SUBSTITUIR_TOTAL")
+                    {
+                        estado.Vizinhos.Clear();
+                        if (usados != null && (r.Str("ativo_template") ?? "").Contains("{vizinhanca")) estado.Vizinhos.AddRange(usados);
+                    }
+                }
                 if (r.Bool("parar", false) || modo == "SUBSTITUIR_TOTAL") break;
             }
         }
@@ -299,6 +311,7 @@ namespace OrcamentoNanoCAD.Nucleo
             if (layer == "01_PARTICULAR") operacao = "0";
             ResultadoLeitor res = new ResultadoLeitor();
             res.Operacao = operacao;
+            res.Vizinhos = estado.Vizinhos;
             res.Ativo = (estado.Ativo ?? "").Trim();
             return res;
         }
@@ -337,6 +350,7 @@ namespace OrcamentoNanoCAD.Nucleo
             ItemLeitor item = todos[index];
             ResultadoLeitor c = Classificar(p.Operacao, p.Ativo, item.Cor, item.Layer, item.Texto, cls);
             c.Ativo = p.Ativo;
+            c.Vizinhos = p.Vizinhos;
             return c;
         }
     }

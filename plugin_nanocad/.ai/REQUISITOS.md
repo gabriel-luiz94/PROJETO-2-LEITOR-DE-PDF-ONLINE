@@ -98,3 +98,10 @@
 | 3 | Como o modo autônomo detecta o arquivo e onde grava o resultado | ❓ (RQ-40/41) |
 | 4 | Seed de vínculo de Pernambuco: VALOR DE CABO do protegido (X ou P) e se a U4 tem 1 ou 2 cabos | ❓ hoje o seed diz **P** e U4 com **2** cabos; o plugin usa o seed como está |
 | 5 | Formato dentro do DWG | **decidido**: dicionário de objetos nomeados `ORCAMENTO_LEITOR` → Xrecord `OBRA`, mesmo JSON do arquivo (ADR-003) |
+
+## Auditoria visual · TASK-028
+
+| Requisito | Status |
+|---|---|
+| Fila com detalhe da origem, busca, revisão por poste e diferenças entre leituras | ✅ núcleo · 🟡 CAD |
+| Escolher destino, destacar geometria e aplicar operação em lote com prévia | ✅ build · 🟡 CAD |

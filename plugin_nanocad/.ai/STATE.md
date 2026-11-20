@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.11.0
+
+TASK-028 implementa a fila de pendências, revisão por poste, alterações entre leituras, destaque temporário e operação em lote. Validação da interface e dos gráficos no nanoCAD 5 e 26 pendente.
+
 ## Distribuição 0.10.4
 
 Build do 5 em x86/.NET 3.5 conferido pelos metadados do binário. A compatibilidade dos comandos com a API instalada segue pendente. O fornecedor distribui a versão 5 mediante login.

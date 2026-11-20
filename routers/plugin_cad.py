@@ -150,6 +150,12 @@ def validar_leitura(cfg) -> dict:
             erros.append(f"{k}: número entre 0 e 1000")
         else:
             ok[k] = v
+    if "auditoria_tolerancia_m" in cfg:
+        metros = cfg["auditoria_tolerancia_m"]
+        if isinstance(metros, bool) or not isinstance(metros, (int, float)) or not 0 <= metros <= 1000:
+            erros.append("auditoria_tolerancia_m: número entre 0 e 1000")
+        else:
+            ok["auditoria_tolerancia_m"] = metros
     if "cor_confirma" in cfg:
         if not isinstance(cfg["cor_confirma"], bool):
             erros.append("cor_confirma: verdadeiro/falso")
