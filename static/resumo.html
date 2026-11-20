@@ -674,7 +674,7 @@
             color: #d97706;
         }
     </style>
-    <link rel="stylesheet" href="/static/resumo_layout.css?v=3">
+    <link rel="stylesheet" href="/static/resumo_layout.css?v=4">
 </head>
 <body data-rodape="fino">
     <div class="app-shell" id="app-shell">
@@ -708,12 +708,12 @@
                     <button class="btn-secondary" id="btn-save-modelo" data-fecha-menu role="menuitem" title="Salva as tabelas como MODELO: quantidades escritas V (ou V(nome)) viram variáveis pedidas a quem usar o modelo">
                         Salvar como modelo
                     </button>
-                    <button class="btn-secondary" id="btn-importar-json" data-fecha-menu role="menuitem" type="button" title="Abre um arquivo .obra.json e pergunta se é para Carregar (substituir), Adicionar ou Subtrair da obra na tela">⤒ Importar JSON</button>
+                    <button class="btn-secondary" id="btn-importar-json" data-fecha-menu role="menuitem" type="button" title="Abre um .obra ou .obra.json para carregar, adicionar, subtrair ou comparar com a obra da tela">⤒ Importar JSON</button>
                     <button class="btn-secondary" id="btn-exportar-json" data-fecha-menu role="menuitem" type="button" title="Exporta a obra que está na tela como arquivo .obra.json">⤓ Exportar JSON</button>
                     <button class="btn-secondary" id="btn-imprimir" data-fecha-menu role="menuitem" type="button" onclick="window.print()" title="Imprimir PDF">🖨 Imprimir</button>
                 </div>
             </span>
-            <input type="file" id="input-importar-json" accept=".json,application/json" style="display:none">
+            <input type="file" id="input-importar-json" accept=".obra,.json,application/json" style="display:none">
             <span id="modelo-editando-aviso" style="display:none; font-size:0.75rem; color:#d29922;"></span>
             <span class="tb-flex"></span>
             <span class="chip-projeto" id="chip-projeto" title="Projeto selecionado (troque no painel Configurações)">Projeto: —</span>
@@ -1841,7 +1841,44 @@
         </div>
 
     <script src="/static/regras_leitor_engine.js"></script>
-    <script src="/static/ler_projeto.js"></script>
+    <dialog id="modal-comparar-obras" aria-labelledby="titulo-comparar-obras">
+        <div class="co-painel">
+            <header>
+                <h2 id="titulo-comparar-obras">Comparar obras</h2>
+                <button type="button" class="btn-secondary" data-fechar autofocus>Fechar</button>
+            </header>
+            <div class="co-controles">
+                <div class="co-abas" role="group" aria-label="Tabela da comparação">
+                    <button type="button" class="btn-secondary" data-tabela="outros" aria-pressed="true">Postes e estruturas <small></small></button>
+                    <button type="button" class="btn-secondary" data-tabela="cabos" aria-pressed="false">Cabos <small></small></button>
+                </div>
+                <label>Mostrar
+                    <select>
+                        <option value="divergencias">Somente divergências</option>
+                        <option value="todos">Todos os registros</option>
+                        <option value="diferente">Alterados</option>
+                        <option value="referencia">Só na obra aberta</option>
+                        <option value="comparada">Só na obra comparada</option>
+                        <option value="conferir">Conferir correspondência</option>
+                        <option value="igual">Iguais</option>
+                    </select>
+                </label>
+            </div>
+            <div class="co-tabela">
+                <table>
+                    <thead><tr><th scope="col">Local</th><th scope="col">Obra aberta <small data-referencia></small></th>
+                        <th scope="col">Obra comparada <small data-nome></small></th><th scope="col">Diferenças</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <footer>
+                <span role="status" aria-live="polite"></span>
+                <button type="button" class="btn-secondary" data-pagina="anterior">Anterior</button>
+                <button type="button" class="btn-secondary" data-pagina="proxima">Próxima</button>
+            </footer>
+        </div>
+    </dialog>
+    <script src="/static/ler_projeto.js?v=2"></script>
     <script src="/static/ativo_parametros.js"></script>
     <script src="/static/ativo_status.js"></script>
     <script src="/static/base_sinal.js"></script>
@@ -1876,7 +1913,8 @@
     <script src="/static/resumo_rede.js?v=1"></script>
     <script src="/static/assistente.js?v=3"></script>
     <script src="/static/grupos_linhas.js?v=1"></script>
-    <script src="/static/resumo.js?v=5.9"></script>
+    <script src="/static/comparar_obras.js"></script>
+    <script src="/static/resumo.js?v=5.10"></script>
     <script src="/static/resumo_layout.js?v=2"></script>
     <script src="/static/painel_regras.js"></script>
     <script src="/static/voz.js"></script>

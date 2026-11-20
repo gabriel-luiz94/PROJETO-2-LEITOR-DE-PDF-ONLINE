@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-20 — Comparação de obras no Resumo
+
+Ler Projeto, Carregar Obra e Importar JSON oferecem Comparar. A janela abre nas divergências de Cabos ou de Postes e estruturas, indica correspondências incertas, mostra a diferença de metragem e permite localizar a linha da obra aberta. Ler Projeto também oferece Subtrair quando já há conteúdo. [TASK-211](tasks/TASK-211-20-11-2026.md).
+
 ## 2026-11-20 — Modal de vinculação e comando do nanoCAD
 
 A análise de equipamentos que leem cabos do poste usa o índice espacial. O modal mantém o aviso e os controles de saída se uma aba falhar. No nanoCAD, `ORCACORE` e `OC` abrem a tela inicial. [TASK-210](tasks/TASK-210-20-11-2026.md) · [TASK-033 do plugin](../plugin_nanocad/.ai/tasks/TASK-033-20-11-2026.md).

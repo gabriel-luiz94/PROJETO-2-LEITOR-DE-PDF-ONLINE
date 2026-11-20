@@ -3013,8 +3013,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Recalcula qtdAtivos para todas as linhas da tabela de cabos.
      * Processa de baixo para cima para resolver dependências de linhas standalone.
      */
-    function recalcAllQtdAtivos() {
-        const data = tableStates.cabos.data;
+    function recalcAllQtdAtivos(data = tableStates.cabos.data) {
         for (let i = data.length - 1; i >= 0; i--) {
             const row = data[i];
             if (!row || row.congelada) continue;                                  // linha congelada: nenhum algoritmo mexe nela
@@ -3070,6 +3069,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const t = snap && snap[tipo];
         const lista = Array.isArray(t) ? t : (t && Array.isArray(t.data) ? t.data : []);
         return lista.filter(Boolean);
+    }
+
+    function compararObraNoResumo(obra, nome) {
+        if (!obra || !['cabos', 'outros'].some(tipo => Array.isArray(obra[tipo]) || Array.isArray(obra[tipo]?.data))) {
+            showToast('Dados da obra inválidos.');
+            return false;
+        }
+        const atual = { cabos: tableStates.cabos.data, outros: tableStates.outros.data };
+        const resultado = window.CompararObras.comparar(atual, obra, {
+            cabo: extrairPrefixoEComprimentoCabo,
+            codigoOutro: linha => _codigoEstruturaVinculo(linha.ativo),
+            estruturas: linha => VinculacaoRegras.codigosDaLinha(linha, _codigoEstruturaVinculo, _codigosEstruturaVinculo)
+        });
+        window.CompararObras.abrir(resultado, {
+            nome, referencia: window.GridRProjeto?.nome(),
+            localizar(tipo, i) {
+                const tr = bodyDe(tipo).querySelector(`tr[data-index="${i}"]`);
+                if (linhaVisivel(tr) && tr.getClientRects().length && focarCelula(tipo, i, 1)) return;
+                showToast(`Linha ${i + 1} de ${tipo === 'cabos' ? 'Cabos' : 'Outros'}. Confira a aba e os filtros da tabela.`);
+            }
+        });
+        return true;
     }
 
     /** Acrescenta as linhas da obra às tabelas atuais (um passo de histórico). */
@@ -3299,6 +3320,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.addEventListener('keydown', tecla, true);
             mk('Cancelar', null, false);
             mk('Adicionar', 'adicionar', false);
+            mk('Subtrair', 'subtrair', false);
+            mk('Comparar', 'comparar', false);
             const bs = mk('Substituir', 'substituir', true);
             caixa.append(titulo, msg, linha);
             fundo.appendChild(caixa);
@@ -3329,8 +3352,16 @@ document.addEventListener('DOMContentLoaded', () => {
             await window.carregarRegrasLeitorResumo(projeto);
             const proc = window.__regrasLeitorProcessamento || [], cls = window.__regrasLeitorClassificacao || [];
             if (!proc.length && !cls.length) { showToast('Este projeto não tem regras do Leitor; nada foi alterado.'); return; }
-            const itens = await window.LerProjeto.extrair(arquivo, localStorage.getItem('cloudconvert_api_key') || '');
+            const itens = await window.LerProjeto.extrair(arquivo, localStorage.getItem('cloudconvert_api_key') || '',
+                modo !== 'comparar' && modo !== 'subtrair');
             const r = await window.LerProjeto.processar(itens, proc, cls, RegrasLeitorEngine);
+            if (modo === 'comparar' || modo === 'subtrair') {
+                const obra = { cabos: r.cabos.map(deepClone), outros: r.outros.map(deepClone) };
+                recalcAllQtdAtivos(obra.cabos);
+                if (modo === 'comparar') compararObraNoResumo(obra, arquivo.name);
+                else if (subtrairObraDoProjeto(obra)) showToast('Projeto subtraído. Ctrl+Z desfaz.');
+                return;
+            }
 
             pushHistory();  // snapshot ANTES (Ctrl+Z desfaz)
             if (modo === 'adicionar') {
@@ -4183,6 +4214,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <button class="btn-primary btn-load-item"  style="background:#238636; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Carregar</button>
                             <button class="btn-secondary btn-add-item"  style="background:#1f6feb; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Adicionar</button>
                             <button class="btn-secondary btn-sub-item"  style="background:#d29922; border:none; padding: 4px 8px; border-radius: 4px; color: white;">Subtrair</button>
+                            <button class="btn-secondary btn-cmp-item" type="button">Comparar</button>
                             <button class="btn-secondary btn-exp-item"  style="background:#6e7681; border:none; padding: 4px 8px; border-radius: 4px; color: white;" title="Baixa a obra como arquivo .obra.json">Exportar</button>
                             <button class="btn-secondary btn-vis-item"  style="background:#8957e5; border:none; padding: 4px 8px; border-radius: 4px; color: white; display:none;"></button>
                             <button class="btn-secondary btn-own-item"  style="background:#bf8700; border:none; padding: 4px 8px; border-radius: 4px; color: white; display:none;" title="Torna esta obra antiga (sem dono) uma obra particular sua">Assumir</button>
@@ -4292,6 +4324,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             modalLoadObra.classList.add('hidden');
                             showToast('Obra subtraída!');
                         }
+                    });
+
+                    const btnCmp = item.querySelector('.btn-cmp-item');
+                    btnCmp._snap = snap;
+                    btnCmp.addEventListener('click', async () => {
+                        const s = await snapDe(btnCmp);
+                        if (!s) { if (o.tipo !== 'modelo') showToast('Dados da obra inválidos.'); return; }
+                        if (compararObraNoResumo(s, o.nome)) modalLoadObra.classList.add('hidden');
                     });
 
                     const btnExp = item.querySelector('.btn-exp-item');
@@ -4412,10 +4452,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     /* TASK-118: "Importar JSON" da barra de título — abre o arquivo .obra.json e pergunta direto: Carregar (substitui a obra da tela),
-       Adicionar (acrescenta as linhas) ou Subtrair (acrescenta como retirada). Nada é gravado no servidor (valida em /api/obras/ler-arquivo).
+       Adicionar, Subtrair ou Comparar. O arquivo é validado em /api/obras/ler-arquivo.
        Modelo com variáveis V continua sendo importado como modelo salvo (precisa dos parâmetros) e aparece em Carregar Obra. */
     const inputImportarJson = document.getElementById('input-importar-json');
-    function dialogoImportarJson(info, snap) {
+    function dialogoImportarJson(info) {
         return new Promise(resolve => {
             const fundo = document.createElement('div');
             fundo.className = 'modal-overlay';
@@ -4427,11 +4467,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button type="button" class="btn-primary" data-acao="carregar">Carregar — substitui as tabelas da tela</button>
                     <button type="button" class="btn-secondary" data-acao="adicionar">Adicionar — acrescenta as linhas no fim</button>
                     <button type="button" class="btn-secondary" data-acao="subtrair">Subtrair — acrescenta como retirada (cabos negativos e * nos ativos)</button>
+                    <button type="button" class="btn-secondary" data-acao="comparar">Comparar — mostra as diferenças nas tabelas</button>
                 </div>
                 <div class="modal-actions" style="margin-top:12px;"><button type="button" class="btn-secondary" data-acao="cancelar">Cancelar</button></div>
             </div>`;
             fundo.querySelector('b').textContent = info.nome;
-            fundo.querySelectorAll('p')[1].textContent = `${info.cabos} linha(s) de Cabos e ${info.outros} de Outros. Todas as ações podem ser desfeitas com Ctrl+Z.`;
+            fundo.querySelectorAll('p')[1].textContent = `${info.cabos} linha(s) de Cabos e ${info.outros} de Outros. Alterações nas tabelas podem ser desfeitas com Ctrl+Z.`;
             const fechar = r => { document.removeEventListener('keydown', tecla, true); fundo.remove(); resolve(r); };
             const tecla = e => { if (e.key === 'Escape') { e.stopPropagation(); fechar('cancelar'); } };
             fundo.addEventListener('click', e => { const a = e.target.closest && e.target.closest('[data-acao]'); if (a) fechar(a.dataset.acao); else if (e.target === fundo) fechar('cancelar'); });
@@ -4461,10 +4502,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 await abrirModalObras();
                 return;
             }
-            const acao = await dialogoImportarJson(d, d.dados);
+            const acao = await dialogoImportarJson(d);
             if (acao === 'carregar') { restoreObraSnapshot(d.dados); showToast(`Obra “${d.nome}” carregada.`); }
             else if (acao === 'adicionar') { if (adicionarObraAoProjeto(d.dados)) showToast(`Obra “${d.nome}” adicionada.`); }
             else if (acao === 'subtrair') { if (subtrairObraDoProjeto(d.dados)) showToast(`Obra “${d.nome}” subtraída.`); }
+            else if (acao === 'comparar') compararObraNoResumo(d.dados, d.nome);
         } catch (e) {
             showToast('Não foi possível importar: ' + e.message);
         }

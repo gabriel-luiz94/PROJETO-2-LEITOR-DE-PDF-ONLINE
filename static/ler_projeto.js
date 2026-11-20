@@ -90,7 +90,7 @@
     }
 
     /** Envia o arquivo ao /upload (mesmo endpoint do Leitor). Devolve a lista de itens ou lança Error com mensagem amigável. */
-    async function extrair(arquivo, chaveCloudConvert) {
+    async function extrair(arquivo, chaveCloudConvert, guardarGeometria = true) {
         if (!extensaoValida(arquivo && arquivo.name)) throw new Error('Formato não suportado. Use PDF, DXF ou DWG.');
         const fd = new FormData();
         fd.append('file', arquivo);
@@ -99,7 +99,9 @@
         const json = await resp.json();
         if (json.error) throw new Error(json.error);
         const itens = json.data || [];
-        try { if (json.geometria) localStorage.setItem('mapa_geometria_fundo', JSON.stringify(json.geometria)); else localStorage.removeItem('mapa_geometria_fundo'); } catch (e) { /* sem espaço: o mapa só fica sem a rede ao fundo */ }     // TASK-091: rede/postes ao fundo do mapa
+        if (guardarGeometria) {
+            try { if (json.geometria) localStorage.setItem('mapa_geometria_fundo', JSON.stringify(json.geometria)); else localStorage.removeItem('mapa_geometria_fundo'); } catch (e) { /* sem espaço: o mapa só fica sem a rede ao fundo */ }
+        }
         if (!itens.length) throw new Error('Não encontrei texto neste arquivo; nada foi alterado.');
         return itens;
     }
