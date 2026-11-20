@@ -26,6 +26,7 @@ NOME_SHA = NOME_EXE + ".sha256"
 NOME_EXE_LEGADO = "Leitor_Projetos.exe"                  # nome até a TASK-152 (versões antigas só procuram por este)
 NOME_SHA_LEGADO = NOME_EXE_LEGADO + ".sha256"
 NOMES_EXE_ANTIGOS = ("GridR.exe", NOME_EXE_LEGADO)       # TASK-156: a Release também traz estas cópias; quem roda GridR.exe (2.2.x) ou Leitor_Projetos.exe procura pelo seu nome
+CHAVE_INSTALACAO_WINDOWS = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\OrcaCore_is1"
 CACHE_SEGUNDOS = 30 * 60
 TIMEOUT_CONSULTA = 6.0
 TIMEOUT_DOWNLOAD = 60.0
@@ -306,6 +307,31 @@ def _remover(caminho):
             os.remove(caminho)
     except OSError:
         pass
+
+
+def sincronizar_versao_instalada():
+    """Atualiza Aplicativos instalados a partir da versão que efetivamente abriu."""
+    if not IS_FROZEN or sys.platform != "win32" or APP_MODE != "desktop":
+        return
+
+    import winreg
+
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, CHAVE_INSTALACAO_WINDOWS,
+                            access=winreg.KEY_QUERY_VALUE | winreg.KEY_SET_VALUE) as chave:
+            pasta, tipo = winreg.QueryValueEx(chave, "InstallLocation")
+            if tipo != winreg.REG_SZ or not pasta:
+                return
+            instalado = os.path.join(pasta, NOME_EXE)
+            if os.path.normcase(os.path.realpath(sys.executable)) != os.path.normcase(os.path.realpath(instalado)):
+                return
+            versao, _ = winreg.QueryValueEx(chave, "DisplayVersion")
+            if versao != APP_VERSION:
+                winreg.SetValueEx(chave, "DisplayVersion", 0, winreg.REG_SZ, APP_VERSION)
+    except FileNotFoundError:
+        return  # cópia portátil ou registro incompleto
+    except OSError as e:
+        logger.warning("Não foi possível atualizar a versão registrada do OrçaCore: %s", e)
 
 
 def limpar_residuos(atraso: float = 120.0):

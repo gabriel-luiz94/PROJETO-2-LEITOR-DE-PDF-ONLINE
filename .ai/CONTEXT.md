@@ -71,6 +71,8 @@ pelo próprio FastAPI. Estado de trabalho trafega entre páginas via `localStora
 
 ---
 
+As releases Windows distribuem o executável portátil e o instalador por usuário. A instalação usa uma pasta gravável da conta atual para conservar a atualização pelo próprio aplicativo. [TASK-206](tasks/TASK-206-20-11-2026.md).
+
 ## 3. Fluxo geral
 
 ```
