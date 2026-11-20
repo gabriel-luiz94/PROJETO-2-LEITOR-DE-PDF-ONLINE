@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-20 — Grafo de vinculação
+
+O mapa mostra postes como nós e vãos como arestas. A janela do poste lista os cabos e as estruturas e permite aplicar ou desfazer vínculos pelas regras do projeto.
+
 ## 2026-11-19 — Layers das notas de Pernambuco
 
 O pacote 081 reconhece as layers `POSTE_*` de instalação, remoção e reaplicação e suas variantes de linha viva. Seus dados alimentam o leitor da aplicação e o plugin.

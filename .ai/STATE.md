@@ -6,6 +6,10 @@
 
 ---
 
+## Mapa de vinculação · TASK-202
+
+Grafo implementado no Resumo. O teste em Chromium cobre edição dentro do nó e preservação do zoom. A topologia usa a geometria ou as atribuições do projeto.
+
 ## Auditoria visual do nanoCAD
 
 TASK-200 e TASK-028 entregam a fila e os detalhes de conferência. O projeto pode definir a tolerância de metragem na configuração da leitura. A validação visual no CAD está pendente.

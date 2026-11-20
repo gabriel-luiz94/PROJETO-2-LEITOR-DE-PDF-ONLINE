@@ -644,6 +644,65 @@
         return melhor;
     }
 
+    /** Topologia do mapa. Linhas de Outros com a mesma coordenada representam o mesmo poste. */
+    function grafoDaRede(cabos, outros, codigoFn, codigosFn) {
+        const postes = new Map(), nos = new Map();
+        function incluir(linha, pos) {
+            const id = pos ? pos.join(',') : `linha:${linha}`;
+            if (!nos.has(id)) nos.set(id, { id, pos, linhas: [], estruturas: [], cabos: new Set() });
+            const no = nos.get(id);
+            if (!postes.has(linha)) { no.linhas.push(linha); postes.set(linha, no); }
+            return no;
+        }
+        outros.forEach((row, l) => {
+            const pos = par(row && row._poste);
+            if (pos && trim(row.ativo) && !row.comentario) incluir(l, pos);
+        });
+        cabos.forEach(c => {
+            if (!c || !trim(c.ativo) || c.comentario) return;
+            postesAtribuidos(c).concat((c.vinculoEstruturas || []).map(linhaDe)).forEach(l => {
+                const row = outros[l];
+                if (row && trim(row.ativo) && !row.comentario && !postes.has(l)) incluir(l, null);
+            });
+        });
+        estruturasDisponiveis(outros, codigoFn, codigosFn).forEach(ie => {
+            const no = postes.get(linhaDe(ie));
+            if (no) no.estruturas.push(ie);
+        });
+        const coords = [...nos.values()].filter(n => n.pos).map(n => [n.id, n.pos]);
+        const vaos = new Map();
+        let semVao = 0, pontasSoltas = 0;
+        cabos.forEach((c, ic) => {
+            if (!c || !trim(c.ativo) || c.comentario) return;
+            const g = Array.isArray(c._geo) ? c._geo.map(par) : [];
+            const geo = g.length >= 2 && g.every(Boolean) ? g : null;
+            const atribuicoes = [...new Set(postesAtribuidos(c).map(l => postes.get(l)).filter(Boolean))];
+            const ligados = [...new Set((c.vinculoEstruturas || []).map(ie => postes.get(linhaDe(ie))).filter(Boolean))];
+            const pontas = geo && [geo[0], geo[geo.length - 1]];
+            const idsGeo = pontas ? pontas.map(p => posteMaisPerto(p, coords, RAIO_POSTE_PADRAO)) : [null, null];
+            let ids = idsGeo.slice();
+            if (atribuicoes.length) {
+                const restantes = atribuicoes.map(n => n.id);
+                ids = ids.map(id => {
+                    const i = restantes.indexOf(id);
+                    return i < 0 ? null : restantes.splice(i, 1)[0];
+                });
+                ids = ids.map(id => id || restantes.shift() || null);
+            } else if (!geo) ids = [ligados[0]?.id || null, ligados[1]?.id || null];
+            ids.forEach(id => { if (id) nos.get(id).cabos.add(ic); });
+            ligados.forEach(n => n.cabos.add(ic)); // permite corrigir vínculos existentes mesmo com divergência da geometria
+            if (!geo && ids.filter(Boolean).length < 2) { semVao++; return; }
+            if (geo) pontasSoltas += ids.filter(id => !id).length;
+            const pontos = geo && ids.every((id, i) => id === idsGeo[i]) ? geo : null;
+            const direta = JSON.stringify([ids, pontos]), reversa = JSON.stringify([ids.slice().reverse(), pontos && pontos.slice().reverse()]);
+            // Uma ponta sem poste mantém as coordenadas que a distinguem de outros trechos.
+            const chave = pontos || ids.every(Boolean) ? (direta < reversa ? direta : reversa) : ic;
+            if (!vaos.has(chave)) vaos.set(chave, { ids, pontos, pontas, cabos: [] });
+            vaos.get(chave).cabos.push(ic);
+        });
+        return { nos, vaos: [...vaos.values()], semVao, pontasSoltas };
+    }
+
     function vincularPorPoste(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn, raio, aplicar) {
         const x = expandir(cabos, outros, codigoFn, codigosFn);
         const r = vincularPorPosteBase(x.cabosV, x.virt, cfg, prefixoFn, x.codigoV, typeof raio === 'number' && raio > 0 ? raio : RAIO_POSTE_PADRAO);
@@ -899,7 +958,7 @@
         return erros;
     }
 
-    const api = { postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { grafoDaRede, postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);
