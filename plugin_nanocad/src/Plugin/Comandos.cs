@@ -25,7 +25,7 @@ using Application = HostMgd.ApplicationServices.Application;
 
 namespace OrcamentoNanoCAD
 {
-    public class Comandos
+    public partial class Comandos
     {
         // ── utilidades ──
         private static Sessao Sessao() { return Aplicacao.Sessao(Aplicacao.Doc(), true); }
@@ -118,16 +118,16 @@ namespace OrcamentoNanoCAD
             return emb ?? escolhidas;
         }
 
-        private static void Ler(Sessao s, bool manterAjustes, string projeto)
+        private static void Ler(Sessao s, bool manterAjustes, string projeto, JObj escolhas = null)
         {
             Obra antiga = s.Obra;
             DesenhoBruto bruto = ExtratorDesenho.Ler(s.Doc);
             s.UltimoBruto = bruto;
             Desenho d = MontadorDesenho.Montar(bruto, s.Regras.Leitura);
             s.UltimoDesenho = d;
-            Obra nova = LeitorProjeto.Ler(d, s.Regras);
+            Obra nova = LeitorProjeto.Ler(d, s.Regras, escolhas ?? (manterAjustes && antiga != null ? antiga.Associacoes : null));
             nova.Projeto = !string.IsNullOrEmpty(projeto) ? projeto : (antiga != null && !string.IsNullOrEmpty(antiga.Projeto) ? antiga.Projeto : s.Regras.Codigo);
-            if (manterAjustes && antiga != null) { Construtor.ReaplicarAjustes(nova, antiga, s.Regras); nova.SalvoEm = antiga.SalvoEm; }
+            if (manterAjustes && antiga != null) { nova.NumeroObra = antiga.NumeroObra; nova.Nome = antiga.Nome; Construtor.ReaplicarAjustes(nova, antiga, s.Regras); nova.SalvoEm = antiga.SalvoEm; }
             s.Obra = nova;
             Aplicacao.Msg("ORC_LER " + Relatorios.Resumo(nova) + " (" + d.Textos.Count + " textos, " + d.Postes.Count + " postes no desenho, " + d.Linhas.Count
                           + " linhas; " + nova.Ignorados.Count + " textos ignorados pelas regras)");
@@ -171,7 +171,7 @@ namespace OrcamentoNanoCAD
         {
             Rodar("ORC_RELER", s =>
             {
-                if (s.Obra != null && s.Obra.Elementos.Any(e => e.OperacaoAjustada || e.Manual) && !Confirmar(s.Doc.Editor, "Reler do zero descarta os ajustes feitos. Continuar?")) return;
+                if (s.Obra != null && (s.Modificada || s.Obra.Conferidos.Count > 0 || s.Obra.Associacoes.Count > 0 || s.Obra.Elementos.Any(e => e.OperacaoAjustada || e.Manual || e.Excluido || e.AtivoEditado)) && !Confirmar(s.Doc.Editor, "Reler do zero descarta os ajustes feitos. Continuar?")) return;
                 Ler(s, false, null);
             });
         }
@@ -326,7 +326,7 @@ namespace OrcamentoNanoCAD
             PromptStringOptions o = new PromptStringOptions("\n" + prompt + " (P1, V2…) ou Enter para clicar no desenho: ");
             o.AllowSpaces = false;
             PromptResult r = ed.GetString(o);
-            if (r.Status != PromptStatus.OK) return null;
+            if (r.Status != PromptStatus.OK && r.Status != PromptStatus.None) return null;
             string n = (r.StringResult ?? "").Trim().ToUpperInvariant();
             if (n.StartsWith("H:"))
             {
@@ -343,7 +343,7 @@ namespace OrcamentoNanoCAD
             }
             if (n.Length > 0)
             {
-                Elemento e = s.Obra.PorNumero(n);
+                Elemento e = s.Obra.Elementos.FirstOrDefault(x => string.Equals(x.Numero,n,StringComparison.OrdinalIgnoreCase));
                 if (e == null) Aplicacao.Msg(n + " não existe na obra.");
                 return e;
             }
@@ -375,7 +375,7 @@ namespace OrcamentoNanoCAD
             if (e.GuiaUsada != null) pts.AddRange(e.GuiaUsada);
             if (pts.Count == 0) return;
             ZoomPontos(s, pts);
-            if (s.MarcasVisiveis) { s.Marcas.Mostrar(s.Obra, s.Regras); s.Marcas.Destacar(s.Obra, e); }
+            s.Destacar(e, null);
         }
 
         private static void ZoomPontos(Sessao s, List<Ponto> pts)
@@ -412,6 +412,56 @@ namespace OrcamentoNanoCAD
                 Elemento e = PedirElemento(s, "Localizar");
                 if (e != null) Zoom(s, e);
             });
+        }
+
+        [CommandMethod("ORC_REASSOCIAR")]
+        public void CmdReassociar()
+        {
+            Rodar("ORC_REASSOCIAR", s =>
+            {
+                if (!PrecisaObra(s)) return;
+                Elemento origem = PedirElemento(s,"Anotação para reassociar");
+                if (origem == null || origem.Candidatos.Count < 2) return;
+                Elemento destino = PedirElemento(s,"Escolha o destino indicado no painel");
+                if (destino == null) return;
+                string alvo = Auditoria.Alvo(destino);
+                if (!origem.Candidatos.Contains(alvo)) { Aplicacao.Msg("Escolha um dos candidatos da anotação."); return; }
+                string chave = Auditoria.Origem(origem.TextoHandle,origem.ParteTexto,origem.TextoOriginal);
+                JObj escolhas = new JObj();
+                foreach (var kv in s.Obra.Associacoes) escolhas.Set(kv.Key,kv.Value);
+                escolhas.Set(chave,alvo);
+                Ler(s,true,null,escolhas);
+            });
+        }
+
+        internal static void AplicarLote(Sessao s, List<Elemento> itens, string operacao, bool alterarLayer)
+        {
+            if (s.Doc != Aplicacao.Doc() || !s.Regras.Operacoes().Contains(operacao) || itens.Any(e => s.Obra.PorNumero(e.Numero) != e)) return;
+            try
+            {
+                if (alterarLayer)
+                {
+                    string layer = s.Regras.LayerDaOperacao(operacao);
+                    if (string.IsNullOrEmpty(layer)) return;
+                    var db = s.Doc.Database;
+                    using (var trava = s.Doc.LockDocument())
+                    using (var tr = db.TransactionManager.StartTransaction())
+                    {
+                        foreach (string h in itens.Select(e => e.TextoHandle).Distinct())
+                        {
+                            var id = db.GetObjectId(false,new Handle(Convert.ToInt64(h,16)),0);
+                            if (id.IsNull || id.IsErased) throw new InvalidOperationException("Texto ausente no desenho: " + h);
+                            DefinirLayer(db,tr,id,layer);
+                        }
+                        tr.Commit();
+                    }
+                    foreach (Elemento e in itens) e.LayerAplicada = layer;
+                }
+                foreach (Elemento e in itens) e.Operacao = operacao;
+                Construtor.Recalcular(s.Obra,s.Regras);
+                Mudou(s,true);
+            }
+            catch (System.Exception ex) { Aplicacao.Msg("Falha no lote: " + ex.Message); }
         }
 
         [CommandMethod("ORC_EDITAR")]
@@ -501,20 +551,27 @@ namespace OrcamentoNanoCAD
             {
                 ObjectId id = db.GetObjectId(false, new Handle(Convert.ToInt64(e.TextoHandle, 16)), 0);
                 if (id.IsNull || id.IsErased) { Aplicacao.Msg("A anotação de " + e.Numero + " não está mais no desenho."); return; }
-                LayerTable lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
-                if (!lt.Has(layer))
-                {
-                    lt.UpgradeOpen();
-                    LayerTableRecord nova = new LayerTableRecord { Name = layer };
-                    lt.Add(nova);
-                    tr.AddNewlyCreatedDBObject(nova, true);
-                }
-                Entity ent = (Entity)tr.GetObject(id, OpenMode.ForWrite);
-                string de = ent.Layer;
-                ent.Layer = layer;
+                string de = DefinirLayer(db,tr,id,layer);
                 tr.Commit();
+                e.LayerAplicada = layer;
                 if (!paraALida) Aplicacao.Msg("Anotação de " + e.Numero + ": layer " + de + " → " + layer + ".");
             }
+        }
+
+        internal static string DefinirLayer(Database db, Transaction tr, ObjectId id, string layer)
+        {
+            LayerTable lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
+            if (!lt.Has(layer))
+            {
+                lt.UpgradeOpen();
+                LayerTableRecord nova = new LayerTableRecord { Name = layer };
+                lt.Add(nova);
+                tr.AddNewlyCreatedDBObject(nova, true);
+            }
+            Entity ent = (Entity)tr.GetObject(id, OpenMode.ForWrite);
+            string de = ent.Layer;
+            ent.Layer = layer;
+            return de;
         }
 
         // ── tabelas ──
@@ -643,7 +700,7 @@ namespace OrcamentoNanoCAD
                                   + " regras do leitor, " + r.Vinculo.Cabos.Count + "+" + r.Vinculo.Estruturas.Count + " de vínculo (" + r.Origem + ")");
                 RegrasProjeto atual = Aplicacao.Regras.FirstOrDefault(x => s.Regras != null && x.Nome == s.Regras.Nome);
                 s.Regras = atual ?? Aplicacao.Regras.FirstOrDefault();
-                Aplicacao.Msg("Pasta para regras próprias: " + Path.Combine(Aplicacao.PastaDaDll, "regras", "<codigo>") + " (processamento.json, classificacao.json, vinculacao.json, nome.txt)");
+                Aplicacao.Msg("Pasta para regras próprias: " + Path.Combine(Path.Combine(Aplicacao.PastaDaDll, "regras"), "<codigo>") + " (processamento.json, classificacao.json, vinculacao.json, nome.txt)");
             });
         }
 
@@ -755,6 +812,8 @@ namespace OrcamentoNanoCAD
             {
                 if (s.Obra == null) { PainelObra.Esconder(); return; }
                 if (s.Modificada && !Confirmar(s.Doc.Editor, "A obra tem mudanças não salvas. Fechar mesmo assim?")) return;
+                s.Destacar(null,null);
+                s.AnaliseCores = false;
                 s.Obra = null;
                 s.Modificada = false;
                 s.Marcas.Limpar();
@@ -854,6 +913,8 @@ namespace OrcamentoNanoCAD
                 + "  ORC_ABRIR_APP  salva e abre o projeto no OrçaCore deste computador (aberto ou fechado)\n"
                 + "  ORC_LEITURA    configurar layers da rede, bloco de poste e guias · ORC_DIAGNOSTICO o que foi lido\n"
                 + "  ORC_FECHAR     fechar a obra · log: " + Aplicacao.ArquivoLog + "\n"
+                + "  ORC_NOTA / ORC_EDITAR_NOTA / ORC_MOVER_NOTA   notas no DWG\n"
+                + "  ORC_AUDITAR_LAYERS / ORC_ATUALIZAR_GUIAS   auditoria de MTEXT e guias\n"
                 + "  ORC_ATUALIZAR_PLUGIN conferir agora se há versão nova · ORC_VOLTAR_VERSAO voltar para a anterior\n"
                 + "  Plugin " + ObraArquivo.VersaoPlugin + ": " + AtualizacaoPlugin.Status + "\n"
                 + "  " + Sincronizador.Status);

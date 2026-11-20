@@ -38,7 +38,7 @@ from urllib.parse import quote
 
 import os
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Any, Dict, Optional
@@ -150,6 +150,12 @@ def validar_leitura(cfg) -> dict:
             erros.append(f"{k}: número entre 0 e 1000")
         else:
             ok[k] = v
+    if "auditoria_tolerancia_m" in cfg:
+        metros = cfg["auditoria_tolerancia_m"]
+        if isinstance(metros, bool) or not isinstance(metros, (int, float)) or not 0 <= metros <= 1000:
+            erros.append("auditoria_tolerancia_m: número entre 0 e 1000")
+        else:
+            ok["auditoria_tolerancia_m"] = metros
     if "cor_confirma" in cfg:
         if not isinstance(cfg["cor_confirma"], bool):
             erros.append("cor_confirma: verdadeiro/falso")
@@ -447,7 +453,7 @@ def _do_proprio_computador(request: Request) -> bool:
 
 
 @router.post("/receber")
-def receber_obra(payload: ReceberPayload, request: Request):
+def receber_obra(payload: ReceberPayload, request: Request, tarefas: BackgroundTasks):
     """Sem login (o plugin não tem o token deste programa), mas só no programa instalado e só do próprio computador:
     a obra fica em memória até a janela — com o usuário logado — buscá-la e gravá-la para ele."""
     if not _desktop():
@@ -466,7 +472,11 @@ def receber_obra(payload: ReceberPayload, request: Request):
             raise HTTPException(status_code=400, detail=erro)
         i = programa_local.guardar(payload.chave, payload.envelope)
     url = programa_local.url_pendente(i)
-    janela = janela_desktop.mostrar(url, request.url.port)
+    janela = janela_desktop.disponivel()
+    if janela:
+        # A navegação do WebView pode esperar pela janela ou por uma confirmação do usuário.
+        # O comando do CAD deve receber o protocolo antes dessa espera.
+        tarefas.add_task(janela_desktop.mostrar, url, request.url.port)
     return {"id": i, "url": url, "janela": janela}
 
 

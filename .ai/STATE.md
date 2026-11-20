@@ -6,6 +6,22 @@
 
 ---
 
+## Mapa de vinculação · TASK-202
+
+Grafo implementado no Resumo. O teste em Chromium cobre edição dentro do nó e preservação do zoom. A topologia usa a geometria ou as atribuições do projeto.
+
+## Auditoria visual do nanoCAD
+
+TASK-200 e TASK-028 entregam a fila e os detalhes de conferência. O projeto pode definir a tolerância de metragem na configuração da leitura. A validação visual no CAD está pendente.
+
+## Abertura pelo nanoCAD · TASK-199
+
+A NOTA 9101578729 abre no Resumo em Chromium com 71 linhas de Cabos e 52 de Outros. A confirmação em Windows/WebView2 continua pendente.
+
+## Validação pendente em 19/11/2026
+
+TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 removido e extração de chamadas MULTILEADER no DXF. Testar com a nota real nas duas versões do nanoCAD.
+
 ## Versão
 
 `2.0.0` — `config.py:APP_VERSION`
@@ -16,6 +32,13 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 ---
 
 ## Implementado
+
+- [x] [TASK-207](tasks/TASK-207-20-11-2026.md) — Pernambuco classifica estrutura solta (N3, B2…) como ESTRUTURA (regra ordem 30 no seed; atualiza sozinho se as regras estão intocadas).
+
+- [x] [TASK-206](tasks/TASK-206-20-11-2026.md) — Instalador Windows por usuário, empacotado com o portátil e sincronizado com o autoatualizador.
+
+- [x] [TASK-204](tasks/TASK-204-20-11-2026.md) — Assistente preserva operações e vínculos no Resumo, exige confirmação inclusive nos atalhos e simula o orçamento com a Totalizadora da tela.
+- [x] [TASK-205](tasks/TASK-205-20-11-2026.md) — Consulta pelo poste ou vão, paginação das tabelas, skills com revisão por código e teste de ferramenta no provedor reserva. Validação com base de produção e provedor externo pendente.
 
 - [x] **TASK-168** — O programa sempre abre no projeto default (o usuário abre o projeto): `SESSAO_ID`/cookie `gridr_sessao` + `GridRProjeto.reiniciarNoDefault`
 
@@ -226,7 +249,6 @@ Apenas o que está explicitamente marcado como pendente no próprio projeto:
 - [x] **TASK-178** (pedido de 2026-11-15, ADR-007): casos de referência por projeto: conferência automática da base na importação. CONCLUÍDA: novo `services/casos_referencia.py` + `routers/casos.py` (`/api/casos`), tabela `casos_referencia` (SQLite; Supabase em `scripts/schema_supabase.sql`), parte `casos` no pacote de projeto, botão "Guardar como caso de referência" no Resultado e aba "Casos" (conferir base/CSV, mudança esperada). Teste: `tests/test_casos_referencia_178.py`. Ver `.ai/tasks/TASK-178-15-11-2026.md`.
 - [x] **TASK-179** (pedido de 2026-11-15, ADR-007): guia e pacote de exemplo para quem cria base nova; ficha em português; aviso de item de equipamento no grupo geral. CONCLUÍDA: novo `docs/base_guia.md` (guia curto, do simples ao avançado, com armadilhas e a tabela de códigos B-001…B-013), pacote de exemplo `data/pacotes/exemplo/` (base de 20 linhas, vinculação e 5 casos; entra pela aba Pacote → "Começar de um pacote pronto"), frase em português por linha na ficha da base (`static/base_explica.js`), códigos do validador (`com_codigo`) e aviso B-013 (equipamento no grupo geral). Teste: `tests/test_guia_base_179.py`. Ver `.ai/tasks/TASK-179-15-11-2026.md`.
 - [x] **TASK-180** (pedido de 2026-11-15): "Montar Orçamento" sempre recalcula com a base atual (hoje restaura o resultado gravado no projeto quando o payload é igual, mesmo com base nova); o resultado gravado só volta ao abrir um `.obra` na tela do Resultado. CONCLUÍDA: `projeto.js` (`resultadoEditado`, `aoAbrirProjeto`, `pararAcompanharResultado`, notificação só no modo Abrir) e `resultado_orcamento.html` (`mostrarResultadoDoProjeto`; log avisa quando recalcular substitui edições manuais; formato do `.obra` igual). Teste: `tests/test_resultado_recalcula_180.py`. Ver `.ai/tasks/TASK-180-15-11-2026.md`.
-- [x] **TASK-197** (pedido de 2026-11-20): Pernambuco classifica estrutura solta (N3, B2…) como ESTRUTURA. CONCLUÍDA — ver `.ai/CHANGELOG.md` (TASK-197).
 - [x] **TASK-196** (pedido de 2026-11-19): congelar/bloquear a linha do grupo age em todas as linhas dele. CONCLUÍDA — ver `.ai/CHANGELOG.md` (TASK-196).
 - [x] **TASK-195** (pedido de 2026-11-19): grupos de linhas `@P1` em Outros e Cabos (Enter = membro no fim, Shift+Enter = solta abaixo, menu Grupo ▸, recolher +/−, mover Alt+↑/↓) e menu de contexto que não corta mais nas linhas de baixo. CONCLUÍDA — ver `.ai/tasks/TASK-195-19-11-2026.md`.
 - [x] **TASK-194** (pedido de 2026-11-19): balão de parâmetros grava também com quantidade no ativo («6 CON»); vírgula decimal não separa itens. CONCLUÍDA — ver `.ai/CHANGELOG.md` (TASK-194).
@@ -749,7 +771,13 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-11-12
+**Data:** 2026-11-20
+
+**Motivo:** [TASK-206](tasks/TASK-206-20-11-2026.md) integrou o instalador Windows por usuário às releases.
+
+**Motivo:** [TASK-204](tasks/TASK-204-20-11-2026.md) e [TASK-205](tasks/TASK-205-20-11-2026.md) atualizaram os planos, o orçamento e o contexto de projeto do assistente.
+
+**Anterior — Data:** 2026-11-12
 **Motivo:** TASK-153 — usabilidade e design (telas sem internet, hierarquia de botões, menus no Resumo). As tarefas
 TASK-107 a TASK-152 estão no `CHANGELOG.md` e em `.ai/tasks/` (esta seção não foi atualizada nelas).
 

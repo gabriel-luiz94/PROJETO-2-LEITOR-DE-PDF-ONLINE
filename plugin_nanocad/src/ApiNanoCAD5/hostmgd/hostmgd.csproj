@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Referência (só para compilar) com o que o plugin usa da API do nanoCAD, para .NET 4 (nanoCAD 5). Código gerado: ferramentas/GerarApiNanoCAD5. -->
   <PropertyGroup>
-    <TargetFramework>net40</TargetFramework>
+    <TargetFramework>net35</TargetFramework>
     <AssemblyName>hostmgd</AssemblyName>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
@@ -14,6 +14,6 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <ProjectReference Include="../hostdbmgd/hostdbmgd.csproj" />
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net40" Version="1.0.3" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
 </Project>

@@ -450,7 +450,7 @@
     }
 
     /** Vincula o arquivo `r` ({caminho, assinatura, projeto}) como projeto atual (com o salvamento automático DESLIGADO); pergunta Abrir/Mesclar/Sobrescrever se o Resumo já tem dados. */
-    async function ativarAberto(r) {
+    async function ativarAberto(r, selecionarProjeto) {
         const pr = r.projeto;
         if (!(await confirmarSaida())) return false;                          // havia outro projeto com alterações não salvas
         let modo = 'abrir', vinc = '';
@@ -461,6 +461,7 @@
                  { texto: 'Sobrescrever', valor: 'sobrescrever', descricao: 'Mantém o que está na tela e grava por cima do projeto (na próxima vez que você salvar).' }]);
             if (!modo) return false;
         }
+        if (selecionarProjeto) selecionarProjeto();
         definirProjeto(r, false);
         suspenso = false; pendente = null; ultimaGravacao = null; sujo = false;
         if (resumo) {
@@ -479,7 +480,8 @@
     const mesmoArquivo = (a, b) => String(a || '').replace(/\//g, '\\').toLowerCase() === String(b || '').replace(/\//g, '\\').toLowerCase();
     /** Abre o projeto que o plugin gravou. Se ele já é o projeto aberto, relê do arquivo (o desenho atualizou as linhas); senão, o mesmo
      *  caminho do menu Abrir (pergunta Abrir/Mesclar/Sobrescrever se o Resumo já tem dados). Devolve true se abriu. */
-    async function abrirDoPlugin(caminho, projetoCodigo) {
+    async function abrirDoPlugin(caminho, projetoCodigo, selecionarProjeto) {
+        await inicioResumo;
         const p = ponte();
         if (!p) return false;
         const r = await p.projeto_abrir(caminho, projetoCodigo || codigoRegras());
@@ -495,6 +497,7 @@
                      { texto: 'Manter a tela', valor: 'tela', descricao: 'Não recarrega agora; ao salvar, o programa avisa que o arquivo mudou.' }]);
                 if (v !== 'desenho') return false;
             }
+            if (selecionarProjeto) selecionarProjeto();
             definirProjeto(r, e.auto === true);
             if (resumo) { resumo.carregar(r.projeto.dados); dadosProntos = true; sujo = false; }
             suspenso = false; pendente = null; aplicarNumero(); atualizarMenu();
@@ -504,7 +507,7 @@
             avisar('Projeto “' + r.projeto.nome + '” atualizado pelo nanoCAD.' + vincAtual);
             return true;
         }
-        return ativarAberto(r);
+        return ativarAberto(r, selecionarProjeto);
     }
 
     /* ── Janela do projeto (Novo / Abrir / Propriedades / Salvar como) ── */
@@ -732,9 +735,10 @@
         } else dadosProntos = true;
         aplicarNumero(); atualizarMenu();
     }
+    let inicioResumo = Promise.resolve();
     function registrarResumo(ganchos) {
         resumo = ganchos;
-        iniciar();
+        inicioResumo = iniciar();
     }
 
     /* ── Resultado do orçamento ── */

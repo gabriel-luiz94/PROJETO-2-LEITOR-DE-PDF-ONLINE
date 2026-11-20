@@ -159,3 +159,17 @@ def test_chat_tem_andamento_visivel_e_botao_parar():
     assert "new AbortController()" in js and "signal: chatAbort.signal" in js and "modoParar(true)" in js and "modoParar(false)" in js
     assert "'Pensando'" in js and "setInterval(desenharStatus, 1000)" in js and "clearInterval(relogio)" in js
     assert "error.name === 'AbortError'" in js and "if (chatAbort) chatAbort.abort(); else sendToGemini();" in js
+
+
+def test_aplicar_preserva_linhas_protegidas_e_detecta_operacao_alterada():
+    estados = {"cabos": {"data": []}, "outros": {"data": [
+        {"ativo": "1-CFU", "operacao": "R"},
+        {"ativo": "1-CFU", "operacao": "I", "bloqueada": True},
+        {"ativo": "1-CFU", "operacao": "I", "congelada": True},
+    ]}}
+    itens = [{"n": i + 1, "acao": "remover", "tabela": "outros", "id": i,
+              "antes": {"ativo": "1-CFU", "operacao": "I"}} for i in range(3)]
+    resultado = _aplicar(estados, itens)
+    assert resultado["est"] == estados
+    assert [i["motivo"] for i in resultado["r"]["ignoradas"]] == [
+        "a linha mudou depois do pedido", "a linha está protegida", "a linha está protegida"]

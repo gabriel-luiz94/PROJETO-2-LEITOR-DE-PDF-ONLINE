@@ -8,6 +8,34 @@
 
 ---
 
+## 2026-11-20 — Instalador Windows por usuário
+
+A distribuição passa a gerar `OrcaCore-Setup.exe` com o mesmo binário e versão do portátil. O instalador cria o atalho e o registro de desinstalação para a conta atual. Após uma autoatualização, a versão exibida pelo Windows acompanha o executável que abriu. [TASK-206](tasks/TASK-206-20-11-2026.md).
+
+## 2026-11-20 — Assistente de IA no Resumo e no mapa
+
+Planos preservam a operação existente, respeitam linhas protegidas e remapeiam vínculos quando uma linha é removida. A prévia usa a Totalizadora do Resumo e compara quantidades de orçamento antes da aplicação. Os atalhos passam pelo mesmo cartão de confirmação. O mapa permite consultar o poste ou vão selecionado. Skills publicadas têm revisão por código de projeto e o teste do provedor reserva verifica uma ferramenta. [TASK-204](tasks/TASK-204-20-11-2026.md) · [TASK-205](tasks/TASK-205-20-11-2026.md).
+
+## 2026-11-20 — Grafo de vinculação
+
+O mapa mostra postes como nós e vãos como arestas. A janela do poste lista os cabos e as estruturas e permite aplicar ou desfazer vínculos pelas regras do projeto.
+
+## 2026-11-19 — Layers das notas de Pernambuco
+
+O pacote 081 reconhece as layers `POSTE_*` de instalação, remoção e reaplicação e suas variantes de linha viva. Seus dados alimentam o leitor da aplicação e o plugin.
+
+## 2026-11-19 — Auditoria da leitura no nanoCAD
+
+O plugin mostra a origem da anotação, a metragem lida, a geometria e a saída da obra. A configuração por projeto aceita o campo opcional `auditoria_tolerancia_m` de 0 a 1000. Zero desativa o aviso. A revisão e as escolhas de destino são armazenadas na seção `cad` da obra.
+
+## 2026-11-19 — Abrir no OrçaCore
+
+A entrega ao Resumo aberto usa a tela atual. A leitura de cabeçalho SAP vazio dispensa o acesso ao perfil do projeto. O instalador verifica o conteúdo da DLL ao encontrar a mesma versão.
+
+## 2026-11-19 — integração nanoCAD
+
+TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 removido e extração de chamadas MULTILEADER no DXF. Testar com a nota real nas duas versões do nanoCAD.
+
 ## 2026-11-18 — Ocultar parâmetros: com a linha em foco continua só o nome; "(" abre o balão
 
 - Com «Ocultar parâmetros ao sair da linha» ligado, clicar na linha **não** mostra os parâmetros na linha: continua `PR`. Ao **digitar `(`** (ou levar o cursor para depois dele: End, →, clique) os parâmetros **preenchidos** aparecem no **balão** (o mesmo do mouse: `cabo = XLPE · manual`…), ancorado no campo; some ao sair do campo ou ao voltar ao nome. API: `window.mostrarBalaoParametros(el)`/`esconderBalaoParametros(el)` (`resumo.js`); o balão de outra linha nunca fica na tela. O texto do campo e os cálculos não mudam.
@@ -16,7 +44,7 @@
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
-## 2026-11-20 — TASK-197: Pernambuco classifica estrutura solta como ESTRUTURA
+## 2026-11-20 — TASK-207: Pernambuco classifica estrutura solta como ESTRUTURA
 
 - Antes: no Pernambuco (081) só havia regras de POSTE e CABO; `N3`, `B2`… soltos ficavam com entidade `0`. Nova regra (ordem 30) no seed `data/regras_leitor_classificacao_pernambuco_seed.json`: estrutura (`N`, `U`, `T`, `R`, `B`, `S`, `CE`, `SI`, `RA`, `BI` + número, `ISOL`), sozinha ou em lista, com quantidade e `(parâmetros)` → `ESTRUTURA`. Poste (`11300D, N3`) e cabo seguem antes; `CON`, `PR220`, `FLABIT` continuam `0`.
 - O hash do seed anterior entrou em `seeds_antigos.classificacao` do pacote 081: projetos com as regras **intocadas** atualizam sozinhos; quem editou as regras precisa importar/acrescentar a regra à mão. Na vinculação `ESTRUTURA` e `0` já valiam igual (sem mudança). Teste: `tests/test_estrutura_solta_pe_197.py`.

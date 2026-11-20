@@ -8,9 +8,9 @@
 `src/Nucleo/` não usa `HostMgd.*`, `Teigha.*`, WinForms nem pacotes NuGet. Decisões (o que é vão, quem vincula com quem,
 estado, o que vai para o arquivo) ficam no núcleo e têm teste. A camada `src/Plugin/` só lê o desenho, mostra e grava.
 
-## Regra P2 — C# 5 e .NET Framework 4.0
+## Regra P2 — C# 5 e .NET Framework 3.5 para o nanoCAD 5
 
-Todo código de `src/` compila com o csc do .NET Framework 4 (nanoCAD 5): **sem** interpolação `$""`, `?.`, `nameof`,
+Todo código de `src/` compila com o csc do .NET Framework 4 usando referências 3.5 para o nanoCAD 5: **sem** interpolação `$""`, `?.`, `nameof`,
 membros `=>`, inicializador de auto-propriedade, `out var`, tuplas, `using static`, pattern matching. O `.csproj` fixa
 `LangVersion=5`; `tests/Net40` confere o núcleo em `net40`. Testes (`tests/`) podem usar C# moderno.
 
@@ -37,16 +37,14 @@ Leitura do DXF inteiro (TASK-005): ao mudar `services/dxf_service.py` ou o monta
 
 ## Regra P5 — O desenho do usuário
 
-- O plugin só **altera** o DWG em dois casos: gravar a obra no dicionário `ORCAMENTO_LEITOR` (ORC_SALVAR) e trocar a
-  layer da anotação quando o usuário muda a operação **com a opção marcada** no pop-up. Nada mais (sem camada de marcas).
+- Os comandos de notas podem criar, editar, mover e excluir MTEXT e suas guias. Na auditoria, alterações de layer e exclusões são ações explícitas.
+- ORC_SALVAR grava a obra no dicionário `ORCAMENTO_LEITOR`. O ajuste de operação pode trocar a layer quando a opção estiver marcada.
 - Marcas na tela = gráficos transitórios.
 - Excluir da obra não apaga nada do desenho.
 
 ## Regra P6 — A DLL versionada
 
-`appload/nanoCAD26/OrcamentoNanoCAD.dll` é versionada (o usuário usa direto). Toda mudança em `src/` que for para o
-repositório vai junto com a DLL recompilada (`./compilar.sh`, build determinístico). `appload/nanoCAD5/` é gerada no
-Windows do usuário e **não** é versionada pelo agente.
+As DLLs em `appload/nanoCAD26/` e `appload/nanoCAD5/` e seus manifestos são versionados. Mudanças em `src/` acompanham a recompilação com `./compilar.sh`. Para a versão 5, o build compartilhado usa referências geradas; o build no Windows pode usar as DLLs instaladas. A validação no CAD segue P7.
 
 ## Regra P7 — Testes no CAD são do usuário
 

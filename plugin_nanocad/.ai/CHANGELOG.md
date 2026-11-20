@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-11-19 — 0.12.0
+
+Criação e edição de MTEXT, movimentação de grupo, reapontamento de guias associativas e auditoria das layers de operação ficam disponíveis no menu Anotações. O modo Análise usa marcas temporárias e filtra os MTEXT na viewport quando a API oferece o recurso.
+
+## 2026-11-19 — 0.11.0
+
+Painel de auditoria com busca e filtros, seleção de candidatos, destaque de origem e destino, cores temporárias por operação e prévia de lote. A saída Cabos e Outros continua usando a leitura e as regras do projeto.
+
+## 2026-11-19 — 0.10.4
+
+DLL para nanoCAD 5 Free compilada em x86, CLR 2 e .NET Framework 3.5. A versão 26 continua em .NET 6.
+
+## 2026-11-19 — integração nanoCAD
+
+TASK-025 e TASK-026: plugin 0.10.3, N3 removido na tabela Outros e teste de paridade incluindo chamadas múltiplas. A abertura no Windows depende também da correção no OrçaCore (TASK-197). Testar com a nota real nas duas versões do nanoCAD.
+
+## 2026-11-19 — 0.10.2 para avaliação no CAD
+
+- TASK-022: leitura das cores e do modo do projeto, curingas nas layers, cópia local e edição do modo no CAD.
+- TASK-023: distribuição por poste e por prioridade de regra, reserva de vínculos manuais e comparação do exemplo com o motor da aplicação.
+- TASK-024: menus Projeto, Conferir e Configurações, origem das regras no cabeçalho, ações de entrega visíveis e Atualizar como ação principal.
+
 ## 2026-11-15 — TASK-021: "+ Cabo" lê o texto como cabo e pega o comprimento da mesma linha ou da vizinhança (0.10.1)
 
 `Construtor.LerCaboDeTexto`: em "+ Cabo" (e quando as regras leem cabo em "+ Outros"), o texto escolhido é SEMPRE lido como cabo — rótulo pelo que as

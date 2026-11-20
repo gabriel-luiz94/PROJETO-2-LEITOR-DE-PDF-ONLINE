@@ -69,3 +69,18 @@ def test_perfil_do_gridreader_vira_gridr(tmp_path, monkeypatch):
     p = Path(jd.pasta_perfil())
     assert p == tmp_path / "OrcaCore" / "janela" and (p / "Login Data").read_text() == "senha" and not antiga.exists()
     assert Path(jd.pasta_perfil()) == p                                   # de novo: nada a migrar, nada quebra
+
+
+def test_entrega_no_resumo_e_navega_quando_a_pagina_nao_recebe(monkeypatch):
+    from unittest.mock import Mock
+
+    janela = Mock()
+    monkeypatch.setattr(jd, "_janela", janela)
+    pedido = "/resumo?plugin_pendente=abc"
+    janela.evaluate_js.return_value = True
+    assert jd.mostrar(pedido, 9123)
+    janela.load_url.assert_not_called()
+    assert "http://127.0.0.1:9123" in janela.evaluate_js.call_args.args[0]
+    janela.evaluate_js.return_value = False
+    assert jd.mostrar(pedido, 9123)
+    janela.load_url.assert_called_once_with("http://127.0.0.1:9123" + pedido)

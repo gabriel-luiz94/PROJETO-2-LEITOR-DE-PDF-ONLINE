@@ -296,7 +296,7 @@ def test_skills_pelas_ferramentas(pastas):
 
 def test_especificacoes_sao_json_schema_validos():
     specs = ferramentas.especificacoes()
-    assert {s["name"] for s in specs} == set(ferramentas.FERRAMENTAS) and len(specs) == 13
+    assert {s["name"] for s in specs} == set(ferramentas.FERRAMENTAS) and len(specs) == 14
     for s in specs:
         assert s["description"] and s["parameters"]["type"] == "object"
         assert set(s["parameters"].get("required", [])) <= set(s["parameters"]["properties"])
@@ -551,20 +551,20 @@ def test_rota_monta_o_prompt_com_skills_regras_e_estado(client, monkeypatch):
     client.post("/api/regras", headers=cab(), json={"conteudo": "regra: sempre TERRA3", "projeto_codigo": "081"})
     client.post("/api/assistente/chat", headers={**cab(), "X-Anthropic-Key": "k"}, json={"prompt": "oi", "provider": "claude", "projeto_codigo": "081", "cabos": [{"id": 0, "ativo": "x"}]})
     s = visto["system"]
-    assert "OrçaCore" in s and "- orcamento: orçar em PE" in s and "sempre TERRA3" in s and "PERNAMBUCO" in s and "1 linha(s) em Cabos" in s and visto["n_specs"] == 13
+    assert "OrçaCore" in s and "- orcamento: orçar em PE" in s and "sempre TERRA3" in s and "PERNAMBUCO" in s and "1 linha(s) em Cabos" in s and visto["n_specs"] == 14
 
 
 def test_rota_atalho_rapido_nao_chama_ia(client, monkeypatch):
     monkeypatch.setattr(agente, "criar_adaptador", lambda *a, **k: (_ for _ in ()).throw(AssertionError("não devia chamar a IA")))
     ev = linhas(client.post("/api/assistente/chat", headers={**cab(), "X-Gemini-Key": "k"}, json={"prompt": "adicionar 2 con", "projeto_codigo": "081"}))
-    assert ev[0]["tipo"] == "plano" and ev[0]["auto"] is True and ev[0]["itens"][0]["ativo"] == "2-CON" and ev[0]["itens"][0]["operacao"] == "I"
+    assert ev[0]["tipo"] == "plano" and not ev[0].get("auto") and ev[0]["itens"][0]["ativo"] == "2-CON" and ev[0]["itens"][0]["operacao"] == "I"
     ev = linhas(client.post("/api/assistente/chat", headers={**cab(), "X-Gemini-Key": "k"}, json={"prompt": "remover 1,5 IT", "projeto_codigo": "081"}))
     assert ev[0]["itens"][0]["ativo"] == "1.5-IT" and ev[0]["itens"][0]["operacao"] == "R"
 
 
 def test_rota_skills_listar_ler_e_permissoes(client):
     j = client.get("/api/assistente/skills?projeto=081", headers=cab("operador")).json()
-    assert j["projeto"] == "PERNAMBUCO" and j["escopo_projeto"] == "pernambuco" and j["pode_editar"] is False
+    assert j["projeto"] == "PERNAMBUCO" and j["escopo_projeto"] == "projeto-081" and j["pode_editar"] is False
     assert {s["nome"] for s in j["skills"]} == {"orcamento", "formato"}
     assert client.get("/api/assistente/skills/_geral/orcamento", headers=cab("operador")).json()["texto"].startswith("descricao: como orçar")
     assert client.get("/api/assistente/skills/_geral/naoha", headers=cab("operador")).status_code == 404
@@ -585,8 +585,8 @@ def test_rota_skills_admin_grava_apaga_e_recusa_nomes_ruins(client):
 def test_rota_gerar_catalogo_grava_a_skill_ativos(client, monkeypatch):
     monkeypatch.setattr("services.sync_service.get_merged_orcamento", lambda uid=None: BASE)
     r = client.post("/api/assistente/skills/gerar-catalogo?projeto=081", headers=cab())
-    assert r.status_code == 200 and r.json()["ativos"] == 5 and r.json()["escopo"] == "pernambuco"
-    assert "`TR125`" in skills.carregar("pernambuco", "ativos")
+    assert r.status_code == 200 and r.json()["ativos"] == 5 and r.json()["escopo"] == "projeto-081"
+    assert "`TR125`" in skills.carregar("pernambuco", "ativos", "081")
     assert client.post("/api/assistente/skills/gerar-catalogo?projeto=081", headers=cab("operador")).status_code == 403
     assert client.post("/api/assistente/skills/gerar-catalogo?projeto=999", headers=cab()).status_code == 404
     monkeypatch.setattr("services.sync_service.get_merged_orcamento", lambda uid=None: [])
@@ -761,7 +761,12 @@ def test_rota_testar_reserva(client, monkeypatch):
     assert _salvar_reserva(client).status_code == 200
     monkeypatch.setattr(agente, "criar_adaptador", lambda provider, api_key, modelos, base_url="": Resposta("ok"))
     j = client.post("/api/assistente/reserva/testar", headers=cab()).json()
-    assert j["ok"] is True and j["modelo"] == "deepseek-chat" and j["resposta"] == "ok" and "sk-segredo" not in json.dumps(j)
+    assert j["ok"] is False and "não chamou" in j["erro"]
+    monkeypatch.setattr(agente, "criar_adaptador", lambda *a: Roteiro([
+        agente.Turno("", [agente.Chamada("teste", "ler_tabela", {"tabela": "cabos"})])
+    ]))
+    j = client.post("/api/assistente/reserva/testar", headers=cab()).json()
+    assert j["ok"] is True and j["modelo"] == "deepseek-chat" and "sk-segredo" not in json.dumps(j)
     monkeypatch.setattr(agente, "criar_adaptador", lambda provider, api_key, modelos, base_url="": Falha("401 invalid api key"))
     j = client.post("/api/assistente/reserva/testar", headers=cab()).json()
     assert j["ok"] is False and "invalid api key" in j["erro"]
@@ -883,7 +888,7 @@ def test_gemini_sem_suporte_a_pensamento_repete_sem_ele():
 def test_atalho_rapido_aceita_varios_itens(prompt, esperado):
     from routers.assistente import _fast_path
     ev = _fast_path(prompt)
-    assert ev and ev["auto"] is True and [(i["operacao"], i["ativo"]) for i in ev["itens"]] == esperado and [i["n"] for i in ev["itens"]] == list(range(1, len(esperado) + 1))
+    assert ev and not ev.get("auto") and [(i["operacao"], i["ativo"]) for i in ev["itens"]] == esperado and [i["n"] for i in ev["itens"]] == list(range(1, len(esperado) + 1))
 
 
 @pytest.mark.parametrize("prompt", [
@@ -920,3 +925,76 @@ def test_ferramentas_rodam_fora_do_loop_de_eventos():
     finally:
         ferramentas.executar = original
     assert visto["thread"] is not threading.main_thread()
+
+
+def test_plan_preserva_manutencao_e_recusa_protecao_e_operacao_invalida():
+    c = ctx_com(outros=[{"id": 0, "operacao": "*M", "ativo": "1-CFU"},
+                        {"id": 1, "operacao": "I", "ativo": "1-PR220", "bloqueada": True}])
+    r = ferramentas.propor_alteracoes(c, {"alteracoes": [
+        {"acao": "editar", "tabela": "outros", "id": 0, "operacao": "X", "ativo": "2-CFU"},
+        {"acao": "editar", "tabela": "outros", "id": 0, "ativo": "2-CFU"},
+        {"acao": "remover", "tabela": "outros", "id": 1},
+        {"acao": "adicionar", "tabela": "outros", "operacao": "M", "ativo": "1-PR220"},
+    ]})
+    assert [p["operacao"] for p in c.plano] == ["*M", "M"]
+    assert [x["motivo"] for x in r["rejeitadas"]] == ["operação inválida", "linha bloqueada"]
+
+
+def test_simular_remocao_e_edicao_remapeia_unidades_e_postes():
+    c = ctx_com(cabos=[{"id": 0, "ativo": "CAA2 3 35 m", "vinculoEstruturas": [2, 5.01], "vinculoPostes": [2, 5]}],
+                outros=[{"id": 2, "operacao": "I", "ativo": "1-N3"}, {"id": 5, "operacao": "M", "ativo": "9400D, N1, N4"},
+                        {"id": 7, "operacao": "I", "ativo": "1-CFU"}])
+    r = ferramentas.propor_alteracoes(c, {"alteracoes": [
+        {"acao": "remover", "tabela": "outros", "id": 2},
+        {"acao": "editar", "tabela": "outros", "id": 5, "ativo": "9400D, N1, N3"},
+        {"acao": "editar", "tabela": "outros", "id": 7, "ativo": "2-CFU"},
+    ]})
+    assert "1 vínculo" in r["avisos"][0]
+    assert "já vinculada" in r["rejeitadas"][0]["motivo"]
+    cabos, outros = ferramentas.aplicar_plano(c.cabos, c.outros, c.plano)
+    assert cabos[0]["vinculoEstruturas"] == [0.01] and cabos[0]["vinculoPostes"] == [0]
+    assert outros[1]["ativo"] == "2-CFU"
+    assert c.cabos[0]["vinculoEstruturas"] == [2, 5.01]
+
+
+def test_ler_tabela_encontra_linha_alem_da_primeira_pagina():
+    c = ctx_com(outros=[{"id": i, "ativo": f"{i}-CFU"} for i in range(350)] + [{"id": 351, "ativo": "2-PR220"}])
+    pagina = ferramentas.ler_tabela(c, {"tabela": "outros", "limite": 2})["outros"]
+    assert pagina["proximo_inicio"] == 2
+    seguinte = ferramentas.ler_tabela(c, {"tabela": "outros", "limite": 2, "inicio": pagina["proximo_inicio"]})["outros"]
+    assert [l["id"] for l in seguinte["linhas"]] == [2, 3]
+    assert ferramentas.ler_tabela(c, {"tabela": "outros", "texto": "pr220"})["outros"]["linhas"][0]["id"] == 351
+
+
+def test_consultar_vinculos_retorna_estado_e_ids_originais():
+    c = ctx_com(cabos=[{"id": 9, "ativo": "CAA2 3 35 m", "entidade": "CABO", "operacao": "I", "vinculoEstruturas": [5]}],
+                outros=[{"id": 5, "operacao": "I", "ativo": "9400D, N3"}, {"id": 7, "operacao": "I", "ativo": "9400D, N3"}],
+                selecao_mapa={"rotulo": "Vão MT", "cabos": [9], "outros": [5, 7]})
+    c.pipe().vinculacao_cfg = {"cabos": [{"padrao": "^CAA2", "pontas": 2, "estruturas": "^N3$"}],
+                              "estruturas": [{"padrao": "N3", "qtd_cabos": 1, "cabos": "^CAA2"}]}
+    r = ferramentas.consultar_vinculos(c, {})
+    assert r["selecao"] == "Vão MT"
+    assert r["cabos"][0]["id"] == 9 and r["cabos"][0]["vinculacao"]["estado"] == "pu"
+    assert set(s["id"] for s in r["estruturas"]) == {5, 7}
+    assert r["vinculos"] == [{"cabo": 9, "estrutura": 5, "ok": True, "motivo": None}]
+
+
+def test_skill_versionada_fica_no_codigo_mesmo_apos_renomear(pastas):
+    a = skills.salvar("projeto-081", "orcamento", "primeira orientação")
+    b = skills.salvar("projeto-081", "orcamento", "segunda orientação")
+    assert a["versao"] != b["versao"]
+    assert skills.carregar("novo_nome", "orcamento", "081") == "segunda orientação"
+    assert skills.carregar("pernambuco", "orcamento", "082").endswith("regra de PE")
+    assert next(s for s in skills.listar("novo_nome", "081") if s["nome"] == "orcamento")["versao"] == b["versao"]
+    assert (pastas[1] / "projeto-081" / ".historico" / "orcamento" / (a["versao"] + ".md")).is_file()
+
+
+def test_previa_compara_quantidades_sem_chave_de_ia(client, monkeypatch):
+    monkeypatch.setattr(pl, "carregar_contexto", lambda *a: pipeline_fake())
+    r = client.post("/api/assistente/previa", headers=cab(), json={
+        "projeto_codigo": "081",
+        "antes": {"cabos": [], "outros": [{"entidade": "0", "operacao": "I", "ativo": "1-CFU"}]},
+        "depois": {"cabos": [], "outros": [{"entidade": "0", "operacao": "I", "ativo": "3-CFU"}]},
+    })
+    assert r.status_code == 200
+    assert r.json()["mudancas"] == [{"operacao": "I", "mdo": "M1", "codigo": "C-CFU", "antes": 1, "depois": 3}]

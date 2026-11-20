@@ -19,7 +19,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public const string Formato = "leitor-obra";
         public const int Versao = 1;
         public const int VersaoCad = 1;
-        public const string VersaoPlugin = "0.10.1";
+        public const string VersaoPlugin = "0.12.0";
         private const int MaxPontosGeo = 60;
 
         public static string NomeDoArquivo(string desenho)
@@ -108,7 +108,11 @@ namespace OrcamentoNanoCAD.Nucleo
                 List<object> ids = new List<object>();
                 foreach (Vinculo vi in v.Vinculos)
                     if (linhas.ContainsKey(vi.Poste)) ids.Add(IdUnidade(linhas[vi.Poste], vi.K));
-                if (v.ParticipaVinculo) l.Set("vinculoEstruturas", ids);
+                if (v.ParticipaVinculo)
+                {
+                    l.Set("vinculoEstruturas", ids);
+                    if (ids.Count > 0 && v.Vinculos.Any(x => x.Manual)) l.Set("vinculoOrigem", "manual");
+                }
                 cabos.Add(l);
             }
             foreach (Avulso a in obra.Avulsos)
@@ -151,9 +155,18 @@ namespace OrcamentoNanoCAD.Nucleo
         {
             JObj o = new JObj();
             o.Set("numero", e.Numero);
+            if (e.OrigemMetros != null)
+            {
+                TextoDesenho t = e.OrigemMetros;
+                o.Set("origemMetros", new JObj().Set("h",t.Handle).Set("texto",t.Texto).Set("layer",t.Layer).Set("x",t.X).Set("y",t.Y));
+            }
+            if (e.GuiaUsada != null && e.GuiaUsada.Count >= 2) o.Set("guia", Geo(e.GuiaUsada));
+            if (e.ParteTexto != 0) o.Set("parteTexto", e.ParteTexto);
+            if (e.Candidatos.Count > 1) o.Set("candidatos", e.Candidatos.Cast<object>().ToList());
             o.Set("texto", e.TextoHandle);
             o.Set("textoOriginal", e.TextoOriginal);
             o.Set("textoLayer", e.TextoLayer);
+            if (e.LayerAplicada != null) o.Set("layerAplicada",e.LayerAplicada);
             o.Set("textoCor", e.TextoCor);
             if (e.TextoX.HasValue) { o.Set("textoX", e.TextoX.Value); o.Set("textoY", e.TextoY.Value); }
             o.Set("entidade", e.Entidade);
@@ -183,6 +196,8 @@ namespace OrcamentoNanoCAD.Nucleo
         {
             JObj c = new JObj();
             c.Set("versao", VersaoCad);
+            if (obra.Conferidos.Count > 0) c.Set("conferidos", obra.Conferidos);
+            if (obra.Associacoes.Count > 0) c.Set("associacoes", obra.Associacoes);
             c.Set("origem", "plugin-nanocad");
             c.Set("plugin", VersaoPlugin);
             c.Set("desenho", obra.Desenho ?? "");
@@ -256,9 +271,18 @@ namespace OrcamentoNanoCAD.Nucleo
 
         private static void ElementoDeJson(Elemento e, JObj o)
         {
+            JObj metros = o.Obj("origemMetros");
+            if (metros != null) e.OrigemMetros = new TextoDesenho { Handle = metros.Str("h"), Texto = metros.Str("texto"),
+                Layer = metros.Str("layer"), X = metros.Num("x") ?? 0, Y = metros.Num("y") ?? 0 };
+            if (o.Lista("guia") != null)
+                e.GuiaUsada = o.Lista("guia").OfType<List<object>>().Where(x => x.Count >= 2)
+                    .Select(x => new Ponto(Json.ComoNumero(x[0]) ?? 0, Json.ComoNumero(x[1]) ?? 0)).ToList();
+            e.ParteTexto = (int)(o.Num("parteTexto") ?? 0);
+            e.Candidatos = Json.ListaDeTextos(o["candidatos"]);
             e.Numero = o.Str("numero");
             e.TextoHandle = o.Str("texto");
             e.TextoOriginal = o.Str("textoOriginal") ?? "";
+            e.LayerAplicada = o.Str("layerAplicada");
             e.TextoLayer = o.Str("textoLayer") ?? "";
             e.TextoCor = o.Str("textoCor") ?? "";
             e.TextoX = o.Num("textoX");
@@ -292,6 +316,8 @@ namespace OrcamentoNanoCAD.Nucleo
             if (cad == null) throw new ErroArquivo("a obra não foi gerada pelo plugin (sem a seção 'cad')");
             if ((cad.Num("versao") ?? 0) > VersaoCad) throw new ErroArquivo("obra de uma versão mais nova do plugin; atualize o plugin");
             Obra obra = new Obra();
+            obra.Conferidos = cad.Obj("conferidos") ?? new JObj();
+            obra.Associacoes = cad.Obj("associacoes") ?? new JObj();
             obra.Nome = env.Str("nome") ?? "obra";
             obra.Projeto = env.Str("projeto") ?? "";
             obra.Desenho = cad.Str("desenho") ?? "";

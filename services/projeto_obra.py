@@ -73,7 +73,7 @@ def _chaves_do_perfil(projeto) -> tuple:
 
 def sap_limpo(sap, projeto="") -> dict:
     """Cabeçalho do relatório gravado no `.obra`: os campos de sempre mais as chaves do perfil de exportação do projeto (TASK-176, ex.: `contrato`)."""
-    if not isinstance(sap, dict):
+    if not isinstance(sap, dict) or not sap:
         return {}
     chaves = CAMPOS_SAP + (("titulo",)) + _chaves_do_perfil(projeto)          # `titulo` = título do SAP guardado só para os relatórios (o nome do projeto pode ser a nota)
     return {k: _texto(sap.get(k), LIMITE_TEXTO) for k in chaves if isinstance(sap.get(k), str)}
@@ -146,6 +146,11 @@ def ler(texto, projeto_selecionado: str) -> dict:
         carga = json.loads(texto)
     except (ValueError, TypeError):
         raise ErroProjeto(["O arquivo não é um .obra válido (JSON inválido)."])
+    return ler_carga(carga, projeto_selecionado)
+
+
+def ler_carga(carga, projeto_selecionado: str) -> dict:
+    """Valida o envelope já decodificado e prepara os dados de trabalho."""
     try:
         pronta = obras_arquivo.validar_importacao(carga, projeto_selecionado)
     except obras_arquivo.ErroArquivoObra as e:

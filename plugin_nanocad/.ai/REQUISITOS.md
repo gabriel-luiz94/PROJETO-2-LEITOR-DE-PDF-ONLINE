@@ -10,7 +10,7 @@
 |---|---|---|---|
 | RQ-01 | Comando `ORCAMENTO` abre a tela com **Construir do zero**, **Ler projeto** e **Continuar obra salva**; escolha das regras do projeto (mockup A) | 🟡 | `Plugin/Telas.cs › TelaInicio`, `Comandos.Orcamento` |
 | RQ-02 | **Construir do zero**: selecionar postes (bloco + anotação) e vãos (linha + anotação); cada um ganha número; o plugin sugere os postes das pontas e a anotação, o usuário confirma ou troca (mockup B) | 🟡 | `ORC_POSTE`, `ORC_VAO`, `Nucleo/Construtor.cs` |
-| RQ-03 | **Ler projeto**: leitor por **layer + cor** (a cor decide, a layer confirma) monta postes, vãos e vínculos; sobra a conferência com filtros Ok/Conferir/Erro (mockup C) | ✅ núcleo · 🟡 CAD | `Nucleo/LeitorProjeto.cs`, `Plugin/PainelObra.cs` |
+| RQ-03 | **Ler projeto**: leitor conforme **layers, cores e precedência do projeto** monta postes, vãos e vínculos; sobra a conferência com filtros Ok/Conferir/Erro (mockup C) | ✅ núcleo · 🟡 CAD | `Nucleo/LeitorProjeto.cs`, `Plugin/PainelObra.cs` |
 | RQ-04 | Numeração: cada poste (P1…) e vão (V1…) tem número **exibido no desenho** | ✅ núcleo · 🟡 CAD | `LeitorProjeto.Numerar` (segue a rede), `Plugin/Marcas.cs` |
 | RQ-05 | Vínculo vão ⇄ poste **sempre visível** (linhas/marcas) e usado internamente com as estruturas | ✅ núcleo · 🟡 CAD | `Nucleo/Vinculador.cs`, `Marcas` (tracejado ciano) |
 | RQ-06 | **Pop-up** ao clicar num vão/poste: entrada (lida do desenho), saída (para a obra), ajustes (operação…) (mockup F) | 🟡 | `Plugin/Telas.cs › TelaElemento`, `ORC_EDITAR` |
@@ -37,7 +37,7 @@
 | ID | Requisito | Situação | Onde |
 |---|---|---|---|
 | RQ-30 | DLL pronta para o APPLOAD do **nanoCAD 26** nesta pasta | ✅ (compila contra a API real) · 🟡 carregar no CAD | `appload/nanoCAD26/OrcamentoNanoCAD.dll` |
-| RQ-31 | **nanoCAD 5** (.NET, confirmado pelo usuário): DLL gerada nesta pasta | 🟡 | `build_nanocad5.bat` → `appload/nanoCAD5/` (compila no Windows do usuário) |
+| RQ-31 | **nanoCAD 5** (.NET, confirmado pelo usuário): DLL .NET 3.5 x86 compilada e versionada | 🟡 | `build_nanocad5.bat` → `appload/nanoCAD5/` (alternativa no Windows com API instalada) |
 | RQ-32 | Núcleo independente do CAD, testável fora dele | ✅ | `src/Nucleo/`, `tests/Nucleo.Testes` |
 | RQ-33 | Uma só fonte de regras (sem terceira cópia das REGRAS) | ✅ regras · ⚠️ motor portado | ADR-001 |
 
@@ -68,7 +68,7 @@
 | RQ-70 | Painel com Cabos separados de Postes/estruturas (como o Resumo da aplicação), ícones fáceis de ver | ✅ · 🟡 CAD | `PainelObra`, `Relatorios.Cabos/Outros`, `Icones` |
 | RQ-71 | Ler mostra só o que as regras do leitor classificaram; Construir é livre (sem filtro das regras) | ✅ | `Relatorios.Visivel` |
 | RQ-72 | Atualização automática do plugin (baixa da aplicação, confere, vale ao reabrir; voltar versão) | ✅ · 🟡 CAD | `Atualizacao`, `AtualizacaoPlugin`, `/api/plugin/atualizacao` |
-| RQ-73 | DLL pronta para o nanoCAD 5 (.NET 4), degradando o que a API dele não tiver | ✅ build · 🟡 CAD | `src/nanoCAD5`, `src/ApiNanoCAD5`, `Compat` |
+| RQ-73 | DLL pronta para o nanoCAD 5 (.NET 3.5 x86), degradando o que a API dele não tiver | ✅ build · 🟡 CAD | `src/nanoCAD5`, `src/ApiNanoCAD5`, `Compat` |
 | RQ-74 | Tela inicial com todos os projetos da aplicação; regras sempre do projeto escolhido | ✅ · 🟡 CAD | `/api/plugin/projetos`, `RegrasFrescas` |
 | RQ-75 | Configuração de leitura guardada na aplicação por projeto (qualquer computador) | ✅ · 🟡 CAD | `/api/plugin/leitura`, `RegrasDe` |
 | RQ-76 | Instalado junto com o programa principal | ✅ · 🟡 Windows | `services/plugin_instalador.py`, botão "Plugin nanoCAD" |
@@ -98,3 +98,18 @@
 | 3 | Como o modo autônomo detecta o arquivo e onde grava o resultado | ❓ (RQ-40/41) |
 | 4 | Seed de vínculo de Pernambuco: VALOR DE CABO do protegido (X ou P) e se a U4 tem 1 ou 2 cabos | ❓ hoje o seed diz **P** e U4 com **2** cabos; o plugin usa o seed como está |
 | 5 | Formato dentro do DWG | **decidido**: dicionário de objetos nomeados `ORCAMENTO_LEITOR` → Xrecord `OBRA`, mesmo JSON do arquivo (ADR-003) |
+
+## Auditoria visual · TASK-028
+
+| Requisito | Status |
+|---|---|
+| Fila com detalhe da origem, busca, revisão por poste e diferenças entre leituras | ✅ núcleo · 🟡 CAD |
+| Escolher destino, destacar geometria e aplicar operação em lote com prévia | ✅ build · 🟡 CAD |
+
+## Anotações de desenho · TASK-029
+
+| Requisito | Status |
+|---|---|
+| Criar, editar, mover e reapontar MTEXT com guia | ✅ build · 🟡 CAD |
+| Auditar a layer, alternar LV e excluir MTEXT com confirmação | ✅ build · 🟡 CAD |
+| Filtrar MTEXT na análise | ✅ build 26 · 🟡 CAD |

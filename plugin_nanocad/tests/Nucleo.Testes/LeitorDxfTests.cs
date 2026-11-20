@@ -20,8 +20,7 @@ namespace OrcamentoNanoCAD.Testes
         public void Textos_e_regras_iguais_ao_leitor_da_aplicacao_no_mesmo_dxf()
         {
             Desenho d = MontadorDesenho.Montar(Bruto(), Apoio.Pernambuco.Leitura);
-            // a aplicação não lê MLEADER do DXF; fora isso, os MESMOS textos, cores e resultado das regras, na MESMA ordem
-            List<TextoLido> meus = LeitorProjeto.ClassificarTextos(d.Textos.Where(t => t.Tipo != "MLEADER"), Apoio.Pernambuco);
+            List<TextoLido> meus = LeitorProjeto.ClassificarTextos(d.Textos, Apoio.Pernambuco);
             List<JObj> app = ((List<object>)Json.Ler(File.ReadAllText(Oraculo("dxf_teste_esperado_app.json")))).Cast<JObj>().ToList();
             Assert.Equal(app.Count, meus.Count);
             for (int i = 0; i < app.Count; i++)

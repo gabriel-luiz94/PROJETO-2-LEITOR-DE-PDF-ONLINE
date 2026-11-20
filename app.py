@@ -521,11 +521,12 @@ def _iniciar_rede_adaptativa():
         logger.warning(f"Rede adaptativa não iniciou: {e}")
 
 
-# ── Atualização pelo GitHub (TASK-127): depois de abrir, apaga as sobras da atualização anterior (só o .exe desktop) ──
+# ── Atualização pelo GitHub (TASK-127/206): sincroniza a versão instalada e limpa os arquivos temporários ──
 @app.on_event("startup")
 def _limpar_residuos_da_atualizacao():
     try:
         from services import auto_updater
+        auto_updater.sincronizar_versao_instalada()
         auto_updater.limpar_residuos()
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Limpeza da atualização anterior falhou: {e}")

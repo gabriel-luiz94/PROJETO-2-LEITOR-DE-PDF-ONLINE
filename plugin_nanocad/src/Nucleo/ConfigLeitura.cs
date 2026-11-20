@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace OrcamentoNanoCAD.Nucleo
 {
@@ -14,12 +15,15 @@ namespace OrcamentoNanoCAD.Nucleo
         // rede: layer cujo nome CONTÉM um destes trechos (sem diferença de maiúsculas)
         public List<string> LayersRedeMT = new List<string> { "REDE_MT" };
         public List<string> LayersRedeBT = new List<string> { "REDE_BT" };
-        public bool CorConfirma = true;                         // vermelho = MT, verde = BT; cor que contradiz a layer descarta a linha
+        public string Regra = "COR_MANDA";
+        public object CorMT, CorBT;
+
         // poste: bloco cujo NOME contém um destes trechos, OU bloco/círculo numa destas layers
         public List<string> BlocosPoste = new List<string> { "poste" };
         public List<string> LayersPoste = new List<string>();
         // guias: vazio = qualquer linha curta fora da rede (como a aplicação); preenchido = só linhas nessas layers. LEADER/MLEADER sempre valem.
         public List<string> LayersGuia = new List<string>();
+        public double ToleranciaMetros; // zero desliga o aviso de metragem até o projeto definir uma tolerância
         public double RaioAlturas = 4;          // texto → rede/poste: até 4 × a altura do texto
         public double GuiaMaxAlturas = 40;      // linha fora da rede vale como guia até 40 × a altura típica
         public double TolPosteAlturas = 2.5;    // poste "na" rede (e blocos juntos = um poste): até 2,5 × a altura típica
@@ -35,7 +39,12 @@ namespace OrcamentoNanoCAD.Nucleo
             {
                 string x = (t ?? "").Trim().ToUpperInvariant();
                 if (x.StartsWith("=")) { if (n == x.Substring(1).Trim()) return true; continue; }
-                if (x.Length > 0 && n.Contains(x)) return true;
+                if (x.IndexOfAny(new char[] { '*', '?' }) >= 0)
+                {
+                    string expressao = Regex.Escape(x).Replace(@"\*", ".*").Replace(@"\?", ".");
+                    if (Regex.IsMatch(n, "^" + expressao + "$")) return true;
+                }
+                else if (x.Length > 0 && n.Contains(x)) return true;
             }
             return false;
         }
@@ -59,12 +68,46 @@ namespace OrcamentoNanoCAD.Nucleo
             return null;
         }
 
-        /// <summary>A layer diz se é rede; a cor confirma (se ligada). Cor neutra vale a layer; cor contrária descarta.</summary>
+        private static bool NaFaixa(JObj faixa, string canal, int valor)
+        {
+            List<object> limites = faixa.Lista(canal);
+            return limites != null && limites.Count == 2 && Json.ComoNumero(limites[0]) <= valor && valor <= Json.ComoNumero(limites[1]);
+        }
+
+        private static bool CasaCor(object especificacao, string hex, int rgb, bool padrao)
+        {
+            List<object> lista = especificacao as List<object>;
+            if (lista != null) return lista.Count == 0 ? padrao : lista.Any(x => CasaCor(x, hex, rgb, false));
+            JObj faixa = especificacao as JObj;
+            if (faixa != null)
+                return NaFaixa(faixa, "r", rgb >> 16) && NaFaixa(faixa, "g", (rgb >> 8) & 255) && NaFaixa(faixa, "b", rgb & 255);
+            string valor = (Json.ComoTexto(especificacao) ?? "").Trim();
+            if (valor.Length == 0) return padrao;
+            int aci;
+            if (int.TryParse(valor, out aci))
+            {
+                if (aci <= 0 || aci > 255) return false;
+                valor = aci == 7 ? "#ffffff" : Cores.AciParaHex(aci);
+            }
+            return string.Equals(valor, hex, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public string CorDoProjeto(string hex)
+        {
+            int rgb;
+            if (hex == null || hex.Length != 7 || !int.TryParse(hex.Substring(1), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out rgb)) return null;
+            string padrao = TipoPelaCor(hex);
+            if (CasaCor(CorMT, hex, rgb, padrao == "MT")) return "MT";
+            if (CasaCor(CorBT, hex, rgb, padrao == "BT")) return "BT";
+            return null;
+        }
+
         public string ClassificarRede(string layer, string hex)
         {
             string daLayer = TipoPelaLayer(layer);
-            if (daLayer == null || !CorConfirma) return daLayer;
-            string daCor = TipoPelaCor(hex);
+            if (Regra == "SO_LAYER") return daLayer;
+            string daCor = CorDoProjeto(hex);
+            if (Regra == "LAYER_MANDA") return daLayer ?? daCor;
             return daCor == null || daCor == daLayer ? daLayer : null;
         }
 
@@ -86,10 +129,11 @@ namespace OrcamentoNanoCAD.Nucleo
 
         public JObj ParaJson()
         {
-            return new JObj().Set("layers_rede_mt", L(LayersRedeMT)).Set("layers_rede_bt", L(LayersRedeBT)).Set("cor_confirma", CorConfirma)
+            return new JObj().Set("layers_rede_mt", L(LayersRedeMT)).Set("layers_rede_bt", L(LayersRedeBT)).Set("cor_confirma", Regra != "SO_LAYER")
+                .Set("regra", Regra).Set("cor_mt", CorMT).Set("cor_bt", CorBT)
                 .Set("blocos_poste", L(BlocosPoste)).Set("layers_poste", L(LayersPoste)).Set("layers_guia", L(LayersGuia))
                 .Set("raio_alturas", RaioAlturas).Set("guia_max_alturas", GuiaMaxAlturas).Set("tol_poste_alturas", TolPosteAlturas)
-                .Set("guia_toque_alturas", GuiaToqueAlturas).Set("raio_reserva_alturas", RaioReservaAlturas).Set("placa_regex", PlacaRegex);
+                .Set("auditoria_tolerancia_m", ToleranciaMetros).Set("guia_toque_alturas", GuiaToqueAlturas).Set("raio_reserva_alturas", RaioReservaAlturas).Set("placa_regex", PlacaRegex);
         }
 
         public static ConfigLeitura De(JObj o)
@@ -98,7 +142,10 @@ namespace OrcamentoNanoCAD.Nucleo
             if (o == null) return c;
             if (o["layers_rede_mt"] is List<object>) c.LayersRedeMT = Json.ListaDeTextos(o["layers_rede_mt"]);
             if (o["layers_rede_bt"] is List<object>) c.LayersRedeBT = Json.ListaDeTextos(o["layers_rede_bt"]);
-            c.CorConfirma = o.Bool("cor_confirma", true);
+            string regra = (o.Str("regra") ?? "").Trim().ToUpperInvariant();
+            c.Regra = regra == "SO_LAYER" || regra == "LAYER_MANDA" || regra == "COR_MANDA" ? regra : (o.Bool("cor_confirma", true) ? "COR_MANDA" : "SO_LAYER");
+            c.CorMT = o["cor_mt"];
+            c.CorBT = o["cor_bt"];
             if (o["blocos_poste"] is List<object>) c.BlocosPoste = Json.ListaDeTextos(o["blocos_poste"]);
             if (o["layers_poste"] is List<object>) c.LayersPoste = Json.ListaDeTextos(o["layers_poste"]);
             if (o["layers_guia"] is List<object>) c.LayersGuia = Json.ListaDeTextos(o["layers_guia"]);
@@ -106,6 +153,7 @@ namespace OrcamentoNanoCAD.Nucleo
             c.GuiaMaxAlturas = Positivo(o.Num("guia_max_alturas"), 40);
             c.TolPosteAlturas = Positivo(o.Num("tol_poste_alturas"), 2.5);
             c.GuiaToqueAlturas = Positivo(o.Num("guia_toque_alturas"), 6);
+            c.ToleranciaMetros = Math.Max(0, o.Num("auditoria_tolerancia_m") ?? 0);
             c.RaioReservaAlturas = Positivo(o.Num("raio_reserva_alturas"), 12);
             if (o.Has("placa_regex")) c.PlacaRegex = o.Str("placa_regex") ?? "";
             return c;

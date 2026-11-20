@@ -1,4 +1,4 @@
-// Nucleo/Json.cs — JSON mínimo, sem dependências (o nanoCAD 5 roda em .NET Framework 4.0, sem System.Text.Json).
+// Nucleo/Json.cs — JSON mínimo, sem dependências (o nanoCAD 5 roda em .NET Framework 3.5, sem System.Text.Json).
 // Objetos viram JObj (mantém a ordem das chaves), listas viram List<object>, números viram double.
 // C# 5: este arquivo também é compilado pelo csc do .NET Framework (build_nanocad5.bat).
 using System;

@@ -3,23 +3,43 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.12.0
+
+TASK-029 integra os comandos de notas e a auditoria de layers. O build do 5 usa referências geradas. A execução no 5 e no 26, incluindo atualização após comandos nativos e desfazer, aguarda validação no Windows.
+
+## Plugin 0.11.0
+
+TASK-028 implementa a fila de pendências, revisão por poste, alterações entre leituras, destaque temporário e operação em lote. Validação da interface e dos gráficos no nanoCAD 5 e 26 pendente.
+
+## Distribuição 0.10.4
+
+Build do 5 em x86/.NET 3.5 conferido pelos metadados do binário. A compatibilidade dos comandos com a API instalada segue pendente. O fornecedor distribui a versão 5 mediante login.
+
+## Validação pendente em 19/11/2026
+
+TASK-025 e TASK-026: plugin 0.10.3, N3 removido na tabela Outros e teste de paridade incluindo chamadas múltiplas. A abertura no Windows depende também da correção no OrçaCore (TASK-197). Testar com a nota real nas duas versões do nanoCAD.
+
+## Trabalho de 19/11/2026
+
+TASK-022 (leitura), TASK-023 (alocação por poste) e TASK-024 (painel) implementadas para teste. Conferência operacional pendente no nanoCAD 5 e 26. A comparação de vínculos cobre o exemplo de Pernambuco; regras avançadas de derivação, parâmetros herdados e elementos fictícios exigem casos adicionais.
+
 ## Versão
 
-`0.10.1` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
+`0.10.3` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
 
-Branch de trabalho: `ccr-7ee2beaa-e39rup`
+Branch de trabalho: `codex/nanocad-paridade`
 
 ## Entregáveis
 
 | Arquivo | Situação |
 |---|---|
 | `appload/nanoCAD26/OrcamentoNanoCAD.dll` | ✅ compila contra a API real do nanoCAD 26 (`hostmgd`/`hostdbmgd` net6.0) · 🟡 carregar no nanoCAD 26 |
-| `build_nanocad5.bat` → `appload/nanoCAD5/OrcamentoNanoCAD.dll` | 🟡 núcleo conferido em .NET 4/C# 5; a camada do CAD só compila no Windows com o nanoCAD 5 |
+| `build_nanocad5.bat` → `appload/nanoCAD5/OrcamentoNanoCAD.dll` | ✅ build .NET 3.5 x86/C# 5 com referências geradas · 🟡 teste no host real |
 | `exemplos/Projeto_Rua_das_Flores.obra.json` | ✅ importado pela API no teste de contrato |
 
 ## Implementado
 
-- [x] (aplicação, TASK-166) o programa refaz o vínculo cabo ⇄ estrutura **por poste** ao abrir o `.obra` do plugin (usa `_geo` do vão e `_poste`); o vínculo guloso do `Vinculador.cs` fica como pré-visão no CAD. ⏳ Portar o algoritmo por poste para o C# (precisa de .NET no ambiente).
+- [x] TASK-023: o núcleo distribui cabos pelas estruturas de cada poste em ordem de regra. Vínculo manual ocupa a unidade e conserva as pontas escolhidas.
 
 ### Núcleo (sem CAD) — ✅
 - [x] Motor do leitor portado (`MotorLeitor`), paridade com o JS em 39 casos (Pernambuco 081 + padrão)
@@ -63,7 +83,7 @@ Branch de trabalho: `ccr-7ee2beaa-e39rup`
 ### "Abrir na aplicação" no GridReader deste computador (TASK-016, 0.8.0) — ✅ · 🟡 Windows
 
 ### nanoCAD 5 pronto + projetos e leitura da aplicação (TASK-014/015, 0.7.0) — ✅ núcleo, API e build · 🟡 CAD
-- [x] `appload/nanoCAD5/OrcamentoNanoCAD.dll` (.NET 4) gerada aqui contra `src/ApiNanoCAD5` (gerador `ferramentas/GerarApiNanoCAD5`); `Compat` desliga o que faltar
+- [x] `appload/nanoCAD5/OrcamentoNanoCAD.dll` (.NET 3.5 x86) gerada aqui contra `src/ApiNanoCAD5` (gerador `ferramentas/GerarApiNanoCAD5`); `Compat` desliga o que faltar
 - [x] Tela inicial com todos os projetos da aplicação; regras sempre do projeto; configuração de leitura na aplicação (vale em qualquer computador)
 - [x] Programa principal traz e instala as duas DLLs (TASK-131 do principal)
 - [ ] Testar no nanoCAD 5 de verdade: carregar a DLL, `ORC_AJUDA` mostra os recursos indisponíveis; mandar o log se não carregar

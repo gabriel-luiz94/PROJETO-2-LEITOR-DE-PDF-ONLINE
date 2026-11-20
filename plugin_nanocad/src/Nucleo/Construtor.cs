@@ -140,7 +140,7 @@ namespace OrcamentoNanoCAD.Nucleo
             v.Pontos = new List<Ponto>(linha.Pontos);
             v.LinhaLayer = linha.Layer;
             v.LinhaCor = linha.Cor;
-            v.Tipo = regras.Leitura.ClassificarRede(linha.Layer, linha.Cor) ?? ConfigLeitura.TipoPelaCor(linha.Cor) ?? "";
+            v.Tipo = regras.Leitura.ClassificarRede(linha.Layer, linha.Cor) ?? (regras.Leitura.Regra == "SO_LAYER" ? null : regras.Leitura.CorDoProjeto(linha.Cor)) ?? "";
             v.PosteA = a != null ? a.Numero : null;
             v.PosteB = b != null ? b.Numero : null;
             TextoLido tl = LerAnotacao(textos, regras, "CABO", desenho);
@@ -414,9 +414,11 @@ namespace OrcamentoNanoCAD.Nucleo
         public static void ReaplicarAjustes(Obra nova, Obra antiga, RegrasProjeto regras)
         {
             if (antiga == null) return;
+            nova.Conferidos = antiga.Conferidos;
+            nova.LeituraAnterior = Auditoria.Fotografar(antiga);
             foreach (Poste pa in antiga.Postes)
             {
-                Poste pn = nova.Postes.FirstOrDefault(x => !string.IsNullOrEmpty(pa.TextoHandle) && x.TextoHandle == pa.TextoHandle)
+                Poste pn = nova.Postes.FirstOrDefault(x => !string.IsNullOrEmpty(pa.TextoHandle) && x.TextoHandle == pa.TextoHandle && x.ParteTexto == pa.ParteTexto)
                         ?? nova.Postes.FirstOrDefault(x => !string.IsNullOrEmpty(pa.Handle) && x.Handle == pa.Handle && x.IrmaoDe == null);
                 if (pn == null) continue;
                 if (pa.Excluido) pn.Excluido = true;
@@ -427,7 +429,7 @@ namespace OrcamentoNanoCAD.Nucleo
             foreach (Vao va in antiga.Vaos)
             {
                 // pela anotação primeiro (vários vãos "irmãos" dividem a mesma linha), depois pela linha
-                Vao vn = nova.Vaos.FirstOrDefault(x => !string.IsNullOrEmpty(va.TextoHandle) && x.TextoHandle == va.TextoHandle)
+                Vao vn = nova.Vaos.FirstOrDefault(x => !string.IsNullOrEmpty(va.TextoHandle) && x.TextoHandle == va.TextoHandle && x.ParteTexto == va.ParteTexto)
                       ?? nova.Vaos.FirstOrDefault(x => x.LinhaHandle == va.LinhaHandle && x.Trecho == va.Trecho && x.IrmaoDe == null);
                 if (vn != null && va.Excluido) vn.Excluido = true;
                 if (vn == null || vn.TextoHandle != va.TextoHandle) continue;
@@ -452,7 +454,7 @@ namespace OrcamentoNanoCAD.Nucleo
                 {
                     // linha adicionada à mão (digitada ou lida de um texto escolhido): volta como estava — a não ser que a leitura
                     // agora já pegue aquele texto (aí vale a leitura, para não ficar em dobro)
-                    if (!string.IsNullOrEmpty(aa.TextoHandle) && nova.Elementos.Any(x => x.TextoHandle == aa.TextoHandle)) continue;
+                    if (!string.IsNullOrEmpty(aa.TextoHandle) && nova.Elementos.Any(x => x.TextoHandle == aa.TextoHandle && x.ParteTexto == aa.ParteTexto)) continue;
                     Avulso c = new Avulso();
                     c.Numero = aa.Numero; c.Manual = true; c.Entidade = aa.Entidade; c.AtivoLido = aa.AtivoLido; c.TextoOriginal = aa.TextoOriginal;
                     c.OperacaoLida = aa.OperacaoLida; c.Operacao = aa.Operacao; c.AtivoDoDesenho = aa.AtivoDoDesenho; c.Excluido = aa.Excluido;
@@ -460,7 +462,7 @@ namespace OrcamentoNanoCAD.Nucleo
                     nova.Avulsos.Add(c);
                     continue;
                 }
-                Avulso an = nova.Avulsos.FirstOrDefault(x => !string.IsNullOrEmpty(aa.TextoHandle) && x.TextoHandle == aa.TextoHandle);
+                Avulso an = nova.Avulsos.FirstOrDefault(x => !string.IsNullOrEmpty(aa.TextoHandle) && x.TextoHandle == aa.TextoHandle && x.ParteTexto == aa.ParteTexto);
                 if (an == null) continue;
                 if (aa.Excluido) an.Excluido = true;
                 LevarAtivo(aa, an);

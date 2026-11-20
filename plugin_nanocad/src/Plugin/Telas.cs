@@ -170,13 +170,15 @@ namespace OrcamentoNanoCAD.UI
     {
         public ConfigLeitura Resultado;
         private readonly TextBox _mt, _bt, _blocos, _layersPoste, _layersGuia;
-        private readonly CheckBox _cor;
-        private readonly NumericUpDown _raio, _guia, _tol, _toque, _reserva;
+        private readonly ComboBox _regra;
+        private readonly ConfigLeitura _original;
+        private readonly NumericUpDown _raio, _guia, _tol, _toque, _reserva, _metros;
         private readonly TextBox _placa;
 
         public TelaLeitura(RegrasProjeto regras, IEnumerable<string> layersDoDesenho, IEnumerable<string> blocosDoDesenho)
         {
             ConfigLeitura c = regras.Leitura ?? new ConfigLeitura();
+            _original = c;
             Text = "⚙ Configurar leitura — " + regras.Nome;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false;
@@ -186,15 +188,18 @@ namespace OrcamentoNanoCAD.UI
             Padding = new Padding(16);
             FlowLayoutPanel f = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false };
             f.Controls.Add(Visual.Rotulo("Onde o plugin procura a rede, os postes e as linhas guias neste padrão de desenho.\n"
-                + "Listas separadas por vírgula; vale quando o nome CONTÉM o trecho (sem diferença de maiúsculas); \"=NOME\" = nome exato (ex.: =0).", Visual.Normal, Visual.Suave));
+                + "Listas separadas por vírgula; vale quando o nome CONTÉM o trecho (sem diferença de maiúsculas); \"=NOME\" = nome exato (ex.: =0). Use * ou ? para um padrão de nome.", Visual.Normal, Visual.Suave));
             f.Controls.Add(Visual.Rotulo(regras.DaAplicacao && Conexao.Logado
                 ? (regras.LeituraDaAplicacao ? "✔ Guardada na aplicação para este projeto: vale em todos os computadores." : "Ao salvar, fica guardada na aplicação para este projeto (vale em todos os computadores).")
                 : "Guardada só neste computador (para guardar na aplicação: conecte-se e escolha as regras \"Aplicação: …\").",
                 Visual.Normal, regras.LeituraDaAplicacao ? Visual.Ok : Visual.Suave));
             _mt = Campo(f, "Layers da rede de MÉDIA tensão", string.Join(", ", c.LayersRedeMT.ToArray()));
             _bt = Campo(f, "Layers da rede de BAIXA tensão", string.Join(", ", c.LayersRedeBT.ToArray()));
-            _cor = new CheckBox { Text = "A cor confirma a layer (vermelho = MT, verde = BT; cor contrária descarta a linha)", Checked = c.CorConfirma, AutoSize = true };
-            f.Controls.Add(_cor);
+            f.Controls.Add(Visual.Rotulo("Como identificar a rede", Visual.Normal, Visual.Suave));
+            _regra = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 420 };
+            _regra.Items.AddRange(new object[] { "Layer de rede confirmada pela cor", "Layer primeiro, cor nas demais layers", "Somente a layer" });
+            _regra.SelectedIndex = c.Regra == "SO_LAYER" ? 2 : c.Regra == "LAYER_MANDA" ? 1 : 0;
+            f.Controls.Add(_regra);
             _blocos = Campo(f, "Blocos de POSTE (trecho do nome do bloco)", string.Join(", ", c.BlocosPoste.ToArray()));
             _layersPoste = Campo(f, "…ou layers de poste (qualquer bloco ou círculo nelas é poste)", string.Join(", ", c.LayersPoste.ToArray()));
             _layersGuia = Campo(f, "Layers das linhas guias (vazio = qualquer linha curta fora da rede; LEADER e MLEADER sempre valem)", string.Join(", ", c.LayersGuia.ToArray()));
@@ -207,6 +212,10 @@ namespace OrcamentoNanoCAD.UI
             _toque = Numero(nums2, "Guia começa a até (× altura do texto)", c.GuiaToqueAlturas);
             _reserva = Numero(nums2, "Sem guia: elemento livre até (× altura)", c.RaioReservaAlturas);
             f.Controls.Add(nums2);
+            FlowLayoutPanel auditoria = new FlowLayoutPanel { AutoSize = true };
+            _metros = Numero(auditoria, "Conferir diferença de comprimento acima de (m; 0 desliga)", c.ToleranciaMetros);
+            _metros.Minimum = 0; _metros.Value = (decimal)Math.Min(c.ToleranciaMetros, 1000);
+            f.Controls.Add(auditoria);
             _placa = Campo(f, "Placa do poste (expressão regular; vazio = não procurar)", c.PlacaRegex);
             Label ajuda = Visual.Rotulo("Layers deste desenho: " + Resumir(layersDoDesenho) + "\nBlocos deste desenho: " + Resumir(blocosDoDesenho), Visual.Normal, Visual.Suave);
             ajuda.MaximumSize = new Size(640, 0);
@@ -247,10 +256,10 @@ namespace OrcamentoNanoCAD.UI
 
         private void Salvar()
         {
-            ConfigLeitura c = new ConfigLeitura();
+            ConfigLeitura c = _original.Copia();
             c.LayersRedeMT = ConfigLeitura.Lista(_mt.Text);
             c.LayersRedeBT = ConfigLeitura.Lista(_bt.Text);
-            c.CorConfirma = _cor.Checked;
+            c.Regra = _regra.SelectedIndex == 2 ? "SO_LAYER" : _regra.SelectedIndex == 1 ? "LAYER_MANDA" : "COR_MANDA";
             c.BlocosPoste = ConfigLeitura.Lista(_blocos.Text);
             c.LayersPoste = ConfigLeitura.Lista(_layersPoste.Text);
             c.LayersGuia = ConfigLeitura.Lista(_layersGuia.Text);
@@ -258,6 +267,7 @@ namespace OrcamentoNanoCAD.UI
             c.GuiaMaxAlturas = (double)_guia.Value;
             c.TolPosteAlturas = (double)_tol.Value;
             c.GuiaToqueAlturas = (double)_toque.Value;
+            c.ToleranciaMetros = (double)_metros.Value;
             c.RaioReservaAlturas = (double)_reserva.Value;
             c.PlacaRegex = (_placa.Text ?? "").Trim();
             if (c.LayersRedeMT.Count + c.LayersRedeBT.Count == 0 || c.BlocosPoste.Count + c.LayersPoste.Count == 0)

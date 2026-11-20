@@ -1,4 +1,4 @@
-"""TASK-197 — Pernambuco: estrutura solta (N3, B2, 2 N3, N1(XLPE,DT)…) classifica como ESTRUTURA; poste, cabo e materiais não mudam."""
+"""TASK-207 — Pernambuco: estrutura solta (N3, B2, 2 N3, N1(XLPE,DT)…) classifica como ESTRUTURA; poste, cabo e materiais não mudam."""
 import json
 import os
 import shutil
@@ -29,7 +29,7 @@ def test_estrutura_solta_vira_estrutura_e_o_resto_continua():
 def test_seed_novo_e_valido_e_seed_antigo_do_pacote_e_atualizado():
     from routers.regras_leitor import validar_regras, _hash_regras
     cls = json.load(open(os.path.join(D, "regras_leitor_classificacao_pernambuco_seed.json"), encoding="utf-8"))
-    assert validar_regras("classificacao", cls) == [] and [r["entidade"] for r in cls] == ["POSTE", "CABO", "ESTRUTURA"]
+    assert validar_regras("classificacao", cls) == [] and cls[-1]["entidade"] == "ESTRUTURA" and cls[-1]["ordem"] == 30
     man = json.load(open(os.path.join(D, "pacotes", "081", "manifest.json"), encoding="utf-8"))
-    antigo = cls[:2]                                                       # o seed de antes desta tarefa (só poste e cabo) é reconhecido como «intocado»
+    antigo = cls[:-1]                                                      # o seed de antes desta tarefa (sem a regra de estrutura solta) é reconhecido como «intocado»
     assert _hash_regras(antigo) in man["seeds_antigos"]["classificacao"] and _hash_regras(cls) not in man["seeds_antigos"]["classificacao"]

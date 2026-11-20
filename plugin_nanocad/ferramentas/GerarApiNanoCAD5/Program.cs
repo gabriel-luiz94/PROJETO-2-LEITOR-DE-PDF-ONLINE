@@ -1,5 +1,5 @@
 // GerarApiNanoCAD5 — gera src/ApiNanoCAD5/hostmgd.cs e hostdbmgd.cs: declarações (sem corpo de verdade) de TUDO que o plugin usa da API
-// do nanoCAD, com os mesmos nomes, namespaces e assinaturas da API (lidos do nanoCAD 26). Compiladas para .NET 4, viram as referências
+// do nanoCAD, com os mesmos nomes, namespaces e assinaturas da API (lidos do nanoCAD 26). Compiladas para .NET 3.5, viram as referências
 // para gerar a DLL do nanoCAD 5 aqui (não existe pacote da API do nanoCAD 5). Em tempo de execução, o nanoCAD 5 usa as DLLs dele
 // (hostmgd/hostdbmgd, sem assinatura forte): o que existir lá com o mesmo nome e assinatura funciona; o que não existir só falha no
 // trecho isolado que o usa (ver Plugin/Compat.cs).
@@ -98,7 +98,7 @@ static class Program
         {
             var sb = new StringBuilder();
             sb.AppendLine("// GERADO por ferramentas/GerarApiNanoCAD5 — não editar à mão. Só as declarações que o plugin usa da API do nanoCAD (" + asm + "),");
-            sb.AppendLine("// para compilar a DLL do nanoCAD 5 (.NET 4). Em tempo de execução valem as DLLs do próprio nanoCAD.");
+            sb.AppendLine("// para compilar a DLL do nanoCAD 5 (.NET 3.5). Em tempo de execução valem as DLLs do próprio nanoCAD.");
             sb.AppendLine("#pragma warning disable 67, 108, 114, 169, 649, 659, 660, 661, 809");
             foreach (var g in Usados.Keys.Where(t => t.ContainingAssembly.Name == asm && t.ContainingType == null).GroupBy(t => t.ContainingNamespace.ToDisplayString()).OrderBy(g => g.Key))
             {
@@ -140,8 +140,9 @@ static class Program
     {
         if (s == null) return;
         s = s.OriginalDefinition;
-        if (s is IMethodSymbol ms && ms.MethodKind == MethodKind.PropertyGet || s is IMethodSymbol ms2 && ms2.MethodKind == MethodKind.PropertySet)
-            s = ((IMethodSymbol)s).AssociatedSymbol!;
+        if (s is IMethodSymbol acessor && (acessor.MethodKind == MethodKind.PropertyGet || acessor.MethodKind == MethodKind.PropertySet
+            || acessor.MethodKind == MethodKind.EventAdd || acessor.MethodKind == MethodKind.EventRemove))
+            s = acessor.AssociatedSymbol!;
         if (s is IMethodSymbol red && red.ReducedFrom != null) s = red.ReducedFrom;
         if (!DaApi(s)) return;
         var t = s.ContainingType;
@@ -244,7 +245,7 @@ static class Program
                         if (par != null && !usados.OfType<IMethodSymbol>().Any(x => x.Name == par))
                             sb.AppendLine(i2 + "public static " + N(m.ReturnType) + " operator " + Operador(par) + "(" + Params(m, false) + ") { throw null; }");
                     }
-                    else if (m.MethodKind == MethodKind.Ordinary || m.MethodKind == MethodKind.EventAdd)
+                    else if (m.MethodKind == MethodKind.Ordinary)
                     {
                         string mod = interfaceT ? "" : Acesso(m) + (m.IsStatic ? "static " : "") + ((m.IsVirtual || m.IsOverride || m.IsAbstract) && !t.IsSealed && t.TypeKind == TypeKind.Class ? "virtual " : "");
                         string corpo = interfaceT ? ";" : " { throw null; }";

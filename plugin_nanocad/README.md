@@ -13,9 +13,9 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 | nanoCAD | Arquivo para o APPLOAD | Como obter |
 |---|---|---|
 | **26** (.NET 6+) | [`appload/nanoCAD26/OrcamentoNanoCAD.dll`](appload/nanoCAD26/) | já vem pronto nesta pasta |
-| **5** (.NET Framework 4) | [`appload/nanoCAD5/OrcamentoNanoCAD.dll`](appload/nanoCAD5/) | já vem pronto; o que a API do nanoCAD 5 não oferece é desligado sozinho (`ORC_AJUDA` lista). Se não carregar: `build_nanocad5.bat` no Windows com o nanoCAD 5 instalado (compila contra as DLLs dele) |
+| **5** (.NET Framework 3.5) | [`appload/nanoCAD5/OrcamentoNanoCAD.dll`](appload/nanoCAD5/) | DLL x86 para o runtime CLR 2. A confirmação do carregamento no nanoCAD 5 está pendente. Alternativa com o SDK instalado: `build_nanocad5.bat` no Windows com o nanoCAD 5 instalado (compila contra as DLLs dele) |
 
-**Junto com o programa principal:** o `GridR.exe` (antes `Leitor_Projetos.exe`) traz as duas DLLs e as instala em `%APPDATA%\OrcamentoNanoCAD\plugin\<nanoCAD26|nanoCAD5>\`
+**Junto com o programa principal:** o `OrcaCore.exe` traz as duas DLLs e as instala em `%APPDATA%\OrcamentoNanoCAD\plugin\<nanoCAD26|nanoCAD5>\`
 (botão **Plugin nanoCAD** na tela inicial do programa: caminho, versão, instalar agora). No nanoCAD, uma vez: `APPLOAD` → **Inicialização** → adicionar esse arquivo.
 
 1. No nanoCAD: `APPLOAD` (ou `NETLOAD`) → escolha a DLL. Para carregar sempre, adicione-a à lista de inicialização do APPLOAD.
@@ -27,6 +27,23 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
    (**+ Cabo** / **+ Outros**). Tudo isso sobrevive ao ↻ Atualizar. Depois **Salvar**.
 4. **🌐 Abrir na aplicação** (`ORC_ABRIR_APP`): salva o projeto e o abre no OrçaCore deste computador (aberto: a janela vem para a frente
    com o projeto; fechado: o programa abre já com ele). Ou, no OrçaCore: 📁 Projeto → Abrir → `<desenho>.obra`. Nada é gravado no banco.
+
+### Conferir uma leitura
+
+- Abra **Pendências** para ver avisos sobre destino, vínculos, duplicidades, operação e textos de interesse fora da obra. Use **Buscar** ou selecione o poste pela placa.
+- Um clique destaca a anotação e a geometria. Duplo clique aproxima a vista. **Conferido** avança a fila. **Só mudanças** compara o resultado com a leitura anterior após **Atualizar leitura**.
+- **Escolher destino** permite confirmar um dos candidatos exibidos. **Ajustar** abre os campos de ativo, operação, metros e vínculos para o item selecionado.
+- Use Ctrl ou Shift para selecionar várias linhas e abrir **Operação em lote**. A prévia mostra o que mudará na obra e oferece uma opção explícita para trocar a layer do texto no DWG.
+- Em **Conferir → Cores por operação**, vermelho indica instalação, magenta indica remoção e azul indica reaplicação. O asterisco e o rótulo LV identificam linha viva. O modo usa marcas temporárias.
+- Em **Configurações → Leitura do desenho**, configure a tolerância de metragem em metros para o projeto. O valor inicial zero desativa esse aviso. O detalhe do vão sempre pode mostrar as três medidas disponíveis.
+
+### Anotações e auditoria de layers
+
+- **Anotações → Criar nota** (`ORC_NOTA`) cria um MTEXT com operação, altura, alinhamento e guia opcional. **Editar nota** e **Mover nota** trabalham com MTEXT. No movimento, você pode selecionar textos acompanhantes, alinhar o grupo ou limitar o deslocamento à vertical.
+- **Reapontar guia** (`ORC_REAPONTAR_NOTA`) associa uma nota a outro objeto. **Atualizar guias** recalcula os extremos. A atualização automática usa os eventos de movimento do nanoCAD quando disponíveis.
+- **Auditoria de layers** (`ORC_AUDITAR_LAYERS`) lista as notas por operação e as que estão fora. Ctrl+A seleciona a aba. Um clique destaca e duplo clique aproxima. Alterar layers, alternar LV e excluir usam os comandos de desenho. A exclusão pede confirmação.
+- A aba **Análise** permite atribuir operações apontando no desenho. O filtro de visibilidade do 26 atua na viewport. No 5, o filtro controla as marcas de análise.
+- Use **Atualizar leitura** após editar o DWG para incorporar as mudanças à obra e enviar a versão revisada ao OrçaCore.
 
 ### Comandos
 
@@ -96,8 +113,8 @@ plugin_nanocad/
 ├── src/Nucleo/           lógica SEM CAD (leitura, regras, vínculo, .obra.json) — testável no Linux
 ├── src/Plugin/           camada do nanoCAD (comandos, telas, DWG, marcas na tela)
 ├── tests/Nucleo.Testes/  testes xUnit do núcleo (inclui paridade com o JS/Python da aplicação)
-├── tests/Net40/          confere que o núcleo compila como o nanoCAD 5 exige (.NET 4 / C# 5)
-├── src/nanoCAD5/         projeto da DLL do nanoCAD 5 (.NET 4), mesmo código
+├── tests/Net40/          verificação adicional do núcleo em .NET 4 / C# 5
+├── src/nanoCAD5/         projeto da DLL do nanoCAD 5 (.NET 3.5), mesmo código
 ├── src/ApiNanoCAD5/      referências da API (só o que o plugin usa), GERADAS por ferramentas/GerarApiNanoCAD5
 ├── tests/oraculo/        oráculos: rodam o código da APLICAÇÃO para gerar o esperado
 ├── build_nanocad5.bat    compila para o nanoCAD 5 no Windows

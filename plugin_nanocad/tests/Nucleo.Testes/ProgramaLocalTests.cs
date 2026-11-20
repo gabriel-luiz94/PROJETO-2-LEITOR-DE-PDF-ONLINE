@@ -59,6 +59,10 @@ namespace OrcamentoNanoCAD.Testes
             JObj enviado = (JObj)Json.Ler(corpo);
             Assert.Equal(@"C:\obras\Rua.obra", enviado.Str("caminho"));
             Assert.Null(enviado["envelope"]);                                            // TASK-020: só o caminho, nada para o banco
+            t.Rotas["POST /api/plugin/receber"] = (c, tok) => TransporteFalso.Ok(@"{""id"":""x"",""janela"":false}");
+            Assert.Contains("indisponível", ProgramaLocal.EntregarProjeto(t, 8000, "a", "b.obra"));
+            t.Rotas["POST /api/plugin/receber"] = (c, tok) => new RespostaHttp { Status = 0, Erro = "tempo esgotado" };
+            Assert.Equal("tempo esgotado", ProgramaLocal.EntregarProjeto(t, 8000, "a", "b.obra"));
             TransporteFalso antigo = new TransporteFalso();
             antigo.Rotas["POST /api/plugin/receber"] = (c, tok) => new RespostaHttp { Status = 422, Corpo = "{\"detail\":[]}" };
             Assert.Contains("versão antiga", ProgramaLocal.EntregarProjeto(antigo, 8000, "a", "b.obra"));

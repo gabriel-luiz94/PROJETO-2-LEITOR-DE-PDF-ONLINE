@@ -4,7 +4,7 @@
     Plugin do nanoCAD 26 (APPLOAD/NETLOAD). Gera UMA DLL: núcleo (src/Nucleo) + camada do CAD (src/Plugin) + regras embutidas.
     Compilar:  dotnet build src/OrcamentoNanoCAD.csproj -c Release   (ou compilar.sh / compilar_nanocad26.bat)
     Saída:     appload/nanoCAD26/OrcamentoNanoCAD.dll
-    nanoCAD 5 (.NET Framework 4): build_nanocad5.bat, com as DLLs do próprio nanoCAD 5 instalado.
+    nanoCAD 5 (.NET Framework 3.5): build_nanocad5.bat, com as DLLs do próprio nanoCAD 5 instalado.
   -->
   <PropertyGroup>
     <TargetFramework>net6.0-windows</TargetFramework>

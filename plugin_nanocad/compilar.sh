@@ -9,7 +9,7 @@ dotnet test tests/Nucleo.Testes -c Release --nologo
 dotnet build tests/Net40 -c Release --nologo -v q
 rm -rf src/bin src/obj
 dotnet build src/OrcamentoNanoCAD.csproj -c Release --nologo -v q
-# nanoCAD 5 (.NET 4): mesmo código, contra as referências geradas em src/ApiNanoCAD5 (ferramentas/GerarApiNanoCAD5)
+# nanoCAD 5 (.NET 3.5): mesmo código, contra as referências geradas em src/ApiNanoCAD5 (ferramentas/GerarApiNanoCAD5)
 rm -rf src/nanoCAD5/bin src/nanoCAD5/obj
 dotnet build src/nanoCAD5/OrcamentoNanoCAD5.csproj -c Release --nologo -v q
 # manifestos da atualização automática (a aplicação serve DLL + versão + SHA-256 em /api/plugin/atualizacao)

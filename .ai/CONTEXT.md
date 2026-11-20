@@ -71,6 +71,8 @@ pelo próprio FastAPI. Estado de trabalho trafega entre páginas via `localStora
 
 ---
 
+As releases Windows distribuem o executável portátil e o instalador por usuário. A instalação usa uma pasta gravável da conta atual para conservar a atualização pelo próprio aplicativo. [TASK-206](tasks/TASK-206-20-11-2026.md).
+
 ## 3. Fluxo geral
 
 ```
@@ -97,6 +99,8 @@ RESULTADO                  Lista {operacao, mdo, codigo, desc_codigo, filtro, to
     ↓
 ARMAZENAMENTO              historico_rec (SQLite + Supabase), exportação .rec / CSV
 ```
+
+O Assistente de IA consulta a base e as regras do projeto. Em **Vinculação → Mapa**, a ação no poste ou no vão leva a seleção para o chat. Propostas de alteração aparecem em um cartão com as operações, avisos e a opção de simular o orçamento. A confirmação usa a revisão atual da obra e o histórico do Resumo. Orientações permanentes são publicadas pelo administrador em Skills, com revisão por código de projeto. [TASK-204](tasks/TASK-204-20-11-2026.md) · [TASK-205](tasks/TASK-205-20-11-2026.md).
 
 Diagramas por componente e detalhamento de cada etapa: ver [ARCHITECTURE.md](ARCHITECTURE.md).
 

@@ -203,5 +203,25 @@
     "entidade": "0"
    }
   ]
+ },
+ {
+  "nome": "pe_estrutura_removida_com_metragem_de_outro_item",
+  "resultados": [
+   {
+    "operacao": "R",
+    "ativo": "N3",
+    "entidade": "ESTRUTURA"
+   },
+   {
+    "operacao": "0",
+    "ativo": "",
+    "entidade": "0"
+   },
+   {
+    "operacao": "R",
+    "ativo": "3xA185P(7,94)-13,8kV 23 m",
+    "entidade": "CABO"
+   }
+  ]
  }
 ]

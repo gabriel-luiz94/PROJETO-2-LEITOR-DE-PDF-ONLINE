@@ -85,3 +85,13 @@ def test_build_bat_e_release_levam_as_duas_dlls():
     assert "plugin_nanocad\\appload\\nanoCAD26" in bat and "plugin_nanocad\\appload\\nanoCAD5" in bat
     wf = (RAIZ / ".github" / "workflows" / "release-exe.yml").read_text(encoding="utf-8")
     assert "OrcamentoNanoCAD_nanoCAD5.dll" in wf and "OrcamentoNanoCAD_nanoCAD26.dll" in wf
+
+
+def test_repara_dll_do_5_quando_manifesto_indica_versao_atual(pastas):
+    _, destino = pastas
+    inst.instalar()
+    dll = destino / "nanoCAD5" / inst.ARQUIVO_DLL
+    dll.write_bytes(b"MZ 26 nova")
+    assert _res(inst.situacao())["nanocad5"]["desatualizado"]
+    assert _res(inst.instalar())["nanocad5"]["resultado"] == "instalado"
+    assert dll.read_bytes() == b"MZ 5 nova"

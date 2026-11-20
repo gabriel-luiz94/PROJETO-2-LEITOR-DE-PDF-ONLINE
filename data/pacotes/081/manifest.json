@@ -11,11 +11,13 @@
   "processamento": [
    "61b1e6a0190cd624b09878757863079deaf30720cbabb760a75e0dcd7f1de80e",
    "bac6fd1b89180f69de1c6c3810901c861fc3fa4e81254a0df26503dc4ff52762",
-   "d19e5bc3766d9fb636e280ef0322eb1aa7547fc5eb6a50a3c5009e978822ffb9"
+   "d19e5bc3766d9fb636e280ef0322eb1aa7547fc5eb6a50a3c5009e978822ffb9",
+   "d84d9c213a4e3599ac5e3054baae43de0e7efa07e9530d5fa00be1aaf23d28c8"
   ],
   "classificacao": [
    "57fb6f798e810ba373d059e285b6c122c76841cb6129b62de1f26ac986ca968e",
-   "40dc87c3939edaec9b5599fef9d4cb3eb8fb51f5ddefe055461aabcfa7372baf"
+   "40dc87c3939edaec9b5599fef9d4cb3eb8fb51f5ddefe055461aabcfa7372baf",
+   "449dca5c297773956aaf907167dd0d8f9cbae79f23f96e4fa5fa5784833ce3e3"
   ]
  },
  "partes": {
@@ -27,5 +29,26 @@
   "postes": "postes.json",
   "desenho": "leitura_desenho.json",
   "exportacao": "exportacao.json"
+ },
+ "complementos_leitor": {
+  "processamento": {
+   "9fc7a95ab6a038fb61c0820451125896e9d4933e6e1c6eea310a4d309972cd9c": [
+    "estrutura-n3-remocao"
+   ],
+   "b1f299ff0f35d1ec0a49fa0a2c65b9c887f699dd4dc7f5eceb76c9fa7afa3e70": [
+    "anotacao-layer-23",
+    "anotacao-layer-24",
+    "anotacao-layer-25",
+    "anotacao-layer-26",
+    "anotacao-layer-27",
+    "anotacao-layer-28"
+   ]
+  },
+  "classificacao": {
+   "88e0e1a2ff38cb724b4925c9c574f5b7286373b07d48f35644c5debc91397a30": [
+    "estrutura-n3-remocao",
+    "estrutura-n3-remocao-lv"
+   ]
+  }
  }
 }
