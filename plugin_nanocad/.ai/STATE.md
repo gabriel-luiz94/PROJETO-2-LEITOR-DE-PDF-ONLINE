@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.12.1
+
+TASK-030 testa MTEXT com dois cabos, metragens separadas e duas linhas na exportação para o OrçaCore. A conferência visual no CAD segue pendente.
+
 ## Plugin 0.12.0
 
 TASK-029 integra os comandos de notas e a auditoria de layers. O build do 5 usa referências geradas. A execução no 5 e no 26, incluindo atualização após comandos nativos e desfazer, aguarda validação no Windows.

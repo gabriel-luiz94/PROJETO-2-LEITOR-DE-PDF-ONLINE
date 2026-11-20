@@ -300,8 +300,8 @@ namespace OrcamentoNanoCAD
                     // o plugin sugere os postes das pontas; o usuário confirma (Enter) ou troca (número, ou "-" para nenhum)
                     if (PedirPoste(ed, "\nPoste da ponta A", s.Obra, a, out a) < 0) break;
                     if (PedirPoste(ed, "\nPoste da ponta B", s.Obra, b, out b) < 0) break;
-                    Vao v = Construtor.AdicionarVao(s.Obra, linha, textos, a, b, s.Regras, () => TextosDoDesenho(s));
-                    Aplicacao.Msg(v.Numero + ": " + (v.TemAnotacao ? v.Ativo : "(sem anotação)") + " " + (v.PosteA ?? "—") + " → " + (v.PosteB ?? "—"));
+                    foreach (Vao v in Construtor.AdicionarVaos(s.Obra, linha, textos, a, b, s.Regras, () => TextosDoDesenho(s)))
+                        Aplicacao.Msg(v.Numero + ": " + (v.TemAnotacao ? v.Ativo : "(sem anotação)") + " " + (v.PosteA ?? "—") + " → " + (v.PosteB ?? "—"));
                     Mudou(s, true);
                 }
             });
@@ -728,31 +728,47 @@ namespace OrcamentoNanoCAD
             if (s.Obra == null) PrepararConstrucao(s);
             string ativo = "", operacao = null;
             Construtor.LeituraDeTexto lido = null;
+            var cabosLidos = new List<Construtor.LeituraDeTexto>();
+            var confirmadas = new List<Action>();
             while (true)
             {
-                using (TelaNovaLinha t = new TelaNovaLinha(s.Obra.Projeto, s.Regras, cabo, ativo, operacao, lido))
+                string numero = cabosLidos.Count > 1 ? (confirmadas.Count + 1) + " de " + cabosLidos.Count : null;
+                using (TelaNovaLinha t = new TelaNovaLinha(s.Obra.Projeto, s.Regras, cabo, ativo, operacao, lido, numero))
                 {
                     DialogResult r = Application.ShowModalDialog(t);
                     if (t.SelecionarTexto)
                     {
-                        // TASK-018: a tela sai da frente, o usuário escolhe TEXT/MTEXT e as regras do leitor leem; a tela volta preenchida
-                        cabo = t.Cabo;
-                        List<TextoDesenho> textos = SelecionarTextos(s, "\nSelecione o texto (TEXT/MTEXT) da linha e Enter: ");
-                        if (textos.Count == 0) { ativo = t.Ativo; operacao = t.Operacao; continue; }
-                        // TASK-021: em "Cabos" (ou se as regras leem cabo) o texto é lido COMO CABO e o comprimento vem da mesma linha,
-                        // dos textos escolhidos ou da vizinhança no desenho
-                        lido = cabo ? null : Construtor.LerTextoParaLinha(textos, s.Regras);
-                        if (lido == null || (lido.Cabo.HasValue && lido.Cabo.Value)) lido = Construtor.LerCaboDeTexto(textos, s.Regras, () => TextosDoDesenho(s));
-                        ativo = lido.Ativo;
-                        operacao = lido.Operacao;
-                        if (lido.Cabo.HasValue) cabo = lido.Cabo.Value;
+                        cabo = t.Cabo; ativo = t.Ativo; operacao = t.Operacao;
+                        List<TextoDesenho> textos = SelecionarTextos(s, "\nSelecione o texto (TEXT/MTEXT) e Enter: ");
+                        if (textos.Count == 0) continue;
+                        var textoLido = cabo ? null : Construtor.LerTextoParaLinha(textos, s.Regras);
+                        if (textoLido == null || textoLido.Cabo == true)
+                        {
+                            cabosLidos = Construtor.LerCabosDeTextos(textos, s.Regras, () => TextosDoDesenho(s));
+                            if (cabosLidos.Count == 0) { Aplicacao.Msg("Selecione pelo menos uma linha com o rótulo do cabo."); continue; }
+                            textoLido = cabosLidos[0];
+                        }
+                        lido = textoLido;
+                        ativo = lido.Ativo; operacao = lido.Operacao; cabo = lido.Cabo ?? cabo;
                         continue;
                     }
                     if (r != DialogResult.OK) return;
-                    Avulso a = Construtor.NovaLinha(s.Obra, t.Cabo, t.Ativo, t.Operacao, s.Regras);
-                    Construtor.LigarTexto(a, lido);
-                    Aplicacao.Msg(a.Numero + " adicionado à Tabela de " + (t.Cabo ? "Cabos" : "Outros") + ": " + a.AtivoLido + " [" + a.Operacao + "]"
-                                  + (lido != null ? " — lido do texto \"" + Relatorios.Resumir(lido.Lido, 60) + "\"" : ""));
+                    Construtor.LeituraDeTexto origem = lido;
+                    bool caboConfirmado = t.Cabo;
+                    string ativoConfirmado = t.Ativo, operacaoConfirmada = t.Operacao;
+                    confirmadas.Add(() =>
+                    {
+                        Avulso a = Construtor.NovaLinha(s.Obra, caboConfirmado, ativoConfirmado, operacaoConfirmada, s.Regras);
+                        Construtor.LigarTexto(a, origem);
+                        Aplicacao.Msg(a.Numero + ": " + a.AtivoLido + " [" + a.Operacao + "]");
+                    });
+                    if (confirmadas.Count < cabosLidos.Count)
+                    {
+                        lido = cabosLidos[confirmadas.Count];
+                        ativo = lido.Ativo; operacao = lido.Operacao; cabo = true;
+                        continue;
+                    }
+                    foreach (Action adicionar in confirmadas) adicionar();
                     Mudou(s, true);
                     return;
                 }
