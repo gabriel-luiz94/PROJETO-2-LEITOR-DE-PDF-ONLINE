@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.12.2
+
+TASK-031 corrige a abertura do painel de obra antes da seleção da primeira aba. A execução de `ORCAMENTO` no CAD aguarda confirmação.
+
 ## Plugin 0.12.0
 
 TASK-029 integra os comandos de notas e a auditoria de layers. O build do 5 usa referências geradas. A execução no 5 e no 26, incluindo atualização após comandos nativos e desfazer, aguarda validação no Windows.
@@ -25,7 +29,7 @@ TASK-022 (leitura), TASK-023 (alocação por poste) e TASK-024 (painel) implemen
 
 ## Versão
 
-`0.10.3` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
+`0.12.2` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
 
 Branch de trabalho: `codex/nanocad-paridade`
 
