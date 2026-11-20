@@ -49,24 +49,74 @@
     .vz-erro{color:#f85149;font-size:12px;margin:6px 0;white-space:pre-wrap}.vz-ok{color:#3fb950}.vz-av{color:#d29922}
     .vz-pre{background:#010409;border:1px solid #30363d;border-radius:8px;padding:10px;font:12px/1.5 Consolas,Menlo,monospace;color:#c9d1d9;width:100%;min-height:360px;resize:vertical;white-space:pre}
     .vz-grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;min-height:0}.vz-painel{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px 14px}.vz-painel h5{margin:0 0 8px;font-size:12px;color:#fff}
-    .vz-grafo-barra{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:10px}
-    .vz-grafo-barra .vz-grafo-acoes{display:flex;gap:6px;margin-left:auto}
-    .vz-grafo-legenda{border:1px solid #30363d;border-radius:6px;padding:6px 10px;color:#c9d1d9}
-    .vz-mapa{display:block;width:100%;height:100%;background:#010409;border:1px solid #30363d;border-radius:8px;cursor:grab;touch-action:none}
+    .vz--grafo,.vz-no-dialog{
+        --g-bg:#1a191f;--g-panel:#222128;--g-raised:#2a2832;--g-border:#393641;
+        --g-text:#eeedf3;--g-muted:#aaa6b5;--g-accent:#bda6ff;--g-accent-bg:#3a2a56;
+        --g-green:#78b89a;--g-red:#ed909a;--g-gray:#787481;
+        font-family:Inter,system-ui,sans-serif;color:var(--g-text);color-scheme:dark
+    }
+    .vz--grafo{background:var(--g-bg);border-color:var(--g-border);box-shadow:0 24px 80px #09080db3}
+    .vz--grafo .vz-top,.vz--grafo .vz-tabs,.vz--grafo .vz-foot{
+        background:var(--g-panel);border-color:var(--g-border)
+    }
+    .vz--grafo .vz-chip,.vz--grafo .vz-tab b{background:var(--g-raised);border-color:var(--g-border);color:var(--g-muted)}
+    .vz--grafo .vz-tab{color:var(--g-muted);border-radius:7px 7px 0 0}
+    .vz--grafo .vz-tab.on{background:var(--g-bg);color:var(--g-accent);border-color:var(--g-border);box-shadow:inset 0 2px var(--g-accent)}
+    .vz--grafo .vz-leg{color:var(--g-muted);flex-wrap:wrap}
+    .vz--grafo .vz-dot{background:transparent;border-color:var(--g-gray)}
+    .vz--grafo .vz-dot.pu,.vz--grafo .vz-dot.fic{border-color:var(--g-accent)}
+    .vz--grafo .vz-dot.gr{border-color:var(--g-green)}.vz--grafo .vz-dot.rd{border-color:var(--g-red)}
+    .vz--grafo .vz-btn,.vz-no-dialog .vz-btn{
+        background:var(--g-raised);color:var(--g-text);border:1px solid var(--g-border);border-radius:7px;padding:6px 11px
+    }
+    .vz--grafo .vz-btn:hover,.vz-no-dialog .vz-btn:hover{border-color:var(--g-accent)}
+    .vz--grafo .vz-btn.b{color:var(--g-accent)}
+    .vz--grafo .vz-btn.p,.vz-no-dialog .vz-btn.p{background:var(--g-accent-bg);color:#f4ebff;border-color:#71559b}
+    .vz--grafo .vz-btn:focus-visible,.vz-no-dialog .vz-btn:focus-visible,.vz-no-dialog select:focus-visible{outline:2px solid var(--g-accent);outline-offset:2px}
+    .vz-grafo-barra{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin-bottom:14px}
+    .vz-grafo-barra h4{margin:0;font-size:20px;letter-spacing:-.024em}
+    .vz-grafo-barra p{margin:2px 0 0;color:var(--g-muted);font-size:12px}
+    .vz-grafo-legenda{display:flex;gap:10px}
+    .vz-grafo-total{background:var(--g-panel);border:1px solid var(--g-border);border-radius:8px;padding:6px 12px;color:var(--g-muted);white-space:nowrap}
+    .vz-grafo-total strong{color:var(--g-text);margin-right:5px;font-variant-numeric:tabular-nums}
+    .vz-grafo-vista{border-radius:10px;border:1px solid var(--g-border);overflow:hidden}
+    .vz-grafo-acoes{position:absolute;bottom:12px;right:12px;display:flex;gap:3px;padding:4px;background:var(--g-panel);border:1px solid var(--g-border);border-radius:9px}
+    .vz-grafo-acoes .vz-btn{min-width:32px;padding:5px 8px;background:transparent;border-color:transparent}
+    .vz-grafo-aviso{color:var(--g-muted);margin:7px 0 0;font-size:11px}.vz-grafo-aviso:empty{display:none}
+    .vz-mapa{display:block;width:100%;height:100%;background:radial-gradient(circle,#3b3645 1px,transparent 1.2px) 0 0 / 22px 22px,#17161c;cursor:grab;touch-action:none}
     .vz-mapa.arrastando{cursor:grabbing}.vz-mapa [data-no]{cursor:pointer;outline:none}
-    .vz-mapa [data-no] .vz-alvo{fill:transparent}.vz-mapa [data-no] .vz-marcador{fill:#12243b;stroke:#79c0ff;stroke-width:2}
-    .vz-mapa [data-no]:hover .vz-marcador,.vz-mapa [data-no]:focus-visible .vz-marcador{fill:#388bfd;stroke:#fff}
-    .vz-mapa [data-no] text{fill:#e6edf3;font-size:12px;paint-order:stroke;stroke:#010409;stroke-width:3px;pointer-events:none}
-    .vz-no-dialog{width:min(820px,94vw);max-height:84vh;padding:0;color:#e6edf3;background:#0d1117;border:1px solid #484f58;border-radius:12px;font:14px/1.4 -apple-system,Segoe UI,Roboto,sans-serif}
-    .vz-no-dialog::backdrop{background:#05080db8}.vz-no-dialog .vz-no-topo{display:flex;gap:15px;align-items:start;padding:18px 22px;background:#161b22;border-bottom:1px solid #30363d}
-    .vz-no-topo h4,.vz-no-dialog h5{margin:0;color:#fff}.vz-no-topo h4{font-size:19px}.vz-no-topo p{margin:4px 0 0;color:#8b949e}
-    .vz-no-conteudo{padding:16px 22px}.vz-no-conteudo > h5{font-size:14px;margin-bottom:8px}
-    .vz-no-estruturas,.vz-no-vinculos{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.vz-no-estruturas{margin-bottom:18px}
-    .vz-no-estrutura{border:1px solid #30363d;border-radius:6px;background:#161b22;padding:4px 9px}.vz-no-estrutura span,.vz-no-ajuda{color:#8b949e}
-    .vz-no-cabo{padding:10px 12px;border:1px solid #30363d;border-radius:7px;margin-bottom:8px;background:#161b22}
-    .vz-no-cabo h6{margin:0 0 6px;font-size:13px;overflow-wrap:anywhere}
-    .vz-no-acoes{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}.vz-no-acoes select{min-width:145px;max-width:100%;background:#0d1117;color:#e6edf3;border:1px solid #484f58;border-radius:6px;padding:5px}
-    .vz-no-status{min-height:1.4em;margin:0 0 5px;color:#d29922}.vz-no-dialog .vz-btn:focus-visible{outline:2px solid #79c0ff}
+    .vz-mapa [data-no] .vz-alvo{fill:transparent}.vz-mapa [data-no] .vz-halo{fill:#9871e94a;opacity:.5}
+    .vz-mapa [data-no] .vz-marcador{fill:#21192e;stroke:var(--g-accent);stroke-width:1.7;vector-effect:non-scaling-stroke}
+    .vz-mapa [data-no]:hover .vz-marcador,.vz-mapa [data-no]:focus-visible .vz-marcador{fill:var(--g-accent);stroke:#fff}
+    .vz-mapa [data-no] text{fill:#e6dff3;font-size:11px;font-weight:600;paint-order:stroke;stroke:#17161c;stroke-width:3px;pointer-events:none}
+    .vz-mapa .vz-rotulo-denso text{visibility:hidden}.vz-mapa .vz-rotulo-denso:hover text,.vz-mapa .vz-rotulo-denso:focus-visible text{visibility:visible}
+    .vz-mapa .vz-aresta{opacity:.78}.vz-mapa .vz-aresta:hover{opacity:1}.vz-mapa .vz-aresta.k{stroke:var(--g-gray)}.vz-mapa .vz-aresta.pu{stroke:var(--g-accent)}.vz-mapa .vz-aresta.gr{stroke:var(--g-green)}.vz-mapa .vz-aresta.rd{stroke:var(--g-red)}
+    .vz-no-dialog{width:min(880px,94vw);max-height:84vh;margin:auto;padding:0;background:var(--g-bg);border:1px solid #514663;border-radius:14px;font-size:13px;line-height:1.45;overflow:hidden;box-shadow:0 24px 85px #08060cbd}
+    .vz-no-dialog *, .vz-no-dialog{box-sizing:border-box}.vz-no-dialog[open]{display:flex;flex-direction:column}
+    .vz-no-dialog::backdrop{background:#111017b5}
+    .vz-no-dialog .vz-no-topo{animation:none;text-align:left;position:static;flex:none;display:flex;gap:12px;align-items:center;padding:17px 20px;background:var(--g-panel);border-bottom:1px solid var(--g-border)}
+    .vz-no-topo h4,.vz-no-dialog h5{margin:0;color:var(--g-text)}.vz-no-topo h4{font-size:19px}
+    .vz-no-topo p{margin:3px 0 0;color:var(--g-muted);font-size:12px;font-variant-numeric:tabular-nums}
+    .vz-no-topo-acoes{display:flex;gap:6px;margin-left:auto;align-items:center}
+    .vz-no-conteudo{min-height:0;overflow:auto;padding:16px 20px;display:grid;grid-template-columns:minmax(150px,1fr) minmax(0,2.7fr);align-items:start;gap:18px}
+    .vz-no-conteudo h5{font-size:13px;margin-bottom:10px}
+    .vz-no-lateral{border:1px solid var(--g-border);border-radius:9px;padding:12px;background:var(--g-panel)}
+    .vz-no-estruturas{display:grid;gap:5px}.vz-no-estrutura{padding:5px 0;border-top:1px solid var(--g-border);overflow-wrap:anywhere}
+    .vz-no-estrutura span,.vz-no-ajuda{color:var(--g-muted)}
+    .vz-no-vinculos{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+    .vz-no-cabo{padding:11px 12px;border:1px solid var(--g-border);border-radius:8px;margin-bottom:8px;background:var(--g-panel)}
+    .vz-no-cabo h6{margin:0 0 3px;font-size:13px;overflow-wrap:anywhere}.vz-no-cabo p{margin:0 0 7px}
+    .vz-no-cabo .vz-op{margin-right:4px}
+    .vz-no-acoes{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:8px}
+    .vz-no-acoes select{min-width:140px;max-width:100%;background:var(--g-bg);color:var(--g-text);border:1px solid var(--g-border);border-radius:7px;padding:5px 7px}
+    .vz-no-acoes .vz-no-ajuda{flex-basis:100%;font-size:11px;color:#e1bc8d}.vz-no-acoes .vz-no-ajuda:empty{display:none}
+    .vz-no-status{margin:0 0 8px;color:var(--g-accent)}.vz-no-status:empty{display:none}
+    @media(max-width:630px){
+        .vz-no-dialog .vz-no-topo{padding:12px;align-items:flex-start}
+        .vz-no-conteudo{grid-template-columns:1fr;padding:12px;gap:12px}
+        .vz-no-estruturas{display:flex;gap:8px;flex-wrap:wrap}.vz-no-estrutura{border:0;padding:0}
+        .vz--grafo .vz-foot{flex-wrap:wrap;gap:6px;padding:7px 12px}
+    }
     `;
 
     const clone = o => JSON.parse(JSON.stringify(o));
@@ -170,9 +220,9 @@
         const a = analise();
         const pend = Object.values(a.cabos).filter(c => c.estado !== 'gr').length + Object.values(a.estruturas).filter(e => e.estado === 'k' || e.estado === 'pu').length;
         overlay.innerHTML = '';
-        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabopostes', 'Cabos ⇄ Postes', ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''], ['casos', 'Casos', ''], ['pacote', 'Pacote', ''],
-            ['script', 'Script', st.cfg.scripts.length], ['mapa', 'Mapa', '']];
-        const vz = el('div', { class: 'vz' }, [
+        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabopostes', 'Cabos ⇄ Postes', ''], ['mapa', 'Mapa', ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''], ['casos', 'Casos', ''], ['pacote', 'Pacote', ''],
+            ['script', 'Script', st.cfg.scripts.length]];
+        const vz = el('div', { class: st.aba === 'mapa' ? 'vz vz--grafo' : 'vz' }, [
             el('div', { class: 'vz-top' }, [el('h3', { text: '🔗 Vinculação cabo ⇄ estrutura' }), el('span', { class: 'vz-chip', text: 'Projeto ' + host.projeto() }),
                 st.dirty ? el('span', { class: 'vz-chip', style: 'color:#d29922;border-color:#d29922', text: 'alterações não salvas' }) : null, el('button', { class: 'vz-x', text: '✕', onclick: fechar })]),
             el('div', { class: 'vz-tabs' }, abas.map(([id, nome, n]) => el('button', { class: 'vz-tab' + (st.aba === id ? ' on' : ''), onclick: () => { st.aba = id; st.sel = null; render(); } }, [nome, id === 'vinculo' ? el('b', { id: 'vz-pend', text: String(n), style: n === '' ? 'display:none' : '' }) : (n !== '' ? el('b', { text: String(n) }) : null)]))),
@@ -1124,7 +1174,11 @@
         svg.setAttribute('class', 'vz-mapa');
         svg.setAttribute('aria-label', 'Grafo da rede. Selecione um poste para editar os vínculos');
         const posicoes = new Map(), vaosPorCabo = new Map();
-        const contagem = el('span', { class: 'vz-grafo-legenda' });
+        const totalPostes = el('strong'), totalVaos = el('strong');
+        const contagem = el('div', { class: 'vz-grafo-legenda' }, [
+            el('span', { class: 'vz-grafo-total' }, [totalPostes, 'Postes']),
+            el('span', { class: 'vz-grafo-total' }, [totalVaos, 'Vãos'])
+        ]);
         let grafo, vb = st.grafoVista || [0, 0, W, H], arrasto, ultimoNo, mover = false;
         let ultimoStatus = '';
         const aplicarVista = () => { st.grafoVista = vb; svg.setAttribute('viewBox', vb.join(' ')); };
@@ -1135,13 +1189,15 @@
         };
         const botao = (text, onclick, title = text) => el('button', { class: 'vz-btn', text, title, 'aria-label': title, onclick });
         const barra = el('div', { class: 'vz-grafo-barra' }, [
-            contagem, el('span', { text: 'Clique em um poste para vincular cabos e estruturas.' }),
-            el('div', { class: 'vz-grafo-acoes' }, [botao('−', () => zoom(1.25), 'Afastar'), botao('+', () => zoom(.8), 'Aproximar'),
-                botao('Enquadrar', () => { vb = [0, 0, W, H]; aplicarVista(); })])
+            el('div', {}, [el('h4', { text: 'Grafo da rede' }), el('p', { text: 'Selecione um poste para editar os vínculos.' })]), contagem
         ]);
-        const suporte = el('div', { class: 'vz-scroll', style: 'overflow:hidden' }, [svg]);
+        const acoesMapa = el('div', { class: 'vz-grafo-acoes' }, [
+            botao('−', () => zoom(1.25), 'Afastar'), botao('+', () => zoom(.8), 'Aproximar'),
+            botao('Enquadrar', () => { vb = [0, 0, W, H]; aplicarVista(); })
+        ]);
+        const suporte = el('div', { class: 'vz-scroll vz-grafo-vista' }, [svg, acoesMapa]);
         const vazio = el('p', { class: 'vz-nota', text: 'As coordenadas da leitura ou as atribuições de Cabos ⇄ Postes formam a rede no mapa.' });
-        const avisos = el('p', { class: 'vz-no-ajuda', role: 'status' });
+        const avisos = el('p', { class: 'vz-grafo-aviso', role: 'status' });
         const dialogo = el('dialog', { class: 'vz-no-dialog', 'aria-labelledby': 'vz-no-titulo' });
         corpo.append(barra, vazio, suporte, avisos, dialogo);
 
@@ -1173,16 +1229,20 @@
                 pts[0] = extremidades[0]; pts[pts.length - 1] = extremidades[1];
                 const estados = v.cabos.map(ic => a.cabos[ic]?.estado || 'k');
                 const estado = ['rd', 'k', 'pu', 'gr'].find(e => estados.includes(e));
-                const cor = COR_T[estado];
                 const linha = pts.map(p => p.map(n => n.toFixed(2)).join(',')).join(' ');
-                return `<polyline points="${linha}" fill="none" stroke="${cor}" stroke-width="2.5" vector-effect="non-scaling-stroke" ${v.ids.includes(null) ? 'stroke-dasharray="5 4"' : ''}><title>${esc(v.cabos.map(ic => cabos()[ic].ativo).join('\n'))}</title></polyline>`;
+                return `<polyline class="vz-aresta ${estado}" points="${linha}" fill="none" stroke-width="2" vector-effect="non-scaling-stroke" ${v.ids.includes(null) ? 'stroke-dasharray="5 4"' : ''}><title>${esc(v.cabos.map(ic => cabos()[ic].ativo).join('\n'))}</title></polyline>`;
             }).join('');
+            const labels = [];
             const nos = [...grafo.nos.values()].map(n => {
-                const [x, y] = posicoes.get(n.id), rotulo = nomeDoNo(n);
-                return `<g data-no="${esc(n.id)}" tabindex="0" role="button" aria-label="${esc(rotulo)}" transform="translate(${x} ${y})"><title>${esc(rotulo)}</title><circle class="vz-alvo" r="15"/><circle class="vz-marcador" r="7"/><text x="12" y="-9">${esc(rotulo)}</text></g>`;
+                const [x, y] = posicoes.get(n.id), rotulo = nomeDoNo(n), curto = `P${n.linhas[0] + 1}`;
+                const direita = x + 15 + curto.length * 7;
+                const denso = labels.some(([a, b, c]) => Math.abs(y - c) < 14 && x + 10 < b && direita > a);
+                if (!denso) labels.push([x + 10, direita, y]);
+                return `<g class="${denso ? 'vz-rotulo-denso' : ''}" data-no="${esc(n.id)}" tabindex="0" role="button" aria-label="${esc(rotulo)}" transform="translate(${x} ${y})"><title>${esc(rotulo)}</title><circle class="vz-alvo" r="14"/><circle class="vz-halo" r="8.5"/><circle class="vz-marcador" r="4.8"/><text x="11" y="-6">${curto}</text></g>`;
             }).join('');
             svg.innerHTML = rede + nos;
-            contagem.textContent = `${grafo.nos.size} poste(s) · ${grafo.vaos.length} vão(s)`;
+            totalPostes.textContent = grafo.nos.size;
+            totalVaos.textContent = grafo.vaos.length;
             avisos.textContent = [grafo.pontasSoltas ? `${grafo.pontasSoltas} ponta(s) sem poste identificado` : '',
                 grafo.semVao ? `${grafo.semVao} cabo(s) sem dados suficientes para traçar um vão` : ''].filter(Boolean).join(' · ');
             vazio.hidden = !!(grafo.nos.size || grafo.vaos.length);
@@ -1215,7 +1275,7 @@
                 dialogo.querySelector('[data-desfazer]')?.focus();
             });
             desfazer.setAttribute('data-desfazer', '');
-            fecharNo.classList.add('vz-x');
+            fecharNo.setAttribute('autofocus', '');
             const status = el('p', { class: 'vz-no-status', role: 'status', text: ultimoStatus });
             function mudarVinculo(ic, ie, acao, foco) {
                 const motivo = acao === 'ligar' ? motivoParaLigar(ic, ie) : '';
@@ -1225,7 +1285,7 @@
                 if (host.depois) host.depois();
                 dialogo.querySelector(`[data-foco="${foco}"]`)?.focus();
             }
-            const painelNo = el('div', { class: 'vz-no-conteudo' }, [
+            const lateral = el('aside', { class: 'vz-no-lateral' }, [
                 el('h5', { text: 'Estruturas do poste' }),
                 estruturas.length ? el('div', { class: 'vz-no-estruturas' }, estruturas.map(ie => {
                     const r = a.estruturas[ie];
@@ -1233,9 +1293,9 @@
                         el('strong', { text: codigoDe(ie) }),
                         el('span', { text: infoEst(ie).ocupa === false ? ' · equipamento' : ` · ${r.tem} ligado(s)` })
                     ]);
-                })) : el('p', { class: 'vz-no-ajuda', text: 'Nenhuma estrutura cadastrada neste poste.' }),
-                el('h5', { text: 'Cabos do poste' }), status
+                })) : el('p', { class: 'vz-no-ajuda', text: 'Nenhuma estrutura cadastrada neste poste.' })
             ]);
+            const painelNo = el('section', {}, [el('h5', { text: 'Cabos do poste' }), status]);
             if (!no.cabos.size) painelNo.appendChild(el('p', { class: 'vz-no-ajuda', text: 'Nenhum cabo chega a este poste pela geometria ou pelas atribuições da obra.' }));
             no.cabos.forEach(ic => {
                 const c = cabos()[ic], r = a.cabos[ic], existentes = (r && c.vinculoEstruturas || []).filter(ie => no.linhas.includes(linhaDe(ie)));
@@ -1261,16 +1321,18 @@
                     const dica = el('span', { class: 'vz-no-ajuda' });
                     const atualizarDica = () => { dica.textContent = motivoParaLigar(ic, Number(seletor.value)); };
                     seletor.addEventListener('change', atualizarDica);
+                    const vincular = botao('Vincular', () => mudarVinculo(ic, Number(seletor.value), 'ligar', 'c' + ic));
+                    vincular.classList.add('p');
                     atualizarDica();
                     cartao.appendChild(el('div', { class: 'vz-no-acoes' }, [seletor,
-                        botao('Vincular', () => mudarVinculo(ic, Number(seletor.value), 'ligar', 'c' + ic)), dica]));
+                        vincular, dica]));
                 }
                 painelNo.appendChild(cartao);
             });
             dialogo.replaceChildren(el('header', { class: 'vz-no-topo' }, [
                 el('div', {}, [el('h4', { id: 'vz-no-titulo', text: nomeDoNo(no) }),
-                    el('p', { text: no.pos ? `X ${no.pos[0].toFixed(2)} · Y ${no.pos[1].toFixed(2)}` : 'Poste atribuído sem coordenadas' })]), desfazer, fecharNo
-            ]), painelNo);
+                    el('p', { text: no.pos ? `X ${no.pos[0].toFixed(2)} · Y ${no.pos[1].toFixed(2)}` : 'Poste atribuído sem coordenadas' })]), el('div', { class: 'vz-no-topo-acoes' }, [desfazer, fecharNo])
+            ]), el('div', { class: 'vz-no-conteudo' }, [lateral, painelNo]));
         }
 
         dialogo.addEventListener('close', () => {
