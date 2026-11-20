@@ -870,9 +870,10 @@ document.addEventListener('DOMContentLoaded', () => {
     ═══════════════════════════════════════ */
     const temGrupoNaTabela = type => tableStates[type].data.some(r => r && (r.grupoDecl || r.grupoDe));
     /** Vínculos cabo↔estrutura são por índice de Outros: depois de reordenar, `mapa[antigo] = novo` (linha que saiu: undefined → vínculo descartado). */
-    function _remapearVinculosOutros(mapa) {
+    function _remapearVinculosOutros(mapa, cabos = tableStates.cabos.data) {
         const VR = window.VinculacaoRegras;
-        tableStates.cabos.data.forEach(c => {
+        cabos.forEach(c => {
+            if (!c) return;
             if (Array.isArray(c.vinculoPostes)) { c.vinculoPostes = c.vinculoPostes.map(l => mapa[l]).filter(l => l !== undefined); if (!c.vinculoPostes.length) delete c.vinculoPostes; }
             if (Array.isArray(c.vinculoEstruturas)) c.vinculoEstruturas = c.vinculoEstruturas.map(i => { const l = mapa[VR.linhaDe(i)]; return l !== undefined ? VR.idUnidade(l, VR.slotDe(i)) : null; }).filter(i => i !== null);
         });
@@ -2467,6 +2468,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return r.itens.map(i => AtivoParametros.nomeBase(i.ativo)).filter(n => AnotacaoOutros.ehPoste(n)).map(n => AnotacaoOutros.posteParaCompacto(n));
         },
         linhaSoPoste(ativo) { return !AnotacaoOutros.codigoEstrutura(ativo || '', _classicoTotalizadora, _ctxOutros()); },
+        consultarAssistente: selecao => selecionarMapaAssistente(selecao),
         antes() { pushHistory(); },
         desfazer() { undo(); },
         depois() { try { renderTable('outros'); atualizarResumoRedeUI(); if (typeof updateHistoryUI === 'function') updateHistoryUI(); } catch (e) { /* tela ainda carregando */ } }
@@ -3035,8 +3037,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Recalcula qtdAtivos apenas para a linha alterada e a anterior (se for standalone).
      */
-    function recalcRowAndAbove(index) {
-        const data = tableStates.cabos.data;
+    function recalcRowAndAbove(index, data = tableStates.cabos.data) {
         if (index < 0 || index >= data.length) return;
 
         function calc(i) {
@@ -3053,7 +3054,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         calc(index);
-        if (index - 1 >= 0 && isStandaloneLine(data[index - 1].ativo)) {
+        if (index - 1 >= 0 && data[index - 1] && isStandaloneLine(data[index - 1].ativo)) {
             calc(index - 1);
         }
     }
@@ -3533,13 +3534,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Chat logic
     let chatHistory = [];
+    let projetoHistoricoChat;
     
     function addChatMessage(text, sender) {
         const div = document.createElement('div');
         div.className = `chat-message ${sender}`;
-        div.innerHTML = text.replace(/\n/g, '<br>');
+        div.textContent = text;
+        div.style.whiteSpace = 'pre-wrap';
         aiChatMessages.appendChild(div);
         aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+        return div;
     }
 
     function extractTableFromMarkdown(markdown) {
@@ -3677,32 +3681,136 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── Plano do assistente (TASK-191) ───────────────────────────────────────────────────────────────
-    /** Aplica as alterações propostas nas tabelas (uma entrada no histórico: Ctrl+Z desfaz tudo de uma vez). */
-    function aplicarPlanoAssistente(itens) {
-        pushHistory();      // snapshot ANTES de mudar (como as obras): o Ctrl+Z volta ao estado de agora
-        const r = Assistente.aplicarPlano(tableStates, itens, (ativo, tabela) => {
-            const n = autoClassifyEntidade(ativo);
-            return n !== '0' ? n : (tabela === 'cabos' ? 'CABO' : '0');
-        });
-        recalcAllQtdAtivos();
-        renderTable('cabos');
-        renderTable('outros');
-        buildAtivoSets();
-        buildDataLists();
-        refreshAllFilters('cabos');
-        refreshAllFilters('outros');
-        const msg = Assistente.resumoAplicacao(r);
-        showToast(msg);
-        return msg;
+    const projetoAssistente = () => localStorage.getItem('projeto_selecionado_codigo') || '229';
+    const parametrosAssistente = () => window.ObraParams ? ObraParams.obraDoProjeto() : null;
+
+    const tabelasAssistente = () => JSON.stringify({ cabos: tableStates.cabos.data, outros: tableStates.outros.data });
+
+    function revisaoAssistente() {
+        return {
+            projeto: projetoAssistente(),
+            obra: JSON.stringify(parametrosAssistente()),
+            caminho: window.GridRProjeto?.estado()?.caminho,
+            tabelas: tabelasAssistente(),
+            referencias: { cabos: tableStates.cabos.data.slice(), outros: tableStates.outros.data.slice() }
+        };
     }
 
-    /** Mostra o plano no chat: o atalho rápido («adicionar 2 CON») aplica na hora; o resto pede o clique em Aplicar. */
-    function mostrarPlanoAssistente(plano) {
-        if (plano.auto) { aplicarPlanoAssistente(plano.itens); return; }
+    function revisaoAindaAtiva(r) {
+        return r.projeto === projetoAssistente() && r.obra === JSON.stringify(parametrosAssistente()) &&
+            r.caminho === window.GridRProjeto?.estado()?.caminho &&
+            r.tabelas === tabelasAssistente() && ['cabos', 'outros'].every(t =>
+                r.referencias[t].every((linha, i) => linha === tableStates[t].data[i]));
+    }
+
+    let selecaoMapaAssistente = null;
+    function selecionarMapaAssistente(selecao) {
+        selecaoMapaAssistente = { selecao, revisao: revisaoAssistente() };
+        const limpar = document.getElementById('assistente-selecao-mapa');
+        limpar.textContent = selecao.rotulo + ' ×';
+        limpar.hidden = false;
+        window.ResumoLayout.definirPainel('ia', true);
+        if (!aiChatInput.value) aiChatInput.value = 'Como está a vinculação neste ' + selecao.tipo + '?';
+        aiChatInput.focus();
+    }
+
+    function limparSelecaoMapaAssistente() {
+        selecaoMapaAssistente = null;
+        document.getElementById('assistente-selecao-mapa').hidden = true;
+    }
+    document.getElementById('assistente-selecao-mapa').addEventListener('click', limparSelecaoMapaAssistente);
+
+    function simularPlanoAssistente(itens, revisao) {
+        if (!revisaoAindaAtiva(revisao)) throw new Error('A obra mudou desde o pedido. Gere um novo plano.');
+        const tabelas = JSON.parse(revisao.tabelas);
+        const estados = { cabos: { data: tabelas.cabos }, outros: { data: tabelas.outros } };
+        const outrosAntes = estados.outros.data.slice();
+        const cabosAntes = new Map(estados.cabos.data.map((c, i, lista) => [c, {
+            ativo: c?.ativo, proximo: lista[i + 1]
+        }]));
+        const VR = window.VinculacaoRegras;
+        const edicoes = new Map(itens.filter(i => i.tabela === 'outros' && i.acao === 'editar').map(i => [i.id, i.ativo]));
+        for (const cabo of estados.cabos.data) {
+            for (const id of cabo?.vinculoEstruturas || []) {
+                const linha = VR.linhaDe(id), slot = VR.slotDe(id);
+                if (!edicoes.has(linha)) continue;
+                if (_codigosEstruturaVinculo(outrosAntes[linha]?.ativo || '')[slot] !== _codigosEstruturaVinculo(edicoes.get(linha))[slot]) {
+                    throw new Error('A edição trocaria uma estrutura já vinculada. Revise os vínculos no mapa.');
+                }
+            }
+        }
+        const resultado = Assistente.aplicarPlano(estados, itens, (ativo, tabela, linha) => {
+            if (linha) {
+                if (tabela === 'outros') reclassificarEntidade(linha);
+                return linha.entidade;
+            }
+            return tabela === 'cabos' ? 'CABO' : autoClassifyEntidade(ativo);
+        });
+        if (resultado.ignoradas.length) throw new Error(Assistente.resumoAplicacao({ ...resultado, adicionadas: 0, editadas: 0, removidas: 0 }));
+        const GL = window.GruposLinhas;
+        for (const t of ['cabos', 'outros']) estados[t].data = GL.normalizar(estados[t].data);
+        _remapearVinculosOutros(GL.mapa(outrosAntes, estados.outros.data), estados.cabos.data);
+        const cabos = estados.cabos.data;
+        for (let i = cabos.length - 1; i >= 0; i--) {
+            const antes = cabosAntes.get(cabos[i]);
+            if (!antes || antes.ativo !== cabos[i].ativo) recalcRowAndAbove(i, cabos);
+            else if (antes.proximo !== cabos[i + 1] && isStandaloneLine(cabos[i].ativo)) {
+                recalcRowAndAbove(i, cabos);
+            }
+        }
+        return { estados, resultado };
+    }
+
+    async function previaPlanoAssistente(itens, revisao, req) {
+        if (!document.querySelector('input[name="view_mode"][value="padrao"]')?.checked) {
+            throw new Error('Mude para Cabos e Demais ativos para simular as alterações das tabelas.');
+        }
+        await prepararTotalizadora();
+        const { estados } = simularPlanoAssistente(itens, revisao);
+        const antes = payloadDaTotalizadora(construirTotalizadora(tableStates.cabos.data, tableStates.outros.data));
+        const depois = payloadDaTotalizadora(construirTotalizadora(estados.cabos.data, estados.outros.data));
+        const r = await fetch('/api/assistente/previa', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projeto_codigo: req.projeto_codigo, obra: req.obra, antes, depois })
+        });
+        const dados = await r.json();
+        if (!r.ok) throw new Error(dados.detail || 'Não foi possível simular o orçamento.');
+        if (!revisaoAindaAtiva(revisao)) throw new Error('A obra mudou durante a simulação. Gere um novo plano.');
+        return dados;
+    }
+
+    function mostrarPlanoAssistente(plano, revisao, req) {
+        let aplicado;
+        let posHistorico;
         const card = Assistente.renderPlano(plano, {
-            aplicar: async itens => aplicarPlanoAssistente(itens),
-            desfazer: () => undo(),
-            obra: async item => (await executarAcaoObra({ acao_ui: 'obra', acao: item.modo, obra_id: item.obra_id })).msg
+            aplicar(itens) {
+                const { estados, resultado } = simularPlanoAssistente(itens, revisao);
+                if (!resultado.adicionadas && !resultado.editadas && !resultado.removidas) {
+                    return { mensagem: Assistente.resumoAplicacao(resultado), aplicado: false };
+                }
+                pushHistory();
+                limparGrade();
+                for (const t of ['cabos', 'outros']) tableStates[t].data = estados[t].data;
+                renderTable('cabos');
+                renderTable('outros');
+                buildAtivoSets();
+                buildDataLists();
+                refreshAllFilters('cabos');
+                refreshAllFilters('outros');
+                aplicado = revisaoAssistente();
+                posHistorico = historyIdx;
+                return { mensagem: Assistente.resumoAplicacao(resultado) + '. Ctrl+Z desfaz.', aplicado: true };
+            },
+            previa: itens => previaPlanoAssistente(itens, revisao, req),
+            desfazer() {
+                if (historyIdx !== posHistorico || !revisaoAindaAtiva(aplicado)) return 'Houve outra alteração. Use o histórico do Resumo.';
+                undo();
+                return 'Desfeito.';
+            },
+            async obra(item) {
+                if (!revisaoAindaAtiva(revisao)) throw new Error('A obra mudou desde o pedido. Gere um novo plano.');
+                return (await executarAcaoObra({ acao_ui: 'obra', acao: item.modo, obra_id: item.obra_id })).msg;
+            }
         });
         aiChatMessages.appendChild(card);
         aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
@@ -3746,19 +3854,16 @@ document.addEventListener('DOMContentLoaded', () => {
         chatAbort = new AbortController();
         modoParar(true);
 
-        // Se for uma regra, salva no banco e informa a IA
-        const isRule = text.toLowerCase().includes('lembre-se') || text.toLowerCase().includes('regra:');
-        if (isRule) {
-            try {
-                await fetch('/api/regras', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ conteudo: text, projeto_codigo: localStorage.getItem('projeto_selecionado_codigo') || '229' })
-                });
-                showToast('Regra aprendida!');
-            } catch (e) {
-                console.error("Erro ao salvar regra", e);
-            }
+        // Uma instrução digitada no chat pode orientar a conversa. Publicação durável passa pelo editor de skills.
+        if (/^(lembre-se\b|regra\s*:)/i.test(text)) {
+            const projeto = projetoAssistente();
+            const aviso = addChatMessage('Orientações publicadas exigem revisão e salvamento por um administrador.', 'system');
+            const botao = document.createElement('button');
+            botao.className = 'btn-secondary';
+            botao.type = 'button';
+            botao.textContent = 'Revisar como skill';
+            botao.addEventListener('click', () => Assistente.abrirSkills({ projeto: () => projeto, toast: showToast, rascunho: text }));
+            aviso.append(' ', botao);
         }
 
         // Indicador carregando
@@ -3780,13 +3885,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const relogio = setInterval(desenharStatus, 1000);
 
         try {
+            if (selecaoMapaAssistente && !revisaoAindaAtiva(selecaoMapaAssistente.revisao)) {
+                limparSelecaoMapaAssistente();
+                addChatMessage('A seleção do mapa foi limpa porque a obra mudou.', 'system');
+            }
+            const revisao = revisaoAssistente();
+            if (projetoHistoricoChat !== revisao.projeto) {
+                chatHistory = [];
+                projetoHistoricoChat = revisao.projeto;
+            }
             const tabelas = Assistente.tabelaParaServidor(tableStates);      // TASK-191: o servidor lê a tabela sob demanda (ferramenta ler_tabela) e nunca a altera
             const reqBody = {
                 prompt: text,
                 history: chatHistory,
                 provider: providerChat,
                 openai_base_url: providerChat === 'openai' ? (localStorage.getItem('openai_base_url') || '') : '',
-                projeto_codigo: localStorage.getItem('projeto_selecionado_codigo') || '229',
+                projeto_codigo: revisao.projeto,
+                selecao_mapa: selecaoMapaAssistente?.selecao,
+                tabela_incompleta: tabelas.tabela_incompleta || false,
                 cabos: tabelas.cabos,
                 outros: tabelas.outros,
                 obra: window.ObraParams ? ObraParams.obraDoProjeto() : null
@@ -3866,10 +3982,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            acoesUi.forEach(a => executeUiAction(a));
+            if (revisaoAindaAtiva(revisao)) acoesUi.forEach(a => executeUiAction(a));
             chatHistory.push({ role: 'user', parts: [{ text: text }] });
             chatHistory.push({ role: 'model', parts: [{ text: replyText.trim() || (planos.length ? '*(Plano proposto)*' : '*(Ação de interface executada)*') }] });
-            planos.forEach(p => mostrarPlanoAssistente(p));
+            planos.forEach(p => mostrarPlanoAssistente(p, revisao, reqBody));
         } catch (error) {
             if (loadingDiv.parentNode) aiChatMessages.removeChild(loadingDiv);
             if (error && error.name === 'AbortError') addChatMessage('Interrompido por você.', 'system');
@@ -4360,17 +4476,18 @@ document.addEventListener('DOMContentLoaded', () => {
      * Extraída do handler do botão (TASK-014) para a validação usar exatamente o mesmo payload.
      */
     async function obterPayloadCalculo() {
-        let payloadCabos = [];
-        let payloadOutros = [];
-
         // Se estivermos no modo padrão (Cabos e Postes), atualiza a totalizadora silenciosamente antes
         const radioPadrao = document.querySelector('input[name="view_mode"][value="padrao"]');
         if (radioPadrao && radioPadrao.checked) {
             await syncTotalizadora(false);
         }
-        
-        // Agora, INVARIAVELMENTE, constrói o payload a partir da Totalizadora
-        tableStates.totalizadora.data.forEach(item => {
+        return payloadDaTotalizadora(tableStates.totalizadora.data);
+    }
+
+    function payloadDaTotalizadora(totalizadora) {
+        const payloadCabos = [];
+        const payloadOutros = [];
+        totalizadora.forEach(item => {
             if (!item) return;
             
             let qStr = item.qtd;
@@ -6600,10 +6717,6 @@ if (window.AtivoSugestao) window.AtivoSugestao.iniciar({
 });
 
 window.syncTotalizadora = async function(forceUpdate = true) {
-    if (tableStates.regras.data.length === 0) {
-        carregarRegras();
-    }
-
     if (forceUpdate && tableStates.totalizadora.data.length > 0) {
         if (!confirm("Isso irá apagar todas as edições manuais feitas na Tabela Totalizadora e puxar os dados novamente das tabelas Cabos e Outros. Deseja continuar?")) {
             return;
@@ -6614,19 +6727,22 @@ window.syncTotalizadora = async function(forceUpdate = true) {
     const originalText = btnGerar ? btnGerar.textContent : '';
     if (btnGerar) btnGerar.textContent = 'Carregando Base...';
 
-    // Carregar a base técnica caso não tenha carregado
-    if (orcamentoBaseData.length === 0) {
-        try {
-            const res = await fetch('/api/orcamento/dados');
-            const data = await res.json();
-            orcamentoBaseData = data.dados || [];
-        } catch(e) {
-            console.error("Erro ao carregar base de orçamento", e);
-        }
-    }
+    await prepararTotalizadora();
 
     if (btnGerar) btnGerar.textContent = originalText;
 
+    tableStates.totalizadora.data = construirTotalizadora(tableStates.cabos.data, tableStates.outros.data, true);
+    renderTotalizadora();
+    showToast("Tabela Totalizadora atualizada!");
+};
+
+async function prepararTotalizadora() {
+    if (!tableStates.regras.data.length) await carregarRegras();
+    if (!orcamentoBaseData.length) await carregarBaseOrcamento();
+    if (window.ObraParams) await ObraParams.carregarTabela(localStorage.getItem('projeto_selecionado') || '');
+}
+
+function construirTotalizadora(cabosData, outrosData, emUso = false) {
     function buscarDescricao(ativoNome) {
         const ativoUpper = (ativoNome || '').trim().toUpperCase();
         const projName = (localStorage.getItem('projeto_selecionado') || '').toUpperCase();
@@ -6647,7 +6763,6 @@ window.syncTotalizadora = async function(forceUpdate = true) {
     let baseIdCounter = 1;
 
     // Processar Cabos
-    const cabosData = tableStates.cabos.data;
     for (let idx = 0; idx < cabosData.length; idx++) {
         const item = cabosData[idx];
         if (!item || item.congelada) continue;                                                   // linha congelada: fora da Totalizadora
@@ -6730,10 +6845,11 @@ window.syncTotalizadora = async function(forceUpdate = true) {
     // Processar Outros
     // TASK-079: ativos com parâmetros — o texto entre parênteses não é quebrado e o pedido é normalizado (N1 → N1(XLPE,DT) pelo padrão)
     const assinaturasParam = AtivoParametros.assinaturasDoProjeto(orcamentoBaseData, localStorage.getItem('projeto_selecionado') || '');
-    if (window.ObraParams) ObraParams.carregarTabela(localStorage.getItem('projeto_selecionado') || '');          // TASK-165: tabela regional (OBRA.REGIAO derivado)
     const ctxOutros = _ctxOutros();
-    const parametrosVinculo = _parametrosVinculoPorLinha();                 // TASK-084
-    tableStates.outros.data.forEach((item, idxOutros) => {
+    const cfg = window.__vinculacaoConfig;
+    const parametrosVinculo = cfg ? (emUso ? _parametrosVinculoPorLinha() :
+        VinculacaoRegras.parametrosPorEstrutura(cabosData, outrosData, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo)) : {};
+    outrosData.forEach((item, idxOutros) => {
         if (!item || item.congelada) return;                                                     // linha congelada: fora da Totalizadora
         const currentBaseId = baseIdCounter++;
         
@@ -6774,8 +6890,8 @@ window.syncTotalizadora = async function(forceUpdate = true) {
     // Ativos compostos do vínculo cabo<->estrutura (TASK-034): um pseudo-item por aresta do
     // vínculo (TASK-032), origem "VINCULO", para as Regras de Conversão poderem casar contra ele
     // (ex.: ativo_de=CAA2_N4). Só existe aqui dentro — nunca aparece na Totalizadora sem match.
-    tableStates.cabos.data.forEach((cabo, idxCabo) => {
-        if (cabo.congelada || !VinculacaoRegras.participaVinculo(cabo)) return;                        // TASK-095: cabo R/*R não entra no vínculo; congelado só alimenta o vínculo feito à mão
+    cabosData.forEach((cabo, idxCabo) => {
+        if (!cabo || cabo.congelada || !VinculacaoRegras.participaVinculo(cabo)) return;                        // TASK-095: cabo R/*R não entra no vínculo; congelado só alimenta o vínculo feito à mão
         const ficticiasCabo = VinculacaoRegras.estruturasFicticiasDe(cabo);
         if ((!Array.isArray(cabo.vinculoEstruturas) || !cabo.vinculoEstruturas.length) && !ficticiasCabo.length) return;
         const info = extrairPrefixoEComprimentoCabo(cabo.ativo);
@@ -6785,7 +6901,7 @@ window.syncTotalizadora = async function(forceUpdate = true) {
             baseId: `TOT-VINC-${idxCabo}-F${k}`, obs: 'VINCULO', operacao: cabo.operacao || 'I', ativo: `${prefixoCabo}_${cod}`, qtd: 1, desc: '', naoEncontrado: false, origem: 'VINCULO'
         }));
         (cabo.vinculoEstruturas || []).forEach(idxEstrutura => {
-            const estrutura = tableStates.outros.data[VinculacaoRegras.linhaDe(idxEstrutura)];        // TASK-094: unidade = linha (+ posição/100)
+            const estrutura = outrosData[VinculacaoRegras.linhaDe(idxEstrutura)];        // TASK-094: unidade = linha (+ posição/100)
             if (!estrutura || estrutura.congelada || !estrutura.ativo || !VinculacaoRegras.participaVinculo(estrutura)) return;
             const codigosLinha = _codigosEstruturaVinculo(estrutura.ativo), codigoUnidade = codigosLinha[VinculacaoRegras.slotDe(idxEstrutura)] || _codigoEstruturaVinculo(estrutura.ativo);
             rawItems.push({
@@ -6899,10 +7015,8 @@ window.syncTotalizadora = async function(forceUpdate = true) {
         }
     });
 
-    tableStates.totalizadora.data = newData;
-    renderTotalizadora();
-    showToast("Tabela Totalizadora atualizada!");
-};
+    return newData;
+}
 
 window.renderTotalizadora = function() {
     const tbody = document.getElementById('body-totalizadora');

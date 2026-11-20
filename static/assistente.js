@@ -8,7 +8,7 @@
 (function (raiz) {
     'use strict';
 
-    const CAMPOS_LINHA = ['entidade', 'operacao', 'ativo', 'qtdAtivos', 'congelada', 'vinculoEstruturas', 'estruturasFicticias'];
+    const CAMPOS_LINHA = ['entidade', 'operacao', 'ativo', 'qtdAtivos', 'congelada', 'bloqueada', 'vinculoEstruturas', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', '_poste', '_geo', 'fases', 'tensao', 'nivel', 'textoOriginal'];
     const LIMITE_LINHAS = 2000;
 
     /** Lê um bloco de texto do stream: devolve os eventos das linhas COMPLETAS e o resto (linha ainda pela metade). Linha que não é JSON é ignorada. */
@@ -28,9 +28,10 @@
         const saida = { cabos: [], outros: [] };
         ['cabos', 'outros'].forEach(t => {
             const dados = (estados && estados[t] && estados[t].data) || [];
-            for (let i = 0; i < dados.length && saida[t].length < LIMITE_LINHAS; i++) {
+            for (let i = 0; i < dados.length; i++) {
                 const r = dados[i];
                 if (!r || typeof r !== 'object') continue;
+                if (saida[t].length >= LIMITE_LINHAS) { saida.tabela_incompleta = true; break; }
                 const o = { id: i };
                 CAMPOS_LINHA.forEach(c => { if (r[c] !== undefined && r[c] !== null && r[c] !== '') o[c] = r[c]; });
                 saida[t].push(o);
@@ -50,18 +51,18 @@
         }
         return {
             simbolo: SIMBOLO[it.acao] || '?', classe: it.acao, tabela: ROTULO_TABELA[it.tabela] || it.tabela, operacao: it.operacao || '',
-            texto: it.ativo || '', antes: it.acao === 'editar' && it.antes ? it.antes.ativo : '', avisos: it.avisos || [],
+            texto: it.ativo || '', antes: it.acao === 'editar' && it.antes ? [it.antes.operacao, it.antes.ativo].filter(Boolean).join(' · ') : '', avisos: it.avisos || [],
         };
     }
 
     /**
      * Aplica o plano em `estados` ({cabos: {data}, outros: {data}}). `entidadeDe(ativo, tabela)` dá a entidade das linhas novas/editadas.
-     * Editar/remover só vale se a linha da posição `id` ainda tem o mesmo texto de antes (o usuário pode ter mexido na tela depois do pedido);
+     * Editar/remover exige que a linha permaneça editável e corresponda à proposta;
      * senão a alteração é IGNORADA e listada. Devolve {adicionadas, editadas, removidas, ignoradas: [{n, motivo}]}.
      */
     function aplicarPlano(estados, itens, entidadeDe) {
         const r = { adicionadas: 0, editadas: 0, removidas: 0, ignoradas: [] };
-        const ent = (a, t) => (typeof entidadeDe === 'function' ? entidadeDe(a, t) : (t === 'cabos' ? 'CABO' : '0'));
+        const ent = (a, t, linha) => (typeof entidadeDe === 'function' ? entidadeDe(a, t, linha) : (t === 'cabos' ? 'CABO' : '0'));
         (itens || []).forEach(it => {
             if (!it || !['adicionar', 'editar', 'remover'].includes(it.acao) || !estados[it.tabela]) return;
             const dados = estados[it.tabela].data;
@@ -72,11 +73,13 @@
             }
             const atual = Number.isInteger(it.id) ? dados[it.id] : null;
             if (!atual) { r.ignoradas.push({ n: it.n, motivo: 'a linha não existe mais' }); return; }
-            if (it.antes && String(atual.ativo || '').trim() !== String(it.antes.ativo || '').trim()) { r.ignoradas.push({ n: it.n, motivo: 'a linha mudou depois do pedido' }); return; }
+            if (atual.bloqueada || atual.congelada) { r.ignoradas.push({ n: it.n, motivo: 'a linha está protegida' }); return; }
+            if (it.antes && (String(atual.ativo || '').trim() !== String(it.antes.ativo || '').trim() ||
+                (it.antes.operacao !== undefined && (atual.operacao || '') !== it.antes.operacao))) { r.ignoradas.push({ n: it.n, motivo: 'a linha mudou depois do pedido' }); return; }
             if (it.acao === 'remover') { dados[it.id] = null; r.removidas++; return; }
             atual.operacao = it.operacao || atual.operacao || 'I';
             atual.ativo = it.ativo;
-            atual.entidade = ent(it.ativo, it.tabela);
+            if (!atual.entidadeManual) atual.entidade = ent(it.ativo, it.tabela, atual);
             r.editadas++;
         });
         ['cabos', 'outros'].forEach(t => { if (estados[t]) estados[t].data = estados[t].data.filter(x => x !== null); });
@@ -147,6 +150,36 @@
             const btnNao = mk('button', 'btn-secondary', 'Descartar');
             btnNao.type = 'button';
             barra.append(btnOk, btnNao);
+            if (acoes.previa && itens.every(i => i.acao !== 'obra')) {
+                const btnPrevia = mk('button', 'btn-secondary', 'Simular orçamento');
+                btnPrevia.type = 'button';
+                const saida = mk('div', 'cp-resumo');
+                saida.setAttribute('role', 'status');
+                barra.appendChild(btnPrevia);
+                card.appendChild(saida);
+                btnPrevia.addEventListener('click', async () => {
+                    btnPrevia.disabled = true;
+                    saida.textContent = 'Calculando prévia…';
+                    try {
+                        const r = await acoes.previa(itens);
+                        const titulo = r.total_mudancas ? `${r.total_mudancas} item(ns) de orçamento com quantidade alterada` : 'Nenhuma quantidade mudou no orçamento.';
+                        saida.replaceChildren(mk('b', '', titulo));
+                        const mudancas = mk('ul', 'cp-lista');
+                        r.mudancas.forEach(i => mudancas.appendChild(mk('li', '', `${i.operacao} · ${i.codigo} · ${i.mdo} · ${i.antes} → ${i.depois}`)));
+                        saida.appendChild(mudancas);
+                        if (r.total_mudancas > r.mudancas.length) saida.appendChild(mk('p', '', 'Exibindo os primeiros 20 itens.'));
+                        if (r.nao_encontrados.length) {
+                            const detalhe = mk('details', 'cp-aviso');
+                            detalhe.append(mk('summary', '', `${r.nao_encontrados.length} item(ns) ausente(s) da base`),
+                                mk('p', '', r.nao_encontrados.join(', ')));
+                            saida.appendChild(detalhe);
+                        }
+                        r.avisos.forEach(av => saida.appendChild(mk('p', 'cp-aviso', typeof av === 'string' ? av : (av.mensagem || JSON.stringify(av)))));
+                    } catch (e) {
+                        saida.textContent = e.message;
+                    } finally { btnPrevia.disabled = false; }
+                });
+            }
             card.appendChild(barra);
             const fim = (msg, desfazer) => {
                 barra.textContent = '';
@@ -154,7 +187,7 @@
                 if (desfazer) {
                     const d = mk('button', 'btn-secondary', 'Desfazer');
                     d.type = 'button';
-                    d.addEventListener('click', () => { acoes.desfazer(); barra.textContent = ''; barra.appendChild(mk('span', 'cp-estado', 'Desfeito.')); });
+                    d.addEventListener('click', () => fim(acoes.desfazer(), false));
                     barra.appendChild(d);
                 }
             };
@@ -163,7 +196,10 @@
                 btnOk.disabled = btnNao.disabled = true;
                 try {
                     if (itens.some(i => i.acao === 'obra')) fim(await acoes.obra(itens[0]), false);
-                    else fim('Aplicado: ' + await acoes.aplicar(itens) + '. Ctrl+Z desfaz.', true);
+                    else {
+                        const r = await acoes.aplicar(itens);
+                        fim(r.mensagem, r.aplicado);
+                    }
                 } catch (e) { fim('Erro ao aplicar: ' + e.message, false); }
             });
             return card;
@@ -238,7 +274,7 @@
                     await gravar();
                     const r = await fetch('/api/assistente/reserva/testar', { method: 'POST' });
                     const j = await r.json().catch(() => ({}));
-                    if (j.ok) marcarEstado(`Funcionou: ${j.modelo} respondeu em ${(j.ms / 1000).toFixed(1)} s.`, false); else marcarEstado(j.erro || ('HTTP ' + r.status), true);
+                    if (j.ok) marcarEstado(`Funcionou: ${j.modelo} usou a ferramenta em ${(j.ms / 1000).toFixed(1)} s.`, false); else marcarEstado(j.erro || ('HTTP ' + r.status), true);
                     await recarregar(true);
                 } catch (e) { marcarEstado(e.message, true); } finally { testar.disabled = !pode; }
             });
@@ -311,7 +347,7 @@
                     b.type = 'button';
                     b.appendChild(mk('b', '', s.nome));
                     b.appendChild(mk('span', 'sk-tag', (s.escopo === 'projeto' ? 'projeto' : 'geral') + (s.origem === 'usuario' ? ' · sua' : '')));
-                    b.appendChild(mk('small', '', s.descricao || ''));
+                    b.appendChild(mk('small', '', [s.descricao, s.versao && 'Revisão ' + s.versao].filter(Boolean).join(' · ')));
                     b.addEventListener('click', () => abrir(s));
                     lista.appendChild(b);
                 });
@@ -321,14 +357,14 @@
                 const nome = mk('input', 'sk-nome');
                 nome.placeholder = 'nome_da_skill (minúsculas, números, _ e -)';
                 const escopo = mk('select', 'sk-escopo');
-                [['projeto', 'Deste projeto'], ['geral', 'Todos os projetos']].forEach(([v, t]) => { const o = mk('option', '', t); o.value = v; escopo.appendChild(o); });
+                [...(dados.escopo_projeto ? [['projeto', 'Deste projeto']] : []), ['geral', 'Todos os projetos']].forEach(([v, t]) => { const o = mk('option', '', t); o.value = v; escopo.appendChild(o); });
                 const area = mk('textarea', 'sk-texto');
                 area.spellcheck = false;
                 area.placeholder = 'descricao: quando usar esta skill\n# Título\nRegras e passos, em linhas curtas...';
                 if (s) {
                     nome.value = s.nome; nome.disabled = true; escopo.value = s.escopo; escopo.disabled = true;
                     try {
-                        const r = await fetch(`/api/assistente/skills/${encodeURIComponent(escopoDe(s))}/${encodeURIComponent(s.nome)}`);
+                        const r = await fetch(`/api/assistente/skills/${encodeURIComponent(s.pasta || escopoDe(s))}/${encodeURIComponent(s.nome)}`);
                         area.value = r.ok ? (await r.json()).texto : '';
                     } catch (e) { area.value = ''; }
                 }
@@ -357,7 +393,7 @@
                         apagar.type = 'button';
                         apagar.addEventListener('click', async () => {
                             if (!confirm(`Apagar a skill «${s.nome}»? Se houver uma versão que veio com o programa, ela volta a valer.`)) return;
-                            const r = await fetch(`/api/assistente/skills/${encodeURIComponent(escopoDe(s))}/${encodeURIComponent(s.nome)}`, { method: 'DELETE' });
+                            const r = await fetch(`/api/assistente/skills/${encodeURIComponent(s.pasta || escopoDe(s))}/${encodeURIComponent(s.nome)}`, { method: 'DELETE' });
                             if (!r.ok) { toast('Não apaguei (' + r.status + ').'); return; }
                             toast('Skill apagada.');
                             editor.textContent = '';
@@ -372,7 +408,11 @@
                 if (!s) nome.focus();
             }
             desenharLista();
-            if (dados.skills.length) abrir(dados.skills[0]);
+            if (pode && opcoes.rascunho && dados.escopo_projeto) {
+                await abrir(null);
+                const area = editor.querySelector('textarea');
+                area.value = opcoes.rascunho;
+            } else if (dados.skills.length) abrir(dados.skills[0]);
         };
     }
 
