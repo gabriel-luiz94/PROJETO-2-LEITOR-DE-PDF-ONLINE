@@ -53,6 +53,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public string Texto;              // TEXT/ATTRIB: texto; MTEXT/MLEADER: conteúdo cru (com códigos)
         public double X, Y, Altura, Raio;
         public double[] Caixa;            // [minX, minY, maxX, maxY] do texto, quando o CAD informa
+        public string NotaDaGuia;         // handle do MTEXT apontado pela guia do plugin
         public string Bloco;              // INSERT: nome efetivo do bloco
         public bool Invisivel;
         public List<Ponto> Pontos = new List<Ponto>();                   // linhas
@@ -84,6 +85,7 @@ namespace OrcamentoNanoCAD.Nucleo
             if (Raio > 0) o.Set("raio", Math.Round(Raio, 4));
             if (Caixa != null) o.Set("caixa", Caixa.Select(v => (object)Math.Round(v, 4)).ToList());
             if (Bloco != null) o.Set("bloco", Bloco);
+            if (NotaDaGuia != null) o.Set("notaDaGuia", NotaDaGuia);
             if (Invisivel) o.Set("invisivel", true);
             if (Pontos.Count > 0) o.Set("pontos", Pts(Pontos));
             if (Linhas.Count > 0) o.Set("linhas", Linhas.Select(l => (object)Pts(l)).ToList());
@@ -106,6 +108,7 @@ namespace OrcamentoNanoCAD.Nucleo
             List<object> cx = o.Lista("caixa");
             if (cx != null && cx.Count == 4) e.Caixa = cx.Select(v => Json.ComoNumero(v) ?? 0).ToArray();
             e.Bloco = o.Str("bloco");
+            e.NotaDaGuia = o.Str("notaDaGuia");
             e.Invisivel = o.Bool("invisivel", false);
             e.Pontos = DePts(o["pontos"]);
             foreach (object l in o.Lista("linhas") ?? new List<object>()) e.Linhas.Add(DePts(l));
@@ -190,14 +193,21 @@ namespace OrcamentoNanoCAD.Nucleo
         {
             Desenho d = new Desenho();
             d.Arquivo = b.Arquivo;
+            var guias = b.Entidades.Where(e => !string.IsNullOrEmpty(e.NotaDaGuia) && e.Pontos.Count >= 2)
+                .ToLookup(e => e.NotaDaGuia, StringComparer.OrdinalIgnoreCase);
             foreach (EntidadeBruta e in b.Entidades)
             {
+                if (e.NotaDaGuia != null) continue;
                 switch (e.Tipo)
                 {
                     case "TEXT":
                     case "MTEXT":
                     case "ATTRIB":
-                        if (!e.Invisivel) Textos(e, b, null, d.Textos, e.Tipo);
+                        if (e.Invisivel) break;
+                        int primeiraParte = d.Textos.Count;
+                        Textos(e, b, null, d.Textos, e.Tipo);
+                        foreach (EntidadeBruta guia in guias[e.Handle])
+                            for (int parte = primeiraParte; parte < d.Textos.Count; parte++) d.Textos[parte].Guias.Add(guia.Pontos);
                         break;
                     case "MLEADER":
                         // texto da linha de chamada múltipla (a aplicação não lê MLEADER do DXF; aqui ele vale como texto, com as linhas como guias)

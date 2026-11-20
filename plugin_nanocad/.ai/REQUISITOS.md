@@ -105,3 +105,11 @@
 |---|---|
 | Fila com detalhe da origem, busca, revisão por poste e diferenças entre leituras | ✅ núcleo · 🟡 CAD |
 | Escolher destino, destacar geometria e aplicar operação em lote com prévia | ✅ build · 🟡 CAD |
+
+## Anotações de desenho · TASK-029
+
+| Requisito | Status |
+|---|---|
+| Criar, editar, mover e reapontar MTEXT com guia | ✅ build · 🟡 CAD |
+| Auditar a layer, alternar LV e excluir MTEXT com confirmação | ✅ build · 🟡 CAD |
+| Filtrar MTEXT na análise | ✅ build 26 · 🟡 CAD |

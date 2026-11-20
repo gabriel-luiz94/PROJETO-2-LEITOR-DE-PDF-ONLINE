@@ -166,5 +166,79 @@
   "modo": "DEFINIR",
   "operacao": "0",
   "parar": true
+ },
+ {
+  "id": "anotacao-layer-23",
+  "descricao": "Layer POSTE_INSTALANDO · operação I",
+  "fase": 3,
+  "ordem": 23,
+  "modo": "DEFINIR",
+  "layer_em": [
+   "POSTE_INSTALANDO"
+  ],
+  "operacao": "I",
+  "parar": true
+ },
+ {
+  "id": "anotacao-layer-24",
+  "descricao": "Layer POSTE_REMOVENDO · operação R",
+  "fase": 3,
+  "ordem": 24,
+  "modo": "DEFINIR",
+  "layer_em": [
+   "POSTE_REMOVENDO"
+  ],
+  "operacao": "R",
+  "parar": true
+ },
+ {
+  "id": "anotacao-layer-25",
+  "descricao": "Layer POSTE_REAPLICANDO · operação M",
+  "fase": 3,
+  "ordem": 25,
+  "modo": "DEFINIR",
+  "layer_em": [
+   "POSTE_REAPLICANDO",
+   "POSTE_REALOCANDO"
+  ],
+  "operacao": "M",
+  "parar": true
+ },
+ {
+  "id": "anotacao-layer-26",
+  "descricao": "Layer POSTE_INSTALANDO_LV · operação *I",
+  "fase": 3,
+  "ordem": 26,
+  "modo": "DEFINIR",
+  "layer_em": [
+   "POSTE_INSTALANDO_LV"
+  ],
+  "operacao": "*I",
+  "parar": true
+ },
+ {
+  "id": "anotacao-layer-27",
+  "descricao": "Layer POSTE_REMOVENDO_LV · operação *R",
+  "fase": 3,
+  "ordem": 27,
+  "modo": "DEFINIR",
+  "layer_em": [
+   "POSTE_REMOVENDO_LV"
+  ],
+  "operacao": "*R",
+  "parar": true
+ },
+ {
+  "id": "anotacao-layer-28",
+  "descricao": "Layer POSTE_REAPLICANDO_LV · operação *M",
+  "fase": 3,
+  "ordem": 28,
+  "modo": "DEFINIR",
+  "layer_em": [
+   "POSTE_REAPLICANDO_LV",
+   "POSTE_REALOCANDO_LV"
+  ],
+  "operacao": "*M",
+  "parar": true
  }
 ]

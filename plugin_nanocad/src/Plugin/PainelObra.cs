@@ -102,6 +102,13 @@ namespace OrcamentoNanoCAD.UI
             Acao(projeto, "Início", "ORCAMENTO");
             Acao(projeto, "Nome e número da obra", "ORC_PROJETO");
             Acao(projeto, "Fechar obra", "ORC_FECHAR");
+            ToolStripMenuItem notas = Grupo(menu, "Anotações");
+            Acao(notas, "Criar nota…", "ORC_NOTA");
+            Acao(notas, "Editar nota…", "ORC_EDITAR_NOTA");
+            Acao(notas, "Mover nota…", "ORC_MOVER_NOTA");
+            Acao(notas, "Reapontar guia…", "ORC_REAPONTAR_NOTA");
+            Acao(notas, "Atualizar guias", "ORC_ATUALIZAR_GUIAS");
+            Acao(notas, "Auditoria de layers…", "ORC_AUDITAR_LAYERS");
             ToolStripMenuItem conferir = Grupo(menu, "Conferir");
             Acao(conferir, "Vínculos", "ORC_VINCULOS");
             Acao(conferir, "Ativos com parâmetros", "ORC_ATIVOS");

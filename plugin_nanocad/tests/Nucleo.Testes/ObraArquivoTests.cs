@@ -161,7 +161,7 @@ namespace OrcamentoNanoCAD.Testes
             Assert.Equal("01_REMOVER", Apoio.Pernambuco.LayerDaOperacao("R"));
             Assert.Equal("01_INSTALANDO", Apoio.Pernambuco.LayerDaOperacao("I"));
             Assert.Equal("01_REAPLICANDO", Apoio.Pernambuco.LayerDaOperacao("M"));
-            Assert.Null(Apoio.Pernambuco.LayerDaOperacao("*I"));
+            Assert.Equal("POSTE_INSTALANDO_LV", Apoio.Pernambuco.LayerDaOperacao("*I"));
         }
     }
 

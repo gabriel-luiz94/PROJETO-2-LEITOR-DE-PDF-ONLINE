@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-19 — Layers das notas de Pernambuco
+
+O pacote 081 reconhece as layers `POSTE_*` de instalação, remoção e reaplicação e suas variantes de linha viva. Seus dados alimentam o leitor da aplicação e o plugin.
+
 ## 2026-11-19 — Auditoria da leitura no nanoCAD
 
 O plugin mostra a origem da anotação, a metragem lida, a geometria e a saída da obra. A configuração por projeto aceita o campo opcional `auditoria_tolerancia_m` de 0 a 1000. Zero desativa o aviso. A revisão e as escolhas de destino são armazenadas na seção `cad` da obra.

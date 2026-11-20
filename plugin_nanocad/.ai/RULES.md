@@ -37,8 +37,8 @@ Leitura do DXF inteiro (TASK-005): ao mudar `services/dxf_service.py` ou o monta
 
 ## Regra P5 — O desenho do usuário
 
-- O plugin só **altera** o DWG em dois casos: gravar a obra no dicionário `ORCAMENTO_LEITOR` (ORC_SALVAR) e trocar a
-  layer da anotação quando o usuário muda a operação **com a opção marcada** no ajuste de um item ou na prévia de operação em lote. Nada mais (sem camada de marcas).
+- Os comandos de notas podem criar, editar, mover e excluir MTEXT e suas guias. Na auditoria, alterações de layer e exclusões são ações explícitas.
+- ORC_SALVAR grava a obra no dicionário `ORCAMENTO_LEITOR`. O ajuste de operação pode trocar a layer quando a opção estiver marcada.
 - Marcas na tela = gráficos transitórios.
 - Excluir da obra não apaga nada do desenho.
 

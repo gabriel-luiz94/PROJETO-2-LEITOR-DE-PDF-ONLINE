@@ -35,6 +35,33 @@ namespace Teigha.DatabaseServices
         public double Width { get { throw null; } set { } }
         protected AbstractViewTableRecord() { }
     }
+    public enum AttachmentPoint : int
+    {
+        BaseAlign = unchecked((int)(13)),
+        BaseCenter = unchecked((int)(11)),
+        BaseFit = unchecked((int)(17)),
+        BaseLeft = unchecked((int)(10)),
+        BaseMid = unchecked((int)(21)),
+        BaseRight = unchecked((int)(12)),
+        BottomAlign = unchecked((int)(14)),
+        BottomCenter = unchecked((int)(8)),
+        BottomFit = unchecked((int)(18)),
+        BottomLeft = unchecked((int)(7)),
+        BottomMid = unchecked((int)(22)),
+        BottomRight = unchecked((int)(9)),
+        MiddleAlign = unchecked((int)(15)),
+        MiddleCenter = unchecked((int)(5)),
+        MiddleFit = unchecked((int)(19)),
+        MiddleLeft = unchecked((int)(4)),
+        MiddleMid = unchecked((int)(23)),
+        MiddleRight = unchecked((int)(6)),
+        TopAlign = unchecked((int)(16)),
+        TopCenter = unchecked((int)(2)),
+        TopFit = unchecked((int)(20)),
+        TopLeft = unchecked((int)(1)),
+        TopMid = unchecked((int)(24)),
+        TopRight = unchecked((int)(3)),
+    }
     public sealed class AttributeCollection : System.Collections.IEnumerable
     {
         public global::System.Collections.IEnumerator GetEnumerator() { throw null; }
@@ -67,6 +94,7 @@ namespace Teigha.DatabaseServices
     public class BlockTableRecord : global::Teigha.DatabaseServices.SymbolTableRecord, System.Collections.IEnumerable
     {
         public static readonly string ModelSpace;
+        public global::Teigha.DatabaseServices.ObjectId AppendEntity(global::Teigha.DatabaseServices.Entity entity) { throw null; }
         public virtual global::Teigha.DatabaseServices.BlockTableRecordEnumerator GetEnumerator() { throw null; }
         protected BlockTableRecord() { }
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { throw null; }
@@ -93,6 +121,7 @@ namespace Teigha.DatabaseServices
     }
     public abstract class Curve : global::Teigha.DatabaseServices.Entity
     {
+        public virtual global::Teigha.Geometry.Point3d GetClosestPointTo(global::Teigha.Geometry.Point3d givenPoint, bool extend) { throw null; }
         protected Curve() { }
     }
     public sealed class Database : global::Teigha.Runtime.RXObject
@@ -101,6 +130,7 @@ namespace Teigha.DatabaseServices
         public global::Teigha.DatabaseServices.ObjectId BlockTableId { get { throw null; }  }
         public global::Teigha.DatabaseServices.ObjectId LayerTableId { get { throw null; }  }
         public global::Teigha.DatabaseServices.ObjectId NamedObjectsDictionaryId { get { throw null; }  }
+        public global::Teigha.DatabaseServices.ObjectId RegAppTableId { get { throw null; }  }
         public global::Teigha.DatabaseServices.TransactionManager TransactionManager { get { throw null; }  }
         protected Database() { }
     }
@@ -113,8 +143,12 @@ namespace Teigha.DatabaseServices
     }
     public abstract class DBObject : global::Teigha.GraphicsInterface.Drawable
     {
+        public void Erase() { throw null; }
+        public global::Teigha.DatabaseServices.ResultBuffer GetXDataForApplication(string applicationName) { throw null; }
         public void UpgradeOpen() { throw null; }
         public global::Teigha.DatabaseServices.Handle Handle { get { throw null; }  }
+        public global::Teigha.DatabaseServices.ObjectId ObjectId { get { throw null; }  }
+        public virtual global::Teigha.DatabaseServices.ResultBuffer XData { get { throw null; } set { } }
         protected DBObject() { }
     }
     public class DBText : global::Teigha.DatabaseServices.Entity
@@ -276,6 +310,7 @@ namespace Teigha.DatabaseServices
     }
     public abstract class Entity : global::Teigha.DatabaseServices.DBObject
     {
+        public void SetDatabaseDefaults(global::Teigha.DatabaseServices.Database sourceDatabase) { throw null; }
         public global::Teigha.Colors.Color Color { get { throw null; } set { } }
         public global::Teigha.DatabaseServices.Extents3d GeometricExtents { get { throw null; }  }
         public string Layer { get { throw null; } set { } }
@@ -327,16 +362,21 @@ namespace Teigha.DatabaseServices
     }
     public class MText : global::Teigha.DatabaseServices.Entity
     {
+        public MText() { }
+        public global::Teigha.DatabaseServices.AttachmentPoint Attachment { get { throw null; } set { } }
         public string Contents { get { throw null; } set { } }
         public global::Teigha.Geometry.Point3d Location { get { throw null; } set { } }
         public double TextHeight { get { throw null; } set { } }
-        protected MText() { }
     }
     public struct ObjectId
     {
+        public static bool operator ==(global::Teigha.DatabaseServices.ObjectId a, global::Teigha.DatabaseServices.ObjectId b) { throw null; }
+        public static bool operator !=(global::Teigha.DatabaseServices.ObjectId a, global::Teigha.DatabaseServices.ObjectId b) { throw null; }
         public string ToString() { throw null; }
         public bool IsErased { get { throw null; }  }
         public bool IsNull { get { throw null; }  }
+        public static global::Teigha.DatabaseServices.ObjectId Null { get { throw null; }  }
+        public global::Teigha.Runtime.RXClass ObjectClass { get { throw null; }  }
     }
     public enum OpenMode : int
     {
@@ -369,13 +409,22 @@ namespace Teigha.DatabaseServices
         public global::Teigha.Geometry.Point3d Position { get { throw null; } set { } }
         protected PolylineVertex3d() { }
     }
+    public sealed class RegAppTable : global::Teigha.DatabaseServices.SymbolTable
+    {
+        protected RegAppTable() { }
+    }
+    public class RegAppTableRecord : global::Teigha.DatabaseServices.SymbolTableRecord
+    {
+        public RegAppTableRecord() { }
+    }
     public sealed class ResultBuffer : global::Teigha.Runtime.DisposableWrapper, System.Collections.IEnumerable
     {
         public ResultBuffer() { }
+        public ResultBuffer(params global::Teigha.DatabaseServices.TypedValue[] values) { }
         public void Add(global::Teigha.DatabaseServices.TypedValue value) { throw null; }
         public global::Teigha.DatabaseServices.ResultBufferEnumerator GetEnumerator() { throw null; }
-        public static bool operator !=(global::Teigha.DatabaseServices.ResultBuffer a, global::Teigha.DatabaseServices.ResultBuffer b) { throw null; }
         public static bool operator ==(global::Teigha.DatabaseServices.ResultBuffer a, global::Teigha.DatabaseServices.ResultBuffer b) { throw null; }
+        public static bool operator !=(global::Teigha.DatabaseServices.ResultBuffer a, global::Teigha.DatabaseServices.ResultBuffer b) { throw null; }
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { throw null; }
     }
     public sealed class ResultBufferEnumerator
@@ -418,6 +467,7 @@ namespace Teigha.DatabaseServices
     public struct TypedValue
     {
         public TypedValue(int typeCode, object value) { }
+        public short TypeCode { get { throw null; }  }
         public object Value { get { throw null; }  }
     }
     public class Vertex : global::Teigha.DatabaseServices.Entity
@@ -445,6 +495,9 @@ namespace Teigha.Geometry
     {
         public IntegerCollection() { }
     }
+    public struct Matrix3d
+    {
+    }
     public struct Point2d
     {
         public Point2d(double x, double y) { }
@@ -457,13 +510,17 @@ namespace Teigha.Geometry
         public double DistanceTo(global::Teigha.Geometry.Point3d point) { throw null; }
         public static global::Teigha.Geometry.Point3d operator +(global::Teigha.Geometry.Point3d a, global::Teigha.Geometry.Vector3d vector) { throw null; }
         public static global::Teigha.Geometry.Vector3d operator -(global::Teigha.Geometry.Point3d a, global::Teigha.Geometry.Point3d b) { throw null; }
+        public global::Teigha.Geometry.Point3d TransformBy(global::Teigha.Geometry.Matrix3d leftSide) { throw null; }
         public double X { get { throw null; }  }
         public double Y { get { throw null; }  }
+        public double Z { get { throw null; }  }
     }
     public struct Vector3d
     {
+        public Vector3d(double x, double y, double z) { }
         public static global::Teigha.Geometry.Vector3d operator /(global::Teigha.Geometry.Vector3d a, double factor) { throw null; }
         public static global::Teigha.Geometry.Vector3d operator *(global::Teigha.Geometry.Vector3d a, double factor) { throw null; }
+        public double Y { get { throw null; }  }
         public static global::Teigha.Geometry.Vector3d ZAxis { get { throw null; }  }
     }
 }
@@ -534,6 +591,10 @@ namespace Teigha.Runtime
         public static bool operator !=(global::Teigha.Runtime.DisposableWrapper a, global::Teigha.Runtime.DisposableWrapper b) { throw null; }
         protected DisposableWrapper() { }
     }
+    public class Exception : global::System.Exception
+    {
+        protected Exception() { }
+    }
     [System.AttributeUsage(System.AttributeTargets.All, AllowMultiple = true)]
     public sealed class ExtensionApplicationAttribute : global::System.Attribute
     {
@@ -554,6 +615,11 @@ namespace Teigha.Runtime
     {
         void Initialize();
         void Terminate();
+    }
+    public sealed class RXClass : global::Teigha.Runtime.RXObject
+    {
+        public string DxfName { get { throw null; }  }
+        protected RXClass() { }
     }
     public abstract class RXObject : global::Teigha.Runtime.DisposableWrapper
     {
