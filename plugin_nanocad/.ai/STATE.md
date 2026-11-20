@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.12.3
+
+TASK-032 corrige a seleção das regras de Paraíba (027) na leitura do nanoCAD. As regras da aplicação, o cache e a base de fábrica são resolvidos pelo código do projeto. A leitura de um DWG real da Paraíba aguarda validação no nanoCAD 5 e 26.
+
 ## Plugin 0.12.2
 
 TASK-031 corrige a abertura do painel de obra antes da seleção da primeira aba. A execução de `ORCAMENTO` no CAD aguarda confirmação.
@@ -29,9 +33,9 @@ TASK-022 (leitura), TASK-023 (alocação por poste) e TASK-024 (painel) implemen
 
 ## Versão
 
-`0.12.2` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
+`0.12.3` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
 
-Branch de trabalho: `codex/nanocad-paridade`
+Branch de trabalho: `codex/leitura-paraiba`
 
 ## Entregáveis
 

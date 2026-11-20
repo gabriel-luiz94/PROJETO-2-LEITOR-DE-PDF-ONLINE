@@ -54,6 +54,20 @@ def test_leitura_guardada_vai_nas_regras_e_muda_a_versao(client):
     assert proj["081"]["tem_leitura"] is True and proj["071"]["tem_leitura"] is False
 
 
+def test_paraiba_recebe_as_regras_do_leitor_e_a_geometria_do_proprio_projeto(client):
+    perfil_pb = {"layers_rede_mt": ["PB_MT"], "blocos_poste": ["PB_POSTE"]}
+    assert client.put("/api/plugin/leitura?projeto=027", json={"leitura": perfil_pb}, headers=cab()).status_code == 200
+    resposta = client.get("/api/plugin/regras?projeto=027", headers=cab())
+    assert resposta.status_code == 200
+    regras = resposta.json()
+    assert regras["projeto"] == {"codigo": "027", "nome": "PARAIBA"}
+    assert regras["leitura"] == perfil_pb
+    for tabela in ("processamento", "classificacao"):
+        leitor = client.get(f"/api/regras-leitor/{tabela}?projeto_codigo=027", headers=cab()).json()
+        assert regras[tabela] and regras[tabela] == leitor["regras"]
+    assert client.get("/api/plugin/regras?projeto=081", headers=cab()).json()["leitura"] is None
+
+
 @pytest.mark.parametrize("ruim", [{"layers_rede_mt": "REDE_MT"}, {"raio_alturas": -1}, {"raio_alturas": True}, {"placa_regex": "(["},
                                   {"auditoria_tolerancia_m": -1}, {"cor_confirma": "sim"}, {"blocos_poste": [1, 2]}])
 def test_configuracao_invalida_e_recusada(client, ruim):

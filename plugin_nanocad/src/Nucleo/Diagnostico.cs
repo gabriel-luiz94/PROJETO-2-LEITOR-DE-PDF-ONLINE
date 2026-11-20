@@ -126,7 +126,10 @@ namespace OrcamentoNanoCAD.Nucleo
             return new JObj()
                 .Set("formato", "plugin-diagnostico").Set("versao", 1).Set("plugin", ObraArquivo.VersaoPlugin)
                 .Set("gerado_em", agora.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture))
-                .Set("regras", regras.Nome).Set("leitura", (regras.Leitura ?? new ConfigLeitura()).ParaJson())
+                .Set("regras", regras.Nome).Set("projeto", regras.Codigo)
+                .Set("regras_aplicacao", regras.DaAplicacao).Set("leitura_aplicacao", regras.LeituraDaAplicacao)
+                .Set("regras_processamento", regras.Processamento.Count).Set("regras_classificacao", regras.Classificacao.Count)
+                .Set("leitura", (regras.Leitura ?? new ConfigLeitura()).ParaJson())
                 .Set("resumo", Resumo(b, d, obra, regras))
                 .Set("textos", textos)
                 .Set("bruto", b.ParaJson());

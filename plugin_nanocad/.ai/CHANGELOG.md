@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-20 — 0.12.3
+
+A seleção de projeto usa o mesmo código para carregar as regras e ler o desenho. Paraíba (027) usa o pacote salvo no OrçaCore, sua última cópia baixada ou o seed do leitor de 027. O log indica a origem e `ORC_DIAGNOSTICO` registra o código, as contagens e a procedência da geometria. [TASK-032](tasks/TASK-032-20-11-2026.md).
+
 ## 2026-11-20 — 0.12.2
 
 O painel abre mesmo durante o preenchimento inicial, quando o WinForms ainda está sem aba selecionada. A correção trata o erro em `ORCAMENTO` ao entrar em Construir. [TASK-031](tasks/TASK-031-20-11-2026.md).

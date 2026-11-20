@@ -101,10 +101,36 @@ namespace OrcamentoNanoCAD.Nucleo
         }
 
         // recursos embutidos (LogicalName no .csproj / build_nanocad5.bat) — os arquivos são os de ../data do projeto principal
+        public const string Paraiba = "027";
+
         public static readonly Fonte[] Embutidas = {
             new Fonte("081", "Pernambuco (081) — Leitor", "regras.081.processamento.json", "regras.081.classificacao.json", "regras.081.vinculacao.json"),
+            new Fonte(Paraiba, "Paraíba (027) — Leitor de fábrica", "regras.padrao.processamento.json", "regras.padrao.classificacao.json", null),
             new Fonte("", "Padrão (genérico)", "regras.padrao.processamento.json", "regras.padrao.classificacao.json", null),
         };
+
+        /// <summary>Resolve somente pacotes do projeto pedido. A base embutida de 027 é a usada no seed do OrçaCore.</summary>
+        public static RegrasProjeto Resolver(string codigo, RegrasProjeto escolhidas, Func<string, RegrasProjeto> baixar,
+            Func<IEnumerable<RegrasProjeto>> disponiveis)
+        {
+            bool mesmaEscolha = escolhidas != null && escolhidas.Codigo == codigo;
+            if (mesmaEscolha && !escolhidas.DaAplicacao && (codigo != Paraiba || escolhidas.Origem != "embutida"))
+                return escolhidas;
+
+            if (baixar != null && !string.IsNullOrEmpty(codigo))
+            {
+                RegrasProjeto remotas = baixar(codigo);
+                if (remotas != null && remotas.Codigo == codigo) return remotas;
+            }
+
+            if (mesmaEscolha && escolhidas.DaAplicacao && TemRegrasBaixadas(escolhidas)) return escolhidas;
+            return disponiveis().FirstOrDefault(r => r.Codigo == codigo && (!r.DaAplicacao || TemRegrasBaixadas(r)));
+        }
+
+        private static bool TemRegrasBaixadas(RegrasProjeto regras)
+        {
+            return !string.IsNullOrEmpty(regras.Versao) || regras.Processamento.Count > 0 || regras.Classificacao.Count > 0;
+        }
 
         public static List<RegrasProjeto> Carregar(Func<string, string> lerRecurso, IEnumerable<RegrasProjeto> externas)
         {
