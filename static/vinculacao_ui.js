@@ -90,7 +90,17 @@
     .vz-mapa [data-no]:hover .vz-marcador,.vz-mapa [data-no]:focus-visible .vz-marcador{fill:var(--g-accent);stroke:#fff}
     .vz-mapa [data-no] text{fill:#e6dff3;font-size:11px;font-weight:600;paint-order:stroke;stroke:#17161c;stroke-width:3px;pointer-events:none}
     .vz-mapa .vz-rotulo-denso text{visibility:hidden}.vz-mapa .vz-rotulo-denso:hover text,.vz-mapa .vz-rotulo-denso:focus-visible text{visibility:visible}
-    .vz-mapa .vz-aresta{opacity:.78}.vz-mapa .vz-aresta:hover{opacity:1}.vz-mapa .vz-aresta.k{stroke:var(--g-gray)}.vz-mapa .vz-aresta.pu{stroke:var(--g-accent)}.vz-mapa .vz-aresta.gr{stroke:var(--g-green)}.vz-mapa .vz-aresta.rd{stroke:var(--g-red)}
+    .vz-mapa .vz-aresta{stroke:var(--g-gray);stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
+    .vz-mapa .vz-aresta.mt{stroke:#b95f6a}.vz-mapa .vz-aresta.bt{stroke:#4e9875}
+    .vz-mapa .vz-aresta.completo{stroke-width:3.6}.vz-mapa .vz-aresta.mt.completo{stroke:#ff6478}
+    .vz-mapa .vz-aresta.bt.completo{stroke:#54e1a3}
+    .vz-mapa [data-no].completo .vz-marcador{fill:#25513e;stroke:#54e1a3}
+    .vz-mapa [data-no].completo .vz-halo{fill:#54e1a34d}
+    .vz-mapa [data-no].completo:hover .vz-marcador,.vz-mapa [data-no].completo:focus-visible .vz-marcador{fill:#54e1a3;stroke:#fff}
+    .vz-linha-legenda{display:inline-block;width:17px;height:0;border-top:2px solid;vertical-align:middle;margin-right:5px}
+    .vz-linha-legenda.mt{color:#ff6478}.vz-linha-legenda.bt{color:#54e1a3}
+    .vz--grafo .vz-dot.poste-completo{border-color:#54e1a3;background:#25513e}
+    .vz-no-topo .vz-no-completo{color:#54e1a3}
     .vz-no-dialog{width:min(880px,94vw);max-height:84vh;margin:auto;padding:0;background:var(--g-bg);border:1px solid #514663;border-radius:14px;font-size:13px;line-height:1.45;overflow:hidden;box-shadow:0 24px 85px #08060cbd}
     .vz-no-dialog *, .vz-no-dialog{box-sizing:border-box}.vz-no-dialog[open]{display:flex;flex-direction:column}
     .vz-no-dialog::backdrop{background:#111017b5}
@@ -235,7 +245,13 @@
 
     function rodape() {
         return el('div', { class: 'vz-foot' }, [
-            el('div', { class: 'vz-leg' }, [el('span', {}, [el('i', { class: 'vz-dot' }), 'sem vínculo']), el('span', {}, [el('i', { class: 'vz-dot pu' }), 'parcial']), el('span', {}, [el('i', { class: 'vz-dot gr' }), 'completo']),
+            st.aba === 'mapa' ? el('div', { class: 'vz-leg' }, [
+                el('span', {}, [el('i', { class: 'vz-linha-legenda mt' }), 'MT']),
+                el('span', {}, [el('i', { class: 'vz-linha-legenda bt' }), 'BT']),
+                el('span', {}, [el('i', { class: 'vz-dot poste-completo' }), 'Poste completo']),
+                el('span', {}, [el('i', { class: 'vz-dot pu' }), 'Poste pendente']),
+                el('span', { text: 'Traço forte indica cabos vinculados' })
+            ]) : el('div', { class: 'vz-leg' }, [el('span', {}, [el('i', { class: 'vz-dot' }), 'sem vínculo']), el('span', {}, [el('i', { class: 'vz-dot pu' }), 'parcial']), el('span', {}, [el('i', { class: 'vz-dot gr' }), 'completo']),
                 el('span', {}, [el('i', { class: 'vz-dot rd' }), 'inválido']), el('span', {}, [el('i', { class: 'vz-dot fic' }), 'fictício'])]),
             el('span', { style: 'margin-left:auto' }),
             el('button', { class: 'vz-btn b', text: '⚙ Vincular com o Script…', onclick: () => { st.aba = 'script'; render(); } }),
@@ -1227,10 +1243,17 @@
                 const extremidades = v.ids.map((id, i) => id ? posicoes.get(id) : ponto(v.pontas[i]));
                 const pts = v.pontos ? v.pontos.map(ponto) : extremidades.slice();
                 pts[0] = extremidades[0]; pts[pts.length - 1] = extremidades[1];
-                const estados = v.cabos.map(ic => a.cabos[ic]?.estado || 'k');
-                const estado = ['rd', 'k', 'pu', 'gr'].find(e => estados.includes(e));
-                const linha = pts.map(p => p.map(n => n.toFixed(2)).join(',')).join(' ');
-                return `<polyline class="vz-aresta ${estado}" points="${linha}" fill="none" stroke-width="2" vector-effect="non-scaling-stroke" ${v.ids.includes(null) ? 'stroke-dasharray="5 4"' : ''}><title>${esc(v.cabos.map(ic => cabos()[ic].ativo).join('\n'))}</title></polyline>`;
+                const grupos = VR.gruposVisuaisDoVao(v.cabos, cabos(), a, st.cfg.dicionario_cabos);
+                const [x0, y0] = pts[0], [x1, y1] = pts[pts.length - 1];
+                const dx = x1 - x0, dy = y1 - y0, comprimento = Math.hypot(dx, dy) || 1;
+                return grupos.map((grupo, i) => {
+                    const deslocamento = (i - (grupos.length - 1) / 2) * 4;
+                    const linha = pts.map(([x, y]) => `${(x - dy * deslocamento / comprimento).toFixed(2)},${(y + dx * deslocamento / comprimento).toFixed(2)}`).join(' ');
+                    const estado = grupo.completo ? 'Vinculado' : 'Pendente';
+                    const rotulo = `${grupo.tipo} · ${estado}\n${grupo.cabos.map(ic => cabos()[ic].ativo).join('\n')}`;
+                    const classeRede = grupo.tipo === 'MT' ? 'mt' : grupo.tipo === 'BT' ? 'bt' : '';
+                    return `<polyline class="vz-aresta ${classeRede}${grupo.completo ? ' completo' : ''}" points="${linha}" fill="none" vector-effect="non-scaling-stroke" ${v.ids.includes(null) ? 'stroke-dasharray="5 4"' : ''}><title>${esc(rotulo)}</title></polyline>`;
+                }).join('');
             }).join('');
             const labels = [];
             const nos = [...grafo.nos.values()].map(n => {
@@ -1238,7 +1261,9 @@
                 const direita = x + 15 + curto.length * 7;
                 const denso = labels.some(([a, b, c]) => Math.abs(y - c) < 14 && x + 10 < b && direita > a);
                 if (!denso) labels.push([x + 10, direita, y]);
-                return `<g class="${denso ? 'vz-rotulo-denso' : ''}" data-no="${esc(n.id)}" tabindex="0" role="button" aria-label="${esc(rotulo)}" transform="translate(${x} ${y})"><title>${esc(rotulo)}</title><circle class="vz-alvo" r="14"/><circle class="vz-halo" r="8.5"/><circle class="vz-marcador" r="4.8"/><text x="11" y="-6">${curto}</text></g>`;
+                const completo = VR.posteCompletoNoGrafo(estruturasDoNo(n), a);
+                const classe = [denso ? 'vz-rotulo-denso' : '', completo ? 'completo' : 'pendente'].join(' ');
+                return `<g class="${classe}" data-no="${esc(n.id)}" tabindex="0" role="button" aria-label="${esc(rotulo)}" transform="translate(${x} ${y})"><title>${esc(rotulo)} · ${completo ? 'Vinculação completa' : 'Vinculação pendente'}</title><circle class="vz-alvo" r="14"/><circle class="vz-halo" r="8.5"/><circle class="vz-marcador" r="4.8"/><text x="11" y="-6">${curto}</text></g>`;
             }).join('');
             svg.innerHTML = rede + nos;
             totalPostes.textContent = grafo.nos.size;
@@ -1262,11 +1287,14 @@
             if (!dialogo.open) dialogo.showModal();
         }
 
+        const estruturasDoNo = no => no.estruturas.filter(ie => !metaDe(linhaDe(ie)).soPoste && codigoDe(ie));
+
         function preencherNo() {
             const no = grafo.nos.get(st.grafoNo);
             if (!no) { if (dialogo.open) dialogo.close(); return; }
             const a = analise();
-            const estruturas = no.estruturas.filter(ie => !metaDe(linhaDe(ie)).soPoste && codigoDe(ie));
+            const estruturas = estruturasDoNo(no);
+            const completo = VR.posteCompletoNoGrafo(estruturas, a);
             const fecharNo = botao('Fechar', () => dialogo.close());
             const desfazer = botao('Desfazer', () => {
                 host.desfazer();
@@ -1331,6 +1359,7 @@
             });
             dialogo.replaceChildren(el('header', { class: 'vz-no-topo' }, [
                 el('div', {}, [el('h4', { id: 'vz-no-titulo', text: nomeDoNo(no) }),
+                    el('p', { class: completo ? 'vz-no-completo' : '', text: completo ? 'Vinculação completa' : 'Vinculação pendente' }),
                     el('p', { text: no.pos ? `X ${no.pos[0].toFixed(2)} · Y ${no.pos[1].toFixed(2)}` : 'Poste atribuído sem coordenadas' })]), el('div', { class: 'vz-no-topo-acoes' }, [desfazer, fecharNo])
             ]), el('div', { class: 'vz-no-conteudo' }, [lateral, painelNo]));
         }
