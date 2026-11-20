@@ -213,6 +213,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 - [x] Atualização automática do plugin (TASK-130): `/api/plugin/atualizacao` (+ `/arquivo`), públicas, DLL do repositório conferida pelo SHA-256
 - [x] O programa traz o plugin (TASK-131): instala nanoCAD 26 e 5 em `%APPDATA%\OrcamentoNanoCAD\plugin`, botão "Plugin nanoCAD"; projetos e configuração de leitura do plugin guardados na aplicação (`plugin_leitura_config`)
 - [x] Plugin integrado ao projeto de trabalho (TASK-163): o plugin grava `<desenho>.obra`, o OrçaCore abre/preserva a `cad`; sem gravação no banco
+- [x] TASK-210: a análise local de equipamentos com geometria usa o índice espacial. Se uma aba falha, o modal mantém os controles para voltar ao Resumo.
 - [x] TASK-209: entrega de obras grandes pela API local e busca indexada de postes. Validado em Chromium com uma obra sintética de 28 MB. Aceite no WebView2 e nanoCAD aguarda validação no Windows.
 - [ ] Modo autônomo achar o `.obra.json` e gravar o resultado na pasta do desenho (plugin RQ-40/41)
 
@@ -773,6 +774,8 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-11-20
+
+**Motivo:** [TASK-210](tasks/TASK-210-20-11-2026.md) corrige a tela preta no modal de vinculação.
 
 **Motivo:** [TASK-209](tasks/TASK-209-20-11-2026.md) reduziu o custo de abrir obras grandes do nanoCAD no Resumo.
 

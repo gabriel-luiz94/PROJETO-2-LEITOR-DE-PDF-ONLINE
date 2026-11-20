@@ -229,10 +229,8 @@
         if (painel) { painel.destruir(); painel = null; }
         mapaAtualizar = null;
         st.elRes = null; st.elAch = null;
-        const a = analise();
-        const pend = Object.values(a.cabos).filter(c => c.estado !== 'gr').length + Object.values(a.estruturas).filter(e => e.estado === 'k' || e.estado === 'pu').length;
         overlay.innerHTML = '';
-        const abas = [['vinculo', 'Vínculo', pend ? pend + ' pend.' : ''], ['cabopostes', 'Cabos ⇄ Postes', ''], ['mapa', 'Mapa', ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''], ['casos', 'Casos', ''], ['pacote', 'Pacote', ''],
+        const abas = [['vinculo', 'Vínculo', ''], ['cabopostes', 'Cabos ⇄ Postes', ''], ['mapa', 'Mapa', ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''], ['casos', 'Casos', ''], ['pacote', 'Pacote', ''],
             ['script', 'Script', st.cfg.scripts.length]];
         const vz = el('div', { class: st.aba === 'mapa' ? 'vz vz--grafo' : 'vz' }, [
             el('div', { class: 'vz-top' }, [el('h3', { text: '🔗 Vinculação cabo ⇄ estrutura' }), el('span', { class: 'vz-chip', text: 'Projeto ' + host.projeto() }),
@@ -242,7 +240,16 @@
             rodape()]);
         overlay.appendChild(vz);
         const corpo = vz.querySelector('#vz-corpo');
-        ({ vinculo: abaVinculo, cabopostes: abaCabosPostes, cabos: abaCabos, estruturas: abaEstruturas, dicionario: abaDicionario, postes: abaPostes, desenho: abaDesenho, exportacao: abaExportacao, casos: abaCasos, pacote: abaPacote, script: abaScript, mapa: abaMapa })[st.aba](corpo, a);
+        try {
+            const a = analise();
+            atualizarPendencias(a);
+            ({ vinculo: abaVinculo, cabopostes: abaCabosPostes, cabos: abaCabos, estruturas: abaEstruturas, dicionario: abaDicionario, postes: abaPostes, desenho: abaDesenho, exportacao: abaExportacao, casos: abaCasos, pacote: abaPacote, script: abaScript, mapa: abaMapa })[st.aba](corpo, a);
+        } catch (erro) {
+            console.error('Falha ao exibir a vinculação de cabos e estruturas.', erro);
+            if (painel) { painel.destruir(); painel = null; }
+            mapaAtualizar = null;
+            corpo.replaceChildren(el('p', { class: 'vz-erro', role: 'alert', text: 'Não foi possível exibir esta aba da vinculação. Use Concluir para voltar ao Resumo.' }));
+        }
     }
 
     function rodape() {
@@ -290,13 +297,19 @@
         return VR.podeComOcupantes(c, e, oc);
     }
 
+    function atualizarPendencias(a) {
+        const pend = Object.values(a.cabos).filter(c => c.estado !== 'gr').length + Object.values(a.estruturas).filter(e => e.estado === 'k' || e.estado === 'pu').length;
+        const badge = overlay.querySelector('#vz-pend');
+        badge.textContent = pend ? pend + ' pend.' : '';
+        badge.style.display = pend ? '' : 'none';
+    }
+
     /** Atualização leve: refaz só os dados do painel (a análise é memoizada) em vez de reconstruir o modal inteiro. */
     function atualizar() {
         if (!painel && !mapaAtualizar) { render(); return; }
         const k = ctx();
         if (painel) painel.refazer();
-        const b = overlay.querySelector('#vz-pend');
-        if (b) { const pend = Object.values(k.a.cabos).filter(c => c.estado !== 'gr').length + Object.values(k.a.estruturas).filter(e => e.estado === 'k' || e.estado === 'pu').length; b.textContent = pend ? pend + ' pend.' : ''; b.style.display = pend ? '' : 'none'; }
+        atualizarPendencias(k.a);
         if (st.elRes) st.elRes.textContent = textoResumoPoste();
         if (mapaAtualizar) mapaAtualizar();
         atualizarAchados();

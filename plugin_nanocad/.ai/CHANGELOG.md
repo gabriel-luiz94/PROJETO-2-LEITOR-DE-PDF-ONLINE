@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-20 — 0.12.4
+
+A tela inicial abre pelo comando `ORCACORE` ou pelo atalho `OC`. `ORCAMENTO` continua disponível. [TASK-033](tasks/TASK-033-20-11-2026.md).
+
 ## 2026-11-20 — 0.12.3
 
 A seleção de projeto usa o mesmo código para carregar as regras e ler o desenho. Paraíba (027) usa o pacote salvo no OrçaCore, sua última cópia baixada ou o seed do leitor de 027. O log indica a origem e `ORC_DIAGNOSTICO` registra o código, as contagens e a procedência da geometria. [TASK-032](tasks/TASK-032-20-11-2026.md).

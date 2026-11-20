@@ -1,5 +1,5 @@
 // Plugin/Comandos.cs — comandos do plugin no nanoCAD. Tudo que mexe no desenho passa por aqui (contexto de comando).
-//   ORCAMENTO      tela inicial: Construir do zero / Ler projeto / Continuar obra salva
+//   ORCACORE / OC tela inicial: Construir do zero / Ler projeto / Continuar obra salva
 //   ORC_LER        lê o desenho inteiro pelas regras (layer + cor)       ORC_RELER     o mesmo, do zero (descarta ajustes)
 //   ORC_ATUALIZAR  relê mantendo os ajustes                              ORC_CONTINUAR abre a obra salva (DWG / .obra.json)
 //   ORC_CONSTRUIR  obra vazia para montar à mão                          ORC_POSTE / ORC_VAO  apontar poste/vão + anotação
@@ -50,7 +50,7 @@ namespace OrcamentoNanoCAD
         private static bool PrecisaObra(Sessao s)
         {
             if (s.Obra != null) return true;
-            Aplicacao.Msg("Nenhuma obra aberta neste desenho. Use ORCAMENTO (ou ORC_LER / ORC_CONSTRUIR / ORC_CONTINUAR).");
+            Aplicacao.Msg("Nenhuma obra aberta neste desenho. Use ORCACORE (ou ORC_LER / ORC_CONSTRUIR / ORC_CONTINUAR).");
             return false;
         }
 
@@ -73,10 +73,16 @@ namespace OrcamentoNanoCAD
         private static string Agora() { return DateTime.Now.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture); }
 
         // ── início ──
+        [CommandMethod("OC")]
+        public void AtalhoOrcacore() { Orcacore(); }
+
         [CommandMethod("ORCAMENTO")]
-        public void Orcamento()
+        public void Orcamento() { Orcacore(); }
+
+        [CommandMethod("ORCACORE")]
+        public void Orcacore()
         {
-            Rodar("ORCAMENTO", s =>
+            Rodar("ORCACORE", s =>
             {
                 PersistenciaDwg.ObraSalva salva = PersistenciaDwg.Procurar(s);
                 using (TelaInicio t = new TelaInicio(s, salva))
@@ -797,7 +803,7 @@ namespace OrcamentoNanoCAD
             {
                 if (!Conexao.Logado) { Aplicacao.Msg("Sem ligação com a aplicação. Use ORC_CONECTAR."); return; }
                 string projeto = s.Obra != null && !string.IsNullOrEmpty(s.Obra.Projeto) ? s.Obra.Projeto : (s.Regras != null ? s.Regras.Codigo : "");
-                if (string.IsNullOrEmpty(projeto)) { Aplicacao.Msg("Informe o código do projeto (ORCAMENTO)."); return; }
+                if (string.IsNullOrEmpty(projeto)) { Aplicacao.Msg("Informe o código do projeto (ORCACORE)."); return; }
                 try
                 {
                     RegrasProjeto novas = Conexao.BaixarRegras(projeto);
@@ -837,7 +843,7 @@ namespace OrcamentoNanoCAD
                 s.Modificada = false;
                 s.Marcas.Limpar();
                 PainelObra.Esconder();
-                Aplicacao.Msg("Obra fechada (o desenho não foi alterado). ORCAMENTO abre a tela inicial.");
+                Aplicacao.Msg("Obra fechada (o desenho não foi alterado). ORCACORE abre a tela inicial.");
             });
         }
 
@@ -909,7 +915,7 @@ namespace OrcamentoNanoCAD
             Rodar("ORC_ABRIR_APP", s =>
             {
                 if (!PrecisaObra(s)) return;
-                if (string.IsNullOrEmpty(s.Obra.Projeto)) { Aplicacao.Msg("A obra não tem o código do projeto (ORCAMENTO → Projeto na aplicação)."); return; }
+                if (string.IsNullOrEmpty(s.Obra.Projeto)) { Aplicacao.Msg("A obra não tem o código do projeto (ORCACORE → Projeto na aplicação)."); return; }
                 // TASK-020: grava o projeto <desenho>.obra e o abre no OrçaCore deste computador. Nada vai para o banco da aplicação.
                 if (!s.DesenhoSalvo) { Aplicacao.Msg("Salve o DWG primeiro: o projeto do OrçaCore fica na pasta do desenho (<desenho>.obra)."); return; }
                 string caminho = SalvarProjeto(s);
@@ -922,7 +928,7 @@ namespace OrcamentoNanoCAD
         public void CmdAjuda()
         {
             Aplicacao.Msg("OrçaCore para nanoCAD " + ObraArquivo.VersaoPlugin + " — desenvolvido por Gabriel Sales — comandos:\n"
-                + "  ORCAMENTO      início (Construir do zero / Ler projeto / Continuar obra salva)\n"
+                + "  ORCACORE / OC início (Construir do zero / Ler projeto / Continuar obra salva)\n"
                 + "  ORC_LER  ORC_RELER  ORC_ATUALIZAR  ORC_CONTINUAR  ORC_CONSTRUIR\n"
                 + "  ORC_POSTE  ORC_VAO  ORC_VINCULAR  ORC_EDITAR  ORC_ZOOM\n"
                 + "  ORC_VINCULOS  ORC_ATIVOS  ORC_SALVAR  ORC_PAINEL  ORC_MARCAS  ORC_REGRAS\n"

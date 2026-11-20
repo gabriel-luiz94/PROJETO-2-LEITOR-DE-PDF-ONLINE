@@ -22,7 +22,7 @@ namespace OrcamentoNanoCAD
             {
                 Editor ed = Ed();
                 if (ed != null)
-                    ed.WriteMessage("\nOrçaCore para nanoCAD " + ObraArquivo.VersaoPlugin + " carregado (desenvolvido por Gabriel Sales). Comando: ORCAMENTO (ajuda: ORC_AJUDA).\n");
+                    ed.WriteMessage("\nOrçaCore para nanoCAD " + ObraArquivo.VersaoPlugin + " carregado (desenvolvido por Gabriel Sales). Comando: ORCACORE ou OC (ajuda: ORC_AJUDA).\n");
             }
             catch (System.Exception) { /* sem documento aberto: tudo bem */ }
             try { AtualizacaoPlugin.Iniciar(); }
