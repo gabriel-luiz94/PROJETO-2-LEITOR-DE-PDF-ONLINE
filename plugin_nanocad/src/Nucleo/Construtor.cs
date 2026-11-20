@@ -128,13 +128,35 @@ namespace OrcamentoNanoCAD.Nucleo
 
         public static Vao AdicionarVao(Obra obra, LinhaDesenho linha, List<TextoDesenho> textos, Poste a, Poste b, RegrasProjeto regras, Func<IEnumerable<TextoDesenho>> desenho)
         {
-            Vao v = obra.Vaos.FirstOrDefault(x => x.LinhaHandle == linha.Handle && x.Trecho == 0);
-            if (v == null)
+            return AdicionarVaos(obra, linha, textos, a, b, regras, desenho)[0];
+        }
+
+        public static List<Vao> AdicionarVaos(Obra obra, LinhaDesenho linha, List<TextoDesenho> textos, Poste a, Poste b, RegrasProjeto regras, Func<IEnumerable<TextoDesenho>> desenho)
+        {
+            List<LeituraDeTexto> cabos = LerCabosDeTextos(textos, regras, desenho);
+            var grupo = obra.Vaos.Where(v => v.LinhaHandle == linha.Handle && v.Trecho == 0).ToList();
+            Vao raiz = grupo.FirstOrDefault(v => v.IrmaoDe == null);
+            var incluidos = new List<Vao>();
+            foreach (LeituraDeTexto cabo in cabos.Count == 0 ? new List<LeituraDeTexto> { null } : cabos)
             {
-                v = new Vao();
-                v.Numero = "V" + Proximo(obra.Vaos.Cast<Elemento>(), 'V');
-                obra.Vaos.Add(v);
+                Vao vao = cabo == null ? raiz : grupo.FirstOrDefault(v => !string.IsNullOrEmpty(cabo.Texto.Handle) &&
+                    v.TextoHandle == cabo.Texto.Handle && v.ParteTexto == cabo.Texto.Parte);
+                if (vao == null && raiz != null && (!raiz.TemAnotacao || (cabos.Count == 1 && grupo.Count == 1))) vao = raiz;
+                if (vao == null)
+                {
+                    vao = new Vao { Numero = "V" + Proximo(obra.Vaos.Cast<Elemento>(), 'V'), IrmaoDe = raiz == null ? null : raiz.Numero };
+                    obra.Vaos.Add(vao);
+                }
+                if (raiz == null) raiz = vao;
+                PreencherVao(vao, linha, a, b, regras, cabo);
+                incluidos.Add(vao);
             }
+            Recalcular(obra, regras);
+            return incluidos;
+        }
+
+        private static void PreencherVao(Vao v, LinhaDesenho linha, Poste a, Poste b, RegrasProjeto regras, LeituraDeTexto cabo)
+        {
             v.Manual = true;
             v.LinhaHandle = linha.Handle;
             v.Pontos = new List<Ponto>(linha.Pontos);
@@ -143,10 +165,9 @@ namespace OrcamentoNanoCAD.Nucleo
             v.Tipo = regras.Leitura.ClassificarRede(linha.Layer, linha.Cor) ?? (regras.Leitura.Regra == "SO_LAYER" ? null : regras.Leitura.CorDoProjeto(linha.Cor)) ?? "";
             v.PosteA = a != null ? a.Numero : null;
             v.PosteB = b != null ? b.Numero : null;
-            TextoLido tl = LerAnotacao(textos, regras, "CABO", desenho);
-            if (tl != null) LeitorProjeto.Anotar(v, tl);
-            Recalcular(obra, regras);
-            return v;
+            if (cabo != null)
+                LeitorProjeto.Anotar(v, new TextoLido { T = cabo.Texto, Comprimento = cabo.TextoComprimento,
+                    R = new ResultadoLeitor { Entidade = "CABO", Ativo = cabo.Ativo, Operacao = cabo.Operacao } });
         }
 
         public static void Remover(Obra obra, Elemento e, RegrasProjeto regras)
@@ -256,6 +277,7 @@ namespace OrcamentoNanoCAD.Nucleo
             public bool? Cabo;                // pelas regras: CABO → Tabela de Cabos; outra entidade → Outros; null = não se sabe
             public TextoDesenho Texto;        // o texto usado (ligação com o desenho)
             public string Lido = "";          // o que foi selecionado, como está no desenho
+            public TextoDesenho TextoComprimento;
             public string Comprimento;        // TASK-021: comprimento achado ("35 m"), null = não achou
             public bool ComprimentoDaVizinhanca;   // veio de um texto do desenho que não foi selecionado
         }
@@ -321,6 +343,57 @@ namespace OrcamentoNanoCAD.Nucleo
             return melhor;
         }
 
+        /// <summary>Um cabo por linha selecionada. Um texto que só contém metros pertence a um único cabo.</summary>
+        public static List<LeituraDeTexto> LerCabosDeTextos(List<TextoDesenho> textos, RegrasProjeto regras, Func<IEnumerable<TextoDesenho>> desenho)
+        {
+            var selecionados = (textos ?? new List<TextoDesenho>()).Where(t => t.Texto != null && t.Texto.Trim().Length != 0)
+                .OrderByDescending(t => t.Y).ThenBy(t => t.X).ThenBy(t => t.Parte).ToList();
+            var rotulos = selecionados.Where(t => !EhComprimento(t.Texto)).ToList();
+            var lidos = rotulos.Select(t => LerCaboDeTexto(new List<TextoDesenho> { t }, regras, null)).ToList();
+            var comprimentos = selecionados.Where(t => EhComprimento(t.Texto)).ToList();
+            if (desenho != null && lidos.Where(l => l.Comprimento == null).Any(l =>
+                !comprimentos.Any(m => DonoDoComprimento(m, rotulos, true) == l.Texto)))
+            {
+                var idsSelecionados = new HashSet<string>(selecionados.Select(IdTexto));
+                comprimentos.AddRange(desenho().Where(t => t.Tipo != "BLOCO" && t.Tipo != "BLOCO_DEF"
+                    && EhComprimento(t.Texto) && !idsSelecionados.Contains(IdTexto(t))));
+            }
+            var porCabo = comprimentos.Select(t => new { Texto = t, Escolhido = selecionados.Contains(t) })
+                .ToLookup(m => DonoDoComprimento(m.Texto, rotulos, m.Escolhido));
+            for (int i = 0; i < lidos.Count; i++)
+            {
+                LeituraDeTexto lido = lidos[i];
+                if (lido.Comprimento != null) continue;
+                var comprimento = porCabo[lido.Texto].OrderByDescending(m => m.Escolhido)
+                    .ThenByDescending(m => MesmoMText(lido.Texto, m.Texto))
+                    .ThenBy(m => lido.Texto.Centro.Dist(m.Texto.Centro)).FirstOrDefault();
+                if (comprimento == null) continue;
+                var completo = LerCaboDeTexto(new List<TextoDesenho> { lido.Texto, comprimento.Texto }, regras, null);
+                completo.TextoComprimento = comprimento.Texto;
+                completo.ComprimentoDaVizinhanca = !comprimento.Escolhido;
+                lidos[i] = completo;
+            }
+            return lidos;
+        }
+
+        private static string IdTexto(TextoDesenho t) { return t.Handle + "|" + t.Parte; }
+
+        private static bool MesmoMText(TextoDesenho a, TextoDesenho b)
+        {
+            return !string.IsNullOrEmpty(a.Handle) && a.Handle == b.Handle;
+        }
+
+        private static TextoDesenho DonoDoComprimento(TextoDesenho metros, List<TextoDesenho> rotulos, bool escolhido)
+        {
+            var doMesmoTexto = rotulos.Where(t => MesmoMText(t, metros)).ToList();
+            if (doMesmoTexto.Count > 0)
+                return doMesmoTexto.Where(t => t.Parte < metros.Parte).OrderByDescending(t => t.Parte).FirstOrDefault();
+            return rotulos.Select(t => new { Texto = t, Altura = t.Altura > 0 ? t.Altura : 1, Distancia = t.Centro.Dist(metros.Centro) })
+                .Where(x => escolhido || x.Distancia <= 8 * x.Altura)
+                .OrderBy(x => x.Distancia + (metros.Centro.Y > x.Texto.Centro.Y + 0.5 * x.Altura ? 4 * x.Altura : 0))
+                .Select(x => x.Texto).FirstOrDefault();
+        }
+
         /// <summary>Lê os textos escolhidos COMO CABO: rótulo pelas regras do leitor (o que elas reconhecem como CABO, ou o processamento) e o
         /// comprimento da mesma linha, das linhas escolhidas ou da vizinhança no desenho (`desenho`: todos os textos; chamado só se faltar).</summary>
         public static LeituraDeTexto LerCaboDeTexto(List<TextoDesenho> textos, RegrasProjeto regras, Func<IEnumerable<TextoDesenho>> desenho)
@@ -374,6 +447,8 @@ namespace OrcamentoNanoCAD.Nucleo
             if (lido == null || lido.Texto == null) return;
             TextoDesenho t = lido.Texto;
             e.TextoHandle = t.Handle;
+            e.ParteTexto = t.Parte;
+            e.OrigemMetros = lido.TextoComprimento;
             e.TextoOriginal = t.Texto;
             e.TextoLayer = t.Layer;
             e.TextoCor = t.Cor;
@@ -458,7 +533,7 @@ namespace OrcamentoNanoCAD.Nucleo
                     Avulso c = new Avulso();
                     c.Numero = aa.Numero; c.Manual = true; c.Entidade = aa.Entidade; c.AtivoLido = aa.AtivoLido; c.TextoOriginal = aa.TextoOriginal;
                     c.OperacaoLida = aa.OperacaoLida; c.Operacao = aa.Operacao; c.AtivoDoDesenho = aa.AtivoDoDesenho; c.Excluido = aa.Excluido;
-                    c.TextoHandle = aa.TextoHandle; c.TextoLayer = aa.TextoLayer; c.TextoCor = aa.TextoCor; c.TextoX = aa.TextoX; c.TextoY = aa.TextoY;
+                    c.TextoHandle = aa.TextoHandle; c.ParteTexto = aa.ParteTexto; c.OrigemMetros = aa.OrigemMetros; c.TextoLayer = aa.TextoLayer; c.TextoCor = aa.TextoCor; c.TextoX = aa.TextoX; c.TextoY = aa.TextoY;
                     nova.Avulsos.Add(c);
                     continue;
                 }

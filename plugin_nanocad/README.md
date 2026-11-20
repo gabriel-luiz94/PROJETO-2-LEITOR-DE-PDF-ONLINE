@@ -45,6 +45,8 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 - A aba **Análise** permite atribuir operações apontando no desenho. O filtro de visibilidade do 26 atua na viewport. No 5, o filtro controla as marcas de análise.
 - Use **Atualizar leitura** após editar o DWG para incorporar as mudanças à obra e enviar a versão revisada ao OrçaCore.
 
+Em **+ Cabo** ou **+ Vão**, selecione um MTEXT com vários rótulos para obter uma linha de Cabos por rótulo. Uma linha com apenas a metragem complementa o rótulo anterior no mesmo MTEXT. Em **+ Cabo**, confira os itens em sequência e confirme todos para adicioná-los à obra.
+
 ### Comandos
 
 | Comando | O que faz |

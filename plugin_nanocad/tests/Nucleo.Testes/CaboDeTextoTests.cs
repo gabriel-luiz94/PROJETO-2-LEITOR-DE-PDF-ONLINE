@@ -80,6 +80,43 @@ namespace OrcamentoNanoCAD.Testes
             Assert.Equal(Rotulo + " 35 m", tl.R.Ativo);
         }
 
+        [Fact]
+        public void MText_com_dois_cabos_respeita_as_partes_e_a_metragem_de_cada_um()
+        {
+            const string outro = "3XA185P(7,94)-13,8KV";
+            var textos = new List<TextoDesenho> {
+                T("A", Rotulo, 0, 10, "01_INSTALANDO"),
+                T("A", "35 m", 0, 10, "01_INSTALANDO"),
+                T("A", outro, 0, 10, "01_INSTALANDO"),
+                T("A", "22 m", 0, 10, "01_INSTALANDO")
+            };
+            for (int i = 0; i < textos.Count; i++) textos[i].Parte = i;
+            var leitura = Construtor.LerCabosDeTextos(textos, Apoio.Pernambuco, null);
+            Assert.Equal(new[] { Rotulo + " 35 m", outro + " 22 m" }, leitura.Select(x => x.Ativo));
+            Assert.Equal(new[] { 0, 2 }, leitura.Select(x => x.Texto.Parte));
+
+            var obra = Construtor.NovaObra("", Apoio.Pernambuco);
+            var linha = new LinhaDesenho { Handle = "L", Pontos = new List<Ponto> { new Ponto(0, 0), new Ponto(10, 0) } };
+            Construtor.AdicionarVaos(obra, linha, textos, null, null, Apoio.Pernambuco, null);
+            Construtor.AdicionarVaos(obra, linha, textos, null, null, Apoio.Pernambuco, null);
+            Assert.Equal(2, obra.Vaos.Count);
+            Assert.Equal(obra.Vaos[0].Numero, obra.Vaos[1].IrmaoDe);
+            JObj saida = ObraArquivo.Dados(obra);
+            Assert.Equal(2, saida.Lista("cabos").Count);
+            Assert.Equal(new[] { 0, 2 }, obra.Vaos.Select(x => x.ParteTexto));
+        }
+
+        [Fact]
+        public void A_mesma_metragem_vizinha_nao_e_copiada_para_outro_cabo()
+        {
+            var primeiro = T("A", Rotulo, 0, 10, "01_INSTALANDO");
+            var segundo = T("B", Rotulo, 2, 10, "01_REMOVER");
+            var comprimento = T("C", "30 m", 0, 9);
+            var leitura = Construtor.LerCabosDeTextos(new List<TextoDesenho> { primeiro, segundo }, Apoio.Pernambuco, Desenho(comprimento));
+            Assert.Equal(new[] { Rotulo + " 30 m", Rotulo }, leitura.Select(x => x.Ativo));
+            Assert.Equal(new[] { "I", "R" }, leitura.Select(x => x.Operacao));
+        }
+
         [Theory]
         [InlineData("35 m", true)]
         [InlineData("35,5 M", true)]

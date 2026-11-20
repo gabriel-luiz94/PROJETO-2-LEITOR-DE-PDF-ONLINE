@@ -533,9 +533,9 @@ namespace OrcamentoNanoCAD.UI
         private readonly RadioButton _rCabo, _rOutros;
 
         /// <param name="lido">o que foi lido do texto escolhido no desenho (null = nada escolhido ainda)</param>
-        public TelaNovaLinha(string projeto, RegrasProjeto regras, bool cabo, string ativo, string operacao, Construtor.LeituraDeTexto lido)
+        public TelaNovaLinha(string projeto, RegrasProjeto regras, bool cabo, string ativo, string operacao, Construtor.LeituraDeTexto lido, string numero = null)
         {
-            Text = "Nova linha da obra";
+            Text = numero == null ? "Nova linha da obra" : "Conferir cabo " + numero;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -555,7 +555,7 @@ namespace OrcamentoNanoCAD.UI
             // ler de um texto do desenho
             FlowLayoutPanel sel = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 6, 0, 2) };
             sel.Controls.Add(Visual.Botao("Selecionar texto no desenho (TEXT/MTEXT)…", (o, e) => { Guardar(); SelecionarTexto = true; DialogResult = DialogResult.Retry; Close(); }, lido == null, "diagnostico"));
-            f.Controls.Add(sel);
+            if (numero == null) f.Controls.Add(sel);
             if (lido != null)
             {
                 string info = "Lido do desenho: \"" + Relatorios.Resumir(lido.Lido, 90) + "\"" + (lido.Texto != null ? "  (layer " + lido.Texto.Layer + ")" : "")
@@ -587,7 +587,7 @@ namespace OrcamentoNanoCAD.UI
             f.Controls.Add(_ativo);
             _rCabo.CheckedChanged += (o, e) => { };       // o tipo vale ao adicionar
             FlowLayoutPanel b = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 8, 0, 0) };
-            Button ok = Visual.Botao("Adicionar à obra", (o, e) => Confirmar(), lido != null || !string.IsNullOrEmpty(ativo));
+            Button ok = Visual.Botao(numero == null ? "Adicionar à obra" : "Confirmar cabo", (o, e) => Confirmar(), lido != null || !string.IsNullOrEmpty(ativo));
             b.Controls.Add(ok);
             b.Controls.Add(Visual.Botao("Cancelar", (o, e) => { DialogResult = DialogResult.Cancel; Close(); }));
             f.Controls.Add(b);

@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-19 — 0.12.1
+
++ Cabo e + Vão passam a interpretar cada linha selecionada como um cabo. As metragens avulsas completam somente seu rótulo associado.
+
 ## 2026-11-19 — 0.12.0
 
 Criação e edição de MTEXT, movimentação de grupo, reapontamento de guias associativas e auditoria das layers de operação ficam disponíveis no menu Anotações. O modo Análise usa marcas temporárias e filtra os MTEXT na viewport quando a API oferece o recurso.

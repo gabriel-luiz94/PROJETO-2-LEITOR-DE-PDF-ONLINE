@@ -113,3 +113,5 @@
 | Criar, editar, mover e reapontar MTEXT com guia | ✅ build · 🟡 CAD |
 | Auditar a layer, alternar LV e excluir MTEXT com confirmação | ✅ build · 🟡 CAD |
 | Filtrar MTEXT na análise | ✅ build 26 · 🟡 CAD |
+
+TASK-030 · + Cabo e + Vão mantêm um cabo por rótulo selecionado, com metragem e operação próprias. ✅ Núcleo · 🟡 Validação no CAD.
