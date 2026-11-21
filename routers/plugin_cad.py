@@ -113,6 +113,57 @@ def regras(request: Request, projeto: str):
             "vinculacao": f["vinculacao"], "vinculacao_origem": f["vinculacao_origem"], "leitura": f["leitura"]}
 
 
+_LIMITE_DXF = 100 * 1024 * 1024
+
+
+@router.post("/ler-dxf")
+async def ler_dxf_plugin(request: Request, projeto: str):
+    """Recebe o DXF de referência. A extração e o motor são os do Leitor da aplicação."""
+    from tempfile import TemporaryFile
+    from starlette.concurrency import run_in_threadpool
+
+    with TemporaryFile() as dxf:
+        tamanho = 0
+        async for bloco in request.stream():
+            tamanho += len(bloco)
+            if tamanho > _LIMITE_DXF:
+                raise HTTPException(status_code=413, detail="DXF maior que 100 MB.")
+            dxf.write(bloco)
+        if not tamanho:
+            raise HTTPException(status_code=400, detail="DXF vazio.")
+        dxf.seek(0)
+        return await run_in_threadpool(_ler_dxf_plugin, dxf, projeto)
+
+
+def _ler_dxf_plugin(dxf, projeto):
+    from routers.regras_leitor import _get_regras
+    from routers.upload import _extrair_de_bytes_dxf, _leitura_do_projeto
+    from services.autonomo.leitor_js import ErroLeitorJS, obter_leitor
+
+    p = _projeto(projeto)
+    codigo = p["codigo"]
+    proc = _get_regras("processamento", codigo)
+    cls = _get_regras("classificacao", codigo)
+    if not proc and not cls:
+        raise HTTPException(status_code=422, detail="Este projeto não tem regras do Leitor.")
+    try:
+        itens, _ = _extrair_de_bytes_dxf(dxf.read(), _leitura_do_projeto(codigo))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Não foi possível extrair os textos do DXF.") from e
+    try:
+        motor = obter_leitor()
+        resultados = motor.processar_lote(itens, proc, cls)
+        linhas = [dict(item, **r) for item, r in zip(itens, resultados, strict=True)]
+        # Mesmo repasse sem edição do Leitor para o Resumo.
+        reprocessar = [i for i, linha in enumerate(linhas) if linha["entidade"] in ("", "0") or not linha["ativo"].strip()]
+        if reprocessar:
+            for i, r in zip(reprocessar, motor.processar_lote(linhas, proc, cls, "resumo", reprocessar), strict=True):
+                linhas[i].update(r)
+        return {"projeto": p, "linhas": linhas, "regras_leitor": _hash([proc, cls])}
+    except ErroLeitorJS as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+
 @router.get("/projetos")
 def projetos():
     """Todos os projetos cadastrados, para a tela inicial do plugin (com ou sem configuração de leitura guardada)."""

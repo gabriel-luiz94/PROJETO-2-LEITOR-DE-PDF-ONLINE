@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-20 — Motor do Leitor DXF no plugin nanoCAD
+
+A rota autenticada do plugin usa o extrator e o motor JavaScript existentes do Leitor. O plugin preserva a classificação, a operação, o ativo e a ordem das linhas. [TASK-212](tasks/TASK-212-20-11-2026.md).
+
 ## 2026-11-20 — Comparação de obras no Resumo
 
 Ler Projeto, Carregar Obra e Importar JSON oferecem Comparar. A janela abre nas divergências de Cabos ou de Postes e estruturas, indica correspondências incertas, mostra a diferença de metragem e permite localizar a linha da obra aberta. Ler Projeto também oferece Subtrair quando já há conteúdo. [TASK-211](tasks/TASK-211-20-11-2026.md).

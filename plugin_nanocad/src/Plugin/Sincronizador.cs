@@ -357,7 +357,7 @@ namespace OrcamentoNanoCAD
             else if (t.Tipo == Tipo.Regras)
             {
                 TrocarRegras(s, Conexao.GuardarRegras(t.Projeto, t.RegrasCruas));
-                Aplicacao.Msg("Regras do projeto " + t.Projeto + " atualizadas pela aplicação; obra refeita (ajustes mantidos). " + Relatorios.Resumo(s.Obra));
+                Aplicacao.Msg("Regras do projeto " + t.Projeto + " atualizadas pela aplicação; vínculos recalculados. Para reler o DXF, use ORC_ATUALIZAR. " + Relatorios.Resumo(s.Obra));
             }
             else if (t.Revisao == s.Revisao)
             {
@@ -371,27 +371,11 @@ namespace OrcamentoNanoCAD
             AtualizarStatus();
         }
 
-        /// <summary>Passa a sessão para outras regras e refaz a obra: relê o último desenho lido (sem tocar no DWG) mantendo os ajustes.</summary>
+        /// <summary>Aplica as regras de vínculo ao conteúdo já lido. A leitura só muda ao consultar novamente o motor DXF.</summary>
         public static void TrocarRegras(Sessao s, RegrasProjeto novas)
         {
             s.Regras = novas;
-            Obra antiga = s.Obra;
-            if (antiga != null)
-            {
-                if (antiga.Modo == "ler" && (s.UltimoBruto != null || s.UltimoDesenho != null))
-                {
-                    if (s.UltimoBruto != null) s.UltimoDesenho = MontadorDesenho.Montar(s.UltimoBruto, novas.Leitura);
-                    Obra nova = LeitorProjeto.Ler(s.UltimoDesenho, novas, s.Obra.Associacoes);
-                    nova.Projeto = antiga.Projeto; nova.Nome = antiga.Nome; nova.SalvoEm = antiga.SalvoEm;
-                    Construtor.ReaplicarAjustes(nova, antiga, novas);
-                    s.Obra = nova;
-                }
-                else
-                {
-                    antiga.NomeRegras = novas.Nome;
-                    Construtor.Recalcular(antiga, novas);
-                }
-            }
+            if (s.Obra != null) Construtor.Recalcular(s.Obra, novas);
             s.Revisao++;
             s.Atualizar();
         }

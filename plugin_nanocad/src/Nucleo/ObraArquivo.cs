@@ -19,7 +19,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public const string Formato = "leitor-obra";
         public const int Versao = 1;
         public const int VersaoCad = 1;
-        public const string VersaoPlugin = "0.12.4";
+        public const string VersaoPlugin = "0.13.0";
         private const int MaxPontosGeo = 60;
 
         public static string NomeDoArquivo(string desenho)
@@ -44,15 +44,6 @@ namespace OrcamentoNanoCAD.Nucleo
                 p = Enumerable.Range(0, MaxPontosGeo).Select(i => pts[(int)Math.Round(i * passo)]).ToList();
             }
             return p.Select(q => (object)Ponto(q.X, q.Y)).ToList();
-        }
-
-        /// <summary>Índice de cada poste (com anotação) na tabela Outros.</summary>
-        public static Dictionary<string, int> LinhasDeOutros(Obra obra)
-        {
-            Dictionary<string, int> d = new Dictionary<string, int>();
-            int i = 0;
-            foreach (Poste p in obra.Postes) if (p.TemAnotacao) d[p.Numero] = i++;
-            return d;
         }
 
         public static double IdUnidade(int linha, int k)
@@ -81,29 +72,37 @@ namespace OrcamentoNanoCAD.Nucleo
             foreach (Poste p in obra.Postes) if (p.TemAnotacao && !p.Excluido) outros.Add(p);
             foreach (Vao v in obra.Vaos) if (v.TemAnotacao && !v.Excluido) cabos.Add(v);
             foreach (Avulso a in obra.Avulsos) if (!a.Excluido) (a.Entidade == "CABO" ? cabos : outros).Add(a);
+            cabos = cabos.OrderBy(x => x.OrdemLeitor ?? int.MaxValue).ToList();
+            outros = outros.OrderBy(x => x.OrdemLeitor ?? int.MaxValue).ToList();
+        }
+
+        private static JObj LinhaAnotacao(Elemento e)
+        {
+            JObj linha = LinhaBase(e);
+            Vao v = e as Vao;
+            linha.Set("ativo", v == null ? e.AtivoLido : v.Ativo);
+            linha.Set("textoOriginal", e.TextoOriginal);
+            Coordenadas(linha, e);
+            Poste p = e as Poste;
+            if (p != null && !string.IsNullOrEmpty(p.Handle)) linha.Set("_poste", Ponto(p.X, p.Y));
+            return linha;
         }
 
         public static JObj Dados(Obra obra)
         {
-            Dictionary<string, int> linhas = LinhasDeOutros(obra);
-            List<object> cabos = new List<object>(), outros = new List<object>();
-            foreach (Poste p in obra.Postes)
+            List<Elemento> elementosCabos, elementosOutros;
+            ElementosDasLinhas(obra, out elementosCabos, out elementosOutros);
+            Dictionary<string, int> linhas = new Dictionary<string, int>();
+            for (int i = 0; i < elementosOutros.Count; i++)
+                if (elementosOutros[i] is Poste) linhas[elementosOutros[i].Numero] = i;
+
+            List<object> cabos = new List<object>();
+            foreach (Elemento e in elementosCabos)
             {
-                if (!p.TemAnotacao || p.Excluido) continue;
-                JObj l = LinhaBase(p);
-                l.Set("ativo", p.AtivoLido);
-                l.Set("textoOriginal", p.TextoOriginal);
-                Coordenadas(l, p);
-                if (!string.IsNullOrEmpty(p.Handle)) l.Set("_poste", Ponto(p.X, p.Y));
-                outros.Add(l);
-            }
-            foreach (Vao v in obra.Vaos)
-            {
-                if (!v.TemAnotacao || v.Excluido) continue;
-                JObj l = LinhaBase(v);
-                l.Set("ativo", v.Ativo);
-                l.Set("textoOriginal", v.TextoOriginal);
-                Coordenadas(l, v);
+                JObj l = LinhaAnotacao(e);
+                cabos.Add(l);
+                Vao v = e as Vao;
+                if (v == null) continue;
                 if (v.Pontos.Count >= 2) { l.Set("_geo", Geo(v.Pontos)); if (!string.IsNullOrEmpty(v.Tipo)) l.Set("_geoTipo", v.Tipo); }
                 List<object> ids = new List<object>();
                 foreach (Vinculo vi in v.Vinculos)
@@ -113,20 +112,10 @@ namespace OrcamentoNanoCAD.Nucleo
                     l.Set("vinculoEstruturas", ids);
                     if (ids.Count > 0 && v.Vinculos.Any(x => x.Manual)) l.Set("vinculoOrigem", "manual");
                 }
-                cabos.Add(l);
-            }
-            foreach (Avulso a in obra.Avulsos)
-            {
-                if (a.Excluido) continue;
-                JObj l = LinhaBase(a);
-                l.Set("ativo", a.AtivoLido);
-                l.Set("textoOriginal", a.TextoOriginal);
-                Coordenadas(l, a);
-                (a.Entidade == "CABO" ? cabos : outros).Add(l);
             }
             JObj d = new JObj();
             d.Set("cabos", cabos);
-            d.Set("outros", outros);
+            d.Set("outros", elementosOutros.Select(e => (object)LinhaAnotacao(e)).ToList());
             d.Set("totalizadora", new List<object>());
             return d;
         }
@@ -161,6 +150,7 @@ namespace OrcamentoNanoCAD.Nucleo
                 o.Set("origemMetros", new JObj().Set("h",t.Handle).Set("texto",t.Texto).Set("layer",t.Layer).Set("x",t.X).Set("y",t.Y));
             }
             if (e.GuiaUsada != null && e.GuiaUsada.Count >= 2) o.Set("guia", Geo(e.GuiaUsada));
+            if (e.OrdemLeitor.HasValue) o.Set("ordemLeitor", e.OrdemLeitor.Value);
             if (e.ParteTexto != 0) o.Set("parteTexto", e.ParteTexto);
             if (e.Candidatos.Count > 1) o.Set("candidatos", e.Candidatos.Cast<object>().ToList());
             o.Set("texto", e.TextoHandle);
@@ -202,6 +192,8 @@ namespace OrcamentoNanoCAD.Nucleo
             c.Set("plugin", VersaoPlugin);
             c.Set("desenho", obra.Desenho ?? "");
             c.Set("regras", obra.NomeRegras ?? "");
+            if (obra.FonteDxf != null) c.Set("fonte_dxf", obra.FonteDxf);
+            if (obra.HashLeitor != null) c.Set("regras_leitor", obra.HashLeitor);
             c.Set("modo", obra.Modo);
             c.Set("altura_texto", obra.AlturaTexto);
             if (obra.SalvoEm != null) c.Set("salvo_em", obra.SalvoEm);
@@ -277,6 +269,7 @@ namespace OrcamentoNanoCAD.Nucleo
             if (o.Lista("guia") != null)
                 e.GuiaUsada = o.Lista("guia").OfType<List<object>>().Where(x => x.Count >= 2)
                     .Select(x => new Ponto(Json.ComoNumero(x[0]) ?? 0, Json.ComoNumero(x[1]) ?? 0)).ToList();
+            e.OrdemLeitor = (int?)o.Num("ordemLeitor");
             e.ParteTexto = (int)(o.Num("parteTexto") ?? 0);
             e.Candidatos = Json.ListaDeTextos(o["candidatos"]);
             e.Numero = o.Str("numero");
@@ -322,6 +315,8 @@ namespace OrcamentoNanoCAD.Nucleo
             obra.Projeto = env.Str("projeto") ?? "";
             obra.Desenho = cad.Str("desenho") ?? "";
             obra.NomeRegras = cad.Str("regras") ?? "";
+            obra.FonteDxf = cad.Str("fonte_dxf");
+            obra.HashLeitor = cad.Str("regras_leitor");
             obra.Modo = cad.Str("modo") ?? "ler";
             obra.SalvoEm = cad.Str("salvo_em");
             obra.AlturaTexto = cad.Num("altura_texto") ?? 1;

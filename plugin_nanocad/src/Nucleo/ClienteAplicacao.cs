@@ -26,7 +26,12 @@ namespace OrcamentoNanoCAD.Nucleo
         RespostaHttp Enviar(string metodo, string url, string corpoJson, string token, int timeoutMs);
     }
 
-    public class TransporteHttp : ITransporteHttp
+    public interface ITransporteArquivoHttp
+    {
+        RespostaHttp EnviarArquivo(string url, string arquivo, string token, int timeoutMs);
+    }
+
+    public class TransporteHttp : ITransporteHttp, ITransporteArquivoHttp
     {
         static TransporteHttp()
         {
@@ -36,6 +41,16 @@ namespace OrcamentoNanoCAD.Nucleo
         }
 
         public RespostaHttp Enviar(string metodo, string url, string corpoJson, string token, int timeoutMs)
+        {
+            return Enviar(metodo, url, corpoJson, null, token, timeoutMs);
+        }
+
+        public RespostaHttp EnviarArquivo(string url, string arquivo, string token, int timeoutMs)
+        {
+            return Enviar("POST", url, null, arquivo, token, timeoutMs);
+        }
+
+        private RespostaHttp Enviar(string metodo, string url, string corpoJson, string arquivo, string token, int timeoutMs)
         {
             RespostaHttp r = new RespostaHttp();
             try
@@ -48,7 +63,23 @@ namespace OrcamentoNanoCAD.Nucleo
                 req.ReadWriteTimeout = timeoutMs;
                 req.Accept = "application/json";
                 if (!string.IsNullOrEmpty(token)) req.Headers["Authorization"] = "Bearer " + token;
-                if (corpoJson != null)
+                if (arquivo != null)
+                {
+                    req.ContentType = "application/octet-stream";
+                    req.AllowWriteStreamBuffering = false;
+                    req.AllowAutoRedirect = false;
+                    using (FileStream f = File.OpenRead(arquivo))
+                    {
+                        req.ContentLength = f.Length;
+                        using (Stream destino = req.GetRequestStream())
+                        {
+                            byte[] bloco = new byte[65536];
+                            int lidos;
+                            while ((lidos = f.Read(bloco, 0, bloco.Length)) > 0) destino.Write(bloco, 0, lidos);
+                        }
+                    }
+                }
+                else if (corpoJson != null)
                 {
                     byte[] b = Encoding.UTF8.GetBytes(corpoJson);
                     req.ContentType = "application/json; charset=utf-8";
@@ -238,6 +269,21 @@ namespace OrcamentoNanoCAD.Nucleo
         public JObj RegrasCruas(string projeto)
         {
             return Chamar("GET", "/api/plugin/regras?projeto=" + Q(projeto), null);
+        }
+
+        public JObj LerDxf(string projeto, string arquivo)
+        {
+            ITransporteArquivoHttp transporte = _http as ITransporteArquivoHttp;
+            if (transporte == null) throw new ErroAplicacao(0, "Transporte de DXF indisponível.");
+            string url = Conexao.Base + "/api/plugin/ler-dxf?projeto=" + Q(projeto);
+            RespostaHttp r = transporte.EnviarArquivo(url, arquivo, Conexao.Token, 180000);
+            if (r.Status == 401 && Renovar()) r = transporte.EnviarArquivo(url, arquivo, Conexao.Token, 180000);
+            if (r.Status != 200) throw Erro(r);
+            JObj resposta = Json.Ler(r.Corpo) as JObj;
+            JObj origem = resposta == null ? null : resposta.Obj("projeto");
+            if (origem == null || origem.Str("codigo") != projeto || resposta.Lista("linhas") == null || string.IsNullOrEmpty(resposta.Str("regras_leitor")))
+                throw new ErroAplicacao(200, "A resposta do Leitor DXF não corresponde ao projeto.");
+            return resposta;
         }
 
         public ConferenciaBase Conferir(string projeto, JObj dados)

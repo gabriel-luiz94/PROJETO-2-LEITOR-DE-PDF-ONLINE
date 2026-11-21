@@ -776,6 +776,8 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 **Data:** 2026-11-20
 
+**Motivo:** [TASK-212](tasks/TASK-212-20-11-2026.md) integrou o motor do Leitor DXF à leitura automática do nanoCAD.
+
 **Motivo:** [TASK-211](tasks/TASK-211-20-11-2026.md) adicionou a comparação de duas obras no Resumo.
 
 **Motivo:** [TASK-210](tasks/TASK-210-20-11-2026.md) corrige a tela preta no modal de vinculação.
