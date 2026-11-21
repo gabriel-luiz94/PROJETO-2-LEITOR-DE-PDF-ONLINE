@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-20 — 0.13.1
+
+Ler projeto, reler e diagnosticar usam o DXF ou DWG ativo. DWGs e desenhos com alterações em memória são exportados automaticamente para um DXF temporário e seguem para o mesmo Leitor do OrçaCore. [TASK-035](tasks/TASK-035-20-11-2026.md).
+
 ## 2026-11-20 — 0.13.0
 
 A leitura automática usa o mesmo extrator DXF e o motor JavaScript do OrçaCore. O plugin preserva as linhas e sua ordem, associando a geometria e os vínculos depois da classificação. [TASK-034](tasks/TASK-034-20-11-2026.md).

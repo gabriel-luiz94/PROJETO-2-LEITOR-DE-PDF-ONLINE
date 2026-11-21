@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.13.1
+
+TASK-035 lê o DXF ou DWG ativo em Ler projeto, releitura e diagnóstico. Um DXF salvo e sem alterações é enviado diretamente. O plugin exporta o restante para um DXF temporário da sessão atual e remove a cópia após o envio. 🟡 Validar a exportação e a leitura no nanoCAD 5 e 26 no Windows.
+
 ## Plugin 0.13.0
 
 TASK-034 usa o DXF e o motor canônico do OrçaCore na leitura automática. A comparação com a saída do Leitor passou nos testes. A execução no nanoCAD 5 e 26 com a nota real aguarda validação no Windows.
@@ -41,9 +45,9 @@ TASK-022 (leitura), TASK-023 (alocação por poste) e TASK-024 (painel) implemen
 
 ## Versão
 
-`0.13.0` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
+`0.13.1` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
 
-Branch de trabalho: `codex/paridade-leitor-dxf`
+Branch de trabalho: `codex/plugin-desenho-ativo`
 
 ## Entregáveis
 

@@ -85,7 +85,7 @@ Para **Paraíba**, digite `027` no campo **Projeto na aplicação** ou selecione
 
 ### Usar a mesma leitura do DXF
 
-Em **ORCACORE → Ler projeto**, o plugin consulta o OrçaCore conectado pelo **ORC_CONECTAR**. Se o desenho aberto é um DXF salvo, envia esse arquivo. Com um DWG aberto, a janela pede o DXF correspondente à revisão do desenho. Use o mesmo DXF que você abriria no Leitor. **ORC_RELER** e **ORC_ATUALIZAR** usam o DXF escolhido na sessão. Reabra a tela inicial para escolher outro arquivo.
+Em **ORCACORE → Ler projeto**, o plugin lê o desenho ativo e consulta o OrçaCore conectado pelo **ORC_CONECTAR**. Um DXF salvo e sem alterações é enviado diretamente. Para um DWG ou um DXF com alterações, o nanoCAD gera um DXF temporário com o estado atual do desenho, incluindo as edições ainda não salvas. O plugin remove essa cópia após a leitura. **ORC_RELER**, **ORC_ATUALIZAR** e **ORC_DIAGNOSTICO** usam o mesmo fluxo.
 
 O OrçaCore aplica o extrator e o motor JavaScript do Leitor com as regras salvas para o código selecionado. O plugin recebe as linhas prontas e associa postes, vãos e vínculos. Uma linha reconhecida fica na obra mesmo quando não encontra geometria. O log e o diagnóstico registram o projeto e a identificação das regras. A leitura automática exige que o OrçaCore conectado disponibilize a rota de leitura DXF.
 

@@ -11,13 +11,13 @@ parametrizada** — o arquivo `<desenho>.obra.json` — para a aplicação onlin
 calcularem o orçamento. O cálculo **não** roda no CAD (por ora).
 
 Substitui, para quem desenha no nanoCAD, o caminho "exportar DXF → Leitor da aplicação → Resumo → vínculo no mapa":
-o mesmo trabalho é feito no próprio desenho, com os números de cada poste/vão visíveis e a conferência ao lado.
+o mesmo trabalho é feito no próprio desenho, com os números de cada poste/vão visíveis e a conferência ao lado. **Ler projeto** usa o documento ativo e envia um DXF ao Leitor do OrçaCore.
 
 ## 2. Relação com a aplicação principal
 
 | Assunto | Na aplicação | No plugin |
 |---|---|---|
-| Regras do leitor (layer + cor → operação/ativo/entidade) | `static/regras_leitor_engine.js` | `src/Nucleo/MotorLeitor.cs` — **porte**, mesmas regras (JSON de `data/`), paridade testada contra o JS |
+| Regras do leitor (layer + cor → operação/ativo/entidade) | `static/regras_leitor_engine.js` | Leitura automática via `/api/plugin/ler-dxf` com as regras do projeto selecionado. O porte em `src/Nucleo/MotorLeitor.cs` atende a classificação local de anotações. |
 | Anotação do cabo (LABEL) | `services/anotacao_cabos.py` ⇄ `static/anotacao_cabos.js` | `src/Nucleo/Anotacoes.cs` — porte parcial (código, comprimento, fases, tensão, descrição), paridade contra o Python |
 | Regras de vínculo cabo ⇄ estrutura | `services/vinculacao_regras.py` ⇄ `static/vinculacao_regras.js` | `src/Nucleo/RegrasVinculo.cs` — porte (casa, info_cabo/estrutura, pode_vincular, parâmetros) |
 | Geometria do DXF (redes, postes, guias) | `services/dxf_geometria.py` | `src/Nucleo/LeitorProjeto.cs` (mesmos critérios: cor decide, layer confirma; raio 4 × altura do texto) |

@@ -126,35 +126,28 @@ namespace OrcamentoNanoCAD
             return r;
         }
 
-        private static string FonteLeitorDxf(Sessao s, bool escolher)
+        private static JObj LerComMotorDxf(Sessao s, string codigo, out string nomeFonte)
         {
-            if (Path.GetExtension(s.Arquivo).Equals(".dxf", StringComparison.OrdinalIgnoreCase) && File.Exists(s.Arquivo))
-                return s.Arquivo;
-            if (!escolher && File.Exists(s.FonteDxf)) return s.FonteDxf;
-            using (OpenFileDialog janela = new OpenFileDialog())
-            {
-                janela.Title = "Selecione o DXF deste desenho para ler com o motor do OrçaCore";
-                janela.Filter = "Desenho DXF (*.dxf)|*.dxf";
-                janela.CheckFileExists = true;
-                if (s.DesenhoSalvo)
-                {
-                    janela.InitialDirectory = Path.GetDirectoryName(s.Arquivo);
-                    janela.FileName = Path.GetFileNameWithoutExtension(s.Arquivo) + ".dxf";
-                }
-                return janela.ShowDialog() == DialogResult.OK ? janela.FileName : null;
-            }
-        }
-
-        private static JObj LerComMotorDxf(string codigo, string fonte)
-        {
+            nomeFonte = Path.ChangeExtension(Path.GetFileName(s.Arquivo), ".dxf");
+            if (string.IsNullOrEmpty(nomeFonte)) nomeFonte = "Desenho.dxf";
             if (string.IsNullOrEmpty(codigo) || !Conexao.Logado)
             {
                 Aplicacao.Msg("Para ler com o mesmo motor do DXF, entre pelo ORC_CONECTAR e selecione o projeto cadastrado.");
                 return null;
             }
-            if (fonte == null) return null;
-            Aplicacao.Msg("Lendo " + Path.GetFileName(fonte) + " com o motor DXF do OrçaCore (projeto " + codigo + ")…");
-            try { return Conexao.Cliente.LerDxf(codigo, fonte); }
+
+            string nome = nomeFonte;
+            try
+            {
+                return FonteDxfAtiva.Usar(s.Arquivo, DxfDoDesenho.ArquivoAtual, caminho => DxfDoDesenho.Exportar(s.Doc.Database, caminho),
+                    (caminho, temporario) =>
+                    {
+                        string origem = temporario ? "desenho ativo → DXF temporário" : "DXF original";
+                        Aplicacao.Msg("Lendo " + nome + " (" + origem + ") com o motor DXF do OrçaCore (projeto " + codigo + ")…");
+                        return Conexao.Cliente.LerDxf(codigo, caminho);
+                    },
+                    erro => Aplicacao.Log("Limpeza do DXF temporário: " + erro.Message));
+            }
             catch (ErroAplicacao erro)
             {
                 Aplicacao.Msg(erro.Status == 404
@@ -192,9 +185,8 @@ namespace OrcamentoNanoCAD
             RegrasProjeto regras = selecionadas ?? s.Regras;
             if (regras.Codigo != codigo) regras = RegrasFrescas(regras, codigo);
             if (regras == null) return;
-            if (string.IsNullOrEmpty(codigo) || !Conexao.Logado) { LerComMotorDxf(codigo, null); return; }
-            string fonte = FonteLeitorDxf(s, selecionadas != null);
-            JObj leitura = LerComMotorDxf(codigo, fonte);
+            string fonte;
+            JObj leitura = LerComMotorDxf(s, codigo, out fonte);
             if (leitura == null) return;
 
             Obra antiga = s.Obra;
@@ -204,8 +196,7 @@ namespace OrcamentoNanoCAD
             Obra nova = MontarLeituraDxf(s, regras, leitura,
                 escolhas ?? (manterAjustes && antiga != null ? antiga.Associacoes : null), out bruto, out d, out textos);
             s.Regras = regras;
-            s.FonteDxf = fonte;
-            nova.FonteDxf = Path.GetFileName(fonte);
+            nova.FonteDxf = fonte;
             nova.HashLeitor = leitura.Str("regras_leitor");
             s.UltimoBruto = bruto;
             s.UltimoDesenho = d;
@@ -961,9 +952,8 @@ namespace OrcamentoNanoCAD
             Rodar("ORC_DIAGNOSTICO", s =>
             {
                 string codigo = s.Obra != null ? s.Obra.Projeto : s.Regras.Codigo;
-                if (string.IsNullOrEmpty(codigo) || !Conexao.Logado) { LerComMotorDxf(codigo, null); return; }
-                string fonte = FonteLeitorDxf(s, false);
-                JObj leitura = LerComMotorDxf(codigo, fonte);
+                string fonte;
+                JObj leitura = LerComMotorDxf(s, codigo, out fonte);
                 if (leitura == null) return;
                 DesenhoBruto b;
                 Desenho d;
@@ -971,7 +961,7 @@ namespace OrcamentoNanoCAD
                 Obra o = MontarLeituraDxf(s, s.Regras, leitura, null, out b, out d, out textos);
                 JObj diag = Diagnostico.Gerar(b, d, o, s.Regras, DateTime.Now, textos)
                     .Set("projeto", codigo).Set("motor_leitor", "OrçaCore DXF")
-                    .Set("fonte_dxf", Path.GetFileName(fonte)).Set("regras_leitor", leitura.Str("regras_leitor"));
+                    .Set("fonte_dxf", fonte).Set("regras_leitor", leitura.Str("regras_leitor"));
                 string arq = s.DesenhoSalvo ? Path.ChangeExtension(s.Doc.Name, null) + ".diagnostico.json" : Path.Combine(Conexao.Pasta, "diagnostico.json");
                 Directory.CreateDirectory(Path.GetDirectoryName(arq));
                 File.WriteAllText(arq, Json.Escrever(diag, true), new System.Text.UTF8Encoding(false));
