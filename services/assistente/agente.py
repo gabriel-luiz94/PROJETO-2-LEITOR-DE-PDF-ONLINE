@@ -377,7 +377,21 @@ async def rodar(adaptador: AdaptadorBase, system: str, historico: list, prompt: 
             if _agora() - inicio > PRAZO_TOTAL:
                 texto_final = "Esta pergunta passou do tempo máximo. Diga o que falta e continuo daqui."
                 break
-            turno = await adaptador.turno(system, mensagens, specs)
+            # O prazo global também limita a chamada em andamento, não só o início do passo.
+            restante = PRAZO_TOTAL - (_agora() - inicio)
+            if restante <= 0:
+                raise ErroTempo("prazo total da pergunta esgotado")
+            try:
+                turno = await asyncio.wait_for(
+                    adaptador.turno(system, mensagens, specs), timeout=restante
+                )
+            except asyncio.TimeoutError as exc:
+                raise ErroTempo("prazo total da pergunta esgotado") from exc
+            if not turno.chamadas and not turno.texto.strip():
+                raise RuntimeError(
+                    "O modelo retornou uma resposta vazia. Verifique o modelo configurado "
+                    "e tente novamente."
+                )
             for aviso in adaptador.pegar_avisos():
                 yield {"tipo": "aviso", "texto": aviso}
             if not turno.chamadas:
@@ -391,7 +405,17 @@ async def rodar(adaptador: AdaptadorBase, system: str, historico: list, prompt: 
             for c in turno.chamadas:
                 yield {"tipo": "ferramenta", "nome": c.nome, "detalhe": _resumo_args(c.args)}
                 # em outra thread: cálculo/base grandes não travam o servidor (nem as outras telas)
-                resultados.append({"id": c.id, "nome": c.nome, "resultado": await asyncio.to_thread(ferramentas.executar, ctx, c.nome, c.args)})
+                restante = PRAZO_TOTAL - (_agora() - inicio)
+                if restante <= 0:
+                    raise ErroTempo("prazo total esgotado durante a execução da ferramenta")
+                try:
+                    resultado = await asyncio.wait_for(
+                        asyncio.to_thread(ferramentas.executar, ctx, c.nome, c.args),
+                        timeout=restante,
+                    )
+                except asyncio.TimeoutError as exc:
+                    raise ErroTempo("prazo total esgotado durante a execução da ferramenta") from exc
+                resultados.append({"id": c.id, "nome": c.nome, "resultado": resultado})
             mensagens.append({"role": "tool", "resultados": resultados})
             if _terminal_ok(turno.chamadas, resultados):
                 texto_final = "" if turno.texto.strip() else _resumo_local(ctx, turno.chamadas)
