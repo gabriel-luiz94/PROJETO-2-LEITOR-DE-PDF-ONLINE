@@ -6,6 +6,10 @@
 
 ---
 
+## Largura de Demais Ativos · TASK-214
+
+As linhas ainda fora da área visível ocupam as mesmas colunas do cabeçalho. A grade de Demais Ativos e a de Cabos permanecem alinhadas quando se restaura uma obra grande, se maximiza a janela ou se alternam colunas opcionais. [TASK-214](tasks/TASK-214-21-11-2026.md).
+
 ## Área de trabalho do Resumo · TASK-213
 
 A abertura de uma obra pelo nanoCAD revela Cabos e Outros. Localizar uma linha mantém a comparação carregada. Vinculação, Base de Orçamento e Resultado podem ficar abertos em janelas flutuantes da mesma sessão. Fluxo validado no Chromium com a abertura local do plugin simulada. Validação no WebView2 do Windows pendente.
@@ -778,7 +782,9 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-11-20
+**Data:** 2026-11-21
+
+**Motivo:** [TASK-214](tasks/TASK-214-21-11-2026.md) corrigiu a largura da grade em obras com renderização sob demanda.
 
 **Motivo:** [TASK-213](tasks/TASK-213-20-11-2026.md) corrigiu a exibição das tabelas na abertura pelo nanoCAD e integrou as janelas auxiliares e a comparação no Resumo.
 

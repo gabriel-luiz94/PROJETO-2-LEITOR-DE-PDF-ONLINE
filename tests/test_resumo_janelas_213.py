@@ -107,7 +107,67 @@ def test_importacao_comparacao_e_janelas_auxiliares(tmp_path, monkeypatch):
                 resultado.wait_for(state="detached")
                 assert base.is_visible() and vinculo.is_visible()
                 assert not erros
+                conferir_largura_da_obra_restaurada(navegador, porta, token, ativo, poste)
                 navegador.close()
         finally:
             servidor.should_exit = True
             thread.join(timeout=5)
+
+
+def conferir_largura_da_obra_restaurada(navegador, porta, token, ativo, poste):
+    # TASK-214: restauração em uma nova página. As linhas abaixo da área visível
+    # continuam pendentes, como no caso de 801 linhas da Paraíba.
+    dados_grandes = {"cabos": [ativo] * 357, "outros": [poste] * 801}
+    restaurada = navegador.new_page(viewport={"width": 960, "height": 650})
+    restaurada.set_default_timeout(8000)
+    restaurada.route("https://**/*", lambda rota: rota.abort())
+    restaurada.add_init_script(f"""
+        localStorage.setItem('auth_token', {json.dumps(token)});
+        localStorage.setItem('projeto_selecionado_codigo', '027');
+        localStorage.setItem('resumo_ocultar_entidade', '1');
+        localStorage.setItem('resumo_ocultar_cabo_extra', '1');
+        const sessao = document.cookie.split('; ').find(c => c.startsWith('gridr_sessao='));
+        if (sessao) localStorage.setItem('gridr_sessao', sessao.split('=')[1]);
+        localStorage.setItem('gridr_projeto', JSON.stringify({{caminho: 'Grande.obra', projeto: '027'}}));
+        window.pywebview = {{api: {{
+            projeto_criar() {{}},
+            projeto_assinatura: async () => ({{ok: true, existe: true, assinatura: '1'}}),
+            projeto_abrir: async () => ({{ok: true, caminho: 'Grande.obra', assinatura: '1',
+                projeto: {{nome: 'Grande', projeto: '027', dados: {json.dumps(dados_grandes)}}}}})
+        }}}};
+    """)
+    restaurada.goto(f"http://127.0.0.1:{porta}/resumo", wait_until="domcontentloaded")
+    restaurada.wait_for_function("VinculacaoHost.outros().length === 801")
+    larguras = """id => {
+        const tabela = document.getElementById(id);
+        const borda = tabela.getBoundingClientRect();
+        return {
+            pendentes: tabela.querySelectorAll('.lazy-row').length,
+            larguraDesocupada: tabela.parentElement.clientWidth - borda.width,
+            sobra: borda.right - tabela.tHead.rows[0].lastElementChild.getBoundingClientRect().right
+        };
+    }"""
+
+    def conferir_larguras():
+        for tabela in ("table-outros", "table-cabos"):
+            medidas = restaurada.evaluate(larguras, tabela)
+            assert medidas["pendentes"] > 0
+            assert abs(medidas["sobra"]) < 3, (tabela, medidas)
+            assert abs(medidas["larguraDesocupada"]) < 3, (tabela, medidas)
+
+    conferir_larguras()
+    restaurada.set_viewport_size({"width": 1872, "height": 860})
+    conferir_larguras()
+    restaurada.locator("#btn-toggle-entidade").click()
+    restaurada.get_by_text("Mostrar a coluna Entidade", exact=True).click()
+    restaurada.locator("#btn-toggle-cabo-extra").click()
+    conferir_larguras()
+    restaurada.locator("#btn-toggle-entidade").click()
+    restaurada.get_by_text("Agrupar por Entidade", exact=True).click()
+    separador = restaurada.locator("#body-outros .grupo-sep td").first
+    assert separador.get_attribute("colspan") == "5"
+    restaurada.locator("#btn-toggle-entidade").click()
+    restaurada.get_by_text("Ocultar a coluna Entidade", exact=True).click()
+    assert separador.get_attribute("colspan") == "4"
+    restaurada.locator("#btn-toggle-cabo-extra").click()
+    conferir_larguras()

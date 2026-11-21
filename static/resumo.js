@@ -448,6 +448,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { capture: true, passive: true });
     })();
 
+    function contarColunasVisiveis(tabela) {
+        const cabecalho = tabela.tHead.rows[0];
+        const ocultas = tabela.classList.contains('sem-entidade') ? '.col-entidade'
+            : tabela.classList.contains('sem-cabo-extra') ? '.col-cabo-extra' : null;
+        return cabecalho.cells.length - (ocultas ? cabecalho.querySelectorAll(ocultas).length : 0);
+    }
+
+    function ajustarCelulasDeLarguraTotal(tabela) {
+        const colunasVisiveis = contarColunasVisiveis(tabela);
+        tabela.querySelectorAll('.lazy-row > td, .grupo-sep > td').forEach(td => {
+            td.colSpan = colunasVisiveis;
+        });
+    }
+
     function renderTable(type) {
         window.VinculacaoUI?.atualizarObra();
         const state = tableStates[type];
@@ -455,6 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body.innerHTML = '';
         _lazy[type] = []; if (_lazyTm[type]) { clearTimeout(_lazyTm[type]); _lazyTm[type] = 0; }
         const lazy = state.data.length > LIMIAR_LAZY, hLazy = (_medidasTabela[type] && _medidasTabela[type].linha) || _hLinhaReal[type] || 30;
+        const colunasVisiveis = contarColunasVisiveis(body.closest('table'));
         const frag = document.createDocumentFragment();   // uma única inserção no DOM (tabelas grandes)
         const avulsoVelho = type === 'outros' ? _indicesAvulsoVelho() : new Set();      // TASK-171
 
@@ -783,7 +798,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     sep.className = 'grupo-sep';
                     sep.dataset.grupoCampo = campoGrupo;
                     const tdSep = document.createElement('td');
-                    tdSep.colSpan = type === 'cabos' ? (document.getElementById('table-cabos').classList.contains('sem-cabo-extra') ? 5 : 8) : (document.getElementById('table-outros').classList.contains('sem-entidade') ? 4 : 5);   // TASK-092: Fases/Tensão/Nível
+                    tdSep.colSpan = colunasVisiveis;
                     tdSep.textContent = `▸ ${campoGrupo.toUpperCase()}: ${chave}  (${n})`;
                     sep.appendChild(tdSep);
                     frag.appendChild(sep);
@@ -796,7 +811,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (row.bloqueada) tr.classList.add('linha-bloqueada');
             if (lazy) {
                 tr.classList.add('lazy-row'); tr.style.height = hLazy + 'px'; tr._montar = montar;
-                const td = document.createElement('td'); td.colSpan = 8; tr.appendChild(td);
+                // Exceder o cabeçalho cria colunas vazias no layout fixo e comprime o Ativo.
+                const td = document.createElement('td');
+                td.colSpan = colunasVisiveis;
+                tr.appendChild(td);
                 _lazy[type].push(tr);
             } else montar();
             frag.appendChild(tr);
@@ -1732,6 +1750,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!btn || !tabela) return;
         const aplicar = (oculto, persistir) => {
             tabela.classList.toggle('sem-cabo-extra', oculto);
+            ajustarCelulasDeLarguraTotal(tabela);
             btn.textContent = oculto ? 'Mostrar Fases/Nível' : 'Ocultar Fases/Nível';
             btn.title = oculto ? 'Mostrar as colunas Fases / Tensão / Nível' : 'Ocultar as colunas Fases / Tensão / Nível';
             if (persistir) { try { localStorage.setItem('resumo_ocultar_cabo_extra', oculto ? '1' : '0'); } catch (e) { /* vale só nesta sessão */ } }
@@ -1751,7 +1770,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.textContent = 'Exibir ▾';
             btn.title = 'Exibir: mostrar a coluna Entidade, classificar ou agrupar por entidade';
             if (oculto && filterSelections.outros.entidade.size) { filterSelections.outros.entidade.clear(); refreshAllFilters('outros'); applyFilters('outros'); }   // filtro invisível não pode ficar ativo
-            if (agrupamento.outros) renderTable('outros');          // a largura dos separadores depende das colunas visíveis
+            ajustarCelulasDeLarguraTotal(tabela);
             if (persistir) { try { localStorage.setItem('resumo_ocultar_entidade', oculto ? '1' : '0'); } catch (e) { /* sem localStorage: vale só nesta sessão */ } }
         };
         let inicial = true;                                           // padrão: oculta; quem reativou (preferência '0') continua vendo
