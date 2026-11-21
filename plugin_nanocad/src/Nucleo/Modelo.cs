@@ -95,6 +95,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public string Numero;
         public string TextoHandle;    // anotação associada
         public int ParteTexto;
+        public int? OrdemLeitor;
         public TextoDesenho OrigemMetros;
         public List<string> Candidatos = new List<string>();
         public string TextoOriginal = "";
@@ -201,6 +202,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public string NumeroObra;     // TASK-020: número de obra do projeto de trabalho (REC); null = ainda não informado (fica o do arquivo)
         public string Projeto = "081";
         public string NomeRegras = "";
+        public string FonteDxf, HashLeitor;
         public string Desenho = "";
         public string Modo = "ler";   // ler | construir
         public string SalvoEm;        // data/hora (local) do último salvar

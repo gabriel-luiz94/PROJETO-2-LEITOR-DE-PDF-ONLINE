@@ -77,14 +77,17 @@ Publicar uma versão: `./compilar.sh` (DLL + `appload/nanoCAD26/versao.json`), m
 Com a aplicação aberta (`http://127.0.0.1:8000` ou o endereço online): `ORC_CONECTAR` → e-mail e senha → Entrar. A tela
 inicial passa a listar **todos os projetos cadastrados** ("Aplicação: PERNAMBUCO (081)"…): as regras do projeto escolhido são baixadas na hora,
 junto com a **configuração de leitura** guardada na aplicação (⚙ Leitura salva lá e vale em qualquer computador). O plugin consulta a aplicação a cada 5 s (ajustável): regras
-do leitor/vínculo mudaram → refaz a obra (mantendo os ajustes); base de orçamento mudou → confere de novo. Estrutura, cabo
+do vínculo mudaram → recalcula os vínculos; base de orçamento mudou → confere de novo. Use `ORC_ATUALIZAR` para reler o DXF com regras novas. Estrutura, cabo
 ou poste que **não está na base** vira *Conferir* no painel ("não está na base de orçamento"). Sem a aplicação, segue com a
 última cópia das regras do mesmo projeto, se já baixada. A senha não é guardada e o acesso vale até 30 dias.
 
-Para **Paraíba**, digite `027` no campo **Projeto na aplicação** ou selecione **Aplicação: PARAIBA (027)**. Ao clicar em **Ler projeto**,
-confira no log se foram baixadas as regras de 027. Se o OrçaCore estiver indisponível e ainda não houver cópia local, o plugin avisa
-que está usando as regras de fábrica do leitor de Paraíba. A configuração personalizada de layers, blocos e vínculo vem do pacote
-da aplicação ou da última cópia baixada. Quando a aplicação não tiver salvo um perfil de geometria, configure o desenho em **⚙ Leitura**.
+Para **Paraíba**, digite `027` no campo **Projeto na aplicação** ou selecione **Aplicação: PARAIBA (027)**. A configuração de layers, blocos e vínculo pode vir do pacote da aplicação ou da última cópia baixada. Quando a aplicação não tiver salvo um perfil de geometria, configure o desenho em **⚙ Leitura**.
+
+### Usar a mesma leitura do DXF
+
+Em **ORCACORE → Ler projeto**, o plugin consulta o OrçaCore conectado pelo **ORC_CONECTAR**. Se o desenho aberto é um DXF salvo, envia esse arquivo. Com um DWG aberto, a janela pede o DXF correspondente à revisão do desenho. Use o mesmo DXF que você abriria no Leitor. **ORC_RELER** e **ORC_ATUALIZAR** usam o DXF escolhido na sessão. Reabra a tela inicial para escolher outro arquivo.
+
+O OrçaCore aplica o extrator e o motor JavaScript do Leitor com as regras salvas para o código selecionado. O plugin recebe as linhas prontas e associa postes, vãos e vínculos. Uma linha reconhecida fica na obra mesmo quando não encontra geometria. O log e o diagnóstico registram o projeto e a identificação das regras. A leitura automática exige que o OrçaCore conectado disponibilize a rota de leitura DXF.
 
 ### Quando a leitura não acha a rede, os postes ou as guias
 

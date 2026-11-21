@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-20 — 0.13.0
+
+A leitura automática usa o mesmo extrator DXF e o motor JavaScript do OrçaCore. O plugin preserva as linhas e sua ordem, associando a geometria e os vínculos depois da classificação. [TASK-034](tasks/TASK-034-20-11-2026.md).
+
 ## 2026-11-20 — 0.12.4
 
 A tela inicial abre pelo comando `ORCACORE` ou pelo atalho `OC`. `ORCAMENTO` continua disponível. [TASK-033](tasks/TASK-033-20-11-2026.md).

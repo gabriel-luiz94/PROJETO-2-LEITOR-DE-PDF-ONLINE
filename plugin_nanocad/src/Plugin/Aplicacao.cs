@@ -201,6 +201,7 @@ namespace OrcamentoNanoCAD
         }
         public DesenhoBruto UltimoBruto;       // o último DWG lido, cru (refaz a obra quando regras/configuração mudam, sem reler o DWG)
         public Desenho UltimoDesenho;
+        public string FonteDxf;
         // ligação com a aplicação (Sincronizador): cada mudança na obra sobe a revisão; a conferência com a base vale para uma revisão
         public int Revisao;
         public int RevisaoConferida = -1;

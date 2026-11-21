@@ -16,6 +16,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public TextoDesenho T;
         public ResultadoLeitor R;
         public TextoDesenho Comprimento;
+        public int? OrdemLeitor;
         public List<string> Candidatos = new List<string>();
     }
 
@@ -42,6 +43,44 @@ namespace OrcamentoNanoCAD.Nucleo
                 saida.Add(tl);
             }
             return saida;
+        }
+
+        /// <summary>Usa o conteúdo decidido pelo Leitor DXF e recupera apenas detalhes CAD de localização.</summary>
+        public static List<TextoLido> TextosDoDxf(JObj resposta, Desenho desenho)
+        {
+            var nativos = desenho.Textos.ToLookup(t => ChaveDeTexto(t.Texto, t.Layer, t.X, t.Y));
+            var lidos = new List<TextoLido>();
+            foreach (object item in resposta.Lista("linhas"))
+            {
+                JObj linha = item as JObj;
+                if (linha == null || linha.Str("texto") == null || linha.Str("entidade") == null ||
+                    linha.Str("operacao") == null || linha.Str("ativo") == null)
+                    throw new ErroAplicacao(200, "O Leitor DXF retornou uma linha incompleta.");
+                string texto = linha.Str("texto"), layer = linha.Str("layer") ?? "";
+                double x = linha.Num("_x") ?? 0, y = linha.Num("_y") ?? 0;
+                TextoDesenho cad = nativos[ChaveDeTexto(texto, layer, x, y)].FirstOrDefault();
+                TextoDesenho t = new TextoDesenho
+                {
+                    Texto = texto, Layer = layer, Cor = linha.Str("cor") ?? "#000000", X = x, Y = y,
+                    Altura = linha.Num("tamanho") ?? 0,
+                    Tipo = cad != null && cad.Tipo == "BLOCO_DEF" ? "BLOCO_DEF" : "DXF",
+                    Handle = cad == null ? null : cad.Handle, Parte = cad == null ? 0 : cad.Parte,
+                    Caixa = cad == null ? null : cad.Caixa
+                };
+                if (cad != null) t.Guias.AddRange(cad.Guias);
+                lidos.Add(new TextoLido
+                {
+                    T = t, OrdemLeitor = lidos.Count,
+                    R = new ResultadoLeitor { Entidade = linha.Str("entidade"), Operacao = linha.Str("operacao"), Ativo = linha.Str("ativo") }
+                });
+            }
+            return lidos;
+        }
+
+        private static string ChaveDeTexto(string texto, string layer, double x, double y)
+        {
+            return MotorLeitor.LimparTexto(texto) + "|" + (layer ?? "").ToUpperInvariant() + "|" +
+                Json.Numero(Math.Round(x, 3)) + "|" + Json.Numero(Math.Round(y, 3));
         }
 
         // ── 2) redes (critérios em ConfigLeitura; estes atalhos usam o padrão de Pernambuco) ──
@@ -72,7 +111,7 @@ namespace OrcamentoNanoCAD.Nucleo
             return h > 0 ? h : 1.0;
         }
 
-        public static Obra Ler(Desenho d, RegrasProjeto regras, JObj associacoes = null)
+        public static Obra Ler(Desenho d, RegrasProjeto regras, JObj associacoes = null, List<TextoLido> leituraDxf = null)
         {
             Contexto ctx = new Contexto();
             ctx.Associacoes = associacoes ?? new JObj();
@@ -100,9 +139,9 @@ namespace OrcamentoNanoCAD.Nucleo
             redes = JuntarRedes(redes, ctx, tol);
             foreach (Rede r in redes) CortarEmVaos(r, ctx, tol);
 
-            ctx.Lidos = ClassificarTextos(d.Textos, regras);
+            ctx.Lidos = leituraDxf ?? ClassificarTextos(d.Textos, regras);
             List<Avulso> avulsos = new List<Avulso>();
-            Dictionary<Elemento, List<TextoLido>> extras = AssociarTextos(ctx.Lidos, ctx, avulsos);
+            Dictionary<Elemento, List<TextoLido>> extras = AssociarTextos(ctx.Lidos, ctx, avulsos, leituraDxf != null);
 
             Obra obra = new Obra();
             obra.Associacoes = ctx.Associacoes;
@@ -369,6 +408,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public static void Anotar(Elemento e, TextoLido tl)
         {
             e.OrigemMetros = tl.Comprimento;
+            e.OrdemLeitor = tl.OrdemLeitor;
             e.Candidatos = tl.Candidatos;
             e.ParteTexto = tl.T.Parte;
             e.TextoHandle = tl.T.Handle;
@@ -402,7 +442,7 @@ namespace OrcamentoNanoCAD.Nucleo
         }
 
         /// <summary>Liga cada anotação a um poste/vão. Devolve as anotações a MAIS de cada elemento (viram "irmãos": V7b, P3b).</summary>
-        private static Dictionary<Elemento, List<TextoLido>> AssociarTextos(List<TextoLido> lidos, Contexto ctx, List<Avulso> avulsos)
+        private static Dictionary<Elemento, List<TextoLido>> AssociarTextos(List<TextoLido> lidos, Contexto ctx, List<Avulso> avulsos, bool leituraDxf)
         {
             ConfigLeitura cfg = ctx.Cfg;
             List<TextoLido> paraLigar = new List<TextoLido>();
@@ -415,10 +455,11 @@ namespace OrcamentoNanoCAD.Nucleo
                     Ignorar(ctx, tl, tl.R.Operacao == "0" ? "regra do leitor manda ignorar (operação 0)" : "nenhuma regra de classificação reconheceu o texto");
                     continue;
                 }
-                if (ent == "RAMAIS" || ent == "IP") { Ignorar(ctx, tl, "ramal/IP (vai para Ramais na aplicação, fora da obra do plugin)"); continue; }
-                if (tl.T.Tipo == "BLOCO_DEF") { if (VaiParaOutros(ent) || EhCabo(ent)) avulsos.Add(NovoAvulso(tl, null)); continue; }
+                if (ent == "RAMAIS" || (ent == "IP" && !leituraDxf)) { Ignorar(ctx, tl, "ramal/IP (vai para Ramais na aplicação, fora da obra do plugin)"); continue; }
+                if (leituraDxf && string.IsNullOrEmpty(tl.R.Ativo)) { avulsos.Add(NovoAvulso(tl, null)); continue; }
+                if (tl.T.Tipo == "BLOCO_DEF") { if (VaiParaOutros(ent) || EhCabo(ent) || (leituraDxf && ent == "IP")) avulsos.Add(NovoAvulso(tl, null)); continue; }
                 if (EhCabo(ent) || EhPoste(ent)) paraLigar.Add(tl);
-                else if (VaiParaOutros(ent)) avulsos.Add(NovoAvulso(tl, null));
+                else if (VaiParaOutros(ent) || (leituraDxf && ent == "IP")) avulsos.Add(NovoAvulso(tl, null));
             }
 
             // 1ª passada: cada anotação no melhor candidato (guia primeiro, depois o raio normal)

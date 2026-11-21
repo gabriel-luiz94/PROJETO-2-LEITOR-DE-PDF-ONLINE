@@ -106,6 +106,8 @@ O nanoCAD entrega ao OrçaCore o caminho do `.obra` local. A janela autenticada 
 
 No Resumo, a ação **Comparar** de Ler Projeto, Carregar Obra e Importar JSON usa a obra aberta como referência e apresenta as diferenças no preenchimento de Cabos e Outros. [TASK-211](tasks/TASK-211-20-11-2026.md).
 
+Para garantir o mesmo preenchimento, **Ler projeto** no nanoCAD envia o mesmo DXF ao OrçaCore conectado. O motor do Leitor determina as linhas. O plugin acrescenta a associação com o desenho e os vínculos. [TASK-212](tasks/TASK-212-20-11-2026.md).
+
 Diagramas por componente e detalhamento de cada etapa: ver [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---

@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.13.0
+
+TASK-034 usa o DXF e o motor canônico do OrçaCore na leitura automática. A comparação com a saída do Leitor passou nos testes. A execução no nanoCAD 5 e 26 com a nota real aguarda validação no Windows.
+
 ## Plugin 0.12.4
 
 TASK-033 registra `ORCACORE` e `OC` para a tela inicial nos builds do nanoCAD 5 e 26. `ORCAMENTO` permanece disponível como alias. A execução no nanoCAD aguarda confirmação no Windows.
@@ -37,9 +41,9 @@ TASK-022 (leitura), TASK-023 (alocação por poste) e TASK-024 (painel) implemen
 
 ## Versão
 
-`0.12.4` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
+`0.13.0` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
 
-Branch de trabalho: `codex/comando-orcacore-vinculacao`
+Branch de trabalho: `codex/paridade-leitor-dxf`
 
 ## Entregáveis
 

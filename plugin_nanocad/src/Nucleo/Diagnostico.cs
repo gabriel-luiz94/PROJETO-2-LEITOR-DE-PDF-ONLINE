@@ -105,7 +105,7 @@ namespace OrcamentoNanoCAD.Nucleo
             return r;
         }
 
-        public static JObj Gerar(DesenhoBruto b, Desenho d, Obra obra, RegrasProjeto regras, DateTime agora)
+        public static JObj Gerar(DesenhoBruto b, Desenho d, Obra obra, RegrasProjeto regras, DateTime agora, List<TextoLido> leituraDxf = null)
         {
             Dictionary<string, string> destino = new Dictionary<string, string>();
             foreach (Elemento e in obra.Elementos)
@@ -113,7 +113,7 @@ namespace OrcamentoNanoCAD.Nucleo
                     destino[e.TextoHandle + "|" + e.TextoOriginal] = e.Numero + (e.GuiaUsada != null ? " (pela guia)" : "") + (e.Estado != Estados.Ok ? " — " + string.Join("; ", e.Mensagens.ToArray()) : "");
             foreach (TextoIgnorado t in obra.Ignorados) destino[t.Handle + "|" + t.Texto] = "ignorado — " + t.Motivo;
 
-            List<TextoLido> lidos = LeitorProjeto.ClassificarTextos(d.Textos, regras);
+            List<TextoLido> lidos = leituraDxf ?? LeitorProjeto.ClassificarTextos(d.Textos, regras);
             List<object> textos = new List<object>();
             foreach (TextoLido tl in lidos)
             {
