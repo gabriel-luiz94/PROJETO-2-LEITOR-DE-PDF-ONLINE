@@ -208,7 +208,8 @@ def test_telas_ligadas_ao_projeto():
 def test_projeto_so_aparece_no_aplicativo_desktop():
     js = ler("projeto.js")
     assert "if (!host || host.dataset.pronto || !ponte()) return;" in js                    # sem a ponte (navegador/online) o menu nem é criado
-    assert "if (!ativo()) return;" in js and "pywebview.api.projeto_criar" in js
+    assert "if (!ativo()) return;" in js and "api?.projeto_criar" in js
+    assert "w?.__janelaNativa && api?.salvar_arquivo" in js
 
 
 # ───────── Colar SAP (JSON do Atlas) ─────────

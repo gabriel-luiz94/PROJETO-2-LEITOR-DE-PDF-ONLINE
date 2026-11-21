@@ -6,6 +6,10 @@
 
 ---
 
+## Arraste nativo e abertura mais leve · TASK-216
+
+As janelas destacadas usam a barra de título do sistema. PDF, DXF e Excel carregam suas bibliotecas ao primeiro uso. Em Linux, a mediana de três importações isoladas de `app`, sem servidor ou interface, caiu de 146 MiB para 63 MiB. A validação de arraste com dois monitores e a medição de memória da sessão completa seguem pendentes no Windows. [TASK-216](tasks/TASK-216-21-11-2026.md).
+
 ## Janelas nativas de Resultado e Base · TASK-215
 
 Resultado e Base abrem em tela inteira e podem ser minimizados, destacados e reencaixados. A nova janela usa o processo e o servidor do OrçaCore já aberto. O Resumo continua com a fila de gravação da obra e envia o novo cálculo à visualização ativa. O protocolo foi exercitado em duas janelas Chromium com ponte simulada. A validação do movimento entre monitores no WebView2 segue pendente. [TASK-215](tasks/TASK-215-21-11-2026.md).
@@ -787,6 +791,8 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-11-21
+
+**Motivo:** [TASK-216](tasks/TASK-216-21-11-2026.md) usa a barra nativa do sistema e adia o carregamento das bibliotecas de arquivos.
 
 **Motivo:** [TASK-215](tasks/TASK-215-21-11-2026.md) adicionou os estados integrado, minimizado e nativo para Resultado e Base de Orçamento.
 

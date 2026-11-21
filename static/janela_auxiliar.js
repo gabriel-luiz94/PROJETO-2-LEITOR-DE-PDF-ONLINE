@@ -71,20 +71,14 @@
     };
     raiz.fecharVisualizacaoNativa = () => sair('fechar');
 
-    const maximizar = botao('maximizar', 'Maximizar', async () => {
-        const max = await raiz.pywebview?.api.janela_maximizar();
-        configurar(maximizar, max ? 'restaurar' : 'maximizar', max ? 'Restaurar tamanho' : 'Maximizar');
-    });
-    barra.append(botao('retornar', 'Retornar à visualização principal', () => sair('retornar')),
-        botao('minimizar', 'Minimizar', () => raiz.pywebview?.api.janela_minimizar()),
-        maximizar, botao('fechar', 'Fechar', () => sair('fechar')));
+    barra.append(botao('retornar', 'Retornar à visualização principal', () => sair('retornar')));
 
     raiz.addEventListener('message', e => {
         if (e.origin === raiz.location.origin && e.source === quadro.contentWindow && e.data?.tipo === 'fechar-tela-app') sair('fechar');
     });
     let carregado = false, filaIniciada = false;
     function conectar() {
-        if (!carregado || filaIniciada || !raiz.pywebview?.api.janela_maximizar) return;
+        if (!carregado || filaIniciada || !raiz.pywebview?.api.salvar_arquivo) return;
         filaIniciada = true;
         if (conteudo()) enviar('pronta');
         else enviar('falha');

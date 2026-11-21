@@ -7,8 +7,6 @@ ODI → operação I (instalação); ODD → operação R (retirada). Funções 
 """
 import re
 
-import pymupdf
-
 LIMITE_PAGINAS = 300
 LIMITE_LINHAS = 20000
 _HIFENS = "-‐‑‒–—−"                                      # o PDF traz hífen "bonito" (U+2010) no cabeçalho
@@ -70,6 +68,8 @@ def ler_pdf(conteudo: bytes) -> dict:
     """→ {nota, secoes: [{tipo: 'ODI'|'ODD', linhas: [{mdo, codigo, qtd, centro, desc}]}]}. Levanta ErroSapPdf.
     Um PDF pode trazer o ODI e o ODD juntos (como o relatório do ICP: ODI nas primeiras páginas e o ODD depois). Uma página que traz
     "TIPO DE ORDEM - ODI|ODD" abre uma seção nova quando o tipo muda; páginas sem cabeçalho (continuação da tabela) seguem na seção atual."""
+    import pymupdf
+
     try:
         doc = pymupdf.open(stream=conteudo, filetype="pdf")
     except Exception:  # noqa: BLE001 — qualquer defeito do arquivo vira mensagem

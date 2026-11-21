@@ -14,32 +14,20 @@ class ApiVisualizacao(ApiArquivos):
 
     def __init__(self):
         super().__init__()
-        self._maximizada = False
         self._fechando = False
 
-    def janela_minimizar(self):
-        self._janela.minimize()
-
-    def janela_maximizar(self):
-        maximizar = not self._maximizada
-        if maximizar:
-            self._janela.maximize()
-        else:
-            self._janela.restore()
-        return maximizar
-
     def _fechar(self):
+        if self._fechando:
+            return
         self._fechando = True
-        self._janela.destroy()
+        try:
+            self._janela.destroy()
+        except Exception:
+            self._fechando = False
+            raise
 
     def vincular(self, janela):
         super().vincular(janela)
-
-        def marcar_maximo():
-            self._maximizada = True
-
-        def marcar_restaurada():
-            self._maximizada = False
 
         def antes_de_fechar():
             if self._fechando:
@@ -54,8 +42,6 @@ class ApiVisualizacao(ApiArquivos):
             threading.Thread(target=solicitar, daemon=True).start()
             return False
 
-        janela.events.maximized += marcar_maximo
-        janela.events.restored += marcar_restaurada
         janela.events.closing += antes_de_fechar
 
 
@@ -89,13 +75,15 @@ class ApiProjetoComJanelas(ApiProjeto):
             if self._encerrando or canal in self._auxiliares or any(entrada[0] == tipo for entrada in self._auxiliares.values()):
                 return {"ok": False, "erro": "Essa visualização já está aberta."}
             self._auxiliares[canal] = (tipo, None)
+        api = ApiVisualizacao()
+        janela = None
         try:
-            api = ApiVisualizacao()
             janela = self._criar_janela(
                 title=f"OrçaCore · {TITULOS[tipo]}",
                 url=f"{self._origem}/static/janela_auxiliar.html#{tipo}={canal}",
                 js_api=api, width=1100, height=760, min_size=(600, 420),
-                frameless=True, easy_drag=False, background_color="#0d1117",
+                # O sistema operacional controla todo o arraste, inclusive a soltura fora do WebView.
+                frameless=False, easy_drag=False, background_color="#0d1117",
                 text_select=True, zoomable=True,
             )
             api.vincular(janela)
@@ -121,6 +109,11 @@ class ApiProjetoComJanelas(ApiProjeto):
         except Exception as erro:
             with self._trava:
                 self._auxiliares.pop(canal, None)
+            if janela is not None:
+                try:
+                    api._fechar()
+                except Exception as erro_fechar:
+                    logger.warning("Falha ao descartar visualização auxiliar: %s", erro_fechar)
             logger.warning("Falha ao abrir visualização auxiliar: %s", erro)
             return {"ok": False, "erro": "Não foi possível abrir a janela nativa."}
 

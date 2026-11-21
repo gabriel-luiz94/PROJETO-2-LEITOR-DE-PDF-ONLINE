@@ -11,8 +11,6 @@ import os
 import re
 from datetime import date
 
-import fitz
-
 import config
 from services import perfil_exportacao as pe
 
@@ -139,6 +137,8 @@ def gerar_relatorio(cabecalho: dict, secoes: list, perfil=None) -> bytes:
         preparadas.append((tipo, _linhas(tipo, linhas, perfil), _cabecalho(cabecalho, tipo, perfil)))
     if not preparadas:
         raise ErroPdf("Informe ao menos uma seção (ODI ou ODD).")
+    import pymupdf as fitz
+
     reg, neg = _fontes()
     doc = fitz.open()
     pg = [None]

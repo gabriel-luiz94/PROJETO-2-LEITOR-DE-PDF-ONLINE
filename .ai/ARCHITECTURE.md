@@ -113,6 +113,8 @@ No desktop, `POST /api/plugin/receber` valida o caminho da obra do nanoCAD e cri
 
 ### 3.1 Raiz
 
+PyMuPDF, ezdxf e openpyxl são importados nas operações que abrem ou produzem esses arquivos. FastAPI registra as rotas sem carregar essas bibliotecas no início. [TASK-216](tasks/TASK-216-21-11-2026.md).
+
 | Arquivo | Responsabilidade |
 |---|---|
 | `app.py` | Cria o FastAPI, configura CORS por modo, registra `AuthMiddleware`, chama `init_db()`, monta `/static`, serve as páginas HTML, expõe `/ws` e `/api/version`, inclui todos os routers, e faz o bootstrap desktop (pywebview) ou servidor (uvicorn headless) |
@@ -312,7 +314,7 @@ ativado definindo explicitamente `APP_MODE=server` no ambiente.
 | `ler_projeto.js` | Botão "Ler projeto" do Resumo (TASK-062): módulo puro `processar(itens, proc, cls, motor)` (passo do Leitor + computeRowLogic + separação) e `extrair(arquivo)` (`POST /upload`); paridade com Leitor→Processar→Resumo em `tests/test_ler_projeto.py` |
 | `comparar_obras.js` | Comparação de Cabos e Outros no Resumo (TASK-211). Consome as linhas da tela e a obra validada nas três entradas. Compara alvos de vínculo por identidade do poste e da estrutura, mostrando divergências em um diálogo local. |
 | `abrir_na_app.js` · `janela_auxiliar.js` | Resultado e Base abrem em tela inteira no Resumo, podem minimizar em abas no rodapé e podem destacar no desktop (TASK-215). Na troca de host, transferem o estado da visualização por `BroadcastChannel` de mesma origem, com identificador próprio. O Resumo continua dono da gravação da obra e fornece o pedido para recalcular na janela que exibe o Resultado. A Vinculação continua reaproveitando o próprio modal e o host da obra. |
-| `services/janelas_auxiliares.py` | A ponte principal cria visualizações nativas dedicadas via `webview.create_window`, com o mesmo perfil persistente e servidor local. O catálogo restringe os destinos a Resultado e Base de Orçamento. Fechar a janela principal encerra as auxiliares. |
+| `services/janelas_auxiliares.py` | A ponte principal cria visualizações nativas dedicadas via `webview.create_window`, com o mesmo perfil persistente e servidor local. O catálogo restringe os destinos a Resultado e Base de Orçamento. A barra nativa do sistema operacional controla o arraste e o encaixe entre monitores. Fechar a janela principal encerra as auxiliares. |
 | `grade_tabela.js` | Grade estilo Excel de Cabos/Outros (TASK-067): lógica pura de colar (`aplicarColagem`, `parseColagem`), copiar (`textoDoIntervalo`) e limpar intervalo; também usada pelo modal RAMAIS (TASK-066). Testes: `tests/test_grade_tabela.py` |
 | `atalhos_modal.js` · `gerador_modal.js` | Modais geradores de Cabos e Postes (TASK-068): atalhos de fábrica/projeto/computador (mescla pura + armazenamento), painéis, favoritos e grade estilo Excel. API: `routers/atalhos.py` (`/api/atalhos/{modal}`, tabela `atalhos_modais`) |
 | `barra_modais.js` · `routers/barra_modais.py` | Barra de modais por projeto (TASK-117): ocultar/ordenar os botões (`[data-modal-id]` da barra do Resumo), excluir/copiar modais montáveis entre projetos; seção "Modais do projeto" do painel Configurações. API `/api/barra-modais` (leitura qualquer usuário, escrita admin; tabela `atalhos_modais`, chave `barra_modais`) |

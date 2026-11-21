@@ -91,7 +91,10 @@
     function gravarEstado(e) { try { if (e) raiz.localStorage.setItem(CHAVE, JSON.stringify(e)); else raiz.localStorage.removeItem(CHAVE); } catch (x) { /* sem storage: vale só nesta tela */ } }
     function ponte() {
         for (const w of [raiz, raiz.parent, raiz.top]) {
-            try { if (w && w.pywebview && w.pywebview.api && (w.pywebview.api.projeto_criar || (w.__janelaNativa && w.pywebview.api.janela_maximizar))) return w.pywebview.api; } catch (x) { /* outra origem */ }
+            try {
+                const api = w?.pywebview?.api;
+                if (api?.projeto_criar || (w?.__janelaNativa && api?.salvar_arquivo)) return api;
+            } catch (x) { /* outra origem */ }
         }
         return null;
     }

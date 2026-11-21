@@ -5,9 +5,6 @@ ODI (tudo que está instalando) e ODD (tudo que está removendo), colunas TIPO M
 import io
 import re
 
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill
-
 from services import perfil_exportacao as pe
 
 LIMITE_LINHAS = 20000
@@ -52,6 +49,8 @@ _LARGURAS = {"mdo": 10, "codigo": 16, "qtd": 14, "centro": 10, "desc": 60}
 
 
 def _planilha(ws, linhas, perfil=None):
+    from openpyxl.styles import Alignment, Font, PatternFill
+
     cols = pe.normalizar(perfil)["xlsx"]["colunas"]                                          # TASK-176: colunas e ordem do perfil (padrão: TIPO MDO, CÓDIGO, QUANTIDADE, CENTRO, DESCRIÇÃO)
     ws.append([pe.COLUNAS_XLSX[c] for c in cols])
     for c in ws[1]:
@@ -75,6 +74,8 @@ def _planilha(ws, linhas, perfil=None):
 def gerar_xlsx(odi, odd, perfil=None) -> bytes:
     """Bytes de um .xlsx com as planilhas ODI e ODD. Cada linha: {mdo, codigo, desc, qtd}."""
     odi, odd = _validar("ODI", odi), _validar("ODD", odd)
+    from openpyxl import Workbook
+
     wb = Workbook()
     ws = wb.active
     ws.title = "ODI"
