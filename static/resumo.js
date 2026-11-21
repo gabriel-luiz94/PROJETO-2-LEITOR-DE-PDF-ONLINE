@@ -188,7 +188,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     /** Marca o projeto como alterado a cada ação do usuário que entra no histórico (congelar/bloquear/comentar pelo menu não disparam input/change). Não vale ao abrir/carregar um projeto. */
     let _historicoSemSujo = false;
-    function marcarProjetoAlterado() { if (!_historicoSemSujo && window.GridRProjeto && window.GridRProjeto.marcarSujo) window.GridRProjeto.marcarSujo(false); }
+    function marcarProjetoAlterado() {
+        if (!_historicoSemSujo && window.GridRProjeto && window.GridRProjeto.marcarSujo) window.GridRProjeto.marcarSujo(false);
+        window.VinculacaoUI?.atualizarObra();
+    }
     const tableStates = {
         cabos: { bodyId: 'body-cabos', data: [] },
         outros: { bodyId: 'body-outros', data: [] },
@@ -446,6 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
     })();
 
     function renderTable(type) {
+        window.VinculacaoUI?.atualizarObra();
         const state = tableStates[type];
         const body = document.getElementById(state.bodyId);
         body.innerHTML = '';
@@ -2474,6 +2478,8 @@ document.addEventListener('DOMContentLoaded', () => {
         depois() { try { renderTable('outros'); atualizarResumoRedeUI(); if (typeof updateHistoryUI === 'function') updateHistoryUI(); } catch (e) { /* tela ainda carregando */ } }
     };
 
+    document.getElementById('select-projeto')?.addEventListener('change', () => window.VinculacaoUI?.atualizarObra());
+
     window.abrirModalVinculacao = function () {
         if (window.VinculacaoUI) window.VinculacaoUI.abrir(window.VinculacaoHost);
     };
@@ -3076,7 +3082,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Dados da obra inválidos.');
             return false;
         }
-        const atual = { cabos: tableStates.cabos.data, outros: tableStates.outros.data };
+        const atual = { cabos: tableStates.cabos.data.slice(), outros: tableStates.outros.data.slice() };
         const resultado = window.CompararObras.comparar(atual, obra, {
             cabo: extrairPrefixoEComprimentoCabo,
             codigoOutro: linha => _codigoEstruturaVinculo(linha.ativo),
@@ -3085,9 +3091,19 @@ document.addEventListener('DOMContentLoaded', () => {
         window.CompararObras.abrir(resultado, {
             nome, referencia: window.GridRProjeto?.nome(),
             localizar(tipo, i) {
-                const tr = bodyDe(tipo).querySelector(`tr[data-index="${i}"]`);
-                if (linhaVisivel(tr) && tr.getClientRects().length && focarCelula(tipo, i, 1)) return;
-                showToast(`Linha ${i + 1} de ${tipo === 'cabos' ? 'Cabos' : 'Outros'}. Confira a aba e os filtros da tabela.`);
+                const linha = atual[tipo][i];
+                const indice = tableStates[tipo].data.indexOf(linha);
+                const tr = indice < 0 ? null : bodyDe(tipo).querySelector(`tr[data-index="${indice}"]`);
+                if (!tr) {
+                    showToast('A linha da referência mudou. Faça uma nova comparação para localizá-la.');
+                    return false;
+                }
+                mostrarTabelasDoResumo(tipo);
+                // Revela só a linha localizada. Os filtros e grupos continuam valendo para o restante.
+                tr.style.display = '';
+                tr.scrollIntoView({ block: 'center', inline: 'nearest' });
+                focarCelula(tipo, indice, 1);
+                return true;
             }
         });
         return true;
@@ -3244,9 +3260,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let execucaoOrigemAutonomo = null;
 
+    let revisaoObraAberta = 0;
+
     function restoreObraSnapshot(snap) {
         if (!snap) { showToast("Dados da obra inválidos."); return; }
-
         // Normaliza: o snap pode ser tableStates completo {cabos:{data,bodyId}, outros:{data,bodyId}}
         // ou um snap direto {cabos:[...], outros:[...]}
         const cabosData  = Array.isArray(snap.cabos)  ? snap.cabos  : (snap.cabos  && snap.cabos.data  ? snap.cabos.data  : null);
@@ -3258,6 +3275,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        revisaoObraAberta++;
+        window.dispatchEvent(new Event('obra-resumo-substituida'));
+        window.VinculacaoUI?.atualizarObra(true);
         _historicoSemSujo = true;
         try { pushHistory(); } finally { _historicoSemSujo = false; }          // abrir/carregar um projeto não o deixa "alterado"
         // TASK-059: obra gerada pelo modo autônomo -> ao salvar, o servidor compara com o que o usuário deixou (aprendizado)
@@ -5697,6 +5717,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnMontarOrcamento.addEventListener('click', async () => {
             // Feedback visual: desabilita botão e exibe "Calculando..."
             const textoOriginal = btnMontarOrcamento.textContent.trim();
+            const revisao = revisaoObraAberta;
             btnMontarOrcamento.disabled = true;
             btnMontarOrcamento.textContent = 'Calculando...';
 
@@ -5720,6 +5741,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const projCode = selectProj && selectProj.selectedIndex >= 0 ? selectProj.options[selectProj.selectedIndex].dataset.codigo : "";
                 
                 const { cabos: payloadCabos, outros: payloadOutros } = await obterPayloadCalculo();
+                if (revisao !== revisaoObraAberta) {
+                    showToast('A obra aberta mudou. Clique em Montar Orçamento para calcular a obra atual.');
+                    return;
+                }
 
                 const payload = {
                     cabos: payloadCabos,
@@ -5734,8 +5759,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 registrarAprendizadoDoOrcamento();
-                localStorage.setItem('orcamentoPayload', JSON.stringify(payload));
-                AbrirNaApp.abrir('/resultado_orcamento', 'Resultado do orçamento');                // TASK-128: dentro do programa, sem nova aba do navegador
+                const texto = JSON.stringify(payload);
+                localStorage.setItem('orcamentoPayload', texto); // abertura direta do Resultado
+                window.__orcamentoDaSessao = texto;               // a janela integrada usa o pedido do seu Resumo
+                AbrirNaApp.abrir('/resultado_orcamento', 'Resultado do orçamento', 'resultado');
             } finally {
                 // Restaura o botão independentemente de sucesso ou erro
                 btnMontarOrcamento.disabled = false;
@@ -7334,6 +7361,15 @@ window.handleTotPaste = function(e, index) {
     /* TASK-163: projeto entregue pelo plugin do nanoCAD (/resumo?plugin_pendente=<id>). O plugin grava o projeto de trabalho `<desenho>.obra`
        na pasta do desenho e entrega o CAMINHO; aqui ele é aberto como em 📁 Projeto → Abrir (static/projeto.js: abrirDoPlugin). Nada vai para o banco.
        Plugin antigo (só a obra, sem caminho): as linhas aparecem na tela, sem gravar no banco. */
+    function mostrarTabelasDoResumo(...tabelas) {
+        const padrao = document.querySelector('input[name="view_mode"][value="padrao"]');
+        if (padrao && !padrao.checked) {
+            padrao.checked = true;
+            window.toggleViewMode();
+        }
+        window.ResumoLayout?.mostrarTabelas(...tabelas);
+    }
+
     async function receberObraDoPlugin(pend) {
         if (!pend) return;
         if (!localStorage.getItem('auth_token')) {
@@ -7367,12 +7403,13 @@ window.handleTotPaste = function(e, index) {
                     showToast('O projeto do nanoCAD só abre no OrçaCore instalado. Arquivo: ' + d.caminho);
                     return;
                 }
-                await window.GridRProjeto.abrirDoPlugin(async () => {
+                const abriu = await window.GridRProjeto.abrirDoPlugin(async () => {
                     const resposta = await fetch(url + '/projeto');
                     const projeto = await resposta.json();
                     if (resposta.status !== 401) limparPendente();
                     return resposta.ok ? projeto : { ok: false, erro: projeto.detail };
                 }, selecionarProjeto);
+                if (abriu) mostrarTabelasDoResumo('cabos', 'outros');
                 return;
             }
             limparPendente();
@@ -7380,6 +7417,7 @@ window.handleTotPaste = function(e, index) {
             if (env.dados) {
                 selecionarProjeto();
                 restoreObraSnapshot(env.dados);
+                mostrarTabelasDoResumo('cabos', 'outros');
                 showToast('Obra do nanoCAD na tela (não foi gravada). Atualize o plugin para abrir como projeto.');
             }
         } catch (e) {

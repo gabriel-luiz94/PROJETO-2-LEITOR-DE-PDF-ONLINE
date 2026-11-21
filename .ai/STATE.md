@@ -6,6 +6,10 @@
 
 ---
 
+## Área de trabalho do Resumo · TASK-213
+
+A abertura de uma obra pelo nanoCAD revela Cabos e Outros. Localizar uma linha mantém a comparação carregada. Vinculação, Base de Orçamento e Resultado podem ficar abertos em janelas flutuantes da mesma sessão. Fluxo validado no Chromium com a abertura local do plugin simulada. Validação no WebView2 do Windows pendente.
+
 ## Mapa de vinculação · TASK-202
 
 Grafo implementado no Resumo. O teste em Chromium cobre edição dentro do nó e preservação do zoom. A topologia usa a geometria ou as atribuições do projeto.
@@ -775,6 +779,8 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-11-20
+
+**Motivo:** [TASK-213](tasks/TASK-213-20-11-2026.md) corrigiu a exibição das tabelas na abertura pelo nanoCAD e integrou as janelas auxiliares e a comparação no Resumo.
 
 **Motivo:** [TASK-212](tasks/TASK-212-20-11-2026.md) integrou o motor do Leitor DXF à leitura automática do nanoCAD.
 

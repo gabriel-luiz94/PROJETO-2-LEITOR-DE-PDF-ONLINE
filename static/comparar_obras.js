@@ -190,6 +190,14 @@
         const resumo = dialogo.querySelector('[role="status"]');
         const anterior = dialogo.querySelector('[data-pagina="anterior"]'), proxima = dialogo.querySelector('[data-pagina="proxima"]');
         const fechamento = dialogo.querySelector('[data-fechar]');
+        const retomar = dialogo.querySelector('[data-retomar]');
+        dialogo.classList.remove('comparacao-recolhida');
+        retomar.hidden = true;
+        retomar.onclick = () => {
+            dialogo.classList.remove('comparacao-recolhida');
+            retomar.hidden = true;
+            filtro.focus();
+        };
         const paginaTam = 100;
         const formatarDelta = new Intl.NumberFormat('pt-BR', { signDisplay: 'always', maximumFractionDigits: 4 });
         let tipo = 'outros', pagina = 0;
@@ -214,7 +222,11 @@
             if (atual) {
                 const bt = criar('button', 'Ir à linha ' + (registro.i + 1), td);
                 bt.className = 'btn-secondary';
-                bt.onclick = () => { dialogo.close(); opcoes.localizar(tipo, registro.i); };
+                bt.onclick = () => {
+                    dialogo.classList.add('comparacao-recolhida');
+                    retomar.hidden = false;
+                    if (!opcoes.localizar(tipo, registro.i)) retomar.click();
+                };
             } else criar('small', 'Linha ' + (registro.i + 1), td);
         }
 
@@ -252,13 +264,16 @@
         anterior.onclick = () => { pagina--; render(); };
         proxima.onclick = () => { pagina++; render(); };
         fechamento.onclick = () => dialogo.close();
+        dialogo.onkeydown = e => { if (e.key === 'Escape') dialogo.close(); };
         dialogo.onclose = () => {
+            if (dialogo.open) return;
             corpo.replaceChildren();
+            dialogo.onkeydown = retomar.onclick = null;
             dialogo.onclose = filtro.onchange = anterior.onclick = proxima.onclick = fechamento.onclick = null;
             botoes.forEach(bt => bt.onclick = null);
         };
         render();
-        if (!dialogo.open) dialogo.showModal();
+        if (!dialogo.open) dialogo.show();
     }
 
     const api = { comparar, abrir };

@@ -1426,11 +1426,27 @@
         const perfilPronto = window.PerfilExportacao ? PerfilExportacao.carregar(localStorage.getItem('projeto_selecionado_codigo') || '').then(() => {
             ['xlsx:btn-exportar-xlsx', 'pdf_sap:btn-relatorio-pdf'].forEach(par => { const [arq, id] = par.split(':'), b = document.getElementById(id); if (b) b.style.display = PerfilExportacao.oferece(arq, PerfilExportacao.atual()) ? '' : 'none'; });
         }) : Promise.resolve();
+        let revisaoCalculo = 0;
+        let pedidoDoResultado = null;
+        let resumoOrigem = null;
+        try {
+            if (window.top !== window && window.top.location.origin === location.origin) resumoOrigem = window.top;
+        } catch (e) { /* Resultado aberto fora do Resumo */ }
+        if (resumoOrigem) {
+            const invalidarCalculo = () => { revisaoCalculo++; pedidoDoResultado = null; };
+            resumoOrigem.addEventListener('obra-resumo-substituida', invalidarCalculo);
+            window.addEventListener('pagehide', () => resumoOrigem.removeEventListener('obra-resumo-substituida', invalidarCalculo), { once: true });
+        }
+
         async function montarOrcamento() {
+            const revisao = ++revisaoCalculo;
+            const caminho = window.GridRProjeto?.estado()?.caminho;
+            const atual = () => revisao === revisaoCalculo && caminho === window.GridRProjeto?.estado()?.caminho;
             await perfilPronto;
+            if (!atual()) return;
             try {
                 log('Lendo dados para cálculo do orçamento...', true);
-                const payloadStr = localStorage.getItem('orcamentoPayload');
+                const payloadStr = resumoOrigem?.__orcamentoDaSessao || localStorage.getItem('orcamentoPayload');
                 if (!payloadStr) {
                     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum orçamento montado ainda.<br>Abra o Resumo do Orçamento e clique em "Montar Orçamento", ou use "RECs do Banco" acima para abrir um orçamento salvo.<br><button class="btn-action" style="margin-top:14px;" onclick="if (window.self !== window.top) voltarOuFechar(); else window.location.href=\'/resumo\'">Ir para o Resumo do Orçamento</button></td></tr>';
                     log('Nenhum dado ativo no momento.');
@@ -1453,8 +1469,10 @@
                 });
 
                 const data = await res.json();
+                if (!atual()) return;
 
                 if (res.ok) {
+                    pedidoDoResultado = payload;
                     tbody.innerHTML = '';
                     
                     // Mensagens vêm do servidor (inclusive trechos da base): sempre como texto, nunca como HTML.
@@ -1489,6 +1507,7 @@
                     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:#f87171;">Erro: ' + (data.detail || data.error || JSON.stringify(data)) + '</td></tr>';
                 }
             } catch(e) {
+                if (!atual()) return;
                 log('Erro de comunicação: ' + e.message);
                 console.error(e);
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:#f87171;">Erro: ' + e.message + '</td></tr>';
@@ -1516,6 +1535,8 @@
         /** TASK-180: um projeto foi aberto (menu Abrir / plugin) com esta tela à vista: mostra o resultado gravado nele, com as edições, SEM recalcular.
          *  Projeto sem resultado: a tabela esvazia e orienta a montar o orçamento (não deixa o resultado do projeto anterior parecendo do novo). */
         function mostrarResultadoDoProjeto(info) {
+            revisaoCalculo++;
+            pedidoDoResultado = null;
             const linhas = info && info.resultado && Array.isArray(info.resultado.linhas) ? info.resultado.linhas : [];
             document.querySelectorAll('.alerta-calculo').forEach(n => n.remove());
             sapCopiadas.clear();
@@ -2593,8 +2614,7 @@
 
         /* TASK-178 — guarda o pedido (o mesmo do "Montar Orçamento") e o resultado desta tela como caso de referência do projeto */
         async function guardarCasoDeReferencia() {
-            let pedido = null;
-            try { pedido = JSON.parse(localStorage.getItem('orcamentoPayload') || 'null'); } catch (e) { /* sem pedido */ }
+            const pedido = pedidoDoResultado;
             const linhas = getRowsData();
             if (!pedido || !linhas.length) return alert('Monte o orçamento antes: não há pedido e resultado para guardar.');
             const projeto = localStorage.getItem('projeto_selecionado_codigo') || '';
