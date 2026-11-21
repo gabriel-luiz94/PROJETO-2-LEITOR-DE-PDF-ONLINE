@@ -94,6 +94,11 @@ async def serve_resumo_js():
 async def serve_resumo_layout_js():
     return _serve_js("resumo_layout.js")
 
+@app.get("/static/janela_auxiliar.js")
+async def serve_janela_auxiliar_js():
+    return _serve_js("janela_auxiliar.js")
+
+
 @app.get("/static/ativo_sugestao.js")
 async def serve_ativo_sugestao_js():
     return _serve_js("ativo_sugestao.js")       # TASK-136
@@ -634,8 +639,8 @@ if __name__ == "__main__":
                 webview.settings['ALLOW_DOWNLOADS'] = True          # TASK-142: sem isto o WebView2 cancela qualquer download (a ponte de arquivos abaixo cobre os blobs)
             except Exception:  # noqa: BLE001 — pywebview antigo, sem essa opção
                 pass
-            from services.projeto_desktop import ApiProjeto           # TASK-154: arquivos nativos (TASK-142) + projeto de trabalho (.obra)
-            api_arquivos = ApiProjeto()
+            from services.janelas_auxiliares import ApiProjetoComJanelas
+            api_arquivos = ApiProjetoComJanelas(app_url, webview.create_window)
             # TASK-128: a janela abre já com a tela "Iniciando…" e só carrega o login quando o servidor aceita conexões (sem a mensagem "recusou a conectar")
             window = webview.create_window(
                 title=f"OrçaCore v{APP_VERSION}",

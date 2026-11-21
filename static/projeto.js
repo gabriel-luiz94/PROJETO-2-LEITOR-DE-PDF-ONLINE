@@ -91,7 +91,7 @@
     function gravarEstado(e) { try { if (e) raiz.localStorage.setItem(CHAVE, JSON.stringify(e)); else raiz.localStorage.removeItem(CHAVE); } catch (x) { /* sem storage: vale só nesta tela */ } }
     function ponte() {
         for (const w of [raiz, raiz.parent, raiz.top]) {
-            try { if (w && w.pywebview && w.pywebview.api && w.pywebview.api.projeto_criar) return w.pywebview.api; } catch (x) { /* outra origem */ }
+            try { if (w && w.pywebview && w.pywebview.api && (w.pywebview.api.projeto_criar || (w.__janelaNativa && w.pywebview.api.janela_maximizar))) return w.pywebview.api; } catch (x) { /* outra origem */ }
         }
         return null;
     }
@@ -335,7 +335,9 @@
             if (dadosProntos) parcial.dados = resumo.coletar();
             else if (manual) avisar('O Resumo não foi gravado: o projeto não foi carregado. Abra o projeto de novo.');
         }
-        if (coletorResultado) { try { const r = coletorResultado(); if (r) parcial.resultado = r; } catch (x) { /* a tela do Resultado segue valendo */ } }
+        const caminho = estado()?.caminho;
+        if (coletorResultado) { try { const r = await coletorResultado(); if (r) parcial.resultado = r; } catch (x) { /* a tela do Resultado segue valendo */ } }
+        if (caminho !== estado()?.caminho) return false;
         sujo = false; suspenso = false;
         pendente = Object.assign(pendente || {}, parcial);
         await drenar();
@@ -530,7 +532,7 @@
     }
     /** Resultado gravado no projeto atual (pendente em memória ou o do arquivo), para o "Salvar como" levar junto. */
     async function resultadoAtual() {
-        if (coletorResultado) { try { const r = coletorResultado(); if (r && r.linhas && r.linhas.length) return r; } catch (x) { /* segue */ } }
+        if (coletorResultado) { try { const r = await coletorResultado(); if (r && r.linhas && r.linhas.length) return r; } catch (x) { /* segue */ } }
         if (pendente && pendente.resultado) return pendente.resultado;
         const e = estado(), p = ponte();
         if (!e || !p) return null;
@@ -741,7 +743,7 @@
     }
 
     /* ── Resultado do orçamento ── */
-    let observador = null, termoResultado = null;
+    let observador = null, termoResultado = null, aoOcultarResultado = null;
     /** As linhas do Resultado do projeto (pendentes em memória ou gravadas no arquivo), se foram calculadas com o mesmo payload (`assinatura`); senão null. */
     /** TASK-154 (substituída pela TASK-180): NÃO é mais usada para restaurar o Resultado — Montar Orçamento sempre recalcula e o resultado gravado só volta ao abrir um .obra na tela do Resultado
      *  (`aoAbrirProjeto`). Fica exportada por compatibilidade. */
@@ -757,7 +759,7 @@
     /** Acompanha a tabela do Resultado: as linhas vão para o projeto (grava com o automático ligado; senão ficam pendentes até o Salvar). */
     function acompanharResultado(tbody, coletar, assinatura) {
         if (!ativo() || !tbody) return;
-        if (observador) observador.disconnect();
+        pararAcompanharResultado();
         const dn = dono() || api;
         dn.__limparEdicaoResultado();                                          // TASK-180: resultado novo (calculado ou do arquivo) = sem edições ainda
         const entregar = () => ({ assinatura, linhas: coletar() });
@@ -772,12 +774,14 @@
         observador.observe(tbody, { childList: true, subtree: true, characterData: true });
         dn.__registrarColetor(entregar);                                       // o botão Salvar (na janela principal) pede as linhas atuais
         agendar();
-        raiz.addEventListener('pagehide', () => { clearTimeout(termoResultado); gravar(); dn.__registrarColetor(null); });
+        aoOcultarResultado = () => { clearTimeout(termoResultado); gravar(); dn.__registrarColetor(null); };
+        raiz.addEventListener('pagehide', aoOcultarResultado, { once: true });
     }
     /** TASK-180: deixa de acompanhar a tabela do Resultado (projeto aberto sem resultado: a tabela esvaziada não pode ser gravada no projeto novo). */
     function pararAcompanharResultado() {
         clearTimeout(termoResultado);
         if (observador) { observador.disconnect(); observador = null; }
+        if (aoOcultarResultado) { raiz.removeEventListener('pagehide', aoOcultarResultado); aoOcultarResultado = null; }
         const dn = dono() || api;
         dn.__registrarColetor(null);
         dn.__limparEdicaoResultado();
@@ -786,7 +790,9 @@
     function registrarAoAbrir(fn) {
         const dn = dono() || api;
         dn.__registrarAoAbrir(fn);
-        raiz.addEventListener('pagehide', () => dn.__registrarAoAbrir(null));
+        const cancelar = () => dn.__registrarAoAbrir(null);
+        raiz.addEventListener('pagehide', cancelar, { once: true });
+        return () => { raiz.removeEventListener('pagehide', cancelar); cancelar(); };
     }
     /** Pop-up de confirmação do número da obra na exportação do REC; resolve com o número ou null (cancelou). Não altera o projeto. */
     function confirmarNumeroObra(atual) {

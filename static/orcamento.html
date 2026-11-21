@@ -523,6 +523,7 @@
         // ── TASK-052: visão/edição escopada por projeto ─────────────────────────
         let visaoAtual = 'projeto';   // 'projeto' | 'genericas' | 'nao_reconhecido'
         let projetoAtual = localStorage.getItem('projeto_selecionado') || '';
+        let seguirProjeto = true, referenciaLinhas = null;
 
         async function carregarProjetosSelect() {
             try {
@@ -545,16 +546,21 @@
         }
 
         function trocarProjetoSelecionado() {
+            seguirProjeto = false;
             projetoAtual = document.getElementById('select-projeto').value;
-            localStorage.setItem('projeto_selecionado', projetoAtual);
+            if (!window.frameElement?.dataset.auxiliar) localStorage.setItem('projeto_selecionado', projetoAtual);
             carregarDados();
         }
 
-        function trocarAba(aba) {
+        function mostrarAba(aba) {
             visaoAtual = aba;
             document.getElementById('aba-projeto').classList.toggle('aba-ativa', aba === 'projeto');
             document.getElementById('aba-genericas').classList.toggle('aba-ativa', aba === 'genericas');
             document.getElementById('aba-nao-reconhecido').classList.toggle('aba-ativa', aba === 'nao_reconhecido');
+        }
+
+        function trocarAba(aba) {
+            mostrarAba(aba);
             carregarDados();
         }
 
@@ -569,10 +575,10 @@
          * "Projeto não reconhecido", onde fica editável de propósito (é a aba de corrigir o valor). */
         function campoProjetoHTML(valor) {
             if (visaoAtual === 'nao_reconhecido') {
-                return `<input type="text" class="cell-input" value="${valor || ''}">`;
+                return `<input type="text" class="cell-input" value="${escAttr(valor)}">`;
             }
             const travado = visaoAtual === 'projeto' ? projetoAtual : '';
-            return `<input type="text" class="cell-input" value="${travado}" disabled title="Travado pela aba/projeto selecionado acima">`;
+            return `<input type="text" class="cell-input" value="${escAttr(travado)}" disabled title="Travado pela aba/projeto selecionado acima">`;
         }
 
         /** Coluna LV (TASK-078): lista LV / LM / A; vazio/desconhecido aparece como A. */
@@ -632,6 +638,7 @@
             const url = urlDados();
             if (!url) {
                 cargaSeq++;
+                referenciaLinhas = '[]';
                 tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:35px; color:var(--text-secondary);">Selecione um projeto acima para ver e editar a base técnica dele.</td></tr>';
                 return;
             }
@@ -661,6 +668,7 @@
                         : `Nenhuma linha cadastrada para "${projetoAtual}" ainda.`;
                     tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; padding:35px; color:var(--text-secondary);">${msg}</td></tr>`;
                 }
+                referenciaLinhas = JSON.stringify(linhasEditaveis());
                 op.ok(data.dados && data.dados.length ? `${data.dados.length} linha(s) carregada(s)` : 'Pronto');
             } catch(e) {
                 op.erro('Erro ao carregar a base.');
@@ -669,10 +677,10 @@
             }
         }
 
-        (async function iniciar() {
+        const basePronta = (async function iniciar() {
             await carregarProjetosSelect();
             document.getElementById('aba-projeto').classList.add('aba-ativa');
-            carregarDados();
+            if (!new URLSearchParams(location.search).has('janela_transferida')) await carregarDados();
         })();
 
         document.getElementById('file-upload').addEventListener('change', async (e) => {
@@ -831,6 +839,20 @@
             }
         }
 
+        function linhasEditaveis() {
+            const trs = Array.from(tbody.querySelectorAll("tr"));
+            return trs.map(tr => {
+                const inputs = tr.querySelectorAll('.cell-input');
+                if (inputs.length < 13) return null;
+                return {
+                    ativo: inputs[0].value, desc_ativo: inputs[1].value, componente: inputs[2].value,
+                    projeto: inputs[3].value, mdo: inputs[4].value, origem: inputs[5].value, codigo: inputs[6].value,
+                    desc_codigo: inputs[7].value, fator_i: inputs[8].value, fator_r: inputs[9].value, filtro: inputs[10].value,
+                    lv: inputs[11].value, arred: inputs[12].value
+                };
+            }).filter(d => d);
+        }
+
         async function salvarAlteracoes() {
             // TASK-052: "Salvar Alterações" substitui TODA a cópia pessoal do usuário no projeto
             // escopado — só roda com um projeto escolhido na aba "Projeto selecionado", senão o
@@ -841,17 +863,7 @@
                 return;
             }
 
-            const trs = Array.from(tbody.querySelectorAll("tr"));
-            const dados = trs.map(tr => {
-                const inputs = tr.querySelectorAll('.cell-input');
-                if (inputs.length < 13) return null;
-                return {
-                    ativo: inputs[0].value, desc_ativo: inputs[1].value, componente: inputs[2].value,
-                    projeto: inputs[3].value, mdo: inputs[4].value, origem: inputs[5].value, codigo: inputs[6].value,
-                    desc_codigo: inputs[7].value, fator_i: inputs[8].value, fator_r: inputs[9].value, filtro: inputs[10].value,
-                    lv: inputs[11].value, arred: inputs[12].value
-                };
-            }).filter(d => d);
+            const dados = linhasEditaveis();
 
             const token = localStorage.getItem('auth_token');
             if (!token) {
@@ -869,6 +881,7 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
+                    referenciaLinhas = JSON.stringify(dados);
                     op.etapa('Salvo. Avisando as outras telas…');
                     BaseFicha.invalidar();
                     aposGravarComComponentes(data);
@@ -1069,6 +1082,65 @@
                 showToast(`${linhas.length} linha(s) adicionada(s) no fim da tabela. Revise e use "Salvar Alterações" (e "Sincronizar" para a nuvem).`);
             }
         });      // TASK-146/162: Ctrl+K foca a barra de pesquisa; Ctrl+clique abre a ficha
+        function baseEditada(linhas = linhasEditaveis()) {
+            return referenciaLinhas !== null && referenciaLinhas !== JSON.stringify(linhas);
+        }
+
+        if (window.frameElement?.dataset.auxiliar) {
+            BaseSinal.ouvir(async origem => {
+                if (origem === 'local') return;
+                await basePronta;
+                if (BaseStatus.ocupado()) return;
+                if (baseEditada()) {
+                    showToast('A base mudou em outra tela. Suas edições foram mantidas nesta janela.');
+                    return;
+                }
+                await carregarDados();
+                filterTable();
+            });
+            window.addEventListener('storage', async e => {
+                if (e.key !== 'projeto_selecionado' || !e.newValue) return;
+                await basePronta;
+                const sel = document.getElementById('select-projeto');
+                if (!seguirProjeto || visaoAtual !== 'projeto' || BaseStatus.ocupado() || baseEditada() ||
+                    ![...sel.options].some(o => o.value === e.newValue)) return;
+                projetoAtual = sel.value = e.newValue;
+                await carregarDados();
+                filterTable();
+            });
+        }
+
+        window.JanelaConteudo = {
+            capturar() {
+                if (BaseStatus.ocupado() || document.querySelector('dialog[open], .bf-ov')) return null;
+                const linhas = linhasEditaveis();
+                return {
+                    projeto: projetoAtual, visao: visaoAtual, linhas, referenciaLinhas, seguirProjeto,
+                    filtros: [...document.querySelectorAll('.col-filter')].map(el => el.value),
+                    scroll: document.querySelector('.table-scroll-wrapper').scrollTop
+                };
+            },
+            async restaurar(estado) {
+                await basePronta;
+                projetoAtual = estado.projeto;
+                mostrarAba(estado.visao);
+                seguirProjeto = estado.seguirProjeto;
+                referenciaLinhas = estado.referenciaLinhas;
+                document.getElementById('select-projeto').value = projetoAtual;
+                // Os fatores editáveis também podem conter fórmulas, assim como no salvamento da tabela.
+                const linhas = document.createDocumentFragment();
+                estado.linhas.forEach(r => linhas.append(criarLinhaExistente(r)));
+                tbody.replaceChildren(linhas);
+                if (!estado.linhas.length) {
+                    const td = tbody.insertRow().insertCell();
+                    td.colSpan = 14;
+                    td.textContent = 'Nenhuma linha nesta visualização.';
+                }
+                document.querySelectorAll('.col-filter').forEach((el, i) => { el.value = estado.filtros[i] || ''; });
+                filterTable();
+                requestAnimationFrame(() => { document.querySelector('.table-scroll-wrapper').scrollTop = estado.scroll; });
+            }
+        };
     </script>
     <script src="/static/marca.js?v=1"></script>
 </body>

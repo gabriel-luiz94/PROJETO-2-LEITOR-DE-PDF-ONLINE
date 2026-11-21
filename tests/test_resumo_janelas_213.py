@@ -53,13 +53,28 @@ def test_importacao_comparacao_e_janelas_auxiliares(tmp_path, monkeypatch):
                 pagina.set_default_timeout(8000)
                 pagina.route("https://**/*", lambda rota: rota.abort())
                 token = create_jwt_token("teste-local", "teste@example.test", "operador")
-                pagina.add_init_script(f"""
+                pagina.context.add_init_script(f"""
                     localStorage.setItem('auth_token', {json.dumps(token)});
                     if (location.pathname === '/resumo') {{
                         localStorage.setItem('projeto_selecionado_codigo', '027');
                         localStorage.setItem('resumo_layout_v1', '{{"outros":{{"visivel":true,"recolhida":true}}}}');
                     }}
-                    window.pywebview = {{api: {{projeto_criar() {{}}}}}};
+                    const auxiliares = new Map();
+                    window.pywebview = {{api: {{
+                        projeto_criar() {{}},
+                        projeto_gravar: async (caminho, dados) => {{
+                            window.ultimaGravacao = JSON.parse(dados);
+                            return {{ok: true, assinatura: 'gravada'}};
+                        }},
+                        janela_auxiliar_abrir: async (tipo, id) => {{
+                            const w = window.open('/static/janela_auxiliar.html#' + tipo + '=' + id, '_blank');
+                            auxiliares.set(id, w);
+                            return {{ok: !!w}};
+                        }},
+                        janela_auxiliar_fechar: async id => auxiliares.get(id)?.close(),
+                        janela_maximizar: async () => true,
+                        janela_minimizar: async () => {{}}
+                    }}}};
                 """)
                 erros = []
                 pagina.on("pageerror", lambda erro: erros.append(str(erro)))
@@ -84,6 +99,9 @@ def test_importacao_comparacao_e_janelas_auxiliares(tmp_path, monkeypatch):
                 pagina.locator("#btn-toggle-config").click()
                 pagina.locator("#btn-tabela-orcamento").click()
                 base = pagina.get_by_role("region", name="Base de Orçamento")
+                base.get_by_role("button", name="Minimizar", exact=True).click()
+                assert not base.is_visible()
+                assert pagina.get_by_role("button", name="Maximizar Base de Orçamento").is_visible()
                 pagina.locator("[data-modal-id=vincular]").click()
                 pagina.get_by_role("button", name="Abrir em janela").click()
                 vinculo = pagina.get_by_role("region", name="Vinculação")
@@ -92,20 +110,69 @@ def test_importacao_comparacao_e_janelas_auxiliares(tmp_path, monkeypatch):
                 assert vinculo.locator("#vz-corpo").is_visible()
 
                 pagina.route("**/api/validacao/planilhas", lambda rota: rota.fulfill(json={"achados": []}))
-                pagina.route("**/api/orcamento/calcular", lambda rota: rota.fulfill(json={
-                    "resultado": [{"operacao": "I", "mdo": "", "codigo": "4321", "desc_codigo": "Item", "total": 1}]}))
-                resultado = pagina.get_by_role("region", name="Resultado do orçamento")
+                contador = iter((4321, 4322))
+                pagina.context.route("**/api/orcamento/calcular", lambda rota: rota.fulfill(json={
+                    "resultado": [{"operacao": "I", "mdo": "", "codigo": str(next(contador)), "desc_codigo": "Item", "total": 1}]}))
+                resultado = pagina.locator('section[aria-label="Resultado do orçamento"]')
                 continuar = pagina.get_by_role("button", name="Continuar mesmo assim", exact=True)
-                for _ in range(2):
-                    with pagina.expect_response(lambda r: r.url.endswith("/api/orcamento/calcular")):
-                        pagina.locator("#btn-montar-orcamento").click()
-                        # Este projeto exige passar pelo aviso local de vinculação antes de calcular.
-                        continuar.click()
-                    assert resultado.count() == 1
-                    assert base.is_visible() and vinculo.is_visible()
+
+                def montar():
+                    pagina.locator("#btn-montar-orcamento").click()
+                    continuar.click()
+
+                montar()
+                largura = resultado.bounding_box()["width"]
+                assert largura == pagina.viewport_size["width"]
+                linha = resultado.frame_locator("iframe").locator("#resultado-orcamento-tbody tr")
+                linha.get_by_text("4321", exact=True).wait_for()
+                resultado.get_by_role("button", name="Minimizar", exact=True).click()
+                assert not resultado.is_visible()
+                pagina.get_by_role("button", name="Maximizar Resultado", exact=True).click()
+                assert resultado.is_visible()
+                with pagina.expect_popup() as popup:
+                    resultado.get_by_role("button", name="Abrir em nova janela").click()
+                nativa = popup.value
+                nativa.set_default_timeout(8000)
+                nativa.on("pageerror", lambda erro: erros.append(str(erro)))
+                quadro_nativo = nativa.frame_locator("iframe")
+                linha_nativa = quadro_nativo.locator("#resultado-orcamento-tbody tr")
+                linha_nativa.get_by_text("4321", exact=True).wait_for()
+                resultado.wait_for(state="hidden")
+                assert vinculo.is_visible()
+                montar()
+                linha_nativa.get_by_text("4322", exact=True).wait_for()
+                linha_nativa.locator("td").nth(3).fill("Ajuste <literal>")
+                pagina.evaluate("GridRProjeto.salvar()")
+                assert pagina.evaluate("ultimaGravacao.resultado.linhas[0].desc_codigo") == "Ajuste <literal>"
+                with nativa.expect_event("close"):
+                    nativa.get_by_role("button", name="Retornar à visualização principal").click()
+                linha.get_by_text("Ajuste <literal>", exact=True).wait_for()
+                assert resultado.is_visible()
                 resultado.locator("iframe").evaluate("(f) => f.contentWindow.voltarOuFechar()")
                 resultado.wait_for(state="detached")
-                assert base.is_visible() and vinculo.is_visible()
+                assert vinculo.is_visible()
+                assert pagina.get_by_role("button", name="Maximizar Base de Orçamento").is_visible()
+                # A Base usa o mesmo protocolo e mantém a edição ainda não gravada.
+                pagina.get_by_role("button", name="Maximizar Base de Orçamento").click()
+                pagina.context.route("**/api/orcamento/dados?genericas=true", lambda rota: rota.fulfill(json={
+                    "dados": [{"ativo": "CABO", "codigo": "6789", "desc_ativo": "Base"}]}))
+                base.frame_locator("iframe").get_by_role("button", name="Comuns a todos os projetos").click()
+                campo_base = base.frame_locator("iframe").locator("#orcamento-tbody .cell-input").first
+                campo_base.fill("BASE EDITADA")
+                with pagina.expect_popup() as popup_base:
+                    base.get_by_role("button", name="Abrir em nova janela").click()
+                nativa_base = popup_base.value
+                nativa_base.set_default_timeout(8000)
+                nativa_base.on("pageerror", lambda erro: erros.append(str(erro)))
+                campo_nativo = nativa_base.frame_locator("iframe").locator("#orcamento-tbody .cell-input").first
+                playwright.expect(campo_nativo).to_have_value("BASE EDITADA")
+                base.wait_for(state="hidden")
+                campo_nativo.fill("BASE NO OUTRO MONITOR")
+                with nativa_base.expect_event("close"):
+                    nativa_base.get_by_role("button", name="Retornar à visualização principal").click()
+                playwright.expect(campo_base).to_have_value("BASE NO OUTRO MONITOR")
+                base.get_by_role("button", name="Fechar", exact=True).click()
+                base.wait_for(state="detached")
                 assert not erros
                 conferir_largura_da_obra_restaurada(navegador, porta, token, ativo, poste)
                 navegador.close()
