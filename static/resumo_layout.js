@@ -94,6 +94,12 @@
 
     /* ── Layout e tabelas ── */
     const linhaTabelas = document.querySelector('.tables-row');
+    const centro = $('center');
+    if (linhaTabelas && centro && window.ResizeObserver) {
+        new ResizeObserver(([medida]) => {
+            linhaTabelas.classList.toggle('compactas', medida.contentRect.width <= 840);
+        }).observe(centro);
+    }
     const secao = { cabos: $('section-cabos'), outros: $('section-outros') };
     const chip = { cabos: $('chip-tabela-cabos'), outros: $('chip-tabela-outros') };
 
@@ -125,6 +131,17 @@
             bEx.textContent = oculta ? 'Exibição • tabela oculta ▾' : 'Exibição ▾';
         }
     }
+    function mostrarTabelas(...tabelas) {
+        let mudou = false;
+        tabelas.forEach(q => {
+            if (!secao[q] || (estado[q].visivel && !estado[q].recolhida)) return;
+            estado[q] = { visivel: true, recolhida: false };
+            aplicarTabela(q);
+            mudou = true;
+        });
+        if (mudou) { gravar(); window.dispatchEvent(new Event('resize')); }
+    }
+
     ['cabos', 'outros'].forEach(q => {
         const el = secao[q];
         if (!el) return;
@@ -218,5 +235,5 @@
     ['config', 'ia'].forEach(aplicarPainel); aplicarModais(); aplicarLayout(); ['cabos', 'outros'].forEach(aplicarTabela);
     atualizarChipProjeto();
 
-    window.ResumoLayout = { estado: () => clonar(estado), definirPainel, abrirResumoRede };
+    window.ResumoLayout = { estado: () => clonar(estado), definirPainel, abrirResumoRede, mostrarTabelas };
 })();

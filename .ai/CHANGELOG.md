@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-20 — Janelas auxiliares no Resumo
+
+O Resumo revela Cabos e Outros ao receber a obra do nanoCAD e adapta as tabelas à área disponível. **Ir à linha** recolhe a comparação e mantém seus filtros. Vinculação, Base de Orçamento e Resultado podem ficar abertas como janelas flutuantes. **Montar Orçamento** atualiza o Resultado na mesma janela. [TASK-213](tasks/TASK-213-20-11-2026.md).
+
 ## 2026-11-20 — Motor do Leitor DXF no plugin nanoCAD
 
 A rota autenticada do plugin usa o extrator e o motor JavaScript existentes do Leitor. O plugin preserva a classificação, a operação, o ativo e a ordem das linhas. [TASK-212](tasks/TASK-212-20-11-2026.md).

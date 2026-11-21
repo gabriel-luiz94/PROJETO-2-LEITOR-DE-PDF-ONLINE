@@ -674,7 +674,7 @@
             color: #d97706;
         }
     </style>
-    <link rel="stylesheet" href="/static/resumo_layout.css?v=4">
+    <link rel="stylesheet" href="/static/resumo_layout.css?v=5">
 </head>
 <body data-rodape="fino">
     <div class="app-shell" id="app-shell">
@@ -825,7 +825,7 @@
                         <div class="painel-linha"><button id="btn-novo-projeto" class="btn-primary" onclick="abrirModalNovoProjeto()" style="display: none; padding: 2px 8px; font-size: 0.75rem; margin-left: 8px; border-radius: 4px;" title="Cadastrar Novo Projeto">+ Novo</button></div>
                     </section>
                     <section class="painel-sec"><h4>Base de orçamento</h4>
-                        <div class="painel-linha"><button class="btn-secondary" id="btn-tabela-orcamento" onclick="AbrirNaApp.abrir('/orcamento', 'Tabela de orçamento')">
+                        <div class="painel-linha"><button class="btn-secondary" id="btn-tabela-orcamento" onclick="AbrirNaApp.abrir('/orcamento', 'Base de Orçamento', 'base')">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                                 <path d="M1.5 1.5A1.5 1.5 0 0 1 3 0h10a1.5 1.5 0 0 1 1.5 1.5v13a1.5 1.5 0 0 1-1.5 1.5H3a1.5 1.5 0 0 1-1.5-1.5v-13zm1.5 0v13h10v-13H3z"/>
                             </svg> Tabela Orçamento
@@ -1845,7 +1845,10 @@
         <div class="co-painel">
             <header>
                 <h2 id="titulo-comparar-obras">Comparar obras</h2>
-                <button type="button" class="btn-secondary" data-fechar autofocus>Fechar</button>
+                <div>
+                    <button type="button" class="btn-secondary" data-retomar hidden>Voltar à comparação</button>
+                    <button type="button" class="btn-secondary" data-fechar autofocus>Fechar</button>
+                </div>
             </header>
             <div class="co-controles">
                 <div class="co-abas" role="group" aria-label="Tabela da comparação">
@@ -1896,7 +1899,7 @@
     <script src="/static/dicionario_cabos.js"></script>
     <script src="/static/anotacao_cabos.js"></script>
     <script src="/static/vinculacao_regras.js?v=5"></script>
-    <script src="/static/vinculacao_ui.js?v=6"></script>
+    <script src="/static/vinculacao_ui.js?v=7"></script>
     <script src="/static/grade_tabela.js"></script>
     <script src="/static/atalhos_modal.js"></script>
     <script src="/static/gerador_modal.js"></script>
@@ -1904,7 +1907,7 @@
     <script src="/static/modal_montavel_editor.js"></script>
     <script src="/static/modal_montavel_arquivo.js"></script>
     <script src="/static/modal_montavel_ui.js"></script>
-    <script src="/static/abrir_na_app.js?v=1"></script>
+    <script src="/static/abrir_na_app.js?v=2"></script>
     <script src="/static/ativo_sugestao.js?v=1"></script>
     <script src="/static/campos_segredo.js?v=1"></script>
     <script src="/static/barra_modais.js?v=1"></script>
@@ -1913,9 +1916,9 @@
     <script src="/static/resumo_rede.js?v=1"></script>
     <script src="/static/assistente.js?v=3"></script>
     <script src="/static/grupos_linhas.js?v=1"></script>
-    <script src="/static/comparar_obras.js"></script>
-    <script src="/static/resumo.js?v=5.10"></script>
-    <script src="/static/resumo_layout.js?v=2"></script>
+    <script src="/static/comparar_obras.js?v=2"></script>
+    <script src="/static/resumo.js?v=5.11"></script>
+    <script src="/static/resumo_layout.js?v=3"></script>
     <script src="/static/painel_regras.js"></script>
     <script src="/static/voz.js"></script>
     <script>

@@ -11,6 +11,10 @@
     const CSS = `
     .vz-ov{position:fixed;inset:0;background:#05080d;z-index:9000;display:flex;align-items:center;justify-content:center}
     .vz{width:min(1500px,96vw);height:min(900px,94vh);background:#0d1117;border:1px solid #30363d;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;color:#c9d1d9;font:13px/1.35 -apple-system,Segoe UI,Roboto,sans-serif}
+    .vz-ov.vz-destacada{position:relative;inset:auto;z-index:auto;flex:1;min-height:0;background:transparent}
+    .vz-destacada > .vz{width:100%;height:100%;border:0;border-radius:0}
+    .vz-destacada .vz-destacar{display:none}
+    .vz-destacada .vz-foot{gap:6px;flex-wrap:wrap}
     .vz *{box-sizing:border-box}
     .vz-top{display:flex;align-items:center;gap:10px;padding:12px 18px;background:#161b22;border-bottom:1px solid #30363d}.vz-top h3{margin:0;font-size:15px;color:#fff}
     .vz-chip{background:#21262d;border:1px solid #30363d;border-radius:20px;padding:2px 10px;font-size:11px;color:#8b949e;cursor:default}.vz-chip.on{color:#fff;border-color:#58a6ff}.vz-chip.btn{cursor:pointer}
@@ -179,23 +183,70 @@
     const trim = t => String(t == null ? '' : t).trim();
 
     // ── abrir / fechar ──
+    let abrindo = false;
     async function abrir(h, opcoes) {
+        if (abrindo) return;
+        if (overlay && overlay.style.display !== 'none') {
+            if (host === h && st.projeto === h.projeto() && !opcoes?.aba) {
+                if (!raiz.AbrirNaApp?.trazerPainel('vinculacao')) overlay.focus();
+                return;
+            }
+            if (!fechar()) return;
+        }
+        abrindo = true;
         host = h;
+        const projeto = host.projeto();
         if (!doc.getElementById('vz-css')) doc.head.appendChild(el('style', { id: 'vz-css', text: CSS }));
         let cfg = raiz.__vinculacaoConfig;
         if (!cfg) {
-            try { const r = await fetch('/api/vinculacao-config?projeto_codigo=' + encodeURIComponent(host.projeto())); cfg = r.ok ? (await r.json()).config : null; } catch (e) { cfg = null; }
+            try { const r = await fetch('/api/vinculacao-config?projeto_codigo=' + encodeURIComponent(projeto)); cfg = r.ok ? (await r.json()).config : null; } catch (e) { cfg = null; }
         }
-        st = { cfg: clone(VR.normalizarConfig(cfg)), aba: (opcoes && opcoes.aba) || 'vinculo', sel: null, filtro: 'todos', filtroCP: 'todos', kbModo: 'c', kbP: null, elAch: null, auto: true, cfgVer: 0, resultadoPoste: null, elRes: null, dirty: false, scriptIdx: 0, previa: null, textoScript: null, erroScript: '', teste: {} };
+        abrindo = false;
+        if (projeto !== host.projeto()) return;
+        st = { projeto, cfg: clone(VR.normalizarConfig(cfg)), aba: (opcoes && opcoes.aba) || 'vinculo', sel: null, filtro: 'todos', filtroCP: 'todos', kbModo: 'c', kbP: null, elAch: null, auto: true, cfgVer: 0, resultadoPoste: null, elRes: null, dirty: false, scriptIdx: 0, previa: null, textoScript: null, erroScript: '', teste: {} };
         if (!overlay) {
             overlay = el('div', { class: 'vz-ov', onkeydown: e => { if (tecladoCabosPostes(e)) return; if (e.defaultPrevented || e.target.closest('dialog')) return; if (e.key === 'Escape') { if (menuAberto) fecharMenu(); else fechar(); } } });
             overlay.setAttribute('tabindex', '-1');
             doc.body.appendChild(overlay);
         }
+        if (!overlay.isConnected) doc.body.appendChild(overlay);
         overlay.style.display = 'flex';
         cx = null; painel = null; metaAtivo.clear();
         render();
         overlay.focus();
+    }
+
+    function destacar() {
+        if (!raiz.AbrirNaApp || !overlay || overlay.classList.contains('vz-destacada')) return;
+        fecharMenu();
+        overlay.classList.add('vz-destacada');
+        raiz.AbrirNaApp.painel('vinculacao', 'Vinculação', overlay, {
+            aoFechar: fechar,
+            aoReencaixar() {
+                overlay.classList.remove('vz-destacada');
+                doc.body.append(overlay);
+                raiz.AbrirNaApp.removerPainel('vinculacao');
+                overlay.focus();
+            }
+        });
+    }
+
+    let atualizacao = 0;
+    function atualizarObra(substituida = false) {
+        if (!overlay?.classList.contains('vz-destacada')) return;
+        if (substituida) {
+            overlay.querySelector('.vz-no-dialog[open]')?.close();
+            st.grafoNo = null;
+            st.sel = null;
+        } else if (overlay.contains(doc.activeElement)) return;
+        if (atualizacao) return;
+        atualizacao = raiz.requestAnimationFrame(() => {
+            atualizacao = 0;
+            if (!overlay?.classList.contains('vz-destacada')) return;
+            cx = null;
+            metaAtivo.clear();
+            render();
+        });
     }
 
     function fechar() {
@@ -203,7 +254,15 @@
         fecharMenu();
         const dialogoMapa = overlay?.querySelector('.vz-no-dialog[open]');
         if (dialogoMapa) dialogoMapa.close();
-        if (overlay) overlay.style.display = 'none';
+        if (painel) { painel.destruir(); painel = null; }
+        mapaAtualizar = null;
+        if (overlay) {
+            overlay.style.display = 'none';
+            if (overlay.classList.contains('vz-destacada')) {
+                overlay.classList.remove('vz-destacada');
+                raiz.AbrirNaApp.removerPainel('vinculacao');
+            }
+        }
         if (host && host.depois) host.depois();
         return true;
     }
@@ -211,9 +270,13 @@
     function marcarSujo() { st.dirty = true; st.cfgVer++; const b = overlay.querySelector('#vz-salvar'); if (b) b.disabled = false; }
 
     async function salvar() {
+        if (st.projeto !== host.projeto()) { render(); return false; }
+        const sessao = st;
         const erros = [];
         try {
-            const r = await fetch('/api/vinculacao-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projeto_codigo: host.projeto(), config: st.cfg }) });
+            const r = await fetch('/api/vinculacao-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projeto_codigo: sessao.projeto, config: sessao.cfg }) });
+            if (st !== sessao || !overlay?.isConnected || overlay.style.display === 'none') return r.ok;
+            if (r.ok && sessao.projeto !== host.projeto()) { sessao.dirty = false; render(); return true; }
             if (r.ok) { raiz.__vinculacaoConfig = clone(st.cfg); st.dirty = false; toast('✓ Tabelas de vinculação salvas!'); render(); if (host.depois) host.depois(); return true; }
             const d = await r.json().catch(() => ({}));
             const e = d && d.detail && d.detail.erros;
@@ -230,11 +293,20 @@
         mapaAtualizar = null;
         st.elRes = null; st.elAch = null;
         overlay.innerHTML = '';
+        if (st.projeto !== host.projeto()) {
+            overlay.appendChild(el('div', { class: 'vz' }, [
+                el('div', { class: 'vz-top' }, [el('h3', { text: 'Vinculação' }), el('button', { class: 'vz-x', text: '✕', 'aria-label': 'Fechar', onclick: fechar })]),
+                el('div', { class: 'vz-corpo' }, [el('p', { role: 'status', text: 'O projeto do Resumo mudou. Feche esta janela e abra a Vinculação do projeto atual.' })])
+            ]));
+            return;
+        }
         const abas = [['vinculo', 'Vínculo', ''], ['cabopostes', 'Cabos ⇄ Postes', ''], ['mapa', 'Mapa', ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''], ['casos', 'Casos', ''], ['pacote', 'Pacote', ''],
             ['script', 'Script', st.cfg.scripts.length]];
         const vz = el('div', { class: st.aba === 'mapa' ? 'vz vz--grafo' : 'vz' }, [
             el('div', { class: 'vz-top' }, [el('h3', { text: '🔗 Vinculação cabo ⇄ estrutura' }), el('span', { class: 'vz-chip', text: 'Projeto ' + host.projeto() }),
-                st.dirty ? el('span', { class: 'vz-chip', style: 'color:#d29922;border-color:#d29922', text: 'alterações não salvas' }) : null, el('button', { class: 'vz-x', text: '✕', onclick: fechar })]),
+                st.dirty ? el('span', { class: 'vz-chip', style: 'color:#d29922;border-color:#d29922', text: 'alterações não salvas' }) : null,
+                raiz.AbrirNaApp ? el('button', { class: 'vz-btn vz-destacar', text: 'Abrir em janela', onclick: destacar }) : null,
+                el('button', { class: 'vz-x', text: '✕', 'aria-label': 'Fechar vinculação', onclick: fechar })]),
             el('div', { class: 'vz-tabs' }, abas.map(([id, nome, n]) => el('button', { class: 'vz-tab' + (st.aba === id ? ' on' : ''), onclick: () => { st.aba = id; st.sel = null; render(); } }, [nome, id === 'vinculo' ? el('b', { id: 'vz-pend', text: String(n), style: n === '' ? 'display:none' : '' }) : (n !== '' ? el('b', { text: String(n) }) : null)]))),
             el('div', { class: 'vz-corpo', id: 'vz-corpo' }),
             rodape()]);
@@ -1437,5 +1509,5 @@
         if (st.grafoNo && grafo.nos.has(st.grafoNo)) editarNo(st.grafoNo, [...svg.querySelectorAll('[data-no]')].find(n => n.dataset.no === st.grafoNo));
     }
 
-    raiz.VinculacaoUI = { abrir, fechar };
+    raiz.VinculacaoUI = { abrir, fechar, atualizarObra };
 })(typeof window !== 'undefined' ? window : globalThis);
