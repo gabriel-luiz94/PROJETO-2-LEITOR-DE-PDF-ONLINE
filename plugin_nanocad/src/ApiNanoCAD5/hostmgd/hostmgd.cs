@@ -5,6 +5,7 @@ namespace HostMgd.ApplicationServices
 {
     public sealed class Application
     {
+        public static object GetSystemVariable(string name) { throw null; }
         public static global::System.Windows.Forms.DialogResult ShowModalDialog(global::System.Windows.Forms.Form formToShow) { throw null; }
         public static void ShowModelessDialog(global::System.Windows.Forms.Form formToShow) { throw null; }
         public static global::HostMgd.ApplicationServices.DocumentCollection DocumentManager { get { throw null; }  }

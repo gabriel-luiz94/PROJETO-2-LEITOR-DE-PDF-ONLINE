@@ -10,7 +10,7 @@
 |---|---|---|---|
 | RQ-01 | Comando `ORCACORE` (atalho `OC`) abre a tela com **Construir do zero**, **Ler projeto** e **Continuar obra salva**; escolha das regras do projeto (mockup A) | 🟡 | `Plugin/Telas.cs › TelaInicio`, `Comandos.Orcacore` |
 | RQ-02 | **Construir do zero**: selecionar postes (bloco + anotação) e vãos (linha + anotação); cada um ganha número; o plugin sugere os postes das pontas e a anotação, o usuário confirma ou troca (mockup B) | 🟡 | `ORC_POSTE`, `ORC_VAO`, `Nucleo/Construtor.cs` |
-| RQ-03 | **Ler projeto**: leitor conforme **layers, cores e precedência do projeto** monta postes, vãos e vínculos; sobra a conferência com filtros Ok/Conferir/Erro (mockup C) | ✅ núcleo · 🟡 CAD | `Nucleo/LeitorProjeto.cs`, `Plugin/PainelObra.cs` |
+| RQ-03 | **Ler projeto**: usa o DXF ou DWG ativo, aplica as regras do projeto no Leitor do OrçaCore e associa postes, vãos e vínculos. O painel permite filtrar Ok/Conferir/Erro (mockup C) | ✅ núcleo · 🟡 CAD | `Plugin/Comandos.cs`, `Plugin/DxfDoDesenho.cs`, `Nucleo/LeitorProjeto.cs` |
 | RQ-04 | Numeração: cada poste (P1…) e vão (V1…) tem número **exibido no desenho** | ✅ núcleo · 🟡 CAD | `LeitorProjeto.Numerar` (segue a rede), `Plugin/Marcas.cs` |
 | RQ-05 | Vínculo vão ⇄ poste **sempre visível** (linhas/marcas) e usado internamente com as estruturas | ✅ núcleo · 🟡 CAD | `Nucleo/Vinculador.cs`, `Marcas` (tracejado ciano) |
 | RQ-06 | **Pop-up** ao clicar num vão/poste: entrada (lida do desenho), saída (para a obra), ajustes (operação…) (mockup F) | 🟡 | `Plugin/Telas.cs › TelaElemento`, `ORC_EDITAR` |

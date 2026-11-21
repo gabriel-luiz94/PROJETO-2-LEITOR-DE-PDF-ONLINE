@@ -38,6 +38,9 @@
 Regra de dependência: **Nucleo não referencia nada do CAD nem de WinForms**. Tudo que é decisão (o que é vão, quem
 vincula com quem, estado, o que vai para o arquivo) fica no núcleo e é testado no Linux.
 
+
+A leitura automática em `Comandos.cs` usa `FonteDxfAtiva` para reutilizar o DXF original quando `DBMOD` indica que o documento está sem alterações. Nos demais casos, `DxfDoDesenho` chama a exportação nativa `Database.DxfOut` do documento ativo. O arquivo temporário é enviado por `ClienteAplicacao.LerDxf` para a rota autenticada `/api/plugin/ler-dxf` e removido ao término da chamada. O plugin associa a geometria às linhas retornadas pela aplicação.
+
 ## 1b. Do DWG ao desenho (TASK-004/005/006)
 
 ```
