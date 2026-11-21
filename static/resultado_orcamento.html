@@ -10,7 +10,7 @@
     <script src="/static/auth_fetch.js"></script>
     <script src="/static/desktop_arquivos.js"></script>
     <script src="/static/perfil_exportacao.js"></script>
-    <script src="/static/projeto.js?v=1"></script>
+    <script src="/static/projeto.js?v=4"></script>
     <link rel="stylesheet" href="/static/styles.css?v=2">
     <style>
         :root {
@@ -1179,6 +1179,7 @@
     <script src="/static/orcamento_sap.js"></script>
     <script src="/static/orcamento_comparar.js"></script>
     <script>
+        const escHtml = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
         const tbody = document.getElementById('resultado-orcamento-tbody');
         const statusMsg = document.getElementById('status-msg');
         const statusDot = document.getElementById('status-dot');
@@ -1286,10 +1287,10 @@
             return data;
         }
 
-        function renderRowsData(data) {
-            recOrdemAtual = null;       // a tabela foi refeita na ordem padrão
+        function renderRowsData(data, ordem = null) {
+            recOrdemAtual = ordem;
             // Nova ordenação: Descrição A-Z, Operação A-Z, TIPO MDO A-Z
-            data.sort((a, b) => {
+            if (!ordem) data.sort((a, b) => {
                 // 1. TIPO MDO: Forçado (vazio, '-' ou MAO-DE-OBRA = 1, MATERIAL = 2)
                 const getMdoRank = (mdoVal) => {
                     const m = (mdoVal || '').trim().toUpperCase();
@@ -1327,12 +1328,12 @@
                 
                 tr.innerHTML = `
                     <td contenteditable="true" style="text-align: center;"><span class="badge-op ${badgeClass}" contenteditable="false">${opText}</span></td>
-                    <td contenteditable="true">${item.mdo || 'MAO-DE-OBRA'}</td>
-                    <td contenteditable="true" class="cell-mono">${item.codigo || ''}</td>
-                    <td contenteditable="true">${item.desc_codigo || ''}</td>
+                    <td contenteditable="true">${escHtml(item.mdo || 'MAO-DE-OBRA')}</td>
+                    <td contenteditable="true" class="cell-mono">${escHtml(item.codigo || '')}</td>
+                    <td contenteditable="true">${escHtml(item.desc_codigo || '')}</td>
                     <td class="col-ref cell-qty" contenteditable="false"></td>
                     <td contenteditable="true" class="cell-qty">${(item.total || 0).toFixed(2).replace('.', ',')}</td>
-                    <td contenteditable="true">${item.filtro || ''}</td>
+                    <td contenteditable="true">${escHtml(item.filtro || '')}</td>
                     <td style="text-align:center;">
                         <button class="btn-delete-row" onclick="removerLinha(this)" title="Excluir Linha">
                             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
@@ -1423,30 +1424,46 @@
         }
 
         // TASK-176: o perfil de exportação do projeto (centro, cabeçalho do relatório e arquivos oferecidos) vale antes de desenhar a visão SAP
-        const perfilPronto = window.PerfilExportacao ? PerfilExportacao.carregar(localStorage.getItem('projeto_selecionado_codigo') || '').then(() => {
-            ['xlsx:btn-exportar-xlsx', 'pdf_sap:btn-relatorio-pdf'].forEach(par => { const [arq, id] = par.split(':'), b = document.getElementById(id); if (b) b.style.display = PerfilExportacao.oferece(arq, PerfilExportacao.atual()) ? '' : 'none'; });
-        }) : Promise.resolve();
-        let revisaoCalculo = 0;
+        let perfilCodigo, perfilPronto;
+        function prepararPerfil() {
+            const codigo = localStorage.getItem('projeto_selecionado_codigo') || '';
+            if (perfilCodigo !== codigo) {
+                perfilCodigo = codigo;
+                // Serializa a troca de perfil para uma resposta antiga não sobrescrever a nova.
+                perfilPronto = Promise.resolve(perfilPronto).then(async () => {
+                    if (!window.PerfilExportacao) return;
+                    await PerfilExportacao.carregar(codigo);
+                    ['xlsx:btn-exportar-xlsx', 'pdf_sap:btn-relatorio-pdf'].forEach(par => {
+                        const [arq, id] = par.split(':'), b = document.getElementById(id);
+                        if (b) b.style.display = PerfilExportacao.oferece(arq, PerfilExportacao.atual()) ? '' : 'none';
+                    });
+                });
+            }
+            return perfilPronto;
+        }
+        prepararPerfil();
+        let revisaoCalculo = 0, calculando = false, assinaturaResultado = null;
         let pedidoDoResultado = null;
         let resumoOrigem = null;
         try {
             if (window.top !== window && window.top.location.origin === location.origin) resumoOrigem = window.top;
         } catch (e) { /* Resultado aberto fora do Resumo */ }
         if (resumoOrigem) {
-            const invalidarCalculo = () => { revisaoCalculo++; pedidoDoResultado = null; };
+            const invalidarCalculo = () => mostrarResultadoDoProjeto(null);
             resumoOrigem.addEventListener('obra-resumo-substituida', invalidarCalculo);
             window.addEventListener('pagehide', () => resumoOrigem.removeEventListener('obra-resumo-substituida', invalidarCalculo), { once: true });
         }
 
-        async function montarOrcamento() {
+        async function montarOrcamento(pedido) {
+            calculando = true;
             const revisao = ++revisaoCalculo;
             const caminho = window.GridRProjeto?.estado()?.caminho;
             const atual = () => revisao === revisaoCalculo && caminho === window.GridRProjeto?.estado()?.caminho;
-            await perfilPronto;
-            if (!atual()) return;
             try {
+                await prepararPerfil();
+                if (!atual()) return;
                 log('Lendo dados para cálculo do orçamento...', true);
-                const payloadStr = resumoOrigem?.__orcamentoDaSessao || localStorage.getItem('orcamentoPayload');
+                const payloadStr = pedido || resumoOrigem?.__orcamentoDaSessao || localStorage.getItem('orcamentoPayload');
                 if (!payloadStr) {
                     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-secondary);">Nenhum orçamento montado ainda.<br>Abra o Resumo do Orçamento e clique em "Montar Orçamento", ou use "RECs do Banco" acima para abrir um orçamento salvo.<br><button class="btn-action" style="margin-top:14px;" onclick="if (window.self !== window.top) voltarOuFechar(); else window.location.href=\'/resumo\'">Ir para o Resumo do Orçamento</button></td></tr>';
                     log('Nenhum dado ativo no momento.');
@@ -1473,6 +1490,9 @@
 
                 if (res.ok) {
                     pedidoDoResultado = payload;
+                    assinaturaResultado = assinaturaCalculo;
+                    GridRProjeto?.pararAcompanharResultado();
+                    document.querySelectorAll('.alerta-calculo').forEach(n => n.remove());
                     tbody.innerHTML = '';
                     
                     // Mensagens vêm do servidor (inclusive trechos da base): sempre como texto, nunca como HTML.
@@ -1504,14 +1524,24 @@
                     }
                 } else {
                     log('Erro ao calcular orçamento: ' + (data.detail || data.error || 'Erro'));
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:#f87171;">Erro: ' + (data.detail || data.error || JSON.stringify(data)) + '</td></tr>';
+                    if (!getRowsData().length) mostrarErroCalculo(data.detail || data.error || 'Erro ao calcular orçamento.');
                 }
             } catch(e) {
                 if (!atual()) return;
                 log('Erro de comunicação: ' + e.message);
                 console.error(e);
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:35px; color:#f87171;">Erro: ' + e.message + '</td></tr>';
+                if (!getRowsData().length) mostrarErroCalculo(e.message);
+            } finally {
+                if (revisao === revisaoCalculo) calculando = false;
             }
+        }
+
+        function mostrarErroCalculo(erro) {
+            tbody.replaceChildren();
+            const celula = tbody.insertRow().insertCell();
+            celula.colSpan = 8;
+            celula.style.cssText = 'text-align:center;padding:35px;color:#f87171';
+            celula.textContent = 'Erro: ' + erro;
         }
 
         const numObraInput = document.getElementById('obra-numero');
@@ -1535,7 +1565,10 @@
         /** TASK-180: um projeto foi aberto (menu Abrir / plugin) com esta tela à vista: mostra o resultado gravado nele, com as edições, SEM recalcular.
          *  Projeto sem resultado: a tabela esvazia e orienta a montar o orçamento (não deixa o resultado do projeto anterior parecendo do novo). */
         function mostrarResultadoDoProjeto(info) {
+            prepararPerfil().then(() => { if (modoVisao === 'sap') renderSap(); });
             revisaoCalculo++;
+            calculando = false;
+            assinaturaResultado = info?.resultado?.assinatura ?? null;
             pedidoDoResultado = null;
             const linhas = info && info.resultado && Array.isArray(info.resultado.linhas) ? info.resultado.linhas : [];
             document.querySelectorAll('.alerta-calculo').forEach(n => n.remove());
@@ -1552,14 +1585,15 @@
                 updateStats([]);
             }
         }
-        if (window.GridRProjeto && GridRProjeto.aoAbrirProjeto && !new URLSearchParams(window.location.search).get('rec')) GridRProjeto.aoAbrirProjeto(mostrarResultadoDoProjeto);
+        const cancelarRegistroProjeto = window.GridRProjeto?.aoAbrirProjeto && !new URLSearchParams(location.search).get('rec')
+            ? GridRProjeto.aoAbrirProjeto(mostrarResultadoDoProjeto) : null;
 
         const urlParams = new URLSearchParams(window.location.search);
         const recParam = urlParams.get('rec');
         if (recParam) {
             numObraInput.value = recParam;
             carregarRecBanco(recParam, false);
-        } else {
+        } else if (!urlParams.has('janela_transferida')) {
             montarOrcamento();
         }
 
@@ -2801,7 +2835,6 @@
         ═══════════════════════════════════════════════════════════ */
         const CMP = window.OrcamentoComparar;
         const fmtQtd = n => (Number(n) || 0).toFixed(2).replace('.', ',');
-        const escHtml = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
         const CLASSES_CMP = ['cmp-igual', 'cmp-diferente', 'cmp-so-atual', 'cmp-so-ref'];
 
         function comparacaoAtiva() { return !!(cmp.ref && cmp.ativo); }
@@ -3083,6 +3116,49 @@
         let visaoSalva = 'rec';
         try { visaoSalva = localStorage.getItem('orcamento_visao') === 'sap' ? 'sap' : 'rec'; } catch (e) { /* ignora */ }
         definirVisao(visaoSalva);
+        // O Resultado é transferido como dados e preferências, sem disparar outro cálculo.
+        window.JanelaConteudo = {
+            capturar() {
+                if (calculando || document.querySelector('.modal-backdrop[style*="display: flex"]')) return null;
+                return {
+                    linhas: getRowsData(), assinatura: assinaturaResultado, pedido: pedidoDoResultado,
+                    numero: numObraInput.value, comparacao: cmp, visao: modoVisao, ordem: recOrdemAtual,
+                    mensagem: tbody.rows[0]?.cells.length === 1 ? tbody.rows[0].textContent.trim() : '',
+                    filtros: [...document.querySelectorAll('#visao-rec-wrap .col-filter-input')].map(el => el.value),
+                    scroll: document.querySelector('#visao-rec-wrap .table-scroll-wrapper').scrollTop
+                };
+            },
+            async restaurar(estado) {
+                await prepararPerfil();
+                numObraInput.value = estado.numero;
+                Object.assign(cmp, estado.comparacao);
+                if (estado.linhas.length) renderRowsData(estado.linhas, estado.ordem);
+                else if (estado.mensagem) {
+                    tbody.replaceChildren();
+                    const td = tbody.insertRow().insertCell();
+                    td.colSpan = 8;
+                    td.style.cssText = 'text-align:center;padding:35px;color:var(--text-secondary)';
+                    td.textContent = estado.mensagem;
+                    updateStats([]);
+                } else mostrarResultadoDoProjeto(null);
+                assinaturaResultado = estado.assinatura;
+                pedidoDoResultado = estado.pedido;
+                definirVisao(estado.visao);
+                document.querySelectorAll('#visao-rec-wrap .col-filter-input').forEach((el, i) => { el.value = estado.filtros[i] || ''; });
+                if (modoVisao === 'rec') applyAllFilters();
+                requestAnimationFrame(() => { document.querySelector('#visao-rec-wrap .table-scroll-wrapper').scrollTop = estado.scroll; });
+                if (estado.assinatura !== null && window.GridRProjeto?.ativo()) {
+                    GridRProjeto.acompanharResultado(tbody, getRowsData, estado.assinatura);
+                }
+            },
+            suspender() {
+                revisaoCalculo++;
+                window.GridRProjeto?.pararAcompanharResultado();
+                cancelarRegistroProjeto?.();
+            },
+            obra: mostrarResultadoDoProjeto,
+            recalcular: montarOrcamento
+        };
     </script>
     <script src="/static/marca.js?v=1"></script>
 </body>

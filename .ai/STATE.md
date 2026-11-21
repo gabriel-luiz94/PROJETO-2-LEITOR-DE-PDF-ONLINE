@@ -6,9 +6,17 @@
 
 ---
 
+## Janelas nativas de Resultado e Base · TASK-215
+
+Resultado e Base abrem em tela inteira e podem ser minimizados, destacados e reencaixados. A nova janela usa o processo e o servidor do OrçaCore já aberto. O Resumo continua com a fila de gravação da obra e envia o novo cálculo à visualização ativa. O protocolo foi exercitado em duas janelas Chromium com ponte simulada. A validação do movimento entre monitores no WebView2 segue pendente. [TASK-215](tasks/TASK-215-21-11-2026.md).
+
+## Largura de Demais Ativos · TASK-214
+
+As linhas ainda fora da área visível ocupam as mesmas colunas do cabeçalho. A grade de Demais Ativos e a de Cabos permanecem alinhadas quando se restaura uma obra grande, se maximiza a janela ou se alternam colunas opcionais. [TASK-214](tasks/TASK-214-21-11-2026.md).
+
 ## Área de trabalho do Resumo · TASK-213
 
-A abertura de uma obra pelo nanoCAD revela Cabos e Outros. Localizar uma linha mantém a comparação carregada. Vinculação, Base de Orçamento e Resultado podem ficar abertos em janelas flutuantes da mesma sessão. Fluxo validado no Chromium com a abertura local do plugin simulada. Validação no WebView2 do Windows pendente.
+A abertura de uma obra pelo nanoCAD revela Cabos e Outros. Localizar uma linha mantém a comparação carregada. A Vinculação pode ficar em uma janela flutuante da mesma sessão. Fluxo validado no Chromium com a abertura local do plugin simulada. Validação no WebView2 do Windows pendente.
 
 ## Mapa de vinculação · TASK-202
 
@@ -778,7 +786,11 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-11-20
+**Data:** 2026-11-21
+
+**Motivo:** [TASK-215](tasks/TASK-215-21-11-2026.md) adicionou os estados integrado, minimizado e nativo para Resultado e Base de Orçamento.
+
+**Motivo:** [TASK-214](tasks/TASK-214-21-11-2026.md) corrigiu a largura da grade em obras com renderização sob demanda.
 
 **Motivo:** [TASK-213](tasks/TASK-213-20-11-2026.md) corrigiu a exibição das tabelas na abertura pelo nanoCAD e integrou as janelas auxiliares e a comparação no Resumo.
 

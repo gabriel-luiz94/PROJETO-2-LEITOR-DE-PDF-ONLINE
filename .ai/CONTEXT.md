@@ -106,7 +106,9 @@ O nanoCAD entrega ao OrçaCore o caminho do `.obra` local. A janela autenticada 
 
 No Resumo, a ação **Comparar** de Ler Projeto, Carregar Obra e Importar JSON usa a obra aberta como referência e apresenta as diferenças no preenchimento de Cabos e Outros. [TASK-211](tasks/TASK-211-20-11-2026.md).
 
-Ao receber uma obra do nanoCAD, o Resumo mostra Cabos e Outros. Localizar uma linha preserva a comparação. Vinculação, Base de Orçamento e Resultado podem ser usados em janelas flutuantes dentro do Resumo. Montar Orçamento atualiza a janela de Resultado desta sessão. [TASK-213](tasks/TASK-213-20-11-2026.md).
+Ao receber uma obra do nanoCAD, o Resumo mostra Cabos e Outros. Localizar uma linha preserva a comparação. A Vinculação pode flutuar dentro do Resumo. [TASK-213](tasks/TASK-213-20-11-2026.md).
+
+Resultado e Base de Orçamento abrem em tela inteira e minimizam em abas no rodapé. No desktop, podem ser movidos para uma janela nativa dedicada. Montar Orçamento atualiza a visualização do Resultado na mesma sessão. [TASK-215](tasks/TASK-215-21-11-2026.md).
 
 Para garantir o mesmo preenchimento, **Ler projeto** no nanoCAD envia o mesmo DXF ao OrçaCore conectado. O motor do Leitor determina as linhas. O plugin acrescenta a associação com o desenho e os vínculos. [TASK-212](tasks/TASK-212-20-11-2026.md).
 

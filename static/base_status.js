@@ -61,7 +61,7 @@
         catch (e) { op.erro((opcoes && opcoes.erro ? opcoes.erro + ': ' : '') + (e && e.message ? e.message : String(e))); throw e; }
     }
 
-    const api = { iniciar, rodar };
+    const api = { iniciar, rodar, ocupado: () => ativas > 0 };
     raiz.BaseStatus = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

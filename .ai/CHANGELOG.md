@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-21 — Resultado e Base em janelas nativas
+
+Resultado e Base voltam a abrir em tela inteira no Resumo. A barra tem controles por ícones, e minimizar mantém a tela em uma aba no rodapé. No desktop, é possível destacar a visualização, movê-la para outro monitor e retornar à janela principal. Montar Orçamento atualiza o Resultado onde ele estiver aberto. [TASK-215](tasks/TASK-215-21-11-2026.md).
+
+## 2026-11-21 — Largura das grades em obras grandes
+
+As linhas pendentes de renderização e os separadores de grupo acompanham as colunas visíveis de Cabos e Demais Ativos. A tabela preenche a área disponível após restaurar a obra e após alternar as colunas opcionais. [TASK-214](tasks/TASK-214-21-11-2026.md).
+
 ## 2026-11-20 — Janelas auxiliares no Resumo
 
 O Resumo revela Cabos e Outros ao receber a obra do nanoCAD e adapta as tabelas à área disponível. **Ir à linha** recolhe a comparação e mantém seus filtros. Vinculação, Base de Orçamento e Resultado podem ficar abertas como janelas flutuantes. **Montar Orçamento** atualiza o Resultado na mesma janela. [TASK-213](tasks/TASK-213-20-11-2026.md).

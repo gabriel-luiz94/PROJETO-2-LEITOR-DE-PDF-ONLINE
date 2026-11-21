@@ -177,7 +177,7 @@ def test_api_projeto_so_expoe_metodos_publicos_esperados():
 
 def test_app_usa_a_ponte_do_projeto():
     codigo = open(os.path.join(config.BASE_DIR, "app.py"), encoding="utf-8").read()
-    assert "ApiProjeto()" in codigo and '"/static/projeto.js"' in codigo
+    assert "ApiProjetoComJanelas(app_url, webview.create_window)" in codigo and '"/static/projeto.js"' in codigo
 
 
 # ───────── módulo JS e telas ─────────
