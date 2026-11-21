@@ -1,4 +1,5 @@
 """TASK-215 — a ponte só abre visualizações conhecidas e fecha as janelas dependentes."""
+from threading import Event
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -18,7 +19,7 @@ class Evento:
 
 
 def janela_falsa():
-    eventos = SimpleNamespace(**{nome: Evento() for nome in ("closed", "closing", "maximized", "restored")})
+    eventos = SimpleNamespace(**{nome: Evento() for nome in ("closed", "closing")})
     janela = Mock(events=eventos)
     janela.destroy.side_effect = eventos.closed.disparar
     return janela
@@ -37,22 +38,31 @@ def test_abre_so_as_visualizacoes_da_mesma_origem_e_reutiliza_o_processo():
     assert api.janela_auxiliar_abrir("resultado", canal)["ok"]
     kw = criar.call_args.kwargs
     assert kw["url"] == "http://127.0.0.1:8123/static/janela_auxiliar.html#resultado=" + canal
-    assert kw["frameless"] and not kw["easy_drag"]
+    assert not kw["frameless"] and not kw["easy_drag"]
     assert not api.janela_auxiliar_abrir("resultado", "b" * 32)["ok"]
 
-    controle = kw["js_api"]
-    controle.janela_minimizar()
-    resultado.minimize.assert_called_once()
-    assert controle.janela_maximizar()
-    resultado.maximize.assert_called_once()
-    resultado.events.maximized.disparar()
-    assert not controle.janela_maximizar()
-    resultado.restore.assert_called_once()
+    # O X do sistema solicita a transferência do estado da obra antes de destruir o WebView.
+    solicitou = Event()
+    resultado.evaluate_js.side_effect = lambda _script: solicitou.set()
+    assert resultado.events.closing.disparar() == [False]
+    assert solicitou.wait(2)
+    resultado.evaluate_js.assert_called_once_with("window.fecharVisualizacaoNativa?.()")
+    resultado.destroy.assert_not_called()
 
     api.janela_auxiliar_fechar(canal)
     resultado.destroy.assert_called_once()
+    assert resultado.events.closing.disparar() == [True]
     principal.evaluate_js.assert_called_once_with(f"window.AbrirNaApp?.nativaFechada('{canal}')")
     assert api.janela_auxiliar_abrir("base", "b" * 32)["ok"]
     principal.events.closed.disparar()
     base.destroy.assert_called_once()
     principal.evaluate_js.assert_called_once()
+
+
+def test_falha_ao_vincular_a_ponte_descarta_a_janela_criada():
+    janela = janela_falsa()
+    janela.events.closing = None
+    api = ApiProjetoComJanelas("http://127.0.0.1:8123", Mock(return_value=janela))
+
+    assert not api.janela_auxiliar_abrir("resultado", "c" * 32)["ok"]
+    janela.destroy.assert_called_once()

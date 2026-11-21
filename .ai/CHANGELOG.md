@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-21 — Arraste nativo e abertura mais leve
+
+O Windows controla o movimento das janelas destacadas pela barra de título nativa. O botão de reencaixe continua na visualização. PDF, DXF e Excel carregam suas bibliotecas ao primeiro uso. [TASK-216](tasks/TASK-216-21-11-2026.md).
+
 ## 2026-11-21 — Resultado e Base em janelas nativas
 
 Resultado e Base voltam a abrir em tela inteira no Resumo. A barra tem controles por ícones, e minimizar mantém a tela em uma aba no rodapé. No desktop, é possível destacar a visualização, movê-la para outro monitor e retornar à janela principal. Montar Orçamento atualiza o Resultado onde ele estiver aberto. [TASK-215](tasks/TASK-215-21-11-2026.md).

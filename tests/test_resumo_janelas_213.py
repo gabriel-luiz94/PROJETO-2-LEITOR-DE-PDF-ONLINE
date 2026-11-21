@@ -72,8 +72,7 @@ def test_importacao_comparacao_e_janelas_auxiliares(tmp_path, monkeypatch):
                             return {{ok: !!w}};
                         }},
                         janela_auxiliar_fechar: async id => auxiliares.get(id)?.close(),
-                        janela_maximizar: async () => true,
-                        janela_minimizar: async () => {{}}
+                        salvar_arquivo: async () => ({{ok: true}})
                     }}}};
                 """)
                 erros = []

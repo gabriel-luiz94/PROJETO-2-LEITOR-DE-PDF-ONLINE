@@ -6,8 +6,6 @@ seguir pelo mesmo caminho do .dxf nativo — único formato aqui que depende de 
 """
 import os
 import tempfile
-import pymupdf
-import ezdxf
 import re
 from typing import List
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
@@ -15,7 +13,6 @@ from starlette.concurrency import run_in_threadpool
 from database import get_connection
 from services.pdf_service import extract_pdf_content
 from services import importar_sap_pdf
-from services.dxf_service import extract_dxf_content
 from services.cloudconvert_service import ErroConversaoDwg, converter_dwg_para_dxf
 from websocket_manager import manager
 import json
@@ -88,12 +85,19 @@ def _leitura_do_projeto(projeto):
         return None
 
 
+def _extrair_dxf(caminho: str, leitura):
+    import ezdxf
+    from services.dxf_service import extract_dxf_content
+
+    return extract_dxf_content(ezdxf.readfile(caminho), com_geometria=True, leitura=leitura)
+
+
 def _extrair_de_bytes_dxf(conteudo: bytes, leitura=None):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".dxf") as tmp:
         tmp.write(conteudo)
         tmp_path = tmp.name
     try:
-        return extract_dxf_content(ezdxf.readfile(tmp_path), com_geometria=True, leitura=leitura)     # (linhas, geometria de fundo do mapa)
+        return _extrair_dxf(tmp_path, leitura)
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
@@ -116,9 +120,10 @@ async def upload_file(request: Request, file: UploadFile = File(...), projeto: s
             linhas, geometria = _extrair_de_bytes_dxf(contents, leitura)
             return {"data": linhas, "geometria": geometria}
 
-        # PDF
-        doc = pymupdf.open(stream=contents, filetype="pdf")
-        return {"data": extract_pdf_content(doc)}
+        import pymupdf
+
+        with pymupdf.open(stream=contents, filetype="pdf") as doc:
+            return {"data": extract_pdf_content(doc)}
     except Exception as e:
         logger.error(f"Erro no upload: {e}")
         return {"error": str(e), "data": []}
@@ -146,12 +151,12 @@ async def extract_local(request: Request, path: str, projeto: str = ""):
             linhas, geometria = _extrair_de_bytes_dxf(dxf_bytes, leitura)
             return {"data": linhas, "geometria": geometria, "filename": os.path.basename(path)}
         if caminho_min.endswith(".dxf"):
-            doc = ezdxf.readfile(path)
-            linhas, geometria = extract_dxf_content(doc, com_geometria=True, leitura=leitura)
+            linhas, geometria = _extrair_dxf(path, leitura)
             return {"data": linhas, "geometria": geometria, "filename": os.path.basename(path)}
-        # PDF
-        doc = pymupdf.open(path)
-        return {"data": extract_pdf_content(doc), "filename": os.path.basename(path)}
+        import pymupdf
+
+        with pymupdf.open(path) as doc:
+            return {"data": extract_pdf_content(doc), "filename": os.path.basename(path)}
     except Exception as e:
         logger.error(f"Erro em extract-local: {e}")
         return {"error": str(e), "data": []}
@@ -160,6 +165,8 @@ async def extract_local(request: Request, path: str, projeto: str = ""):
 @router.post("/api/importar-rec-pdf")
 async def importar_rec_pdf(orcamento: UploadFile = File(...), lista: UploadFile = File(...)):
     try:
+        import pymupdf
+
         orcamento_contents = await orcamento.read()
         lista_contents = await lista.read()
         
