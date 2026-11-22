@@ -104,6 +104,14 @@ TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 r
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-22 — TASK-227: nível MT/BT igual na lista e no mapa; diagnóstico dos cabos que não aparecem
+
+- **Causa do MT na lista × BT no mapa:** a lista (coluna Nível / `extraCabo`) deriva o nível do **rótulo** (13,8kV ou dicionário), e o mapa (`gruposVisuaisDoVao`) dava prioridade ao **tipo da linha do desenho** (`_geoTipo`, cor+layer da rede MT/BT que o CAD associou ao rótulo). Quando o CAD ligava um rótulo MT a uma linha BT (redes paralelas na mesma rua, raio de busca) o mapa mostrava BT.
+- **Correção:** `nivelDoCabo` (vinculacao_regras.js) é a conta única: nível digitado na linha > tensão no rótulo > nível padrão do dicionário > tipo da linha do desenho > BT. O desenho só decide quando o rótulo não diz; `extraCabo` (lista e regras de vínculo) usa o desenho como último recurso em vez de assumir BT.
+- **Diagnóstico no mapa (`diagnosticoDoCabo`):** o cartão do cabo mostra «⚠ Nível MT pelo rótulo, mas a linha do desenho é BT» (e a aresta fica tracejada) quando há divergência — é sinal de associação errada no CAD — e o motivo quando o cabo não aparece: sem linha do desenho e sem ponta ligada (não é desenhado: `semVao`), sem linha do desenho (só a ponta ligada), ou linha cuja ponta fica a mais de 5 m de um poste. Resumo no aviso do mapa e novo filtro **«A conferir (nível/geometria)»**.
+- Não alterado: o `.obra` do plugin (C#) segue gravando só `_geo`/`_geoTipo` (`nivel` não é gravado) — a associação rótulo↔vão acontece no CAD.
+- Arquivos: `static/vinculacao_regras.js`, `static/vinculacao_ui.js`, `tests/test_nivel_geometria_mapa_227.py`.
+
 ## 2026-11-22 — TASK-226: posicionar o ponto novo com o mouse; copiar pontos e cabos no mapa
 
 - **Posicionar:** depois de confirmar «+ Poste», «+ Estrutura» (avulsa) ou «+ Poste fictício», o mapa entra em modo de posicionamento: o ponto acompanha o mouse, **o clique fixa** o lugar (grava como os demais, `_mapaPoste`/`_mapaPoste500`) e **Esc mantém** o lugar sugerido (o modal não fecha). Durante o posicionamento os pontos e vãos ficam transparentes ao mouse (`pointer-events:none`) e dá para andar/zoom pelo fundo; um clique logo depois de arrastar o fundo não fixa.

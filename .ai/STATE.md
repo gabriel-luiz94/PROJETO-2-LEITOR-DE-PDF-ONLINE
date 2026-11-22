@@ -85,6 +85,8 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-227](tasks/TASK-227-22-11-2026.md) — Mapa: nível MT/BT igual ao da lista (o rótulo manda) e diagnóstico de cabos com nível divergente ou sem geometria (filtro «A conferir»).
+
 - [x] [TASK-226](tasks/TASK-226-22-11-2026.md) — Mapa: ponto novo/copiado pede posicionamento com o mouse; copiar ponto e copiar cabo.
 
 - [x] [TASK-225](tasks/TASK-225-22-11-2026.md) — Mapa: pontos estáveis ao adicionar, todo ponto é grupo `@` em Demais Ativos (nome/automático, comentário, congelar/bloquear), «Agrupar pontos» e «Rearranjar» (grade uniforme).
