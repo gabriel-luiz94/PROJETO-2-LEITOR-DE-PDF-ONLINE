@@ -104,7 +104,7 @@ O Assistente de IA consulta a base e as regras do projeto. Em **Vinculação →
 
 Em **Vinculação → Mapa**, é possível montar a obra. Postes e estruturas entram em Demais Ativos, cabos reais entram em Cabos e cabos fictícios ocupam a estrutura escolhida. Uma estrutura avulsa vira ponto próprio e pode ser agrupada com um poste sem criar outro poste no orçamento. [TASK-220](tasks/TASK-220-22-11-2026.md).
 
-Em **Vinculação → Mapa**, uma obra sem CAD abre com os postes em grade e as pontas livres na lateral. A escolha de uma ponta destaca os postes compatíveis. O detalhe de cada poste mostra as ligações entre cabos e estruturas e permite editar esses mesmos vínculos. **Sugerir ligações** prepara um lote para revisão quando a obra oferece referências suficientes. [TASK-219](tasks/TASK-219-22-11-2026.md).
+Em **Vinculação → Mapa**, uma obra sem CAD abre com os postes em grade e as pontas livres na lateral. A escolha de uma ponta destaca os pontos que ainda podem receber o cabo. O detalhe de cada ponto mostra e valida os vínculos entre cabos e estruturas. **Revisar conexões detectadas** permite confirmar as chegadas registradas ou identificadas pela geometria. Os formulários do mapa sugerem ativos e apelidos da base do projeto. [TASK-219](tasks/TASK-219-22-11-2026.md) · [TASK-221](tasks/TASK-221-22-11-2026.md).
 
 O DeepSeek pode ser configurado como reserva do Assistente. O botão **Testar** consulta a tabela de Cabos vazia e verifica se o provedor responde após receber o resultado da ferramenta. A troca de provedor ou endereço do reserva pede a chave correspondente. [TASK-217](tasks/TASK-217-21-11-2026.md).
 

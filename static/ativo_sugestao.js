@@ -100,8 +100,8 @@
         b.textContent = on ? '💡 Sugestões' : '💡 Sugestões (off)';
     }
 
-    const ehCampo = el => el && el.matches && el.matches('#body-outros .inp-ativo, #body-outros-vazio .inp-ativo-vazio, #body-totalizadora .tot-ativo-input');
-    const origemDe = el => (el.matches('#body-totalizadora .tot-ativo-input') ? '' : 'OUTROS');
+    const ehCampo = el => el && el.matches && el.matches('[data-sugestao-origem], #body-outros .inp-ativo, #body-outros-vazio .inp-ativo-vazio, #body-totalizadora .tot-ativo-input');
+    const origemDe = el => el.dataset.sugestaoOrigem || (el.matches('#body-totalizadora .tot-ativo-input') ? '' : 'OUTROS');
 
     function indice(origem) {
         const linhas = (cfg.base && cfg.base()) || [], proj = (cfg.projeto && cfg.projeto()) || '';
@@ -140,7 +140,8 @@
                     + '.sugestao-ativos .sg b{font-weight:700;color:#f0f6fc}.sugestao-ativos .sg i{font-style:normal;color:#8b949e;font-size:11px}.sugestao-ativos .sg-rod{padding:3px 8px 1px;color:#6e7681;font-size:10px}';
                 doc.head.appendChild(st);
             }
-            caixa = doc.createElement('div'); caixa.className = 'sugestao-ativos'; doc.body.appendChild(caixa);
+            caixa = doc.createElement('div'); caixa.className = 'sugestao-ativos';
+            (input.closest('dialog[open]') || doc.body).appendChild(caixa);
         }
         caixa.innerHTML = '';
         const q = token.query.toUpperCase();
@@ -158,7 +159,9 @@
         });
         const rod = doc.createElement('div'); rod.className = 'sg-rod'; rod.textContent = '↑↓ escolhe · Tab aceita · Esc fecha'; caixa.appendChild(rod);
         caixa.style.left = Math.max(4, Math.min(r.left, raiz.innerWidth - 300)) + 'px';
-        caixa.style.top = (r.bottom + 3) + 'px';
+        const altura = caixa.offsetHeight;
+        const acima = r.bottom + 3 + altura > raiz.innerHeight && r.top > altura + 3;
+        caixa.style.top = (acima ? r.top - altura - 3 : r.bottom + 3) + 'px';
         marcar(-1);
     }
 

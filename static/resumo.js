@@ -851,7 +851,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function _reajustarVinculosAposRemoverOutros(idxRemovido) {
         tableStates.cabos.data.forEach(cabo => {
-            if (Array.isArray(cabo.vinculoPostes)) { cabo.vinculoPostes = cabo.vinculoPostes.filter(l => l !== idxRemovido).map(l => (l > idxRemovido ? l - 1 : l)); if (!cabo.vinculoPostes.length) delete cabo.vinculoPostes; }
+            if (Array.isArray(cabo.vinculoPostes)) { cabo.vinculoPostes = cabo.vinculoPostes.filter(l => l !== idxRemovido).map(l => (l > idxRemovido ? l - 1 : l)); if (!cabo.vinculoPostes.length && !cabo._mapaTopologia) delete cabo.vinculoPostes; }
             if (!Array.isArray(cabo.vinculoEstruturas)) return;
             const VR = window.VinculacaoRegras;       // TASK-094: o id da unidade é linha (+ posição/100); só a linha muda
             cabo.vinculoEstruturas = cabo.vinculoEstruturas
@@ -896,7 +896,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const VR = window.VinculacaoRegras;
         cabos.forEach(c => {
             if (!c) return;
-            if (Array.isArray(c.vinculoPostes)) { c.vinculoPostes = c.vinculoPostes.map(l => mapa[l]).filter(l => l !== undefined); if (!c.vinculoPostes.length) delete c.vinculoPostes; }
+            if (Array.isArray(c.vinculoPostes)) { c.vinculoPostes = c.vinculoPostes.map(l => mapa[l]).filter(l => l !== undefined); if (!c.vinculoPostes.length && !c._mapaTopologia) delete c.vinculoPostes; }
             if (Array.isArray(c.vinculoEstruturas)) c.vinculoEstruturas = c.vinculoEstruturas.map(i => { const l = mapa[VR.linhaDe(i)]; return l !== undefined ? VR.idUnidade(l, VR.slotDe(i)) : null; }).filter(i => i !== null);
         });
     }
@@ -1445,7 +1445,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pushHistory();
         const copias = alvos.map(i => {
             const c = deepClone(dados[i]);
-            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', '_mapaPoste', '_mapaCabo', '_mapaId', '_mapaPosteRef', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
+            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', '_mapaPoste', '_mapaCabo', '_mapaId', '_mapaPosteRef', '_mapaTopologia', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
             return c;
         });
         const depois = alvos[alvos.length - 1] + 1;
@@ -2530,6 +2530,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const poste = tipo === 'estrutura' && Number.isInteger(dados.poste) ? outros[dados.poste] : null;
         if (tipo === 'estrutura' && Number.isInteger(dados.poste) && !ehPosteNoMapa(poste))
             return { erro: 'O poste escolhido já não está disponível.' };
+        if (tipo === 'cabo' && Number.isInteger(dados.poste)) {
+            const ponto = outros[dados.poste];
+            if (!ponto?.ativo || ponto.comentario) return { erro: 'O ponto escolhido já não está disponível.' };
+            row._mapaTopologia = true;
+            row.vinculoPostes = [dados.poste];
+        }
         pushHistory();
         if (poste) row._mapaPosteRef = idPosteNoMapa(poste, outros);
         const lista = tableStates[tabela].data;
@@ -2644,7 +2650,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         for (const campo of ['_mapaId', '_mapaPosteRef']) if (idPontoValido(obj[campo])) c[campo] = obj[campo];
         if (Array.isArray(obj.vinculoEstruturas)) c.vinculoEstruturas = obj.vinculoEstruturas.slice();
-        if (Array.isArray(obj.vinculoPostes) && obj.vinculoPostes.length) c.vinculoPostes = obj.vinculoPostes.slice();                   // Cabos ⇄ Postes
+        if (obj._mapaTopologia === true) c._mapaTopologia = true;
+        if (Array.isArray(obj.vinculoPostes) && (obj.vinculoPostes.length || c._mapaTopologia)) c.vinculoPostes = obj.vinculoPostes.slice();                   // Cabos ⇄ Postes
         if (obj.vinculoOrigem) c.vinculoOrigem = obj.vinculoOrigem;                                       // TASK-084: manual | script
         if (Array.isArray(obj.estruturasFicticias) && obj.estruturasFicticias.length) c.estruturasFicticias = obj.estruturasFicticias.slice();   // TASK-095: estruturas fictícias do cabo
         if (obj.origemAvulso) { c.origemAvulso = obj.origemAvulso; if (obj.texto) c.texto = obj.texto; }                 // TASK-171: linha de Outros vinda da sugestão de avulsos da estrutura fictícia

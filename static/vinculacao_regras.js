@@ -738,13 +738,15 @@
             const ligados = [...new Set((c.vinculoEstruturas || []).map(ie => postes.get(linhaDe(ie))).filter(Boolean))];
             const pontas = geo && [geo[0], geo[geo.length - 1]];
             const idsGeo = pontas ? pontas.map(pt => posteMaisPerto(pt)) : [null, null];
-            const referencias = atribuicoes.length ? atribuicoes.map(n => n.id) : (pontas || []).map(pt => posteMaisPerto(pt, true)).filter(Boolean);
+            const explicita = c._mapaTopologia === true;
+            const referencias = explicita || atribuicoes.length ? atribuicoes.map(n => n.id)
+                : (pontas || []).map(pt => posteMaisPerto(pt, true)).filter(Boolean);
             const confirmados = ligados.map(n => n.id);
             let ids = idsGeo;
-            if (atribuicoes.length || confirmados.length) {
-                // Preserva o sentido do desenho quando conhecido e prioriza vínculos confirmados.
+            if (explicita || atribuicoes.length || confirmados.length) {
+                // Na obra antiga, os vínculos indicam a chegada. Uma edição do mapa define o traçado explicitamente.
                 const origens = atribuicoes.length ? referencias : idsGeo.filter(Boolean);
-                const destinos = [...new Set([...confirmados, ...origens])].slice(0, 2);
+                const destinos = (explicita ? referencias.slice() : [...new Set([...confirmados, ...origens])]).slice(0, 2);
                 const encaixes = idsGeo.map(id => {
                     const i = destinos.indexOf(id);
                     return i < 0 ? null : destinos.splice(i, 1)[0];
