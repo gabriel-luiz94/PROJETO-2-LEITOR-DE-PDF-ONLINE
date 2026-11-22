@@ -124,6 +124,10 @@
     .vz-mapa .vz-alvo-aresta{fill:none;stroke:transparent;stroke-width:14;pointer-events:stroke}
     .vz-mapa [data-cabo-mapa]:focus-visible .vz-aresta{stroke-width:6}
     .vz-mapa .vz-aresta.sugerida{stroke:#e9ae68;stroke-width:3;pointer-events:none}
+    .vz-esc-sel{background:var(--g-bg);color:var(--g-text);border:1px solid var(--g-border);border-radius:6px;padding:4px 6px;font-size:12px;max-width:128px}
+    .vz-grafo-escala{position:absolute;bottom:12px;left:12px;display:flex;align-items:center;gap:8px;padding:5px 9px;background:var(--g-panel);border:1px solid var(--g-border);border-radius:9px;font-size:11px;color:var(--g-text);pointer-events:none}
+    .vz-grafo-escala[hidden]{display:none}.vz-esc-barra{display:block;height:6px;border:1.5px solid var(--g-text);border-top:0;min-width:2px}.vz-esc-barra-rot{color:var(--g-muted,#8b949e)}
+    .vz-mapa.vz-movendo text{display:none}
     .vz-grafo-acoes{position:absolute;bottom:12px;right:12px;display:flex;gap:3px;padding:4px;background:var(--g-panel);border:1px solid var(--g-border);border-radius:9px}
     .vz-grafo-acoes .vz-btn{min-width:32px;padding:5px 8px;background:transparent;border-color:transparent}
     .vz-grafo-aviso{color:var(--g-muted);margin:7px 0 0;font-size:11px}.vz-grafo-aviso:empty{display:none}
@@ -1356,13 +1360,56 @@
             el('span', { class: 'vz-grafo-total' }, [totalAvulsas, 'Pontos avulsos']),
             el('span', { class: 'vz-grafo-total' }, [totalVaos, 'Vãos'])
         ]);
-        let grafo, vb = st.grafoVista || [0, 0, W, H], arrasto, mover = false;
+        const ME = raiz.MapaEscala;                                    // TASK-224: escala 1:500, recorte e barra de escala (static/mapa_escala.js)
+        const lerEscala = () => { try { return raiz.localStorage.getItem('vz_mapa_escala'); } catch (e) { return null; } };
+        let escala = ME ? ME.escalaValida(st.grafoEscala || lerEscala() || 'ajustar') : 'ajustar';
+        const escalar = () => escala !== 'ajustar';
+        let kLayout = null, bases = new Map(), limites = [18, 18, W - 18, H - 18];       // px do mapa por metro do desenho · posição «de fábrica» de cada ponto · onde o ponto pode ser arrastado
+        let itensRecorte = [], itensPorNo = new Map(), areaRecorte = null, recortar = false;
+        let grafo, vb, arrasto, mover = false;
+        const vistaPadrao = () => {
+            if (!escalar()) return [0, 0, W, H];
+            const larg = svg.clientWidth || 1000, alt = svg.clientHeight || 560;                  // 1 px da tela = 1 unidade do mapa: o desenho sai em 1:500
+            return ME.vistaCentrada(W / 2, H / 2, larg, alt);
+        };
+        vb = st.grafoVista && st.grafoVistaEscala === escala ? st.grafoVista : (!escalar() ? [0, 0, W, H] : null);
         let ultimoNo, ultimoStatus = '', caboEscolhido = null, pontaEscolhida = null;
+        let desenhosPorNo = new Map(), desenhosPorCabo = new Map(), camadaVaos = null, camadaNos = null, cabosSvg = [];
         let desenhos = [], ponto, sugestoes = [], observadorNo, quadro, caboEmFoco = null, filtroMapa = 'todos';
         let cabosFiltrados = new Set(), fecharEdicaoAtiva;
-        const aplicarVista = () => { st.grafoVista = vb; svg.setAttribute('viewBox', vb.join(' ')); };
+        const escalaInfo = el('div', { class: 'vz-grafo-escala', hidden: '' }, [el('span', { class: 'vz-esc-rot' }), el('i', { class: 'vz-esc-barra' }), el('small', { class: 'vz-esc-barra-rot' })]);
+        function atualizarEscala() {
+            const pxTela = Math.min((svg.clientWidth || W) / vb[2], (svg.clientHeight || H) / vb[3]);
+            const d = ME && kLayout ? ME.denominadorDe(kLayout, pxTela) : null, barra = d ? ME.barraDeEscala(kLayout * pxTela) : null;
+            escalaInfo.hidden = !d;
+            if (!d) return;
+            escalaInfo.querySelector('.vz-esc-rot').textContent = 'Escala ≈ ' + ME.rotuloDaEscala(d);
+            escalaInfo.querySelector('.vz-esc-barra').style.width = Math.round(barra.px) + 'px';
+            escalaInfo.querySelector('.vz-esc-barra-rot').textContent = barra.rotulo;
+        }
+        // Recorte: só pontos/vãos perto da janela ficam visíveis (redes grandes); refaz quando a janela sai da área já preparada
+        function recortarVista(forcar) {
+            if (!recortar || !ME) return;
+            const agora = ME.retanguloDaVista(vb, 0);
+            if (!forcar && areaRecorte && ME.contem(areaRecorte, agora)) return;
+            areaRecorte = ME.retanguloDaVista(vb, .5);
+            // fora da janela o elemento SAI do DOM (display:none ainda custava layout/estilo a cada quadro em redes grandes)
+            ME.recortar(itensRecorte, areaRecorte, (it, v) => { if (v) it.camada.appendChild(it.el); else it.el.remove(); });
+        }
+        let quadroVista = 0, fimMovimento = 0;
+        const aplicarVistaJa = () => {
+            st.grafoVista = vb; st.grafoVistaEscala = escala;
+            svg.setAttribute('viewBox', vb.join(' '));
+            atualizarEscala(); recortarVista();
+        };
+        // pan/zoom chegam várias vezes por quadro (mouse/roda): aplica uma vez por quadro; em redes grandes some o texto enquanto mexe (o texto é o que mais pesa)
+        const aplicarVista = () => {
+            st.grafoVista = vb; st.grafoVistaEscala = escala;
+            if (!quadroVista) quadroVista = raiz.requestAnimationFrame(() => { quadroVista = 0; aplicarVistaJa(); });
+            if (recortar) { svg.classList.add('vz-movendo'); raiz.clearTimeout(fimMovimento); fimMovimento = raiz.setTimeout(() => svg.classList.remove('vz-movendo'), 160); }
+        };
         const zoom = (f, x = vb[0] + vb[2] / 2, y = vb[1] + vb[3] / 2) => {
-            f = Math.max(120 / vb[2], Math.min(3600 / vb[2], f));
+            f = Math.max(120 / vb[2], Math.min((escalar() ? 9000 : 3600) / vb[2], f));
             vb = [x + (vb[0] - x) * f, y + (vb[1] - y) * f, vb[2] * f, vb[3] * f];
             aplicarVista();
         };
@@ -1388,11 +1435,24 @@
         ferramentas.append(filtro);
         if (host.inserirNoMapa) barra.append(ferramentas);
         else barra.append(ficticio);
+        const seletorEscala = el('select', { class: 'vz-esc-sel', 'aria-label': 'Escala do mapa',
+            title: '1:500 mostra o desenho em tamanho real de prancha (1 m = 2 mm; aproximado, depende do monitor). Ajustar encaixa toda a rede na tela.' }, opcoes(ME ? ME.ESCALAS : [['ajustar', 'Ajustar à tela']]));
+        seletorEscala.value = escala;
+        seletorEscala.addEventListener('change', () => {
+            escala = ME.escalaValida(seletorEscala.value);
+            st.grafoEscala = escala;
+            try { raiz.localStorage.setItem('vz_mapa_escala', escala); } catch (e) { /* sem localStorage: vale só nesta abertura */ }
+            st.grafoVista = null; vb = null; areaRecorte = null;
+            pintar();
+            vb = vistaPadrao();
+            aplicarVistaJa();
+        });
         const acoesMapa = el('div', { class: 'vz-grafo-acoes' }, [
+            ...(ME ? [seletorEscala] : []),
             botao('−', () => zoom(1.25), 'Afastar'), botao('+', () => zoom(.8), 'Aproximar'),
-            botao('Enquadrar', () => { vb = [0, 0, W, H]; aplicarVista(); })
+            botao('Enquadrar', () => { vb = vistaPadrao(); aplicarVista(); }, escalar() ? 'Centralizar a rede na escala escolhida' : 'Enquadrar')
         ]);
-        const suporte = el('div', { class: 'vz-scroll vz-grafo-vista' }, [svg, acoesMapa]);
+        const suporte = el('div', { class: 'vz-scroll vz-grafo-vista' }, [svg, escalaInfo, acoesMapa]);
         const lista = el('div', { class: 'vz-grafo-lista' });
         const tituloPontas = el('h5');
         const lateralMapa = el('aside', { class: 'vz-grafo-cabos', 'aria-label': 'Cabos do mapa' }, [tituloPontas, lista]);
@@ -1463,7 +1523,7 @@
                 card.classList.toggle('selecionado', selecionado);
                 card.querySelector('.vz-grafo-cabo-titulo').setAttribute('aria-pressed', String(selecionado));
             });
-            svg.querySelectorAll('[data-cabo-mapa]').forEach(g => g.classList.toggle('selecionado', Number(g.dataset.caboMapa) === caboEmFoco));
+            cabosSvg.forEach(g => g.classList.toggle('selecionado', Number(g.dataset.caboMapa) === caboEmFoco));
             const ligados = caboEscolhido === null ? null : new Set(pontosDoCabo(caboEscolhido));
             nosSvg.forEach((g, id) => g.classList.toggle('alvo', ligados !== null && !ligados.has(id)));
         }
@@ -1543,29 +1603,39 @@
             grafo.vaos.forEach(v => (v.pontos || v.pontas || []).forEach(limitar));
             const sinteticos = [...grafo.nos.values()].filter(n => !n.pos);
             const temGeo = Number.isFinite(x0);
-            const largura = temGeo && sinteticos.length ? W * .74 : W;
-            const k = temGeo ? Math.min((largura - 2 * margem) / Math.max(x1 - x0, 1), (H - 2 * margem) / Math.max(y1 - y0, 1)) : 1;
+            const emEscala = escalar() && temGeo && !!ME;                                                       // TASK-224: 1:500 = fator fixo (px por metro), o desenho pode passar da área do «Ajustar»
+            const largura = temGeo && sinteticos.length && !emEscala ? W * .74 : W;
+            const k = emEscala ? ME.pxPorMetro(500) : temGeo ? Math.min((largura - 2 * margem) / Math.max(x1 - x0, 1), (H - 2 * margem) / Math.max(y1 - y0, 1)) : 1;
+            kLayout = temGeo ? k : null;
             ponto = ([x, y]) => [largura / 2 + (x - (x0 + (x1 - x0) / 2)) * k, H / 2 - (y - (y0 + (y1 - y0) / 2)) * k];
-            posicoes.clear();
+            const gx1 = temGeo ? ponto([x1, y0])[0] : 0, gy0 = temGeo ? ponto([x0, y1])[1] : 0;
+            posicoes.clear(); bases = new Map();
+            const posicaoSalva = (n, base) => {
+                const linha = outros()[linhaNo(n)];
+                if (emEscala) return linha._mapaPoste500 ? [base[0] + linha._mapaPoste500[0] * k, base[1] + linha._mapaPoste500[1] * k] : base;      // em escala o ajuste manual é um deslocamento em metros
+                return linha._mapaPoste ? [linha._mapaPoste[0] * W, linha._mapaPoste[1] * H] : base;
+            };
             vaosPorCabo.clear();
             nosSvg.clear();
             desenhos = [];
             grafo.vaos.forEach(v => v.cabos.forEach(ic => vaosPorCabo.set(ic, v)));
             grafo.nos.forEach(n => {
                 if (!n.pos) return;
-                const salvo = outros()[linhaNo(n)]._mapaPoste;
-                posicoes.set(n.id, salvo ? [salvo[0] * W, salvo[1] * H] : ponto(n.pos));
+                const base = ponto(n.pos);
+                bases.set(n.id, base);
+                posicoes.set(n.id, posicaoSalva(n, base));
             });
             const colunas = Math.ceil(Math.sqrt(sinteticos.length));
             const linhas = Math.ceil(sinteticos.length / Math.max(colunas, 1));
             sinteticos.forEach((n, i) => {
-                const ini = temGeo ? largura : 0;
-                const salvo = outros()[linhaNo(n)]._mapaPoste;
+                const ini = temGeo ? (emEscala ? gx1 + 140 : largura) : 0;
                 const coluna = (i % colunas + 1) / (colunas + 1);
                 const linha = (Math.floor(i / colunas) + 1) / (linhas + 1);
-                posicoes.set(n.id, salvo ? [salvo[0] * W, salvo[1] * H]
-                    : [ini + coluna * (W - ini), linha * H]);
+                const base = emEscala ? [ini + (i % colunas) * 96, gy0 + Math.floor(i / colunas) * 56] : [ini + coluna * (W - ini), linha * H];
+                bases.set(n.id, base);
+                posicoes.set(n.id, posicaoSalva(n, base));
             });
+            limites = emEscala ? (() => { const c = ME.caixaDe([...posicoes.values()], 700); return [c[0], c[1], c[2], c[3]]; })() : [18, 18, W - 18, H - 18];
 
             const a = analise();
             const rede = [];
@@ -1618,10 +1688,24 @@
                 const estado = linhaFicticia(n) ? 'Âncora visual' : completo ? 'Vinculação completa' : 'Vinculação pendente';
                 return `<g class="${classe}" data-no="${esc(n.id)}" data-arrastar="poste" tabindex="0" role="button" aria-label="${esc(rotulo)}"><title>${esc(rotulo)} · ${estado}</title><circle class="vz-alvo" r="19"/><circle class="vz-halo" r="10"/><circle class="vz-marcador" r="6"/><text x="14" y="-7">${esc(curto)}</text>${ficticios ? `<text class="vz-ficticio-rotulo" x="13" y="10">F × ${ficticios}</text>` : ''}</g>`;
             }).join('');
-            svg.innerHTML = rede.join('') + nos;
+            svg.innerHTML = '<g class="vz-camada-vaos">' + rede.join('') + '</g><g class="vz-camada-nos">' + nos + '</g>';
+            camadaVaos = svg.firstElementChild; camadaNos = svg.lastElementChild;
+            cabosSvg = [...svg.querySelectorAll('[data-cabo-mapa]')];
             svg.querySelectorAll('[data-no]').forEach(g => nosSvg.set(g.dataset.no, g));
             svg.querySelectorAll('.vz-aresta').forEach((linha, i) => { desenhos[i].linha = linha; });
+            desenhosPorNo = new Map(); desenhosPorCabo = new Map();
+            for (const d of desenhos) {
+                d.v.ids.forEach(id => { if (id) { if (!desenhosPorNo.has(id)) desenhosPorNo.set(id, []); desenhosPorNo.get(id).push(d); } });
+                if (d.ic !== null) { if (!desenhosPorCabo.has(d.ic)) desenhosPorCabo.set(d.ic, []); desenhosPorCabo.get(d.ic).push(d); }
+            }
             desenharPosicoes();
+            // TASK-224: rede grande → recorte por janela (itens: cada ponto e cada vão com a caixa onde ele aparece)
+            recortar = !!ME && nosSvg.size + desenhos.length > 400;
+            itensPorNo = new Map(); areaRecorte = null;
+            itensRecorte = recortar ? [...nosSvg].map(([id, g]) => { const it = { el: g, camada: camadaNos, b: caixaDoNo(id), v: true, id }; itensPorNo.set(id, it); return it; })
+                .concat(desenhos.map(d => { const el = d.linha.parentNode.hasAttribute('data-cabo-mapa') ? d.linha.parentNode : d.linha; d.item = { el, camada: camadaVaos, b: d.b, v: true }; return d.item; })) : [];
+            svg.classList.toggle('vz-movendo', false);
+            if (vb) recortarVista(true);
             const pontosVisiveis = [...nosVisiveis].map(id => grafo.nos.get(id));
             totalPostes.textContent = pontosVisiveis.filter(no => no.poste !== null && !linhaFicticia(no)).length;
             totalAvulsas.textContent = pontosVisiveis.filter(no => no.poste === null).length;
@@ -1655,6 +1739,7 @@
                     controleEdicao('cabo', ic), consulta
                 ]);
             }));
+            if (vb) atualizarEscala();
             tituloPontas.textContent = 'Cabos · ' + cabosVisiveis.size;
             lateralMapa.hidden = !cabosVisiveis.size;
             area.classList.toggle('sem-lateral', lateralMapa.hidden);
@@ -1668,14 +1753,21 @@
             renderRevisao();
         }
 
+        // caixa de um ponto no mapa (marcador + rótulo à direita)
+        const caixaDoNo = id => { const [x, y] = posicoes.get(id); return [x - 26, y - 26, x + 200, y + 26]; };
+        const campoPonto = () => (escalar() ? '_mapaPoste500' : '_mapaPoste'), campoCabo = () => (escalar() ? '_mapaCabo500' : '_mapaCabo');
+        const escalaCurva = () => (escalar() && kLayout ? [kLayout, kLayout] : [W, H]);       // o «puxar» do cabo é guardado em fração da tela (Ajustar) ou em metros (1:500)
         function desenharPosicoes(alvo) {
             const desenharNo = (g, id) => g.setAttribute('transform', 'translate(' + posicoes.get(id).join(' ') + ')');
-            if (alvo?.idNo) desenharNo(nosSvg.get(alvo.idNo), alvo.idNo);
-            else if (!alvo) nosSvg.forEach(desenharNo);
-            for (const d of desenhos) {
+            if (alvo?.idNo) {
+                desenharNo(nosSvg.get(alvo.idNo), alvo.idNo);
+                const it = itensPorNo.get(alvo.idNo);
+                if (it) { it.b = caixaDoNo(alvo.idNo); if (!it.v) { it.v = true; it.camada.appendChild(it.el); } }
+            } else if (!alvo) nosSvg.forEach(desenharNo);
+            const lista = alvo?.idNo ? desenhosPorNo.get(alvo.idNo) || [] : alvo?.ic !== undefined ? desenhosPorCabo.get(alvo.ic) || [] : desenhos;
+            const [cw, ch] = escalaCurva();
+            for (const d of lista) {
                 const {v, ic, deslocamento, linha} = d;
-                if (alvo?.idNo && !v.ids.includes(alvo.idNo)) continue;
-                if (alvo?.ic !== undefined && alvo.ic !== ic) continue;
                 const pts = v.ids.map((id, i) => id ? posicoes.get(id) : v.pontas && ponto(v.pontas[i]));
                 if (!pts.every(Boolean)) {
                     const i = pts[0] ? 0 : 1;
@@ -1685,7 +1777,7 @@
                 }
                 const [x0, y0] = pts[0], [x1, y1] = pts[1];
                 const dx = x1 - x0, dy = y1 - y0, comprimento = Math.hypot(dx, dy) || 1;
-                const curva = ic !== null && (arrasto?.ic === ic ? arrasto.valor : cabos()[ic]._mapaCabo);
+                const curva = ic !== null && (arrasto?.ic === ic && arrasto.valor ? arrasto.valor : cabos()[ic][campoCabo()]);
                 const caminho = v.pontos && !curva ? v.pontos.map((pt, i) => {
                     if (i === 0) return pts[0];
                     if (i === v.pontos.length - 1) return pts[1];
@@ -1694,11 +1786,13 @@
                     return [px + (x0 - originalA[0]) * (1 - t) + (x1 - originalB[0]) * t,
                         py + (y0 - originalA[1]) * (1 - t) + (y1 - originalB[1]) * t];
                 })
-                    : curva ? [pts[0], [x0 + dx / 2 + curva[0] * W, y0 + dy / 2 + curva[1] * H], pts[1]] : pts;
+                    : curva ? [pts[0], [x0 + dx / 2 + curva[0] * cw, y0 + dy / 2 + curva[1] * ch], pts[1]] : pts;
                 const pontos = caminho.map(([x, y]) =>
                     `${(x - dy * deslocamento / comprimento).toFixed(2)},${(y + dx * deslocamento / comprimento).toFixed(2)}`).join(' ');
                 linha.setAttribute('points', pontos);
                 if (linha.parentNode.hasAttribute('data-cabo-mapa')) linha.nextElementSibling.setAttribute('points', pontos);
+                d.b = ME ? ME.caixaDe(caminho, 14 + Math.abs(deslocamento)) : null;
+                if (d.item) { d.item.b = d.b; if (alvo && !d.item.v) { d.item.v = true; d.item.camada.appendChild(d.item.el); } }
             }
         }
 
@@ -2194,7 +2288,11 @@
             p.x = e.clientX; p.y = e.clientY;
             return p.matrixTransform(svg.getScreenCTM().inverse());
         }
-        svg.addEventListener('wheel', e => { e.preventDefault(); const p = coordenada(e); zoom(e.deltaY > 0 ? 1.15 : 1 / 1.15, p.x, p.y); }, { passive: false });
+        function pontoDaVista(e) {                                         // posição do mouse em unidades do mapa, pela vista em memória (xMidYMid meet)
+            const r = svg.getBoundingClientRect(), s = Math.min(r.width / vb[2], r.height / vb[3]) || 1;
+            return { x: vb[0] + (e.clientX - r.left - (r.width - vb[2] * s) / 2) / s, y: vb[1] + (e.clientY - r.top - (r.height - vb[3] * s) / 2) / s };
+        }
+        svg.addEventListener('wheel', e => { e.preventDefault(); const p = pontoDaVista(e); zoom(e.deltaY > 0 ? 1.15 : 1 / 1.15, p.x, p.y); }, { passive: false });
         const limitar = (n, min, max) => Math.max(min, Math.min(max, n));
         svg.addEventListener('pointerdown', e => {
             if (e.button !== 0 || !e.isPrimary) return;
@@ -2203,8 +2301,8 @@
             const idNo = alvo?.dataset.no;
             const ic = alvo?.dataset.caboMapa !== undefined ? Number(alvo.dataset.caboMapa) : undefined;
             const linha = idNo ? outros()[linhaNo(grafo.nos.get(idNo))] : ic !== undefined ? cabos()[ic] : null;
-            const campo = idNo ? '_mapaPoste' : '_mapaCabo';
-            const origem = idNo ? posicoes.get(idNo) : linha?._mapaCabo || [0, 0];
+            const campo = idNo ? campoPonto() : campoCabo();
+            const origem = idNo ? posicoes.get(idNo) : linha?.[campo] || [0, 0];
             arrasto = { id: e.pointerId, x: e.clientX, y: e.clientY, vb, matriz: svg.getScreenCTM().inverse(), idNo, ic, linha, campo, origem, valor: null };
         });
         svg.addEventListener('pointermove', e => {
@@ -2224,11 +2322,12 @@
             } else {
                 const [ox, oy] = arrasto.origem;
                 if (arrasto.idNo) {
-                    const px = limitar(ox + x, 18, W - 18), py = limitar(oy + y, 18, H - 18);
-                    arrasto.valor = [px / W, py / H];
+                    const px = limitar(ox + x, limites[0], limites[2]), py = limitar(oy + y, limites[1], limites[3]);
+                    const base = bases.get(arrasto.idNo) || [0, 0];
+                    arrasto.valor = escalar() ? [(px - base[0]) / kLayout, (py - base[1]) / kLayout] : [px / W, py / H];            // 1:500 guarda o deslocamento em metros; Ajustar, a fração da tela
                     posicoes.set(arrasto.idNo, [px, py]);
                 } else {
-                    arrasto.valor = [limitar(ox + x / W, -1, 1), limitar(oy + y / H, -1, 1)];
+                    arrasto.valor = escalar() ? [limitar(ox + x / kLayout, -3000, 3000), limitar(oy + y / kLayout, -3000, 3000)] : [limitar(ox + x / W, -1, 1), limitar(oy + y / H, -1, 1)];
                 }
                 if (!quadro) quadro = raiz.requestAnimationFrame(() => { quadro = null; desenharPosicoes(arrasto); });
             }
@@ -2248,6 +2347,7 @@
                 linha[campo] = valor;
             } else if (cancelar && idNo) posicoes.set(idNo, origem);
             if (valor) desenharPosicoes(alteracao);
+            recortarVista(true);
         }
         svg.addEventListener('pointerup', e => soltar(e, false));
         svg.addEventListener('pointercancel', e => soltar(e, true));
@@ -2284,6 +2384,8 @@
             fecharEdicaoAtiva?.(false);
             observadorNo?.disconnect();
             if (quadro) raiz.cancelAnimationFrame(quadro);
+            if (quadroVista) { raiz.cancelAnimationFrame(quadroVista); quadroVista = 0; }
+            raiz.clearTimeout(fimMovimento);
         };
         mapaAtualizar = () => {
             sugestoes = [];
@@ -2291,7 +2393,13 @@
             if (dialogo.open) preencherNo();
         };
         pintar();
-        aplicarVista();
+        if (!vb) vb = vistaPadrao();
+        aplicarVistaJa();
+        if (escalar() && !svg.clientWidth) {                              // janela ainda sem tamanho (aba recém-aberta): recentra quando medir
+            let tentativas = 0;
+            const medir = () => { if (svg.clientWidth) { vb = vistaPadrao(); aplicarVistaJa(); } else if (++tentativas < 20) raiz.requestAnimationFrame(medir); };
+            raiz.requestAnimationFrame(medir);
+        }
         if (st.grafoNo && grafo.nos.has(st.grafoNo)) editarNo(st.grafoNo, [...svg.querySelectorAll('[data-no]')].find(n => n.dataset.no === st.grafoNo));
     }
 

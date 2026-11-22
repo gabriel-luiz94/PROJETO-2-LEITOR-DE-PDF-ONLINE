@@ -1025,3 +1025,9 @@ Nas tabelas **Demais Ativos** e **Cabos** você pode agrupar linhas e recolhê-l
 ## Pernambuco: estrutura solta (20/11/2026)
 
 No projeto Pernambuco, uma linha de Outros que seja só estrutura (`N3`, `2 N3`, `N1, N4`, `B2`, `CE1`, `ISOL`…) classifica como **ESTRUTURA**. Linha com poste (`11300D, N3`) continua **POSTE**, cabo continua **CABO**, e materiais (`CON`, `PR220`, `FLABIT`) seguem sem classificação (`0`). Projetos cujas regras do leitor foram editadas à mão não mudam sozinhos: acrescente a regra em Regras do leitor › Classificação (ou importe o pacote).
+
+## Mapa: escala 1:500 e mapa mais leve (22/11/2026)
+
+No mapa de vinculação (Vinculação → Mapa), o seletor no canto inferior direito troca entre **Ajustar à tela** (cabe a rede inteira, como sempre) e **1:500** (o desenho em tamanho de prancha: 1 m = 2 mm; é aproximado, depende do monitor). No canto inferior esquerdo aparece **Escala ≈ 1:N** com uma barra em metros, que acompanha o zoom. Em 1:500 a rede pode ser maior que a tela: arraste o fundo para andar e use a roda para o zoom; **Enquadrar** volta a centralizar. A escolha fica lembrada.
+
+Arrastar postes e curvar cabos em 1:500 guarda o ajuste em metros, separado do ajuste feito em «Ajustar»; trocar de escala não bagunça nenhum dos dois. Em redes grandes o mapa mostra só o que está perto da janela e some com os rótulos durante o movimento, para o arrastar e o zoom ficarem leves.
