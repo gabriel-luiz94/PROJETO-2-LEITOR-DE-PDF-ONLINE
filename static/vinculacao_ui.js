@@ -140,6 +140,7 @@
     .vz-mapa .vz-rotulo-denso text{visibility:hidden}.vz-mapa .vz-rotulo-denso:hover text,.vz-mapa .vz-rotulo-denso:focus-visible text{visibility:visible}
     .vz-mapa .vz-aresta{stroke:var(--g-gray);stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
     .vz-mapa .vz-aresta[data-vao]{cursor:pointer}.vz-mapa .vz-aresta[data-vao]:focus-visible{outline:none;stroke-width:6}
+    .vz-mapa .vz-aresta.diverge{stroke-dasharray:10 3 2 3}.vz-grafo-alerta{display:block;margin:2px 0 0;font-size:11px;color:#e9ae68}
     .vz-mapa .vz-aresta.mt{stroke:#b95f6a}.vz-mapa .vz-aresta.bt{stroke:#4e9875}
     .vz-mapa .vz-aresta.completo{stroke-width:3.6}.vz-mapa .vz-aresta.mt.completo{stroke:#ff6478}
     .vz-mapa .vz-aresta.bt.completo{stroke:#54e1a3}
@@ -1437,7 +1438,7 @@
         const btnAgrupar = botao('Agrupar pontos', () => agruparPontos(), 'Transforma cada ponto que ainda não é grupo em «@nome» + comentário + as suas linhas em Demais Ativos');
         if (host.agruparPontosNoMapa) ferramentas.append(btnAgrupar);
         const filtro = el('select', { 'aria-label': 'Filtrar mapa' }, opcoes([
-            ['todos', 'Tudo'], ['I', 'A instalar'], ['R', 'A remover'], ['M', 'Mantendo'], ['ficticios', 'Fictícios']
+            ['todos', 'Tudo'], ['I', 'A instalar'], ['R', 'A remover'], ['M', 'Mantendo'], ['ficticios', 'Fictícios'], ['conferir', 'A conferir (nível/geometria)']
         ]));
         filtro.addEventListener('change', () => { filtroMapa = filtro.value; sugestoes = []; pintar(); });
         ferramentas.append(filtro);
@@ -1741,7 +1742,13 @@
             avisos.textContent = n + ' ponto(s) viraram grupo em Demais Ativos. Ctrl+Z desfaz.';
         }
 
+        // TASK-227: diagnóstico por cabo (nível do rótulo × linha do desenho, e por que não aparece) — uma vez por repintada
+        let diagnosticos = new Map();
+        const diagDe = ic => { if (!diagnosticos.has(ic)) diagnosticos.set(ic, VR.diagnosticoDoCabo(cabos()[ic], grafo.cabosDoMapa.get(ic), st.cfg.dicionario_cabos)); return diagnosticos.get(ic); };
+        const precisaConferir = ic => { const d = diagDe(ic); return d.diverge || !!d.motivo; };
+
         function pintar() {
+            diagnosticos = new Map();
             titulosGrupo = new Map();
             outros().forEach(r => { if (r && r.grupoDecl) titulosGrupo.set(r.gid, r); });
             grafo = montarGrafo();
@@ -1791,10 +1798,10 @@
                 estruturasDoNo(no).some(ie => ficticiosDe(ie).length)).map(no => no.id));
             const operacaoDoMapa = row => trim(row.operacao).toUpperCase().replace(/^\*/, '') || 'I';
             const cabosVisiveis = new Set([...grafo.cabosDoMapa].filter(([ic, d]) => filtroMapa === 'todos' ||
-                (filtroMapa === 'ficticios' ? d.ids.some(id => nosFicticios.has(id)) || VR.estruturasFicticiasDe(cabos()[ic]).length
+                (filtroMapa === 'conferir' ? precisaConferir(ic) : filtroMapa === 'ficticios' ? d.ids.some(id => nosFicticios.has(id)) || VR.estruturasFicticiasDe(cabos()[ic]).length
                     : operacaoDoMapa(cabos()[ic]) === filtroMapa)).map(([ic]) => ic));
             const nosVisiveis = new Set([...grafo.nos.values()].filter(no => filtroMapa === 'todos' ||
-                (filtroMapa === 'ficticios' ? nosFicticios.has(no.id)
+                (filtroMapa === 'conferir' ? false : filtroMapa === 'ficticios' ? nosFicticios.has(no.id)
                     : !linhaFicticia(no) && no.linhas.some(l => operacaoDoMapa(outros()[l]) === filtroMapa))).map(no => no.id));
             cabosFiltrados = cabosVisiveis;
             for (const ic of cabosVisiveis) pontosDoCabo(ic).forEach(id => nosVisiveis.add(id));
@@ -1804,7 +1811,7 @@
                     const grupo = VR.gruposVisuaisDoVao([ic], cabos(), a, st.cfg.dicionario_cabos)[0];
                     const nome = `Cabo ${ic + 1} · ${cabos()[ic].ativo}`;
                     const rotulo = `${nome} · ${grupo.tipo || 'Cabo'} · ${grupo.completo ? 'Vinculado' : 'Pendente'}`;
-                    const classe = grupo.tipo === 'MT' ? 'mt' : grupo.tipo === 'BT' ? 'bt' : '';
+                    const classe = (grupo.tipo === 'MT' ? 'mt' : grupo.tipo === 'BT' ? 'bt' : '') + (diagDe(ic).diverge ? ' diverge' : '');
                     desenhos.push({v, grupo, ic: candidato ? null : ic, deslocamento: (i - (indices.length - 1) / 2) * 10});
                     const tracado = `<polyline class="vz-aresta ${classe}${grupo.completo ? ' completo' : ''}${candidato ? ' sugerida' : ''}" fill="none" vector-effect="non-scaling-stroke" ${candidato || (v.ids.includes(null) && !grupo.completo) ? 'stroke-dasharray="5 4"' : ''}><title>${esc(rotulo)}</title></polyline>`;
                     rede.push(candidato ? tracado : `<g data-cabo-mapa="${ic}" data-arrastar="cabo" tabindex="0" role="button" aria-label="${esc(nome)}"><title>${esc(rotulo)}</title>${tracado}<polyline class="vz-alvo-aresta" vector-effect="non-scaling-stroke"/></g>`);
@@ -1884,6 +1891,8 @@
                 titulo.classList.add('vz-grafo-cabo-titulo');
                 return el('article', { class: 'vz-grafo-item ' + (grupo.tipo || '').toLowerCase(), 'data-cartao-cabo': ic }, [
                     titulo, el('small', { text: [grupo.tipo, c.operacao].filter(Boolean).join(' · ') }),
+                    diagDe(ic).diverge ? el('small', { class: 'vz-grafo-alerta', text: '⚠ Nível ' + diagDe(ic).nivel + ' pelo ' + (diagDe(ic).fonte === 'linha' ? 'nível da linha' : diagDe(ic).fonte) + ', mas a linha do desenho é ' + diagDe(ic).geo + ' (confira a associação no CAD)' }) : null,
+                    diagDe(ic).motivo ? el('small', { class: 'vz-grafo-alerta', text: '⚠ ' + diagDe(ic).motivo.charAt(0).toUpperCase() + diagDe(ic).motivo.slice(1) }) : null,
                     el('div', { class: 'vz-grafo-pontas' }, botoes),
                     controleEdicao('cabo', ic), host.copiarCaboNoMapa ? botao('Copiar', () => copiarCabo(ic), 'Copiar ' + nome + ' (cabo novo, sem pontas ligadas)') : null, consulta
                 ]);
@@ -1900,7 +1909,11 @@
             sugerir.disabled = !grafo.nos.size || !grafo.cabosDoMapa.size;
             ficticio.disabled = ![...grafo.nos.values()].some(no => estruturasDoNo(no).some(ie => infoEst(ie).ocupa));
             avisos.textContent = !area.hidden && !nosVisiveis.size && !cabosVisiveis.size ? 'Nenhum ponto ou cabo para este filtro.'
-                : !area.hidden ? 'Arrastar altera somente a disposição visual.' : '';
+                : !area.hidden ? 'Arrastar altera somente a disposição visual.' + (() => {
+                    const ids = [...cabosVisiveis], div = ids.filter(ic => diagDe(ic).diverge).length, semGeo = ids.filter(ic => diagDe(ic).naoDesenhado).length, curtas = ids.filter(ic => diagDe(ic).motivo && !diagDe(ic).naoDesenhado).length;
+                    return (div ? ' ⚠ ' + div + ' cabo(s) com nível do rótulo diferente do desenho.' : '') + (semGeo ? ' ⚠ ' + semGeo + ' cabo(s) sem linha do desenho e sem ponta ligada (não aparecem).' : '')
+                        + (curtas ? ' ' + curtas + ' com ponta fora do raio de um poste.' : '') + (div || semGeo || curtas ? ' Use o filtro «A conferir».' : '');
+                })() : '';
             atualizarSelecao();
             renderRevisao();
         }

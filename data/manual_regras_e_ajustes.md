@@ -1046,3 +1046,9 @@ Arrastar postes e curvar cabos em 1:500 guarda o ajuste em metros, separado do a
 - **Copiar ponto:** na caixa **Ponto** (clique no ponto) → **Copiar ponto**. A cópia é um grupo novo com as mesmas linhas, sem vínculos com cabos; depois você a posiciona com o mouse.
 - **Copiar cabo:** no cartão do cabo (lista à direita) → **Copiar**. O cabo novo vai para o fim de Cabos sem pontas ligadas: clique num ponto destacado para ligar cada ponta.
 
+## Mapa: nível MT/BT e cabos que não aparecem (22/11/2026)
+
+- O nível do cabo é o mesmo na lista e no mapa: vale o **Nível** digitado na linha; senão a **tensão escrita no rótulo** (ex.: 13,8kV); senão o padrão do dicionário de cabos; só então a **linha do desenho** do CAD; por fim BT.
+- Quando o rótulo diz um nível e a linha do desenho associada é do outro, o cartão do cabo avisa «⚠ Nível MT pelo rótulo, mas a linha do desenho é BT» e o vão fica tracejado: normalmente o CAD ligou o texto à linha errada (redes MT e BT paralelas). Confira no desenho.
+- Cabo que não aparece: o cartão diz o motivo — sem linha do desenho e sem ponta ligada (não é desenhado; ligue pelas «Ponta livre»), sem linha do desenho (só a ponta ligada aparece) ou linha do desenho que termina a mais de 5 m de um poste. O filtro **A conferir** lista só esses cabos.
+

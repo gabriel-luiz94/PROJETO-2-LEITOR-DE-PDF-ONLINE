@@ -66,10 +66,36 @@
         }
         return { fases, tensao, nivel };
     }
+    /**
+     * TASK-227: nível (MT/BT) do cabo e DE ONDE ele vem — a mesma conta para a lista e para o mapa (antes o mapa dava a prioridade à camada da geometria e a lista ao texto, e divergiam).
+     * Ordem: nível digitado na linha > tensão escrita no rótulo (13,8kV) > nível padrão do dicionário de cabos > tipo da linha do CAD (`_geoTipo`) > BT.
+     * Devolve {nivel, fonte: 'linha'|'rótulo'|'dicionário'|'geometria'|'padrão', geo} (`geo` = tipo da linha do desenho, ou '').
+     */
+    function nivelDoCabo(c, dic) {
+        if (dic === undefined && AC && AC.dicionario) dic = AC.dicionario();
+        const explicito = trim(c && c.nivel).toUpperCase(), geo = trim(c && c._geoTipo).toUpperCase(), geoOk = ['MT', 'BT'].includes(geo) ? geo : '';
+        if (['MT', 'BT'].includes(explicito)) return { nivel: explicito, fonte: 'linha', geo: geoOk };
+        const texto = trim((c && (c.tensao || c.textoOriginal || c.ativo)) || ''), d = derivarCabo(texto, dic);
+        if (RE_TENSAO.test(texto)) return { nivel: d.nivel, fonte: 'rótulo', geo: geoOk };
+        let doDicionario = false;
+        if (dic && dic.length && DC && AC) { const itens = AC.interpretar(texto, dic).itens, p = (itens.filter(i => !i.neutro)[0] || itens[0]); doDicionario = !!(p && DC.nivelPadrao(dic, p.ativo)); }
+        if (doDicionario) return { nivel: d.nivel, fonte: 'dicionário', geo: geoOk };
+        return geoOk ? { nivel: geoOk, fonte: 'geometria', geo: geoOk } : { nivel: d.nivel, fonte: 'padrão', geo: '' };
+    }
+    /** Por que o cabo aparece, ou não, no mapa — e se o nível dito pelo rótulo concorda com o da linha do desenho. `dados` = grafo.cabosDoMapa.get(ic). */
+    function diagnosticoDoCabo(c, dados, dic) {
+        const n = nivelDoCabo(c, dic), temGeo = !!(dados && dados.geo), ligados = dados ? dados.ids.filter(Boolean).length : 0;
+        const diverge = ['linha', 'rótulo', 'dicionário'].includes(n.fonte) && !!n.geo && n.geo !== n.nivel;
+        let motivo = '';
+        if (!temGeo && !ligados) motivo = 'sem linha do desenho e sem ponta ligada: não aparece no mapa';
+        else if (!temGeo) motivo = 'sem linha do desenho: só a ponta ligada aparece';
+        else if (ligados < 2) motivo = 'a linha do desenho termina a mais de ' + RAIO_POSTE_PADRAO + ' m de um poste';
+        return { nivel: n.nivel, fonte: n.fonte, geo: n.geo, diverge, semGeometria: !temGeo, naoDesenhado: !temGeo && !ligados, motivo };
+    }
     /** Dados que as regras do cabo podem usar: o que está na linha (editável) ou, na falta, o derivado do texto original. */
     function extraCabo(row, dic) {
         const d = derivarCabo(row && row.textoOriginal, dic), f = row && trim(row.fases) !== '' ? Number(trim(row.fases)) : d.fases;
-        const n = row && trim(row.nivel) ? trim(row.nivel).toUpperCase() : d.nivel;
+        const n = row ? nivelDoCabo({ nivel: row.nivel, textoOriginal: row.textoOriginal, _geoTipo: row._geoTipo }, dic).nivel : d.nivel;
         return { texto: trim(row && row.textoOriginal), descricao: descricaoCabo((row && (row.textoOriginal || row.ativo)) || '', ''), fases: Number.isFinite(f) ? f : d.fases, tensao: row && trim(row.tensao) ? trim(row.tensao) : d.tensao, nivel: n };
     }
     /** `padrao_texto` é SEMPRE regex (busca em qualquer ponto do texto original, sem caixa); inválida não casa. */
@@ -772,9 +798,7 @@
         const grupos = new Map();
         indices.forEach(ic => {
             const c = cabos[ic];
-            const geo = trim(c._geoTipo).toUpperCase(), nivel = trim(c.nivel).toUpperCase();
-            const tipo = ['MT', 'BT'].includes(nivel) ? nivel : ['MT', 'BT'].includes(geo) ? geo
-                : derivarCabo(c.tensao || c.textoOriginal || c.ativo, dicionario).nivel;
+            const tipo = nivelDoCabo(c, dicionario).nivel;                  // TASK-227: mesma regra da lista (o desenho só decide quando o rótulo não diz)
             if (!grupos.has(tipo)) grupos.set(tipo, []);
             grupos.get(tipo).push(ic);
         });
@@ -1045,7 +1069,7 @@
         return erros;
     }
 
-    const api = { grafoDaRede, gruposVisuaisDoVao, posteCompletoNoGrafo, postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoCaboFicticio, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { grafoDaRede, gruposVisuaisDoVao, posteCompletoNoGrafo, postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, nivelDoCabo, diagnosticoDoCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoCaboFicticio, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);
