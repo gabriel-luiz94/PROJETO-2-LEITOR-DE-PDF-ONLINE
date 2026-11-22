@@ -45,7 +45,7 @@ namespace OrcamentoNanoCAD.UI
                 raiz.Controls.Add(aberta);
             }
             FlowLayoutPanel cartoes = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 8, 0, 0) };
-            cartoes.Controls.Add(Opcao("🧱  Construir do zero",
+            cartoes.Controls.Add(Opcao("🧱  Montar manualmente",
                 "Você seleciona no desenho:\n•  os postes e suas anotações\n•  os vãos e suas anotações", "Para projetos sem padrão de layers/cores.", Escolha.Construir, false));
             cartoes.Controls.Add(Opcao("📖  Ler projeto",
                 "Lê o desenho inteiro com as regras do projeto (layer + cor).\nMonta postes, vãos e vínculos sozinho.", "Sobra só a conferência e os ajustes.", Escolha.Ler, true));

@@ -111,7 +111,7 @@ namespace OrcamentoNanoCAD.Nucleo
             return h > 0 ? h : 1.0;
         }
 
-        public static Obra Ler(Desenho d, RegrasProjeto regras, JObj associacoes = null, List<TextoLido> leituraDxf = null)
+        public static Obra Ler(Desenho d, RegrasProjeto regras, JObj associacoes = null, List<TextoLido> leituraDxf = null, bool linhasInteiras = false)
         {
             Contexto ctx = new Contexto();
             ctx.Associacoes = associacoes ?? new JObj();
@@ -136,8 +136,15 @@ namespace OrcamentoNanoCAD.Nucleo
             }
 
             AgruparPostes(d.Postes, ctx, tol);
-            redes = JuntarRedes(redes, ctx, tol);
-            foreach (Rede r in redes) CortarEmVaos(r, ctx, tol);
+            if (!linhasInteiras) redes = JuntarRedes(redes, ctx, tol);
+            foreach (Rede r in redes)
+            {
+                if (!linhasInteiras) { CortarEmVaos(r, ctx, tol); continue; }
+                Poste a, b;
+                Construtor.SugerirPostes(new Obra { Postes = ctx.Postes }, r.L.Pontos, tol, out a, out b);
+                ctx.Vaos.Add(new Vao { LinhaHandle = r.L.Handle, Pontos = r.L.Pontos, Tipo = r.Tipo,
+                    LinhaLayer = r.L.Layer, LinhaCor = r.L.Cor, PosteObjA = a, PosteObjB = b });
+            }
 
             ctx.Lidos = leituraDxf ?? ClassificarTextos(d.Textos, regras);
             List<Avulso> avulsos = new List<Avulso>();

@@ -16,7 +16,9 @@ namespace OrcamentoNanoCAD.Nucleo
     {
         public string Exe;
         public int Porta = 8000;
+        public int Pid;
         public string Versao;
+        public string ChaveAnotacoes;
 
         public static ProgramaInstalado De(JObj o)
         {
@@ -24,7 +26,9 @@ namespace OrcamentoNanoCAD.Nucleo
             ProgramaInstalado p = new ProgramaInstalado();
             p.Exe = o.Str("exe");
             p.Porta = (int)(o.Num("porta") ?? 8000);
+            p.Pid = (int)(o.Num("pid") ?? 0);
             p.Versao = o.Str("versao");
+            p.ChaveAnotacoes = o.Str("anotacoes_chave");
             return p;
         }
     }
@@ -63,6 +67,29 @@ namespace OrcamentoNanoCAD.Nucleo
             JObj o = Json.Ler(r.Corpo ?? "") as JObj;
             string det = o != null ? (o.Str("detail") ?? "") : "";
             return r.Status == 0 ? (r.Erro ?? "sem resposta") : "HTTP " + r.Status + (det.Length > 0 ? ": " + det : "");
+        }
+
+        public static string EntregarAnotacoes(ITransporteHttp http, int porta, string credencial, string chave, JObj envelope, string lote)
+        {
+            string corpo = Json.Escrever(Pacote(chave, envelope).Set("lote", lote), false);
+            RespostaHttp r = http.Enviar("POST", Base(porta) + "/api/plugin/receber-anotacoes", corpo, credencial, 5000);
+            if (r.Status == 404) return "Atualize o OrçaCore para receber anotações do nanoCAD.";
+            if (r.Status != 200) return r.Status == 0 ? (r.Erro ?? "Sem resposta do OrçaCore.") :
+                "O OrçaCore recusou as anotações (HTTP " + r.Status + ").";
+            string url = Base(porta) + "/api/plugin/status-anotacoes?lote=" + lote;
+            for (int tentativa = 0; tentativa < 15; tentativa++)
+            {
+                RespostaHttp estado = http.Enviar("GET", url, null, credencial, 2000);
+                if (estado.Status != 200) break;
+                JObj o = Json.Ler(estado.Corpo) as JObj;
+                string atual = o == null ? "" : o.Str("estado");
+                if (atual == "adicionado") return null;
+                if (atual == "outro_projeto") return "Selecione no OrçaCore o mesmo projeto de regras da montagem e tente de novo.";
+                if (atual == "abra_resumo") return "Abra a obra de destino no Resumo do OrçaCore e tente de novo.";
+                if (atual != "aguardando") return "O OrçaCore não conseguiu acrescentar as anotações.";
+                System.Threading.Thread.Sleep(350);
+            }
+            return "O OrçaCore ainda não confirmou a entrega. Confira o Resumo ou tente enviar o mesmo lote de novo.";
         }
 
         public const string ArgumentoProjeto = "--abrir-projeto";

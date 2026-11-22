@@ -19,7 +19,7 @@ namespace OrcamentoNanoCAD.Nucleo
             return o;
         }
 
-        private static int Proximo(IEnumerable<Elemento> l, char prefixo)
+        internal static int Proximo(IEnumerable<Elemento> l, char prefixo)
         {
             int max = 0, n;
             foreach (Elemento e in l)
@@ -201,7 +201,7 @@ namespace OrcamentoNanoCAD.Nucleo
             Recalcular(obra, regras);
         }
 
-        private static void AplicarAtivo(Elemento e, string ativo)
+        internal static void AplicarAtivo(Elemento e, string ativo)
         {
             e.AtivoLido = ativo;
             Vao v = e as Vao;

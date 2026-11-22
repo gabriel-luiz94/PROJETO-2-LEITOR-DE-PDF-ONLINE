@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.14.0
+
+A montagem manual lê por região, agrupa as anotações de cada poste, mantém as linhas dos vãos separadas e oferece um editor por linha. O envio incremental preserva a obra aberta no Resumo. DLLs geradas para nanoCAD 26 e 5. Validação nativa em Windows pendente. [TASK-036](tasks/TASK-036-22-11-2026.md).
+
 ## Plugin 0.13.1
 
 TASK-035 lê o DXF ou DWG ativo em Ler projeto, releitura e diagnóstico. Um DXF salvo e sem alterações é enviado diretamente. O plugin exporta o restante para um DXF temporário da sessão atual e remove a cópia após o envio. 🟡 Validar a exportação e a leitura no nanoCAD 5 e 26 no Windows.
@@ -45,7 +49,7 @@ TASK-022 (leitura), TASK-023 (alocação por poste) e TASK-024 (painel) implemen
 
 ## Versão
 
-`0.13.1` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
+`0.14.0` — `src/Nucleo/ObraArquivo.cs:VersaoPlugin` e `src/Versao.props` (e `<Version>` do `.csproj`)
 
 Branch de trabalho: `codex/plugin-desenho-ativo`
 

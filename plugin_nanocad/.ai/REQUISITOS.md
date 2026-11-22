@@ -8,8 +8,8 @@
 
 | ID | Requisito | Situação | Onde |
 |---|---|---|---|
-| RQ-01 | Comando `ORCACORE` (atalho `OC`) abre a tela com **Construir do zero**, **Ler projeto** e **Continuar obra salva**; escolha das regras do projeto (mockup A) | 🟡 | `Plugin/Telas.cs › TelaInicio`, `Comandos.Orcacore` |
-| RQ-02 | **Construir do zero**: selecionar postes (bloco + anotação) e vãos (linha + anotação); cada um ganha número; o plugin sugere os postes das pontas e a anotação, o usuário confirma ou troca (mockup B) | 🟡 | `ORC_POSTE`, `ORC_VAO`, `Nucleo/Construtor.cs` |
+| RQ-01 | Comando `ORCACORE` (atalho `OC`) abre a tela com **Montar manualmente**, **Ler projeto** e **Continuar obra salva**; escolha das regras do projeto (mockup A) | 🟡 | `Plugin/Telas.cs › TelaInicio`, `Comandos.Orcacore` |
+| RQ-02 | **Montar manualmente**: selecionar postes (bloco + anotação) e vãos (linha + anotação); cada um ganha número; o plugin sugere os postes das pontas e a anotação, o usuário confirma ou troca (mockup B) | 🟡 | `ORC_POSTE`, `ORC_VAO`, `Nucleo/Construtor.cs` |
 | RQ-03 | **Ler projeto**: usa o DXF ou DWG ativo, aplica as regras do projeto no Leitor do OrçaCore e associa postes, vãos e vínculos. O painel permite filtrar Ok/Conferir/Erro (mockup C) | ✅ núcleo · 🟡 CAD | `Plugin/Comandos.cs`, `Plugin/DxfDoDesenho.cs`, `Nucleo/LeitorProjeto.cs` |
 | RQ-04 | Numeração: cada poste (P1…) e vão (V1…) tem número **exibido no desenho** | ✅ núcleo · 🟡 CAD | `LeitorProjeto.Numerar` (segue a rede), `Plugin/Marcas.cs` |
 | RQ-05 | Vínculo vão ⇄ poste **sempre visível** (linhas/marcas) e usado internamente com as estruturas | ✅ núcleo · 🟡 CAD | `Nucleo/Vinculador.cs`, `Marcas` (tracejado ciano) |
@@ -20,6 +20,8 @@
 | RQ-10 | Persistência nos **dois lugares**: dentro do DWG e em `<desenho>.obra.json` na mesma pasta (mockup G) | ✅ formato · 🟡 CAD | `Plugin/PersistenciaDwg.cs`, `ObraArquivo` |
 | RQ-11 | **Sem camada de marcas** (gráficos transitórios); o plugin pode **mudar a layer do texto** ao trocar a operação, só com a opção marcada no pop-up (marcada por padrão) | 🟡 | `Marcas` (TransientManager), `Comandos.TrocarLayerDoTexto`, `RegrasProjeto.LayerDaOperacao` |
 | RQ-12 | Vão = **linha + anotação associada** | ✅ | `LeitorProjeto.CortarEmVaos` / `AssociarTextos` |
+| RQ-13 | Montagem manual com região, agrupamento de poste, vãos independentes, editor por linha e limpeza com a tela aberta | ✅ núcleo · 🟡 CAD | ORC_REGIAO, ORC_LIMPAR_MONTAGEM, MontagemManual, PainelObra |
+| RQ-14 | Acrescentar lote à obra aberta com confirmação de entrega | ✅ integração em Linux · 🟡 Windows | ProgramaLocal, /api/plugin/receber-anotacoes, static/resumo.js |
 
 ## RQ — Dados e contrato
 

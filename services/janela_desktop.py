@@ -110,7 +110,7 @@ def disponivel() -> bool:
     return _janela is not None
 
 
-def mostrar(url_relativa: str, porta: int = None) -> bool:
+def mostrar(url_relativa: str, porta: int = None, somente_resumo: bool = False) -> bool:
     """Leva a janela do programa para a URL (ex.: /resumo?plugin_pendente=…) e a traz para a frente. False se não há janela."""
     if _janela is None:
         return False
@@ -133,12 +133,14 @@ def mostrar(url_relativa: str, porta: int = None) -> bool:
         if pendente and pedido.path == "/resumo":
             script = (f"Boolean(location.origin === {json.dumps(origem)} && location.pathname === '/resumo' && "
                       "localStorage.getItem('auth_token') && window.abrirPendenteNanoCAD && "
-                      "(window.abrirPendenteNanoCAD(" + json.dumps(pendente) + "), true))")
+                      "(window.abrirPendenteNanoCAD(" + json.dumps(pendente) + (", true" if somente_resumo else "") + "), true))")
             try:
                 entregue = _janela.evaluate_js(script) is True
             except Exception:
                 pass  # a página pode ainda estar carregando
         if not entregue:
+            if somente_resumo:
+                return False
             _janela.load_url(destino)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Janela não carregou a obra do nanoCAD: {e}")

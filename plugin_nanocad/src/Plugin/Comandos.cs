@@ -126,7 +126,7 @@ namespace OrcamentoNanoCAD
             return r;
         }
 
-        private static JObj LerComMotorDxf(Sessao s, string codigo, out string nomeFonte)
+        private static JObj LerComMotorDxf(Sessao s, string codigo, out string nomeFonte, IList<Ponto> regiao = null)
         {
             nomeFonte = Path.ChangeExtension(Path.GetFileName(s.Arquivo), ".dxf");
             if (string.IsNullOrEmpty(nomeFonte)) nomeFonte = "Desenho.dxf";
@@ -144,7 +144,7 @@ namespace OrcamentoNanoCAD
                     {
                         string origem = temporario ? "desenho ativo → DXF temporário" : "DXF original";
                         Aplicacao.Msg("Lendo " + nome + " (" + origem + ") com o motor DXF do OrçaCore (projeto " + codigo + ")…");
-                        return Conexao.Cliente.LerDxf(codigo, caminho);
+                        return Conexao.Cliente.LerDxf(codigo, caminho, regiao);
                     },
                     erro => Aplicacao.Log("Limpeza do DXF temporário: " + erro.Message));
             }
@@ -220,10 +220,12 @@ namespace OrcamentoNanoCAD
         private static void Construir(Sessao s, string projeto)
         {
             s.Obra = Construtor.NovaObra(s.Doc.Name, s.Regras);
+            s.UltimaRegiao = null;
+            s.LoteAnotacoes = s.ConteudoAnotacoes = null;
             if (!string.IsNullOrEmpty(projeto)) s.Obra.Projeto = projeto;
             Mudou(s, true);
             PainelObra.Abrir(s);
-            Aplicacao.Msg("Construir do zero: use + Poste (ORC_POSTE) e + Vão (ORC_VAO) no painel.");
+            Aplicacao.Msg("Montar manualmente: leia por região ou selecione postes e vãos no painel.");
         }
 
         private static void Continuar(Sessao s, PersistenciaDwg.ObraSalva salva)
@@ -311,11 +313,123 @@ namespace OrcamentoNanoCAD
             return true;
         }
 
+        [CommandMethod("ORC_REGRAS_MONTAGEM")]
+        public void CmdRegrasMontagem()
+        {
+            Rodar("ORC_REGRAS_MONTAGEM", s =>
+            {
+                if (!PrecisaObra(s) || s.Obra.Modo != "construir" || s.Obra.Elementos.Any()) return;
+                PromptResult r = s.Doc.Editor.GetString(new PromptStringOptions("\nCódigo do projeto para a montagem: ") { AllowSpaces = false });
+                if (r.Status != PromptStatus.OK || string.IsNullOrEmpty((r.StringResult ?? "").Trim())) return;
+                RegrasProjeto regras = RegrasFrescas(s.Regras, r.StringResult.Trim());
+                if (regras == null) return;
+                s.Regras = regras;
+                s.Obra.Projeto = regras.Codigo;
+                s.Obra.NomeRegras = regras.Nome;
+                Mudou(s, true);
+            });
+        }
+
+        [CommandMethod("ORC_SELECIONAR_CABOS")]
+        public void CmdSelecionarCabos()
+        {
+            Rodar("ORC_SELECIONAR_CABOS", s =>
+            {
+                if (!PrecisaObra(s) || s.Obra.Modo != "construir" || s.EnviandoAnotacoes) return;
+                var textos = SelecionarTextos(s, "\nSelecione as linhas de cabo e pressione Enter: ");
+                var cabos = MontagemManual.CabosSelecionados(textos, s.Regras, () => TextosDoDesenho(s));
+                foreach (TextoLido tl in cabos)
+                {
+                    if (s.Obra.Avulsos.Any(a => a.Entidade == "CABO" && a.TextoHandle == tl.T.Handle &&
+                            a.ParteTexto == tl.T.Parte && a.TextoOriginal == tl.T.Texto)) continue;
+                    Avulso avulso = Construtor.NovaLinha(s.Obra, true, tl.R.Ativo, tl.R.Operacao, s.Regras);
+                    LeitorProjeto.Anotar(avulso, tl);
+                }
+                Mudou(s, true);
+            });
+        }
+
+        [CommandMethod("ORC_REGIAO")]
+        public void CmdRegiao()
+        {
+            Rodar("ORC_REGIAO", s =>
+            {
+                if (!PrecisaObra(s) || s.Obra.Modo != "construir" || s.EnviandoAnotacoes) return;
+                var vertices = new List<Ponto>();
+                var contorno = new Marcas();
+                try
+                {
+                    Editor ed = s.Doc.Editor;
+                    while (vertices.Count < 64)
+                    {
+                        var op = new PromptPointOptions("\nClique no vértice da região (Enter = concluir, Esc = cancelar): ") { AllowNone = true };
+                        PromptPointResult r = ed.GetPoint(op);
+                        if (r.Status == PromptStatus.None) break;
+                        if (r.Status != PromptStatus.OK) return;
+                        Point3d v = r.Value.TransformBy(ed.CurrentUserCoordinateSystem);
+                        if (vertices.Count > 0 && vertices[vertices.Count - 1].Dist(new Ponto(v.X, v.Y)) <= 1e-8) continue;
+                        vertices.Add(new Ponto(v.X, v.Y));
+                        contorno.ContornoRegiao(vertices, Math.Max(0.01, s.Obra.AlturaTexto / 4.0));
+                    }
+                    if (vertices.Count > 3 && vertices[0].Dist(vertices[vertices.Count - 1]) <= 1e-8)
+                        vertices.RemoveAt(vertices.Count - 1);
+                    double area = 0;
+                    if (vertices.Count >= 3)
+                    {
+                        Ponto origem = vertices[0];
+                        for (int i = 1; i + 1 < vertices.Count; i++)
+                            area += (vertices[i].X - origem.X) * (vertices[i + 1].Y - origem.Y) -
+                                    (vertices[i].Y - origem.Y) * (vertices[i + 1].X - origem.X);
+                    }
+                    if (vertices.Count < 3 || Math.Abs(area) <= 1e-8)
+                    {
+                        Aplicacao.Msg("Escolha pelo menos três vértices que formem uma região.");
+                        return;
+                    }
+                    string fonte;
+                    JObj leitura = LerComMotorDxf(s, s.Obra.Projeto, out fonte, vertices);
+                    if (leitura == null) return;
+                    Desenho desenho = MontadorDesenho.Montar(ExtratorDesenho.Ler(s.Doc), s.Regras.Leitura);
+                    MontagemManual.Recortar(desenho, vertices, s.Regras.Leitura);
+                    List<TextoLido> textos = LeitorProjeto.TextosDoDxf(leitura, desenho);
+                    Obra lote = LeitorProjeto.Ler(desenho, s.Regras, null, textos, true);
+                    MontagemManual.Incorporar(s.Obra, lote, s.Regras);
+                    Aplicacao.Msg("Região lida com as regras de " + s.Regras.Nome + " · " + textos.Count + " textos para revisão.");
+                    s.UltimaRegiao = vertices;
+                    Mudou(s, true);
+                }
+                finally { contorno.Limpar(); s.Atualizar(); }
+            });
+        }
+
+        [CommandMethod("ORC_LIMPAR_MONTAGEM")]
+        public void CmdLimparMontagem()
+        {
+            Rodar("ORC_LIMPAR_MONTAGEM", s =>
+            {
+                if (!PrecisaObra(s) || s.Obra.Modo != "construir" || s.EnviandoAnotacoes) return;
+                if (s.Obra.Elementos.Any() && !Confirmar(s.Doc.Editor, "Limpar a montagem deste desenho?")) return;
+                Obra anterior = s.Obra;
+                s.Obra = Construtor.NovaObra(s.Doc.Name, s.Regras);
+                s.Obra.Projeto = anterior.Projeto;
+                s.Obra.Nome = anterior.Nome;
+                s.Obra.NumeroObra = anterior.NumeroObra;
+                s.UltimoBruto = null;
+                s.UltimoDesenho = null;
+                s.UltimaRegiao = null;
+                s.LoteAnotacoes = s.ConteudoAnotacoes = null;
+                s.Destacar(null, null);
+                Mudou(s, true);
+                Aplicacao.Msg("Montagem limpa. Selecione uma região, um poste ou um vão para começar.");
+            });
+        }
+
         [CommandMethod("ORC_POSTE")]
         public void CmdPoste()
         {
             Rodar("ORC_POSTE", s =>
             {
+                if (s.EnviandoAnotacoes) return;
                 PrepararConstrucao(s);
                 Editor ed = s.Doc.Editor;
                 while (true)
@@ -339,7 +453,8 @@ namespace OrcamentoNanoCAD
                     }
                     if (textos.Count == 0) textos = SelecionarTextos(s, "\nSelecione a(s) anotação(ões) do poste e Enter: ");
                     if (bloco == null && textos.Count == 0) break;
-                    Poste p = Construtor.AdicionarPoste(s.Obra, bloco, textos, s.Regras);
+                    Poste p = s.Obra.Modo == "construir" ? MontagemManual.AdicionarPoste(s.Obra, bloco, textos, s.Regras) :
+                        Construtor.AdicionarPoste(s.Obra, bloco, textos, s.Regras);
                     Aplicacao.Msg(p.Numero + ": " + (p.TemAnotacao ? p.AtivoLido : "(sem anotação)") + " [" + p.Operacao + "]"
                                   + (p.Estado != Estados.Ok ? " — " + string.Join("; ", p.Mensagens.ToArray()) : ""));
                     Mudou(s, true);
@@ -367,6 +482,7 @@ namespace OrcamentoNanoCAD
         {
             Rodar("ORC_VAO", s =>
             {
+                if (s.EnviandoAnotacoes) return;
                 PrepararConstrucao(s);
                 Editor ed = s.Doc.Editor;
                 while (true)
@@ -383,7 +499,9 @@ namespace OrcamentoNanoCAD
                     // o plugin sugere os postes das pontas; o usuário confirma (Enter) ou troca (número, ou "-" para nenhum)
                     if (PedirPoste(ed, "\nPoste da ponta A", s.Obra, a, out a) < 0) break;
                     if (PedirPoste(ed, "\nPoste da ponta B", s.Obra, b, out b) < 0) break;
-                    Vao v = Construtor.AdicionarVao(s.Obra, linha, textos, a, b, s.Regras, () => TextosDoDesenho(s));
+                    Vao v = s.Obra.Modo == "construir" ?
+                        MontagemManual.AdicionarVao(s.Obra, linha, textos, a, b, s.Regras, () => TextosDoDesenho(s)) :
+                        Construtor.AdicionarVao(s.Obra, linha, textos, a, b, s.Regras, () => TextosDoDesenho(s));
                     Aplicacao.Msg(v.Numero + ": " + (v.TemAnotacao ? v.Ativo : "(sem anotação)") + " " + (v.PosteA ?? "—") + " → " + (v.PosteB ?? "—"));
                     Mudou(s, true);
                 }
@@ -519,7 +637,8 @@ namespace OrcamentoNanoCAD
 
         internal static void AplicarLote(Sessao s, List<Elemento> itens, string operacao, bool alterarLayer)
         {
-            if (s.Doc != Aplicacao.Doc() || !s.Regras.Operacoes().Contains(operacao) || itens.Any(e => s.Obra.PorNumero(e.Numero) != e)) return;
+            if (s.Doc != Aplicacao.Doc() || s.EnviandoAnotacoes || !s.Regras.Operacoes().Contains(operacao) ||
+                itens.Any(e => s.Obra.PorNumero(e.Numero) != e || e.Bloqueada || e.EnviadaNaMontagem)) return;
             try
             {
                 if (alterarLayer)
@@ -552,9 +671,14 @@ namespace OrcamentoNanoCAD
         {
             Rodar("ORC_EDITAR", s =>
             {
-                if (!PrecisaObra(s)) return;
+                if (!PrecisaObra(s) || s.EnviandoAnotacoes) return;
                 Elemento e = PedirElemento(s, "Ajustar");
                 if (e == null) return;
+                if (e.Bloqueada || e.EnviadaNaMontagem)
+                {
+                    Aplicacao.Msg("A anotação está bloqueada ou já foi enviada. Consulte o editor da montagem.");
+                    return;
+                }
                 Zoom(s, e);
                 using (TelaElemento t = new TelaElemento(s.Obra, e, s.Regras, s.Obra.Modo == "construir" || e.Manual))
                 {
@@ -808,6 +932,7 @@ namespace OrcamentoNanoCAD
 
         private static void NovaLinha(Sessao s, bool cabo)
         {
+            if (s.EnviandoAnotacoes) return;
             if (s.Obra == null) PrepararConstrucao(s);
             string ativo = "", operacao = null;
             Construtor.LeituraDeTexto lido = null;

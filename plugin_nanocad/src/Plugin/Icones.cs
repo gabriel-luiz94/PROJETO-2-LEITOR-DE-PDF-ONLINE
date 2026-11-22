@@ -76,6 +76,20 @@ namespace OrcamentoNanoCAD.UI
             {
                 int lado = Math.Min(16, area.Height - 4);
                 Rectangle q = new Rectangle(area.X + (Math.Min(area.Width, 28) - lado) / 2, area.Y + (area.Height - lado) / 2, lado, lado);
+                if (codigo.StartsWith("cor:#"))
+                {
+                    int rgb;
+                    string hex = codigo.Substring(5);
+                    if (hex.Length == 6 && int.TryParse(hex, System.Globalization.NumberStyles.HexNumber,
+                        System.Globalization.CultureInfo.InvariantCulture, out rgb))
+                    {
+                        q.Inflate(-2, -2);
+                        using (SolidBrush f = new SolidBrush(Color.FromArgb(255, (rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255)))
+                            g.FillEllipse(f, q);
+                        using (Pen p = new Pen(Visual.Suave)) g.DrawEllipse(p, q);
+                        return true;
+                    }
+                }
                 if (codigo.StartsWith("estado:")) { Estado(g, q, codigo.Substring(7)); return true; }
                 if (codigo.StartsWith("rede:"))
                 {

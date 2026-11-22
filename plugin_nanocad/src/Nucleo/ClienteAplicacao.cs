@@ -271,11 +271,13 @@ namespace OrcamentoNanoCAD.Nucleo
             return Chamar("GET", "/api/plugin/regras?projeto=" + Q(projeto), null);
         }
 
-        public JObj LerDxf(string projeto, string arquivo)
+        public JObj LerDxf(string projeto, string arquivo, IList<Ponto> regiao = null)
         {
             ITransporteArquivoHttp transporte = _http as ITransporteArquivoHttp;
             if (transporte == null) throw new ErroAplicacao(0, "Transporte de DXF indisponível.");
             string url = Conexao.Base + "/api/plugin/ler-dxf?projeto=" + Q(projeto);
+            if (regiao != null)
+                url += "&regiao=" + Q(Json.Escrever(regiao.Select(p => (object)new List<object> { p.X, p.Y }).ToList(), false));
             RespostaHttp r = transporte.EnviarArquivo(url, arquivo, Conexao.Token, 180000);
             if (r.Status == 401 && Renovar()) r = transporte.EnviarArquivo(url, arquivo, Conexao.Token, 180000);
             if (r.Status != 200) throw Erro(r);
@@ -283,6 +285,8 @@ namespace OrcamentoNanoCAD.Nucleo
             JObj origem = resposta == null ? null : resposta.Obj("projeto");
             if (origem == null || origem.Str("codigo") != projeto || resposta.Lista("linhas") == null || string.IsNullOrEmpty(resposta.Str("regras_leitor")))
                 throw new ErroAplicacao(200, "A resposta do Leitor DXF não corresponde ao projeto.");
+            if (regiao != null && !resposta.Bool("regiao", false))
+                throw new ErroAplicacao(200, "Atualize o OrçaCore para ler por região.");
             return resposta;
         }
 

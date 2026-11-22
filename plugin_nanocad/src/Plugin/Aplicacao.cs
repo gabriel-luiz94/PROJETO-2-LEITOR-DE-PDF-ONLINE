@@ -177,6 +177,9 @@ namespace OrcamentoNanoCAD
         public Obra Obra;
         public RegrasProjeto Regras;
         public bool Modificada;
+        public List<Ponto> UltimaRegiao;
+        public bool EnviandoAnotacoes;
+        public string LoteAnotacoes, ConteudoAnotacoes;
         public bool MarcasVisiveis = true;
         public readonly Marcas Marcas = new Marcas();
         public bool AnaliseCores;
@@ -235,7 +238,12 @@ namespace OrcamentoNanoCAD
         public void Atualizar()
         {
             if (Obra == null) return;
-            try { if (MarcasVisiveis) Marcas.Mostrar(Obra, Regras, AnaliseCores); else Marcas.Limpar(); }
+            try { if (MarcasVisiveis)
+                {
+                    Marcas.Mostrar(Obra, Regras, AnaliseCores);
+                    if (Obra.Modo == "construir") Marcas.RegiaoFechada(UltimaRegiao, Math.Max(0.01, Obra.AlturaTexto / 4.0));
+                }
+                else Marcas.Limpar(); }
             catch (System.Exception e) { Aplicacao.Msg("Marcas na tela indisponíveis: " + e.Message); }
             UI.PainelObra.AtualizarSeAberto(this);
         }

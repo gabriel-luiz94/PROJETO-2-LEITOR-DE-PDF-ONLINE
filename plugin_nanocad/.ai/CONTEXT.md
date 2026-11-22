@@ -36,6 +36,8 @@ Contrato do arquivo: [ADR-002](decisions/ADR-002-contrato-obra-json.md).
 5. **Salvar**: a obra vai para o DWG (dicionário `ORCAMENTO_LEITOR`) e para `<desenho>.obra.json` na pasta do desenho. **Reler** = do zero; **Atualizar** = relê mantendo os ajustes.
 6. Na aplicação: projeto selecionado → Carregar Obra → importar o `.obra.json` → orçamento.
 
+Na montagem manual, o plugin usa as regras do projeto selecionado para ler a área desenhada, mantendo a geometria inteira dos vãos que cruzam o perímetro. O usuário revisa texto, operação e marcas de cada linha e pode enviar o lote à obra aberta no OrçaCore. [TASK-036](tasks/TASK-036-22-11-2026.md).
+
 ## 4. Versões do nanoCAD
 
 | Versão | Runtime | Entrega |

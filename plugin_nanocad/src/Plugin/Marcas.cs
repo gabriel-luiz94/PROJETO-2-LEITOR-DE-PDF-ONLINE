@@ -109,6 +109,24 @@ namespace OrcamentoNanoCAD
         }
 #endif
 
+        public void ContornoRegiao(IList<Ponto> vertices, double passo)
+        {
+            // Desenha apenas a última aresta enquanto o CAD solicita os pontos.
+            if (vertices.Count < 2) return;
+            Ponto a = vertices[vertices.Count - 2], b = vertices[vertices.Count - 1];
+            Tracejado(new Point3d(a.X, a.Y, 0), new Point3d(b.X, b.Y, 0), passo, 30);
+        }
+
+        public void RegiaoFechada(IList<Ponto> vertices, double passo)
+        {
+            if (vertices == null || vertices.Count < 3) return;
+            for (int i = 0; i < vertices.Count; i++)
+            {
+                Ponto a = vertices[i], b = vertices[(i + 1) % vertices.Count];
+                Tracejado(new Point3d(a.X, a.Y, 0), new Point3d(b.X, b.Y, 0), passo, 30);
+            }
+        }
+
         private void Tracejado(Point3d a, Point3d b, double passo, short cor)
         {
             double dist = a.DistanceTo(b);

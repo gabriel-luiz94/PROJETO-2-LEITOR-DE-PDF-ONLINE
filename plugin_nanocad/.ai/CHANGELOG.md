@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-22 — 0.14.0
+
+Montagem manual com polígono, limpeza e editor de anotações. Postes agrupam pelo layer, cor e operação. A área de revisão tem envio incremental à obra aberta no OrçaCore. [TASK-036](tasks/TASK-036-22-11-2026.md).
+
 ## 2026-11-20 — 0.13.1
 
 Ler projeto, reler e diagnosticar usam o DXF ou DWG ativo. DWGs e desenhos com alterações em memória são exportados automaticamente para um DXF temporário e seguem para o mesmo Leitor do OrçaCore. [TASK-035](tasks/TASK-035-20-11-2026.md).

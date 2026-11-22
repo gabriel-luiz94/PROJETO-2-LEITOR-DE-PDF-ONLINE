@@ -27,6 +27,17 @@ namespace OrcamentoNanoCAD
             catch (Exception) { return null; }
         }
 
+        public static string AcrescentarAnotacoes(string chave, JObj envelope, string lote)
+        {
+            ProgramaInstalado p = Registrado();
+            if (p == null) return "Abra a obra de destino no OrçaCore deste computador.";
+            var http = new TransporteHttp();
+            if (!ProgramaLocal.Aberto(http, p.Porta)) return "Abra a obra de destino no OrçaCore deste computador.";
+            if (string.IsNullOrEmpty(p.ChaveAnotacoes)) return "Atualize ou reinicie o OrçaCore para receber anotações.";
+            if (p.Pid > 0) { try { AllowSetForegroundWindow(p.Pid); } catch (Exception) { } }
+            return ProgramaLocal.EntregarAnotacoes(http, p.Porta, p.ChaveAnotacoes, chave, envelope, lote);
+        }
+
         /// <summary>TASK-020: abre o projeto <desenho>.obra no OrçaCore deste computador. Aberto: entrega o caminho e a janela dele vem para a
         /// frente com o projeto (Abrir/Mesclar/Sobrescrever, se já houver dados na tela). Fechado: abre o .exe já com o projeto.
         /// Sem o programa instalado: o projeto fica na pasta do desenho (abrir à mão no OrçaCore).</summary>

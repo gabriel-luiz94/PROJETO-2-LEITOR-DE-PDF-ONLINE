@@ -12,7 +12,7 @@ namespace OrcamentoNanoCAD.Nucleo
 
         public static bool PosteParticipa(Poste p)
         {
-            return p != null && p.TemAnotacao && !p.Excluido && RegrasVinculo.ParticipaVinculo(p.Operacao);
+            return p != null && p.TemAnotacao && !p.Excluido && !p.ForaDosCalculos && RegrasVinculo.ParticipaVinculo(p.Operacao);
         }
 
         private static void PrepararCabos(Obra obra, RegrasProjeto regras)
@@ -145,6 +145,7 @@ namespace OrcamentoNanoCAD.Nucleo
             {
                 el.Estado = Estados.Ok;
                 el.Mensagens.Clear();
+                if (el.ForaDosCalculos) continue;
                 foreach (string m in el.MensagensFixas) el.Marcar(Estados.Conferir, m);
                 foreach (string m in el.MensagensBase) el.Marcar(Estados.Conferir, m);
             }
@@ -152,7 +153,7 @@ namespace OrcamentoNanoCAD.Nucleo
                 if (el.Excluido) { el.Mensagens.Clear(); el.Estado = Estados.Ok; el.Mensagens.Add("fora da obra (excluído por você)"); }
             foreach (Poste p in obra.Postes)
             {
-                if (p.Excluido) continue;
+                if (p.Excluido || p.ForaDosCalculos) continue;
                 if (string.IsNullOrEmpty(p.Handle)) p.Marcar(Estados.Conferir, "anotação sem bloco de poste");
                 if (!p.TemAnotacao) { p.Marcar(Estados.Conferir, "poste sem anotação"); continue; }
                 if (!RegrasVinculo.ParticipaVinculo(p.Operacao)) { p.Mensagens.Add("R não vincula"); continue; }
@@ -168,7 +169,7 @@ namespace OrcamentoNanoCAD.Nucleo
             }
             foreach (Vao v in obra.Vaos)
             {
-                if (v.Excluido) continue;
+                if (v.Excluido || v.ForaDosCalculos) continue;
                 bool solta = v.PosteA == null || v.PosteB == null;
                 if (!v.TemAnotacao)
                 {
@@ -188,7 +189,7 @@ namespace OrcamentoNanoCAD.Nucleo
                     v.Marcar(Estados.Conferir, "vínculo " + tem + "/" + v.InfoCabo.Pontas + (v.MotivoVinculo != null ? " — " + v.MotivoVinculo : ""));
             }
             foreach (Avulso a in obra.Avulsos)
-                if (!a.Excluido && a.PertoDe != null && a.PertoDe.Numero != null)
+                if (!a.Excluido && !a.ForaDosCalculos && a.PertoDe != null && a.PertoDe.Numero != null)
                     a.Marcar(Estados.Conferir, "outra anotação perto de " + a.PertoDe.Numero + ", que já tem a sua");
         }
 

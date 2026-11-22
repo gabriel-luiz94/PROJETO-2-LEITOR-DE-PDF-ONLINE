@@ -19,7 +19,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public const string Formato = "leitor-obra";
         public const int Versao = 1;
         public const int VersaoCad = 1;
-        public const string VersaoPlugin = "0.13.1";
+        public const string VersaoPlugin = "0.14.0";
         private const int MaxPontosGeo = 60;
 
         public static string NomeDoArquivo(string desenho)
@@ -56,7 +56,15 @@ namespace OrcamentoNanoCAD.Nucleo
             JObj l = new JObj();
             l.Set("entidade", string.IsNullOrEmpty(e.Entidade) ? "0" : e.Entidade);
             l.Set("operacao", e.Operacao ?? "");
+            MarcasDaLinha(l, e);
             return l;
+        }
+
+        private static void MarcasDaLinha(JObj o, Elemento e)
+        {
+            if (e.Comentario) o.Set("comentario", true);
+            if (e.Congelada || e.Comentario) o.Set("congelada", true);
+            if (e.Bloqueada) o.Set("bloqueada", true);
         }
 
         private static void Coordenadas(JObj l, Elemento e)
@@ -104,6 +112,12 @@ namespace OrcamentoNanoCAD.Nucleo
                 Vao v = e as Vao;
                 if (v == null) continue;
                 if (v.Pontos.Count >= 2) { l.Set("_geo", Geo(v.Pontos)); if (!string.IsNullOrEmpty(v.Tipo)) l.Set("_geoTipo", v.Tipo); }
+                if (obra.Modo == "construir")
+                {
+                    var pontas = new[] { v.PosteA, v.PosteB }.Where(p => !string.IsNullOrEmpty(p) && linhas.ContainsKey(p))
+                        .Select(p => (object)linhas[p]).Distinct().ToList();
+                    if (pontas.Count > 0) l.Set("vinculoPostes", pontas);
+                }
                 List<object> ids = new List<object>();
                 foreach (Vinculo vi in v.Vinculos)
                     if (linhas.ContainsKey(vi.Poste)) ids.Add(IdUnidade(linhas[vi.Poste], vi.K));
@@ -144,6 +158,8 @@ namespace OrcamentoNanoCAD.Nucleo
         {
             JObj o = new JObj();
             o.Set("numero", e.Numero);
+            MarcasDaLinha(o, e);
+            if (e.FontesMontagem.Count > 0) o.Set("fontesMontagem", e.FontesMontagem.Cast<object>().ToList());
             if (e.OrigemMetros != null)
             {
                 TextoDesenho t = e.OrigemMetros;
@@ -273,6 +289,10 @@ namespace OrcamentoNanoCAD.Nucleo
             e.ParteTexto = (int)(o.Num("parteTexto") ?? 0);
             e.Candidatos = Json.ListaDeTextos(o["candidatos"]);
             e.Numero = o.Str("numero");
+            e.Comentario = o.Bool("comentario", false);
+            e.Congelada = o.Bool("congelada", false);
+            e.Bloqueada = o.Bool("bloqueada", false);
+            e.FontesMontagem = Json.ListaDeTextos(o["fontesMontagem"]);
             e.TextoHandle = o.Str("texto");
             e.TextoOriginal = o.Str("textoOriginal") ?? "";
             e.LayerAplicada = o.Str("layerAplicada");

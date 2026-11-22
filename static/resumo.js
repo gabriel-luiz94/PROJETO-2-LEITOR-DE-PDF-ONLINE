@@ -3129,17 +3129,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /** Acrescenta as linhas da obra às tabelas atuais (um passo de histórico). */
-    function adicionarObraAoProjeto(snap) {
+    function adicionarObraAoProjeto(snap, anotacoesNanoCAD = false) {
         if (!snap) { showToast('Dados da obra inválidos.'); return false; }
         baselineManual = null;
         pushHistory();  // snapshot ANTES de adicionar
+        const deslocamento = tableStates.outros.data.length;
+        const qtdOutros = linhasDoSnap(snap, 'outros').length;
         ['cabos', 'outros'].forEach(type => {
             const linhas = linhasDoSnap(snap, type);
             if (!linhas.length) return;
             const novas = linhas.map(row => JSON.parse(JSON.stringify(row)));
             if (window.GruposLinhas) window.GruposLinhas.reidentificar(novas);                   // TASK-195: grupos da obra ganham ids novos (a mesma obra pode entrar duas vezes)
+            if (anotacoesNanoCAD && type === 'cabos') {
+                for (const row of novas) {
+                    for (const campo of ['vinculoEstruturas', 'vinculoPostes']) {
+                        if (Array.isArray(row[campo])) row[campo] = row[campo]
+                            .filter(id => Number.isFinite(id) && id >= 0 && Math.floor(id) < qtdOutros)
+                            .map(id => Number((id + deslocamento).toFixed(2)));
+                    }
+                }
+                recalcAllQtdAtivos(novas);
+            }
             novas.forEach(row => tableStates[type].data.push(row));
-            if (type === 'cabos') recalcAllQtdAtivos();
+            if (type === 'cabos' && !anotacoesNanoCAD) recalcAllQtdAtivos();
             renderTable(type);
             refreshAllFilters(type);
         });
@@ -7389,19 +7401,49 @@ window.handleTotPaste = function(e, index) {
         window.ResumoLayout?.mostrarTabelas(...tabelas);
     }
 
-    async function receberObraDoPlugin(pend) {
+    async function receberAnotacoesDoPlugin(url, lote, entrega) {
+        if (entrega.estado !== 'aguardando') return;
+        const env = entrega.envelope;
+        let estado = 'erro';
+        if (!window.GridRProjeto?.ativo()) {
+            estado = 'abra_resumo';
+            showToast('Abra a obra de destino no OrçaCore e reenvie as anotações.');
+        } else if (String(env.projeto) !== localStorage.getItem('projeto_selecionado_codigo')) {
+            estado = 'outro_projeto';
+            showToast('O projeto selecionado difere do projeto enviado pelo nanoCAD.');
+        } else {
+            const recibo = 'orcacore:anotacoes:' + lote;
+            if (sessionStorage.getItem(recibo) || adicionarObraAoProjeto(env.dados, true)) {
+                sessionStorage.setItem(recibo, '1');
+                estado = 'adicionado';
+                window.GridRProjeto.marcarSujo(true);
+                mostrarTabelasDoResumo('cabos', 'outros');
+                updateCounters();
+                updateHistoryUI();
+                showToast('Anotações acrescentadas à obra aberta. Ctrl+Z desfaz.');
+            }
+        }
+        await fetch(url + '/confirmar-anotacoes?estado=' + estado, { method: 'POST' });
+    }
+
+    async function receberObraDoPlugin(pend, anotacoes) {
         if (!pend) return;
         if (!localStorage.getItem('auth_token')) {
+            if (anotacoes) return;
             window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
             return;
         }
         try {
-            // O login por sessão expirada precisa voltar ao mesmo pedido.
-            window.history.replaceState(null, '', '/resumo?plugin_pendente=' + encodeURIComponent(pend));
+            if (!anotacoes) window.history.replaceState(null, '', '/resumo?plugin_pendente=' + encodeURIComponent(pend));
             const url = `/api/plugin/pendente/${encodeURIComponent(pend)}`;
             const r = await fetch(url);
             const d = await r.json().catch(() => ({}));
             if (!r.ok) { showToast(d.detail || `Não consegui receber o projeto do nanoCAD (HTTP ${r.status}).`); return; }
+            if (d.modo === 'anotacoes') {
+                await receberAnotacoesDoPlugin(url, pend, d);
+                return;
+            }
+            if (anotacoes) return;
             const limparPendente = () => {
                 try { window.history.replaceState(null, '', window.location.pathname); } catch (e) { /* navegador antigo */ }
             };
@@ -7445,8 +7487,8 @@ window.handleTotPaste = function(e, index) {
     }
     // O desktop entrega na própria tela para preservar as edições e os diálogos do projeto.
     let recebendoPlugin = Promise.resolve();
-    window.abrirPendenteNanoCAD = pend => {
-        recebendoPlugin = recebendoPlugin.then(() => receberObraDoPlugin(pend));
+    window.abrirPendenteNanoCAD = (pend, anotacoes = false) => {
+        recebendoPlugin = recebendoPlugin.then(() => receberObraDoPlugin(pend, anotacoes));
     };
     window.abrirPendenteNanoCAD(new URLSearchParams(window.location.search).get('plugin_pendente'));
 
