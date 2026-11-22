@@ -109,3 +109,72 @@ def test_resposta_do_cad_precede_a_navegacao_da_janela(monkeypatch):
 
     asyncio.run(JSONResponse(resposta, background=tarefas)(req.scope, None, enviar))
     assert ordem == ["resposta", "janela"]
+
+
+def test_anotacoes_usam_credencial_local_e_confirmacao_do_resumo(client, monkeypatch):
+    lote = "37ecfa0871494619846156d41515fd19"
+    avisos = []
+    monkeypatch.setattr(janela_desktop, "mostrar", lambda url, porta=None, somente_resumo=False:
+                        avisos.append((url, somente_resumo)) or True)
+    credencial = {"Authorization": "Bearer " + programa_local._chave_anotacoes}
+    caminho = "/api/plugin/receber-anotacoes"
+    env = dict(ENV, dados={"cabos": [{"entidade": "CABO", "ativo": "CAA 4 A 40 m", "operacao": "I",
+                                     "vinculoEstruturas": [0.01]}],
+                           "outros": [{"entidade": "0", "ativo": "Nota do poste", "operacao": "*M",
+                                       "comentario": True, "bloqueada": True}]})
+    payload = {"chave": "desenho.dwg", "lote": lote, "envelope": env}
+    assert client.post(caminho, json=payload).status_code == 403
+    assert client.post(caminho, json=payload, headers=credencial).json() == {"id": lote}
+    assert avisos == [(programa_local.url_pendente(lote), True)]
+    pendente = f"/api/plugin/pendente/{lote}"
+    assert client.get(pendente).status_code == 401
+    d = client.get(pendente, headers=cab()).json()
+    assert d["modo"] == "anotacoes" and d["estado"] == "aguardando"
+    assert d["envelope"]["dados"]["outros"][0]["congelada"] is True
+    assert d["envelope"]["dados"]["outros"][0]["bloqueada"] is True
+    assert d["envelope"]["dados"]["cabos"][0]["vinculoEstruturas"] == [0.01]
+    confirmar = pendente + "/confirmar-anotacoes?estado=adicionado"
+    assert client.post(confirmar).status_code == 401
+    assert client.post(confirmar, headers=cab()).status_code == 200
+    status = "/api/plugin/status-anotacoes?lote=" + lote
+    assert client.get(status).status_code == 403
+    assert client.get(status, headers=credencial).json() == {"estado": "adicionado"}
+    assert client.post(caminho, json=payload, headers=credencial).json() == {"id": lote}
+    assert len(avisos) == 1
+
+
+def test_acrescimo_no_resumo_preserva_as_linhas_existentes_e_remapeia_o_lote():
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node indisponível")
+    fonte = (RAIZ / "static" / "resumo.js").read_text(encoding="utf-8")
+    inicio = fonte.index("    function adicionarObraAoProjeto(")
+    fim = fonte.index("    /** Acrescenta as linhas da obra com sinal invertido", inicio)
+    preparar = """
+const assert = require('node:assert/strict');
+const antigos = [{ ativo: 'Rua A', qtdAtivos: 9, vinculoEstruturas: [0] }];
+const tableStates = { cabos: { data: antigos.slice() }, outros: { data: [{ ativo: 'Poste A' }] } };
+const window = {};
+let baselineManual, passos = 0;
+const pushHistory = () => { passos++; };
+const linhasDoSnap = (snap, tipo) => snap[tipo];
+const recalcAllQtdAtivos = itens => { itens.forEach(item => item.qtdAtivos = 1); };
+const renderTable = () => {}, refreshAllFilters = () => {}, buildAtivoSets = () => {}, buildDataLists = () => {};
+"""
+    ver = """
+const lote = { cabos: [{ ativo: 'Novo cabo', vinculoEstruturas: [0.02, 8], vinculoPostes: [0], bloqueada: true }],
+               outros: [{ ativo: 'Anotação do poste B', comentario: true, congelada: true }] };
+assert.equal(adicionarObraAoProjeto(lote, true), true);
+assert.equal(tableStates.cabos.data[0], antigos[0]);
+assert.equal(tableStates.cabos.data[0].qtdAtivos, 9);
+assert.deepEqual(tableStates.cabos.data[0].vinculoEstruturas, [0]);
+assert.deepEqual(tableStates.cabos.data[1].vinculoEstruturas, [1.02]);
+assert.deepEqual(tableStates.cabos.data[1].vinculoPostes, [1]);
+assert.equal(tableStates.cabos.data[1].bloqueada, true);
+assert.equal(tableStates.outros.data[1].congelada, true);
+assert.equal(passos, 1);
+"""
+    subprocess.run([node, "-e", preparar + fonte[inicio:fim] + ver], check=True, timeout=10)

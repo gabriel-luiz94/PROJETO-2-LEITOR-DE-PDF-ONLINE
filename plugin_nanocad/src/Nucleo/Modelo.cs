@@ -118,6 +118,10 @@ namespace OrcamentoNanoCAD.Nucleo
         public List<string> MensagensBase = new List<string>();    // ... e as mensagens (vêm de /api/plugin/conferir)
 
         public string AtivoDoDesenho;                               // TASK-017: ativo como veio do desenho, quando o usuário corrigiu (null = não corrigido)
+        public bool Comentario, Congelada, Bloqueada;
+        public bool EnviadaNaMontagem;
+        public bool ForaDosCalculos { get { return Congelada || Comentario; } }
+        public List<string> FontesMontagem = new List<string>();
         public bool Excluido;                                       // TASK-017: tirado da obra pelo usuário (fica no desenho; não volta ao Atualizar)
         public bool AtivoEditado { get { return AtivoDoDesenho != null; } }
 
@@ -175,7 +179,7 @@ namespace OrcamentoNanoCAD.Nucleo
             }
         }
 
-        public bool ParticipaVinculo { get { return TemAnotacao && !Excluido && RegrasVinculo.ParticipaVinculo(Operacao); } }
+        public bool ParticipaVinculo { get { return TemAnotacao && !Excluido && !ForaDosCalculos && RegrasVinculo.ParticipaVinculo(Operacao); } }
 
         public IEnumerable<Vinculo> Vinculos
         {

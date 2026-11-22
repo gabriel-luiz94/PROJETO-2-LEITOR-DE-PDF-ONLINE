@@ -6,6 +6,10 @@
 
 ---
 
+## Montagem manual e entrega incremental do nanoCAD · TASK-218
+
+O plugin 0.14.0 tem leitura por região e editor de anotações. A entrega acrescenta linhas em um passo de histórico do Resumo. A rota e a lógica de adição foram testadas em Linux. A validação no nanoCAD em Windows está pendente. [TASK-218](tasks/TASK-218-22-11-2026.md).
+
 ## Segurança e prazo do Assistente de IA · TASK-217
 
 As chaves OpenAI são limitadas ao destino correspondente, e o JWT do desktop usa segredo persistente por perfil. Servidores exigem segredo próprio. O teste do reserva verifica a ida e a volta da ferramenta, com o DeepSeek usando `deepseek-flash`. O prazo encerra o chat com erro e interrompe o trabalho nos pontos de checagem dos cálculos. A validação com uma chave real do DeepSeek segue pendente. [TASK-217](tasks/TASK-217-21-11-2026.md).

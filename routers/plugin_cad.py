@@ -117,11 +117,12 @@ _LIMITE_DXF = 100 * 1024 * 1024
 
 
 @router.post("/ler-dxf")
-async def ler_dxf_plugin(request: Request, projeto: str):
+async def ler_dxf_plugin(request: Request, projeto: str, regiao: Optional[str] = None):
     """Recebe o DXF de referência. A extração e o motor são os do Leitor da aplicação."""
     from tempfile import TemporaryFile
     from starlette.concurrency import run_in_threadpool
 
+    poligono = _poligono_leitura(regiao) if regiao is not None else None
     with TemporaryFile() as dxf:
         tamanho = 0
         async for bloco in request.stream():
@@ -132,10 +133,40 @@ async def ler_dxf_plugin(request: Request, projeto: str):
         if not tamanho:
             raise HTTPException(status_code=400, detail="DXF vazio.")
         dxf.seek(0)
-        return await run_in_threadpool(_ler_dxf_plugin, dxf, projeto)
+        return await run_in_threadpool(_ler_dxf_plugin, dxf, projeto, poligono)
 
 
-def _ler_dxf_plugin(dxf, projeto):
+def _poligono_leitura(valor):
+    import json
+    import math
+
+    try:
+        vertices = json.loads(valor)
+        valido = isinstance(vertices, list) and 3 <= len(vertices) <= 64 and all(
+            isinstance(p, list) and len(p) == 2 and all(
+                type(x) in (int, float) and math.isfinite(x) for x in p) for p in vertices)
+    except (ValueError, OverflowError):
+        valido = False
+    if not valido:
+        raise HTTPException(status_code=400, detail="Informe uma região com 3 a 64 vértices válidos.")
+    return vertices
+
+
+def _texto_na_regiao(item, poligono):
+    x, y = item.get("_x"), item.get("_y")
+    if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+        return False
+    dentro = False
+    for (ax, ay), (bx, by) in zip(poligono, poligono[1:] + poligono[:1]):
+        if (abs((x - ax) * (by - ay) - (y - ay) * (bx - ax)) <= 1e-8
+                and min(ax, bx) <= x <= max(ax, bx) and min(ay, by) <= y <= max(ay, by)):
+            return True
+        if (ay > y) != (by > y) and x < (bx - ax) * (y - ay) / (by - ay) + ax:
+            dentro = not dentro
+    return dentro
+
+
+def _ler_dxf_plugin(dxf, projeto, poligono=None):
     from routers.regras_leitor import _get_regras
     from routers.upload import _extrair_de_bytes_dxf, _leitura_do_projeto
     from services.autonomo.leitor_js import ErroLeitorJS, obter_leitor
@@ -151,6 +182,8 @@ def _ler_dxf_plugin(dxf, projeto):
     except Exception as e:
         raise HTTPException(status_code=400, detail="Não foi possível extrair os textos do DXF.") from e
     try:
+        if poligono is not None:
+            itens = [item for item in itens if _texto_na_regiao(item, poligono)]
         motor = obter_leitor()
         resultados = motor.processar_lote(itens, proc, cls)
         linhas = [dict(item, **r) for item, r in zip(itens, resultados, strict=True)]
@@ -159,7 +192,8 @@ def _ler_dxf_plugin(dxf, projeto):
         if reprocessar:
             for i, r in zip(reprocessar, motor.processar_lote(linhas, proc, cls, "resumo", reprocessar), strict=True):
                 linhas[i].update(r)
-        return {"projeto": p, "linhas": linhas, "regras_leitor": _hash([proc, cls])}
+        return {"projeto": p, "linhas": linhas, "regras_leitor": _hash([proc, cls]),
+                **({"regiao": True} if poligono is not None else {})}
     except ErroLeitorJS as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
 
@@ -532,12 +566,91 @@ def receber_obra(payload: ReceberPayload, request: Request, tarefas: BackgroundT
     return {"id": i, "url": url, "janela": janela}
 
 
+class AnotacoesPayload(BaseModel):
+    chave: str
+    lote: str
+    envelope: Dict[str, Any]
+
+
+def _exigir_desktop_local(request: Request):
+    if not _desktop() or not _do_proprio_computador(request):
+        raise HTTPException(status_code=403, detail="A entrega de anotações é local ao OrçaCore instalado.")
+
+
+def _avisar_anotacoes(i, porta):
+    from services import janela_desktop, programa_local
+
+    if not janela_desktop.mostrar(programa_local.url_pendente(i), porta, somente_resumo=True):
+        programa_local.confirmar_anotacoes(i, "abra_resumo")
+
+
+@router.post("/receber-anotacoes")
+def receber_anotacoes(payload: AnotacoesPayload, request: Request, tarefas: BackgroundTasks):
+    import re
+    from services import obras_arquivo, programa_local
+
+    _exigir_desktop_local(request)
+    if not programa_local.autorizar_anotacoes(request.headers.get("Authorization", "")):
+        raise HTTPException(status_code=403, detail="Credencial local de anotações inválida. Reinicie o OrçaCore.")
+    if not re.fullmatch(r"[0-9a-f]{32}", payload.lote):
+        raise HTTPException(status_code=400, detail="Identificador de lote inválido.")
+    envelope = payload.envelope
+    erro = programa_local.validar(payload.chave, envelope)
+    if erro:
+        raise HTTPException(status_code=400, detail=erro)
+    if envelope.get("formato") != "leitor-obra" or envelope.get("versao") != 1:
+        raise HTTPException(status_code=400, detail="Formato de anotações incompatível.")
+    projeto = _projeto(str(envelope.get("projeto") or ""))
+    dados = obras_arquivo.normalizar_dados(envelope["dados"])
+    for tabela in ("cabos", "outros"):
+        originais = envelope["dados"].get(tabela, [])
+        if not isinstance(originais, list) or len(originais) != len(dados[tabela]) or any(
+                not linha.get("ativo", "").strip() for linha in dados[tabela]):
+            raise HTTPException(status_code=400, detail="O lote contém uma anotação vazia ou inválida.")
+    if not dados["cabos"] and not dados["outros"]:
+        raise HTTPException(status_code=400, detail="O lote de anotações está vazio.")
+    env = {"projeto": projeto["codigo"], "dados": dados}
+    i = programa_local.enfileirar_anotacoes(payload.chave, env, payload.lote)
+    if programa_local.pegar(i)["estado"] == "aguardando":
+        tarefas.add_task(_avisar_anotacoes, i, request.url.port)
+    return {"id": i}
+
+
+@router.get("/status-anotacoes")
+def status_anotacoes(lote: str, request: Request):
+    from services import programa_local
+
+    _exigir_desktop_local(request)
+    if not programa_local.autorizar_anotacoes(request.headers.get("Authorization", "")):
+        raise HTTPException(status_code=403, detail="Credencial local de anotações inválida.")
+    entrega = programa_local.pegar(lote)
+    if not entrega or entrega.get("modo") != "anotacoes":
+        raise HTTPException(status_code=404, detail="Lote de anotações indisponível.")
+    return JSONResponse({"estado": entrega["estado"]}, headers={"Cache-Control": "no-store"})
+
+
+@router.post("/pendente/{i}/confirmar-anotacoes")
+def confirmar_anotacoes(i: str, request: Request, estado: str):
+    from services import programa_local
+
+    _exigir_desktop_local(request)
+    if estado not in ("adicionado", "outro_projeto", "abra_resumo", "erro"):
+        raise HTTPException(status_code=400, detail="Estado de entrega inválido.")
+    if not programa_local.confirmar_anotacoes(i, estado):
+        raise HTTPException(status_code=404, detail="Lote de anotações indisponível.")
+    return {"ok": True}
+
+
 @router.get("/pendente/{i}")
-def obra_pendente(i: str):
+def obra_pendente(i: str, request: Request):
     from services import programa_local
     v = programa_local.pegar(i)
     if not v:
         raise HTTPException(status_code=404, detail="Obra do nanoCAD não encontrada (passou mais de 1 hora ou o programa foi reaberto). Envie de novo pelo plugin.")
+    if v.get("modo") == "anotacoes":
+        _exigir_desktop_local(request)
+        return JSONResponse({"modo": "anotacoes", "estado": v["estado"], "envelope": v["envelope"]},
+                            headers={"Cache-Control": "no-store"})
     if v.get("caminho"):
         try:
             p = _projeto(v.get("projeto") or "")

@@ -111,6 +111,8 @@ O Assistente usa um prazo comum para o contexto, chamadas de IA e as ferramentas
 
 ---
 
+A montagem manual usa POST /api/plugin/receber-anotacoes com credencial do registro local. A janela já autenticada lê o lote e confirma o resultado depois de acrescentar as linhas ao Resumo. A adição é um passo de histórico e o lote confirmado é idempotente durante a sessão. [TASK-218](tasks/TASK-218-22-11-2026.md).
+
 ## 3. Módulos e responsabilidades
 
 ### 3.1 Raiz

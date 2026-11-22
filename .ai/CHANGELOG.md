@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-22 — Montagem manual do nanoCAD
+
+O Leitor DXF aceita região no fluxo manual do plugin. O Resumo acrescenta as anotações revisadas à obra aberta e ajusta os vínculos do lote aos índices das tabelas de destino. [TASK-218](tasks/TASK-218-22-11-2026.md).
+
 ## 2026-11-21 — Segurança, prazo e DeepSeek no Assistente
 
 O chat protege a chave OpenAI compartilhada e valida os destinos alternativos. O DeepSeek passa a usar o modelo `deepseek-flash`, com teste do ciclo completo de ferramenta. O prazo esgotado gera erro e encerramento do chat. O servidor exige uma chave JWT própria, e o desktop gera a sua no perfil local. [TASK-217](tasks/TASK-217-21-11-2026.md).

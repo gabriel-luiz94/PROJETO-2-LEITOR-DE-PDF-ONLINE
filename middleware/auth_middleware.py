@@ -26,6 +26,8 @@ PUBLIC_ROUTES = {
     "/api/plugin/atualizacao",          # TASK-130: atualização automática do plugin do nanoCAD (versão + DLL, sem dados)
     "/api/plugin/atualizacao/arquivo",
     "/api/plugin/desktop",              # TASK-143: o plugin acha o OrçaCore (antes GridReader) aberto no computador
+    "/api/plugin/receber-anotacoes",     # entrega local; a aplicação autenticada decide se pode acrescentar
+    "/api/plugin/status-anotacoes",      # consulta local pelo identificador da entrega
     "/api/plugin/receber",              # TASK-143: o plugin entrega a obra (só do próprio computador, só no programa instalado)
     "/api/orcamento/dados",
     "/api/orcamento/calcular",

@@ -64,3 +64,25 @@ L.processar(o.itens, o.proc, o.cls, M).then(r => console.log(JSON.stringify([r.c
         ("ESTRUTURA", "I", "CE2")]
     assert resposta.json()["regras_leitor"]
     assert cliente.post(caminho, content=b"arquivo incorreto", headers=headers).status_code == 400
+
+
+def test_regiao_aplica_as_regras_depois_de_excluir_vizinhos_externos():
+    if not shutil.which("node"):
+        pytest.skip("Node indisponível")
+    database.init_db()
+    doc = ezdxf.new()
+    for texto, x, y in [("N3", 0, 0), ("N1", 20, 20), ("U4", 1, 0)]:
+        doc.modelspace().add_text(texto, dxfattribs={"insert": (x, y)})
+    arquivo = io.StringIO()
+    doc.write(arquivo)
+    headers = {"Authorization": "Bearer " + create_jwt_token("cad", "cad@example.com", "operador")}
+    cliente = TestClient(appmod.app)
+    rota = "/api/plugin/ler-dxf"
+    params = {"projeto": "027", "regiao": json.dumps([[-1, -1], [1, -1], [1, 1], [-1, 1]])}
+    resposta = cliente.post(rota, params=params, content=arquivo.getvalue().encode(), headers=headers)
+    assert resposta.status_code == 200, resposta.text
+    assert resposta.json()["regiao"] is True
+    assert {r["texto"] for r in resposta.json()["linhas"]} == {"N3", "U4"}
+    params["regiao"] = "[[1, 2]]"
+    resposta = cliente.post(rota, params=params, content=arquivo.getvalue().encode(), headers=headers)
+    assert resposta.status_code == 400

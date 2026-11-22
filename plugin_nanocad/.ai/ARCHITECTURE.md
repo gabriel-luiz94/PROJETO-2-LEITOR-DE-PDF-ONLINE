@@ -118,6 +118,8 @@ Sincronizador.Tique (timer 1 s) ──────────────▶ Cl
 - Guardado em `%APPDATA%\OrcamentoNanoCAD`: `conexao.json` (endereço, e-mail, intervalo; tokens cifrados com DPAPI do usuário)
   e `cache\<hash do endereço>\regras_<projeto>.json`.
 
+A montagem manual envia o polígono junto ao DXF ativo. A rota de leitura filtra os textos antes do processamento. MontagemManual seleciona as entidades, mantém as geometrias inteiras, agrupa anotações de poste e incorpora o resultado à sessão do CAD. O envio das linhas revisadas usa a entrega incremental do [ADR-006](decisions/ADR-006-entrega-incremental-de-anotacoes.md).
+
 ## 5. Compilação (ADR-004)
 
 | Alvo | Como | Referências do CAD |

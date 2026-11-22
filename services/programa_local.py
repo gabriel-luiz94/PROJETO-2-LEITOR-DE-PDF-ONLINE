@@ -13,8 +13,10 @@ TASK-163 (integração com o PROJETO DE TRABALHO): o plugin grava o projeto `<de
 (POST /api/plugin/receber {chave, caminho} · ou "--abrir-projeto <caminho>" com o programa fechado). A janela abre esse projeto pelo
 mesmo caminho do menu 📁 Projeto → Abrir (Abrir/Mesclar/Sobrescrever); nada é gravado no banco.
 """
+import hmac
 import json
 import os
+import secrets
 import sys
 import threading
 import time
@@ -26,6 +28,7 @@ VALIDADE_S = 3600
 LIMITE_BYTES = 20 * 1024 * 1024
 _pendentes: dict = {}
 _trava = threading.Lock()
+_chave_anotacoes = secrets.token_urlsafe(32)
 
 
 def pasta_dados() -> str:
@@ -44,7 +47,8 @@ def registrar(porta: int, versao: str) -> None:
     try:
         os.makedirs(pasta_dados(), exist_ok=True)
         with open(arquivo_registro(), "w", encoding="utf-8") as f:
-            json.dump({"exe": sys.executable, "porta": int(porta), "versao": versao, "pid": os.getpid()}, f, ensure_ascii=False, indent=2)
+            json.dump({"exe": sys.executable, "porta": int(porta), "versao": versao, "pid": os.getpid(),
+                       "anotacoes_chave": _chave_anotacoes}, f, ensure_ascii=False, indent=2)
     except OSError as e:
         logger.warning(f"Não deu para registrar o programa para o plugin do nanoCAD: {e}")
 
@@ -69,6 +73,32 @@ def guardar(chave: str, envelope: dict) -> str:
         i = uuid.uuid4().hex
         _pendentes[i] = {"chave": chave.strip(), "envelope": envelope, "quando": agora}
     return i
+
+
+def autorizar_anotacoes(authorization: str) -> bool:
+    return hmac.compare_digest(authorization.encode(), ("Bearer " + _chave_anotacoes).encode())
+
+
+def enfileirar_anotacoes(chave: str, envelope: dict, lote: str) -> str:
+    agora = time.time()
+    with _trava:
+        for antigo in [k for k, v in _pendentes.items() if agora - v["quando"] > VALIDADE_S]:
+            del _pendentes[antigo]
+        entrega = _pendentes.get(lote)
+        if entrega and entrega.get("modo") == "anotacoes" and entrega["estado"] in ("aguardando", "adicionado"):
+            return lote
+        _pendentes[lote] = {"chave": chave, "envelope": envelope, "modo": "anotacoes", "estado": "aguardando", "quando": agora}
+    return lote
+
+
+def confirmar_anotacoes(i: str, estado: str) -> bool:
+    with _trava:
+        entrega = _pendentes.get(i)
+        if not entrega or entrega.get("modo") != "anotacoes":
+            return False
+        if entrega["estado"] == "aguardando":
+            entrega["estado"] = estado
+        return True
 
 
 def validar_projeto(caminho) -> tuple:

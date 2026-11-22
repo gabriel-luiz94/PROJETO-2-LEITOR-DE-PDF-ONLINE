@@ -104,6 +104,8 @@ O Assistente de IA consulta a base e as regras do projeto. Em **Vinculação →
 
 O DeepSeek pode ser configurado como reserva do Assistente. O botão **Testar** consulta a tabela de Cabos vazia e verifica se o provedor responde após receber o resultado da ferramenta. A troca de provedor ou endereço do reserva pede a chave correspondente. [TASK-217](tasks/TASK-217-21-11-2026.md).
 
+A montagem manual do nanoCAD também pode acrescentar anotações revisadas à obra aberta. Cabos e Demais Ativos recebem as novas linhas e preservam os vínculos já existentes. [TASK-218](tasks/TASK-218-22-11-2026.md).
+
 O nanoCAD entrega ao OrçaCore o caminho do `.obra` local. A janela autenticada carrega as tabelas e a geometria pela API local e usa as regras do projeto para vincular cabos e estruturas por poste. [TASK-209](tasks/TASK-209-20-11-2026.md).
 
 No Resumo, a ação **Comparar** de Ler Projeto, Carregar Obra e Importar JSON usa a obra aberta como referência e apresenta as diferenças no preenchimento de Cabos e Outros. [TASK-211](tasks/TASK-211-20-11-2026.md).
