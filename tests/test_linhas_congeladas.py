@@ -147,7 +147,8 @@ def _deep_clone_efetivo():
     """O `deepClone` que vale em static/resumo.js é o ÚLTIMO declarado (o de cima, JSON, é sobrescrito): ele decide o que sobrevive a desfazer/refazer e ao salvar/abrir o projeto."""
     fonte = open(os.path.join(config.STATIC_DIR, "resumo.js"), encoding="utf-8").read()
     i = fonte.rindex("    function deepClone(obj) {")
-    return fonte[i:fonte.index("\n    }\n", i) + 6]
+    ajuda = fonte[fonte.index("    function idPontoValido("):][:fonte[fonte.index("    function idPontoValido("):].index("\n") + 1]          # deepClone usa este auxiliar (fica fora da função)
+    return ajuda + fonte[i:fonte.index("\n    }\n", i) + 6]
 
 
 @pytest.mark.skipif(not NODE, reason="node não instalado")

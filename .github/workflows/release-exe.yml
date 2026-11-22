@@ -123,5 +123,5 @@ jobs:
             gh release upload "$GITHUB_REF_NAME" "${arquivos[@]}" --clobber
           else
             gh release create "$GITHUB_REF_NAME" "${arquivos[@]}" --verify-tag \
-              --title "OrçaCore $GITHUB_REF_NAME" --generate-notes
+              --title "OrçaCore ${GITHUB_REF_NAME}" --generate-notes
           fi

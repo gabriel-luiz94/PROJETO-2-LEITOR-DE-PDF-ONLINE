@@ -345,6 +345,10 @@ async def serve_modal_montavel_ui_js():
 async def serve_orcamento_sap_js():
     return _serve_js("orcamento_sap.js")
 
+@app.get("/static/comparar_obras.js")
+async def serve_comparar_obras_js():
+    return _serve_js("comparar_obras.js")
+
 @app.get("/static/orcamento_comparar.js")
 async def serve_orcamento_comparar_js():
     return _serve_js("orcamento_comparar.js")
