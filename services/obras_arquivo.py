@@ -52,6 +52,8 @@ def _slots(v) -> bool:
 CAMPOS_VINCULO = {
     "textoOriginal": _texto, "fases": lambda v: _texto(v) or (_num(v) and not isinstance(v, float)), "tensao": _texto, "nivel": _texto,
     "entidadeManual": lambda v: isinstance(v, bool), "_x": _num, "_y": _num, "_geoTipo": _texto, "_geo": lambda v: _lista_de(v, _ponto),
+    "_mapaPoste": lambda v: _ponto(v) and all(0 <= n <= 1 for n in v),
+    "_mapaCabo": lambda v: _ponto(v) and all(-1 <= n <= 1 for n in v),
     "_poste": _ponto, "vinculoEstruturas": lambda v: _lista_de(v, _num), "vinculoOrigem": _texto, "vinculoPostes": lambda v: _lista_de(v, _num),          # "Cabos ⇄ Postes": linhas de Outros (postes) a que o cabo chega
     "estruturasFicticias": lambda v: _lista_de(v, _texto), "cabosFicticios": lambda v: _lista_de(v, _texto), "cabosFicticiosSlots": _slots,
     "congelada": lambda v: isinstance(v, bool), "bloqueada": lambda v: isinstance(v, bool), "comentario": lambda v: isinstance(v, bool),          # linha congelada (fora de totalizadora/orçamento/validação) e bloqueada (sem edição)

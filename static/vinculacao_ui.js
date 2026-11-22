@@ -6,7 +6,7 @@
 (function (raiz) {
     'use strict';
     const doc = raiz.document, VR = raiz.VinculacaoRegras;
-    let host = null, st = null, overlay = null, mapaAtualizar = null;
+    let host = null, st = null, overlay = null, mapaAtualizar = null, mapaDesmontar = null;
 
     const CSS = `
     .vz-ov{position:fixed;inset:0;background:#05080d;z-index:9000;display:flex;align-items:center;justify-content:center}
@@ -83,7 +83,22 @@
     .vz-grafo-legenda{display:flex;gap:10px}
     .vz-grafo-total{background:var(--g-panel);border:1px solid var(--g-border);border-radius:8px;padding:6px 12px;color:var(--g-muted);white-space:nowrap}
     .vz-grafo-total strong{color:var(--g-text);margin-right:5px;font-variant-numeric:tabular-nums}
+    .vz-grafo-area{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(205px,24%);gap:12px}
+    .vz-grafo-area.sem-lateral{grid-template-columns:minmax(0,1fr)}
     .vz-grafo-vista{border-radius:10px;border:1px solid var(--g-border);overflow:hidden}
+    .vz-grafo-cabos{min-height:0;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--g-panel);border:1px solid var(--g-border);border-radius:10px}
+    .vz-grafo-cabos[hidden],.vz-grafo-area[hidden],.vz-grafo-revisao[hidden]{display:none}
+    .vz-grafo-cabos h5{margin:0}.vz-grafo-lista{overflow:auto;display:grid;align-content:start;gap:6px}
+    .vz-grafo-lista .vz-btn{text-align:left;white-space:normal;overflow-wrap:anywhere;border-left:3px solid var(--g-border)}
+    .vz-grafo-lista .mt{border-left-color:#ff6478}.vz-grafo-lista .bt{border-left-color:#54e1a3}
+    .vz-grafo-lista small{display:block;color:var(--g-muted)}
+    .vz-grafo-revisao{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px;padding:8px 10px;background:var(--g-panel);border:1px solid var(--g-border);border-radius:8px}
+    .vz-grafo-revisao details{flex-basis:100%}.vz-grafo-revisao ul{max-height:130px;overflow:auto;margin:6px 0}
+    .vz-mapa [data-arrastar]{cursor:grab}.vz-mapa.arrastando [data-arrastar]{cursor:grabbing}
+    .vz-mapa [data-no].alvo .vz-halo{fill:#bb99ff;opacity:.9}
+    .vz-mapa .vz-alvo-aresta{fill:none;stroke:transparent;stroke-width:14;pointer-events:stroke}
+    .vz-mapa [data-cabo-mapa]:focus-visible .vz-aresta{stroke-width:6}
+    .vz-mapa .vz-aresta.sugerida{stroke:#e9ae68;stroke-width:3;pointer-events:none}
     .vz-grafo-acoes{position:absolute;bottom:12px;right:12px;display:flex;gap:3px;padding:4px;background:var(--g-panel);border:1px solid var(--g-border);border-radius:9px}
     .vz-grafo-acoes .vz-btn{min-width:32px;padding:5px 8px;background:transparent;border-color:transparent}
     .vz-grafo-aviso{color:var(--g-muted);margin:7px 0 0;font-size:11px}.vz-grafo-aviso:empty{display:none}
@@ -113,7 +128,11 @@
     .vz-no-topo h4,.vz-no-dialog h5{margin:0;color:var(--g-text)}.vz-no-topo h4{font-size:19px}
     .vz-no-topo p{margin:3px 0 0;color:var(--g-muted);font-size:12px;font-variant-numeric:tabular-nums}
     .vz-no-topo-acoes{display:flex;gap:6px;margin-left:auto;align-items:center}
-    .vz-no-conteudo{min-height:0;overflow:auto;padding:16px 20px;display:grid;grid-template-columns:minmax(150px,1fr) minmax(0,2.7fr);align-items:start;gap:18px}
+    .vz-no-conteudo{min-height:0;overflow:auto;padding:16px 20px}
+    .vz-no-rede{display:grid;grid-template-columns:minmax(0,2.5fr) minmax(140px,1fr);align-items:start;gap:32px;position:relative}
+    .vz-no-linhas{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+    .vz-no-rede .vz-no-acoes select{min-width:0}
+    .vz-no-seletor{width:100%;margin:0 0 8px;padding:6px;background:var(--g-panel);color:var(--g-text);border:1px solid var(--g-border);border-radius:7px}
     .vz-no-conteudo h5{font-size:13px;margin-bottom:10px}
     .vz-no-lateral{border:1px solid var(--g-border);border-radius:9px;padding:12px;background:var(--g-panel)}
     .vz-no-estruturas{display:grid;gap:5px}.vz-no-estrutura{padding:5px 0;border-top:1px solid var(--g-border);overflow-wrap:anywhere}
@@ -128,8 +147,10 @@
     .vz-no-status{margin:0 0 8px;color:var(--g-accent)}.vz-no-status:empty{display:none}
     @media(max-width:630px){
         .vz-no-dialog .vz-no-topo{padding:12px;align-items:flex-start}
-        .vz-no-conteudo{grid-template-columns:1fr;padding:12px;gap:12px}
-        .vz-no-estruturas{display:flex;gap:8px;flex-wrap:wrap}.vz-no-estrutura{border:0;padding:0}
+        .vz-no-conteudo{padding:12px}.vz-no-rede{grid-template-columns:minmax(0,1fr) minmax(94px,30%);gap:14px}
+        .vz-no-lateral{padding:7px}
+        .vz-grafo-area{grid-template-columns:minmax(0,1fr) minmax(107px,34%);gap:5px}
+        .vz-grafo-cabos{padding:5px}.vz-grafo-lista .vz-btn{padding:5px}
         .vz--grafo .vz-foot{flex-wrap:wrap;gap:6px;padding:7px 12px}
     }
     `;
@@ -156,8 +177,8 @@
     const metaAtivo = new Map();          // texto da linha de Outros → { soPoste, postes } (a interpretação é cara e só depende do texto)
     function assinatura() {
         let s = st.cfgVer + '#';
-        cabos().forEach(c => { s += c ? `${c.ativo || ''}|${c.operacao || ''}|${c.vinculoEstruturas || ''}|${c.vinculoPostes || ''}|${c.estruturasFicticias || ''}|${c.textoOriginal || ''}|${c.fases || ''}|${c.tensao || ''}|${c.nivel || ''}\n` : '\n'; });
-        outros().forEach(o => { s += o ? `${o.ativo || ''}|${o.cabosFicticios || ''}|${o.cabosFicticiosSlots ? JSON.stringify(o.cabosFicticiosSlots) : ''}|${o.origemAvulso || ''}\n` : '\n'; });
+        cabos().forEach(c => { s += c ? `${c.ativo || ''}|${c.operacao || ''}|${!!c.comentario}|${c.vinculoEstruturas || ''}|${c.vinculoPostes || ''}|${c.estruturasFicticias || ''}|${c.textoOriginal || ''}|${c.fases || ''}|${c.tensao || ''}|${c.nivel || ''}\n` : '\n'; });
+        outros().forEach(o => { s += o ? `${o.ativo || ''}|${o.entidade || ''}|${o.operacao || ''}|${!!o.congelada}|${o.cabosFicticios || ''}|${o.cabosFicticiosSlots ? JSON.stringify(o.cabosFicticiosSlots) : ''}|${o.origemAvulso || ''}\n` : '\n'; });
         return s;
     }
     function ctx() {
@@ -237,6 +258,7 @@
         if (substituida) {
             overlay.querySelector('.vz-no-dialog[open]')?.close();
             st.grafoNo = null;
+            st.grafoVista = null;
             st.sel = null;
         } else if (overlay.contains(doc.activeElement)) return;
         if (atualizacao) return;
@@ -255,7 +277,8 @@
         const dialogoMapa = overlay?.querySelector('.vz-no-dialog[open]');
         if (dialogoMapa) dialogoMapa.close();
         if (painel) { painel.destruir(); painel = null; }
-        mapaAtualizar = null;
+        mapaDesmontar?.();
+        mapaDesmontar = mapaAtualizar = null;
         if (overlay) {
             overlay.style.display = 'none';
             if (overlay.classList.contains('vz-destacada')) {
@@ -290,7 +313,8 @@
     function render() {
         fecharMenu();
         if (painel) { painel.destruir(); painel = null; }
-        mapaAtualizar = null;
+        mapaDesmontar?.();
+        mapaDesmontar = mapaAtualizar = null;
         st.elRes = null; st.elAch = null;
         overlay.innerHTML = '';
         if (st.projeto !== host.projeto()) {
@@ -319,7 +343,8 @@
         } catch (erro) {
             console.error('Falha ao exibir a vinculação de cabos e estruturas.', erro);
             if (painel) { painel.destruir(); painel = null; }
-            mapaAtualizar = null;
+            mapaDesmontar?.();
+            mapaDesmontar = mapaAtualizar = null;
             corpo.replaceChildren(el('p', { class: 'vz-erro', role: 'alert', text: 'Não foi possível exibir esta aba da vinculação. Use Concluir para voltar ao Resumo.' }));
         }
     }
@@ -355,7 +380,7 @@
     }
 
     // ── ABA: VÍNCULO ──
-    function infoCabo(ic) { const k = cx || ctx(), c = cabos()[ic]; return k.infoC[ic] || (k.infoC[ic] = VR.infoCabo(host.prefixoCabo(c.ativo) || '', c.operacao, st.cfg, VR.extraCabo(c))); }
+    function infoCabo(ic) { const k = cx || ctx(), c = cabos()[ic]; return k.infoC[ic] || (k.infoC[ic] = VR.infoCabo(host.prefixoCabo(c.ativo) || '', c.operacao, st.cfg, VR.extraCabo(c, st.cfg.dicionario_cabos))); }
     function infoEst(ie) { const k = cx || ctx(); return k.infoE[ie] || (k.infoE[ie] = VR.infoEstrutura(codigoDe(ie), st.cfg)); }
     function ocupantes(ie, ignorandoCabo) {
         const k = cx || ctx(), lista = [];
@@ -1273,17 +1298,19 @@
     // ── ABA: MAPA ──
     function abaMapa(corpo) {
         const W = 1200, H = 600, margem = 54;
-        const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        const ns = 'http://www.w3.org/2000/svg';
+        const svg = doc.createElementNS(ns, 'svg');
         svg.setAttribute('class', 'vz-mapa');
-        svg.setAttribute('aria-label', 'Grafo da rede. Selecione um poste para editar os vínculos');
-        const posicoes = new Map(), vaosPorCabo = new Map();
+        svg.setAttribute('aria-label', 'Grafo da rede');
+        const posicoes = new Map(), vaosPorCabo = new Map(), nosSvg = new Map();
         const totalPostes = el('strong'), totalVaos = el('strong');
         const contagem = el('div', { class: 'vz-grafo-legenda' }, [
             el('span', { class: 'vz-grafo-total' }, [totalPostes, 'Postes']),
             el('span', { class: 'vz-grafo-total' }, [totalVaos, 'Vãos'])
         ]);
-        let grafo, vb = st.grafoVista || [0, 0, W, H], arrasto, ultimoNo, mover = false;
-        let ultimoStatus = '';
+        let grafo, vb = st.grafoVista || [0, 0, W, H], arrasto, mover = false;
+        let ultimoNo, ultimoStatus = '', caboEscolhido = null, caboNo = null;
+        let desenhos = [], ponto, sugestoes = [], observadorNo, quadro;
         const aplicarVista = () => { st.grafoVista = vb; svg.setAttribute('viewBox', vb.join(' ')); };
         const zoom = (f, x = vb[0] + vb[2] / 2, y = vb[1] + vb[3] / 2) => {
             f = Math.max(120 / vb[2], Math.min(3600 / vb[2], f));
@@ -1291,21 +1318,140 @@
             aplicarVista();
         };
         const botao = (text, onclick, title = text) => el('button', { class: 'vz-btn', text, title, 'aria-label': title, onclick });
+        const instrucao = el('p');
+        const sugerir = botao('Sugerir ligações', prepararSugestoes);
         const barra = el('div', { class: 'vz-grafo-barra' }, [
-            el('div', {}, [el('h4', { text: 'Grafo da rede' }), el('p', { text: 'Selecione um poste para editar os vínculos ou um vão para consultar no assistente.' })]), contagem
+            el('div', {}, [el('h4', { text: 'Grafo da rede' }), instrucao]),
+            el('div', { class: 'vz-grafo-legenda' }, [contagem, sugerir])
         ]);
         const acoesMapa = el('div', { class: 'vz-grafo-acoes' }, [
             botao('−', () => zoom(1.25), 'Afastar'), botao('+', () => zoom(.8), 'Aproximar'),
             botao('Enquadrar', () => { vb = [0, 0, W, H]; aplicarVista(); })
         ]);
         const suporte = el('div', { class: 'vz-scroll vz-grafo-vista' }, [svg, acoesMapa]);
-        const vazio = el('p', { class: 'vz-nota', text: 'As coordenadas da leitura ou as atribuições de Cabos ⇄ Postes formam a rede no mapa.' });
+        const lista = el('div', { class: 'vz-grafo-lista' });
+        const tituloPontas = el('h5');
+        const lateralMapa = el('aside', { class: 'vz-grafo-cabos', 'aria-label': 'Cabos com pontas livres' }, [tituloPontas, lista]);
+        const area = el('div', { class: 'vz-grafo-area' }, [suporte, lateralMapa]);
+        const revisao = el('div', { class: 'vz-grafo-revisao' });
+        const vazio = el('p', { class: 'vz-nota', text: 'Adicione postes ou cabos à obra para montar a rede.' });
         const avisos = el('p', { class: 'vz-grafo-aviso', role: 'status' });
         const dialogo = el('dialog', { class: 'vz-no-dialog', 'aria-labelledby': 'vz-no-titulo' });
-        corpo.append(barra, vazio, suporte, avisos, dialogo);
+        corpo.append(barra, vazio, area, revisao, avisos, dialogo);
+
+        const linhaNo = no => no.linhas.find(l => postesDe(l).length) ?? no.linhas[0];
+        const estruturasDoNo = no => no.estruturas.filter(ie => !metaDe(linhaDe(ie)).soPoste && codigoDe(ie));
+        const ligacoes = ic => cabos()[ic].vinculoEstruturas || [];
+        const jaLigadoNo = (ic, no) => ligacoes(ic).some(ie => no.linhas.includes(linhaDe(ie)));
+        function livres(ic) {
+            if (!(cx?.a || analise()).cabos[ic]?.vincula || cabos()[ic].comentario) return 0;
+            return Math.max(0, infoCabo(ic).pontas - ligacoes(ic).length - VR.estruturasFicticiasDe(cabos()[ic]).length);
+        }
+        function estruturasCompativeis(ic, no) {
+            if (jaLigadoNo(ic, no)) return [];
+            return estruturasDoNo(no).filter(ie => infoEst(ie).ocupa && !motivoParaLigar(ic, ie));
+        }
+
+        function atualizarSelecao() {
+            instrucao.textContent = caboEscolhido !== null
+                ? 'Cabo ' + (caboEscolhido + 1) + ' selecionado · clique num poste destacado.'
+                : 'Selecione uma ponta livre ou abra um poste. Arraste postes e cabos no desenho esquemático.';
+            lista.querySelectorAll('[data-cabo-livre]').forEach(b => {
+                const ativo = Number(b.dataset.caboLivre) === caboEscolhido;
+                b.classList.toggle('p', ativo);
+                b.setAttribute('aria-pressed', String(ativo));
+            });
+            nosSvg.forEach((g, id) => {
+                g.classList.toggle('alvo', caboEscolhido !== null && estruturasCompativeis(caboEscolhido, grafo.nos.get(id)).length > 0);
+            });
+        }
+        function selecionarCabo(ic) {
+            if (!livres(ic)) return;
+            caboEscolhido = ic === caboEscolhido ? null : ic;
+            atualizarSelecao();
+        }
+
+        function calcularSugestoes() {
+            const candidatas = [];
+            for (const [ic, dados] of grafo.cabosDoMapa) {
+                const faltam = livres(ic);
+                if (!faltam || cabos()[ic].congelada) continue;
+                const opcoes = [...new Set(dados.referencias)].flatMap(id => {
+                    const no = grafo.nos.get(id);
+                    const ies = estruturasCompativeis(ic, no);
+                    return ies.length === 1 && infoEst(ies[0]).regra !== null && infoEst(ies[0]).qtd !== null
+                        ? [{ ic, ie: ies[0], id }] : [];
+                });
+                // Uma ponta sem identificação inequívoca fica para a decisão do usuário.
+                const destinos = new Set(dados.referencias.filter(id => !jaLigadoNo(ic, grafo.nos.get(id))));
+                if (opcoes.length <= faltam && destinos.size <= faltam) candidatas.push(...opcoes);
+            }
+            const porEstrutura = new Map();
+            for (const v of candidatas) {
+                if (!porEstrutura.has(v.ie)) porEstrutura.set(v.ie, []);
+                porEstrutura.get(v.ie).push(v);
+            }
+            return [...porEstrutura].flatMap(([ie, lote]) => {
+                const ocupacao = ocupantes(ie), e = infoEst(ie);
+                // Se os cabos disputarem a mesma vaga, deixa o lote dessa estrutura em aberto.
+                return lote.every(v => {
+                    const info = infoCabo(v.ic);
+                    if (!VR.podeComOcupantes(info, e, ocupacao)[0]) return false;
+                    ocupacao.push({ info, ficticio: false });
+                    return true;
+                }) ? lote : [];
+            });
+        }
+        function prepararSugestoes() {
+            sugestoes = calcularSugestoes();
+            pintar();
+            if (!sugestoes.length) avisos.textContent = 'Nenhuma ligação inequívoca. Escolha as pontas livres manualmente.';
+            else revisao.querySelector('summary')?.focus();
+        }
+        function aplicarSugestoes() {
+            if (!sugestoes.length) return;
+            // Refaz a proposta a partir dos dados atuais antes de confirmar o lote.
+            cx = null;
+            grafo = montarGrafo();
+            const revistas = calcularSugestoes();
+            if (JSON.stringify(revistas) !== JSON.stringify(sugestoes)) {
+                sugestoes = revistas;
+                pintar();
+                avisos.textContent = 'A obra mudou. Confira as sugestões atualizadas.';
+                return;
+            }
+            host.antes();
+            for (const {ic, ie} of sugestoes) {
+                const c = cabos()[ic];
+                c.vinculoEstruturas = ligacoes(ic).concat(ie);
+                c.vinculoOrigem = 'manual';
+            }
+            const total = sugestoes.length;
+            atualizar();
+            host.depois?.();
+            avisos.textContent = total + ' ligação(ões) registrada(s).';
+            sugerir.focus();
+        }
+        function renderRevisao() {
+            revisao.hidden = !sugestoes.length;
+            revisao.replaceChildren();
+            if (!sugestoes.length) return;
+            const pendentes = [...grafo.cabosDoMapa.keys()].reduce((n, ic) => n + livres(ic), 0) - sugestoes.length;
+            revisao.append(el('strong', { text: `${sugestoes.length} ponta(s) sugerida(s) · ${pendentes} em aberto` }),
+                botao('Aplicar sugestões', aplicarSugestoes),
+                botao('Descartar', () => { sugestoes = []; pintar(); sugerir.focus(); }),
+                el('details', {}, [
+                    el('summary', { text: 'Revisar ligações sugeridas' }),
+                    el('ul', {}, sugestoes.map(({ic, ie, id}) => el('li', { text: `Cabo ${ic + 1} · ${cabos()[ic].ativo} → ${nomeDoNo(grafo.nos.get(id))} / ${codigoDe(ie)}` })))
+                ]));
+        }
+
+        function montarGrafo() {
+            return VR.grafoDaRede(cabos(), outros(), host.codigoEstrutura, host.codigosEstrutura, (_, i) => postesDe(i).length > 0);
+        }
 
         function pintar() {
-            grafo = VR.grafoDaRede(cabos(), outros(), host.codigoEstrutura, host.codigosEstrutura);
+            grafo = montarGrafo();
             let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
             const limitar = ([x, y]) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); };
             grafo.nos.forEach(n => { if (n.pos) limitar(n.pos); });
@@ -1314,35 +1460,60 @@
             const temGeo = Number.isFinite(x0);
             const largura = temGeo && sinteticos.length ? W * .74 : W;
             const k = temGeo ? Math.min((largura - 2 * margem) / Math.max(x1 - x0, 1), (H - 2 * margem) / Math.max(y1 - y0, 1)) : 1;
-            const ponto = ([x, y]) => [largura / 2 + (x - (x0 + (x1 - x0) / 2)) * k, H / 2 - (y - (y0 + (y1 - y0) / 2)) * k];
+            ponto = ([x, y]) => [largura / 2 + (x - (x0 + (x1 - x0) / 2)) * k, H / 2 - (y - (y0 + (y1 - y0) / 2)) * k];
             posicoes.clear();
             vaosPorCabo.clear();
+            nosSvg.clear();
+            desenhos = [];
             grafo.vaos.forEach(v => v.cabos.forEach(ic => vaosPorCabo.set(ic, v)));
             grafo.nos.forEach(n => { if (n.pos) posicoes.set(n.id, ponto(n.pos)); });
             const colunas = Math.ceil(Math.sqrt(sinteticos.length));
+            const linhas = Math.ceil(sinteticos.length / Math.max(colunas, 1));
             sinteticos.forEach((n, i) => {
-                const ini = temGeo ? largura : 0, linhas = Math.ceil(sinteticos.length / colunas);
-                posicoes.set(n.id, [ini + margem + (i % colunas) * (W - ini - 2 * margem) / Math.max(1, colunas - 1),
-                    margem + Math.floor(i / colunas) * (H - 2 * margem) / Math.max(1, linhas - 1)]);
+                const ini = temGeo ? largura : 0;
+                const salvo = outros()[linhaNo(n)]._mapaPoste;
+                const coluna = (i % colunas + 1) / (colunas + 1);
+                const linha = (Math.floor(i / colunas) + 1) / (linhas + 1);
+                posicoes.set(n.id, salvo ? [salvo[0] * W, salvo[1] * H]
+                    : [ini + coluna * (W - ini), linha * H]);
             });
+
             const a = analise();
-            const rede = grafo.vaos.map((v, indice) => {
-                const extremidades = v.ids.map((id, i) => id ? posicoes.get(id) : ponto(v.pontas[i]));
-                const pts = v.pontos ? v.pontos.map(ponto) : extremidades.slice();
-                pts[0] = extremidades[0]; pts[pts.length - 1] = extremidades[1];
+            const rede = [];
+            const exibir = (v, indice, candidato = false) => {
                 const grupos = VR.gruposVisuaisDoVao(v.cabos, cabos(), a, st.cfg.dicionario_cabos);
-                const [x0, y0] = pts[0], [x1, y1] = pts[pts.length - 1];
-                const dx = x1 - x0, dy = y1 - y0, comprimento = Math.hypot(dx, dy) || 1;
-                return grupos.map((grupo, i) => {
-                    const deslocamento = (i - (grupos.length - 1) / 2) * 4;
-                    const linha = pts.map(([x, y]) => `${(x - dy * deslocamento / comprimento).toFixed(2)},${(y + dx * deslocamento / comprimento).toFixed(2)}`).join(' ');
-                    const estado = grupo.completo ? 'Vinculado' : 'Pendente';
-                    const rotulo = `${grupo.tipo} · ${estado}\n${grupo.cabos.map(ic => cabos()[ic].ativo).join('\n')}`;
-                    const classeRede = grupo.tipo === 'MT' ? 'mt' : grupo.tipo === 'BT' ? 'bt' : '';
-                    const interacao = host.consultarAssistente ? `data-vao="${indice}" data-grupo="${i}" tabindex="0" role="button" aria-label="Consultar vão ${esc(grupo.tipo)} ${indice + 1} no assistente"` : '';
-                    return `<polyline ${interacao} class="vz-aresta ${classeRede}${grupo.completo ? ' completo' : ''}" points="${linha}" fill="none" vector-effect="non-scaling-stroke" ${v.ids.includes(null) ? 'stroke-dasharray="5 4"' : ''}><title>${esc(rotulo)}</title></polyline>`;
-                }).join('');
-            }).join('');
+                const porCabo = !v.pontas || v.cabos.some(ic => cabos()[ic]._mapaCabo);
+                const linhasVao = porCabo ? grupos.flatMap(grupo => grupo.cabos.map(ic => ({
+                    ...grupo, cabos: [ic], completo: a.cabos[ic]?.vincula && a.cabos[ic].estado === 'gr'
+                }))) : grupos;
+                linhasVao.forEach((grupo, i) => {
+                    const infos = grupo.cabos.map(ic => cabos()[ic].ativo).join('\n');
+                    const rotulo = `${grupo.tipo || 'Cabo'} · ${grupo.completo ? 'Vinculado' : 'Pendente'}\n${infos}`;
+                    const classe = grupo.tipo === 'MT' ? 'mt' : grupo.tipo === 'BT' ? 'bt' : '';
+                    const ic = grupo.cabos[0];
+                    const atributos = candidato ? '' : porCabo
+                        ? `data-cabo-mapa="${ic}" data-arrastar="cabo" tabindex="0" role="button" aria-label="${esc('Cabo ' + (ic + 1) + ' · ' + cabos()[ic].ativo)}"`
+                        : host.consultarAssistente ? `data-vao="${indice}" data-grupo="${i}" tabindex="0" role="button" aria-label="Consultar vão ${esc(grupo.tipo)} ${indice + 1} no assistente"` : '';
+                    desenhos.push({v, grupo, ic: porCabo && !candidato ? ic : null, deslocamento: (i - (linhasVao.length - 1) / 2) * 7});
+                    const tracado = `<polyline ${porCabo ? '' : atributos} class="vz-aresta ${classe}${grupo.completo ? ' completo' : ''}${candidato ? ' sugerida' : ''}" fill="none" vector-effect="non-scaling-stroke" ${candidato || (v.ids.includes(null) && !grupo.completo) ? 'stroke-dasharray="5 4"' : ''}><title>${esc(rotulo)}</title></polyline>`;
+                    rede.push(porCabo && !candidato ? `<g ${atributos}><title>${esc(rotulo)}</title>${tracado}<polyline class="vz-alvo-aresta" vector-effect="non-scaling-stroke"/></g>` : tracado);
+                });
+            };
+            grafo.vaos.forEach((v, i) => exibir(v, i));
+            grafo.cabosDoMapa.forEach(({ids}, ic) => {
+                if (!vaosPorCabo.has(ic) && ids.some(Boolean)) exibir({ids, pontos:null, pontas:null, cabos:[ic]}, -1);
+            });
+            const sugestoesPorCabo = new Map();
+            for (const {ic, id} of sugestoes) {
+                if (!sugestoesPorCabo.has(ic)) sugestoesPorCabo.set(ic, []);
+                sugestoesPorCabo.get(ic).push(id);
+            }
+            sugestoesPorCabo.forEach((ids, ic) => {
+                const conhecidos = ligacoes(ic).map(ie => grafo.cabosDoMapa.get(ic).ids.find(id => grafo.nos.get(id)?.linhas.includes(linhaDe(ie))));
+                const [a, b] = [...new Set([...ids, ...conhecidos.filter(Boolean)])];
+                exibir({ids: [a, b || null], pontos:null, pontas:null, cabos:[ic]}, -1, true);
+            });
+
             const labels = [];
             const nos = [...grafo.nos.values()].map(n => {
                 const [x, y] = posicoes.get(n.id), rotulo = nomeDoNo(n), curto = `P${n.linhas[0] + 1}`;
@@ -1351,15 +1522,60 @@
                 if (!denso) labels.push([x + 10, direita, y]);
                 const completo = VR.posteCompletoNoGrafo(estruturasDoNo(n), a);
                 const classe = [denso ? 'vz-rotulo-denso' : '', completo ? 'completo' : 'pendente'].join(' ');
-                return `<g class="${classe}" data-no="${esc(n.id)}" tabindex="0" role="button" aria-label="${esc(rotulo)}" transform="translate(${x} ${y})"><title>${esc(rotulo)} · ${completo ? 'Vinculação completa' : 'Vinculação pendente'}</title><circle class="vz-alvo" r="14"/><circle class="vz-halo" r="8.5"/><circle class="vz-marcador" r="4.8"/><text x="11" y="-6">${curto}</text></g>`;
+                return `<g class="${classe}" data-no="${esc(n.id)}" ${n.pos ? '' : 'data-arrastar="poste"'} tabindex="0" role="button" aria-label="${esc(rotulo)}"><title>${esc(rotulo)} · ${completo ? 'Vinculação completa' : 'Vinculação pendente'}</title><circle class="vz-alvo" r="19"/><circle class="vz-halo" r="10"/><circle class="vz-marcador" r="6"/><text x="14" y="-7">${curto}</text></g>`;
             }).join('');
-            svg.innerHTML = rede + nos;
+            svg.innerHTML = rede.join('') + nos;
+            svg.querySelectorAll('[data-no]').forEach(g => nosSvg.set(g.dataset.no, g));
+            svg.querySelectorAll('.vz-aresta').forEach((linha, i) => { desenhos[i].linha = linha; });
+            desenharPosicoes();
             totalPostes.textContent = grafo.nos.size;
             totalVaos.textContent = grafo.vaos.length;
-            avisos.textContent = [grafo.pontasSoltas ? `${grafo.pontasSoltas} ponta(s) sem poste identificado` : '',
-                grafo.semVao ? `${grafo.semVao} cabo(s) sem dados suficientes para traçar um vão` : ''].filter(Boolean).join(' · ');
-            vazio.hidden = !!(grafo.nos.size || grafo.vaos.length);
-            suporte.hidden = !vazio.hidden;
+            const pendentes = [...grafo.cabosDoMapa.keys()].map(ic => [ic, livres(ic)]).filter(([, qtd]) => qtd);
+            if (caboEscolhido !== null && !livres(caboEscolhido)) caboEscolhido = null;
+            lista.replaceChildren(...pendentes.map(([ic, qtd]) => {
+                const c = cabos()[ic], grupo = VR.gruposVisuaisDoVao([ic], cabos(), a, st.cfg.dicionario_cabos)[0];
+                const b = botao(`Cabo ${ic + 1} · ${c.ativo}`, () => selecionarCabo(ic));
+                b.dataset.caboLivre = ic;
+                if (grupo.tipo) b.classList.add(grupo.tipo.toLowerCase());
+                b.append(el('small', { text: [grupo.tipo, c.operacao, qtd + (qtd === 1 ? ' ponta livre' : ' pontas livres')].filter(Boolean).join(' · ') }));
+                return b;
+            }));
+            tituloPontas.textContent = 'Pontas livres · ' + pendentes.reduce((n, [, qtd]) => n + qtd, 0);
+            lateralMapa.hidden = !pendentes.length;
+            area.classList.toggle('sem-lateral', lateralMapa.hidden);
+            vazio.hidden = !!(grafo.nos.size || grafo.cabosDoMapa.size);
+            area.hidden = !vazio.hidden;
+            sugerir.disabled = !pendentes.length || !grafo.nos.size;
+            avisos.textContent = !temGeo && !area.hidden ? 'Mapa sem escala. Mover postes ou cabos altera somente a disposição.' : '';
+            atualizarSelecao();
+            renderRevisao();
+        }
+
+        function desenharPosicoes(alvo) {
+            const desenharNo = (g, id) => g.setAttribute('transform', 'translate(' + posicoes.get(id).join(' ') + ')');
+            if (alvo?.idNo) desenharNo(nosSvg.get(alvo.idNo), alvo.idNo);
+            else if (!alvo) nosSvg.forEach(desenharNo);
+            for (const d of desenhos) {
+                const {v, ic, deslocamento, linha} = d;
+                if (alvo?.idNo && !v.ids.includes(alvo.idNo)) continue;
+                if (alvo?.ic !== undefined && alvo.ic !== ic) continue;
+                const pts = v.ids.map((id, i) => id ? posicoes.get(id) : v.pontas && ponto(v.pontas[i]));
+                if (!pts.every(Boolean)) {
+                    const i = pts[0] ? 0 : 1;
+                    const [x, y] = pts[i], sinal = x > W / 2 ? -1 : 1;
+                    const lado = d.grupo.tipo === 'MT' ? -sinal : sinal;
+                    pts[1 - i] = [x + lado * (95 + ((ic ?? 0) % 5) * 9), y + (y > H / 2 ? -76 : 76)];
+                }
+                const [x0, y0] = pts[0], [x1, y1] = pts[1];
+                const dx = x1 - x0, dy = y1 - y0, comprimento = Math.hypot(dx, dy) || 1;
+                const curva = ic !== null && (arrasto?.ic === ic ? arrasto.valor : cabos()[ic]._mapaCabo);
+                const caminho = v.pontos && !curva ? [pts[0], ...v.pontos.slice(1, -1).map(ponto), pts[1]]
+                    : curva ? [pts[0], [x0 + dx / 2 + curva[0] * W, y0 + dy / 2 + curva[1] * H], pts[1]] : pts;
+                const pontos = caminho.map(([x, y]) =>
+                    `${(x - dy * deslocamento / comprimento).toFixed(2)},${(y + dx * deslocamento / comprimento).toFixed(2)}`).join(' ');
+                linha.setAttribute('points', pontos);
+                if (linha.parentNode.hasAttribute('data-cabo-mapa')) linha.nextElementSibling.setAttribute('points', pontos);
+            }
         }
 
         function nomeDoNo(no) {
@@ -1370,14 +1586,15 @@
         function editarNo(id, alvo) {
             ultimoNo = alvo;
             ultimoStatus = '';
+            caboNo = caboEscolhido;
             st.grafoNo = id;
-            preencherNo();
             if (!dialogo.open) dialogo.showModal();
+            preencherNo();
+            (dialogo.querySelector(`[data-foco="c${caboNo}"]`) || dialogo.querySelector('[autofocus]'))?.focus();
         }
 
-        const estruturasDoNo = no => no.estruturas.filter(ie => !metaDe(linhaDe(ie)).soPoste && codigoDe(ie));
-
         function preencherNo() {
+            observadorNo?.disconnect();
             const no = grafo.nos.get(st.grafoNo);
             if (!no) { if (dialogo.open) dialogo.close(); return; }
             const a = analise();
@@ -1397,9 +1614,11 @@
             fecharNo.setAttribute('autofocus', '');
             const status = el('p', { class: 'vz-no-status', role: 'status', text: ultimoStatus });
             function mudarVinculo(ic, ie, acao, foco) {
-                const motivo = acao === 'ligar' ? motivoParaLigar(ic, ie) : '';
+                const motivo = acao === 'ligar' ? (jaLigadoNo(ic, no)
+                    ? 'Este cabo já tem uma ponta vinculada neste poste.' : motivoParaLigar(ic, ie)) : '';
                 if (motivo) { status.textContent = motivo; return; }
                 ultimoStatus = acao === 'ligar' ? 'Vínculo registrado.' : 'Vínculo removido.';
+                caboEscolhido = null;
                 ligar(ic, ie);
                 if (host.depois) host.depois();
                 dialogo.querySelector(`[data-foco="${foco}"]`)?.focus();
@@ -1408,20 +1627,38 @@
                 el('h5', { text: 'Estruturas do poste' }),
                 estruturas.length ? el('div', { class: 'vz-no-estruturas' }, estruturas.map(ie => {
                     const r = a.estruturas[ie];
-                    return el('div', { class: 'vz-no-estrutura' }, [
+                    return el('div', { class: 'vz-no-estrutura', 'data-estrutura-no': ie }, [
                         el('strong', { text: codigoDe(ie) }),
                         el('span', { text: infoEst(ie).ocupa === false ? ' · equipamento' : ` · ${r.tem} ligado(s)` })
                     ]);
                 })) : el('p', { class: 'vz-no-ajuda', text: 'Nenhuma estrutura cadastrada neste poste.' })
             ]);
             const painelNo = el('section', {}, [el('h5', { text: 'Cabos do poste' }), status]);
-            if (!no.cabos.size) painelNo.appendChild(el('p', { class: 'vz-no-ajuda', text: 'Nenhum cabo chega a este poste pela geometria ou pelas atribuições da obra.' }));
-            no.cabos.forEach(ic => {
+            const adicionais = [...grafo.cabosDoMapa.keys()]
+                .filter(ic => !no.cabos.has(ic) && livres(ic) && estruturasCompativeis(ic, no).length);
+            if (adicionais.length) {
+                const seletorCabo = el('select', { class: 'vz-no-seletor', 'aria-label': 'Adicionar cabo ao poste' }, [
+                    el('option', { value: '', text: 'Adicionar cabo com ponta livre…' }),
+                    ...adicionais.map(ic => el('option', { value: ic, text: `Cabo ${ic + 1} · ${cabos()[ic].ativo}` }))
+                ]);
+                seletorCabo.value = adicionais.includes(caboNo) ? String(caboNo) : '';
+                seletorCabo.addEventListener('change', () => {
+                    caboNo = seletorCabo.value === '' ? null : Number(seletorCabo.value);
+                    preencherNo();
+                    (dialogo.querySelector(`[data-foco="c${caboNo}"]`) || dialogo.querySelector('.vz-no-seletor'))?.focus();
+                });
+                painelNo.append(seletorCabo);
+            }
+            const cabosNo = new Set([...no.cabos]);
+            if (adicionais.includes(caboNo)) cabosNo.add(caboNo);
+            if (!cabosNo.size) painelNo.appendChild(el('p', { class: 'vz-no-ajuda', text: 'Nenhum cabo associado. As pontas compatíveis disponíveis aparecem aqui.' }));
+            const conexoes = [];
+            cabosNo.forEach(ic => {
                 const c = cabos()[ic], r = a.cabos[ic], existentes = (r && c.vinculoEstruturas || []).filter(ie => no.linhas.includes(linhaDe(ie)));
                 const vao = vaosPorCabo.get(ic);
                 const outroNo = vao && vao.ids.includes(no.id) && vao.ids.find(id => id && id !== no.id);
                 const origem = outroNo ? nomeDoNo(grafo.nos.get(outroNo)) : (vao && vao.ids.includes(no.id) ? 'Sem outro poste identificado' : 'Sem vão associado neste poste');
-                const cartao = el('section', { class: 'vz-no-cabo' }, [
+                const cartao = el('section', { class: 'vz-no-cabo', 'data-cabo-no': ic }, [
                     el('h6', {}, [el('span', { class: 'vz-op' + opClasse(trim(c.operacao)), text: c.operacao || 'I' }), ' ', c.ativo]),
                     el('p', { class: 'vz-no-ajuda', style: 'margin:0 0 6px', text: `Cabo ${ic + 1} · ${origem}` }),
                     el('div', { class: 'vz-no-vinculos' }, [el('span', { class: 'vz-no-ajuda', text: existentes.length ? 'Vínculos neste poste' : 'Sem vínculo neste poste' }),
@@ -1433,7 +1670,8 @@
                     return;
                 }
                 cartao.title = TXT_C[r.estado];
-                const candidatas = estruturas.filter(ie => !existentes.includes(ie) && infoEst(ie).ocupa !== false);
+                existentes.forEach(ie => conexoes.push({ic, ie}));
+                const candidatas = existentes.length ? [] : estruturasCompativeis(ic, no);
                 const seletor = el('select', { 'aria-label': 'Estrutura para ' + c.ativo, 'data-foco': 'c' + ic }, candidatas.map(ie =>
                     el('option', { value: ie, text: codigoDe(ie) + ' · linha ' + (linhaDe(ie) + 1) })));
                 if (candidatas.length) {
@@ -1445,19 +1683,52 @@
                     atualizarDica();
                     cartao.appendChild(el('div', { class: 'vz-no-acoes' }, [seletor,
                         vincular, dica]));
+                } else if (!existentes.length) {
+                    cartao.appendChild(el('p', { class: 'vz-no-ajuda', text: livres(ic)
+                        ? 'Sem estrutura compatível disponível neste poste.' : 'Todas as pontas do cabo já estão preenchidas.' }));
                 }
                 painelNo.appendChild(cartao);
             });
+            const ligacoesSvg = doc.createElementNS(ns, 'svg');
+            ligacoesSvg.setAttribute('class', 'vz-no-linhas');
+            ligacoesSvg.setAttribute('aria-hidden', 'true');
+            const mundo = el('div', { class: 'vz-no-rede' }, [painelNo, lateral, ligacoesSvg]);
             dialogo.replaceChildren(el('header', { class: 'vz-no-topo' }, [
                 el('div', {}, [el('h4', { id: 'vz-no-titulo', text: nomeDoNo(no) }),
                     el('p', { class: completo ? 'vz-no-completo' : '', text: completo ? 'Vinculação completa' : 'Vinculação pendente' }),
-                    el('p', { text: no.pos ? `X ${no.pos[0].toFixed(2)} · Y ${no.pos[1].toFixed(2)}` : 'Poste atribuído sem coordenadas' })]), el('div', { class: 'vz-no-topo-acoes' }, [consultarNo, desfazer, fecharNo].filter(Boolean))
-            ]), el('div', { class: 'vz-no-conteudo' }, [lateral, painelNo]));
+                    el('p', { text: no.pos ? `X ${no.pos[0].toFixed(2)} · Y ${no.pos[1].toFixed(2)}` : 'Poste sem coordenadas' })]), el('div', { class: 'vz-no-topo-acoes' }, [consultarNo, desfazer, fecharNo].filter(Boolean))
+            ]), el('div', { class: 'vz-no-conteudo' }, [mundo]));
+            function desenharLigacoes() {
+                const base = mundo.getBoundingClientRect();
+                const elementos = [];
+                for (const {ic, ie} of conexoes) {
+                    const origem = mundo.querySelector(`[data-cabo-no="${ic}"] h6`);
+                    const destino = mundo.querySelector(`[data-estrutura-no="${ie}"]`);
+                    if (!origem || !destino) continue;
+                    const inicio = origem.getBoundingClientRect(), fim = destino.getBoundingClientRect();
+                    const x0 = inicio.right - base.left + 4, x1 = fim.left - base.left - 2;
+                    const y0 = inicio.top + inicio.height / 2 - base.top, y1 = fim.top + fim.height / 2 - base.top;
+                    const meio = (x0 + x1) / 2;
+                    const linha = doc.createElementNS(ns, 'path');
+                    linha.setAttribute('d', `M${x0},${y0} C${meio},${y0} ${meio},${y1} ${x1},${y1}`);
+                    const grupo = VR.gruposVisuaisDoVao([ic], cabos(), a, st.cfg.dicionario_cabos)[0];
+                    linha.setAttribute('stroke', grupo.tipo === 'MT' ? '#ff6478' : grupo.tipo === 'BT' ? '#54e1a3' : '#bda6ff');
+                    linha.setAttribute('stroke-width', '2');
+                    linha.setAttribute('fill', 'none');
+                    elementos.push(linha);
+                }
+                ligacoesSvg.replaceChildren(...elementos);
+            }
+            desenharLigacoes();
+            observadorNo = new ResizeObserver(desenharLigacoes);
+            observadorNo.observe(mundo);
         }
 
         dialogo.addEventListener('close', () => {
+            observadorNo?.disconnect();
             st.grafoNo = null;
-            [...svg.querySelectorAll('[data-no]')].find(n => n.dataset.no === ultimoNo?.dataset.no)?.focus();
+            caboNo = null;
+            nosSvg.get(ultimoNo?.dataset.no)?.focus();
         });
         function coordenada(e) {
             const p = svg.createSVGPoint();
@@ -1465,26 +1736,85 @@
             return p.matrixTransform(svg.getScreenCTM().inverse());
         }
         svg.addEventListener('wheel', e => { e.preventDefault(); const p = coordenada(e); zoom(e.deltaY > 0 ? 1.15 : 1 / 1.15, p.x, p.y); }, { passive: false });
+        const limitar = (n, min, max) => Math.max(min, Math.min(max, n));
         svg.addEventListener('pointerdown', e => {
-            if (e.button !== 0) return;
+            if (e.button !== 0 || !e.isPrimary) return;
             mover = false;
-            arrasto = { id: e.pointerId, x: e.clientX, y: e.clientY, vb, matriz: svg.getScreenCTM().inverse() };
+            const alvo = e.target.closest('[data-arrastar]');
+            const idNo = alvo?.dataset.no;
+            const ic = alvo?.dataset.caboMapa !== undefined ? Number(alvo.dataset.caboMapa) : undefined;
+            const linha = idNo ? outros()[linhaNo(grafo.nos.get(idNo))] : ic !== undefined ? cabos()[ic] : null;
+            const campo = idNo ? '_mapaPoste' : '_mapaCabo';
+            const origem = idNo ? posicoes.get(idNo) : linha?._mapaCabo || [0, 0];
+            arrasto = { id: e.pointerId, x: e.clientX, y: e.clientY, vb, matriz: svg.getScreenCTM().inverse(), idNo, ic, linha, campo, origem, alvo: e.target, valor: null };
+            svg.setPointerCapture(e.pointerId);
         });
         svg.addEventListener('pointermove', e => {
             if (!arrasto || e.pointerId !== arrasto.id) return;
             const dx = e.clientX - arrasto.x, dy = e.clientY - arrasto.y;
             if (!mover && Math.hypot(dx, dy) < 4) return;
-            if (!mover) { svg.setPointerCapture(e.pointerId); svg.classList.add('arrastando'); mover = true; }
-            vb = [arrasto.vb[0] - dx * arrasto.matriz.a, arrasto.vb[1] - dy * arrasto.matriz.d, arrasto.vb[2], arrasto.vb[3]];
-            aplicarVista();
+            if (!mover) { svg.classList.add('arrastando'); mover = true; }
+            const x = dx * arrasto.matriz.a, y = dy * arrasto.matriz.d;
+            if (!arrasto.linha) {
+                vb = [arrasto.vb[0] - x, arrasto.vb[1] - y, arrasto.vb[2], arrasto.vb[3]];
+                aplicarVista();
+            } else {
+                const [ox, oy] = arrasto.origem;
+                if (arrasto.idNo) {
+                    const px = limitar(ox + x, 18, W - 18), py = limitar(oy + y, 18, H - 18);
+                    arrasto.valor = [px / W, py / H];
+                    posicoes.set(arrasto.idNo, [px, py]);
+                } else {
+                    arrasto.valor = [limitar(ox + x / W, -1, 1), limitar(oy + y / H, -1, 1)];
+                }
+                if (!quadro) quadro = raiz.requestAnimationFrame(() => { quadro = null; desenharPosicoes(arrasto); });
+            }
         });
-        for (const evento of ['pointerup', 'pointerleave', 'pointercancel']) svg.addEventListener(evento, () => { arrasto = null; svg.classList.remove('arrastando'); });
+        function soltar(e, cancelar) {
+            if (!arrasto || e.pointerId !== arrasto.id) return;
+            const alteracao = arrasto;
+            const {linha, campo, valor, idNo, origem, alvo} = alteracao;
+            arrasto = null;
+            if (quadro) {
+                raiz.cancelAnimationFrame(quadro);
+                quadro = null;
+            }
+            svg.classList.remove('arrastando');
+            if (valor && !cancelar) {
+                host.antes();
+                linha[campo] = valor;
+            } else if (cancelar && idNo) posicoes.set(idNo, origem);
+            if (valor) desenharPosicoes(alteracao);
+            if (!cancelar && !mover && alvo) ativarMapa(alvo);
+        }
+        svg.addEventListener('pointerup', e => soltar(e, false));
+        svg.addEventListener('pointercancel', e => soltar(e, true));
+        svg.addEventListener('lostpointercapture', e => soltar(e, true));
         function consultar(selecao) {
             if (host.consultarAssistente && fechar()) host.consultarAssistente(selecao);
         }
         function ativarMapa(alvo) {
+            const cabo = alvo.closest('[data-cabo-mapa]');
+            if (cabo && livres(Number(cabo.dataset.caboMapa))) { selecionarCabo(Number(cabo.dataset.caboMapa)); return; }
             const no = alvo.closest('[data-no]');
-            if (no) { editarNo(no.dataset.no, no); return; }
+            if (no) {
+                const id = no.dataset.no, ic = caboEscolhido;
+                const compativeis = ic === null ? [] : estruturasCompativeis(ic, grafo.nos.get(id));
+                if (compativeis.length === 1) {
+                    caboEscolhido = null;
+                    ligar(ic, compativeis[0]);
+                    host.depois?.();
+                    avisos.textContent = `Cabo ${ic + 1} vinculado a ${nomeDoNo(grafo.nos.get(id))} / ${codigoDe(compativeis[0])}.`;
+                    nosSvg.get(id)?.focus();
+                } else editarNo(id, no);
+                return;
+            }
+            if (cabo) {
+                const ic = Number(cabo.dataset.caboMapa);
+                const nos = grafo.cabosDoMapa.get(ic).ids.map(id => grafo.nos.get(id)).filter(Boolean);
+                consultar({ tipo: 'vão', rotulo: cabos()[ic].ativo, cabos: [ic], outros: nos.flatMap(n => n.linhas) });
+                return;
+            }
             const aresta = alvo.closest('[data-vao]');
             if (!aresta) return;
             const v = grafo.vaos[Number(aresta.dataset.vao)];
@@ -1495,15 +1825,23 @@
             consultar({ tipo: 'vão', rotulo: ['Vão ' + grupo.tipo + ' ' + (Number(aresta.dataset.vao) + 1), nos.map(nomeDoNo).join(' ↔ ')].filter(Boolean).join(' · '),
                 cabos: grupo.cabos, outros: nos.flatMap(n => n.linhas) });
         }
-        svg.addEventListener('click', e => { if (!mover) ativarMapa(e.target); });
+        svg.addEventListener('click', e => { if (e.detail === 0) ativarMapa(e.target); });
         svg.addEventListener('keydown', e => {
-            if (e.target.closest('[data-no], [data-vao]') && (e.key === 'Enter' || e.key === ' ')) {
+            if (e.target.closest('[data-no], [data-vao], [data-cabo-mapa]') && (e.key === 'Enter' || e.key === ' ')) {
                 e.preventDefault();
                 ativarMapa(e.target);
             }
         });
 
-        mapaAtualizar = () => { pintar(); if (dialogo.open) preencherNo(); };
+        mapaDesmontar = () => {
+            observadorNo?.disconnect();
+            if (quadro) raiz.cancelAnimationFrame(quadro);
+        };
+        mapaAtualizar = () => {
+            sugestoes = [];
+            pintar();
+            if (dialogo.open) preencherNo();
+        };
         pintar();
         aplicarVista();
         if (st.grafoNo && grafo.nos.has(st.grafoNo)) editarNo(st.grafoNo, [...svg.querySelectorAll('[data-no]')].find(n => n.dataset.no === st.grafoNo));

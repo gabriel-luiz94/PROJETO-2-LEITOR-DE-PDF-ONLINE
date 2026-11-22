@@ -654,13 +654,18 @@
             }
         }
 
-        return pt => {
-            let melhor = null, dmin = Infinity;
+        return (pt, semEmpate = false) => {
+            let melhor = null, dmin = Infinity, empate = false;
             const medir = poste => {
                 const d = Math.sqrt((pt[0] - poste.pos[0]) ** 2 + (pt[1] - poste.pos[1]) ** 2);
-                if (d <= raio && (melhor === null || d < dmin || (d === dmin && poste.ordem < melhor.ordem))) {
+                if (!(d <= raio)) return;
+                if (melhor === null || d < dmin) {
                     melhor = poste;
                     dmin = d;
+                    empate = false;
+                } else if (d === dmin) {
+                    empate = true;
+                    if (poste.ordem < melhor.ordem) melhor = poste;
                 }
             };
             const x = celula(pt[0]), y = celula(pt[1]);
@@ -672,12 +677,12 @@
                     }
                 }
             } else todos.forEach(medir);
-            return melhor === null ? null : melhor.linha;
+            return melhor === null || (semEmpate && empate) ? null : melhor.linha;
         };
     }
 
     /** Topologia do mapa. Linhas de Outros com a mesma coordenada representam o mesmo poste. */
-    function grafoDaRede(cabos, outros, codigoFn, codigosFn) {
+    function grafoDaRede(cabos, outros, codigoFn, codigosFn, ehPoste) {
         const postes = new Map(), nos = new Map();
         function incluir(linha, pos) {
             const id = pos ? pos.join(',') : `linha:${linha}`;
@@ -688,7 +693,8 @@
         }
         outros.forEach((row, l) => {
             const pos = par(row && row._poste);
-            if (pos && trim(row.ativo) && !row.comentario) incluir(l, pos);
+            if (!row || !trim(row.ativo) || row.comentario) return;
+            if (pos || row.entidade === 'POSTE' || ehPoste?.(row, l)) incluir(l, pos);
         });
         cabos.forEach(c => {
             if (!c || !trim(c.ativo) || c.comentario) return;
@@ -703,7 +709,7 @@
         });
         const coords = [...nos.values()].filter(n => n.pos).map(n => [n.id, n.pos]);
         const posteMaisPerto = buscaPosteMaisPerto(coords, RAIO_POSTE_PADRAO);
-        const vaos = new Map();
+        const vaos = new Map(), cabosDoMapa = new Map();
         let semVao = 0, pontasSoltas = 0;
         cabos.forEach((c, ic) => {
             if (!c || !trim(c.ativo) || c.comentario) return;
@@ -712,16 +718,21 @@
             const atribuicoes = [...new Set(postesAtribuidos(c).map(l => postes.get(l)).filter(Boolean))];
             const ligados = [...new Set((c.vinculoEstruturas || []).map(ie => postes.get(linhaDe(ie))).filter(Boolean))];
             const pontas = geo && [geo[0], geo[geo.length - 1]];
-            const idsGeo = pontas ? pontas.map(posteMaisPerto) : [null, null];
-            let ids = idsGeo.slice();
-            if (atribuicoes.length) {
-                const restantes = atribuicoes.map(n => n.id);
-                ids = ids.map(id => {
-                    const i = restantes.indexOf(id);
-                    return i < 0 ? null : restantes.splice(i, 1)[0];
+            const idsGeo = pontas ? pontas.map(pt => posteMaisPerto(pt)) : [null, null];
+            const referencias = atribuicoes.length ? atribuicoes.map(n => n.id) : (pontas || []).map(pt => posteMaisPerto(pt, true)).filter(Boolean);
+            const confirmados = ligados.map(n => n.id);
+            let ids = idsGeo;
+            if (atribuicoes.length || confirmados.length) {
+                // Preserva o sentido do desenho quando conhecido e prioriza vínculos confirmados.
+                const origens = atribuicoes.length ? referencias : idsGeo.filter(Boolean);
+                const destinos = [...new Set([...confirmados, ...origens])].slice(0, 2);
+                const encaixes = idsGeo.map(id => {
+                    const i = destinos.indexOf(id);
+                    return i < 0 ? null : destinos.splice(i, 1)[0];
                 });
-                ids = ids.map(id => id || restantes.shift() || null);
-            } else if (!geo) ids = [ligados[0]?.id || null, ligados[1]?.id || null];
+                ids = encaixes.map(id => id || destinos.shift() || null);
+            }
+            cabosDoMapa.set(ic, { ids, geo, referencias });
             ids.forEach(id => { if (id) nos.get(id).cabos.add(ic); });
             ligados.forEach(n => n.cabos.add(ic)); // permite corrigir vínculos existentes mesmo com divergência da geometria
             if (!geo && ids.filter(Boolean).length < 2) { semVao++; return; }
@@ -733,7 +744,7 @@
             if (!vaos.has(chave)) vaos.set(chave, { ids, pontos, pontas, cabos: [] });
             vaos.get(chave).cabos.push(ic);
         });
-        return { nos, vaos: [...vaos.values()], semVao, pontasSoltas };
+        return { nos, vaos: [...vaos.values()], cabosDoMapa, semVao, pontasSoltas };
     }
 
     function gruposVisuaisDoVao(indices, cabos, analise, dicionario) {

@@ -233,3 +233,23 @@ def test_na_nuvem_grava_so_as_colunas_existentes_em_nome_do_importador(client, m
     ultimo = nuvem.upserts[-1]
     assert set(ultimo) == {"id", "nome", "data", "dados_json", "user_id", "projeto", "publica", "dono_nome", "tipo"} and ultimo["publica"] is False and ultimo["user_id"] == "b" and ultimo["id"] == r.json()["id"]
     assert [o["nome"] for o in client.get("/api/obras?projeto=229", headers=cab("b")).json()] == ["Rede Norte"]
+
+
+def test_disposicao_opcional_do_mapa_sobrevive_ao_arquivo_de_obra():
+    dados = {
+        "cabos": [
+            {"ativo": "MT1 40 m", "operacao": "I", "_mapaCabo": [-0.2, 0.4], "vinculoEstruturas": [0, 1]},
+            {"ativo": "MT2 40 m", "operacao": "M", "_mapaCabo": [False, 0]},
+        ],
+        "outros": [
+            {"ativo": "9100D,N3", "entidade": "POSTE", "_mapaPoste": [0.3, 0.7]},
+            {"ativo": "9200D,N3", "entidade": "POSTE", "_mapaPoste": [0.1, 1.1]},
+        ],
+    }
+    exportada = oa.montar_exportacao({"nome": "Rede", "projeto": "229", "dados_json": dados})
+    reaberta = oa.validar_importacao(json.loads(json.dumps(exportada)), "229")["dados"]
+    assert reaberta["cabos"][0] == dados["cabos"][0]
+    assert reaberta["outros"][0] == dados["outros"][0]
+    assert "_mapaCabo" not in reaberta["cabos"][1]
+    assert "_mapaPoste" not in reaberta["outros"][1]
+    assert "_poste" not in reaberta["outros"][0]
