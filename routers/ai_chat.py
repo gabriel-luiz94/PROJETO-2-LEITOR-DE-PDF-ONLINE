@@ -14,6 +14,7 @@ from models import ChatRequest
 from config import PROMPT_OBRAS_PATH, PROMPT_PATH, logger
 from routers.regras import get_regras
 from routers.obras import buscar_obra, listar_visiveis
+from services.provedores_ia import OPENAI_BASE, criar_cliente_openai, modelo_openai_compativel, validar_base_openai
 from services.obras_contexto import menciona_obra, montar_indice, obras_citadas, resumir_obra
 
 router = APIRouter(prefix="/api/gemini", tags=["ai"])
@@ -55,7 +56,7 @@ def _chave_padrao(provider: str = "gemini") -> str:
 
 
 def resolver_credencial(header_key: str | None, saved_key: str | None, provider: str = "gemini"):
-    """Devolve (chave, origem). Precedência: usuário > salva > padrão do ambiente.
+    """Devolve (chave, origem). OpenAI usa chave própria ou padrão do ambiente.
 
     origem: "usuario" | "salva" | "padrao" | "nenhuma". `provider` escolhe a variável de ambiente
     padrão certa (TASK-055) — "gemini" (padrão, compatível com as chamadas existentes), "openai" ou
@@ -64,7 +65,8 @@ def resolver_credencial(header_key: str | None, saved_key: str | None, provider:
     chave = (header_key or "").strip()
     if chave and chave != SENTINELA_CHAVE:
         return chave, "usuario"
-    if saved_key:
+    # Chaves OpenAI antigas foram gravadas sem identificar o endereço de origem.
+    if saved_key and provider != "openai":
         return saved_key, "salva"
     padrao = _chave_padrao(provider)
     if padrao:
@@ -94,6 +96,23 @@ def _checar_rate_limit(request: Request):
         janela.append(agora)
 
 
+def _resolver_openai(header_key: str | None, base_req: str) -> tuple[str, str, str]:
+    try:
+        base = validar_base_openai(base_req or _ler_configuracao("openai_base_url", ""))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    if base == OPENAI_BASE:
+        api_key, origem = resolver_credencial(header_key, None, "openai")
+    else:
+        api_key = (header_key or "").strip()
+        if not api_key or api_key == SENTINELA_CHAVE:
+            raise HTTPException(status_code=401, detail="Informe uma chave própria para o provedor OpenAI-compatível.")
+        origem = "usuario"
+    if not api_key:
+        raise HTTPException(status_code=401, detail="API Key não encontrada.")
+    return api_key, origem, base
+
+
 @router.get("/models")
 def get_gemini_models(request: Request):
     provider = request.headers.get("X-Provider", "gemini")
@@ -102,16 +121,12 @@ def get_gemini_models(request: Request):
     openai_base_url = request.headers.get("X-OpenAI-Base-URL", "")
 
     if provider == "openai":
-        api_key, _origem = resolver_credencial(
-            request.headers.get("X-OpenAI-Key"), _ler_configuracao("openai_api_key"), "openai"
-        )
-        if not api_key:
-            raise HTTPException(status_code=401, detail="API Key não encontrada.")
+        api_key, _origem, base = _resolver_openai(request.headers.get("X-OpenAI-Key"), openai_base_url)
         try:
-            from openai import OpenAI
-            base = openai_base_url or "https://api.openai.com/v1"
-            client = OpenAI(api_key=api_key if api_key else "ollama", base_url=base)
-            models_raw = [m.id for m in client.models.list().data]
+            from openai import DefaultHttpxClient, OpenAI
+            with OpenAI(api_key=api_key, base_url=base,
+                        http_client=DefaultHttpxClient(follow_redirects=False)) as client:
+                models_raw = [m.id for m in client.models.list().data]
             modelos_formatados = [{"id": m, "label": m} for m in sorted(models_raw)]
             return {"models": modelos_formatados, "provider": "openai"}
         except Exception as e:
@@ -189,7 +204,10 @@ def _contexto_obras(req, request):
 
 
 def resolver_provedor(request: Request, provider_req, openai_base_url_req) -> dict:
-    """Provedor, chave e modelo efetivos do pedido (usuário > salvo > padrão do ambiente); persiste só o que o usuário digitou. Usado pelo chat e pelo assistente com ferramentas (TASK-191)."""
+    """Resolve o provedor, a chave e o modelo do chat e do assistente.
+
+    A chave pessoal do OpenAI vale somente para o pedido.
+    """
     provider = provider_req or "gemini"
     if provider == "anthropic":
         provider = "claude"
@@ -208,45 +226,45 @@ def resolver_provedor(request: Request, provider_req, openai_base_url_req) -> di
         "claude": request.headers.get("X-Anthropic-Model"),
     }
     chave_config_por_provider = {
-        "gemini": "gemini_api_key", "openai": "openai_api_key", "claude": "anthropic_api_key",
+        "gemini": "gemini_api_key", "claude": "anthropic_api_key",
     }
     modelo_config_por_provider = {
         "gemini": "gemini_model", "openai": "openai_model", "claude": "anthropic_model",
     }
 
-    conn = get_connection()
-    cursor = conn.cursor()
     saved_provider = _ler_configuracao("ai_provider", "gemini")
-    saved_base_url = _ler_configuracao("openai_base_url", "")
-
     if provider == "gemini" and saved_provider != "gemini":
         provider = "claude" if saved_provider == "anthropic" else saved_provider
     if provider not in ("gemini", "openai", "claude"):
         provider = "gemini"
-    if not openai_base_url and saved_base_url:
-        openai_base_url = saved_base_url
 
-    chave_config = chave_config_por_provider[provider]
     modelo_config = modelo_config_por_provider[provider]
-    saved_key = _ler_configuracao(chave_config)
-    saved_model = _ler_configuracao(modelo_config)
-
-    api_key, origem_chave = resolver_credencial(header_por_provider[provider], saved_key, provider)
-    if not api_key:
-        conn.close()
-        raise HTTPException(status_code=401, detail="API Key não fornecida, não salva e sem chave padrão do sistema.")
-    # Só a chave digitada pelo usuário é persistida; a padrão vem sempre do ambiente.
-    if origem_chave == "usuario":
-        cursor.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES (?, ?)", (chave_config, api_key))
-        conn.commit()
-
     custom_model = custom_model_header_por_provider[provider]
-    if custom_model == SENTINELA_CHAVE:
-        custom_model = saved_model
-    elif custom_model is not None:
-        cursor.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES (?, ?)", (modelo_config, custom_model))
-        conn.commit()
-    conn.close()
+    if provider == "openai":
+        api_key, origem_chave, openai_base_url = _resolver_openai(header_por_provider[provider], openai_base_url)
+        if custom_model == SENTINELA_CHAVE:
+            custom_model = _ler_configuracao(modelo_config) if openai_base_url == OPENAI_BASE else None
+        custom_model = modelo_openai_compativel(openai_base_url, custom_model)
+    else:
+        chave_config = chave_config_por_provider[provider]
+        saved_key = _ler_configuracao(chave_config)
+        api_key, origem_chave = resolver_credencial(header_por_provider[provider], saved_key, provider)
+        if not api_key:
+            raise HTTPException(status_code=401, detail="API Key não fornecida, não salva e sem chave padrão do sistema.")
+        grava_modelo = custom_model not in (None, SENTINELA_CHAVE)
+        if custom_model == SENTINELA_CHAVE:
+            custom_model = _ler_configuracao(modelo_config)
+        if origem_chave == "usuario" or grava_modelo:
+            conn = get_connection()
+            try:
+                if origem_chave == "usuario":
+                    conn.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES (?, ?)", (chave_config, api_key))
+                if grava_modelo:
+                    conn.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES (?, ?)", (modelo_config, custom_model))
+                conn.commit()
+            finally:
+                conn.close()
+
     return {"provider": provider, "api_key": api_key, "origem_chave": origem_chave, "custom_model": custom_model, "openai_base_url": openai_base_url}
 
 
@@ -359,10 +377,6 @@ async def gemini_chat(req: ChatRequest, request: Request):
         return StreamingResponse(_stream_gemini(), media_type="text/plain")
 
     if provider == "openai":
-        from openai import AsyncOpenAI
-        base = openai_base_url or "https://api.openai.com/v1"
-        client = AsyncOpenAI(api_key=api_key, base_url=base)
-
         preferencias = ["gpt-4o-mini", "gpt-4o"]
         modelos = [custom_model] if custom_model else preferencias
 
@@ -374,25 +388,26 @@ async def gemini_chat(req: ChatRequest, request: Request):
         mensagens.append({"role": "user", "content": prompt_final})
 
         async def _stream_openai():
-            last_err = None
-            for modelo in modelos:
-                try:
-                    stream = await client.chat.completions.create(model=modelo, messages=mensagens, stream=True)
-                    async for chunk in stream:
-                        delta = chunk.choices[0].delta.content if chunk.choices else None
-                        if delta:
-                            yield delta
-                    return
-                except Exception as e:
-                    err = str(e).lower()
-                    if any(k in err for k in _GATILHOS_FALLBACK):
-                        last_err = e
-                        logger.warning(f"OpenAI {modelo} indisponível. Tentando fallback...")
-                        continue
-                    yield f"\n[ERRO] {str(e)}"
-                    return
-            msg = str(last_err) if last_err else "Nenhum modelo OpenAI disponível."
-            yield f"\n[ERRO] {msg}"
+            async with criar_cliente_openai(api_key, openai_base_url) as client:
+                last_err = None
+                for modelo in modelos:
+                    try:
+                        stream = await client.chat.completions.create(model=modelo, messages=mensagens, stream=True)
+                        async for chunk in stream:
+                            delta = chunk.choices[0].delta.content if chunk.choices else None
+                            if delta:
+                                yield delta
+                        return
+                    except Exception as e:
+                        err = str(e).lower()
+                        if any(k in err for k in _GATILHOS_FALLBACK):
+                            last_err = e
+                            logger.warning(f"OpenAI {modelo} indisponível. Tentando fallback...")
+                            continue
+                        yield f"\n[ERRO] {str(e)}"
+                        return
+                msg = str(last_err) if last_err else "Nenhum modelo OpenAI disponível."
+                yield f"\n[ERRO] {msg}"
 
         return StreamingResponse(_stream_openai(), media_type="text/plain")
 

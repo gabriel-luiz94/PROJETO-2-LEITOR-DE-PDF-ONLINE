@@ -313,7 +313,7 @@ def test_chamar_openai_usa_modo_json_e_devolve_o_texto(monkeypatch):
             return types.SimpleNamespace(choices=[types.SimpleNamespace(message=msg)])
 
     class FakeAsyncOpenAI:
-        def __init__(self, api_key=None):
+        def __init__(self, api_key=None, base_url=None, http_client=None):
             self.api_key = api_key
             self.chat = types.SimpleNamespace(completions=FakeCompletions())
 
@@ -339,7 +339,7 @@ def test_chamar_openai_tenta_o_proximo_modelo_so_para_erro_de_cota(monkeypatch):
     fake = FakeCompletions()
 
     class FakeAsyncOpenAI:
-        def __init__(self, api_key=None):
+        def __init__(self, api_key=None, base_url=None, http_client=None):
             self.chat = types.SimpleNamespace(completions=fake)
 
     monkeypatch.setattr(openai, "AsyncOpenAI", FakeAsyncOpenAI)
@@ -353,7 +353,7 @@ def test_chamar_openai_erro_sem_gatilho_nao_tenta_outro_modelo(monkeypatch):
             raise RuntimeError("erro irrecuperável")
 
     class FakeAsyncOpenAI:
-        def __init__(self, api_key=None):
+        def __init__(self, api_key=None, base_url=None, http_client=None):
             self.chat = types.SimpleNamespace(completions=FakeCompletions())
 
     monkeypatch.setattr(openai, "AsyncOpenAI", FakeAsyncOpenAI)

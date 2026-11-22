@@ -114,6 +114,7 @@ def test_presets_e_corpo_do_reserva():
               "b: A.corpoReserva({ ativa: false, provider: 'gemini', url: 'https://x', modelo: '', chave: 'k', limparChave: true }) }))")
     ids = {p["id"]: p for p in r["p"]}
     assert {"deepseek", "qwen", "openrouter", "ollama", "gemini", "claude"} <= set(ids)
+    assert ids["deepseek"]["modelo"] == "deepseek-flash"
     assert ids["deepseek"]["url"].startswith("https://api.deepseek.com") and ids["qwen"]["url"].startswith("https://dashscope-intl.aliyuncs.com/compatible-mode")
     assert all(p["provider"] in ("openai", "gemini", "claude") for p in r["p"]) and all(p["provider"] == "openai" for p in r["p"] if p["url"])
     assert r["a"] == {"ativa": True, "provider": "openai", "base_url": "https://api.deepseek.com", "model": "deepseek-chat", "api_key": None, "limpar_chave": False}

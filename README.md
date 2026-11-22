@@ -65,12 +65,18 @@ O chat de IA funciona sem o usuário digitar chave, usando `GEMINI_API_KEY` (ou 
 
 Precedência: chave digitada pelo usuário → chave salva no servidor → chave padrão. Com a chave padrão há um limite de mensagens por usuário por minuto (`AI_RATE_LIMIT_POR_MINUTO`, padrão 20). `GET /api/health` mostra a origem ativa em `ai_key_source`, nunca o valor.
 
+Para configurar DeepSeek como reserva, entre no **Resumo → Configurações → Inteligência artificial → Chave API** com perfil administrador. Em **Provedor reserva**, marque **Usar provedor reserva**, selecione **DeepSeek**, confira o modelo `deepseek-flash` e cole a chave do DeepSeek. Clique em **Salvar reserva** e depois em **Testar**. O teste consulta a tabela de Cabos vazia e confirma que o modelo consegue responder após receber o resultado da ferramenta. [Chaves da API do DeepSeek](https://platform.deepseek.com/api_keys)
+
+`OPENAI_API_KEY` é usada exclusivamente no endereço oficial da OpenAI. Chaves pessoais ficam na configuração do navegador. Ao trocar o endereço ou provedor do reserva, informe a chave correspondente. Endereços adicionais podem ser configurados em `AI_OPENAI_ALLOWED_BASE_URLS`, separados por vírgula.
+
 ## ⚙️ Modos de operação
 
 Controlado pela variável `APP_MODE`:
 
 * `desktop` (padrão): uso local/`.exe`, CORS aberto, permite extração de arquivos locais via `/extract-local`.
 * `server`: deploy na nuvem, CORS restrito às origens definidas em `CORS_ORIGINS`, sem acesso a arquivos locais.
+
+Em servidor ou com `HEADLESS=1`, defina `JWT_SECRET` com um valor aleatório de pelo menos 32 bytes antes de iniciar. Gere um valor com `python -c "import secrets; print(secrets.token_hex(32))"` e configure-o como segredo do ambiente. No desktop, uma instalação sem segredo válido gera e mantém uma chave no perfil local. Sessões assinadas pela antiga chave padrão exigirão novo login.
 
 ## 🌐 Deploy Automático
 

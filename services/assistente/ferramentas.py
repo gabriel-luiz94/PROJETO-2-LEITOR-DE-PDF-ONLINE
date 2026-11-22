@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
 from services.assistente import catalogo, skills
+from services.prazo import PrazoExcedido, verificar_prazo
 
 LIMITE_LINHAS = 300            # linhas devolvidas por consulta (ler_tabela / totalizar)
 LIMITE_PLANO = 200             # alterações num plano
@@ -312,6 +313,7 @@ def propor_alteracoes(ctx: Contexto, a: dict) -> dict:
         for linha in cabo.get("vinculoPostes") or []:
             postes[linha] = postes.get(linha, 0) + 1
     for n, it in enumerate(itens, 1):
+        verificar_prazo()
         if len(ctx.plano) + len(novas) >= LIMITE_PLANO:
             rejeitadas.append({"n": n, "motivo": f"o plano comporta até {LIMITE_PLANO} alterações; proponha o resto depois"})
             break
@@ -380,6 +382,8 @@ def propor_alteracoes(ctx: Contexto, a: dict) -> dict:
                 motivos = [m for n, m in nao.items() if n and n in x["ativo"].upper()]
                 if motivos:
                     x["avisos"].append(motivos[0] or "ativo não encontrado na base do projeto (confira com buscar_ativo)")
+        except PrazoExcedido:
+            raise
         except Exception:                              # a conferência é um extra: sem ela o plano segue
             avisos.append("Não foi possível conferir os ativos na base do projeto.")
             for x in entram:
@@ -585,5 +589,7 @@ def executar(ctx: Contexto, nome: str, args) -> dict:
         args = {}
     try:
         return _json_seguro(FERRAMENTAS[nome][0](ctx, args))
+    except PrazoExcedido:
+        raise
     except Exception as e:             # a conversa nunca cai por causa de uma ferramenta
         return {"erro": f"{type(e).__name__}: {e}"[:300]}

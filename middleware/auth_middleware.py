@@ -10,10 +10,9 @@ from datetime import datetime, timezone
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
-from config import logger
+from config import JWT_SECRET, logger
 
 # Chave secreta para assinar tokens JWT
-JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret-change-in-production")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24
 JWT_LEMBRAR_HORAS = 24 * 30          # "Lembrar de mim" marcado no login: a sessão dura 30 dias (sem marcar: 24 h, e a tela de login volta ao reabrir o programa)

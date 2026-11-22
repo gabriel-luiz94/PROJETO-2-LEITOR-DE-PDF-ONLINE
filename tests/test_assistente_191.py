@@ -704,7 +704,7 @@ def test_rota_reserva_padrao_permissoes_e_chave_nunca_volta(client):
     assert client.post("/api/assistente/reserva/testar", headers=cab("operador")).status_code == 403
     assert _salvar_reserva(client).status_code == 200
     r = client.get("/api/assistente/reserva", headers=cab())
-    assert r.json() == {"ativa": True, "provider": "openai", "base_url": "https://api.deepseek.com", "model": "deepseek-chat", "tem_chave": True, "pode_editar": True}
+    assert r.json() == {"ativa": True, "provider": "openai", "base_url": "https://api.deepseek.com", "model": "deepseek-flash", "tem_chave": True, "pode_editar": True}
     assert "sk-segredo-123" not in r.text
     # sem api_key mantém a chave salva; limpar_chave apaga
     assert _salvar_reserva(client, api_key=None, model="deepseek-v4-flash").status_code == 200
@@ -716,7 +716,7 @@ def test_rota_reserva_padrao_permissoes_e_chave_nunca_volta(client):
 @pytest.mark.parametrize("corpo,trecho", [
     ({"provider": "deepseek"}, "Provedor deve ser"),
     ({"base_url": "ftp://x"}, "http://"),
-    ({"base_url": "https://x.com/v1", "model": ""}, "nome do modelo"),
+    ({"base_url": "https://openrouter.ai/api/v1", "model": ""}, "nome do modelo"),
     ({"provider": "gemini", "base_url": "https://x.com"}, "só vale para"),
     ({"model": "m" * 121}, "grande demais"),
     ({"api_key": None}, "Informe a chave"),
@@ -736,8 +736,8 @@ def test_chat_usa_o_reserva_quando_o_principal_falha(client, monkeypatch):
     monkeypatch.setattr(agente, "criar_adaptador", criar)
     r = client.post("/api/assistente/chat", headers={**cab(), "X-Gemini-Key": "k1"}, json={"prompt": "oi", "projeto_codigo": "081"})
     ev = linhas(r)
-    assert [e["tipo"] for e in ev] == ["aviso", "texto", "fim"] and "deepseek-chat" in ev[0]["texto"] and ev[1]["texto"] == "resposta do reserva"
-    assert ("openai", "sk-segredo-123", ["deepseek-chat"], "https://api.deepseek.com") in criados and any(c[0] == "gemini" and c[1] == "k1" for c in criados)
+    assert [e["tipo"] for e in ev] == ["aviso", "texto", "fim"] and "deepseek-flash" in ev[0]["texto"] and ev[1]["texto"] == "resposta do reserva"
+    assert ("openai", "sk-segredo-123", ["deepseek-flash"], "https://api.deepseek.com") in criados and any(c[0] == "gemini" and c[1] == "k1" for c in criados)
 
 
 def test_chat_sem_chave_no_principal_mas_com_reserva_funciona_e_sem_nenhum_da_401(client, monkeypatch):
@@ -762,11 +762,15 @@ def test_rota_testar_reserva(client, monkeypatch):
     monkeypatch.setattr(agente, "criar_adaptador", lambda provider, api_key, modelos, base_url="": Resposta("ok"))
     j = client.post("/api/assistente/reserva/testar", headers=cab()).json()
     assert j["ok"] is False and "não chamou" in j["erro"]
+    chamada = agente.Turno("", [agente.Chamada("teste", "ler_tabela", {"tabela": "cabos"})])
+    monkeypatch.setattr(agente, "criar_adaptador", lambda *a: Roteiro([chamada, agente.Turno("")]))
+    j = client.post("/api/assistente/reserva/testar", headers=cab()).json()
+    assert j["ok"] is False and "resposta final" in j["erro"]
     monkeypatch.setattr(agente, "criar_adaptador", lambda *a: Roteiro([
-        agente.Turno("", [agente.Chamada("teste", "ler_tabela", {"tabela": "cabos"})])
+        chamada, agente.Turno("A tabela está vazia.")
     ]))
     j = client.post("/api/assistente/reserva/testar", headers=cab()).json()
-    assert j["ok"] is True and j["modelo"] == "deepseek-chat" and "sk-segredo" not in json.dumps(j)
+    assert j["ok"] is True and j["modelo"] == "deepseek-flash" and "sk-segredo" not in json.dumps(j)
     monkeypatch.setattr(agente, "criar_adaptador", lambda provider, api_key, modelos, base_url="": Falha("401 invalid api key"))
     j = client.post("/api/assistente/reserva/testar", headers=cab()).json()
     assert j["ok"] is False and "invalid api key" in j["erro"]
@@ -848,7 +852,7 @@ def test_prazo_total_da_pergunta(monkeypatch):
             relogio[0] += agente.PRAZO_TOTAL / 2 + 1
             return agente.Turno("", [agente.Chamada("x", "listar_skills", {})])
     ev = eventos(Passo(), ctx_com())
-    assert "tempo máximo" in ev[-2]["texto"] and ev[-1] == {"tipo": "fim"}
+    assert ev[-2]["tipo"] == "erro" and "tempo máximo" in ev[-2]["mensagem"] and ev[-1] == {"tipo": "fim"}
 
 
 def test_gemini_3_usa_pensamento_baixo_e_outros_nao(monkeypatch):
@@ -998,3 +1002,60 @@ def test_previa_compara_quantidades_sem_chave_de_ia(client, monkeypatch):
     })
     assert r.status_code == 200
     assert r.json()["mudancas"] == [{"operacao": "I", "mdo": "M1", "codigo": "C-CFU", "antes": 1, "depois": 3}]
+
+
+def test_troca_do_endereco_do_reserva_exige_a_chave_correspondente(client):
+    assert _salvar_reserva(client).status_code == 200
+    nova_base = "https://openrouter.ai/api/v1"
+    assert _salvar_reserva(client, base_url=nova_base, api_key=None).status_code == 400
+    assert _salvar_reserva(client, base_url=nova_base, api_key=None, ativa=False).json()["tem_chave"] is False
+    assert client.get("/api/assistente/reserva", headers=cab()).json()["base_url"] == nova_base
+
+
+def test_resposta_vazia_do_principal_aciona_o_reserva():
+    ad = agente.AdaptadorComReserva(Resposta(" "), Resposta("ok"), "vazia", "R")
+    ev = eventos(ad, ctx_com())
+    assert [e["tipo"] for e in ev] == ["aviso", "texto", "fim"]
+    assert ev[1]["texto"] == "ok"
+
+
+def test_deepseek_consulta_cabos_e_recebe_o_resultado_em_duas_rodadas(client, monkeypatch):
+    import httpx
+    from openai import AsyncOpenAI
+
+    inicial = {"role": "assistant", "content": None, "tool_calls": [
+        {"id": "consulta", "type": "function", "function": {"name": "ler_tabela", "arguments": '{"tabela":"cabos"}'}}
+    ]}
+    cargas = []
+
+    def responder(request):
+        assert request.url == "https://api.deepseek.com/chat/completions"
+        assert request.headers["Authorization"] == "Bearer CHAVE-DO-DEEPSEEK"
+        corpo = json.loads(request.content)
+        cargas.append(corpo)
+        assert corpo["model"] == "deepseek-flash"
+        assert corpo["thinking"] == {"type": "disabled"}
+        assert any(t["function"]["name"] == "ler_tabela" for t in corpo["tools"])
+        ultima = corpo["messages"][-1]
+        if ultima["role"] == "tool":
+            assert ultima["tool_call_id"] == "consulta"
+            assert json.loads(ultima["content"])["cabos"]["linhas"] == []
+            mensagem = {"role": "assistant", "content": "A tabela de Cabos está vazia."}
+        else:
+            mensagem = inicial
+        return httpx.Response(200, json={
+            "id": "teste", "object": "chat.completion", "created": 1, "model": "deepseek-flash",
+            "choices": [{"index": 0, "message": mensagem, "finish_reason": "tool_calls" if mensagem is inicial else "stop"}],
+        })
+
+    def criar(api_key, base_url):
+        return AsyncOpenAI(api_key=api_key, base_url=base_url,
+                           http_client=httpx.AsyncClient(transport=httpx.MockTransport(responder)))
+
+    monkeypatch.setattr(agente, "criar_cliente_openai", criar)
+    assert _salvar_reserva(client, model="deepseek-flash", api_key="CHAVE-DO-DEEPSEEK").status_code == 200
+    assert client.post("/api/assistente/reserva/testar", headers=cab()).json()["ok"] is True
+    ev = linhas(client.post("/api/assistente/chat", headers=cab(), json={"prompt": "Consulte Cabos"}))
+    assert [e["tipo"] for e in ev] == ["ferramenta", "texto", "fim"]
+    assert "está vazia" in ev[1]["texto"]
+    assert len(cargas) == 4

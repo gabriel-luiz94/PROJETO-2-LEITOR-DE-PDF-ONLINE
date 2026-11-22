@@ -246,9 +246,15 @@ class FakeAsyncOpenAI:
         self.chat = types.SimpleNamespace(completions=completions)
         FakeAsyncOpenAI.ULTIMO = self
 
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass
+
 
 def _openai_client_com(monkeypatch, respostas):
-    def _factory(api_key=None, base_url=None):
+    def _factory(api_key=None, base_url=None, http_client=None):
         return FakeAsyncOpenAI(api_key=api_key, base_url=base_url, respostas=respostas)
     monkeypatch.setattr(openai, "AsyncOpenAI", _factory)
 
@@ -393,7 +399,7 @@ def test_resolver_credencial_claude_usa_env_padrao(monkeypatch):
 def test_resolver_credencial_chave_do_usuario_prevalece_sobre_env(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "ENV-OPENAI")
     assert ai_chat.resolver_credencial("CHAVE-DO-USUARIO", "CHAVE-SALVA", "openai") == ("CHAVE-DO-USUARIO", "usuario")
-    assert ai_chat.resolver_credencial(None, "CHAVE-SALVA", "openai") == ("CHAVE-SALVA", "salva")
+    assert ai_chat.resolver_credencial(None, "CHAVE-SALVA", "openai") == ("ENV-OPENAI", "padrao")
 
 
 def test_sem_nenhuma_chave_devolve_nenhuma():
@@ -426,9 +432,15 @@ def test_models_openai_usa_header_proprio_x_openai_key(client, monkeypatch):
             return types.SimpleNamespace(data=[FakeModelEntry("gpt-4o"), FakeModelEntry("gpt-4o-mini")])
 
     class FakeOpenAISync:
-        def __init__(self, api_key=None, base_url=None):
+        def __init__(self, api_key=None, base_url=None, http_client=None):
             self.api_key = api_key
             self.models = FakeModelsList()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
 
     monkeypatch.setattr(openai, "OpenAI", FakeOpenAISync)
     r = client.get("/api/gemini/models", headers={**cab(), "X-Provider": "openai", "X-OpenAI-Key": "K"})
@@ -452,3 +464,29 @@ def test_bug_do_provider_fixo_em_gemini_foi_corrigido():
     js = open("static/resumo.js", encoding="utf-8").read()
     assert "localStorage.setItem('ai_provider', 'gemini')" not in js
     assert "localStorage.setItem('ai_provider', provider)" in js
+
+
+def test_endpoints_openai_customizados_exigem_chave_propria(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "CHAVE-OFICIAL")
+    monkeypatch.setattr(openai, "OpenAI", lambda **_: pytest.fail("A listagem não deve criar cliente"))
+    monkeypatch.setattr(openai, "AsyncOpenAI", lambda **_: pytest.fail("O chat não deve criar cliente"))
+    headers = {**cab(), "X-Provider": "openai", "X-OpenAI-Key": "SAVED_IN_BACKEND"}
+    base = "https://api.deepseek.com"
+    assert client.get("/api/gemini/models", headers={**headers, "X-OpenAI-Base-URL": base}).status_code == 401
+    for rota in ("/api/gemini/chat", "/api/assistente/chat"):
+        assert client.post(rota, headers=headers, json=corpo("oi", provider="openai", openai_base_url=base)).status_code == 401
+        assert client.post(rota, headers=headers, json=corpo("oi", provider="openai", openai_base_url="https://provedor.example")).status_code == 400
+
+
+def test_openai_oficial_ignora_chaves_sem_origem_e_nao_salva_chave_propria(client, monkeypatch):
+    with database.get_connection() as conn:
+        conn.execute("INSERT INTO configuracoes (chave, valor) VALUES ('openai_api_key', 'LEGADA')")
+    monkeypatch.setenv("OPENAI_API_KEY", "OFICIAL")
+    _openai_client_com(monkeypatch, {"gpt-4o-mini": ["ok"]})
+    payload = corpo("oi", provider="openai")
+    assert client.post("/api/gemini/chat", headers={**cab(), "X-OpenAI-Key": "PESSOAL"}, json=payload).status_code == 200
+    assert FakeAsyncOpenAI.ULTIMO.api_key == "PESSOAL"
+    assert client.post("/api/gemini/chat", headers=cab(), json=payload).status_code == 200
+    assert FakeAsyncOpenAI.ULTIMO.api_key == "OFICIAL"
+    assert FakeAsyncOpenAI.ULTIMO.base_url == "https://api.openai.com/v1"
+    assert ai_chat._ler_configuracao("openai_api_key") == "LEGADA"

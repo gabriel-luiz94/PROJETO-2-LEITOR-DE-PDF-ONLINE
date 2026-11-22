@@ -11,12 +11,15 @@ na nuvem REAL (aconteceu em 2026-10-02: ver .ai/CHANGELOG.md). Este arquivo roda
 Um teste que precise de nuvem usa um cliente FALSO (monkeypatch), como tests/test_ajustes_cadastro.py.
 """
 import os
+import secrets
 import tempfile
 
 import pytest
 
 for _chave in ("SUPABASE_URL", "SUPABASE_KEY", "SUPABASE_SERVICE_KEY", "SUPABASE_ANON_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "OPENAI_API_KEY", "CLOUDCONVERT_API_KEY"):
     os.environ[_chave] = ""
+
+os.environ["JWT_SECRET"] = secrets.token_hex(32)
 
 _PASTA_TESTES = tempfile.mkdtemp(prefix="leitor_testes_")
 

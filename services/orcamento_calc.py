@@ -4,6 +4,7 @@ services/orcamento_calc.py — Lógica de cálculo do orçamento.
 import re
 
 
+from services.prazo import verificar_prazo
 from services.orcamento_lv import operacao_viva, passa_lv
 from services.orcamento_arred import aplicar_arred
 from services.fator_formula import FormulaErro, avaliar
@@ -257,6 +258,7 @@ def _preparar_parametros(orcamento_rows, req_proj):
 
     linhas, grupos = [], {}
     for r in orcamento_rows:
+        verificar_prazo()
         cel = (r.get("ativo") or "").strip()
         a = analisar_celula_base(cel) if cel and ("(" in cel or "=" in cel or "," in cel or "[" in cel) else None
         if a is None or a["erro"]:
@@ -301,12 +303,14 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
     
     raw_by_ativo = {}
     for r in orcamento_rows:
+        verificar_prazo()
         key = (r.get("ativo") or "").strip().upper()
         if key:
             raw_by_ativo.setdefault(key, []).append(dict(r))
 
     orcamento_dict = {}
     for key, rows in raw_by_ativo.items():
+        verificar_prazo()
         exact_matches = []
         generic_matches = []
         fallback_matches = []
@@ -336,6 +340,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
 
     # 2a. CABOS: Regra rígida de formato "ATIVO FASE COMPRIMENTO"
     for item in req_cabos:
+        verificar_prazo()
         av = extrair_ativo_cabo(item)
         if av:
             ativos_qtd.append(av)
@@ -343,6 +348,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
     # 2b. OUTROS: texto separado por espaços no modelo "[qtd]-[ativo] [qtd]-[ativo] ..."
     erros_formato = []
     for item in req_outros:
+        verificar_prazo()
         ativos, erros = interpretar_outros(item, ctx_outros)
         ativos_qtd.extend(ativos)
         if erros:
@@ -357,6 +363,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
     # Filtrar orcamento_rows (todas as linhas) pelo projeto
     valid_rows = []
     for r in orcamento_rows:
+        verificar_prazo()
         row_proj = (r.get("projeto") or "").strip().upper()
         if not row_proj:
             valid_rows.append(r)
@@ -511,6 +518,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
     # ── 4. Soma I e Soma R por CÓDIGO (equivalente ao SOMASE do Excel) ───────
     codigos = {}
     for c in componentes_qtd:
+        verificar_prazo()
         row     = c["row"]
         codigo  = row["codigo"]
         # MDO: da linha, ou fallback pelo código — nunca fica vazio (usa "-" se não achar em lugar nenhum)
