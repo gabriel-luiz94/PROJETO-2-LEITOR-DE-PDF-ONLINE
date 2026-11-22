@@ -773,7 +773,7 @@
         indices.forEach(ic => {
             const c = cabos[ic];
             const geo = trim(c._geoTipo).toUpperCase(), nivel = trim(c.nivel).toUpperCase();
-            const tipo = ['MT', 'BT'].includes(geo) ? geo : ['MT', 'BT'].includes(nivel) ? nivel
+            const tipo = ['MT', 'BT'].includes(nivel) ? nivel : ['MT', 'BT'].includes(geo) ? geo
                 : derivarCabo(c.tensao || c.textoOriginal || c.ativo, dicionario).nivel;
             if (!grupos.has(tipo)) grupos.set(tipo, []);
             grupos.get(tipo).push(ic);

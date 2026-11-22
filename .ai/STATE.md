@@ -6,6 +6,10 @@
 
 ---
 
+## Edição pelos cartões do mapa · TASK-223
+
+Os cartões editam as linhas de Cabos e Demais Ativos no Resumo. Cada gravação entra no histórico. Uma alteração que deslocaria uma estrutura vinculada ou criaria incompatibilidade mostra o erro no cartão. [TASK-223](tasks/TASK-223-22-11-2026.md).
+
 ## Arraste, seleção e âncoras no mapa · TASK-222
 
 Todos os pontos podem ser arrastados, inclusive os que vieram do CAD. O mapa destaca o cabo na lista, oferece filtros por operação e mostra as âncoras fictícias. Pontos avulsos seguem a numeração dos postes e o painel ficou mais compacto. [TASK-222](tasks/TASK-222-22-11-2026.md).
@@ -823,6 +827,8 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-11-22
+
+**Motivo:** [TASK-223](tasks/TASK-223-22-11-2026.md) conectou os editores dos cartões às tabelas do Resumo.
 
 **Motivo:** [TASK-222](tasks/TASK-222-22-11-2026.md) liberou o arraste CAD, os filtros e as âncoras fictícias.
 

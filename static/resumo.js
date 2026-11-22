@@ -2519,6 +2519,118 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     }
 
+    function validarAnotacaoOutrosNoMapa(tipo, nome) {
+        const r = AnotacaoOutros.interpretarLinha(nome, 'I', _classicoTotalizadora, _ctxOutros());
+        if (r.erros.length || !r.itens.length) return r.erros[0]?.msg || 'Anotação inválida.';
+        const postes = postesDaLinhaVinculo(nome);
+        if (tipo === 'poste' && postes.length !== 1) return 'Informe um poste reconhecido pela convenção do projeto. Exemplo: 12600D, N3.';
+        if (tipo === 'estrutura' && postes.length) return 'Esta linha de estrutura deve conter apenas estruturas.';
+        return '';
+    }
+
+    function atualizarLinhaDoMapa(tabela, indice, recalcular) {
+        if (recalcular) recalcRowAndAbove(indice);
+        renderTable(tabela);
+        buildAtivoSets();
+        buildDataLists();
+        refreshAllFilters(tabela);
+        atualizarResumoRedeUI();
+    }
+
+    function validarEdicaoCaboNoMapa(indice, antes, nova, cfg) {
+        const VR = VinculacaoRegras;
+        const ids = antes.vinculoEstruturas || [], ficticias = VR.estruturasFicticiasDe(antes);
+        if (!ids.length && !ficticias.length) return '';
+        if (nova.operacao !== antes.operacao && !VR.participaVinculo(nova)) return 'Remova os vínculos internos antes de trocar para retirada.';
+        const info = row => VR.infoCabo(_prefixoCaboVinculo(row.ativo) || '', row.operacao, cfg, VR.extraCabo(row, cfg.dicionario_cabos));
+        const anterior = info(antes), posterior = info(nova);
+        if ((anterior.vincula && !posterior.vincula) ||
+            (posterior.pontas < anterior.pontas && ids.length + ficticias.length > posterior.pontas))
+            return 'A alteração reduz as pontas aceitas ou desativa o vínculo. Remova os vínculos internos que impedem a edição.';
+        const cabos = tableStates.cabos.data, outros = tableStates.outros.data;
+        const analisar = lista => VR.analisar(lista, outros, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
+        const anteriorAnalise = analisar(cabos), copia = cabos.slice();
+        copia[indice] = nova;
+        const posteriorAnalise = analisar(copia), estruturas = new Set(ids);
+        const chave = l => l.cabo + ':' + l.estrutura;
+        const anteriores = new Set(anteriorAnalise.links.filter(l => !l.ok).map(chave));
+        const conflito = posteriorAnalise.links.find(l => !l.ok && estruturas.has(l.estrutura) && !anteriores.has(chave(l)));
+        const errosAnteriores = anteriorAnalise.cabos[indice]?.erros || [];
+        const erro = conflito?.motivo || posteriorAnalise.cabos[indice]?.erros?.find(m => !errosAnteriores.includes(m));
+        return erro ? 'A edição tornaria um vínculo incompatível. ' + erro : '';
+    }
+
+    function validarEdicaoEstruturaNoMapa(indice, antes, nova) {
+        const VR = VinculacaoRegras;
+        const codigosAntes = _codigosEstruturaVinculo(antes.ativo), codigosDepois = _codigosEstruturaVinculo(nova.ativo);
+        const slots = new Set(Object.entries(antes.cabosFicticiosSlots || {}).filter(([, v]) => v.length).map(([k]) => Number(k)));
+        if (antes.cabosFicticios?.length) slots.add(0);
+        for (const c of tableStates.cabos.data) {
+            for (const id of c?.vinculoEstruturas || []) if (VR.linhaDe(id) === indice) slots.add(VR.slotDe(id));
+        }
+        if (!slots.size) return '';
+        if (VR.participaVinculo(antes) && !VR.participaVinculo(nova)) return 'Remova os vínculos e os cabos fictícios desta linha antes de trocar para retirada.';
+        for (const k of slots) {
+            if (codigosAntes[k] !== codigosDepois[k]) return 'A edição mudaria a estrutura vinculada na posição ' + (k + 1) + '. Remova esse vínculo antes.';
+        }
+        return '';
+    }
+
+    function editarAtivoNoMapa(tipo, indice, referencia, dados, configVinculo) {
+        const tabela = tipo === 'cabo' ? 'cabos' : 'outros';
+        const row = tableStates[tabela].data[indice];
+        if (!row || row !== referencia) return 'A linha mudou. Reabra a edição no cartão.';
+        if (tipo === 'poste-ficticio') {
+            if (!row._mapaPosteFicticio) return 'O poste fictício já não está disponível.';
+            const estruturas = dados.estruturas;
+            const emUso = tableStates.cabos.data.some(c =>
+                (c?._mapaAncoras || []).some(([id, codigo]) => id === row._mapaId && !estruturas.includes(codigo)));
+            if (emUso) return 'Solte os cabos ancorados antes de remover ou renomear a estrutura fictícia.';
+            const ativo = dados.ativo ? 'Poste fictício · ' + dados.ativo : 'Poste fictício';
+            if (ativo === row.ativo && JSON.stringify(estruturas) === JSON.stringify(row._mapaEstruturasFicticias)) return '';
+            pushHistory();
+            row.ativo = ativo;
+            row._mapaEstruturasFicticias = estruturas.slice();
+            atualizarLinhaDoMapa(tabela, indice, false);
+            return '';
+        }
+        if (row.bloqueada || row.comentario) return 'A linha está bloqueada para edição.';
+        const entrada = String(dados.ativo || '').trim();
+        const mudouAtivo = entrada.toUpperCase() !== row.ativo.trim().toUpperCase();
+        const ativo = mudouAtivo ? entrada.toUpperCase() : row.ativo;
+        if (!entrada || entrada.length > 500 || /^[#@]/.test(entrada)) return 'Informe uma anotação válida.';
+        if (dados.operacao !== row.operacao && !/^(?:\*)?[IMR]$/.test(dados.operacao)) return 'Escolha a operação do ativo.';
+        const nova = { ...row, ativo, operacao: dados.operacao };
+        let erro;
+        if (tipo === 'cabo') {
+            if (dados.fases !== String(row.fases ?? '') && (!/^\d?$/.test(dados.fases) || dados.fases === '0')) return 'Informe um número de fases de 1 a 9 ou deixe em branco.';
+            if (dados.nivel !== String(row.nivel ?? '') && dados.nivel && !['MT', 'BT'].includes(dados.nivel)) return 'Escolha MT, BT ou deixe o nível automático.';
+            if (mudouAtivo) nova.textoOriginal = ativo;
+            for (const campo of ['fases', 'tensao', 'nivel']) {
+                if (dados[campo] === String(row[campo] ?? '')) continue;
+                if (dados[campo]) nova[campo] = campo === 'fases' ? Number(dados[campo]) : dados[campo];
+                else delete nova[campo];
+            }
+            if (['ativo', 'operacao', 'fases', 'tensao', 'nivel'].every(k => String(nova[k] ?? '') === String(row[k] ?? ''))) return '';
+            erro = validarEdicaoCaboNoMapa(indice, row, nova, VinculacaoRegras.normalizarConfig(configVinculo));
+        } else {
+            if (!['poste', 'estrutura'].includes(tipo)) return 'Tipo de linha inválido.';
+            if (mudouAtivo) {
+                erro = validarAnotacaoOutrosNoMapa(tipo, ativo);
+                if (erro) return erro;
+                reclassificarEntidade(nova);
+            }
+            if (!mudouAtivo && nova.operacao === row.operacao) return '';
+            erro = validarEdicaoEstruturaNoMapa(indice, row, nova);
+        }
+        if (erro) return erro;
+        pushHistory();
+        Object.assign(row, nova);
+        if (tipo === 'cabo') for (const campo of ['fases', 'tensao', 'nivel']) if (!(campo in nova)) delete row[campo];
+        atualizarLinhaDoMapa(tabela, indice, tipo === 'cabo' && mudouAtivo);
+        return '';
+    }
+
     function inserirAtivoNoMapa(tipo, dados) {
         const nome = String(dados.ativo || '').trim().toUpperCase();
         const operacao = dados.operacao;
@@ -2543,11 +2655,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (['MT', 'BT'].includes(dados.nivel)) row.nivel = dados.nivel;
         } else {
             if (!['poste', 'estrutura'].includes(tipo)) return { erro: 'Escolha o tipo de ativo.' };
-            const r = AnotacaoOutros.interpretarLinha(nome, 'I', _classicoTotalizadora, _ctxOutros());
-            if (r.erros.length || !r.itens.length) return { erro: r.erros[0]?.msg || 'Anotação inválida.' };
-            const postes = postesDaLinhaVinculo(nome);
-            if (tipo === 'poste' && postes.length !== 1) return { erro: 'Informe um poste reconhecido pela convenção do projeto. Exemplo: 12600D, N3.' };
-            if (tipo === 'estrutura' && postes.length) return { erro: 'Use Novo poste para uma anotação que contém um poste.' };
+            const erro = validarAnotacaoOutrosNoMapa(tipo, nome);
+            if (erro) return { erro };
             row.entidade = tipo === 'poste' ? 'POSTE' : 'ESTRUTURA';
         }
         const outros = tableStates.outros.data;
@@ -2594,6 +2703,7 @@ document.addEventListener('DOMContentLoaded', () => {
         adicionarAvulsos: (ic, ficticia) => _adicionarAvulsos(ic, ficticia),
         postesDaLinha: postesDaLinhaVinculo,
         inserirNoMapa: inserirAtivoNoMapa,
+        editarNoMapa: editarAtivoNoMapa,
         inserirPosteFicticioNoMapa,
         removerPosteFicticioNoMapa,
         associarNoMapa: associarEstruturaNoMapa,
