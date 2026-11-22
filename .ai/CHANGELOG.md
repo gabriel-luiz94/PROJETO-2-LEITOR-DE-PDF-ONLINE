@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-21 — Segurança, prazo e DeepSeek no Assistente
+
+O chat protege a chave OpenAI compartilhada e valida os destinos alternativos. O DeepSeek passa a usar o modelo `deepseek-flash`, com teste do ciclo completo de ferramenta. O prazo esgotado gera erro e encerramento do chat. O servidor exige uma chave JWT própria, e o desktop gera a sua no perfil local. [TASK-217](tasks/TASK-217-21-11-2026.md).
+
 ## 2026-11-21 — Arraste nativo e abertura mais leve
 
 O Windows controla o movimento das janelas destacadas pela barra de título nativa. O botão de reencaixe continua na visualização. PDF, DXF e Excel carregam suas bibliotecas ao primeiro uso. [TASK-216](tasks/TASK-216-21-11-2026.md).

@@ -8,6 +8,9 @@ APP_VERSION = "2.7.2"
 import os
 import sys
 import logging
+import secrets
+import tempfile
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Carrega as variáveis do .env
@@ -102,7 +105,38 @@ IS_FROZEN = getattr(sys, "frozen", False)
 APP_MODE = os.environ.get("APP_MODE", "desktop" if IS_FROZEN else "desktop")
 
 # ── JWT ─────────────────────────────────────────────────────────────────────
-JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret-change-in-production")
+def _segredo_jwt() -> str:
+    configurado = os.environ.get("JWT_SECRET", "").strip()
+    if len(configurado.encode("utf-8")) >= 32 and configurado != "gere-uma-chave-secreta-forte-aqui":
+        return configurado
+    if APP_MODE == "server" or os.environ.get("HEADLESS") == "1":
+        raise RuntimeError("Configure JWT_SECRET com um segredo aleatório de pelo menos 32 bytes.")
+
+    # Fica no perfil local para que «Lembrar de mim» sobreviva a reinícios e atualizações.
+    perfil = Path(os.environ.get("APPDATA") or Path.home() / ".config") / "OrcaCore"
+    perfil.mkdir(mode=0o700, parents=True, exist_ok=True)
+    destino = perfil / "jwt.key"
+    if not destino.is_file():
+        with tempfile.NamedTemporaryFile(dir=perfil, mode="w", encoding="ascii", delete=False) as arquivo:
+            temporario = Path(arquivo.name)
+            arquivo.write(secrets.token_hex(32))
+        try:
+            # Publica o arquivo completo sem sobrescrever a chave criada por outra instância.
+            if os.name == "nt":
+                temporario.rename(destino)
+            else:
+                os.link(temporario, destino)
+        except FileExistsError:
+            pass
+        finally:
+            temporario.unlink(missing_ok=True)
+    segredo = destino.read_text(encoding="ascii").strip()
+    if len(segredo) != 64 or any(c not in "0123456789abcdef" for c in segredo):
+        raise RuntimeError("O arquivo local de sessão do OrçaCore está inválido.")
+    return segredo
+
+
+JWT_SECRET = _segredo_jwt()
 
 # ── URLs do servidor central (para auto-update e sync) ──────────────────────
 SERVER_URL = os.environ.get("SERVER_URL", "")

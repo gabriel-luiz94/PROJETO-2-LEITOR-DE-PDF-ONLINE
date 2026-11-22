@@ -101,7 +101,7 @@
 
     /** Atalhos do formulário do provedor reserva: DeepSeek, Qwen etc. entram como «OpenAI-compatível» (URL base + nome do modelo). Confira o nome do modelo na doc de cada serviço: eles mudam. */
     const PRESETS_RESERVA = [
-        { id: 'deepseek', rotulo: 'DeepSeek', provider: 'openai', url: 'https://api.deepseek.com', modelo: 'deepseek-chat', dica: 'Chave em platform.deepseek.com. Se o nome do modelo mudou, veja a doc (ex.: deepseek-v4-flash).' },
+        { id: 'deepseek', rotulo: 'DeepSeek', provider: 'openai', url: 'https://api.deepseek.com', modelo: 'deepseek-flash', dica: 'Crie uma chave em platform.deepseek.com. O teste consulta Cabos e confirma a resposta final.' },
         { id: 'qwen', rotulo: 'Qwen (Alibaba · Singapura)', provider: 'openai', url: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', modelo: 'qwen-plus', dica: 'Chave do Model Studio (região Singapura): ela só vale na região em que foi criada.' },
         { id: 'openrouter', rotulo: 'OpenRouter', provider: 'openai', url: 'https://openrouter.ai/api/v1', modelo: '', dica: 'Informe o modelo (os gratuitos terminam em :free e têm limite de 20 pedidos/min e 50/dia).' },
         { id: 'ollama', rotulo: 'Ollama (no seu PC)', provider: 'openai', url: 'http://localhost:11434/v1', modelo: '', dica: 'Informe o modelo instalado (ex.: um Qwen). O Ollama não usa chave: digite qualquer texto.' },
@@ -222,7 +222,7 @@
             const provider = mk('select', 'rs-campo');
             [['openai', 'OpenAI-compatível (DeepSeek, Qwen, OpenRouter, Ollama…)'], ['gemini', 'Gemini'], ['claude', 'Claude']].forEach(([v, t]) => { const o = mk('option', '', t); o.value = v; provider.appendChild(o); });
             const url = mk('input', 'rs-campo'); url.placeholder = 'URL base (ex.: https://api.deepseek.com)'; url.autocomplete = 'off';
-            const modelo = mk('input', 'rs-campo'); modelo.placeholder = 'Nome do modelo (ex.: deepseek-chat)'; modelo.autocomplete = 'off';
+            const modelo = mk('input', 'rs-campo'); modelo.placeholder = 'Nome do modelo (ex.: deepseek-flash)'; modelo.autocomplete = 'off';
             const chave = mk('input', 'rs-campo'); chave.type = 'password'; chave.autocomplete = 'new-password'; chave.placeholder = 'Chave da API do reserva';
             const estadoChave = mk('p', 'rs-ajuda');
             const dica = mk('p', 'rs-dica');
@@ -250,7 +250,7 @@
                     const j = await r.json();
                     ativa.checked = !!j.ativa; provider.value = j.provider; url.value = j.base_url; modelo.value = j.model; temChave = !!j.tem_chave; pode = !!j.pode_editar;
                     chave.value = '';
-                    estadoChave.textContent = temChave ? 'Chave salva ✓ (deixe em branco para manter).' : 'Nenhuma chave salva.';
+                    estadoChave.textContent = temChave ? 'Chave salva ✓. Informe a chave correspondente ao trocar de provedor ou URL.' : 'Nenhuma chave salva.';
                     [ativa, preset, provider, url, modelo, chave, salvar, testar].forEach(c => { c.disabled = !pode; });
                     if (!pode) marcarEstado('Só o administrador configura o reserva.', true); else if (!manterMensagem) estado.textContent = '';
                     ajustarProvider();
@@ -274,7 +274,7 @@
                     await gravar();
                     const r = await fetch('/api/assistente/reserva/testar', { method: 'POST' });
                     const j = await r.json().catch(() => ({}));
-                    if (j.ok) marcarEstado(`Funcionou: ${j.modelo} usou a ferramenta em ${(j.ms / 1000).toFixed(1)} s.`, false); else marcarEstado(j.erro || ('HTTP ' + r.status), true);
+                    if (j.ok) marcarEstado(`Funcionou: ${j.modelo} concluiu a consulta e respondeu em ${(j.ms / 1000).toFixed(1)} s.`, false); else marcarEstado(j.erro || ('HTTP ' + r.status), true);
                     await recarregar(true);
                 } catch (e) { marcarEstado(e.message, true); } finally { testar.disabled = !pode; }
             });

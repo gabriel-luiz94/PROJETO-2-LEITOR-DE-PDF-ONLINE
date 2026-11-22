@@ -8,6 +8,7 @@ Só funções puras sobre a lista de linhas — quem lê o banco é o chamador.
 import re
 import unicodedata
 
+from services.prazo import verificar_prazo
 from services.ativo_parametros import nome_base
 
 LIMITE_LISTA_SKILL = 250          # a skill gerada mostra até tantos ativos (o resto vem pela ferramenta de busca)
@@ -34,6 +35,7 @@ def indexar(rows, projeto_nome: str = "", projeto_codigo: str = "") -> dict:
     """{NOME: {nome, descricao, componentes, codigos, formas}} só com as linhas que valem no projeto. `componentes` conta linhas; `codigos`, os códigos distintos."""
     indice = {}
     for r in rows or []:
+        verificar_prazo()
         celula = (r.get("ativo") or "").strip()
         if not celula or not _vale(r, projeto_nome, projeto_codigo):
             continue
@@ -66,6 +68,7 @@ def buscar(indice: dict, texto: str, limite: int = 15) -> list:
     palavras = [p for p in re.split(r"[\s,;]+", t) if p]
     achados = []
     for nome, e in indice.items():
+        verificar_prazo()
         alvo_nome, alvo_desc = _norm(nome), _norm(e["descricao"])
         juntos = alvo_nome + " " + alvo_desc
         if alvo_nome == t:
@@ -88,6 +91,7 @@ def componentes_de(rows, nome: str, projeto_nome: str = "", projeto_codigo: str 
     alvo = _norm(nome)
     saida = []
     for r in rows or []:
+        verificar_prazo()
         celula = (r.get("ativo") or "").strip()
         if not celula or not _vale(r, projeto_nome, projeto_codigo):
             continue

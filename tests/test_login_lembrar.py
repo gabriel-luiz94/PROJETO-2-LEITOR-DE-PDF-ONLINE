@@ -58,3 +58,24 @@ def test_ligacoes_do_navegador():
     assert "localStorage.setItem('auth_lembrar', lembrar ? 'true' : 'false')" in login and "sessionStorage.setItem('sessao_ativa', '1')" in login
     assert "auth_lembrar') === 'false' && !sessionStorage.getItem('sessao_ativa')" in fetch_js and "'auth_lembrar'" in fetch_js
     assert "localStorage.removeItem('auth_lembrar')" in script
+
+
+def test_segredo_jwt_do_desktop_e_persistente_e_isolado_por_perfil(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "APP_MODE", "desktop")
+    monkeypatch.delenv("HEADLESS", raising=False)
+    monkeypatch.setenv("JWT_SECRET", "")
+    monkeypatch.setenv("APPDATA", str(tmp_path / "perfil1"))
+    segredo = config._segredo_jwt()
+    assert len(segredo) == 64 and config._segredo_jwt() == segredo
+    monkeypatch.setenv("APPDATA", str(tmp_path / "perfil2"))
+    assert config._segredo_jwt() != segredo
+
+
+@pytest.mark.parametrize("modo,headless", [("server", "0"), ("desktop", "1")])
+@pytest.mark.parametrize("segredo", ["", "dev-secret-change-in-production", "gere-uma-chave-secreta-forte-aqui"])
+def test_jwt_servidor_recusa_segredo_padrao(modo, headless, segredo, monkeypatch):
+    monkeypatch.setattr(config, "APP_MODE", modo)
+    monkeypatch.setenv("HEADLESS", headless)
+    monkeypatch.setenv("JWT_SECRET", segredo)
+    with pytest.raises(RuntimeError, match="Configure JWT_SECRET"):
+        config._segredo_jwt()

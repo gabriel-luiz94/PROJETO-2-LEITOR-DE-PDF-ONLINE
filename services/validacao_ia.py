@@ -193,8 +193,9 @@ async def chamar_gemini(api_key, modelos, texto, temperatura=0.0):
 
 async def chamar_openai(api_key, modelos, texto, temperatura=0.0):
     """Mesmo contrato de `chamar_gemini` (TASK-055), usando o modo JSON nativo da OpenAI."""
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI(api_key=api_key)
+    from services.provedores_ia import criar_cliente_openai
+
+    client = criar_cliente_openai(api_key)
     ultimo = None
     for modelo in modelos:
         try:

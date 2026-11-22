@@ -15,6 +15,7 @@ Estrutura = código do primeiro item que não é poste da linha de Outros (ou o 
 """
 import re
 
+from services.prazo import verificar_prazo
 from services import anotacao_cabos as _ac
 from services import convencao_postes as _cp
 from services import dicionario_cabos as _dc
@@ -604,6 +605,7 @@ def _mapa_postes(outros, ests) -> list:
     """[(linha, (x, y))] dos postes (`_poste` da linha de Outros) — o mesmo da vinculação por poste (TASK-166)."""
     por_linha = {}
     for ie in ests:
+        verificar_prazo()
         por_linha.setdefault(outros[ie].get("_linha"), []).append(ie)
     postes = [(linha, _par(outros[ies[0]].get("_poste"))) for linha, ies in sorted(por_linha.items(), key=lambda x: (x[0] is None, x[0]))]
     return [(linha, pos) for linha, pos in postes if pos]
@@ -796,6 +798,7 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
     links, bad_links = [], set()
     res_e = {}
     for ie in ests_ocupa:
+        verificar_prazo()
         e = info_e[ie]
         fict = [_trim(x).upper() for x in (outros[ie].get("cabosFicticios") or []) if _trim(x)]
         tem = len(ocup[ie]) + len(fict)
@@ -832,6 +835,7 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
     # TASK-169 — 2ª passada: equipamento (RL, CFU, para-raio…) lê os cabos do POSTE, sem ocupar pontas
     postes = _mapa_postes(outros, ests)
     for ie in ests:
+        verificar_prazo()
         e = info_e[ie]
         if e["ocupa"]:
             continue
@@ -847,6 +851,7 @@ def _analisar_base(cabos, outros, cfg, prefixo_fn, codigo_fn) -> dict:
         pos = _par(outros[ie].get("_poste"))
         if pos:
             for ic in sorted(info_c):
+                verificar_prazo()
                 ext = _extremos(cabos[ic])
                 if ic not in vistos and ext and any(_poste_mais_perto(pt, postes, RAIO_POSTE_PADRAO) == linha for pt in ext):
                     vistos.add(ic)
@@ -1019,6 +1024,7 @@ def _extremos(cabo):
 def _poste_mais_perto(pt, postes, raio):
     melhor, dmin = None, None
     for linha, pos in postes:
+        verificar_prazo()
         d = ((pt[0] - pos[0]) ** 2 + (pt[1] - pos[1]) ** 2) ** 0.5
         if d <= raio and (dmin is None or d < dmin):
             melhor, dmin = linha, d
@@ -1052,6 +1058,7 @@ def _vincular_por_poste_base(cabos, outros, cfg, prefixo_fn, codigo_fn, raio) ->
     info_c = {ic: info_cabo(_codigo_cabo(c, prefixo_fn), c.get("operacao"), cfg, extra_cabo(c, cfg.get("dicionario_cabos"))) for ic, c in enumerate(cabos) if _eh_cabo_valido(c)}
     por_linha = {}
     for ie in ests:
+        verificar_prazo()
         por_linha.setdefault(outros[ie].get("_linha"), []).append(ie)
     todos_postes = [(linha, _par(outros[ies[0]].get("_poste"))) for linha, ies in sorted(por_linha.items(), key=lambda x: (x[0] is None, x[0]))]
     postes = [(linha, pos) for linha, pos in todos_postes if pos]          # todos_postes: também os atribuídos à mão (sem geometria)

@@ -10,10 +10,12 @@ POST /api/assistente/skills/gerar-catalogo   lê a Base de Orçamento e grava a 
 O atalho de ativos e a prévia funcionam sem chave de IA. As skills são arquivos locais.
 """
 import asyncio
+import hashlib
 import json
 import os
 import re
 import time
+from contextlib import aclosing, closing
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -23,8 +25,9 @@ from pydantic import BaseModel
 import database
 from config import PROMPT_ASSISTENTE_PATH, logger
 from middleware.auth_middleware import require_role
-from routers.ai_chat import _checar_rate_limit, _ler_configuracao, resolver_credencial, resolver_provedor
+from routers.ai_chat import SENTINELA_CHAVE, _checar_rate_limit, resolver_provedor
 from services.assistente import agente, catalogo, ferramentas, skills
+from services.provedores_ia import OPENAI_BASE, modelo_openai_compativel, validar_base_openai
 
 router = APIRouter(prefix="/api/assistente", tags=["assistente"])
 
@@ -157,8 +160,9 @@ def _fast_path(prompt: str):
 
 def _ndjson(eventos):
     async def gerar():
-        async for ev in eventos:
-            yield json.dumps(ev, ensure_ascii=False) + "\n"
+        async with aclosing(eventos):
+            async for ev in eventos:
+                yield json.dumps(ev, ensure_ascii=False) + "\n"
     return StreamingResponse(gerar(), media_type="application/x-ndjson", headers={"Cache-Control": "no-store"})
 
 
@@ -166,18 +170,36 @@ def _rotulo(provider: str, modelos: list) -> str:
     return f"{ {'gemini': 'Gemini', 'openai': 'OpenAI-compatível', 'claude': 'Claude'}.get(provider, provider) } · {modelos[0] if modelos else ''}".strip(" ·")
 
 
-def _reserva_ativa() -> Optional[dict]:
-    """A configuração do provedor reserva pronta para uso ({provider, api_key, base_url, modelos}) ou None (desligado, sem chave ou inválido)."""
-    if _ler_configuracao("ai_reserva_ativa") != "1":
-        return None
-    provider = _ler_configuracao("ai_reserva_provider", "openai")
+def _configuracao_reserva(conn) -> dict:
+    return dict(conn.execute("SELECT chave, valor FROM configuracoes WHERE chave GLOB 'ai_reserva_*'"))
+
+
+def _ler_configuracao_reserva() -> dict:
+    with closing(database.get_connection()) as conn:
+        return _configuracao_reserva(conn)
+
+
+def _configurar_adaptador_reserva(cfg: dict) -> dict:
+    provider = cfg.get("ai_reserva_provider", "openai")
     if provider not in MODELOS_PADRAO:
-        return None
-    chave, _origem = resolver_credencial(None, _ler_configuracao("ai_reserva_api_key"), provider)
-    if not chave:
-        return None
-    modelo = (_ler_configuracao("ai_reserva_model") or "").strip()
-    return {"provider": provider, "api_key": chave, "base_url": _ler_configuracao("ai_reserva_base_url", "") or "", "modelos": [modelo] if modelo else list(MODELOS_PADRAO[provider])}
+        raise ValueError("Provedor reserva não configurado.")
+    chave = cfg.get("ai_reserva_api_key")
+    if not chave or chave == SENTINELA_CHAVE:
+        raise ValueError("Sem chave salva para o provedor reserva.")
+    base = validar_base_openai(cfg.get("ai_reserva_base_url") or "") if provider == "openai" else ""
+    modelo = modelo_openai_compativel(base, (cfg.get("ai_reserva_model") or "").strip())
+    return {"provider": provider, "api_key": chave, "base_url": base,
+            "modelos": [modelo] if modelo else list(MODELOS_PADRAO[provider])}
+
+
+def _reserva_ativa() -> Optional[dict]:
+    cfg = _ler_configuracao_reserva()
+    if cfg.get("ai_reserva_ativa") == "1":
+        try:
+            return _configurar_adaptador_reserva(cfg)
+        except ValueError:
+            logger.warning("Configuração inválida do provedor reserva. Revise a URL e a chave de IA.")
+    return None
 
 
 def _contexto(req: AssistenteRequest, request: Request) -> ferramentas.Contexto:
@@ -206,61 +228,74 @@ def previa(req: PreviaRequest, request: Request):
 
 @router.post("/chat")
 async def chat(req: AssistenteRequest, request: Request):
+    prazo = agente.novo_prazo()
     rapido = _fast_path(req.prompt)
     if rapido:
-        ctx = await asyncio.to_thread(_contexto, req, request)
-        resultado = await asyncio.to_thread(ferramentas.executar, ctx, "propor_alteracoes",
-                                             {"alteracoes": rapido["itens"], "resumo": rapido["resumo"]})
         async def so_o_plano():
-            if ctx.plano:
-                yield {"tipo": "plano", "resumo": ctx.resumo_plano, "projeto": ctx.projeto_codigo, "itens": ctx.plano}
-            else:
-                erros = "; ".join(r["motivo"] for r in resultado.get("rejeitadas", []))
-                yield {"tipo": "erro", "mensagem": resultado.get("erro") or erros}
+            try:
+                ctx = await agente.executar_em_thread(prazo, _contexto, req, request)
+                resultado = await agente.executar_em_thread(
+                    prazo, ferramentas.executar, ctx, "propor_alteracoes",
+                    {"alteracoes": rapido["itens"], "resumo": rapido["resumo"]})
+                if ctx.plano:
+                    yield {"tipo": "plano", "resumo": ctx.resumo_plano, "projeto": ctx.projeto_codigo, "itens": ctx.plano}
+                else:
+                    erros = "; ".join(r["motivo"] for r in resultado.get("rejeitadas", []))
+                    yield {"tipo": "erro", "mensagem": resultado.get("erro") or erros}
+            except Exception as e:
+                yield {"tipo": "erro", "mensagem": agente.mensagem_amigavel(e)}
             yield {"tipo": "fim"}
         return _ndjson(so_o_plano())
 
     reserva = _reserva_ativa()
     prov = None
     try:
-        prov = resolver_provedor(request, req.provider, req.openai_base_url)          # 401 sem chave
+        prov = resolver_provedor(request, req.provider, req.openai_base_url)
     except HTTPException as e:
         if e.status_code != 401 or not reserva:
-            raise                                          # sem chave no principal mas com reserva: o reserva atende
+            raise
     if prov and prov["origem_chave"] == "padrao":
         _checar_rate_limit(request)
 
-    ctx = await asyncio.to_thread(_contexto, req, request)
-    adaptador_reserva = agente.criar_adaptador(reserva["provider"], reserva["api_key"], reserva["modelos"], reserva["base_url"]) if reserva else None
-    if prov:
-        modelos = [prov["custom_model"]] if prov["custom_model"] else MODELOS_PADRAO[prov["provider"]]
-        adaptador = agente.criar_adaptador(prov["provider"], prov["api_key"], modelos, prov["openai_base_url"])
-        if adaptador_reserva:
-            chave = f"{prov['provider']}|{prov['openai_base_url']}|{modelos[0]}"
-            adaptador = agente.AdaptadorComReserva(adaptador, adaptador_reserva, chave, _rotulo(reserva["provider"], reserva["modelos"]))
-    else:
-        adaptador = adaptador_reserva
-    system = await asyncio.to_thread(montar_system, ctx, req.projeto_codigo)
-    return _ndjson(agente.rodar(adaptador, system, agente.historico_neutro(req.history), req.prompt.strip(), ctx))
+    async def conversar():
+        try:
+            ctx = await agente.executar_em_thread(prazo, _contexto, req, request)
+            system = await agente.executar_em_thread(prazo, montar_system, ctx, req.projeto_codigo)
+        except Exception as e:
+            yield {"tipo": "erro", "mensagem": agente.mensagem_amigavel(e)}
+            yield {"tipo": "fim"}
+            return
+
+        adaptador_reserva = agente.criar_adaptador(reserva["provider"], reserva["api_key"], reserva["modelos"], reserva["base_url"]) if reserva else None
+        if prov:
+            modelos = [prov["custom_model"]] if prov["custom_model"] else MODELOS_PADRAO[prov["provider"]]
+            adaptador = agente.criar_adaptador(prov["provider"], prov["api_key"], modelos, prov["openai_base_url"])
+            if adaptador_reserva:
+                credencial = hashlib.sha256(prov["api_key"].encode()).hexdigest()
+                chave = f"{prov['provider']}|{prov['openai_base_url']}|{modelos[0]}|{credencial}"
+                adaptador = agente.AdaptadorComReserva(adaptador, adaptador_reserva, chave, _rotulo(reserva["provider"], reserva["modelos"]))
+        else:
+            adaptador = adaptador_reserva
+        try:
+            async with aclosing(agente.rodar(adaptador, system, agente.historico_neutro(req.history), req.prompt.strip(), ctx, prazo=prazo)) as eventos:
+                async for evento in eventos:
+                    yield evento
+        finally:
+            await adaptador.fechar()
+
+    return _ndjson(conversar())
 
 
 # ── provedor reserva ──────────────────────────────────────────────────────────────────────────────────
-def _gravar_config(pares: dict):
-    conn = database.get_connection()
-    try:
-        for k, v in pares.items():
-            conn.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES (?, ?)", (k, v))
-        conn.commit()
-    finally:
-        conn.close()
-
-
 @router.get("/reserva")
 def ler_reserva(request: Request):
-    provider = _ler_configuracao("ai_reserva_provider", "openai")
-    return {"ativa": _ler_configuracao("ai_reserva_ativa") == "1", "provider": provider if provider in MODELOS_PADRAO else "openai",
-            "base_url": _ler_configuracao("ai_reserva_base_url", "") or "", "model": _ler_configuracao("ai_reserva_model", "") or "",
-            "tem_chave": bool(_ler_configuracao("ai_reserva_api_key")), "pode_editar": _user(request).get("role") == "admin"}
+    cfg = _ler_configuracao_reserva()
+    provider = cfg.get("ai_reserva_provider", "openai")
+    base = cfg.get("ai_reserva_base_url") or ""
+    modelo = modelo_openai_compativel(base.rstrip("/"), cfg.get("ai_reserva_model") or "")
+    return {"ativa": cfg.get("ai_reserva_ativa") == "1", "provider": provider if provider in MODELOS_PADRAO else "openai",
+            "base_url": base, "model": modelo,
+            "tem_chave": bool(cfg.get("ai_reserva_api_key")), "pode_editar": _user(request).get("role") == "admin"}
 
 
 @router.put("/reserva", dependencies=[Depends(require_role("admin"))])
@@ -270,56 +305,78 @@ def gravar_reserva(req: ReservaRequest):
         provider = "claude"
     if provider not in MODELOS_PADRAO:
         raise HTTPException(status_code=400, detail="Provedor deve ser gemini, openai (compatível) ou claude.")
-    if base and (not re.match(r"^https?://\S+$", base) or len(base) > 300):
-        raise HTTPException(status_code=400, detail="A URL base deve começar com http:// ou https://.")
     if provider != "openai" and base:
         raise HTTPException(status_code=400, detail="URL base só vale para o provedor OpenAI-compatível.")
-    if provider == "openai" and base and not modelo:
-        raise HTTPException(status_code=400, detail="Com URL base própria, informe o nome do modelo (ex.: deepseek-chat).")
+    if base:
+        try:
+            base = validar_base_openai(base)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        if base != OPENAI_BASE and not modelo:
+            raise HTTPException(status_code=400, detail="Com URL base própria, informe o nome do modelo (ex.: deepseek-flash).")
     if len(modelo) > 120:
         raise HTTPException(status_code=400, detail="Nome de modelo grande demais.")
-    chave_nova = (req.api_key or "").strip()
-    if req.limpar_chave:
-        chave_nova = ""
-    chave_final = chave_nova or ("" if req.limpar_chave else (_ler_configuracao("ai_reserva_api_key") or ""))
-    if req.ativa and not resolver_credencial(None, chave_final, provider)[0]:
-        raise HTTPException(status_code=400, detail="Informe a chave do provedor reserva para ativá-lo.")
-    pares = {"ai_reserva_ativa": "1" if req.ativa else "0", "ai_reserva_provider": provider, "ai_reserva_base_url": base, "ai_reserva_model": modelo}
-    if chave_nova or req.limpar_chave:
-        pares["ai_reserva_api_key"] = chave_nova
-    _gravar_config(pares)
+
+    chave_nova = (req.api_key or "").strip() if not req.limpar_chave else ""
+    if chave_nova == SENTINELA_CHAVE:
+        raise HTTPException(status_code=400, detail="Informe uma chave própria do provedor reserva.")
+    with closing(database.get_connection()) as conn, conn:
+        conn.execute("BEGIN IMMEDIATE")
+        cfg = _configuracao_reserva(conn)
+        mesmo_provedor = provider == cfg.get("ai_reserva_provider", "openai")
+        base_anterior = (cfg.get("ai_reserva_base_url") or "").rstrip("/")
+        mesma_base = provider != "openai" or (base or OPENAI_BASE) == (base_anterior or OPENAI_BASE)
+        chave_final = chave_nova
+        if not chave_final and not req.limpar_chave and mesmo_provedor and mesma_base:
+            chave_final = cfg.get("ai_reserva_api_key") or ""
+        if req.ativa and not chave_final:
+            raise HTTPException(status_code=400, detail="Informe a chave do provedor reserva para ativá-lo. Ao trocar de provedor ou URL, informe a chave correspondente.")
+        pares = {"ai_reserva_ativa": "1" if req.ativa else "0", "ai_reserva_provider": provider,
+                 "ai_reserva_base_url": base, "ai_reserva_model": modelo_openai_compativel(base, modelo),
+                 "ai_reserva_api_key": chave_final}
+        conn.executemany("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES (?, ?)", pares.items())
     agente.limpar_pausas()
     return {"ok": True, "ativa": req.ativa, "tem_chave": bool(chave_final)}
 
 
 @router.post("/reserva/testar", dependencies=[Depends(require_role("admin"))])
 async def testar_reserva():
-    """Testa se o modelo consegue consultar uma tabela vazia usando uma ferramenta."""
-    provider = _ler_configuracao("ai_reserva_provider", "openai")
-    if provider not in MODELOS_PADRAO:
-        return {"ok": False, "erro": "Provedor reserva não configurado."}
-    chave, _o = resolver_credencial(None, _ler_configuracao("ai_reserva_api_key"), provider)
-    if not chave:
-        return {"ok": False, "erro": "Sem chave salva para o provedor reserva."}
-    modelo = (_ler_configuracao("ai_reserva_model") or "").strip()
-    modelos = [modelo] if modelo else list(MODELOS_PADRAO[provider])
-    ad = agente.criar_adaptador(provider, chave, modelos, _ler_configuracao("ai_reserva_base_url", "") or "")
+    """Valida a chamada, a execução da ferramenta e a resposta final do modelo."""
+    try:
+        cfg = _configurar_adaptador_reserva(_ler_configuracao_reserva())
+    except ValueError as e:
+        return {"ok": False, "erro": str(e)}
+    ad = agente.criar_adaptador(cfg["provider"], cfg["api_key"], cfg["modelos"], cfg["base_url"])
     ad.esperas = (0,)
     t0 = time.monotonic()
     spec = next(s for s in ferramentas.especificacoes() if s["name"] == "ler_tabela")
-    try:
-        t = await asyncio.wait_for(ad.turno("Use a ferramenta ler_tabela com tabela=cabos.",
-                                          [{"role": "user", "texto": "Consulte a tabela de Cabos pela ferramenta."}], [spec]), timeout=40)
-        chamada = next((c for c in t.chamadas if c.nome == "ler_tabela"), None)
-        if chamada is None:
-            return {"ok": False, "erro": "O modelo respondeu, mas não chamou a ferramenta de leitura."}
+    system = "Use a ferramenta ler_tabela com tabela=cabos, e responda após receber o resultado."
+    mensagens = [{"role": "user", "texto": "Consulte a tabela de Cabos pela ferramenta. Depois informe se há linhas."}]
+
+    async def verificar():
+        t = await ad.turno(system, mensagens, [spec])
+        if len(t.chamadas) != 1 or t.chamadas[0].nome != "ler_tabela":
+            raise ValueError("O modelo não chamou apenas a ferramenta de leitura esperada.")
+        chamada = t.chamadas[0]
         resultado = ferramentas.executar(ferramentas.Contexto(), chamada.nome, chamada.args)
         if "cabos" not in resultado:
-            return {"ok": False, "erro": "O modelo enviou argumentos inválidos para ler_tabela."}
+            raise ValueError("O modelo enviou argumentos inválidos para ler_tabela.")
+        mensagens.append(agente.mensagem_do_turno(t))
+        mensagens.append({"role": "tool", "resultados": [{"id": chamada.id, "nome": chamada.nome, "resultado": resultado}]})
+        final = await ad.turno(system, mensagens, [spec])
+        if final.chamadas or not final.texto.strip():
+            raise ValueError("O modelo não retornou uma resposta final após receber o resultado da ferramenta.")
+
+    try:
+        await asyncio.wait_for(verificar(), timeout=40)
+    except asyncio.TimeoutError:
+        return {"ok": False, "erro": "O teste completo do provedor reserva excedeu 40 segundos."}
     except Exception as e:
         return {"ok": False, "erro": agente.mensagem_amigavel(e)}
-    return {"ok": True, "modelo": modelos[0], "ms": int((time.monotonic() - t0) * 1000),
-            "resposta": "Leitura da tabela de teste concluída."}
+    finally:
+        await ad.fechar()
+    return {"ok": True, "modelo": cfg["modelos"][0], "ms": int((time.monotonic() - t0) * 1000),
+            "resposta": "Consulta de teste e resposta final concluídas."}
 
 
 # ── skills ────────────────────────────────────────────────────────────────────────────────────────────

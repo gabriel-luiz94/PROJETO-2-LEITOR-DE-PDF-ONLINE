@@ -11,10 +11,13 @@ eventos {"tipo": ...} que a rota manda ao navegador em NDJSON: ferramenta, texto
 import asyncio
 import json
 import time
+from threading import Event
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Optional
 
 from services.assistente import ferramentas
+from services.prazo import PrazoExcedido, executar_com_prazo
+from services.provedores_ia import DEEPSEEK_BASES, OPENAI_BASE, criar_cliente_openai
 
 MAX_PASSOS = 8                      # idas e vindas com ferramentas por pergunta
 GATILHOS_FALLBACK = ("429", "quota", "exhausted", "not found", "404", "unavailable", "invalid_argument", "multiturn", "overloaded", "503")
@@ -76,6 +79,8 @@ def mensagem_amigavel(e) -> str:
     """O erro do provedor em português quando é de momento; senão o texto original (cortado)."""
     if isinstance(e, ErroProvedores):
         return e.mensagem_pronta
+    if isinstance(e, PrazoExcedido):
+        return "Esta pergunta passou do tempo máximo. Diga o que falta e continuo daqui."
     if isinstance(e, ErroTempo):
         return "O provedor de IA demorou demais para responder. Tente de novo, escolha outro modelo ou configure um provedor reserva em «Configuração de IA»."
     if eh_transitorio(e):
@@ -126,6 +131,9 @@ class AdaptadorBase:
     async def turno(self, system: str, mensagens: list, specs: list) -> Turno:   # pragma: no cover - interface
         raise NotImplementedError
 
+    async def fechar(self):
+        pass
+
     def pegar_avisos(self) -> list:
         """Avisos para o usuário gerados desde a última leitura (ex.: «usando o provedor reserva»); lê e limpa."""
         return []
@@ -164,7 +172,7 @@ class AdaptadorComReserva(AdaptadorBase):
             self._ir_para_reserva("o principal falhou há pouco e está em pausa")
         if not self.no_reserva:
             try:
-                t = await self.principal.turno(system, mensagens, specs)
+                t = validar_turno(await self.principal.turno(system, mensagens, specs))
                 _pausa.pop(self.chave, None)
                 return t
             except Exception as e:
@@ -172,11 +180,14 @@ class AdaptadorComReserva(AdaptadorBase):
                 _pausa[self.chave] = _agora() + PAUSA_S
                 self._ir_para_reserva(mensagem_amigavel(e)[:120])
         try:
-            return await self.reserva.turno(system, mensagens, specs)
+            return validar_turno(await self.reserva.turno(system, mensagens, specs))
         except Exception as e2:
             if self.erro_principal is None:
                 raise
             raise ErroProvedores(f"Nenhum provedor respondeu. Principal: {mensagem_amigavel(self.erro_principal)[:160]} Reserva: {mensagem_amigavel(e2)[:160]}")
+
+    async def fechar(self):
+        await asyncio.gather(self.principal.fechar(), self.reserva.fechar())
 
     def pegar_avisos(self) -> list:
         a, self._avisos = self._avisos, []
@@ -236,8 +247,12 @@ class AdaptadorGemini(AdaptadorBase):
 
 
 class AdaptadorOpenAI(AdaptadorBase):
-    def __init__(self, client, modelos):
+    def __init__(self, client, modelos, *, deepseek=False):
         self.client, self.modelos = client, modelos
+        self.deepseek = deepseek
+
+    async def fechar(self):
+        await self.client.close()
 
     @staticmethod
     def converter(system: str, mensagens: list) -> list:
@@ -260,6 +275,8 @@ class AdaptadorOpenAI(AdaptadorBase):
 
         async def chamar(modelo):
             extra = {"tools": tools} if tools else {}
+            if self.deepseek:
+                extra["extra_body"] = {"thinking": {"type": "disabled"}}
             return await self.client.chat.completions.create(model=modelo, messages=msgs, **extra)
         resp = await com_fallback(self.modelos, chamar, self.esperas, self.timeout)
         msg = resp.choices[0].message
@@ -312,8 +329,8 @@ def criar_adaptador(provider: str, api_key: str, modelos: list, base_url: str = 
         from google import genai
         return AdaptadorGemini(genai.Client(api_key=api_key), modelos)
     if provider == "openai":
-        from openai import AsyncOpenAI
-        return AdaptadorOpenAI(AsyncOpenAI(api_key=api_key, base_url=base_url or "https://api.openai.com/v1"), modelos)
+        client = criar_cliente_openai(api_key, base_url or OPENAI_BASE)
+        return AdaptadorOpenAI(client, modelos, deepseek=base_url in DEEPSEEK_BASES)
     from anthropic import AsyncAnthropic
     return AdaptadorClaude(AsyncAnthropic(api_key=api_key), modelos)
 
@@ -366,32 +383,58 @@ def _resumo_local(ctx, chamadas) -> str:
     return "Pronto."
 
 
-async def rodar(adaptador: AdaptadorBase, system: str, historico: list, prompt: str, ctx: ferramentas.Contexto) -> AsyncIterator[dict]:
-    """Gera os eventos da conversa. O último é sempre {"tipo": "fim"}; falhas viram {"tipo": "erro"} (nunca exceção para a rota)."""
+def mensagem_do_turno(turno: Turno) -> dict:
+    return {"role": "assistant", "texto": turno.texto, "bruto": turno.bruto,
+            "chamadas": [{"id": c.id, "nome": c.nome, "args": c.args} for c in turno.chamadas]}
+
+
+def validar_turno(turno: Turno) -> Turno:
+    if not turno.chamadas and not turno.texto.strip():
+        raise RuntimeError("O modelo retornou uma resposta vazia. Verifique o modelo configurado e tente novamente.")
+    return turno
+
+
+def novo_prazo() -> float:
+    return _agora() + PRAZO_TOTAL
+
+
+def _tempo_restante(prazo: float) -> float:
+    restante = prazo - _agora()
+    if restante <= 0:
+        raise PrazoExcedido
+    return restante
+
+
+async def executar_em_thread(prazo: float, funcao, *args):
+    restante = _tempo_restante(prazo)
+    parar = Event()
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(executar_com_prazo, lambda: parar.is_set() or _agora() >= prazo, funcao, *args),
+            timeout=restante,
+        )
+    except asyncio.TimeoutError as exc:
+        raise PrazoExcedido from exc
+    finally:
+        parar.set()
+
+
+async def rodar(adaptador: AdaptadorBase, system: str, historico: list, prompt: str, ctx: ferramentas.Contexto,
+                *, prazo: float | None = None) -> AsyncIterator[dict]:
+    """Gera os eventos do assistente, com erro e fim em caso de falha."""
+    prazo = novo_prazo() if prazo is None else prazo
     mensagens = list(historico) + [{"role": "user", "texto": prompt}]
     specs = ferramentas.especificacoes()
     texto_final = ""
-    inicio = _agora()
     try:
         for _ in range(MAX_PASSOS):
-            if _agora() - inicio > PRAZO_TOTAL:
-                texto_final = "Esta pergunta passou do tempo máximo. Diga o que falta e continuo daqui."
-                break
-            # O prazo global também limita a chamada em andamento, não só o início do passo.
-            restante = PRAZO_TOTAL - (_agora() - inicio)
-            if restante <= 0:
-                raise ErroTempo("prazo total da pergunta esgotado")
+            restante = _tempo_restante(prazo)
             try:
-                turno = await asyncio.wait_for(
-                    adaptador.turno(system, mensagens, specs), timeout=restante
-                )
+                turno = await asyncio.wait_for(adaptador.turno(system, mensagens, specs), timeout=restante)
             except asyncio.TimeoutError as exc:
-                raise ErroTempo("prazo total da pergunta esgotado") from exc
-            if not turno.chamadas and not turno.texto.strip():
-                raise RuntimeError(
-                    "O modelo retornou uma resposta vazia. Verifique o modelo configurado "
-                    "e tente novamente."
-                )
+                raise PrazoExcedido from exc
+            _tempo_restante(prazo)
+            validar_turno(turno)
             for aviso in adaptador.pegar_avisos():
                 yield {"tipo": "aviso", "texto": aviso}
             if not turno.chamadas:
@@ -399,27 +442,17 @@ async def rodar(adaptador: AdaptadorBase, system: str, historico: list, prompt: 
                 break
             if turno.texto.strip():
                 yield {"tipo": "texto", "texto": turno.texto}                # o que o modelo disse antes de chamar ferramentas
-            mensagens.append({"role": "assistant", "texto": turno.texto, "bruto": turno.bruto,
-                              "chamadas": [{"id": c.id, "nome": c.nome, "args": c.args} for c in turno.chamadas]})
+            mensagens.append(mensagem_do_turno(turno))
             resultados = []
             for c in turno.chamadas:
                 yield {"tipo": "ferramenta", "nome": c.nome, "detalhe": _resumo_args(c.args)}
-                # em outra thread: cálculo/base grandes não travam o servidor (nem as outras telas)
-                restante = PRAZO_TOTAL - (_agora() - inicio)
-                if restante <= 0:
-                    raise ErroTempo("prazo total esgotado durante a execução da ferramenta")
-                try:
-                    resultado = await asyncio.wait_for(
-                        asyncio.to_thread(ferramentas.executar, ctx, c.nome, c.args),
-                        timeout=restante,
-                    )
-                except asyncio.TimeoutError as exc:
-                    raise ErroTempo("prazo total esgotado durante a execução da ferramenta") from exc
+                resultado = await executar_em_thread(prazo, ferramentas.executar, ctx, c.nome, c.args)
                 resultados.append({"id": c.id, "nome": c.nome, "resultado": resultado})
             mensagens.append({"role": "tool", "resultados": resultados})
             if _terminal_ok(turno.chamadas, resultados):
                 texto_final = "" if turno.texto.strip() else _resumo_local(ctx, turno.chamadas)
                 break
+            _tempo_restante(prazo)
         else:
             texto_final = "Parei por excesso de passos nesta pergunta. Diga o que falta e continuo daqui."
     except Exception as e:

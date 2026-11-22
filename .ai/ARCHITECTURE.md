@@ -107,6 +107,8 @@ Na leitura automática do nanoCAD, `POST /api/plugin/ler-dxf` usa o extrator de 
 
 No desktop, `POST /api/plugin/receber` valida o caminho da obra do nanoCAD e cria um identificador pendente. O Resumo autenticado carrega o arquivo com `GET /api/plugin/pendente/{id}/projeto`, que reutiliza a leitura de `services/projeto_desktop.py`. `GridRProjeto.abrirDoPlugin` aplica os dados e usa os diálogos do projeto. A vinculação por poste consulta um índice espacial local à rede. [TASK-209](tasks/TASK-209-20-11-2026.md).
 
+O Assistente usa um prazo comum para o contexto, chamadas de IA e as ferramentas. A Totalizadora, o orçamento, o catálogo e o analisador de vínculos consultam o prazo em cálculos longos. Uma chamada de I/O já iniciada segue o limite da biblioteca até o próximo ponto de checagem. O DeepSeek direto desativa o modo de raciocínio para o ciclo de ferramentas. [TASK-217](tasks/TASK-217-21-11-2026.md).
+
 ---
 
 ## 3. Módulos e responsabilidades
@@ -180,8 +182,10 @@ query param `?token=`, valida, e injeta `request.state.user = {user_id, email, r
   `/ws`, `/docs`, `/openapi.json`
 
 Helpers: `create_jwt_token` (24 h), `create_refresh_token` (30 d), `decode_jwt_token`,
-`require_role(*roles)` (dependency, **não usado** — os routers chamam `_require_admin` /
-comparam `role` manualmente), `get_current_user_from_state`.
+`require_role(*roles)` (dependency para rotas privilegiadas, como a configuração do provedor reserva)
+e `get_current_user_from_state`.
+
+Servidor e modo headless exigem `JWT_SECRET` de implantação. O desktop gera segredo persistente no perfil do sistema quando não há um valor configurado. A política de destinos e credenciais está no [ADR-009](decisions/ADR-009-origem-das-credenciais.md).
 
 ---
 

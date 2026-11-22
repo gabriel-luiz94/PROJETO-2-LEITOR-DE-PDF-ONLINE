@@ -7,6 +7,7 @@ Paridade provada em tests/test_autonomo_totalizadora.py executando o JS real. Fi
 (meio para cima, não o arredondamento do Python), `\\s`/`trim`, `\\d` ASCII, `$` só no fim, número→texto do JS.
 Limite conhecido: as regex digitadas nas regras de conversão são avaliadas pelo `re` do Python (dialeto quase igual ao do JS).
 """
+from services.prazo import verificar_prazo
 from services.anotacao_cabos import eh_notacao, interpretar as interpretar_cabo
 from services.anotacao_outros import contexto_da_base, interpretar_linha
 from services.obra_params import montar as montar_obra
@@ -158,6 +159,7 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
     brutos = []
     contador = 1
     for idx, item in enumerate(cabos):
+        verificar_prazo()
         if not item or item.get("congelada"):                    # linha congelada: fora da Totalizadora (e do orçamento)
             continue
         base_id = contador
@@ -176,6 +178,7 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
                     if not math.isnan(pq) and pq > 0:
                         reps = math.floor(pq)
                 for _ in range(reps):
+                    verificar_prazo()
                     brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": item.get("operacao") or "I", "ativo": it["ativo"],
                                    "qtd": it["comprimento"], "desc": desc, "naoEncontrado": nao, "origem": "CABOS"})
             continue
@@ -207,6 +210,7 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
             if not math.isnan(p) and p > 0:
                 iteracoes = math.floor(p)
         for _ in range(iteracoes):
+            verificar_prazo()
             brutos.append({"baseId": f"TOT-{base_id}", "obs": item.get("entidade"), "operacao": item.get("operacao") or "I", "ativo": base_ativo,
                            "qtd": q, "desc": desc, "naoEncontrado": nao, "origem": "CABOS"})
     assinaturas_param = assinaturas_do_projeto(base, projeto_nome)
@@ -219,6 +223,7 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
         from services.vinculacao_regras import parametros_por_estrutura
         parametros_vinculo = parametros_por_estrutura(cabos, outros, cfg_vinculo, prefixo_cabo, codigo_estrutura, codigos_estrutura)
     for idx_outros, item in enumerate(outros):
+        verificar_prazo()
         if not item or item.get("congelada"):                    # linha congelada: fora da Totalizadora (e do orçamento)
             continue
         base_id = contador
@@ -251,6 +256,7 @@ def montar_totalizadora(cabos: list, outros: list, regras: list, base_orcamento:
 
     novos = []
     for item in brutos:
+        verificar_prazo()
         achou = substitui = False
         for regra in regras or []:
             r_origem = (regra.get("origem") or "").strip().upper()

@@ -6,6 +6,14 @@
 
 ---
 
+## Segurança e prazo do Assistente de IA · TASK-217
+
+As chaves OpenAI são limitadas ao destino correspondente, e o JWT do desktop usa segredo persistente por perfil. Servidores exigem segredo próprio. O teste do reserva verifica a ida e a volta da ferramenta, com o DeepSeek usando `deepseek-flash`. O prazo encerra o chat com erro e interrompe o trabalho nos pontos de checagem dos cálculos. A validação com uma chave real do DeepSeek segue pendente. [TASK-217](tasks/TASK-217-21-11-2026.md).
+
+## Pendência na autenticação do servidor
+
+A criação do administrador inicial em `database.py:init_db` ainda pode usar a senha de fábrica, e o login do servidor aceita usuários do SQLite. Instalações expostas precisam de `ADMIN_PASSWORD` próprio no primeiro uso e de uma senha atualizada nas contas já criadas com a configuração padrão.
+
 ## Arraste nativo e abertura mais leve · TASK-216
 
 As janelas destacadas usam a barra de título do sistema. PDF, DXF e Excel carregam suas bibliotecas ao primeiro uso. Em Linux, a mediana de três importações isoladas de `app`, sem servidor ou interface, caiu de 146 MiB para 63 MiB. A validação de arraste com dois monitores e a medição de memória da sessão completa seguem pendentes no Windows. [TASK-216](tasks/TASK-216-21-11-2026.md).

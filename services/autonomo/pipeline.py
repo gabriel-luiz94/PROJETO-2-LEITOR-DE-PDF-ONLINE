@@ -59,6 +59,7 @@ class Contexto:
 def carregar_contexto(projeto_codigo: str, user_id: str) -> Contexto:
     """Monta o contexto a partir do banco (mesmas fontes que a tela usa)."""
     import database
+    from services.prazo import verificar_prazo
     from routers.regras import get_regras_conversao
     from routers.regras_leitor import _get_regras
     from routers.regras_vinculacao import _get_regras as _get_regras_vinculacao
@@ -74,14 +75,25 @@ def carregar_contexto(projeto_codigo: str, user_id: str) -> Contexto:
         conn.close()
     if not r:
         raise ErroPipeline(f"Projeto '{projeto_codigo}' não cadastrado.")
+    verificar_prazo()
     regras_dominio, grupos, _ = regras_efetivas(projeto_codigo)
+    verificar_prazo()
     receitas = [x for x in ajustes_efetivos(projeto_codigo) if x.get("ativa") and not x.get("oculta")]
-    conversao = (get_regras_conversao(projeto_codigo) or {}).get("regras") or [dict(REGRA_PADRAO)]   # como a tela sem regras salvas
+    verificar_prazo()
+    conversao = (get_regras_conversao(projeto_codigo) or {}).get("regras") or [dict(REGRA_PADRAO)]
+    verificar_prazo()
+    regras_proc = _get_regras("processamento", projeto_codigo)
+    verificar_prazo()
+    regras_cls = _get_regras("classificacao", projeto_codigo)
+    verificar_prazo()
+    base = get_merged_orcamento(user_id)
+    verificar_prazo()
+    regras_vinculacao = _get_regras_vinculacao(projeto_codigo)
+    verificar_prazo()
     return Contexto(projeto_codigo=projeto_codigo, projeto_nome=r["nome"], user_id=user_id,
-                    regras_proc=_get_regras("processamento", projeto_codigo), regras_cls=_get_regras("classificacao", projeto_codigo),
-                    regras_conversao=conversao, base_orcamento=get_merged_orcamento(user_id),
+                    regras_proc=regras_proc, regras_cls=regras_cls, regras_conversao=conversao, base_orcamento=base,
                     regras_dominio=regras_dominio, grupos=grupos, receitas=receitas,
-                    regras_vinculacao=_get_regras_vinculacao(projeto_codigo), vinculacao_cfg=_obter_vinculacao_cfg(projeto_codigo))
+                    regras_vinculacao=regras_vinculacao, vinculacao_cfg=_obter_vinculacao_cfg(projeto_codigo))
 
 
 # ── vínculo cabo<->estrutura (TASK-036/084) ───────────────────────────────────────────────────────────
