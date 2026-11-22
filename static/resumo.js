@@ -1445,7 +1445,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pushHistory();
         const copias = alvos.map(i => {
             const c = deepClone(dados[i]);
-            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', '_mapaPoste', '_mapaCabo', '_mapaId', '_mapaPosteRef', '_mapaTopologia', '_mapaAncoras', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
+            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', '_mapaPoste', '_mapaCabo', '_mapaPoste500', '_mapaCabo500', '_mapaId', '_mapaPosteRef', '_mapaTopologia', '_mapaAncoras', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
             return c;
         });
         const depois = alvos[alvos.length - 1] + 1;
@@ -2783,6 +2783,10 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const [campo, min] of [['_mapaPoste', 0], ['_mapaCabo', -1]]) {
             const par = obj[campo];
             if (Array.isArray(par) && par.length === 2 && par.every(n => Number.isFinite(n) && n >= min && n <= 1)) c[campo] = par.slice();
+        }
+        for (const campo of ['_mapaPoste500', '_mapaCabo500']) {                                                  // TASK-224: ajuste manual do mapa em 1:500 (deslocamento em metros)
+            const par = obj[campo];
+            if (Array.isArray(par) && par.length === 2 && par.every(n => Number.isFinite(n) && Math.abs(n) <= 100000)) c[campo] = par.slice();
         }
         for (const campo of ['_mapaId', '_mapaPosteRef']) if (idPontoValido(obj[campo])) c[campo] = obj[campo];
         if (Array.isArray(obj.vinculoEstruturas)) c.vinculoEstruturas = obj.vinculoEstruturas.slice();
