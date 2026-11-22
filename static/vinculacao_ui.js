@@ -164,6 +164,11 @@
     .vz-no-seletor{width:100%;margin:0 0 8px;padding:6px;background:var(--g-panel);color:var(--g-text);border:1px solid var(--g-border);border-radius:7px}
     .vz-no-conteudo h5{font-size:13px;margin-bottom:10px}
     .vz-no-lateral{border:1px solid var(--g-border);border-radius:9px;padding:12px;background:var(--g-panel)}
+    .vz-ponto{display:grid;gap:8px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--g-border)}
+    .vz-ponto label{display:grid;gap:3px;font-size:12px;color:var(--g-text)}.vz-ponto input{background:var(--g-bg);color:var(--g-text);border:1px solid var(--g-border);border-radius:6px;padding:5px 7px}
+    .vz-ponto-botoes{display:flex;flex-wrap:wrap;gap:6px}.vz-ponto h6{margin:4px 0 0;font-size:11px;color:var(--g-muted,#8b949e);text-transform:uppercase;letter-spacing:.04em}
+    .vz-ponto-linhas{list-style:none;margin:0;padding:0;display:grid;gap:3px;font-size:12px}.vz-ponto-linhas li{display:flex;gap:6px;align-items:baseline;overflow:hidden}
+    .vz-ponto-linhas small{flex:0 0 auto;color:var(--g-muted,#8b949e)}.vz-ponto-linhas code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .vz-no-estruturas{display:grid;gap:5px}.vz-no-estrutura{padding:3px 0;border-top:1px solid var(--g-border);overflow-wrap:anywhere}
     .vz-no-estrutura span,.vz-no-ajuda{color:var(--g-muted)}
     .vz-no-vinculos{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -1428,6 +1433,8 @@
             ficticio
         ]);
         if (host.inserirPosteFicticioNoMapa) ferramentas.append(botao('+ Poste fictício', abrirPosteFicticio, 'Novo poste fictício'));
+        const btnAgrupar = botao('Agrupar pontos', () => agruparPontos(), 'Transforma cada ponto que ainda não é grupo em «@nome» + comentário + as suas linhas em Demais Ativos');
+        if (host.agruparPontosNoMapa) ferramentas.append(btnAgrupar);
         const filtro = el('select', { 'aria-label': 'Filtrar mapa' }, opcoes([
             ['todos', 'Tudo'], ['I', 'A instalar'], ['R', 'A remover'], ['M', 'Mantendo'], ['ficticios', 'Fictícios']
         ]));
@@ -1450,7 +1457,8 @@
         const acoesMapa = el('div', { class: 'vz-grafo-acoes' }, [
             ...(ME ? [seletorEscala] : []),
             botao('−', () => zoom(1.25), 'Afastar'), botao('+', () => zoom(.8), 'Aproximar'),
-            botao('Enquadrar', () => { vb = vistaPadrao(); aplicarVista(); }, escalar() ? 'Centralizar a rede na escala escolhida' : 'Enquadrar')
+            botao('Enquadrar', () => { vb = vistaPadrao(); aplicarVista(); }, escalar() ? 'Centralizar a rede na escala escolhida' : 'Enquadrar'),
+            botao('Rearranjar', () => rearranjarMapa(), 'Reorganiza os pontos de forma uniforme e limpa (vãos de tamanho parecido, sem sobreposição). Em 1:500 volta os pontos para a posição do CAD. Ctrl+Z desfaz.')
         ]);
         const suporte = el('div', { class: 'vz-scroll vz-grafo-vista' }, [svg, escalaInfo, acoesMapa]);
         const lista = el('div', { class: 'vz-grafo-lista' });
@@ -1595,7 +1603,98 @@
             return VR.grafoDaRede(cabos(), outros(), host.codigoEstrutura, host.codigosEstrutura, (_, i) => postesDe(i).length > 0);
         }
 
+        // TASK-225: cada ponto é um grupo «@nome» em Demais Ativos; o nome do grupo é o nome do ponto (sem grupo: número automático pela linha)
+        let titulosGrupo = new Map();
+        const GLm = raiz.GruposLinhas;
+        const nomeGrupoDaLinha = l => { const r = outros()[l], t = r && r.grupoDe ? titulosGrupo.get(r.grupoDe) : null; return t && GLm ? GLm.rotuloDe(t) : ''; };
+        const nomeGrupoDoNo = no => nomeGrupoDaLinha(linhaNo(no)) || no.linhas.map(nomeGrupoDaLinha).find(Boolean) || '';
+        const limitar01 = v => Math.max(0, Math.min(1, v));
+        // grava a posição que o ponto tem na tela (Ajustar: fração da tela · 1:500: deslocamento em metros)
+        function guardarPosicao(id) {
+            const no = grafo.nos.get(id), p = posicoes.get(id);
+            if (!no || !p) return;
+            const linha = outros()[linhaNo(no)];
+            if (emEscalaAgora()) { const b = bases.get(id) || [0, 0]; linha._mapaPoste500 = [(p[0] - b[0]) / kLayout, (p[1] - b[1]) / kLayout]; }
+            else linha._mapaPoste = [limitar01(p[0] / W), limitar01(p[1] / H)];
+        }
+        // Antes de mudar a rede (novo ponto…), prende todos os pontos onde estão: o encaixe automático dependia do conjunto de pontos e reorganizava tudo ao adicionar um
+        function fixarPosicoes() {
+            if (!grafo) return;
+            grafo.nos.forEach((no, id) => { const linha = outros()[linhaNo(no)]; if (linha && !linha[campoPonto()]) guardarPosicao(id); });
+        }
+        // lugar livre perto do centro da janela para o ponto recém-criado
+        function posicaoLivre(excetoId) {
+            const cx = vb ? vb[0] + vb[2] / 2 : W / 2, cy = vb ? vb[1] + vb[3] / 2 : H / 2;
+            const passo = emEscalaAgora() ? Math.max(48, 12 * kLayout) : 64;
+            const ocupados = [...posicoes].filter(([id]) => id !== excetoId).map(([, p]) => p);
+            const dentro = (x, y) => x >= limites[0] && x <= limites[2] && y >= limites[1] && y <= limites[3];
+            for (let r = 0; r < 90; r++) {
+                const n = r === 0 ? 1 : 6 * r;
+                for (let i = 0; i < n; i++) {
+                    const a = 2 * Math.PI * i / n + r * .5, x = cx + Math.cos(a) * r * passo * .6, y = cy + Math.sin(a) * r * passo * .6;
+                    if (dentro(x, y) && ocupados.every(([ox, oy]) => Math.hypot(ox - x, oy - y) >= passo * .8)) return [x, y];
+                }
+            }
+            return [Math.max(limites[0], Math.min(limites[2], cx)), Math.max(limites[1], Math.min(limites[3], cy))];
+        }
+        function colocarNovoPonto(linha) {
+            const no = grafo.nosPorLinha.get(linha);
+            if (!no) return;
+            const [x, y] = posicaoLivre(no.id);
+            posicoes.set(no.id, [x, y]);
+            guardarPosicao(no.id);
+            desenharPosicoes({ idNo: no.id });
+            recortarVista(true);
+        }
+
+        function rearranjarMapa() {
+            if (!grafo || !grafo.nos.size) return;
+            host.antes();
+            if (emEscalaAgora()) {                                           // 1:500: a escala manda — descarta os ajustes manuais (volta ao CAD; pontos sem CAD ficam numa grade ao lado)
+                grafo.nos.forEach(no => { delete outros()[linhaNo(no)]._mapaPoste500; });
+                cabos().forEach(c => { if (c) delete c._mapaCabo500; });
+            } else if (raiz.MapaLayout) {
+                const ids = [...grafo.nos.keys()], vistos = new Set(), arestas = [];
+                desenhos.forEach(d => { const [a, b] = d.v.ids; if (a && b && a !== b) { const k = a < b ? a + '|' + b : b + '|' + a; if (!vistos.has(k)) { vistos.add(k); arestas.push([a, b]); } } });
+                const nos = ids.map(id => ({ id, x: posicoes.get(id)[0], y: posicoes.get(id)[1] }));
+                const L = Math.max(36, Math.min(110, Math.sqrt((W - 2 * margem) * (H - 2 * margem) / ids.length) * .9));
+                const fixos = ids.filter(id => { const no = grafo.nos.get(id); return !linhaFicticia(no) && no.linhas.some(l => outros()[l].bloqueada); });     // grupo bloqueado não sai do lugar
+                const res = raiz.MapaLayout.rearranjar(nos, arestas, { comprimento: L, fixos });
+                let c = raiz.MapaLayout.caixa([...res.values()]), w = Math.max(c[2] - c[0], 1), h = Math.max(c[3] - c[1], 1);
+                const util = [W - 2 * margem, H - 2 * margem];
+                // rede «de pé» numa tela deitada: gira 90° quando assim cabe maior (sem pontos bloqueados, que não podem sair do lugar)
+                const girar = !fixos.length && Math.min(util[0] / h, util[1] / w) > Math.min(util[0] / w, util[1] / h) * 1.15;
+                if (girar) { res.forEach((p, id) => res.set(id, [p[1], -p[0]])); c = raiz.MapaLayout.caixa([...res.values()]); w = Math.max(c[2] - c[0], 1); h = Math.max(c[3] - c[1], 1); }
+                const f = fixos.length ? 1 : Math.min(util[0] / w, util[1] / h, 2);                            // cabe na área do mapa, todos na mesma proporção
+                const ox = fixos.length ? 0 : margem + (util[0] - w * f) / 2 - c[0] * f, oy = fixos.length ? 0 : margem + (util[1] - h * f) / 2 - c[1] * f;
+                ids.forEach(id => { const [x, y] = res.get(id); posicoes.set(id, [Math.max(18, Math.min(W - 18, x * f + ox)), Math.max(18, Math.min(H - 18, y * f + oy))]); guardarPosicao(id); });
+                cabos().forEach(cb => { if (cb) delete cb._mapaCabo; });                                    // vãos retos
+            }
+            st.grafoVista = null;
+            cx = null;
+            atualizar();
+            vb = vistaPadrao();
+            aplicarVistaJa();
+            avisos.textContent = emEscalaAgora() ? 'Pontos na posição do CAD. Ctrl+Z desfaz.' : 'Pontos rearranjados. Ctrl+Z desfaz.';
+        }
+        function pontosSemGrupo() {
+            return [...grafo.nos.values()].filter(no => !nomeGrupoDoNo(no) && no.linhas.some(l => outros()[l] && !outros()[l].grupoDe))
+                .sort((a, b) => linhaNo(a) - linhaNo(b));
+        }
+        function agruparPontos() {
+            const lista = pontosSemGrupo();
+            if (!lista.length) { avisos.textContent = 'Todos os pontos já são grupos.'; return; }
+            fixarPosicoes();
+            const n = host.agruparPontosNoMapa(lista.map(no => ({ linhas: no.linhas, nome: 'P' + (linhaNo(no) + 1) })));          // mantém o nome que o ponto já tinha no mapa (P<linha>)
+            cx = null;
+            atualizar();
+            host.depois?.();
+            avisos.textContent = n + ' ponto(s) viraram grupo em Demais Ativos. Ctrl+Z desfaz.';
+        }
+
         function pintar() {
+            titulosGrupo = new Map();
+            outros().forEach(r => { if (r && r.grupoDecl) titulosGrupo.set(r.gid, r); });
             grafo = montarGrafo();
             let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
             const limitar = ([x, y]) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); };
@@ -1676,7 +1775,8 @@
                 const avulsa = n.poste === null;
                 const estruturas = estruturasDoNo(n);
                 const tituloAvulsa = avulsa ? estruturas.slice(0, 2).map(codigoDe).join(' / ') || trim(outros()[linhaNo(n)].ativo) : '';
-                const numero = `P${linhaNo(n) + 1}`;
+                const nomeGrupo = nomeGrupoDoNo(n);
+                const numero = nomeGrupo ? (nomeGrupo.length > 16 ? nomeGrupo.slice(0, 15) + '…' : nomeGrupo) : `P${linhaNo(n) + 1}`;
                 const curto = avulsa ? numero + ' · ' + tituloAvulsa.slice(0, 18) + (tituloAvulsa.length > 18 ? '…' : '')
                     : linhaFicticia(n) ? numero + ' · Fictício' : numero;
                 const ficticios = estruturas.reduce((q, ie) => q + ficticiosDe(ie).length, 0);
@@ -1740,6 +1840,9 @@
                 ]);
             }));
             if (vb) atualizarEscala();
+            const semGrupo = pontosSemGrupo().length;
+            btnAgrupar.disabled = !semGrupo;
+            btnAgrupar.textContent = semGrupo ? 'Agrupar pontos (' + semGrupo + ')' : 'Agrupar pontos';
             tituloPontas.textContent = 'Cabos · ' + cabosVisiveis.size;
             lateralMapa.hidden = !cabosVisiveis.size;
             area.classList.toggle('sem-lateral', lateralMapa.hidden);
@@ -1755,8 +1858,9 @@
 
         // caixa de um ponto no mapa (marcador + rótulo à direita)
         const caixaDoNo = id => { const [x, y] = posicoes.get(id); return [x - 26, y - 26, x + 200, y + 26]; };
-        const campoPonto = () => (escalar() ? '_mapaPoste500' : '_mapaPoste'), campoCabo = () => (escalar() ? '_mapaCabo500' : '_mapaCabo');
-        const escalaCurva = () => (escalar() && kLayout ? [kLayout, kLayout] : [W, H]);       // o «puxar» do cabo é guardado em fração da tela (Ajustar) ou em metros (1:500)
+        const emEscalaAgora = () => escalar() && kLayout !== null;                  // sem coordenadas do CAD não existe escala: vale o modo «Ajustar»
+        const campoPonto = () => (emEscalaAgora() ? '_mapaPoste500' : '_mapaPoste'), campoCabo = () => (emEscalaAgora() ? '_mapaCabo500' : '_mapaCabo');
+        const escalaCurva = () => (emEscalaAgora() ? [kLayout, kLayout] : [W, H]);       // o «puxar» do cabo é guardado em fração da tela (Ajustar) ou em metros (1:500)
         function desenharPosicoes(alvo) {
             const desenharNo = (g, id) => g.setAttribute('transform', 'translate(' + posicoes.get(id).join(' ') + ')');
             if (alvo?.idNo) {
@@ -1934,9 +2038,11 @@
 
         function abrirPosteFicticio() {
             pedirEstruturasFicticias('Novo poste fictício', (nome, estruturas) => {
-                host.inserirPosteFicticioNoMapa(nome, estruturas);
+                fixarPosicoes();
+                const indice = host.inserirPosteFicticioNoMapa(nome, estruturas);
                 if (filtroMapa !== 'todos' && filtroMapa !== 'ficticios') filtro.value = filtroMapa = 'todos';
                 atualizar();
+                colocarNovoPonto(indice);
                 host.depois?.();
                 avisos.textContent = 'Poste fictício criado. Conecte uma ponta para ancorar o cabo.';
                 return '';
@@ -1971,9 +2077,14 @@
             const nivel = el('select', {}, opcoes([['', 'Pelo ativo'], ['MT', 'MT'], ['BT', 'BT']]));
             const campos = [campo(cabo ? 'Ativo ou rótulo, sem a metragem' : 'Anotação', ativo), campo('Operação', operacao)];
             if (cabo) campos.push(campo('Comprimento em metros', metros), campo('Fases', fase), campo('Nível', nivel));
+            const novoPonto = !cabo && poste === null && !!host.definirPontoNoMapa;                       // TASK-225: o ponto vira um grupo «@nome» + comentário + a linha
+            const nomePonto = el('input', { type: 'text', maxlength: '60', placeholder: 'Automático' });
+            const comentarioPonto = el('input', { type: 'text', maxlength: '300', placeholder: 'Opcional' });
+            if (novoPonto) campos.push(campo('Nome do ponto (vazio = número automático)', nomePonto), campo('Comentário do ponto', comentarioPonto));
             abrirEditor(titulo, cabo ? 'Adicionar a Cabos' : 'Adicionar a Demais Ativos', campos, () => {
+                fixarPosicoes();                                                                          // os pontos que já existem não saem do lugar
                 const resultado = host.inserirNoMapa(tipo, { ativo: ativo.value, operacao: operacao.value,
-                    metros: metros.value, fase: fase.value, nivel: nivel.value, poste });
+                    metros: metros.value, fase: fase.value, nivel: nivel.value, poste, nome: nomePonto.value, comentario: comentarioPonto.value });
                 if (resultado.erro) return resultado.erro;
                 cx = null;
                 const texto = cabo ? 'Cabo criado na tabela Cabos.' : 'Linha criada em Demais Ativos.';
@@ -1984,6 +2095,7 @@
                 }
                 if (dialogo.open) ultimoStatus = texto;
                 atualizar();
+                if (novoPonto) colocarNovoPonto(resultado.indice);
                 avisos.textContent = texto;
                 return '';
             });
@@ -2046,6 +2158,11 @@
         }
 
         function nomeDoNo(no) {
+            const grupo = nomeGrupoDoNo(no);
+            if (grupo) {                                                          // TASK-225: tudo é «ponto»; o nome do grupo identifica
+                const detalhe = linhaFicticia(no) ? 'Fictício' : no.poste === null ? estruturasDoNo(no).map(codigoDe).join(', ') || outros()[linhaNo(no)].ativo : postesDe(no.poste)[0] || '';
+                return 'Ponto ' + grupo + (detalhe ? ' · ' + detalhe : '');
+            }
             if (no.poste === null) {
                 const codigos = estruturasDoNo(no).map(codigoDe).join(', ');
                 return 'Ponto avulso ' + (linhaNo(no) + 1) + ' · ' + (codigos || outros()[linhaNo(no)].ativo);
@@ -2070,6 +2187,49 @@
             (card?.querySelector('select, button') || dialogo.querySelector('[autofocus]'))?.focus();
         }
 
+        // TASK-225: caixa «Ponto» do painel — nome (ou número automático), comentário, congelar/bloquear o grupo e as linhas que o ponto tem nas tabelas
+        function caixaDoPonto(no, status, ehFicticio) {
+            const info = host.pontoNoMapa(no.linhas);
+            const nome = el('input', { type: 'text', maxlength: '60', placeholder: 'Automático', 'aria-label': 'Nome do ponto' });
+            const comentario = el('input', { type: 'text', maxlength: '300', placeholder: 'Opcional', 'aria-label': 'Comentário do ponto' });
+            nome.value = info ? info.nome : ''; comentario.value = info ? info.comentario : '';
+            const objeto = outros()[linhaNo(no)];
+            const depoisDeMudar = mensagem => {                                  // as linhas podem ter mudado de índice: acha o ponto de novo pela linha
+                host.depois?.();
+                cx = null; metaAtivo.clear();
+                grafo = montarGrafo();
+                st.grafoNo = grafo.nosPorLinha.get(outros().indexOf(objeto))?.id || null;
+                ultimoStatus = mensagem;
+                atualizar();
+                if (st.grafoNo) ultimoNo = nosSvg.get(st.grafoNo);
+            };
+            const salvar = botao(info ? 'Salvar nome e comentário' : 'Criar o grupo do ponto', () => {
+                const erro = host.definirPontoNoMapa(no.linhas, { nome: nome.value, comentario: comentario.value });
+                if (erro) { status.textContent = erro; return; }
+                depoisDeMudar('Ponto atualizado em Demais Ativos.');
+            }, 'Grava o nome e o comentário do ponto (o grupo @ em Demais Ativos)');
+            salvar.classList.add('p');
+            const botoes = [salvar];
+            if (info && !ehFicticio && host.marcarPontoNoMapa) {
+                botoes.push(botao(info.congelada ? 'Descongelar grupo' : 'Congelar grupo', () => { host.marcarPontoNoMapa(no.linhas, 'congelada'); depoisDeMudar(info.congelada ? 'Grupo descongelado.' : 'Grupo congelado: fora dos cálculos.'); },
+                    'Congela todas as linhas do ponto (saem da Totalizadora, do orçamento e da validação)'));
+                botoes.push(botao(info.bloqueada ? 'Desbloquear grupo' : 'Bloquear grupo', () => { host.marcarPontoNoMapa(no.linhas, 'bloqueada'); depoisDeMudar(info.bloqueada ? 'Grupo desbloqueado.' : 'Grupo bloqueado: não edita nem exclui; o «Rearranjar» não o move.'); },
+                    'Bloqueia todas as linhas do ponto contra edição e exclusão'));
+            }
+            const linhas = [], vistas = new Set();
+            const somar = (tabela, i, texto) => { const k = tabela + i; if (!vistas.has(k) && String(texto || '').trim()) { vistas.add(k); linhas.push([tabela, i, texto]); } };
+            if (info) { somar('Demais Ativos', info.tituloIdx, outros()[info.tituloIdx].ativo); if (info.comentarioIdx !== null) somar('Demais Ativos', info.comentarioIdx, outros()[info.comentarioIdx].ativo); }
+            no.linhas.forEach(l => { if (!outros()[l].comentario) somar('Demais Ativos', l, outros()[l].ativo); });
+            [...no.cabos].sort((a, b) => a - b).forEach(ic => somar('Cabos', ic, cabos()[ic] && cabos()[ic].ativo));
+            return el('div', { class: 'vz-ponto' }, [
+                el('h5', { text: 'Ponto' }),
+                campo('Nome (vazio = número automático)', nome), campo('Comentário', comentario),
+                el('div', { class: 'vz-ponto-botoes' }, botoes),
+                info ? null : el('small', { class: 'vz-no-ajuda', text: 'Este ponto ainda não é grupo em Demais Ativos.' }),
+                el('h6', { text: 'Linhas nas tabelas' }),
+                el('ul', { class: 'vz-ponto-linhas' }, linhas.map(([tabela, i, texto]) => el('li', {}, [el('small', { text: tabela + ' · ' + (i + 1) }), el('code', { text: texto, title: texto })])))
+            ]);
+        }
         const ehLinhaPosteNoPainel = linha => outros()[linha].entidade === 'POSTE' || postesDe(linha).length;
         function preencherNo() {
             observadorNo?.disconnect();
@@ -2242,6 +2402,7 @@
                 }
                 painelNo.appendChild(cartao);
             });
+            if (host.pontoNoMapa && host.definirPontoNoMapa) lateral.insertBefore(caixaDoPonto(no, status, ehFicticio), lateral.firstChild);
             const ligacoesSvg = doc.createElementNS(ns, 'svg');
             ligacoesSvg.setAttribute('class', 'vz-no-linhas');
             ligacoesSvg.setAttribute('aria-hidden', 'true');
@@ -2324,10 +2485,10 @@
                 if (arrasto.idNo) {
                     const px = limitar(ox + x, limites[0], limites[2]), py = limitar(oy + y, limites[1], limites[3]);
                     const base = bases.get(arrasto.idNo) || [0, 0];
-                    arrasto.valor = escalar() ? [(px - base[0]) / kLayout, (py - base[1]) / kLayout] : [px / W, py / H];            // 1:500 guarda o deslocamento em metros; Ajustar, a fração da tela
+                    arrasto.valor = emEscalaAgora() ? [(px - base[0]) / kLayout, (py - base[1]) / kLayout] : [px / W, py / H];            // 1:500 guarda o deslocamento em metros; Ajustar, a fração da tela
                     posicoes.set(arrasto.idNo, [px, py]);
                 } else {
-                    arrasto.valor = escalar() ? [limitar(ox + x / kLayout, -3000, 3000), limitar(oy + y / kLayout, -3000, 3000)] : [limitar(ox + x / W, -1, 1), limitar(oy + y / H, -1, 1)];
+                    arrasto.valor = emEscalaAgora() ? [limitar(ox + x / kLayout, -3000, 3000), limitar(oy + y / kLayout, -3000, 3000)] : [limitar(ox + x / W, -1, 1), limitar(oy + y / H, -1, 1)];
                 }
                 if (!quadro) quadro = raiz.requestAnimationFrame(() => { quadro = null; desenharPosicoes(arrasto); });
             }

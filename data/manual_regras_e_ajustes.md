@@ -1031,3 +1031,12 @@ No projeto Pernambuco, uma linha de Outros que seja só estrutura (`N3`, `2 N3`,
 No mapa de vinculação (Vinculação → Mapa), o seletor no canto inferior direito troca entre **Ajustar à tela** (cabe a rede inteira, como sempre) e **1:500** (o desenho em tamanho de prancha: 1 m = 2 mm; é aproximado, depende do monitor). No canto inferior esquerdo aparece **Escala ≈ 1:N** com uma barra em metros, que acompanha o zoom. Em 1:500 a rede pode ser maior que a tela: arraste o fundo para andar e use a roda para o zoom; **Enquadrar** volta a centralizar. A escolha fica lembrada.
 
 Arrastar postes e curvar cabos em 1:500 guarda o ajuste em metros, separado do ajuste feito em «Ajustar»; trocar de escala não bagunça nenhum dos dois. Em redes grandes o mapa mostra só o que está perto da janela e some com os rótulos durante o movimento, para o arrastar e o zoom ficarem leves.
+
+## Mapa: pontos como grupos, nome, comentário e Rearranjar (22/11/2026)
+
+- **Tudo é ponto:** poste, estrutura avulsa e poste fictício. Cada ponto é um **grupo** em Demais Ativos: uma linha `@nome`, uma linha de comentário `#` e a(s) linha(s) do ativo. Ao criar um ponto pelo mapa, essas três linhas entram na tabela. O nome fica em branco para o **número automático** (`P13`, `P14`…) ou você digita o seu (não pode repetir).
+- Abra o ponto (clique nele): a caixa **Ponto** mostra o nome, o comentário, os botões **Congelar grupo** e **Bloquear grupo** (valem para todas as linhas do ponto) e as linhas que o ponto tem em Demais Ativos e em Cabos.
+- **Agrupar pontos (N):** transforma de uma vez os pontos que ainda não são grupo (os do CAD, por exemplo) em `@P<n>`. Nada na tabela muda sem você clicar.
+- **As posições não mudam** quando você adiciona pontos: o novo ponto aparece num lugar livre perto do centro da tela.
+- **Rearranjar:** organiza os pontos de forma uniforme e limpa (vãos do mesmo tamanho, alinhados, sem sobreposição; vãos retos). Grupos bloqueados ficam onde estão. Em 1:500 o botão devolve os pontos à posição do CAD. Ctrl+Z desfaz.
+
