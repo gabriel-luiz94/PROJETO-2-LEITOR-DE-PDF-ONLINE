@@ -683,27 +683,46 @@
 
     /** Topologia do mapa. Linhas de Outros com a mesma coordenada representam o mesmo poste. */
     function grafoDaRede(cabos, outros, codigoFn, codigosFn, ehPoste) {
-        const postes = new Map(), nos = new Map();
-        function incluir(linha, pos) {
+        const postes = new Map(), nos = new Map(), postesPorId = new Map();
+        const linhaVisivel = row => !!row && !!trim(row.ativo) && !row.comentario && !row.grupoDecl;
+        const ehLinhaPoste = (row, l) => linhaVisivel(row) && (row.entidade === 'POSTE' || ehPoste?.(row, l));
+        const ests = estruturasDisponiveis(outros, codigoFn, codigosFn);
+        const linhasEstrutura = new Set(ests.map(linhaDe));
+        function incluir(linha, pos, poste = false) {
             const id = pos ? pos.join(',') : `linha:${linha}`;
-            if (!nos.has(id)) nos.set(id, { id, pos, linhas: [], estruturas: [], cabos: new Set() });
+            if (!nos.has(id)) nos.set(id, { id, pos, poste: null, linhas: [], estruturas: [], cabos: new Set() });
             const no = nos.get(id);
-            if (!postes.has(linha)) { no.linhas.push(linha); postes.set(linha, no); }
+            if (poste && no.poste === null) no.poste = linha;
+            no.linhas.push(linha);
+            postes.set(linha, no);
             return no;
         }
+        const fisicos = new Set();
         outros.forEach((row, l) => {
-            const pos = par(row && row._poste);
-            if (!row || !trim(row.ativo) || row.comentario) return;
-            if (pos || row.entidade === 'POSTE' || ehPoste?.(row, l)) incluir(l, pos);
+            if (!ehLinhaPoste(row, l)) return;
+            fisicos.add(l);
+            if (row._mapaId) postesPorId.set(row._mapaId, postesPorId.has(row._mapaId) ? null : l);
         });
+        const associados = [];
+        outros.forEach((row, l) => {
+            if (!linhaVisivel(row)) return;
+            const pos = par(row._poste), poste = fisicos.has(l);
+            const destino = !poste && row._mapaPosteRef ? postesPorId.get(row._mapaPosteRef) : null;
+            if (Number.isInteger(destino)) associados.push([l, destino]);
+            else if (pos || poste || row.entidade === 'ESTRUTURA' || linhasEstrutura.has(l)) incluir(l, pos, poste);
+        });
+        for (const [l, destino] of associados) {
+            const no = postes.get(destino);
+            no.linhas.push(l);
+            postes.set(l, no);
+        }
         cabos.forEach(c => {
             if (!c || !trim(c.ativo) || c.comentario) return;
             postesAtribuidos(c).concat((c.vinculoEstruturas || []).map(linhaDe)).forEach(l => {
-                const row = outros[l];
-                if (row && trim(row.ativo) && !row.comentario && !postes.has(l)) incluir(l, null);
+                if (linhaVisivel(outros[l]) && !postes.has(l)) incluir(l, null);
             });
         });
-        estruturasDisponiveis(outros, codigoFn, codigosFn).forEach(ie => {
+        ests.forEach(ie => {
             const no = postes.get(linhaDe(ie));
             if (no) no.estruturas.push(ie);
         });
@@ -744,7 +763,7 @@
             if (!vaos.has(chave)) vaos.set(chave, { ids, pontos, pontas, cabos: [] });
             vaos.get(chave).cabos.push(ic);
         });
-        return { nos, vaos: [...vaos.values()], cabosDoMapa, semVao, pontasSoltas };
+        return { nos, nosPorLinha: postes, vaos: [...vaos.values()], cabosDoMapa, semVao, pontasSoltas };
     }
 
     function gruposVisuaisDoVao(indices, cabos, analise, dicionario) {
@@ -1024,7 +1043,7 @@
         return erros;
     }
 
-    const api = { grafoDaRede, gruposVisuaisDoVao, posteCompletoNoGrafo, postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { grafoDaRede, gruposVisuaisDoVao, posteCompletoNoGrafo, postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoCaboFicticio, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);

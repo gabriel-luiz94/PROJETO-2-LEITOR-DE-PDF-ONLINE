@@ -6,6 +6,10 @@
 
 ---
 
+## Montagem da obra no mapa · TASK-220
+
+A Vinculação exibe pontos avulsos e cada ponta livre dos cabos. O mapa cria linhas nas tabelas do Resumo e registra cabos fictícios na estrutura. A obra guarda associações explícitas entre a linha avulsa e o poste. [TASK-220](tasks/TASK-220-22-11-2026.md).
+
 ## Mapa editável da rede · TASK-219
 
 O mapa inclui postes sem coordenadas e oferece as pontas livres na lateral. As ligações feitas no mapa ou no detalhe do poste escrevem no mesmo vínculo cabo–estrutura. As sugestões em lote exigem referência de poste e passam pelas regras do projeto. A obra guarda a disposição esquemática de postes e cabos. [TASK-219](tasks/TASK-219-22-11-2026.md).
@@ -811,6 +815,8 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-11-22
+
+**Motivo:** [TASK-220](tasks/TASK-220-22-11-2026.md) permitiu montar os ativos e os vínculos pelo mapa.
 
 **Motivo:** [TASK-219](tasks/TASK-219-22-11-2026.md) adicionou edição e disposição persistente ao mapa da rede.
 

@@ -102,3 +102,37 @@ assert.deepEqual(empate.cabosDoMapa.get(0).ids, ['-1,0','20,0']);
 assert.deepEqual(empate.cabosDoMapa.get(0).referencias, ['20,0']);
 """
     subprocess.run(["node", "-e", script], check=True, cwd=Path(__file__).resolve().parents[1])
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node indisponível")
+def test_ponto_de_estrutura_avulsa_e_associacao_explicita_no_composer():
+    script = r"""
+const assert = require('node:assert/strict');
+const vr = require('./static/vinculacao_regras.js');
+const cabos = [{ativo:'MT1 20 m', nivel:'MT', operacao:'I', vinculoEstruturas:[0,2]}];
+const outros = [
+    {entidade:'0', ativo:'N3', operacao:'I'},
+    {entidade:'POSTE', ativo:'12600D', _poste:[20,0], _mapaId:'a'.repeat(32)},
+    {entidade:'ESTRUTURA', ativo:'N1', operacao:'I'},
+    {entidade:'ESTRUTURA', ativo:'N4', operacao:'I', comentario:true}
+];
+const grafo = () => vr.grafoDaRede(cabos, outros, v => v, v => /^N/.test(v) ? [v] : []);
+for (const c of [[], cabos]) {
+    const g = vr.grafoDaRede(c, outros, v => v, v => /^N/.test(v) ? [v] : []);
+    assert.equal(g.nos.get('linha:0').poste, null);
+    assert.deepEqual(g.nos.get('linha:0').estruturas, [0]);
+    assert.equal(g.nos.get('20,0').poste, 1);
+    assert.equal(g.nos.has('linha:3'), false);
+}
+outros[0]._mapaPosteRef = outros[1]._mapaId;
+const associado = grafo();
+assert.equal(associado.nos.has('linha:0'), false);
+assert.equal(associado.nosPorLinha.get(0), associado.nos.get('20,0'));
+assert.ok(associado.nos.get('20,0').estruturas.includes(0));
+assert.deepEqual(associado.vaos[0].ids, ['20,0','linha:2']);
+assert.deepEqual(cabos[0].vinculoEstruturas, [0,2]);
+assert.equal(outros[0]._poste, undefined);
+outros[1].comentario = true;
+assert.ok(grafo().nos.has('linha:0'));
+"""
+    subprocess.run(["node", "-e", script], check=True, cwd=Path(__file__).resolve().parents[1])
