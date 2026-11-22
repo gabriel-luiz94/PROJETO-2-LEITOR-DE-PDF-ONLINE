@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-22 — Mapa editável da rede
+
+Postes sem coordenadas começam em grade, com as pontas livres dos cabos na lateral. O mapa e o detalhe do poste permitem editar os vínculos e aplicar sugestões revisadas. As posições visuais são salvas com a obra. [TASK-219](tasks/TASK-219-22-11-2026.md).
+
 ## 2026-11-22 — Montagem manual do nanoCAD
 
 O Leitor DXF aceita região no fluxo manual do plugin. O Resumo acrescenta as anotações revisadas à obra aberta e ajusta os vínculos do lote aos índices das tabelas de destino. [TASK-218](tasks/TASK-218-22-11-2026.md).

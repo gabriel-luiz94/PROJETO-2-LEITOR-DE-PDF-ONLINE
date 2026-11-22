@@ -1445,7 +1445,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pushHistory();
         const copias = alvos.map(i => {
             const c = deepClone(dados[i]);
-            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
+            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', '_mapaPoste', '_mapaCabo', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
             return c;
         });
         const depois = alvos[alvos.length - 1] + 1;
@@ -2563,6 +2563,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const geo = obj._geo || (obj._raw && obj._raw._geo), poste = obj._poste || (obj._raw && obj._raw._poste);
         if (geo) { c._geo = geo; c._geoTipo = obj._geoTipo || (obj._raw && obj._raw._geoTipo); }
         if (poste) c._poste = poste;
+        for (const [campo, min] of [['_mapaPoste', 0], ['_mapaCabo', -1]]) {
+            const par = obj[campo];
+            if (Array.isArray(par) && par.length === 2 && par.every(n => Number.isFinite(n) && n >= min && n <= 1)) c[campo] = par.slice();
+        }
         if (Array.isArray(obj.vinculoEstruturas)) c.vinculoEstruturas = obj.vinculoEstruturas.slice();
         if (Array.isArray(obj.vinculoPostes) && obj.vinculoPostes.length) c.vinculoPostes = obj.vinculoPostes.slice();                   // Cabos ⇄ Postes
         if (obj.vinculoOrigem) c.vinculoOrigem = obj.vinculoOrigem;                                       // TASK-084: manual | script

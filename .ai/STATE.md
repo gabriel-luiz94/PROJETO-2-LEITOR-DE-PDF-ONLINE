@@ -6,6 +6,10 @@
 
 ---
 
+## Mapa editável da rede · TASK-219
+
+O mapa inclui postes sem coordenadas e oferece as pontas livres na lateral. As ligações feitas no mapa ou no detalhe do poste escrevem no mesmo vínculo cabo–estrutura. As sugestões em lote exigem referência de poste e passam pelas regras do projeto. A obra guarda a disposição esquemática de postes e cabos. [TASK-219](tasks/TASK-219-22-11-2026.md).
+
 ## Montagem manual e entrega incremental do nanoCAD · TASK-218
 
 O plugin 0.14.0 tem leitura por região e editor de anotações. A entrega acrescenta linhas em um passo de histórico do Resumo. A rota e a lógica de adição foram testadas em Linux. A validação no nanoCAD em Windows está pendente. [TASK-218](tasks/TASK-218-22-11-2026.md).
@@ -13,6 +17,10 @@ O plugin 0.14.0 tem leitura por região e editor de anotações. A entrega acres
 ## Segurança e prazo do Assistente de IA · TASK-217
 
 As chaves OpenAI são limitadas ao destino correspondente, e o JWT do desktop usa segredo persistente por perfil. Servidores exigem segredo próprio. O teste do reserva verifica a ida e a volta da ferramenta, com o DeepSeek usando `deepseek-flash`. O prazo encerra o chat com erro e interrompe o trabalho nos pontos de checagem dos cálculos. A validação com uma chave real do DeepSeek segue pendente. [TASK-217](tasks/TASK-217-21-11-2026.md).
+
+## Pendência na verificação de cache dos scripts
+
+Em `main` (2.7.4), `test_todo_js_da_pasta_static_e_servido_sem_cache` falha porque `/static/comparar_obras.js` responde sem o cabeçalho de cache esperado.
 
 ## Pendência na autenticação do servidor
 
@@ -802,7 +810,9 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-11-21
+**Data:** 2026-11-22
+
+**Motivo:** [TASK-219](tasks/TASK-219-22-11-2026.md) adicionou edição e disposição persistente ao mapa da rede.
 
 **Motivo:** [TASK-216](tasks/TASK-216-21-11-2026.md) usa a barra nativa do sistema e adia o carregamento das bibliotecas de arquivos.
 
