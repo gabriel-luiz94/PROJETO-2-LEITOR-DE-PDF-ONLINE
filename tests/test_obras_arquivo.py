@@ -253,3 +253,21 @@ def test_disposicao_opcional_do_mapa_sobrevive_ao_arquivo_de_obra():
     assert "_mapaCabo" not in reaberta["cabos"][1]
     assert "_mapaPoste" not in reaberta["outros"][1]
     assert "_poste" not in reaberta["outros"][0]
+
+
+def test_arquivo_preserva_identidade_dos_postes_e_associacao_do_composer():
+    id_no = "a" * 32
+    dados = {
+        "cabos": [{"ativo": "A35P 25 m", "operacao": "I", "vinculoEstruturas": [1]}],
+        "outros": [
+            {"ativo": "12600D", "entidade": "POSTE", "_mapaId": id_no},
+            {"ativo": "N3", "entidade": "ESTRUTURA", "_mapaPosteRef": id_no, "cabosFicticios": ["A35P"]},
+            {"ativo": "N1", "_mapaPosteRef": "não é um ID"},
+        ],
+    }
+    exportada = oa.montar_exportacao({"nome": "Composer", "projeto": "081", "dados_json": dados})
+    reaberta = oa.validar_importacao(json.loads(json.dumps(exportada)), "081")["dados"]
+    assert reaberta["outros"][0] == dados["outros"][0]
+    assert reaberta["outros"][1] == dados["outros"][1]
+    assert reaberta["outros"][2] == {"ativo": "N1"}
+    assert reaberta["cabos"] == dados["cabos"]

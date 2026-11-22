@@ -1445,7 +1445,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pushHistory();
         const copias = alvos.map(i => {
             const c = deepClone(dados[i]);
-            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', '_mapaPoste', '_mapaCabo', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
+            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', '_mapaPoste', '_mapaCabo', '_mapaId', '_mapaPosteRef', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
             return c;
         });
         const depois = alvos[alvos.length - 1] + 1;
@@ -2476,6 +2476,82 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    const idPontoMapa = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), n => n.toString(16).padStart(2, '0')).join('');
+    function idPontoValido(id) { return typeof id === 'string' && /^[a-f0-9]{32}$/.test(id); }
+
+    function postesDaLinhaVinculo(ativo) {
+        const ctx = _ctxOutros(), conv = ctx.convencao_postes;
+        const r = AnotacaoOutros.interpretarLinha(ativo || '', 'I', _classicoTotalizadora, ctx);
+        return r.itens.map(i => AnotacaoOutros.posteParaCompacto(AtivoParametros.nomeBase(i.ativo), conv)).filter(Boolean);
+    }
+
+    function idPosteNoMapa(destino, outros) {
+        if (!idPontoValido(destino._mapaId) || outros.some(r => r && r !== destino && r._mapaId === destino._mapaId))
+            destino._mapaId = idPontoMapa();
+        return destino._mapaId;
+    }
+
+    function ehPosteNoMapa(row) {
+        return row && !row.comentario && (row.entidade === 'POSTE' || postesDaLinhaVinculo(row.ativo).length);
+    }
+
+    function inserirAtivoNoMapa(tipo, dados) {
+        const nome = String(dados.ativo || '').trim().toUpperCase();
+        const operacao = dados.operacao;
+        const tabela = tipo === 'cabo' ? 'cabos' : 'outros';
+        if (!nome || nome.length > 440 || /^[#@]/.test(nome)) return { erro: 'Informe um ativo válido.' };
+        if (!/^(?:\*)?[IMR]$/.test(operacao)) return { erro: 'Escolha a operação do ativo.' };
+        const row = { entidade: 'CABO', operacao, ativo: nome, entidadeManual: true };
+        if (tipo === 'cabo') {
+            const entrada = String(dados.metros || '').trim().replace(',', '.');
+            const metros = Number(entrada), fase = String(dados.fase || '').trim().toUpperCase();
+            if (!/^\d+(?:\.\d+)?$/.test(entrada) || !Number.isFinite(metros) || metros <= 0)
+                return { erro: 'Informe um comprimento maior que zero, em metros.' };
+            const rotulo = `${nome} ${entrada} m`;
+            if (AnotacaoCabos.ehNotacao(rotulo)) {
+                const r = AnotacaoCabos.interpretar(rotulo);
+                if (r.erros.length || !r.itens.length) return { erro: r.erros[0] || 'Rótulo de cabo inválido.' };
+                row.ativo = rotulo;
+            } else {
+                if (!GradeTabela.FASES.includes(fase)) return { erro: 'Escolha as fases para esta anotação de cabo.' };
+                row.ativo = `${nome} ${fase} ${entrada} m`;
+            }
+            if (['MT', 'BT'].includes(dados.nivel)) row.nivel = dados.nivel;
+        } else {
+            if (!['poste', 'estrutura'].includes(tipo)) return { erro: 'Escolha o tipo de ativo.' };
+            const r = AnotacaoOutros.interpretarLinha(nome, 'I', _classicoTotalizadora, _ctxOutros());
+            if (r.erros.length || !r.itens.length) return { erro: r.erros[0]?.msg || 'Anotação inválida.' };
+            const postes = postesDaLinhaVinculo(nome);
+            if (tipo === 'poste' && postes.length !== 1) return { erro: 'Informe um poste reconhecido pela convenção do projeto. Exemplo: 12600D, N3.' };
+            if (tipo === 'estrutura' && postes.length) return { erro: 'Use Novo poste para uma anotação que contém um poste.' };
+            row.entidade = tipo === 'poste' ? 'POSTE' : 'ESTRUTURA';
+        }
+        const outros = tableStates.outros.data;
+        const poste = tipo === 'estrutura' && Number.isInteger(dados.poste) ? outros[dados.poste] : null;
+        if (tipo === 'estrutura' && Number.isInteger(dados.poste) && !ehPosteNoMapa(poste))
+            return { erro: 'O poste escolhido já não está disponível.' };
+        pushHistory();
+        if (poste) row._mapaPosteRef = idPosteNoMapa(poste, outros);
+        const lista = tableStates[tabela].data;
+        const indice = lista.push(row) - 1;
+        if (tabela === 'cabos') recalcRowAndAbove(indice);
+        renderTable(tabela);
+        buildAtivoSets();
+        buildDataLists();
+        refreshAllFilters(tabela);
+        return { indice };
+    }
+
+    function associarEstruturaNoMapa(indice, poste) {
+        const outros = tableStates.outros.data, linha = outros[indice], destino = outros[poste];
+        if (!linha || linha.comentario || ehPosteNoMapa(linha)) return false;
+        if (poste !== null && !ehPosteNoMapa(destino)) return false;
+        pushHistory();
+        if (poste === null) delete linha._mapaPosteRef;
+        else linha._mapaPosteRef = idPosteNoMapa(destino, outros);
+        return true;
+    }
+
     /** TASK-084: o que o modal de vinculação (vinculacao_ui.js) precisa saber/fazer na tela do Resumo. */
     window.VinculacaoHost = {
         cabos: () => tableStates.cabos.data,
@@ -2486,10 +2562,9 @@ document.addEventListener('DOMContentLoaded', () => {
         codigosEstrutura: _codigosEstruturaVinculo,            // TASK-094: todas as estruturas da linha (9400D, N1, N4 → N1, N4)
         avulsosDoCabo: ic => _avulsosDoCabo(ic),               // TASK-171: componentes avulsos que a estrutura fictícia do cabo usa (alças, conectores)
         adicionarAvulsos: (ic, ficticia) => _adicionarAvulsos(ic, ficticia),
-        postesDaLinha(ativo) {
-            const r = AnotacaoOutros.interpretarLinha(ativo || '', 'I', _classicoTotalizadora, _ctxOutros());
-            return r.itens.map(i => AtivoParametros.nomeBase(i.ativo)).filter(n => AnotacaoOutros.ehPoste(n)).map(n => AnotacaoOutros.posteParaCompacto(n));
-        },
+        postesDaLinha: postesDaLinhaVinculo,
+        inserirNoMapa: inserirAtivoNoMapa,
+        associarNoMapa: associarEstruturaNoMapa,
         linhaSoPoste(ativo) { return !AnotacaoOutros.codigoEstrutura(ativo || '', _classicoTotalizadora, _ctxOutros()); },
         consultarAssistente: selecao => selecionarMapaAssistente(selecao),
         antes() { pushHistory(); },
@@ -2567,6 +2642,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const par = obj[campo];
             if (Array.isArray(par) && par.length === 2 && par.every(n => Number.isFinite(n) && n >= min && n <= 1)) c[campo] = par.slice();
         }
+        for (const campo of ['_mapaId', '_mapaPosteRef']) if (idPontoValido(obj[campo])) c[campo] = obj[campo];
         if (Array.isArray(obj.vinculoEstruturas)) c.vinculoEstruturas = obj.vinculoEstruturas.slice();
         if (Array.isArray(obj.vinculoPostes) && obj.vinculoPostes.length) c.vinculoPostes = obj.vinculoPostes.slice();                   // Cabos ⇄ Postes
         if (obj.vinculoOrigem) c.vinculoOrigem = obj.vinculoOrigem;                                       // TASK-084: manual | script
@@ -3132,6 +3208,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     }
 
+    function reidentificarPontosCopiados(linhas) {
+        const ids = new Map();
+        for (const linha of linhas) {
+            if (idPontoValido(linha._mapaId)) ids.set(linha._mapaId, ids.has(linha._mapaId) ? null : idPontoMapa());
+        }
+        for (const linha of linhas) {
+            const id = ids.get(linha._mapaId), ref = ids.get(linha._mapaPosteRef);
+            if (id) linha._mapaId = id; else delete linha._mapaId;
+            if (ref) linha._mapaPosteRef = ref; else delete linha._mapaPosteRef;
+        }
+    }
+
     /** Acrescenta as linhas da obra às tabelas atuais (um passo de histórico). */
     function adicionarObraAoProjeto(snap, anotacoesNanoCAD = false) {
         if (!snap) { showToast('Dados da obra inválidos.'); return false; }
@@ -3143,8 +3231,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const linhas = linhasDoSnap(snap, type);
             if (!linhas.length) return;
             const novas = linhas.map(row => JSON.parse(JSON.stringify(row)));
+            if (type === 'outros' && novas.some(row => row._mapaId || row._mapaPosteRef)) reidentificarPontosCopiados(novas);
             if (window.GruposLinhas) window.GruposLinhas.reidentificar(novas);                   // TASK-195: grupos da obra ganham ids novos (a mesma obra pode entrar duas vezes)
-            if (anotacoesNanoCAD && type === 'cabos') {
+            if (type === 'cabos') {
                 for (const row of novas) {
                     for (const campo of ['vinculoEstruturas', 'vinculoPostes']) {
                         if (Array.isArray(row[campo])) row[campo] = row[campo]
@@ -3152,7 +3241,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             .map(id => Number((id + deslocamento).toFixed(2)));
                     }
                 }
-                recalcAllQtdAtivos(novas);
+                if (anotacoesNanoCAD) recalcAllQtdAtivos(novas);
             }
             novas.forEach(row => tableStates[type].data.push(row));
             if (type === 'cabos' && !anotacoesNanoCAD) recalcAllQtdAtivos();
@@ -3173,6 +3262,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const linhas = linhasDoSnap(snap, type);
             if (!linhas.length) return;
             const clonadas = linhas.map(row => JSON.parse(JSON.stringify(row)));
+            if (type === 'outros') reidentificarPontosCopiados(clonadas);
             if (window.GruposLinhas) window.GruposLinhas.reidentificar(clonadas);
             clonadas.forEach(clonada => {
                 if (clonada.grupoDecl) { tableStates[type].data.push(clonada); return; }       // TASK-195: a declaração do grupo («@P1») continua sendo só um título

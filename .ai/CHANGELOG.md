@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-22 — Montagem da obra no mapa
+
+O Resumo permite criar postes, estruturas, cabos reais e cabos fictícios pelo mapa. Os pontos avulsos podem receber pontas e ser associados a postes. O mapa explica bloqueios de vinculação com as regras do projeto. [TASK-220](tasks/TASK-220-22-11-2026.md).
+
 ## 2026-11-22 — Mapa editável da rede
 
 Postes sem coordenadas começam em grade, com as pontas livres dos cabos na lateral. O mapa e o detalhe do poste permitem editar os vínculos e aplicar sugestões revisadas. As posições visuais são salvas com a obra. [TASK-219](tasks/TASK-219-22-11-2026.md).

@@ -80,7 +80,6 @@
     .vz-grafo-barra{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin-bottom:14px}
     .vz-grafo-barra h4{margin:0;font-size:20px;letter-spacing:-.024em}
     .vz-grafo-barra p{margin:2px 0 0;color:var(--g-muted);font-size:12px}
-    .vz-grafo-legenda{display:flex;gap:10px}
     .vz-grafo-total{background:var(--g-panel);border:1px solid var(--g-border);border-radius:8px;padding:6px 12px;color:var(--g-muted);white-space:nowrap}
     .vz-grafo-total strong{color:var(--g-text);margin-right:5px;font-variant-numeric:tabular-nums}
     .vz-grafo-area{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(205px,24%);gap:12px}
@@ -89,9 +88,23 @@
     .vz-grafo-cabos{min-height:0;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--g-panel);border:1px solid var(--g-border);border-radius:10px}
     .vz-grafo-cabos[hidden],.vz-grafo-area[hidden],.vz-grafo-revisao[hidden]{display:none}
     .vz-grafo-cabos h5{margin:0}.vz-grafo-lista{overflow:auto;display:grid;align-content:start;gap:6px}
-    .vz-grafo-lista .vz-btn{text-align:left;white-space:normal;overflow-wrap:anywhere;border-left:3px solid var(--g-border)}
-    .vz-grafo-lista .mt{border-left-color:#ff6478}.vz-grafo-lista .bt{border-left-color:#54e1a3}
-    .vz-grafo-lista small{display:block;color:var(--g-muted)}
+    .vz-grafo-cabecalho,.vz-grafo-legenda,.vz-grafo-ferramentas{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+    .vz-grafo-item{display:grid;gap:6px;padding:7px;border-radius:7px;border:1px solid var(--g-border);border-left-width:3px;background:var(--g-raised);overflow-wrap:anywhere}
+    .vz-grafo-item.mt{border-left-color:#ff6478}.vz-grafo-item.bt{border-left-color:#54e1a3}
+    .vz-grafo-item small{display:block;color:var(--g-muted)}
+    .vz-grafo-pontas{display:flex;flex-wrap:wrap;gap:4px}
+    .vz-grafo-pontas .vz-btn{flex:1 1 auto;padding:5px}
+    .vz-mapa [data-no].avulsa .vz-marcador{stroke-dasharray:2 1}
+    .vz-mapa [data-no] .vz-ficticio-rotulo{fill:#e3c9ff}
+    .vz-no-dialog.vz-composer-dialog{width:min(460px,94vw)}
+    .vz-composer-form{display:grid;gap:10px;padding:14px 20px 18px;min-height:0;overflow:auto}
+    .vz-composer-form label{display:grid;gap:3px}
+    .vz-composer-form input,.vz-composer-form select,.vz-no-editor select{width:100%;min-width:0;color:var(--g-text);background:var(--g-bg);border:1px solid var(--g-border);border-radius:6px;padding:7px}
+    .vz-no-editor{display:grid;gap:5px;margin-top:5px}
+    .vz-no-editor small{color:var(--g-muted)}
+    .vz-composer-erro{margin:0;color:#ffb7ae}
+    .vz-composer-erro:empty{display:none}
+    .vz-ficticio-opcoes{display:flex;flex-wrap:wrap;gap:4px}
     .vz-grafo-revisao{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px;padding:8px 10px;background:var(--g-panel);border:1px solid var(--g-border);border-radius:8px}
     .vz-grafo-revisao details{flex-basis:100%}.vz-grafo-revisao ul{max-height:130px;overflow:auto;margin:6px 0}
     .vz-mapa [data-arrastar]{cursor:grab}.vz-mapa.arrastando [data-arrastar]{cursor:grabbing}
@@ -256,7 +269,7 @@
     function atualizarObra(substituida = false) {
         if (!overlay?.classList.contains('vz-destacada')) return;
         if (substituida) {
-            overlay.querySelector('.vz-no-dialog[open]')?.close();
+            overlay.querySelectorAll('.vz-no-dialog[open]').forEach(d => d.close());
             st.grafoNo = null;
             st.grafoVista = null;
             st.sel = null;
@@ -274,8 +287,7 @@
     function fechar() {
         if (st && st.dirty && !raiz.confirm('Há alterações nas tabelas/scripts que não foram salvas. Fechar mesmo assim?')) return false;
         fecharMenu();
-        const dialogoMapa = overlay?.querySelector('.vz-no-dialog[open]');
-        if (dialogoMapa) dialogoMapa.close();
+        overlay?.querySelectorAll('.vz-no-dialog[open]').forEach(d => d.close());
         if (painel) { painel.destruir(); painel = null; }
         mapaDesmontar?.();
         mapaDesmontar = mapaAtualizar = null;
@@ -386,10 +398,12 @@
         const k = cx || ctx(), lista = [];
         (k.ocup[ie] || []).forEach(ic => { if (ic !== ignorandoCabo) lista.push({ info: infoCabo(ic), ficticio: false }); });
         const e = infoEst(ie);
-        ficticiosDe(ie).forEach(cod => lista.push({ info: VR.infoCabo(cod, VR.opFicticio(e), st.cfg), ficticio: true }));
+        ficticiosDe(ie).forEach(cod => lista.push({ info: VR.infoCaboFicticio(cod, e.codigo, VR.opFicticio(e), st.cfg), ficticio: true }));
         return lista;
     }
     function podeLigar(ic, ie) {
+        if (!estruturaDisponivel(ie)) return [false, 'A estrutura está fora da vinculação.'];
+        if (!infoEst(ie).ocupa) return [false, 'O equipamento lê os cabos do ponto e não recebe pontas.'];
         const c = infoCabo(ic), e = infoEst(ie), oc = ocupantes(ie, ic);
         return VR.podeComOcupantes(c, e, oc);
     }
@@ -412,8 +426,12 @@
         atualizarAchados();
     }
 
+    function estruturaDisponivel(ie) { return Boolean((cx || ctx()).a.estruturas[ie]); }
+
     function motivoParaLigar(ic, ie) {
-        const c = cabos()[ic], info = infoCabo(ic);
+        const c = cabos()[ic];
+        if (!VR.ehCaboValido(c) || c.comentario) return 'O cabo está fora da vinculação.';
+        const info = infoCabo(ic);
         if (!info.vincula) return `O cabo ${info.codigo} não vincula (acompanha o cabo principal).`;
         if ((c.vinculoEstruturas || []).length + VR.estruturasFicticiasDe(c).length >= info.pontas)
             return `O cabo ${info.codigo} já tem as ${info.pontas} ponta(s); remova uma antes.`;
@@ -449,14 +467,30 @@
         const add = c => { c = trim(c).toUpperCase(); if (c && !vistos.has(c)) { vistos.add(c); codigos.push(c); } };
         cabos().forEach(c => { if (VR.ehCaboValido(c)) add(host.prefixoCabo(c.ativo)); });
         st.cfg.cabos.forEach(r => { if (typeof r.padrao === 'string' && !/[\\^$()\[\]|+*?{}]/.test(r.padrao)) r.padrao.split(',').forEach(add); });
-        return codigos.map(cod => { const ic = VR.infoCabo(cod, VR.opFicticio(e), st.cfg), [ok, motivo] = VR.podeComOcupantes(ic, e, oc, true); return { cod, ok, motivo, combina: ok && oc.length > 0 && oc[0].info.codigo === cod }; })
+        return codigos.map(cod => { const ic = VR.infoCaboFicticio(cod, e.codigo, VR.opFicticio(e), st.cfg), [ok, motivo] = VR.podeComOcupantes(ic, e, oc, true); return { cod, ok, motivo, combina: ok && oc.length > 0 && oc[0].info.codigo === cod }; })
             .sort((a, b) => (b.combina - a.combina) || (b.ok - a.ok));
     }
 
-    function addFicticio(ie, cod) {
+    function addFicticio(ie, entrada) {
+        const cod = trim(entrada).toUpperCase();
+        if (!cod || cod.length > 120 || /[\r\n]/.test(cod)) return 'Informe o código do cabo fictício.';
+        if (!estruturaDisponivel(ie) || !infoEst(ie).ocupa) return 'Esta estrutura não recebe cabos.';
+        const e = infoEst(ie);
+        const info = VR.infoCaboFicticio(cod, e.codigo, VR.opFicticio(e), st.cfg);
+        const [ok, motivo] = VR.podeComOcupantes(info, e, ocupantes(ie), true);
+        if (!ok) return motivo || 'Cabo fictício incompatível.';
         host.antes();
-        gravarFicticios(ie, ficticiosDe(ie).concat([cod.toUpperCase()]));
+        gravarFicticios(ie, ficticiosDe(ie).concat(cod));
         atualizar();
+        host.depois?.();
+        return '';
+    }
+
+    function removerFicticio(ie, k) {
+        host.antes();
+        gravarFicticios(ie, ficticiosDe(ie).filter((_, i) => i !== k));
+        atualizar();
+        host.depois?.();
     }
 
     function menuEstrutura(e, ie) {
@@ -465,12 +499,12 @@
         const aceitos = cands.filter(c => c.ok);
         itens.push({ hd: 'Associar cabo fictício' });
         if (!aceitos.length) itens.push({ t: 'Nenhum cabo aceito por esta estrutura agora', off: true });
-        aceitos.slice(0, 8).forEach(c => itens.push({ t: '➕ ' + c.cod, rec: c.combina ? '✔ combina com o outro lado' : '', fn: () => addFicticio(ie, c.cod) }));
-        itens.push({ t: '✎ Outro código…', fn: () => { const cod = raiz.prompt('Código do cabo fictício (ex.: C16):'); if (cod) { const c = VR.infoCabo(cod, VR.opFicticio(info), st.cfg), [ok, motivo] = VR.podeComOcupantes(c, info, ocupantes(ie), true); if (ok) addFicticio(ie, cod); else toast('✖ ' + motivo); } } });
+        aceitos.slice(0, 8).forEach(c => itens.push({ t: '➕ ' + c.cod, rec: c.combina ? '✔ combina com o outro lado' : '', fn: () => { const erro = addFicticio(ie, c.cod); if (erro) toast('✖ ' + erro); } }));
+        itens.push({ t: '✎ Outro código…', fn: () => { const cod = raiz.prompt('Código do cabo fictício (ex.: C16):'); if (cod) { const erro = addFicticio(ie, cod); if (erro) toast('✖ ' + erro); } } });
         const recusados = cands.filter(c => !c.ok && c.motivo);
         if (recusados.length) itens.push({ t: `(${recusados.length} código(s) não aceito(s): ${recusados.slice(0, 3).map(c => c.cod).join(', ')}…)`, off: true, title: recusados.slice(0, 5).map(c => c.cod + ': ' + c.motivo).join('\n') });
         itens.push('-');
-        ficticiosDe(ie).forEach((cod, k) => itens.push({ t: `✖ Remover fictício ${cod}`, fn: () => { host.antes(); const l = ficticiosDe(ie).slice(); l.splice(k, 1); gravarFicticios(ie, l); atualizar(); } }));
+        ficticiosDe(ie).forEach((cod, k) => itens.push({ t: `✖ Remover fictício ${cod}`, fn: () => removerFicticio(ie, k) }));
         itens.push({ t: 'Desvincular todos os cabos desta estrutura', fn: () => { host.antes(); cabos().forEach(c => { if (c && c.vinculoEstruturas) c.vinculoEstruturas = c.vinculoEstruturas.filter(x => x !== ie); }); atualizar(); } });
         abrirMenu(e, itens);
     }
@@ -1303,13 +1337,14 @@
         svg.setAttribute('class', 'vz-mapa');
         svg.setAttribute('aria-label', 'Grafo da rede');
         const posicoes = new Map(), vaosPorCabo = new Map(), nosSvg = new Map();
-        const totalPostes = el('strong'), totalVaos = el('strong');
+        const totalPostes = el('strong'), totalAvulsas = el('strong'), totalVaos = el('strong');
         const contagem = el('div', { class: 'vz-grafo-legenda' }, [
             el('span', { class: 'vz-grafo-total' }, [totalPostes, 'Postes']),
+            el('span', { class: 'vz-grafo-total' }, [totalAvulsas, 'Pontos avulsos']),
             el('span', { class: 'vz-grafo-total' }, [totalVaos, 'Vãos'])
         ]);
         let grafo, vb = st.grafoVista || [0, 0, W, H], arrasto, mover = false;
-        let ultimoNo, ultimoStatus = '', caboEscolhido = null, caboNo = null;
+        let ultimoNo, ultimoStatus = '', caboEscolhido = null, pontaEscolhida = null, caboNo = null;
         let desenhos = [], ponto, sugestoes = [], observadorNo, quadro;
         const aplicarVista = () => { st.grafoVista = vb; svg.setAttribute('viewBox', vb.join(' ')); };
         const zoom = (f, x = vb[0] + vb[2] / 2, y = vb[1] + vb[3] / 2) => {
@@ -1322,8 +1357,17 @@
         const sugerir = botao('Sugerir ligações', prepararSugestoes);
         const barra = el('div', { class: 'vz-grafo-barra' }, [
             el('div', {}, [el('h4', { text: 'Grafo da rede' }), instrucao]),
-            el('div', { class: 'vz-grafo-legenda' }, [contagem, sugerir])
+            el('div', { class: 'vz-grafo-cabecalho' }, [contagem, sugerir])
         ]);
+        const ficticio = botao('+ Cabo fictício', () => abrirFicticio(), 'Novo cabo fictício');
+        const ferramentas = el('div', { class: 'vz-grafo-ferramentas' }, [
+            botao('+ Poste', () => abrirCriacao('poste'), 'Novo poste'),
+            botao('+ Estrutura', () => abrirCriacao('estrutura'), 'Nova estrutura'),
+            botao('+ Cabo', () => abrirCriacao('cabo'), 'Novo cabo'),
+            ficticio
+        ]);
+        if (host.inserirNoMapa) barra.append(ferramentas);
+        else barra.append(ficticio);
         const acoesMapa = el('div', { class: 'vz-grafo-acoes' }, [
             botao('−', () => zoom(1.25), 'Afastar'), botao('+', () => zoom(.8), 'Aproximar'),
             botao('Enquadrar', () => { vb = [0, 0, W, H]; aplicarVista(); })
@@ -1337,14 +1381,16 @@
         const vazio = el('p', { class: 'vz-nota', text: 'Adicione postes ou cabos à obra para montar a rede.' });
         const avisos = el('p', { class: 'vz-grafo-aviso', role: 'status' });
         const dialogo = el('dialog', { class: 'vz-no-dialog', 'aria-labelledby': 'vz-no-titulo' });
-        corpo.append(barra, vazio, area, revisao, avisos, dialogo);
+        const editor = el('dialog', { class: 'vz-no-dialog vz-composer-dialog', 'aria-labelledby': 'vz-composer-titulo' });
+        corpo.append(barra, vazio, area, revisao, avisos, dialogo, editor);
 
-        const linhaNo = no => no.linhas.find(l => postesDe(l).length) ?? no.linhas[0];
+        const linhaNo = no => no.poste ?? no.linhas[0];
         const estruturasDoNo = no => no.estruturas.filter(ie => !metaDe(linhaDe(ie)).soPoste && codigoDe(ie));
         const ligacoes = ic => cabos()[ic].vinculoEstruturas || [];
         const jaLigadoNo = (ic, no) => ligacoes(ic).some(ie => no.linhas.includes(linhaDe(ie)));
         function livres(ic) {
-            if (!(cx?.a || analise()).cabos[ic]?.vincula || cabos()[ic].comentario) return 0;
+            const c = cabos()[ic];
+            if (!c || c.comentario || !(cx?.a || analise()).cabos[ic]?.vincula) return 0;
             return Math.max(0, infoCabo(ic).pontas - ligacoes(ic).length - VR.estruturasFicticiasDe(cabos()[ic]).length);
         }
         function estruturasCompativeis(ic, no) {
@@ -1352,12 +1398,19 @@
             return estruturasDoNo(no).filter(ie => infoEst(ie).ocupa && !motivoParaLigar(ic, ie));
         }
 
+        function motivoNo(ic, no) {
+            if (jaLigadoNo(ic, no)) return 'Este cabo já tem uma ponta vinculada neste ponto.';
+            const estruturas = estruturasDoNo(no);
+            if (!estruturas.length) return 'O ponto não tem estrutura disponível. Adicione uma estrutura ao ponto.';
+            return [...new Set(estruturas.map(ie => motivoParaLigar(ic, ie)).filter(Boolean))].join(' · ');
+        }
+
         function atualizarSelecao() {
             instrucao.textContent = caboEscolhido !== null
-                ? 'Cabo ' + (caboEscolhido + 1) + ' selecionado · clique num poste destacado.'
-                : 'Selecione uma ponta livre ou abra um poste. Arraste postes e cabos no desenho esquemático.';
+                ? 'Cabo ' + (caboEscolhido + 1) + (pontaEscolhida ? ' · ponta livre ' + pontaEscolhida : '') + ' · clique num ponto destacado.'
+                : 'Selecione uma ponta livre ou abra um ponto. Arraste os pontos e os cabos no desenho esquemático.';
             lista.querySelectorAll('[data-cabo-livre]').forEach(b => {
-                const ativo = Number(b.dataset.caboLivre) === caboEscolhido;
+                const ativo = Number(b.dataset.caboLivre) === caboEscolhido && Number(b.dataset.ponta) === pontaEscolhida;
                 b.classList.toggle('p', ativo);
                 b.setAttribute('aria-pressed', String(ativo));
             });
@@ -1365,9 +1418,12 @@
                 g.classList.toggle('alvo', caboEscolhido !== null && estruturasCompativeis(caboEscolhido, grafo.nos.get(id)).length > 0);
             });
         }
-        function selecionarCabo(ic) {
+        function selecionarCabo(ic, ponta = 1) {
             if (!livres(ic)) return;
-            caboEscolhido = ic === caboEscolhido ? null : ic;
+            const desmarcar = ic === caboEscolhido && ponta === pontaEscolhida;
+            caboEscolhido = desmarcar ? null : ic;
+            pontaEscolhida = desmarcar ? null : ponta;
+            avisos.textContent = '';
             atualizarSelecao();
         }
 
@@ -1516,29 +1572,47 @@
 
             const labels = [];
             const nos = [...grafo.nos.values()].map(n => {
-                const [x, y] = posicoes.get(n.id), rotulo = nomeDoNo(n), curto = `P${n.linhas[0] + 1}`;
+                const [x, y] = posicoes.get(n.id), rotulo = nomeDoNo(n);
+                const avulsa = n.poste === null;
+                const estruturas = estruturasDoNo(n);
+                const tituloAvulsa = avulsa ? estruturas.slice(0, 2).map(codigoDe).join(' / ') || trim(outros()[linhaNo(n)].ativo) : '';
+                const curto = avulsa ? tituloAvulsa.slice(0, 22) + (tituloAvulsa.length > 22 ? '…' : '') : `P${n.poste + 1}`;
+                const ficticios = estruturas.reduce((q, ie) => q + ficticiosDe(ie).length, 0);
                 const direita = x + 15 + curto.length * 7;
                 const denso = labels.some(([a, b, c]) => Math.abs(y - c) < 14 && x + 10 < b && direita > a);
                 if (!denso) labels.push([x + 10, direita, y]);
-                const completo = VR.posteCompletoNoGrafo(estruturasDoNo(n), a);
-                const classe = [denso ? 'vz-rotulo-denso' : '', completo ? 'completo' : 'pendente'].join(' ');
-                return `<g class="${classe}" data-no="${esc(n.id)}" ${n.pos ? '' : 'data-arrastar="poste"'} tabindex="0" role="button" aria-label="${esc(rotulo)}"><title>${esc(rotulo)} · ${completo ? 'Vinculação completa' : 'Vinculação pendente'}</title><circle class="vz-alvo" r="19"/><circle class="vz-halo" r="10"/><circle class="vz-marcador" r="6"/><text x="14" y="-7">${curto}</text></g>`;
+                const completo = VR.posteCompletoNoGrafo(estruturas, a);
+                const classe = [denso ? 'vz-rotulo-denso' : '', completo ? 'completo' : 'pendente', avulsa ? 'avulsa' : ''].join(' ');
+                return `<g class="${classe}" data-no="${esc(n.id)}" ${n.pos ? '' : 'data-arrastar="poste"'} tabindex="0" role="button" aria-label="${esc(rotulo)}"><title>${esc(rotulo)} · ${completo ? 'Vinculação completa' : 'Vinculação pendente'}</title><circle class="vz-alvo" r="19"/><circle class="vz-halo" r="10"/><circle class="vz-marcador" r="6"/><text x="14" y="-7">${esc(curto)}</text>${ficticios ? `<text class="vz-ficticio-rotulo" x="13" y="10">F × ${ficticios}</text>` : ''}</g>`;
             }).join('');
             svg.innerHTML = rede.join('') + nos;
             svg.querySelectorAll('[data-no]').forEach(g => nosSvg.set(g.dataset.no, g));
             svg.querySelectorAll('.vz-aresta').forEach((linha, i) => { desenhos[i].linha = linha; });
             desenharPosicoes();
-            totalPostes.textContent = grafo.nos.size;
+            const postes = [...grafo.nos.values()].filter(no => no.poste !== null).length;
+            totalPostes.textContent = postes;
+            totalAvulsas.textContent = grafo.nos.size - postes;
             totalVaos.textContent = grafo.vaos.length;
             const pendentes = [...grafo.cabosDoMapa.keys()].map(ic => [ic, livres(ic)]).filter(([, qtd]) => qtd);
-            if (caboEscolhido !== null && !livres(caboEscolhido)) caboEscolhido = null;
+            if (caboEscolhido !== null) {
+                const disponiveis = livres(caboEscolhido);
+                if (disponiveis) pontaEscolhida = Math.min(pontaEscolhida || 1, disponiveis);
+                else caboEscolhido = pontaEscolhida = null;
+            }
             lista.replaceChildren(...pendentes.map(([ic, qtd]) => {
                 const c = cabos()[ic], grupo = VR.gruposVisuaisDoVao([ic], cabos(), a, st.cfg.dicionario_cabos)[0];
-                const b = botao(`Cabo ${ic + 1} · ${c.ativo}`, () => selecionarCabo(ic));
-                b.dataset.caboLivre = ic;
-                if (grupo.tipo) b.classList.add(grupo.tipo.toLowerCase());
-                b.append(el('small', { text: [grupo.tipo, c.operacao, qtd + (qtd === 1 ? ' ponta livre' : ' pontas livres')].filter(Boolean).join(' · ') }));
-                return b;
+                const nome = `Cabo ${ic + 1} · ${c.ativo}`;
+                const botoes = Array.from({ length: qtd }, (_, i) => {
+                    const ponta = i + 1;
+                    const b = botao(qtd === 1 ? 'Ponta livre' : 'Ponta livre ' + ponta, () => selecionarCabo(ic, ponta), nome + ' · ponta livre ' + ponta);
+                    b.dataset.caboLivre = ic;
+                    b.dataset.ponta = ponta;
+                    return b;
+                });
+                return el('article', { class: 'vz-grafo-item ' + (grupo.tipo || '').toLowerCase() }, [
+                    el('div', {}, [el('strong', { text: nome }), el('small', { text: [grupo.tipo, c.operacao].filter(Boolean).join(' · ') })]),
+                    el('div', { class: 'vz-grafo-pontas' }, botoes)
+                ]);
             }));
             tituloPontas.textContent = 'Pontas livres · ' + pendentes.reduce((n, [, qtd]) => n + qtd, 0);
             lateralMapa.hidden = !pendentes.length;
@@ -1546,6 +1620,7 @@
             vazio.hidden = !!(grafo.nos.size || grafo.cabosDoMapa.size);
             area.hidden = !vazio.hidden;
             sugerir.disabled = !pendentes.length || !grafo.nos.size;
+            ficticio.disabled = ![...grafo.nos.values()].some(no => estruturasDoNo(no).some(ie => infoEst(ie).ocupa));
             avisos.textContent = !temGeo && !area.hidden ? 'Mapa sem escala. Mover postes ou cabos altera somente a disposição.' : '';
             atualizarSelecao();
             renderRevisao();
@@ -1578,9 +1653,128 @@
             }
         }
 
+        function campo(rotulo, controle) {
+            controle.setAttribute('aria-label', rotulo);
+            return el('label', {}, [el('span', { text: rotulo }), controle]);
+        }
+        function opcoes(valores) {
+            return valores.map(([value, text]) => el('option', { value, text }));
+        }
+        function abrirEditor(titulo, textoBotao, montagem, executar) {
+            const erro = el('p', { class: 'vz-composer-erro', role: 'alert' });
+            const fecharEditor = botao('Cancelar', () => editor.close());
+            fecharEditor.type = 'button';
+            const salvar = el('button', { class: 'vz-btn p', type: 'submit', text: textoBotao });
+            const form = el('form', { class: 'vz-composer-form', onsubmit: e => {
+                e.preventDefault();
+                const mensagem = executar();
+                if (mensagem) erro.textContent = mensagem;
+                else editor.close();
+            } }, [...montagem, erro, el('div', { class: 'vz-ficticio-opcoes' }, [salvar, fecharEditor])]);
+            editor.replaceChildren(el('header', { class: 'vz-no-topo' }, [
+                el('h4', { id: 'vz-composer-titulo', text: titulo })
+            ]), form);
+            if (!editor.open) editor.showModal();
+            form.querySelector('input, select')?.focus();
+        }
+
+        function abrirCriacao(tipo, poste = null) {
+            const cabo = tipo === 'cabo';
+            const titulo = cabo ? 'Novo cabo' : tipo === 'poste' ? 'Novo poste' : 'Nova estrutura';
+            const exemplo = cabo ? '3xA35P-13,8kV ou CAA2' : tipo === 'poste' ? '12600D, N3' : 'N3 ou 2-N3';
+            const ativo = el('input', { type: 'text', required: '', maxlength: '440', placeholder: exemplo });
+            const operacao = el('select', {}, opcoes([
+                ['I', 'I · Instalar'], ['*I', '*I · Instalar em linha viva'],
+                ['M', 'M · Manter ou reaplicar'], ['*M', '*M · Manter ou reaplicar em linha viva'],
+                ['R', 'R · Remover'], ['*R', '*R · Remover em linha viva']
+            ]));
+            const metros = el('input', { type: 'text', inputmode: 'decimal', maxlength: '24', required: '', placeholder: '25' });
+            const fases = (raiz.GradeTabela?.FASES || ['A', 'B', 'C', 'AB', 'AC', 'BC', 'ABC']);
+            const fase = el('select', {}, opcoes([['', 'Do rótulo'], ...fases.map(v => [v, v])]));
+            const nivel = el('select', {}, opcoes([['', 'Pelo ativo'], ['MT', 'MT'], ['BT', 'BT']]));
+            const campos = [campo(cabo ? 'Ativo ou rótulo, sem a metragem' : 'Anotação', ativo), campo('Operação', operacao)];
+            if (cabo) campos.push(campo('Comprimento em metros', metros), campo('Fases', fase), campo('Nível', nivel));
+            abrirEditor(titulo, cabo ? 'Adicionar a Cabos' : 'Adicionar a Demais Ativos', campos, () => {
+                const resultado = host.inserirNoMapa(tipo, { ativo: ativo.value, operacao: operacao.value,
+                    metros: metros.value, fase: fase.value, nivel: nivel.value, poste });
+                if (resultado.erro) return resultado.erro;
+                cx = null;
+                const texto = cabo ? 'Cabo criado na tabela Cabos.' : 'Linha criada em Demais Ativos.';
+                if (cabo) {
+                    caboEscolhido = livres(resultado.indice) ? resultado.indice : null;
+                    pontaEscolhida = caboEscolhido === null ? null : 1;
+                    if (dialogo.open) caboNo = caboEscolhido;
+                }
+                if (dialogo.open) ultimoStatus = texto;
+                atualizar();
+                avisos.textContent = texto;
+                return '';
+            });
+        }
+
+        function abrirFicticio(unidade = null) {
+            const camposEstrutura = [];
+            grafo.nos.forEach(no => estruturasDoNo(no).forEach(ie => {
+                if (infoEst(ie).ocupa) camposEstrutura.push([ie, nomeDoNo(no) + ' · ' + codigoDe(ie) + ' · linha ' + (linhaDe(ie) + 1)]);
+            }));
+            if (!camposEstrutura.length) return;
+            const alvo = el('select', {}, opcoes(camposEstrutura));
+            if (unidade !== null) alvo.value = String(unidade);
+            const codigo = el('input', { type: 'text', required: '', maxlength: '120', placeholder: 'A35P', list: 'vz-codigos-ficticios' });
+            const sugestoesCod = el('datalist', { id: 'vz-codigos-ficticios' });
+            const preencher = () => {
+                sugestoesCod.replaceChildren(...candidatosFicticios(Number(alvo.value)).filter(c => c.ok).map(c => el('option', { value: c.cod })));
+            };
+            alvo.addEventListener('change', preencher);
+            preencher();
+            abrirEditor('Novo cabo fictício', 'Adicionar à estrutura', [
+                campo('Estrutura', alvo), campo('Código do cabo', codigo), sugestoesCod
+            ], () => {
+                const ie = Number(alvo.value);
+                ultimoStatus = 'Cabo fictício registrado.';
+                const mensagem = addFicticio(ie, codigo.value);
+                if (mensagem) { ultimoStatus = ''; return mensagem; }
+                avisos.textContent = 'Cabo fictício vinculado a ' + codigoDe(ie) + '.';
+                return '';
+            });
+        }
+
+        function trocarPosteDaEstrutura(linha, poste) {
+            const destino = poste === null ? null : grafo.nosPorLinha.get(poste);
+            if (destino && !destino.linhas.includes(linha)) {
+                const pontos = new Set(destino.linhas);
+                const repetido = cabos().findIndex(c => (c?.vinculoEstruturas || []).some(ie => linhaDe(ie) === linha) &&
+                    (c.vinculoEstruturas || []).some(ie => pontos.has(linhaDe(ie))));
+                if (repetido >= 0) return `O cabo ${repetido + 1} ficaria com duas pontas no mesmo ponto. Solte uma ponta antes.`;
+            }
+            if (!host.associarNoMapa(linha, poste)) return 'A estrutura ou o poste escolhido mudou.';
+            grafo = montarGrafo();
+            const no = grafo.nosPorLinha.get(linha);
+            st.grafoNo = no?.id || null;
+            ultimoStatus = poste === null ? 'Estrutura devolvida ao seu ponto.' : 'Estrutura associada ao poste.';
+            atualizar();
+            ultimoNo = nosSvg.get(st.grafoNo);
+            host.depois?.();
+            avisos.textContent = ultimoStatus;
+            return '';
+        }
+
+        function escolherPosteDaEstrutura(linha, no) {
+            const candidatos = [...grafo.nos.values()].filter(n => n.poste !== null && n.id !== no.id);
+            const destinos = el('select', { required: '' }, opcoes([
+                ['', 'Selecione um poste'], ...candidatos.map(n => [n.poste, nomeDoNo(n)])
+            ]));
+            abrirEditor('Associar estrutura ao poste', 'Associar', [campo('Poste', destinos)],
+                () => trocarPosteDaEstrutura(linha, Number(destinos.value)));
+        }
+
         function nomeDoNo(no) {
-            const identificacao = no.linhas.flatMap(postesDe)[0];
-            return 'Poste ' + (no.linhas[0] + 1) + (identificacao ? ' · ' + identificacao : '');
+            if (no.poste === null) {
+                const codigos = estruturasDoNo(no).map(codigoDe).join(', ');
+                return 'Ponto avulso ' + (linhaNo(no) + 1) + ' · ' + (codigos || outros()[linhaNo(no)].ativo);
+            }
+            const identificacao = postesDe(no.poste)[0];
+            return 'Poste ' + (no.poste + 1) + (identificacao ? ' · ' + identificacao : '');
         }
 
         function editarNo(id, alvo) {
@@ -1618,22 +1812,44 @@
                     ? 'Este cabo já tem uma ponta vinculada neste poste.' : motivoParaLigar(ic, ie)) : '';
                 if (motivo) { status.textContent = motivo; return; }
                 ultimoStatus = acao === 'ligar' ? 'Vínculo registrado.' : 'Vínculo removido.';
-                caboEscolhido = null;
+                caboEscolhido = pontaEscolhida = null;
                 ligar(ic, ie);
                 if (host.depois) host.depois();
                 dialogo.querySelector(`[data-foco="${foco}"]`)?.focus();
             }
             const lateral = el('aside', { class: 'vz-no-lateral' }, [
-                el('h5', { text: 'Estruturas do poste' }),
+                el('h5', { text: 'Estruturas do ponto' }),
                 estruturas.length ? el('div', { class: 'vz-no-estruturas' }, estruturas.map(ie => {
                     const r = a.estruturas[ie];
+                    const controlesFicticios = infoEst(ie).ocupa ? el('div', { class: 'vz-no-editor' }, [
+                        ...ficticiosDe(ie).map((cod, k) => botao('Fictício · ' + cod + ' ×',
+                            () => { ultimoStatus = 'Cabo fictício removido.'; removerFicticio(ie, k); }, 'Remover cabo fictício ' + cod)),
+                        botao('+ Fictício', () => abrirFicticio(ie), 'Adicionar cabo fictício a ' + codigoDe(ie))
+                    ]) : null;
                     return el('div', { class: 'vz-no-estrutura', 'data-estrutura-no': ie }, [
                         el('strong', { text: codigoDe(ie) }),
-                        el('span', { text: infoEst(ie).ocupa === false ? ' · equipamento' : ` · ${r.tem} ligado(s)` })
+                        el('span', { text: infoEst(ie).ocupa === false ? ' · equipamento' : ` · ${r.tem} ligado(s)` }),
+                        controlesFicticios
                     ]);
-                })) : el('p', { class: 'vz-no-ajuda', text: 'Nenhuma estrutura cadastrada neste poste.' })
+                })) : el('p', { class: 'vz-no-ajuda', text: 'Nenhuma estrutura cadastrada neste ponto.' })
             ]);
-            const painelNo = el('section', {}, [el('h5', { text: 'Cabos do poste' }), status]);
+            if (host.associarNoMapa) {
+                const existeOutroPoste = [...grafo.nos.values()].some(n => n.poste !== null && n.id !== no.id);
+                for (const linha of new Set(estruturas.map(linhaDe))) {
+                    if (postesDe(linha).length || outros()[linha].entidade === 'POSTE') continue;
+                    const ativo = outros()[linha].ativo;
+                    const controles = el('div', { class: 'vz-no-editor' }, [el('small', { text: ativo })]);
+                    if (existeOutroPoste) controles.append(botao('Associar a poste', () => escolherPosteDaEstrutura(linha, no), 'Associar ' + ativo + ' a poste'));
+                    if (outros()[linha]._mapaPosteRef) controles.append(botao('Soltar do poste', () => {
+                        const mensagem = trocarPosteDaEstrutura(linha, null);
+                        if (mensagem) status.textContent = mensagem;
+                    }, 'Soltar ' + ativo + ' do poste'));
+                    if (controles.childElementCount > 1) lateral.append(controles);
+                }
+            }
+            if (host.inserirNoMapa && no.poste !== null) lateral.append(botao('+ Estrutura', () => abrirCriacao('estrutura', no.poste), 'Nova estrutura neste poste'));
+            const painelNo = el('section', {}, [el('h5', { text: 'Cabos do ponto' }), status]);
+            if (host.inserirNoMapa) painelNo.append(botao('+ Cabo', () => abrirCriacao('cabo'), 'Novo cabo neste ponto'));
             const adicionais = [...grafo.cabosDoMapa.keys()]
                 .filter(ic => !no.cabos.has(ic) && livres(ic) && estruturasCompativeis(ic, no).length);
             if (adicionais.length) {
@@ -1685,7 +1901,7 @@
                         vincular, dica]));
                 } else if (!existentes.length) {
                     cartao.appendChild(el('p', { class: 'vz-no-ajuda', text: livres(ic)
-                        ? 'Sem estrutura compatível disponível neste poste.' : 'Todas as pontas do cabo já estão preenchidas.' }));
+                        ? motivoNo(ic, no) : 'Todas as pontas do cabo já estão preenchidas.' }));
                 }
                 painelNo.appendChild(cartao);
             });
@@ -1696,14 +1912,14 @@
             dialogo.replaceChildren(el('header', { class: 'vz-no-topo' }, [
                 el('div', {}, [el('h4', { id: 'vz-no-titulo', text: nomeDoNo(no) }),
                     el('p', { class: completo ? 'vz-no-completo' : '', text: completo ? 'Vinculação completa' : 'Vinculação pendente' }),
-                    el('p', { text: no.pos ? `X ${no.pos[0].toFixed(2)} · Y ${no.pos[1].toFixed(2)}` : 'Poste sem coordenadas' })]), el('div', { class: 'vz-no-topo-acoes' }, [consultarNo, desfazer, fecharNo].filter(Boolean))
+                    el('p', { text: no.pos ? `X ${no.pos[0].toFixed(2)} · Y ${no.pos[1].toFixed(2)}` : 'Sem coordenadas CAD' })]), el('div', { class: 'vz-no-topo-acoes' }, [consultarNo, desfazer, fecharNo].filter(Boolean))
             ]), el('div', { class: 'vz-no-conteudo' }, [mundo]));
             function desenharLigacoes() {
                 const base = mundo.getBoundingClientRect();
                 const elementos = [];
                 for (const {ic, ie} of conexoes) {
                     const origem = mundo.querySelector(`[data-cabo-no="${ic}"] h6`);
-                    const destino = mundo.querySelector(`[data-estrutura-no="${ie}"]`);
+                    const destino = mundo.querySelector(`[data-estrutura-no="${ie}"] strong`);
                     if (!origem || !destino) continue;
                     const inicio = origem.getBoundingClientRect(), fim = destino.getBoundingClientRect();
                     const x0 = inicio.right - base.left + 4, x1 = fim.left - base.left - 2;
@@ -1746,14 +1962,18 @@
             const linha = idNo ? outros()[linhaNo(grafo.nos.get(idNo))] : ic !== undefined ? cabos()[ic] : null;
             const campo = idNo ? '_mapaPoste' : '_mapaCabo';
             const origem = idNo ? posicoes.get(idNo) : linha?._mapaCabo || [0, 0];
-            arrasto = { id: e.pointerId, x: e.clientX, y: e.clientY, vb, matriz: svg.getScreenCTM().inverse(), idNo, ic, linha, campo, origem, alvo: e.target, valor: null };
-            svg.setPointerCapture(e.pointerId);
+            arrasto = { id: e.pointerId, x: e.clientX, y: e.clientY, vb, matriz: svg.getScreenCTM().inverse(), idNo, ic, linha, campo, origem, valor: null };
         });
         svg.addEventListener('pointermove', e => {
             if (!arrasto || e.pointerId !== arrasto.id) return;
+            if (!(e.buttons & 1)) { soltar(e, true); return; }
             const dx = e.clientX - arrasto.x, dy = e.clientY - arrasto.y;
             if (!mover && Math.hypot(dx, dy) < 4) return;
-            if (!mover) { svg.classList.add('arrastando'); mover = true; }
+            if (!mover) {
+                svg.setPointerCapture(e.pointerId);
+                svg.classList.add('arrastando');
+                mover = true;
+            }
             const x = dx * arrasto.matriz.a, y = dy * arrasto.matriz.d;
             if (!arrasto.linha) {
                 vb = [arrasto.vb[0] - x, arrasto.vb[1] - y, arrasto.vb[2], arrasto.vb[3]];
@@ -1773,7 +1993,7 @@
         function soltar(e, cancelar) {
             if (!arrasto || e.pointerId !== arrasto.id) return;
             const alteracao = arrasto;
-            const {linha, campo, valor, idNo, origem, alvo} = alteracao;
+            const {linha, campo, valor, idNo, origem} = alteracao;
             arrasto = null;
             if (quadro) {
                 raiz.cancelAnimationFrame(quadro);
@@ -1785,7 +2005,6 @@
                 linha[campo] = valor;
             } else if (cancelar && idNo) posicoes.set(idNo, origem);
             if (valor) desenharPosicoes(alteracao);
-            if (!cancelar && !mover && alvo) ativarMapa(alvo);
         }
         svg.addEventListener('pointerup', e => soltar(e, false));
         svg.addEventListener('pointercancel', e => soltar(e, true));
@@ -1799,9 +2018,14 @@
             const no = alvo.closest('[data-no]');
             if (no) {
                 const id = no.dataset.no, ic = caboEscolhido;
-                const compativeis = ic === null ? [] : estruturasCompativeis(ic, grafo.nos.get(id));
+                const ponto = grafo.nos.get(id);
+                const compativeis = ic === null ? [] : estruturasCompativeis(ic, ponto);
+                if (ic !== null && !compativeis.length) {
+                    avisos.textContent = nomeDoNo(ponto) + ' · ' + motivoNo(ic, ponto);
+                    return;
+                }
                 if (compativeis.length === 1) {
-                    caboEscolhido = null;
+                    caboEscolhido = pontaEscolhida = null;
                     ligar(ic, compativeis[0]);
                     host.depois?.();
                     avisos.textContent = `Cabo ${ic + 1} vinculado a ${nomeDoNo(grafo.nos.get(id))} / ${codigoDe(compativeis[0])}.`;
@@ -1825,7 +2049,7 @@
             consultar({ tipo: 'vão', rotulo: ['Vão ' + grupo.tipo + ' ' + (Number(aresta.dataset.vao) + 1), nos.map(nomeDoNo).join(' ↔ ')].filter(Boolean).join(' · '),
                 cabos: grupo.cabos, outros: nos.flatMap(n => n.linhas) });
         }
-        svg.addEventListener('click', e => { if (e.detail === 0) ativarMapa(e.target); });
+        svg.addEventListener('click', e => { if (!mover || e.detail === 0) ativarMapa(e.target); });
         svg.addEventListener('keydown', e => {
             if (e.target.closest('[data-no], [data-vao], [data-cabo-mapa]') && (e.key === 'Enter' || e.key === ' ')) {
                 e.preventDefault();
