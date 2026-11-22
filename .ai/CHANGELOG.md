@@ -104,6 +104,14 @@ TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 r
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-22 — TASK-226: posicionar o ponto novo com o mouse; copiar pontos e cabos no mapa
+
+- **Posicionar:** depois de confirmar «+ Poste», «+ Estrutura» (avulsa) ou «+ Poste fictício», o mapa entra em modo de posicionamento: o ponto acompanha o mouse, **o clique fixa** o lugar (grava como os demais, `_mapaPoste`/`_mapaPoste500`) e **Esc mantém** o lugar sugerido (o modal não fecha). Durante o posicionamento os pontos e vãos ficam transparentes ao mouse (`pointer-events:none`) e dá para andar/zoom pelo fundo; um clique logo depois de arrastar o fundo não fixa.
+- **Copiar ponto:** botão no painel do ponto — cria um grupo novo (nome automático, mesmo comentário) com cópias das linhas do ativo, **sem vínculos com cabos, sem coordenadas do CAD e sem posição**; a estrutura de um poste acompanha a cópia (`_mapaPosteRef` remapeado para o id novo); poste fictício continua congelado/bloqueado. Depois a cópia pede para ser posicionada.
+- **Copiar cabo:** botão «Copiar» no cartão do cabo — copia o texto/nível/fases para o fim de Cabos, **sem pontas ligadas**, e já seleciona a ponta livre para ligar clicando num ponto.
+- Ambos são um passo de Ctrl+Z (`copiarPontoNoMapa`/`copiarCaboNoMapa` em `static/resumo.js`; lista de campos que não vão para a cópia: `CAMPOS_FORA_DA_COPIA`).
+- Arquivos: `static/vinculacao_ui.js`, `static/resumo.js`, `tests/test_mapa_copiar_posicionar_226.py`.
+
 ## 2026-11-22 — TASK-225: pontos do mapa como grupos, posições estáveis e «Rearranjar»
 
 - **Bug:** adicionar um poste no mapa reorganizava os pontos. Causa: o encaixe «Ajustar» dependia do conjunto de pontos (a largura útil mudava quando surgia o primeiro ponto sem CAD e a grade dos pontos sem coordenada era refeita). Agora, **antes de qualquer inclusão** (poste, estrutura, poste fictício, «Agrupar pontos») todos os pontos têm a posição gravada (`_mapaPoste`, ou o deslocamento em metros em 1:500) e o ponto novo cai num lugar livre perto do centro da janela.

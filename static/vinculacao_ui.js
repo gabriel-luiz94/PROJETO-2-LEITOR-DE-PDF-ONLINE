@@ -166,6 +166,7 @@
     .vz-no-lateral{border:1px solid var(--g-border);border-radius:9px;padding:12px;background:var(--g-panel)}
     .vz-ponto{display:grid;gap:8px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--g-border)}
     .vz-ponto label{display:grid;gap:3px;font-size:12px;color:var(--g-text)}.vz-ponto input{background:var(--g-bg);color:var(--g-text);border:1px solid var(--g-border);border-radius:6px;padding:5px 7px}
+    .vz-mapa.posicionando{cursor:crosshair}.vz-mapa.posicionando [data-arrastar]{pointer-events:none}
     .vz-ponto-botoes{display:flex;flex-wrap:wrap;gap:6px}.vz-ponto h6{margin:4px 0 0;font-size:11px;color:var(--g-muted,#8b949e);text-transform:uppercase;letter-spacing:.04em}
     .vz-ponto-linhas{list-style:none;margin:0;padding:0;display:grid;gap:3px;font-size:12px}.vz-ponto-linhas li{display:flex;gap:6px;align-items:baseline;overflow:hidden}
     .vz-ponto-linhas small{flex:0 0 auto;color:var(--g-muted,#8b949e)}.vz-ponto-linhas code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1647,6 +1648,54 @@
             recortarVista(true);
         }
 
+        // Posicionar: depois de criar (ou copiar) um ponto, ele acompanha o mouse e o clique fixa o lugar; Esc mantém o lugar sugerido
+        let colocando = null, quadroPosicionar = 0, alvoPosicionar = null;
+        const teclaPosicionar = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); encerrarPosicionamento(false); } };
+        function iniciarPosicionamento(linha) {
+            const no = grafo.nosPorLinha.get(linha);
+            if (!no) return;
+            encerrarPosicionamento(true);
+            colocando = { id: no.id, original: posicoes.get(no.id).slice(), nome: nomeGrupoDoNo(no) || nomeDoNo(no) };
+            svg.classList.add('posicionando');
+            doc.addEventListener('keydown', teclaPosicionar, true);
+            avisos.textContent = 'Posicione «' + colocando.nome + '»: mova o mouse e clique no mapa para fixar o ponto (Esc mantém o lugar sugerido).';
+        }
+        function encerrarPosicionamento(confirmou, silencioso) {
+            if (!colocando) return;
+            const c = colocando;
+            colocando = null; alvoPosicionar = null;
+            svg.classList.remove('posicionando');
+            doc.removeEventListener('keydown', teclaPosicionar, true);
+            if (quadroPosicionar) { raiz.cancelAnimationFrame(quadroPosicionar); quadroPosicionar = 0; }
+            if (silencioso) return;
+            if (!confirmou && grafo.nos.has(c.id)) { posicoes.set(c.id, c.original); guardarPosicao(c.id); desenharPosicoes({ idNo: c.id }); }
+            recortarVista(true);
+            avisos.textContent = confirmou ? 'Ponto posicionado. Arraste para ajustar.' : 'Ponto mantido no lugar sugerido.';
+        }
+        function copiarPonto(no, status) {
+            fixarPosicoes();
+            const r = host.copiarPontoNoMapa(no.linhas);
+            if (r.erro) { status.textContent = r.erro; return; }
+            dialogo.close();
+            cx = null; metaAtivo.clear();
+            atualizar();
+            host.depois?.();
+            colocarNovoPonto(r.indice);
+            iniciarPosicionamento(r.indice);
+        }
+        function copiarCabo(ic) {
+            const r = host.copiarCaboNoMapa(ic);
+            if (r.erro) { avisos.textContent = r.erro; return; }
+            cx = null; metaAtivo.clear();
+            atualizar();
+            caboEmFoco = r.indice;
+            caboEscolhido = livres(r.indice) ? r.indice : null;
+            pontaEscolhida = caboEscolhido === null ? null : 1;
+            atualizarSelecao();
+            lista.querySelector(`[data-cartao-cabo="${r.indice}"]`)?.scrollIntoView({ block: 'nearest' });
+            avisos.textContent = 'Cabo copiado (linha ' + (r.indice + 1) + ' de Cabos). Clique num ponto destacado para ligar a ponta.';
+        }
+
         function rearranjarMapa() {
             if (!grafo || !grafo.nos.size) return;
             host.antes();
@@ -1836,7 +1885,7 @@
                 return el('article', { class: 'vz-grafo-item ' + (grupo.tipo || '').toLowerCase(), 'data-cartao-cabo': ic }, [
                     titulo, el('small', { text: [grupo.tipo, c.operacao].filter(Boolean).join(' · ') }),
                     el('div', { class: 'vz-grafo-pontas' }, botoes),
-                    controleEdicao('cabo', ic), consulta
+                    controleEdicao('cabo', ic), host.copiarCaboNoMapa ? botao('Copiar', () => copiarCabo(ic), 'Copiar ' + nome + ' (cabo novo, sem pontas ligadas)') : null, consulta
                 ]);
             }));
             if (vb) atualizarEscala();
@@ -2045,6 +2094,7 @@
                 colocarNovoPonto(indice);
                 host.depois?.();
                 avisos.textContent = 'Poste fictício criado. Conecte uma ponta para ancorar o cabo.';
+                iniciarPosicionamento(indice);
                 return '';
             }, true);
         }
@@ -2095,8 +2145,8 @@
                 }
                 if (dialogo.open) ultimoStatus = texto;
                 atualizar();
-                if (novoPonto) colocarNovoPonto(resultado.indice);
                 avisos.textContent = texto;
+                if (novoPonto) { colocarNovoPonto(resultado.indice); iniciarPosicionamento(resultado.indice); }
                 return '';
             });
         }
@@ -2210,6 +2260,7 @@
             }, 'Grava o nome e o comentário do ponto (o grupo @ em Demais Ativos)');
             salvar.classList.add('p');
             const botoes = [salvar];
+            if (host.copiarPontoNoMapa) botoes.push(botao('Copiar ponto', () => copiarPonto(no, status), 'Copia o ponto (novo grupo com as mesmas linhas, sem vínculos) e pede onde posicioná-lo'));
             if (info && !ehFicticio && host.marcarPontoNoMapa) {
                 botoes.push(botao(info.congelada ? 'Descongelar grupo' : 'Congelar grupo', () => { host.marcarPontoNoMapa(no.linhas, 'congelada'); depoisDeMudar(info.congelada ? 'Grupo descongelado.' : 'Grupo congelado: fora dos cálculos.'); },
                     'Congela todas as linhas do ponto (saem da Totalizadora, do orçamento e da validação)'));
@@ -2533,6 +2584,26 @@
                 nosSvg.get(id)?.focus();
             }
         }
+        svg.addEventListener('pointermove', e => {                         // ponto em posicionamento acompanha o mouse
+            if (!colocando || arrasto) return;
+            const pt = pontoDaVista(e);
+            alvoPosicionar = [limitar(pt.x, limites[0], limites[2]), limitar(pt.y, limites[1], limites[3])];
+            if (!quadroPosicionar) quadroPosicionar = raiz.requestAnimationFrame(() => {
+                quadroPosicionar = 0;
+                if (!colocando || !alvoPosicionar) return;
+                posicoes.set(colocando.id, alvoPosicionar);
+                desenharPosicoes({ idNo: colocando.id });
+            });
+        });
+        svg.addEventListener('click', e => {                               // o clique fixa o ponto (um clique depois de arrastar o fundo não conta)
+            if (!colocando || mover) return;
+            e.stopImmediatePropagation(); e.preventDefault();
+            const pt = pontoDaVista(e);
+            posicoes.set(colocando.id, [limitar(pt.x, limites[0], limites[2]), limitar(pt.y, limites[1], limites[3])]);
+            guardarPosicao(colocando.id);
+            desenharPosicoes({ idNo: colocando.id });
+            encerrarPosicionamento(true);
+        }, true);
         svg.addEventListener('click', e => { if (!mover || e.detail === 0) ativarMapa(e.target); });
         svg.addEventListener('keydown', e => {
             if (e.target.closest('[data-no], [data-cabo-mapa]') && (e.key === 'Enter' || e.key === ' ')) {
@@ -2547,6 +2618,7 @@
             if (quadro) raiz.cancelAnimationFrame(quadro);
             if (quadroVista) { raiz.cancelAnimationFrame(quadroVista); quadroVista = 0; }
             raiz.clearTimeout(fimMovimento);
+            encerrarPosicionamento(true, true);
         };
         mapaAtualizar = () => {
             sugestoes = [];

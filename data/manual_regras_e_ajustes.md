@@ -1040,3 +1040,9 @@ Arrastar postes e curvar cabos em 1:500 guarda o ajuste em metros, separado do a
 - **As posições não mudam** quando você adiciona pontos: o novo ponto aparece num lugar livre perto do centro da tela.
 - **Rearranjar:** organiza os pontos de forma uniforme e limpa (vãos do mesmo tamanho, alinhados, sem sobreposição; vãos retos). Grupos bloqueados ficam onde estão. Em 1:500 o botão devolve os pontos à posição do CAD. Ctrl+Z desfaz.
 
+## Mapa: posicionar o ponto novo e copiar (22/11/2026)
+
+- Ao confirmar um **ponto novo** (poste, estrutura ou poste fictício), o mapa pede que você o **posicione**: o ponto acompanha o mouse e o **clique** fixa o lugar. **Esc** mantém o lugar sugerido.
+- **Copiar ponto:** na caixa **Ponto** (clique no ponto) → **Copiar ponto**. A cópia é um grupo novo com as mesmas linhas, sem vínculos com cabos; depois você a posiciona com o mouse.
+- **Copiar cabo:** no cartão do cabo (lista à direita) → **Copiar**. O cabo novo vai para o fim de Cabos sem pontas ligadas: clique num ponto destacado para ligar cada ponta.
+

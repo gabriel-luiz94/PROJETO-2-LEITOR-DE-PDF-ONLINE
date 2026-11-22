@@ -2801,8 +2801,50 @@ document.addEventListener('DOMContentLoaded', () => {
         return res.n;
     }
 
+    /** Campos que NÃO vão para uma cópia: geometria do CAD, vínculos com cabos, posição no mapa, identidade e grupo (a cópia ganha os seus). */
+    const CAMPOS_FORA_DA_COPIA = ['bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios',
+        'cabosFicticiosSlots', 'origemAvulso', '_mapaPoste', '_mapaPoste500', '_mapaCabo', '_mapaCabo500', '_mapaId', '_mapaPosteRef', '_mapaTopologia', '_mapaAncoras', 'grupoDe', 'grupoDecl', 'gid', 'grupoRecolhido'];
+    /** Copia o ponto: um grupo novo (nome automático, mesmo comentário) com cópias das linhas do ativo, sem vínculos nem posição. Devolve {indice, nome} (indice = 1ª linha copiada) ou {erro}. */
+    function copiarPontoNoMapa(linhas) {
+        const outros = tableStates.outros.data, GL = GL_();
+        if (!GL) return { erro: 'Grupos indisponíveis.' };
+        const p = pontoNoMapa(linhas);
+        const origens = p ? p.membros.map(i => outros[i]).filter(r => r && !r.comentario) : (linhas || []).map(l => outros[l]).filter(r => r && !r.comentario && !r.grupoDecl);
+        if (!origens.length) return { erro: 'O ponto não tem linhas para copiar.' };
+        const nome = nomeParaPonto(outros, '').nome, ab = GL.abrirPonto(nome, origens[0].operacao, p ? p.comentario : '');
+        const novosIds = new Map();
+        const copias = origens.map(r => {
+            const c = deepClone(r), ficticio = r._mapaPosteFicticio === true;
+            CAMPOS_FORA_DA_COPIA.forEach(k => delete c[k]);
+            if (ficticio) { c.congelada = true; c.bloqueada = true; c._mapaPosteFicticio = true; c._mapaEstruturasFicticias = (r._mapaEstruturasFicticias || []).slice(); }
+            if (idPontoValido(r._mapaId)) { c._mapaId = idPontoMapa(); novosIds.set(r._mapaId, c._mapaId); }
+            c._copiaDe = r._mapaPosteRef;                                                       // temporário: remapeia a ligação estrutura→poste
+            c.grupoDe = ab.gid;
+            return c;
+        });
+        copias.forEach(c => { const antigo = c._copiaDe; delete c._copiaDe; if (idPontoValido(antigo) && novosIds.has(antigo)) c._mapaPosteRef = novosIds.get(antigo); });
+        pushHistory();
+        const indice = outros.length + 2;
+        outros.push(ab.titulo, ab.comentario, ...copias);
+        atualizarLinhaDoMapa('outros', indice, false);
+        return { indice, nome };
+    }
+    /** Copia o cabo (mesmo texto, nível e fases) para o fim de Cabos, sem pontas ligadas: o usuário liga no mapa. Devolve {indice} ou {erro}. */
+    function copiarCaboNoMapa(ic) {
+        const cabos = tableStates.cabos.data, origem = cabos[ic];
+        if (!origem || origem.comentario) return { erro: 'O cabo já não está disponível.' };
+        pushHistory();
+        const c = deepClone(origem);
+        CAMPOS_FORA_DA_COPIA.forEach(k => delete c[k]);
+        delete c.qtdAtivos;
+        const indice = cabos.push(c) - 1;
+        atualizarLinhaDoMapa('cabos', indice, true);
+        return { indice };
+    }
+
     /** TASK-084: o que o modal de vinculação (vinculacao_ui.js) precisa saber/fazer na tela do Resumo. */
     window.VinculacaoHost = {
+        copiarPontoNoMapa, copiarCaboNoMapa,
         pontoNoMapa, definirPontoNoMapa, marcarPontoNoMapa, agruparPontosNoMapa,
         cabos: () => tableStates.cabos.data,
         outros: () => tableStates.outros.data,
