@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-22 — Edição pelos cartões do mapa
+
+Os cartões editam cabos, postes e estruturas nas próprias tabelas da obra. No cabo, a edição inclui a anotação com metragem, a operação, o número de fases, a tensão e o nível. [TASK-223](tasks/TASK-223-22-11-2026.md).
+
+## 2026-11-22 — Arraste, seleção e âncoras no mapa
+
+O mapa permite arrastar pontos georreferenciados, filtrar a rede, localizar as pontas pelo cabo selecionado e ancorá-las em postes fictícios. As âncoras são referências visuais excluídas do orçamento. [TASK-222](tasks/TASK-222-22-11-2026.md).
+
 ## 2026-11-22 — Conexões de cabo no mapa
 
 A edição do traçado e a revisão de conexões detectadas registram as pontas da rede. O painel de cada ponto aplica as regras nas ligações com as estruturas. Os campos do mapa sugerem ativos da base do projeto. [TASK-221](tasks/TASK-221-22-11-2026.md).

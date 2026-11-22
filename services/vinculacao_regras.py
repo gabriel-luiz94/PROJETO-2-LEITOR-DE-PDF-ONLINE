@@ -1076,7 +1076,7 @@ def _vincular_por_poste_base(cabos, outros, cfg, prefixo_fn, codigo_fn, raio) ->
         if not c["vincula"] or ic in manuais or cabos[ic].get("congelada"):          # cabo congelado: só entra no vínculo se já foi ligado à mão
             continue
         atrib = [l for l in postes_atribuidos(cabos[ic]) if l in por_linha]          # "Cabos ⇄ Postes": postes dados pelo usuário valem no lugar da geometria
-        if atrib:
+        if atrib or cabos[ic].get("_mapaTopologia") is True:
             ligados[ic] = []
             restante[ic] = max(0, c["pontas"] - len(estruturas_ficticias_de(cabos[ic])))
             for linha in atrib:

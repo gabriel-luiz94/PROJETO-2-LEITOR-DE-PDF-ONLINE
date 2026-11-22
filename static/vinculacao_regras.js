@@ -773,7 +773,7 @@
         indices.forEach(ic => {
             const c = cabos[ic];
             const geo = trim(c._geoTipo).toUpperCase(), nivel = trim(c.nivel).toUpperCase();
-            const tipo = ['MT', 'BT'].includes(geo) ? geo : ['MT', 'BT'].includes(nivel) ? nivel
+            const tipo = ['MT', 'BT'].includes(nivel) ? nivel : ['MT', 'BT'].includes(geo) ? geo
                 : derivarCabo(c.tensao || c.textoOriginal || c.ativo, dicionario).nivel;
             if (!grupos.has(tipo)) grupos.set(tipo, []);
             grupos.get(tipo).push(ic);
@@ -821,7 +821,7 @@
             const c = infoC[ic];
             if (!c.vincula || manuais.has(ic) || cabos[ic].congelada) return;          // cabo congelado: só entra no vínculo se já foi ligado à mão
             const atrib = postesAtribuidos(cabos[ic]).filter(l => porLinha.has(l));          // "Cabos ⇄ Postes": o usuário disse a que postes o cabo chega; vale no lugar da geometria
-            if (atrib.length) {
+            if (atrib.length || cabos[ic]._mapaTopologia === true) {
                 ligados[ic] = [];
                 restante[ic] = Math.max(0, c.pontas - estruturasFicticiasDe(cabos[ic]).length);
                 atrib.forEach(l => (chegadas[l] = chegadas[l] || []).push(ic));

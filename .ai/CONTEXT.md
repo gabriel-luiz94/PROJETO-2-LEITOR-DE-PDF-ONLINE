@@ -102,6 +102,10 @@ ARMAZENAMENTO              historico_rec (SQLite + Supabase), exportação .rec 
 
 O Assistente de IA consulta a base e as regras do projeto. Em **Vinculação → Mapa**, a ação no poste ou no vão leva a seleção para o chat. Propostas de alteração aparecem em um cartão com as operações, avisos e a opção de simular o orçamento. A confirmação usa a revisão atual da obra e o histórico do Resumo. Orientações permanentes são publicadas pelo administrador em Skills, com revisão por código de projeto. [TASK-204](tasks/TASK-204-20-11-2026.md) · [TASK-205](tasks/TASK-205-20-11-2026.md).
 
+Os cartões de **Vinculação → Mapa** editam a mesma linha das tabelas do Resumo. Quando um poste e suas estruturas compartilham a anotação, o cartão edita a linha completa. Uma troca que tornaria um vínculo incompatível pede a revisão do vínculo no próprio mapa. [TASK-223](tasks/TASK-223-22-11-2026.md).
+
+Em **Vinculação → Mapa**, arrastar os pontos também funciona em obras vindas do CAD. Clicar num cabo destaca seu cartão e apresenta as pontas. O filtro alterna entre Tudo, A instalar, A remover, Mantendo e Fictícios. O poste fictício e suas estruturas são âncoras visuais e ficam fora da Totalizadora. [TASK-222](tasks/TASK-222-22-11-2026.md).
+
 Em **Vinculação → Mapa**, é possível montar a obra. Postes e estruturas entram em Demais Ativos, cabos reais entram em Cabos e cabos fictícios ocupam a estrutura escolhida. Uma estrutura avulsa vira ponto próprio e pode ser agrupada com um poste sem criar outro poste no orçamento. [TASK-220](tasks/TASK-220-22-11-2026.md).
 
 Em **Vinculação → Mapa**, uma obra sem CAD abre com os postes em grade e as pontas livres na lateral. A escolha de uma ponta destaca os pontos que ainda podem receber o cabo. O detalhe de cada ponto mostra e valida os vínculos entre cabos e estruturas. **Revisar conexões detectadas** permite confirmar as chegadas registradas ou identificadas pela geometria. Os formulários do mapa sugerem ativos e apelidos da base do projeto. [TASK-219](tasks/TASK-219-22-11-2026.md) · [TASK-221](tasks/TASK-221-22-11-2026.md).

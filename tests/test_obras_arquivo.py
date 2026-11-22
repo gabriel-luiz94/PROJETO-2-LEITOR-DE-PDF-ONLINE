@@ -283,3 +283,24 @@ def test_arquivo_preserva_a_topologia_explicita_com_pontas_soltas():
     assert reaberta["cabos"][0] == dados["cabos"][0]
     assert reaberta["cabos"][1]["vinculoPostes"] == [0]
     assert "_mapaTopologia" not in reaberta["cabos"][1]
+
+
+def test_arquivo_preserva_posicao_cad_e_ancora_ficticia_sem_ativar_orcamento():
+    id_no = "e" * 32
+    dados = {
+        "cabos": [{"ativo": "A35P 25 m", "_geo": [[10, 20], [15, 25]], "vinculoPostes": [0, 1],
+                   "_mapaAncoras": [[id_no, "N3"]]}],
+        "outros": [
+            {"ativo": "12600D", "entidade": "POSTE", "_poste": [10, 20], "_mapaPoste": [0.2, 0.3]},
+            {"ativo": "Poste fictício · Fim", "entidade": "POSTE", "_mapaId": id_no,
+             "_mapaPosteFicticio": True, "_mapaEstruturasFicticias": ["N3"], "congelada": False},
+        ],
+    }
+    obra = oa.montar_exportacao({"nome": "Rede", "projeto": "081", "dados_json": dados})
+    reaberta = oa.validar_importacao(json.loads(json.dumps(obra)), "081")["dados"]
+    assert reaberta["cabos"] == dados["cabos"]
+    assert reaberta["outros"][0] == dados["outros"][0]
+    assert reaberta["outros"][1]["congelada"] is True
+    assert reaberta["outros"][1]["bloqueada"] is True
+    assert reaberta["outros"][1]["_mapaEstruturasFicticias"] == ["N3"]
+    assert not reaberta["cabos"][0].get("vinculoEstruturas")

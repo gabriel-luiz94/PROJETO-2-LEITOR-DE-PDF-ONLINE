@@ -1402,7 +1402,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function alternarMarcaLinhas(tipo, idxs, campo) {
         const dados = tableStates[tipo].data;
         idxs = expandirGrupos(tipo, idxs);
-        let alvos = idxs.filter(i => dados[i]);
+        let alvos = idxs.filter(i => dados[i] && !dados[i]._mapaPosteFicticio);
         if (campo === 'congelada') {
             const comentarios = alvos.filter(i => dados[i].comentario).length;
             const decls = alvos.filter(i => dados[i].grupoDecl).length;
@@ -1440,12 +1440,12 @@ document.addEventListener('DOMContentLoaded', () => {
     /** Duplicar linha: copia as linhas (a clicada ou as selecionadas) e coloca as cópias LOGO ABAIXO (num bloco, na mesma ordem). A cópia vira uma linha comum: sem bloqueio e sem o vínculo/geometria do original. Um passo de Ctrl+Z. */
     function duplicarLinhas(tipo, idxs) {
         const dados = tableStates[tipo].data;
-        const alvos = Array.from(new Set(idxs)).filter(i => dados[i]).sort((a, b) => a - b);
+        const alvos = Array.from(new Set(idxs)).filter(i => dados[i] && !dados[i]._mapaPosteFicticio).sort((a, b) => a - b);
         if (!alvos.length) return;
         pushHistory();
         const copias = alvos.map(i => {
             const c = deepClone(dados[i]);
-            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', '_mapaPoste', '_mapaCabo', '_mapaId', '_mapaPosteRef', '_mapaTopologia', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
+            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', '_mapaPoste', '_mapaCabo', '_mapaId', '_mapaPosteRef', '_mapaTopologia', '_mapaAncoras', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
             return c;
         });
         const depois = alvos[alvos.length - 1] + 1;
@@ -2495,6 +2495,142 @@ document.addEventListener('DOMContentLoaded', () => {
         return row && !row.comentario && (row.entidade === 'POSTE' || postesDaLinhaVinculo(row.ativo).length);
     }
 
+    function inserirPosteFicticioNoMapa(nome, estruturas) {
+        pushHistory();
+        const indice = tableStates.outros.data.push({
+            ativo: nome ? 'Poste fictício · ' + nome : 'Poste fictício', entidade: 'POSTE', operacao: 'M', entidadeManual: true,
+            congelada: true, bloqueada: true, _mapaPosteFicticio: true, _mapaId: idPontoMapa(),
+            _mapaEstruturasFicticias: estruturas.slice()
+        }) - 1;
+        return indice;
+    }
+
+    function removerPosteFicticioNoMapa(indice) {
+        const row = tableStates.outros.data[indice];
+        if (row?._mapaPosteFicticio !== true) return false;
+        pushHistory();
+        tableStates.outros.data.splice(indice, 1);
+        _reajustarVinculosAposRemoverOutros(indice);
+        tableStates.cabos.data.forEach(c => {
+            if (c?._mapaAncoras) c._mapaAncoras = c._mapaAncoras.filter(([id]) => id !== row._mapaId);
+        });
+        buildAtivoSets(); buildDataLists();
+        refreshAllFilters('outros');
+        return true;
+    }
+
+    function validarAnotacaoOutrosNoMapa(tipo, nome) {
+        const r = AnotacaoOutros.interpretarLinha(nome, 'I', _classicoTotalizadora, _ctxOutros());
+        if (r.erros.length || !r.itens.length) return r.erros[0]?.msg || 'Anotação inválida.';
+        const postes = postesDaLinhaVinculo(nome);
+        if (tipo === 'poste' && postes.length !== 1) return 'Informe um poste reconhecido pela convenção do projeto. Exemplo: 12600D, N3.';
+        if (tipo === 'estrutura' && postes.length) return 'Esta linha de estrutura deve conter apenas estruturas.';
+        return '';
+    }
+
+    function atualizarLinhaDoMapa(tabela, indice, recalcular) {
+        if (recalcular) recalcRowAndAbove(indice);
+        renderTable(tabela);
+        buildAtivoSets();
+        buildDataLists();
+        refreshAllFilters(tabela);
+        atualizarResumoRedeUI();
+    }
+
+    function validarEdicaoCaboNoMapa(indice, antes, nova, cfg) {
+        const VR = VinculacaoRegras;
+        const ids = antes.vinculoEstruturas || [], ficticias = VR.estruturasFicticiasDe(antes);
+        if (!ids.length && !ficticias.length) return '';
+        if (nova.operacao !== antes.operacao && !VR.participaVinculo(nova)) return 'Remova os vínculos internos antes de trocar para retirada.';
+        const info = row => VR.infoCabo(_prefixoCaboVinculo(row.ativo) || '', row.operacao, cfg, VR.extraCabo(row, cfg.dicionario_cabos));
+        const anterior = info(antes), posterior = info(nova);
+        if ((anterior.vincula && !posterior.vincula) ||
+            (posterior.pontas < anterior.pontas && ids.length + ficticias.length > posterior.pontas))
+            return 'A alteração reduz as pontas aceitas ou desativa o vínculo. Remova os vínculos internos que impedem a edição.';
+        const cabos = tableStates.cabos.data, outros = tableStates.outros.data;
+        const analisar = lista => VR.analisar(lista, outros, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
+        const anteriorAnalise = analisar(cabos), copia = cabos.slice();
+        copia[indice] = nova;
+        const posteriorAnalise = analisar(copia), estruturas = new Set(ids);
+        const chave = l => l.cabo + ':' + l.estrutura;
+        const anteriores = new Set(anteriorAnalise.links.filter(l => !l.ok).map(chave));
+        const conflito = posteriorAnalise.links.find(l => !l.ok && estruturas.has(l.estrutura) && !anteriores.has(chave(l)));
+        const errosAnteriores = anteriorAnalise.cabos[indice]?.erros || [];
+        const erro = conflito?.motivo || posteriorAnalise.cabos[indice]?.erros?.find(m => !errosAnteriores.includes(m));
+        return erro ? 'A edição tornaria um vínculo incompatível. ' + erro : '';
+    }
+
+    function validarEdicaoEstruturaNoMapa(indice, antes, nova) {
+        const VR = VinculacaoRegras;
+        const codigosAntes = _codigosEstruturaVinculo(antes.ativo), codigosDepois = _codigosEstruturaVinculo(nova.ativo);
+        const slots = new Set(Object.entries(antes.cabosFicticiosSlots || {}).filter(([, v]) => v.length).map(([k]) => Number(k)));
+        if (antes.cabosFicticios?.length) slots.add(0);
+        for (const c of tableStates.cabos.data) {
+            for (const id of c?.vinculoEstruturas || []) if (VR.linhaDe(id) === indice) slots.add(VR.slotDe(id));
+        }
+        if (!slots.size) return '';
+        if (VR.participaVinculo(antes) && !VR.participaVinculo(nova)) return 'Remova os vínculos e os cabos fictícios desta linha antes de trocar para retirada.';
+        for (const k of slots) {
+            if (codigosAntes[k] !== codigosDepois[k]) return 'A edição mudaria a estrutura vinculada na posição ' + (k + 1) + '. Remova esse vínculo antes.';
+        }
+        return '';
+    }
+
+    function editarAtivoNoMapa(tipo, indice, referencia, dados, configVinculo) {
+        const tabela = tipo === 'cabo' ? 'cabos' : 'outros';
+        const row = tableStates[tabela].data[indice];
+        if (!row || row !== referencia) return 'A linha mudou. Reabra a edição no cartão.';
+        if (tipo === 'poste-ficticio') {
+            if (!row._mapaPosteFicticio) return 'O poste fictício já não está disponível.';
+            const estruturas = dados.estruturas;
+            const emUso = tableStates.cabos.data.some(c =>
+                (c?._mapaAncoras || []).some(([id, codigo]) => id === row._mapaId && !estruturas.includes(codigo)));
+            if (emUso) return 'Solte os cabos ancorados antes de remover ou renomear a estrutura fictícia.';
+            const ativo = dados.ativo ? 'Poste fictício · ' + dados.ativo : 'Poste fictício';
+            if (ativo === row.ativo && JSON.stringify(estruturas) === JSON.stringify(row._mapaEstruturasFicticias)) return '';
+            pushHistory();
+            row.ativo = ativo;
+            row._mapaEstruturasFicticias = estruturas.slice();
+            atualizarLinhaDoMapa(tabela, indice, false);
+            return '';
+        }
+        if (row.bloqueada || row.comentario) return 'A linha está bloqueada para edição.';
+        const entrada = String(dados.ativo || '').trim();
+        const mudouAtivo = entrada.toUpperCase() !== row.ativo.trim().toUpperCase();
+        const ativo = mudouAtivo ? entrada.toUpperCase() : row.ativo;
+        if (!entrada || entrada.length > 500 || /^[#@]/.test(entrada)) return 'Informe uma anotação válida.';
+        if (dados.operacao !== row.operacao && !/^(?:\*)?[IMR]$/.test(dados.operacao)) return 'Escolha a operação do ativo.';
+        const nova = { ...row, ativo, operacao: dados.operacao };
+        let erro;
+        if (tipo === 'cabo') {
+            if (dados.fases !== String(row.fases ?? '') && (!/^\d?$/.test(dados.fases) || dados.fases === '0')) return 'Informe um número de fases de 1 a 9 ou deixe em branco.';
+            if (dados.nivel !== String(row.nivel ?? '') && dados.nivel && !['MT', 'BT'].includes(dados.nivel)) return 'Escolha MT, BT ou deixe o nível automático.';
+            if (mudouAtivo) nova.textoOriginal = ativo;
+            for (const campo of ['fases', 'tensao', 'nivel']) {
+                if (dados[campo] === String(row[campo] ?? '')) continue;
+                if (dados[campo]) nova[campo] = campo === 'fases' ? Number(dados[campo]) : dados[campo];
+                else delete nova[campo];
+            }
+            if (['ativo', 'operacao', 'fases', 'tensao', 'nivel'].every(k => String(nova[k] ?? '') === String(row[k] ?? ''))) return '';
+            erro = validarEdicaoCaboNoMapa(indice, row, nova, VinculacaoRegras.normalizarConfig(configVinculo));
+        } else {
+            if (!['poste', 'estrutura'].includes(tipo)) return 'Tipo de linha inválido.';
+            if (mudouAtivo) {
+                erro = validarAnotacaoOutrosNoMapa(tipo, ativo);
+                if (erro) return erro;
+                reclassificarEntidade(nova);
+            }
+            if (!mudouAtivo && nova.operacao === row.operacao) return '';
+            erro = validarEdicaoEstruturaNoMapa(indice, row, nova);
+        }
+        if (erro) return erro;
+        pushHistory();
+        Object.assign(row, nova);
+        if (tipo === 'cabo') for (const campo of ['fases', 'tensao', 'nivel']) if (!(campo in nova)) delete row[campo];
+        atualizarLinhaDoMapa(tabela, indice, tipo === 'cabo' && mudouAtivo);
+        return '';
+    }
+
     function inserirAtivoNoMapa(tipo, dados) {
         const nome = String(dados.ativo || '').trim().toUpperCase();
         const operacao = dados.operacao;
@@ -2519,11 +2655,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (['MT', 'BT'].includes(dados.nivel)) row.nivel = dados.nivel;
         } else {
             if (!['poste', 'estrutura'].includes(tipo)) return { erro: 'Escolha o tipo de ativo.' };
-            const r = AnotacaoOutros.interpretarLinha(nome, 'I', _classicoTotalizadora, _ctxOutros());
-            if (r.erros.length || !r.itens.length) return { erro: r.erros[0]?.msg || 'Anotação inválida.' };
-            const postes = postesDaLinhaVinculo(nome);
-            if (tipo === 'poste' && postes.length !== 1) return { erro: 'Informe um poste reconhecido pela convenção do projeto. Exemplo: 12600D, N3.' };
-            if (tipo === 'estrutura' && postes.length) return { erro: 'Use Novo poste para uma anotação que contém um poste.' };
+            const erro = validarAnotacaoOutrosNoMapa(tipo, nome);
+            if (erro) return { erro };
             row.entidade = tipo === 'poste' ? 'POSTE' : 'ESTRUTURA';
         }
         const outros = tableStates.outros.data;
@@ -2551,7 +2684,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function associarEstruturaNoMapa(indice, poste) {
         const outros = tableStates.outros.data, linha = outros[indice], destino = outros[poste];
         if (!linha || linha.comentario || ehPosteNoMapa(linha)) return false;
-        if (poste !== null && !ehPosteNoMapa(destino)) return false;
+        if (poste !== null && (!ehPosteNoMapa(destino) || destino._mapaPosteFicticio)) return false;
         pushHistory();
         if (poste === null) delete linha._mapaPosteRef;
         else linha._mapaPosteRef = idPosteNoMapa(destino, outros);
@@ -2570,6 +2703,9 @@ document.addEventListener('DOMContentLoaded', () => {
         adicionarAvulsos: (ic, ficticia) => _adicionarAvulsos(ic, ficticia),
         postesDaLinha: postesDaLinhaVinculo,
         inserirNoMapa: inserirAtivoNoMapa,
+        editarNoMapa: editarAtivoNoMapa,
+        inserirPosteFicticioNoMapa,
+        removerPosteFicticioNoMapa,
         associarNoMapa: associarEstruturaNoMapa,
         linhaSoPoste(ativo) { return !AnotacaoOutros.codigoEstrutura(ativo || '', _classicoTotalizadora, _ctxOutros()); },
         consultarAssistente: selecao => selecionarMapaAssistente(selecao),
@@ -2651,6 +2787,12 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const campo of ['_mapaId', '_mapaPosteRef']) if (idPontoValido(obj[campo])) c[campo] = obj[campo];
         if (Array.isArray(obj.vinculoEstruturas)) c.vinculoEstruturas = obj.vinculoEstruturas.slice();
         if (obj._mapaTopologia === true) c._mapaTopologia = true;
+        if (obj._mapaPosteFicticio === true) {
+            c._mapaPosteFicticio = c.congelada = c.bloqueada = true;
+            if (Array.isArray(obj._mapaEstruturasFicticias)) c._mapaEstruturasFicticias = obj._mapaEstruturasFicticias.slice();
+        }
+        if (Array.isArray(obj._mapaAncoras)) c._mapaAncoras = obj._mapaAncoras
+            .filter(v => Array.isArray(v) && idPontoValido(v[0]) && typeof v[1] === 'string').map(v => [v[0], v[1]]);
         if (Array.isArray(obj.vinculoPostes) && (obj.vinculoPostes.length || c._mapaTopologia)) c.vinculoPostes = obj.vinculoPostes.slice();                   // Cabos ⇄ Postes
         if (obj.vinculoOrigem) c.vinculoOrigem = obj.vinculoOrigem;                                       // TASK-084: manual | script
         if (Array.isArray(obj.estruturasFicticias) && obj.estruturasFicticias.length) c.estruturasFicticias = obj.estruturasFicticias.slice();   // TASK-095: estruturas fictícias do cabo
@@ -3215,7 +3357,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     }
 
-    function reidentificarPontosCopiados(linhas) {
+    function reidentificarPontosCopiados(linhas, cabos = []) {
         const ids = new Map();
         for (const linha of linhas) {
             if (idPontoValido(linha._mapaId)) ids.set(linha._mapaId, ids.has(linha._mapaId) ? null : idPontoMapa());
@@ -3224,6 +3366,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const id = ids.get(linha._mapaId), ref = ids.get(linha._mapaPosteRef);
             if (id) linha._mapaId = id; else delete linha._mapaId;
             if (ref) linha._mapaPosteRef = ref; else delete linha._mapaPosteRef;
+        }
+        for (const cabo of cabos) {
+            if (Array.isArray(cabo._mapaAncoras)) cabo._mapaAncoras = cabo._mapaAncoras
+                .filter(([id]) => ids.get(id)).map(([id, codigo]) => [ids.get(id), codigo]);
         }
     }
 
@@ -3234,13 +3380,15 @@ document.addEventListener('DOMContentLoaded', () => {
         pushHistory();  // snapshot ANTES de adicionar
         const deslocamento = tableStates.outros.data.length;
         const qtdOutros = linhasDoSnap(snap, 'outros').length;
+        let cabosCopiados = [];
         ['cabos', 'outros'].forEach(type => {
             const linhas = linhasDoSnap(snap, type);
             if (!linhas.length) return;
             const novas = linhas.map(row => JSON.parse(JSON.stringify(row)));
-            if (type === 'outros' && novas.some(row => row._mapaId || row._mapaPosteRef)) reidentificarPontosCopiados(novas);
+            if (type === 'outros' && novas.some(row => row._mapaId || row._mapaPosteRef)) reidentificarPontosCopiados(novas, cabosCopiados);
             if (window.GruposLinhas) window.GruposLinhas.reidentificar(novas);                   // TASK-195: grupos da obra ganham ids novos (a mesma obra pode entrar duas vezes)
             if (type === 'cabos') {
+                cabosCopiados = novas;
                 for (const row of novas) {
                     for (const campo of ['vinculoEstruturas', 'vinculoPostes']) {
                         if (Array.isArray(row[campo])) row[campo] = row[campo]
@@ -3273,7 +3421,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.GruposLinhas) window.GruposLinhas.reidentificar(clonadas);
             clonadas.forEach(clonada => {
                 if (clonada.grupoDecl) { tableStates[type].data.push(clonada); return; }       // TASK-195: a declaração do grupo («@P1») continua sendo só um título
-                if (type === 'cabos') clonada.qtdAtivos = "-" + Math.abs(clonada.qtdAtivos || 0);
+                if (type === 'cabos') {
+                    delete clonada._mapaAncoras;
+                    clonada.qtdAtivos = "-" + Math.abs(clonada.qtdAtivos || 0);
+                }
                 else clonada.ativo = "*" + clonada.ativo;
                 tableStates[type].data.push(clonada);
             });
