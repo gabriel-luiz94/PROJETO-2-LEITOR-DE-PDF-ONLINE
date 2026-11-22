@@ -241,6 +241,10 @@ async def serve_vinculacao_regras_js():
     return _serve_js("vinculacao_regras.js")
 
 
+@app.get("/static/mapa_layout.js")
+async def serve_mapa_layout_js():
+    return _serve_js("mapa_layout.js")          # TASK-225
+
 @app.get("/static/mapa_escala.js")
 async def serve_mapa_escala_js():
     return _serve_js("mapa_escala.js")          # TASK-224

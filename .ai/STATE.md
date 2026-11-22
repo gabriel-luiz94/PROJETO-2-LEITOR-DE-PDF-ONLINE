@@ -85,6 +85,10 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-226](tasks/TASK-226-22-11-2026.md) — Mapa: ponto novo/copiado pede posicionamento com o mouse; copiar ponto e copiar cabo.
+
+- [x] [TASK-225](tasks/TASK-225-22-11-2026.md) — Mapa: pontos estáveis ao adicionar, todo ponto é grupo `@` em Demais Ativos (nome/automático, comentário, congelar/bloquear), «Agrupar pontos» e «Rearranjar» (grade uniforme).
+
 - [x] [TASK-224](tasks/TASK-224-22-11-2026.md) — Mapa de vinculação: escala 1:500 (com indicador e barra de escala), recorte por janela, pan/zoom por quadro; arrastar/mover/zoom ~5–9× mais leve em redes grandes.
 
 - [x] [TASK-207](tasks/TASK-207-20-11-2026.md) — Pernambuco classifica estrutura solta (N3, B2…) como ESTRUTURA (regra ordem 30 no seed; atualiza sozinho se as regras estão intocadas).

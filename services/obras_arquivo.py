@@ -72,6 +72,7 @@ CAMPOS_VINCULO = {
     "_poste": _ponto, "vinculoEstruturas": lambda v: _lista_de(v, _num), "vinculoOrigem": _texto, "vinculoPostes": lambda v: _lista_de(v, _num),          # "Cabos ⇄ Postes": linhas de Outros (postes) a que o cabo chega
     "estruturasFicticias": lambda v: _lista_de(v, _texto), "cabosFicticios": lambda v: _lista_de(v, _texto), "cabosFicticiosSlots": _slots,
     "congelada": lambda v: isinstance(v, bool), "bloqueada": lambda v: isinstance(v, bool), "comentario": lambda v: isinstance(v, bool),          # linha congelada (fora de totalizadora/orçamento/validação) e bloqueada (sem edição)
+    "grupoDecl": lambda v: v is True, "grupoRecolhido": lambda v: v is True, "gid": lambda v: _texto(v) and len(v) <= 64, "grupoDe": lambda v: _texto(v) and len(v) <= 64,       # TASK-195/225: grupos de linhas (@) — cada ponto do mapa é um grupo
     "origemAvulso": _texto,                    # TASK-171: "<índice do cabo>:<estrutura fictícia>" nas linhas de Outros adicionadas pela sugestão de avulsos
 }
 CAMPOS_TOTALIZADORA = {"id": str, "baseId": str, "obs": str, "operacao": str, "ativo": str, "qtd": (int, float, str, type(None)), "desc": str,
