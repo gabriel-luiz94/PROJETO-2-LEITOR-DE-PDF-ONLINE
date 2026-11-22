@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-22 — Conexões de cabo no mapa
+
+A edição do traçado e a revisão de conexões detectadas registram as pontas da rede. O painel de cada ponto aplica as regras nas ligações com as estruturas. Os campos do mapa sugerem ativos da base do projeto. [TASK-221](tasks/TASK-221-22-11-2026.md).
+
 ## 2026-11-22 — Montagem da obra no mapa
 
 O Resumo permite criar postes, estruturas, cabos reais e cabos fictícios pelo mapa. Os pontos avulsos podem receber pontas e ser associados a postes. O mapa explica bloqueios de vinculação com as regras do projeto. [TASK-220](tasks/TASK-220-22-11-2026.md).

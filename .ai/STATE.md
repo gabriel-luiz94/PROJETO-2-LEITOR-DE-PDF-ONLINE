@@ -6,6 +6,10 @@
 
 ---
 
+## Conexão dos vãos no mapa · TASK-221
+
+O clique no mapa conecta o cabo ao ponto. O painel do ponto valida a ligação com a estrutura. Os formulários do mapa consultam as sugestões de ativos e apelidos da base do projeto. [TASK-221](tasks/TASK-221-22-11-2026.md).
+
 ## Montagem da obra no mapa · TASK-220
 
 A Vinculação exibe pontos avulsos e cada ponta livre dos cabos. O mapa cria linhas nas tabelas do Resumo e registra cabos fictícios na estrutura. A obra guarda associações explícitas entre a linha avulsa e o poste. [TASK-220](tasks/TASK-220-22-11-2026.md).
@@ -815,6 +819,8 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-11-22
+
+**Motivo:** [TASK-221](tasks/TASK-221-22-11-2026.md) separou o traçado do vínculo interno e ativou as sugestões de ativos no mapa.
 
 **Motivo:** [TASK-220](tasks/TASK-220-22-11-2026.md) permitiu montar os ativos e os vínculos pelo mapa.
 

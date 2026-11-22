@@ -439,11 +439,12 @@
         return ok ? '' : motivo || 'Estrutura incompatível.';
     }
 
-    function ligar(ic, ie) {
+    function ligar(ic, ie, antesDeAlterar) {
         const c = cabos()[ic], ja = (c.vinculoEstruturas || []).includes(ie);
         const motivo = ja ? '' : motivoParaLigar(ic, ie);
         if (motivo) { toast('✖ ' + motivo); return; }
         host.antes();
+        antesDeAlterar?.();
         if (ja) {
             c.vinculoEstruturas = c.vinculoEstruturas.filter(x => x !== ie);
             toast('Vínculo removido (Ctrl+Z desfaz).');
@@ -1344,7 +1345,7 @@
             el('span', { class: 'vz-grafo-total' }, [totalVaos, 'Vãos'])
         ]);
         let grafo, vb = st.grafoVista || [0, 0, W, H], arrasto, mover = false;
-        let ultimoNo, ultimoStatus = '', caboEscolhido = null, pontaEscolhida = null, caboNo = null;
+        let ultimoNo, ultimoStatus = '', caboEscolhido = null, pontaEscolhida = null;
         let desenhos = [], ponto, sugestoes = [], observadorNo, quadro;
         const aplicarVista = () => { st.grafoVista = vb; svg.setAttribute('viewBox', vb.join(' ')); };
         const zoom = (f, x = vb[0] + vb[2] / 2, y = vb[1] + vb[3] / 2) => {
@@ -1354,7 +1355,7 @@
         };
         const botao = (text, onclick, title = text) => el('button', { class: 'vz-btn', text, title, 'aria-label': title, onclick });
         const instrucao = el('p');
-        const sugerir = botao('Sugerir ligações', prepararSugestoes);
+        const sugerir = botao('Revisar conexões detectadas', prepararSugestoes);
         const barra = el('div', { class: 'vz-grafo-barra' }, [
             el('div', {}, [el('h4', { text: 'Grafo da rede' }), instrucao]),
             el('div', { class: 'vz-grafo-cabecalho' }, [contagem, sugerir])
@@ -1388,11 +1389,27 @@
         const estruturasDoNo = no => no.estruturas.filter(ie => !metaDe(linhaDe(ie)).soPoste && codigoDe(ie));
         const ligacoes = ic => cabos()[ic].vinculoEstruturas || [];
         const jaLigadoNo = (ic, no) => ligacoes(ic).some(ie => no.linhas.includes(linhaDe(ie)));
-        function livres(ic) {
-            const c = cabos()[ic];
-            if (!c || c.comentario || !(cx?.a || analise()).cabos[ic]?.vincula) return 0;
-            return Math.max(0, infoCabo(ic).pontas - ligacoes(ic).length - VR.estruturasFicticiasDe(cabos()[ic]).length);
+        const pontosDoCabo = ic => [...new Set(grafo.cabosDoMapa.get(ic)?.ids.filter(Boolean))];
+        const livres = ic => grafo?.cabosDoMapa.has(ic) ? Math.max(0, 2 - pontosDoCabo(ic).length) : 0;
+        function gravarPontos(ic, ids) {
+            cabos()[ic].vinculoPostes = ids.map(id => linhaNo(grafo.nos.get(id)));
+            cabos()[ic]._mapaTopologia = true;
         }
+        function alterarPontoDoCabo(ic, no, conectar) {
+            const pontos = pontosDoCabo(ic), ja = pontos.includes(no.id);
+            if (conectar && ja) return 'Este cabo já chega a este ponto.';
+            if (conectar && !livres(ic)) return 'O cabo já tem dois pontos. Solte uma ponta para mudar o traçado.';
+            if (!conectar && (!ja || jaLigadoNo(ic, no))) return 'Remova primeiro o vínculo com a estrutura deste ponto.';
+            host.antes();
+            gravarPontos(ic, conectar ? pontos.concat(no.id) : pontos.filter(id => id !== no.id));
+            caboEscolhido = pontaEscolhida = null;
+            ultimoStatus = conectar ? 'Ponta conectada. O vínculo com a estrutura é feito no painel deste ponto.' : 'Ponta desconectada do ponto.';
+            atualizar();
+            host.depois?.();
+            avisos.textContent = ultimoStatus;
+            return '';
+        }
+
         function estruturasCompativeis(ic, no) {
             if (jaLigadoNo(ic, no)) return [];
             return estruturasDoNo(no).filter(ie => infoEst(ie).ocupa && !motivoParaLigar(ic, ie));
@@ -1414,9 +1431,8 @@
                 b.classList.toggle('p', ativo);
                 b.setAttribute('aria-pressed', String(ativo));
             });
-            nosSvg.forEach((g, id) => {
-                g.classList.toggle('alvo', caboEscolhido !== null && estruturasCompativeis(caboEscolhido, grafo.nos.get(id)).length > 0);
-            });
+            const ligados = caboEscolhido === null ? null : new Set(pontosDoCabo(caboEscolhido));
+            nosSvg.forEach((g, id) => g.classList.toggle('alvo', ligados !== null && !ligados.has(id)));
         }
         function selecionarCabo(ic, ponta = 1) {
             if (!livres(ic)) return;
@@ -1428,40 +1444,17 @@
         }
 
         function calcularSugestoes() {
-            const candidatas = [];
-            for (const [ic, dados] of grafo.cabosDoMapa) {
-                const faltam = livres(ic);
-                if (!faltam || cabos()[ic].congelada) continue;
-                const opcoes = [...new Set(dados.referencias)].flatMap(id => {
-                    const no = grafo.nos.get(id);
-                    const ies = estruturasCompativeis(ic, no);
-                    return ies.length === 1 && infoEst(ies[0]).regra !== null && infoEst(ies[0]).qtd !== null
-                        ? [{ ic, ie: ies[0], id }] : [];
-                });
-                // Uma ponta sem identificação inequívoca fica para a decisão do usuário.
-                const destinos = new Set(dados.referencias.filter(id => !jaLigadoNo(ic, grafo.nos.get(id))));
-                if (opcoes.length <= faltam && destinos.size <= faltam) candidatas.push(...opcoes);
-            }
-            const porEstrutura = new Map();
-            for (const v of candidatas) {
-                if (!porEstrutura.has(v.ie)) porEstrutura.set(v.ie, []);
-                porEstrutura.get(v.ie).push(v);
-            }
-            return [...porEstrutura].flatMap(([ie, lote]) => {
-                const ocupacao = ocupantes(ie), e = infoEst(ie);
-                // Se os cabos disputarem a mesma vaga, deixa o lote dessa estrutura em aberto.
-                return lote.every(v => {
-                    const info = infoCabo(v.ic);
-                    if (!VR.podeComOcupantes(info, e, ocupacao)[0]) return false;
-                    ocupacao.push({ info, ficticio: false });
-                    return true;
-                }) ? lote : [];
+            return [...grafo.cabosDoMapa].flatMap(([ic, dados]) => {
+                if (cabos()[ic]._mapaTopologia || cabos()[ic].congelada) return [];
+                const ids = pontosDoCabo(ic);
+                if (!ids.length || ids.some(id => !dados.referencias.includes(id))) return [];
+                return [{ ic, ids }];
             });
         }
         function prepararSugestoes() {
             sugestoes = calcularSugestoes();
             pintar();
-            if (!sugestoes.length) avisos.textContent = 'Nenhuma ligação inequívoca. Escolha as pontas livres manualmente.';
+            if (!sugestoes.length) avisos.textContent = 'Nenhuma conexão detectada para confirmar. Você pode conectar as pontas manualmente.';
             else revisao.querySelector('summary')?.focus();
         }
         function aplicarSugestoes() {
@@ -1477,28 +1470,23 @@
                 return;
             }
             host.antes();
-            for (const {ic, ie} of sugestoes) {
-                const c = cabos()[ic];
-                c.vinculoEstruturas = ligacoes(ic).concat(ie);
-                c.vinculoOrigem = 'manual';
-            }
+            for (const { ic, ids } of sugestoes) gravarPontos(ic, ids);
             const total = sugestoes.length;
             atualizar();
             host.depois?.();
-            avisos.textContent = total + ' ligação(ões) registrada(s).';
+            avisos.textContent = total + ' cabo(s) com conexões confirmadas.';
             sugerir.focus();
         }
         function renderRevisao() {
             revisao.hidden = !sugestoes.length;
             revisao.replaceChildren();
             if (!sugestoes.length) return;
-            const pendentes = [...grafo.cabosDoMapa.keys()].reduce((n, ic) => n + livres(ic), 0) - sugestoes.length;
-            revisao.append(el('strong', { text: `${sugestoes.length} ponta(s) sugerida(s) · ${pendentes} em aberto` }),
+            revisao.append(el('strong', { text: `${sugestoes.length} cabo(s) com conexões detectadas` }),
                 botao('Aplicar sugestões', aplicarSugestoes),
                 botao('Descartar', () => { sugestoes = []; pintar(); sugerir.focus(); }),
                 el('details', {}, [
-                    el('summary', { text: 'Revisar ligações sugeridas' }),
-                    el('ul', {}, sugestoes.map(({ic, ie, id}) => el('li', { text: `Cabo ${ic + 1} · ${cabos()[ic].ativo} → ${nomeDoNo(grafo.nos.get(id))} / ${codigoDe(ie)}` })))
+                    el('summary', { text: 'Conferir conexões detectadas' }),
+                    el('ul', {}, sugestoes.map(({ic, ids}) => el('li', { text: `Cabo ${ic + 1} · ${cabos()[ic].ativo} → ${ids.map(id => nomeDoNo(grafo.nos.get(id))).join(' ↔ ')}` })))
                 ]));
         }
 
@@ -1559,16 +1547,9 @@
             grafo.cabosDoMapa.forEach(({ids}, ic) => {
                 if (!vaosPorCabo.has(ic) && ids.some(Boolean)) exibir({ids, pontos:null, pontas:null, cabos:[ic]}, -1);
             });
-            const sugestoesPorCabo = new Map();
-            for (const {ic, id} of sugestoes) {
-                if (!sugestoesPorCabo.has(ic)) sugestoesPorCabo.set(ic, []);
-                sugestoesPorCabo.get(ic).push(id);
+            for (const { ic, ids } of sugestoes) {
+                exibir({ ids: [ids[0], ids[1] || null], pontos: null, pontas: null, cabos: [ic] }, -1, true);
             }
-            sugestoesPorCabo.forEach((ids, ic) => {
-                const conhecidos = ligacoes(ic).map(ie => grafo.cabosDoMapa.get(ic).ids.find(id => grafo.nos.get(id)?.linhas.includes(linhaDe(ie))));
-                const [a, b] = [...new Set([...ids, ...conhecidos.filter(Boolean)])];
-                exibir({ids: [a, b || null], pontos:null, pontas:null, cabos:[ic]}, -1, true);
-            });
 
             const labels = [];
             const nos = [...grafo.nos.values()].map(n => {
@@ -1619,7 +1600,7 @@
             area.classList.toggle('sem-lateral', lateralMapa.hidden);
             vazio.hidden = !!(grafo.nos.size || grafo.cabosDoMapa.size);
             area.hidden = !vazio.hidden;
-            sugerir.disabled = !pendentes.length || !grafo.nos.size;
+            sugerir.disabled = !grafo.nos.size || !grafo.cabosDoMapa.size;
             ficticio.disabled = ![...grafo.nos.values()].some(no => estruturasDoNo(no).some(ie => infoEst(ie).ocupa));
             avisos.textContent = !temGeo && !area.hidden ? 'Mapa sem escala. Mover postes ou cabos altera somente a disposição.' : '';
             atualizarSelecao();
@@ -1682,7 +1663,7 @@
             const cabo = tipo === 'cabo';
             const titulo = cabo ? 'Novo cabo' : tipo === 'poste' ? 'Novo poste' : 'Nova estrutura';
             const exemplo = cabo ? '3xA35P-13,8kV ou CAA2' : tipo === 'poste' ? '12600D, N3' : 'N3 ou 2-N3';
-            const ativo = el('input', { type: 'text', required: '', maxlength: '440', placeholder: exemplo });
+            const ativo = el('input', { type: 'text', required: '', maxlength: '440', placeholder: exemplo, 'data-sugestao-origem': cabo ? 'CABOS' : 'OUTROS' });
             const operacao = el('select', {}, opcoes([
                 ['I', 'I · Instalar'], ['*I', '*I · Instalar em linha viva'],
                 ['M', 'M · Manter ou reaplicar'], ['*M', '*M · Manter ou reaplicar em linha viva'],
@@ -1701,9 +1682,9 @@
                 cx = null;
                 const texto = cabo ? 'Cabo criado na tabela Cabos.' : 'Linha criada em Demais Ativos.';
                 if (cabo) {
+                    grafo = montarGrafo();
                     caboEscolhido = livres(resultado.indice) ? resultado.indice : null;
                     pontaEscolhida = caboEscolhido === null ? null : 1;
-                    if (dialogo.open) caboNo = caboEscolhido;
                 }
                 if (dialogo.open) ultimoStatus = texto;
                 atualizar();
@@ -1720,15 +1701,9 @@
             if (!camposEstrutura.length) return;
             const alvo = el('select', {}, opcoes(camposEstrutura));
             if (unidade !== null) alvo.value = String(unidade);
-            const codigo = el('input', { type: 'text', required: '', maxlength: '120', placeholder: 'A35P', list: 'vz-codigos-ficticios' });
-            const sugestoesCod = el('datalist', { id: 'vz-codigos-ficticios' });
-            const preencher = () => {
-                sugestoesCod.replaceChildren(...candidatosFicticios(Number(alvo.value)).filter(c => c.ok).map(c => el('option', { value: c.cod })));
-            };
-            alvo.addEventListener('change', preencher);
-            preencher();
+            const codigo = el('input', { type: 'text', required: '', maxlength: '120', placeholder: 'A35P', 'data-sugestao-origem': 'CABOS' });
             abrirEditor('Novo cabo fictício', 'Adicionar à estrutura', [
-                campo('Estrutura', alvo), campo('Código do cabo', codigo), sugestoesCod
+                campo('Estrutura', alvo), campo('Código do cabo', codigo)
             ], () => {
                 const ie = Number(alvo.value);
                 ultimoStatus = 'Cabo fictício registrado.';
@@ -1742,9 +1717,15 @@
         function trocarPosteDaEstrutura(linha, poste) {
             const destino = poste === null ? null : grafo.nosPorLinha.get(poste);
             if (destino && !destino.linhas.includes(linha)) {
-                const pontos = new Set(destino.linhas);
-                const repetido = cabos().findIndex(c => (c?.vinculoEstruturas || []).some(ie => linhaDe(ie) === linha) &&
-                    (c.vinculoEstruturas || []).some(ie => pontos.has(linhaDe(ie))));
+                const origem = grafo.nosPorLinha.get(linha), pontos = new Set(destino.linhas);
+                const repetido = cabos().findIndex((c, ic) => {
+                    if (!c) return false;
+                    const internas = c.vinculoEstruturas || [];
+                    if (internas.some(ie => linhaDe(ie) === linha) && internas.some(ie => pontos.has(linhaDe(ie)))) return true;
+                    const ids = pontosDoCabo(ic);
+                    return ids.includes(origem.id) && ids.includes(destino.id) &&
+                        (origem.linhas.length === 1 || VR.postesAtribuidos(c).includes(linha));
+                });
                 if (repetido >= 0) return `O cabo ${repetido + 1} ficaria com duas pontas no mesmo ponto. Solte uma ponta antes.`;
             }
             if (!host.associarNoMapa(linha, poste)) return 'A estrutura ou o poste escolhido mudou.';
@@ -1780,11 +1761,10 @@
         function editarNo(id, alvo) {
             ultimoNo = alvo;
             ultimoStatus = '';
-            caboNo = caboEscolhido;
             st.grafoNo = id;
             if (!dialogo.open) dialogo.showModal();
             preencherNo();
-            (dialogo.querySelector(`[data-foco="c${caboNo}"]`) || dialogo.querySelector('[autofocus]'))?.focus();
+            dialogo.querySelector('[autofocus]')?.focus();
         }
 
         function preencherNo() {
@@ -1813,7 +1793,9 @@
                 if (motivo) { status.textContent = motivo; return; }
                 ultimoStatus = acao === 'ligar' ? 'Vínculo registrado.' : 'Vínculo removido.';
                 caboEscolhido = pontaEscolhida = null;
-                ligar(ic, ie);
+                ligar(ic, ie, () => {
+                    if (!cabos()[ic]._mapaTopologia) gravarPontos(ic, pontosDoCabo(ic));
+                });
                 if (host.depois) host.depois();
                 dialogo.querySelector(`[data-foco="${foco}"]`)?.focus();
             }
@@ -1849,37 +1831,40 @@
             }
             if (host.inserirNoMapa && no.poste !== null) lateral.append(botao('+ Estrutura', () => abrirCriacao('estrutura', no.poste), 'Nova estrutura neste poste'));
             const painelNo = el('section', {}, [el('h5', { text: 'Cabos do ponto' }), status]);
-            if (host.inserirNoMapa) painelNo.append(botao('+ Cabo', () => abrirCriacao('cabo'), 'Novo cabo neste ponto'));
-            const adicionais = [...grafo.cabosDoMapa.keys()]
-                .filter(ic => !no.cabos.has(ic) && livres(ic) && estruturasCompativeis(ic, no).length);
+            if (host.inserirNoMapa) painelNo.append(botao('+ Cabo', () => abrirCriacao('cabo', linhaNo(no)), 'Novo cabo neste ponto'));
+            const adicionais = [...grafo.cabosDoMapa.keys()].filter(ic => !pontosDoCabo(ic).includes(no.id) && livres(ic));
             if (adicionais.length) {
-                const seletorCabo = el('select', { class: 'vz-no-seletor', 'aria-label': 'Adicionar cabo ao poste' }, [
-                    el('option', { value: '', text: 'Adicionar cabo com ponta livre…' }),
+                const selecionar = el('select', { class: 'vz-no-seletor', 'aria-label': 'Cabo com ponta livre' }, [
+                    el('option', { value: '', text: 'Escolha um cabo com ponta livre…' }),
                     ...adicionais.map(ic => el('option', { value: ic, text: `Cabo ${ic + 1} · ${cabos()[ic].ativo}` }))
                 ]);
-                seletorCabo.value = adicionais.includes(caboNo) ? String(caboNo) : '';
-                seletorCabo.addEventListener('change', () => {
-                    caboNo = seletorCabo.value === '' ? null : Number(seletorCabo.value);
-                    preencherNo();
-                    (dialogo.querySelector(`[data-foco="c${caboNo}"]`) || dialogo.querySelector('.vz-no-seletor'))?.focus();
+                const conectar = botao('Conectar ao ponto', () => {
+                    if (selecionar.value === '') return;
+                    const mensagem = alterarPontoDoCabo(Number(selecionar.value), no, true);
+                    if (mensagem) status.textContent = mensagem;
                 });
-                painelNo.append(seletorCabo);
+                conectar.disabled = true;
+                selecionar.addEventListener('change', () => { conectar.disabled = selecionar.value === ''; });
+                painelNo.append(selecionar, conectar);
             }
-            const cabosNo = new Set([...no.cabos]);
-            if (adicionais.includes(caboNo)) cabosNo.add(caboNo);
-            if (!cabosNo.size) painelNo.appendChild(el('p', { class: 'vz-no-ajuda', text: 'Nenhum cabo associado. As pontas compatíveis disponíveis aparecem aqui.' }));
+            const cabosNo = no.cabos;
+            if (!cabosNo.size) painelNo.appendChild(el('p', { class: 'vz-no-ajuda', text: 'Nenhum cabo chega a este ponto.' }));
             const conexoes = [];
             cabosNo.forEach(ic => {
                 const c = cabos()[ic], r = a.cabos[ic], existentes = (r && c.vinculoEstruturas || []).filter(ie => no.linhas.includes(linhaDe(ie)));
-                const vao = vaosPorCabo.get(ic);
-                const outroNo = vao && vao.ids.includes(no.id) && vao.ids.find(id => id && id !== no.id);
-                const origem = outroNo ? nomeDoNo(grafo.nos.get(outroNo)) : (vao && vao.ids.includes(no.id) ? 'Sem outro poste identificado' : 'Sem vão associado neste poste');
+                const pontos = pontosDoCabo(ic), chega = pontos.includes(no.id);
+                const outroNo = chega && pontos.find(id => id !== no.id);
+                const origem = outroNo ? nomeDoNo(grafo.nos.get(outroNo)) : (chega ? 'Outra ponta livre' : 'Sem conexão no mapa neste ponto');
                 const cartao = el('section', { class: 'vz-no-cabo', 'data-cabo-no': ic }, [
                     el('h6', {}, [el('span', { class: 'vz-op' + opClasse(trim(c.operacao)), text: c.operacao || 'I' }), ' ', c.ativo]),
                     el('p', { class: 'vz-no-ajuda', style: 'margin:0 0 6px', text: `Cabo ${ic + 1} · ${origem}` }),
                     el('div', { class: 'vz-no-vinculos' }, [el('span', { class: 'vz-no-ajuda', text: existentes.length ? 'Vínculos neste poste' : 'Sem vínculo neste poste' }),
                         ...existentes.map(ie => botao(codigoDe(ie) + ' ×', () => mudarVinculo(ic, ie, 'remover', 'c' + ic), 'Remover vínculo com ' + codigoDe(ie)))])
                 ]);
+                if (chega) cartao.append(botao('Soltar ponta do mapa', () => {
+                    const mensagem = alterarPontoDoCabo(ic, no, false);
+                    if (mensagem) status.textContent = mensagem;
+                }, 'Soltar ponta do cabo ' + (ic + 1) + ' do mapa'));
                 if (!r) {
                     cartao.appendChild(el('div', { class: 'vz-no-ajuda', text: 'Operação de retirada, fora da vinculação.' }));
                     painelNo.appendChild(cartao);
@@ -1900,8 +1885,7 @@
                     cartao.appendChild(el('div', { class: 'vz-no-acoes' }, [seletor,
                         vincular, dica]));
                 } else if (!existentes.length) {
-                    cartao.appendChild(el('p', { class: 'vz-no-ajuda', text: livres(ic)
-                        ? motivoNo(ic, no) : 'Todas as pontas do cabo já estão preenchidas.' }));
+                    cartao.appendChild(el('p', { class: 'vz-no-ajuda', text: motivoNo(ic, no) || 'Não há estrutura compatível disponível.' }));
                 }
                 painelNo.appendChild(cartao);
             });
@@ -1943,7 +1927,6 @@
         dialogo.addEventListener('close', () => {
             observadorNo?.disconnect();
             st.grafoNo = null;
-            caboNo = null;
             nosSvg.get(ultimoNo?.dataset.no)?.focus();
         });
         function coordenada(e) {
@@ -2017,20 +2000,13 @@
             if (cabo && livres(Number(cabo.dataset.caboMapa))) { selecionarCabo(Number(cabo.dataset.caboMapa)); return; }
             const no = alvo.closest('[data-no]');
             if (no) {
-                const id = no.dataset.no, ic = caboEscolhido;
-                const ponto = grafo.nos.get(id);
-                const compativeis = ic === null ? [] : estruturasCompativeis(ic, ponto);
-                if (ic !== null && !compativeis.length) {
-                    avisos.textContent = nomeDoNo(ponto) + ' · ' + motivoNo(ic, ponto);
-                    return;
-                }
-                if (compativeis.length === 1) {
-                    caboEscolhido = pontaEscolhida = null;
-                    ligar(ic, compativeis[0]);
-                    host.depois?.();
-                    avisos.textContent = `Cabo ${ic + 1} vinculado a ${nomeDoNo(grafo.nos.get(id))} / ${codigoDe(compativeis[0])}.`;
+                const id = no.dataset.no;
+                if (caboEscolhido === null) editarNo(id, no);
+                else {
+                    const mensagem = alterarPontoDoCabo(caboEscolhido, grafo.nos.get(id), true);
+                    if (mensagem) avisos.textContent = mensagem;
                     nosSvg.get(id)?.focus();
-                } else editarNo(id, no);
+                }
                 return;
             }
             if (cabo) {

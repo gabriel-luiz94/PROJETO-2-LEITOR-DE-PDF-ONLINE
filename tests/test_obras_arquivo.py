@@ -271,3 +271,15 @@ def test_arquivo_preserva_identidade_dos_postes_e_associacao_do_composer():
     assert reaberta["outros"][1] == dados["outros"][1]
     assert reaberta["outros"][2] == {"ativo": "N1"}
     assert reaberta["cabos"] == dados["cabos"]
+
+
+def test_arquivo_preserva_a_topologia_explicita_com_pontas_soltas():
+    dados = {"cabos": [
+        {"ativo": "A35P 25 m", "operacao": "I", "_mapaTopologia": True, "vinculoPostes": []},
+        {"ativo": "A35P 25 m", "operacao": "I", "_mapaTopologia": 1, "vinculoPostes": [0]},
+    ], "outros": [{"ativo": "12600D", "entidade": "POSTE"}]}
+    obra = oa.montar_exportacao({"nome": "Rede", "projeto": "081", "dados_json": dados})
+    reaberta = oa.validar_importacao(json.loads(json.dumps(obra)), "081")["dados"]
+    assert reaberta["cabos"][0] == dados["cabos"][0]
+    assert reaberta["cabos"][1]["vinculoPostes"] == [0]
+    assert "_mapaTopologia" not in reaberta["cabos"][1]

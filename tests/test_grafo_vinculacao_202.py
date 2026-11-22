@@ -136,3 +136,29 @@ outros[1].comentario = true;
 assert.ok(grafo().nos.has('linha:0'));
 """
     subprocess.run(["node", "-e", script], check=True, cwd=Path(__file__).resolve().parents[1])
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node indisponível")
+def test_topologia_explicita_prevalece_sobre_cad_e_vinculos_reais():
+    script = r"""
+const assert = require('node:assert/strict');
+const vr = require('./static/vinculacao_regras.js');
+const outros = [
+    {entidade:'POSTE', ativo:'P1', _poste:[0,0]},
+    {entidade:'POSTE', ativo:'P2', _poste:[20,0]},
+    {entidade:'POSTE', ativo:'P3'}
+];
+const c = {ativo:'C1 20 m', _geo:[[0,0],[20,0]], vinculoEstruturas:[0],
+    _mapaTopologia:true, vinculoPostes:[1,2]};
+const grafo = () => vr.grafoDaRede([c], outros, v => v);
+assert.deepEqual(grafo().vaos[0].ids, ['linha:2','20,0']);
+assert.deepEqual(c.vinculoEstruturas, [0]);
+assert.ok(grafo().nos.get('0,0').cabos.has(0));
+c.vinculoPostes = [];
+assert.deepEqual(grafo().vaos[0].ids, [null,null]);
+assert.deepEqual(grafo().cabosDoMapa.get(0).referencias, []);
+assert.deepEqual(c._geo, [[0,0],[20,0]]);
+delete c._mapaTopologia;
+assert.deepEqual(grafo().vaos[0].ids, ['0,0','20,0']);
+"""
+    subprocess.run(["node", "-e", script], check=True, cwd=Path(__file__).resolve().parents[1])
