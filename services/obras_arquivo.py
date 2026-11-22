@@ -47,6 +47,12 @@ def _id_ponto_mapa(v) -> bool:
     return isinstance(v, str) and _RE_ID_PONTO_MAPA.fullmatch(v) is not None
 
 
+def _ancoras_mapa(v) -> bool:
+    return isinstance(v, list) and len(v) <= 2 and all(
+        isinstance(a, list) and len(a) == 2 and _id_ponto_mapa(a[0]) and _texto(a[1]) for a in v
+    )
+
+
 def _slots(v) -> bool:
     return (isinstance(v, dict) and len(v) <= LIMITE_LISTA
             and all(isinstance(k, str) and k.isdigit() and _lista_de(x, _texto) for k, x in v.items()))
@@ -58,6 +64,8 @@ CAMPOS_VINCULO = {
     "textoOriginal": _texto, "fases": lambda v: _texto(v) or (_num(v) and not isinstance(v, float)), "tensao": _texto, "nivel": _texto,
     "entidadeManual": lambda v: isinstance(v, bool), "_x": _num, "_y": _num, "_geoTipo": _texto, "_geo": lambda v: _lista_de(v, _ponto),
     "_mapaId": _id_ponto_mapa, "_mapaPosteRef": _id_ponto_mapa, "_mapaTopologia": lambda v: v is True,
+    "_mapaPosteFicticio": lambda v: v is True,
+    "_mapaEstruturasFicticias": lambda v: _lista_de(v, _texto), "_mapaAncoras": _ancoras_mapa,
     "_mapaPoste": lambda v: _ponto(v) and all(0 <= n <= 1 for n in v),
     "_mapaCabo": lambda v: _ponto(v) and all(-1 <= n <= 1 for n in v),
     "_poste": _ponto, "vinculoEstruturas": lambda v: _lista_de(v, _num), "vinculoOrigem": _texto, "vinculoPostes": lambda v: _lista_de(v, _num),          # "Cabos ⇄ Postes": linhas de Outros (postes) a que o cabo chega
@@ -106,6 +114,8 @@ def normalizar_dados(dados_json) -> dict:
                 linha = {k: x[k] for k, tipo in campos.items() if k in x and _tipo_ok(x[k], tipo)}
                 if campos is CAMPOS_LINHA:
                     linha.update({k: x[k] for k, ok in CAMPOS_VINCULO.items() if k in x and ok(x[k])})
+                    if linha.get("_mapaPosteFicticio"):
+                        linha["congelada"] = linha["bloqueada"] = True
                     if linha.get("comentario"):
                         linha["congelada"] = True                    # comentário é uma linha congelada com outra aparência: nenhum cálculo a lê
                 linhas.append(linha)

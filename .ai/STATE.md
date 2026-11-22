@@ -6,6 +6,10 @@
 
 ---
 
+## Arraste, seleção e âncoras no mapa · TASK-222
+
+Todos os pontos podem ser arrastados, inclusive os que vieram do CAD. O mapa destaca o cabo na lista, oferece filtros por operação e mostra as âncoras fictícias. Pontos avulsos seguem a numeração dos postes e o painel ficou mais compacto. [TASK-222](tasks/TASK-222-22-11-2026.md).
+
 ## Conexão dos vãos no mapa · TASK-221
 
 O clique no mapa conecta o cabo ao ponto. O painel do ponto valida a ligação com a estrutura. Os formulários do mapa consultam as sugestões de ativos e apelidos da base do projeto. [TASK-221](tasks/TASK-221-22-11-2026.md).
@@ -819,6 +823,8 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-11-22
+
+**Motivo:** [TASK-222](tasks/TASK-222-22-11-2026.md) liberou o arraste CAD, os filtros e as âncoras fictícias.
 
 **Motivo:** [TASK-221](tasks/TASK-221-22-11-2026.md) separou o traçado do vínculo interno e ativou as sugestões de ativos no mapa.
 

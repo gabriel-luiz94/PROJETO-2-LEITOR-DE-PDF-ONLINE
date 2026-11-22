@@ -139,6 +139,14 @@ def test_raio_configuravel():
     assert c2[0]["vinculoEstruturas"] == [0]
 
 
+def test_ponta_em_ancora_ficticia_nao_volta_a_vincular_pelo_cad():
+    outros = [poste(0, "9100D, N3"), poste(100, "9100D, N3"),
+              {"ativo": "Poste fictício", "entidade": "POSTE", "congelada": True, "_mapaPosteFicticio": True}]
+    _, c = roda([vao(0, 100, _mapaTopologia=True, vinculoPostes=[2])], outros)
+    assert c[0]["vinculoEstruturas"] == []
+    assert c[0]["vinculoPostes"] == [2]
+
+
 # ── paridade Python = JS ──
 _JS = r"""
 const v = require(%(v)s); const e = JSON.parse(require('fs').readFileSync(0, 'utf8'));
@@ -159,6 +167,8 @@ def test_paridade_com_o_js():
         {"outros": [poste(0, "9100D, N3"), poste(100, "9100D, N3")], "cabos": [vao(0, 100, op="M")]},
         {"outros": [poste(100, "9100D, N3, B1MT")], "cabos": [vao(0, 100), vao(100, 200)]},
         {"outros": [poste(100, "9100D, N3")], "cabos": [vao(0, 103), {"entidade": "CABO", "operacao": "I", "ativo": "MT1 40"}], "raio": 1},
+        {"outros": [poste(0, "9100D, N3")],
+         "cabos": [vao(0, 100, _mapaTopologia=True, vinculoPostes=[])]},
         # Empate entre células diferentes: a primeira estrutura da tabela ainda tem prioridade.
         {"outros": [poste(2, "9100D, N3"), poste(-2, "9100D, N3"), poste(95, "9100D, N3")], "cabos": [vao(0, 100)]},
         # Há um poste na célula vizinha, um candidato mais distante e uma ponta fora do raio.

@@ -1402,7 +1402,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function alternarMarcaLinhas(tipo, idxs, campo) {
         const dados = tableStates[tipo].data;
         idxs = expandirGrupos(tipo, idxs);
-        let alvos = idxs.filter(i => dados[i]);
+        let alvos = idxs.filter(i => dados[i] && !dados[i]._mapaPosteFicticio);
         if (campo === 'congelada') {
             const comentarios = alvos.filter(i => dados[i].comentario).length;
             const decls = alvos.filter(i => dados[i].grupoDecl).length;
@@ -1440,12 +1440,12 @@ document.addEventListener('DOMContentLoaded', () => {
     /** Duplicar linha: copia as linhas (a clicada ou as selecionadas) e coloca as cópias LOGO ABAIXO (num bloco, na mesma ordem). A cópia vira uma linha comum: sem bloqueio e sem o vínculo/geometria do original. Um passo de Ctrl+Z. */
     function duplicarLinhas(tipo, idxs) {
         const dados = tableStates[tipo].data;
-        const alvos = Array.from(new Set(idxs)).filter(i => dados[i]).sort((a, b) => a - b);
+        const alvos = Array.from(new Set(idxs)).filter(i => dados[i] && !dados[i]._mapaPosteFicticio).sort((a, b) => a - b);
         if (!alvos.length) return;
         pushHistory();
         const copias = alvos.map(i => {
             const c = deepClone(dados[i]);
-            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', '_mapaPoste', '_mapaCabo', '_mapaId', '_mapaPosteRef', '_mapaTopologia', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
+            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', '_mapaPoste', '_mapaCabo', '_mapaId', '_mapaPosteRef', '_mapaTopologia', '_mapaAncoras', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
             return c;
         });
         const depois = alvos[alvos.length - 1] + 1;
@@ -2495,6 +2495,30 @@ document.addEventListener('DOMContentLoaded', () => {
         return row && !row.comentario && (row.entidade === 'POSTE' || postesDaLinhaVinculo(row.ativo).length);
     }
 
+    function inserirPosteFicticioNoMapa(nome, estruturas) {
+        pushHistory();
+        const indice = tableStates.outros.data.push({
+            ativo: nome ? 'Poste fictício · ' + nome : 'Poste fictício', entidade: 'POSTE', operacao: 'M', entidadeManual: true,
+            congelada: true, bloqueada: true, _mapaPosteFicticio: true, _mapaId: idPontoMapa(),
+            _mapaEstruturasFicticias: estruturas.slice()
+        }) - 1;
+        return indice;
+    }
+
+    function removerPosteFicticioNoMapa(indice) {
+        const row = tableStates.outros.data[indice];
+        if (row?._mapaPosteFicticio !== true) return false;
+        pushHistory();
+        tableStates.outros.data.splice(indice, 1);
+        _reajustarVinculosAposRemoverOutros(indice);
+        tableStates.cabos.data.forEach(c => {
+            if (c?._mapaAncoras) c._mapaAncoras = c._mapaAncoras.filter(([id]) => id !== row._mapaId);
+        });
+        buildAtivoSets(); buildDataLists();
+        refreshAllFilters('outros');
+        return true;
+    }
+
     function inserirAtivoNoMapa(tipo, dados) {
         const nome = String(dados.ativo || '').trim().toUpperCase();
         const operacao = dados.operacao;
@@ -2551,7 +2575,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function associarEstruturaNoMapa(indice, poste) {
         const outros = tableStates.outros.data, linha = outros[indice], destino = outros[poste];
         if (!linha || linha.comentario || ehPosteNoMapa(linha)) return false;
-        if (poste !== null && !ehPosteNoMapa(destino)) return false;
+        if (poste !== null && (!ehPosteNoMapa(destino) || destino._mapaPosteFicticio)) return false;
         pushHistory();
         if (poste === null) delete linha._mapaPosteRef;
         else linha._mapaPosteRef = idPosteNoMapa(destino, outros);
@@ -2570,6 +2594,8 @@ document.addEventListener('DOMContentLoaded', () => {
         adicionarAvulsos: (ic, ficticia) => _adicionarAvulsos(ic, ficticia),
         postesDaLinha: postesDaLinhaVinculo,
         inserirNoMapa: inserirAtivoNoMapa,
+        inserirPosteFicticioNoMapa,
+        removerPosteFicticioNoMapa,
         associarNoMapa: associarEstruturaNoMapa,
         linhaSoPoste(ativo) { return !AnotacaoOutros.codigoEstrutura(ativo || '', _classicoTotalizadora, _ctxOutros()); },
         consultarAssistente: selecao => selecionarMapaAssistente(selecao),
@@ -2651,6 +2677,12 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const campo of ['_mapaId', '_mapaPosteRef']) if (idPontoValido(obj[campo])) c[campo] = obj[campo];
         if (Array.isArray(obj.vinculoEstruturas)) c.vinculoEstruturas = obj.vinculoEstruturas.slice();
         if (obj._mapaTopologia === true) c._mapaTopologia = true;
+        if (obj._mapaPosteFicticio === true) {
+            c._mapaPosteFicticio = c.congelada = c.bloqueada = true;
+            if (Array.isArray(obj._mapaEstruturasFicticias)) c._mapaEstruturasFicticias = obj._mapaEstruturasFicticias.slice();
+        }
+        if (Array.isArray(obj._mapaAncoras)) c._mapaAncoras = obj._mapaAncoras
+            .filter(v => Array.isArray(v) && idPontoValido(v[0]) && typeof v[1] === 'string').map(v => [v[0], v[1]]);
         if (Array.isArray(obj.vinculoPostes) && (obj.vinculoPostes.length || c._mapaTopologia)) c.vinculoPostes = obj.vinculoPostes.slice();                   // Cabos ⇄ Postes
         if (obj.vinculoOrigem) c.vinculoOrigem = obj.vinculoOrigem;                                       // TASK-084: manual | script
         if (Array.isArray(obj.estruturasFicticias) && obj.estruturasFicticias.length) c.estruturasFicticias = obj.estruturasFicticias.slice();   // TASK-095: estruturas fictícias do cabo
@@ -3215,7 +3247,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     }
 
-    function reidentificarPontosCopiados(linhas) {
+    function reidentificarPontosCopiados(linhas, cabos = []) {
         const ids = new Map();
         for (const linha of linhas) {
             if (idPontoValido(linha._mapaId)) ids.set(linha._mapaId, ids.has(linha._mapaId) ? null : idPontoMapa());
@@ -3224,6 +3256,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const id = ids.get(linha._mapaId), ref = ids.get(linha._mapaPosteRef);
             if (id) linha._mapaId = id; else delete linha._mapaId;
             if (ref) linha._mapaPosteRef = ref; else delete linha._mapaPosteRef;
+        }
+        for (const cabo of cabos) {
+            if (Array.isArray(cabo._mapaAncoras)) cabo._mapaAncoras = cabo._mapaAncoras
+                .filter(([id]) => ids.get(id)).map(([id, codigo]) => [ids.get(id), codigo]);
         }
     }
 
@@ -3234,13 +3270,15 @@ document.addEventListener('DOMContentLoaded', () => {
         pushHistory();  // snapshot ANTES de adicionar
         const deslocamento = tableStates.outros.data.length;
         const qtdOutros = linhasDoSnap(snap, 'outros').length;
+        let cabosCopiados = [];
         ['cabos', 'outros'].forEach(type => {
             const linhas = linhasDoSnap(snap, type);
             if (!linhas.length) return;
             const novas = linhas.map(row => JSON.parse(JSON.stringify(row)));
-            if (type === 'outros' && novas.some(row => row._mapaId || row._mapaPosteRef)) reidentificarPontosCopiados(novas);
+            if (type === 'outros' && novas.some(row => row._mapaId || row._mapaPosteRef)) reidentificarPontosCopiados(novas, cabosCopiados);
             if (window.GruposLinhas) window.GruposLinhas.reidentificar(novas);                   // TASK-195: grupos da obra ganham ids novos (a mesma obra pode entrar duas vezes)
             if (type === 'cabos') {
+                cabosCopiados = novas;
                 for (const row of novas) {
                     for (const campo of ['vinculoEstruturas', 'vinculoPostes']) {
                         if (Array.isArray(row[campo])) row[campo] = row[campo]
@@ -3273,7 +3311,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.GruposLinhas) window.GruposLinhas.reidentificar(clonadas);
             clonadas.forEach(clonada => {
                 if (clonada.grupoDecl) { tableStates[type].data.push(clonada); return; }       // TASK-195: a declaração do grupo («@P1») continua sendo só um título
-                if (type === 'cabos') clonada.qtdAtivos = "-" + Math.abs(clonada.qtdAtivos || 0);
+                if (type === 'cabos') {
+                    delete clonada._mapaAncoras;
+                    clonada.qtdAtivos = "-" + Math.abs(clonada.qtdAtivos || 0);
+                }
                 else clonada.ativo = "*" + clonada.ativo;
                 tableStates[type].data.push(clonada);
             });

@@ -821,7 +821,7 @@
             const c = infoC[ic];
             if (!c.vincula || manuais.has(ic) || cabos[ic].congelada) return;          // cabo congelado: só entra no vínculo se já foi ligado à mão
             const atrib = postesAtribuidos(cabos[ic]).filter(l => porLinha.has(l));          // "Cabos ⇄ Postes": o usuário disse a que postes o cabo chega; vale no lugar da geometria
-            if (atrib.length) {
+            if (atrib.length || cabos[ic]._mapaTopologia === true) {
                 ligados[ic] = [];
                 restante[ic] = Math.max(0, c.pontas - estruturasFicticiasDe(cabos[ic]).length);
                 atrib.forEach(l => (chegadas[l] = chegadas[l] || []).push(ic));
