@@ -53,3 +53,6 @@ test.pdf
 *.exe
 # Seed gerado é versionado, mas backups não
 data/backup_*.json
+entrega-privada/OrcaCore-Setup-Privado.zip
+recuperacao-db-20261123-103806/recuperado.sql
+recuperacao-db-20261123-103806/sqlite-tools.zip
