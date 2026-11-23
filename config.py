@@ -4,7 +4,7 @@ Suporta modo dev (python app.py) e modo frozen (PyInstaller .exe).
 """
 
 # ── Versão da Aplicação ─────────────────────────────────────────────────────
-APP_VERSION = "2.8.2"
+APP_VERSION = "2.8.3"
 import os
 import sys
 import logging
