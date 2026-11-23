@@ -106,6 +106,8 @@ Os cartões de **Vinculação → Mapa** editam a mesma linha das tabelas do Res
 
 Na montagem da rede, o ponto agrupado reúne o título `@nome` e as linhas de ativos em Demais Ativos. A linha `# comentário` só entra quando há texto. Limpar o comentário e salvar no painel do ponto remove essa linha. [TASK-230](tasks/TASK-230-23-11-2026.md).
 
+O painel do ponto mostra cabos e estruturas lado a lado, com os vínculos desenhados entre as colunas. **Editar poste** abre o formulário de cadastro preenchido e grava na mesma linha. A montagem registra vínculos internos inequívocos para chegadas confirmadas segundo as regras do projeto. Pendências e disputas aparecem em **Só pendências**. [TASK-231](tasks/TASK-231-23-11-2026.md).
+
 Em **Vinculação → Mapa**, arrastar os pontos também funciona em obras vindas do CAD. Clicar num cabo destaca seu cartão e apresenta as pontas. O filtro alterna entre Tudo, A instalar, A remover, Mantendo e Fictícios. O poste fictício e suas estruturas são âncoras visuais e ficam fora da Totalizadora. [TASK-222](tasks/TASK-222-22-11-2026.md).
 
 Em **Vinculação → Mapa**, é possível montar a obra. Postes e estruturas entram em Demais Ativos, cabos reais entram em Cabos e cabos fictícios ocupam a estrutura escolhida. Uma estrutura avulsa vira ponto próprio e pode ser agrupada com um poste sem criar outro poste no orçamento. [TASK-220](tasks/TASK-220-22-11-2026.md).

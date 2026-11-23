@@ -104,6 +104,11 @@ TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 r
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-23 — TASK-231: revisão dos vínculos no ponto e edição do poste
+
+- O painel mostra cabos e estruturas em duas colunas, desenha os vínculos, destaca os cabos de uma estrutura selecionada e oferece **Só pendências**.
+- **Editar poste** reutiliza o cadastro preenchido e mantém a posição e os cabos associados. A montagem aplica as regras do projeto para preencher vínculos inequívocos nas chegadas confirmadas. As disputas seguem para revisão. [TASK-231](tasks/TASK-231-23-11-2026.md).
+
 ## 2026-11-23 — TASK-230: comentário opcional nos pontos do mapa
 
 - Criar, agrupar ou copiar um ponto sem texto de comentário gera o título e as linhas de ativos. Ao limpar o comentário e salvar no painel, a linha é removida e os vínculos acompanham os índices das linhas. [TASK-230](tasks/TASK-230-23-11-2026.md).

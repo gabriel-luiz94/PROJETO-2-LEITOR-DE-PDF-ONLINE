@@ -1040,6 +1040,12 @@ Arrastar postes e curvar cabos em 1:500 guarda o ajuste em metros, separado do a
 - **As posições não mudam** quando você adiciona pontos: o novo ponto aparece num lugar livre perto do centro da tela.
 - **Rearranjar:** organiza os pontos de forma uniforme e limpa (vãos do mesmo tamanho, alinhados, sem sobreposição; vãos retos). Grupos bloqueados ficam onde estão. Em 1:500 o botão devolve os pontos à posição do CAD. Ctrl+Z desfaz.
 
+## Mapa: revisar vínculos e editar o poste
+
+- Abra o ponto para ver os cabos à esquerda e as estruturas à direita. As linhas mostram os vínculos neste ponto. Clique no código de uma estrutura para destacar os cabos dela.
+- Use **Editar poste** para abrir o cadastro preenchido com anotação, operação, nome e comentário. O formulário altera o mesmo poste e preserva a posição e os cabos. Se a edição alterar uma estrutura interna já vinculada, revise esse vínculo antes.
+- Ao confirmar a chegada de um cabo, adicionar uma estrutura ou editar uma linha no mapa, o sistema aplica os vínculos inequívocos pelas regras do projeto. Use **Só pendências** para ver as pontas que precisam de decisão. **Desfazer** reverte a ação e os vínculos gerados por ela.
+
 ## Mapa: posicionar o ponto novo e copiar (22/11/2026)
 
 - Ao confirmar um **ponto novo** (poste, estrutura ou poste fictício), o mapa pede que você o **posicione**: o ponto acompanha o mouse e o **clique** fixa o lugar. **Esc** mantém o lugar sugerido.

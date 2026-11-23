@@ -6,6 +6,37 @@ import pytest
 
 
 @pytest.mark.skipif(not shutil.which("node"), reason="node indisponível")
+def test_vinculo_automatico_do_mapa_respeita_disputas_e_pontas():
+    script = r"""
+const assert = require('node:assert/strict');
+const vr = require('./static/vinculacao_regras.js');
+const config = vr.normalizarConfig({estruturas:[
+    {padrao:'^N1$', qtd_cabos:1},
+    {padrao:'^N3$', qtd_cabos:2},
+    {padrao:'^N4$', qtd_cabos:2, lados:'IGUAIS'}
+]});
+const estruturas = ['N1', 'N3', 'N4'].map(c => vr.infoEstrutura(c, config));
+const cabos = ['A35P', 'A35P', 'A50P'].map(c => vr.infoCabo(c, 'I', config));
+const ocupacao = new Map();
+const plano = (pares, pontas = 2) => vr.planejarVinculosDoMapa(
+    pares.map(([ic, ...candidatas]) => ({ic, candidatas})),
+    ie => estruturas[ie], ie => ocupacao.get(ie) || [], ic => cabos[ic], () => pontas
+);
+assert.deepEqual(plano([[0,0], [1,1,2]]), [{ic:0, ie:0}]);
+assert.deepEqual(plano([[0,0], [1,0]]), []);
+assert.deepEqual(plano([[0,0], [1,0,1]]), []);
+assert.deepEqual(plano([[0,1], [1,1]]), [{ic:0, ie:1}, {ic:1, ie:1}]);
+assert.deepEqual(plano([[0,2], [2,2]]), []);
+assert.deepEqual(plano([[0,0], [0,1]], 1), []);
+assert.deepEqual(plano([[0,0], [0,1]]), [{ic:0, ie:0}, {ic:0, ie:1}]);
+ocupacao.set(1, [{info:cabos[2], ficticio:true}]);
+assert.deepEqual(plano([[0,1], [1,1]]), []);
+assert.equal(ocupacao.get(1).length, 1);
+"""
+    subprocess.run(["node", "-e", script], check=True, cwd=Path(__file__).resolve().parents[1])
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node indisponível")
 def test_grafo_agrupa_postes_e_vaos_e_mantem_as_associacoes():
     script = r"""
 const assert = require('node:assert/strict');

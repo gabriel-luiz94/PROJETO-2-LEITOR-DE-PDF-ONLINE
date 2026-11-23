@@ -2620,6 +2620,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!entrada || entrada.length > 500 || /^[#@]/.test(entrada)) return 'Informe uma anotação válida.';
         if (dados.operacao !== row.operacao && !/^(?:\*)?[IMR]$/.test(dados.operacao)) return 'Escolha a operação do ativo.';
         const nova = { ...row, ativo, operacao: dados.operacao };
+        const ponto = tipo === 'poste' && dados.ponto ? prepararPontoNoMapa(dados.ponto.linhas, dados.ponto) : null;
+        if (ponto?.erro) return ponto.erro;
         let erro;
         if (tipo === 'cabo') {
             if (dados.fases !== String(row.fases ?? '') && (!/^\d?$/.test(dados.fases) || dados.fases === '0')) return 'Informe um número de fases de 1 a 9 ou deixe em branco.';
@@ -2639,14 +2641,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (erro) return erro;
                 reclassificarEntidade(nova);
             }
-            if (!mudouAtivo && nova.operacao === row.operacao) return '';
+            if (!mudouAtivo && nova.operacao === row.operacao && !ponto?.aplicar) return '';
             erro = validarEdicaoEstruturaNoMapa(indice, row, nova);
         }
         if (erro) return erro;
         pushHistory();
         Object.assign(row, nova);
+        const novaLista = ponto?.aplicar?.();
         if (tipo === 'cabo') for (const campo of ['fases', 'tensao', 'nivel']) if (!(campo in nova)) delete row[campo];
-        atualizarLinhaDoMapa(tabela, indice, tipo === 'cabo' && mudouAtivo);
+        if (novaLista) aplicarLista('outros', novaLista, null);
+        else atualizarLinhaDoMapa(tabela, indice, tipo === 'cabo' && mudouAtivo);
         return '';
     }
 
@@ -2747,42 +2751,53 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     }
     /** Dá nome (ou o número automático) e comentário ao ponto. Sem grupo ainda: cria o grupo, o que leva as linhas do ponto para baixo do título (os vínculos por índice acompanham). */
-    function definirPontoNoMapa(linhas, dados) {
+    function prepararPontoNoMapa(linhas, dados) {
         const outros = tableStates.outros.data, GL = GL_();
-        if (!GL) return 'Grupos indisponíveis.';
+        if (!GL) return { erro: 'Grupos indisponíveis.' };
         const atual = pontoNoMapa(linhas);
+        const digitado = GL.nomeLimpo(dados.nome);
         if (!atual) {
+            if (dados.manterSemGrupo && !digitado && !GL.linhaComentarioPonto({}, dados.comentario)) return {};
             const objetos = (linhas || []).map(l => outros[l]).filter(r => r && !r.comentario);
-            if (!objetos.length) return 'O ponto não tem linha na tabela.';
-            const r = nomeParaPonto(outros, dados.nome); if (r.erro) return r.erro;
-            pushHistory();
-            const res = GL.agruparPontos(outros, [{ linhas: objetos, nome: r.nome, comentario: dados.comentario }]);
-            if (!res.n) return 'Não foi possível agrupar o ponto.';
-            aplicarLista('outros', res.lista, null);
-            return '';
+            if (!objetos.length) return { erro: 'O ponto não tem linha na tabela.' };
+            const r = nomeParaPonto(outros, dados.nome);
+            if (r.erro) return r;
+            return { aplicar() {
+                return GL.agruparPontos(outros, [{ linhas: objetos, nome: r.nome, comentario: dados.comentario }]).lista;
+            } };
         }
         const titulo = outros[atual.tituloIdx];
-        const automatico = /^P\d+$/i.test(atual.nome);
         let nome = atual.nome;
-        if (dados.nome !== undefined) {
-            const digitado = GL.nomeLimpo(dados.nome);
-            if (digitado) { if (nomeDePontoExiste(outros, digitado, titulo)) return 'Já existe um ponto com o nome «' + digitado + '».'; nome = digitado; }
-            else if (!automatico) nome = GL.proximoNome(outros, 'P', pisoNomePonto(outros));                      // campo vazio = número automático
+        if (digitado) {
+            if (nomeDePontoExiste(outros, digitado, titulo)) return { erro: 'Já existe um ponto com o nome «' + digitado + '».' };
+            nome = digitado;
+        } else if (dados.nome !== undefined && !/^P\d+$/i.test(nome)) {
+            nome = GL.proximoNome(outros, 'P', pisoNomePonto(outros));
         }
         const comentario = GL.linhaComentarioPonto(titulo, dados.comentario);
         const comentarioAtual = atual.comentarioIdx === null ? null : outros[atual.comentarioIdx];
-        if (nome === atual.nome && comentarioAtual?.ativo === comentario?.ativo) return '';
-        pushHistory();
-        titulo.ativo = '@' + nome;
-        if (comentarioAtual && comentario) comentarioAtual.ativo = comentario.ativo;
-        else if (comentarioAtual || comentario) {
-            const nova = outros.slice();
-            if (comentarioAtual) nova.splice(atual.comentarioIdx, 1);
-            else nova.splice(atual.tituloIdx + 1, 0, comentario);
-            _remapearVinculosOutros(GL.mapa(outros, nova));
-            tableStates.outros.data = nova;
+        if (nome === atual.nome && comentarioAtual?.ativo === comentario?.ativo) return {};
+        return { aplicar() {
+            titulo.ativo = '@' + nome;
+            if (comentarioAtual && comentario) comentarioAtual.ativo = comentario.ativo;
+            else if (comentarioAtual || comentario) {
+                const nova = outros.slice();
+                if (comentarioAtual) nova.splice(atual.comentarioIdx, 1);
+                else nova.splice(atual.tituloIdx + 1, 0, comentario);
+                return nova;
+            }
+        } };
+    }
+
+    function definirPontoNoMapa(linhas, dados) {
+        const ponto = prepararPontoNoMapa(linhas, dados);
+        if (ponto.erro) return ponto.erro;
+        if (ponto.aplicar) {
+            pushHistory();
+            const novaLista = ponto.aplicar();
+            if (novaLista) aplicarLista('outros', novaLista, null);
+            else atualizarLinhaDoMapa('outros', linhas[0], false);
         }
-        atualizarLinhaDoMapa('outros', atual.tituloIdx, false);
         return '';
     }
     /** Congela / bloqueia o ponto inteiro (todas as linhas do grupo), como no Resumo: repetir desfaz. */

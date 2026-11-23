@@ -813,6 +813,32 @@
         return candidatas.length > 0 && candidatas.every(e => e.estado === 'gr');
     }
 
+    /** Só propõe pares inequívocos. Uma disputa por vaga ou pela última ponta deixa todos os envolvidos para revisão. */
+    function planejarVinculosDoMapa(chegadas, estrutura, ocupantes, infoCabo, pontasRestantes) {
+        const demanda = new Map(), porCabo = new Map();
+        for (const { ic, candidatas } of chegadas) {
+            for (const ie of candidatas) {
+                if (!demanda.has(ie)) demanda.set(ie, []);
+                demanda.get(ie).push(ic);
+            }
+            if (candidatas.length) porCabo.set(ic, (porCabo.get(ic) || 0) + 1);
+        }
+        const semDisputa = new Set();
+        for (const [ie, cabos] of demanda) {
+            const e = estrutura(ie), ocupacao = ocupantes(ie).slice();
+            const cabem = cabos.every(ic => {
+                const info = infoCabo(ic);
+                if (!podeComOcupantes(info, e, ocupacao)[0]) return false;
+                ocupacao.push({ info, ficticio: false });
+                return true;
+            });
+            if (cabem) semDisputa.add(ie);
+        }
+        return chegadas.filter(({ ic, candidatas }) => candidatas.length === 1 &&
+            semDisputa.has(candidatas[0]) && porCabo.get(ic) <= pontasRestantes(ic))
+            .map(({ ic, candidatas }) => ({ ic, ie: candidatas[0] }));
+    }
+
     function vincularPorPoste(cabos, outros, cfg, prefixoFn, codigoFn, codigosFn, raio, aplicar) {
         const x = expandir(cabos, outros, codigoFn, codigosFn);
         const r = vincularPorPosteBase(x.cabosV, x.virt, cfg, prefixoFn, x.codigoV, typeof raio === 'number' && raio > 0 ? raio : RAIO_POSTE_PADRAO);
@@ -1069,7 +1095,7 @@
         return erros;
     }
 
-    const api = { grafoDaRede, gruposVisuaisDoVao, posteCompletoNoGrafo, postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, nivelDoCabo, diagnosticoDoCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoCaboFicticio, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { planejarVinculosDoMapa, grafoDaRede, gruposVisuaisDoVao, posteCompletoNoGrafo, postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, nivelDoCabo, diagnosticoDoCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoCaboFicticio, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);
