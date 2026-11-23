@@ -551,7 +551,7 @@ namespace OrcamentoNanoCAD.Nucleo
         private static List<Candidato> CasarComBlocosLivres(List<TextoLido> semBloco, Contexto ctx, Dictionary<Elemento, List<Candidato>> por)
         {
             List<Poste> livres = ctx.Postes.Where(p => !string.IsNullOrEmpty(p.Handle) && !por.ContainsKey(p)).ToList();
-            List<Tuple<double, int, int>> pares = new List<Tuple<double, int, int>>();
+            List<ParLivre> pares = new List<ParLivre>();
             for (int a = 0; a < semBloco.Count; a++)
             {
                 TextoLido tl = semBloco[a];
@@ -561,19 +561,21 @@ namespace OrcamentoNanoCAD.Nucleo
                 for (int b = 0; b < livres.Count; b++)
                 {
                     double d = pt.Dist(livres[b].Ponto);
-                    if (d <= raio) pares.Add(Tuple.Create(d, a, b));
+                    if (d <= raio) pares.Add(new ParLivre { D = d, A = a, B = b });
                 }
             }
             HashSet<int> usadasA = new HashSet<int>(), usadosB = new HashSet<int>();
             List<Candidato> saida = new List<Candidato>();
-            foreach (Tuple<double, int, int> par in pares.OrderBy(x => x.Item1).ThenBy(x => x.Item2).ThenBy(x => x.Item3))
+            foreach (ParLivre par in pares.OrderBy(x => x.D).ThenBy(x => x.A).ThenBy(x => x.B))
             {
-                if (usadasA.Contains(par.Item2) || usadosB.Contains(par.Item3)) continue;
-                usadasA.Add(par.Item2); usadosB.Add(par.Item3);
-                saida.Add(new Candidato { T = semBloco[par.Item2], E = livres[par.Item3], Nota = 2000 + par.Item1, Dist = par.Item1, Reserva = true, Livre = true });
+                if (usadasA.Contains(par.A) || usadosB.Contains(par.B)) continue;
+                usadasA.Add(par.A); usadosB.Add(par.B);
+                saida.Add(new Candidato { T = semBloco[par.A], E = livres[par.B], Nota = 2000 + par.D, Dist = par.D, Reserva = true, Livre = true });
             }
             return saida;
         }
+
+        private class ParLivre { public double D; public int A, B; }   // sem Tuple: o nanoCAD 5 roda em .NET 3.5
 
         [ThreadStatic] private static Dictionary<TextoLido, List<Ponto>> _guiaExtraTs;
         private static Dictionary<TextoLido, List<Ponto>> _guiaExtra

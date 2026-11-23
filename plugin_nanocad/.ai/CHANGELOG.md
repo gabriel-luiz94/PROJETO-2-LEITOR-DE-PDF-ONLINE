@@ -4,9 +4,9 @@
 
 ---
 
-## 2026-11-23 — fonte (ainda sem build)
+## 2026-11-23 — 0.15.0
 
-Anotação de poste longe do bloco e sem guia casa 1:1 com o bloco livre mais perto (até 25 × a altura, Conferir). A que continua sem bloco leva `_posteAprox` para o mapa do OrçaCore. [TASK-037](tasks/TASK-037-23-11-2026.md).
+Anotação de poste longe do bloco e sem guia casa 1:1 com o bloco livre mais perto (até 25 × a altura, Conferir). A que continua sem bloco leva `_posteAprox` para o mapa do OrçaCore. DLLs do nanoCAD 26 e 5 geradas com `compilar.sh`. [TASK-037](tasks/TASK-037-23-11-2026.md).
 
 ## 2026-11-22 — 0.14.0
 

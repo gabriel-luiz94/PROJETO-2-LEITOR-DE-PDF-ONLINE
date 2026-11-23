@@ -85,7 +85,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
-- [x] [TASK-233](tasks/TASK-233-23-11-2026.md) — Montagem rápida no mapa: posição aproximada do poste sem bloco, fundo do CAD, pendências com correção a um clique, ímã nas pontas, «Traçar vão», seleção/atalhos. Plugin: bloco livre 1:1 e `_posteAprox` (fonte, build pendente).
+- [x] [TASK-233](tasks/TASK-233-23-11-2026.md) — Montagem rápida no mapa: posição aproximada do poste sem bloco, fundo do CAD, pendências com correção a um clique, ímã nas pontas, «Traçar vão», seleção/atalhos. Plugin 0.15.0: bloco livre 1:1 e `_posteAprox` (DLLs geradas; validar no nanoCAD).
 
 - [x] [TASK-232](tasks/TASK-232-23-11-2026.md) — Compilação de um Setup privado com `.env` e banco local. O acesso ao Supabase usa o fluxo desktop. Validação da compilação e instalação em Windows pendente.
 
