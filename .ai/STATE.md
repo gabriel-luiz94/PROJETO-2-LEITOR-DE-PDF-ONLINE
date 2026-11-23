@@ -85,6 +85,10 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-231](tasks/TASK-231-23-11-2026.md) — Painel do ponto em duas colunas, edição do poste pelo cadastro e vinculação automática segura durante a montagem.
+
+- [x] [TASK-230](tasks/TASK-230-23-11-2026.md) — Mapa: comentário opcional nos grupos de pontos. Limpar o campo e salvar remove a linha de comentário.
+
 - [x] [TASK-229](tasks/TASK-229-23-11-2026.md) — Mapa: botão «Posições do CAD» e avisos de posição ajustada / 1:500 maior que a janela (verificado: desenho inicial idêntico ao da 2.7.8).
 
 - [x] [TASK-228](tasks/TASK-228-23-11-2026.md) — Mapa: pontas de cabo sem poste seguem o ponto mais perto; «Rearranjar» não deixa mais os pontos longe dos cabos.
@@ -838,7 +842,11 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-11-22
+**Data:** 2026-11-23
+
+**Motivo:** [TASK-231](tasks/TASK-231-23-11-2026.md) reuniu a revisão e a edição no painel do ponto e automatizou os vínculos inequívocos.
+
+**Motivo:** [TASK-230](tasks/TASK-230-23-11-2026.md) tornou opcional a linha de comentário dos pontos agrupados.
 
 **Motivo:** [TASK-223](tasks/TASK-223-22-11-2026.md) conectou os editores dos cartões às tabelas do Resumo.
 

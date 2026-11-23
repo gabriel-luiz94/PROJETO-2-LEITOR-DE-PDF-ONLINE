@@ -1034,11 +1034,17 @@ Arrastar postes e curvar cabos em 1:500 guarda o ajuste em metros, separado do a
 
 ## Mapa: pontos como grupos, nome, comentário e Rearranjar (22/11/2026)
 
-- **Tudo é ponto:** poste, estrutura avulsa e poste fictício. Cada ponto é um **grupo** em Demais Ativos: uma linha `@nome`, uma linha de comentário `#` e a(s) linha(s) do ativo. Ao criar um ponto pelo mapa, essas três linhas entram na tabela. O nome fica em branco para o **número automático** (`P13`, `P14`…) ou você digita o seu (não pode repetir).
+- **Tudo é ponto:** poste, estrutura avulsa e poste fictício. Cada ponto é um **grupo** em Demais Ativos com uma linha `@nome` e as linhas dos ativos. Se você preencher o comentário, a tabela também recebe uma linha `# comentário`. Para removê-la, limpe o campo e salve no painel do ponto. Deixe o nome em branco para usar o **número automático** (`P13`, `P14`…) ou digite um nome único.
 - Abra o ponto (clique nele): a caixa **Ponto** mostra o nome, o comentário, os botões **Congelar grupo** e **Bloquear grupo** (valem para todas as linhas do ponto) e as linhas que o ponto tem em Demais Ativos e em Cabos.
 - **Agrupar pontos (N):** transforma de uma vez os pontos que ainda não são grupo (os do CAD, por exemplo) em `@P<n>`. Nada na tabela muda sem você clicar.
 - **As posições não mudam** quando você adiciona pontos: o novo ponto aparece num lugar livre perto do centro da tela.
 - **Rearranjar:** organiza os pontos de forma uniforme e limpa (vãos do mesmo tamanho, alinhados, sem sobreposição; vãos retos). Grupos bloqueados ficam onde estão. Em 1:500 o botão devolve os pontos à posição do CAD. Ctrl+Z desfaz.
+
+## Mapa: revisar vínculos e editar o poste
+
+- Abra o ponto para ver os cabos à esquerda e as estruturas à direita. As linhas mostram os vínculos neste ponto. Clique no código de uma estrutura para destacar os cabos dela.
+- Use **Editar poste** para abrir o cadastro preenchido com anotação, operação, nome e comentário. O formulário altera o mesmo poste e preserva a posição e os cabos. Se a edição alterar uma estrutura interna já vinculada, revise esse vínculo antes.
+- Ao confirmar a chegada de um cabo, adicionar uma estrutura ou editar uma linha no mapa, o sistema aplica os vínculos inequívocos pelas regras do projeto. Use **Só pendências** para ver as pontas que precisam de decisão. **Desfazer** reverte a ação e os vínculos gerados por ela.
 
 ## Mapa: posicionar o ponto novo e copiar (22/11/2026)
 

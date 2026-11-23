@@ -2495,7 +2495,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return row && !row.comentario && (row.entidade === 'POSTE' || postesDaLinhaVinculo(row.ativo).length);
     }
 
-    /* TASK-225: todo ponto do mapa (poste, estrutura avulsa, poste fictício) é um GRUPO em Demais Ativos: «@nome», uma linha de comentário «#» e a(s) linha(s) do ativo. */
+    /* Todo ponto do mapa é um grupo em Demais Ativos com título, ativos e comentário opcional. */
     const GL_ = () => window.GruposLinhas;
     const nomeDePontoExiste = (outros, nome, exceto) => outros.some(r => r && r.grupoDecl && r !== exceto && GL_().rotuloDe(r).toUpperCase() === nome.toUpperCase());
     /** Nome escolhido pelo usuário (ou o automático «P7»); `erro` se já existe outro ponto com esse nome. */
@@ -2520,7 +2520,7 @@ document.addEventListener('DOMContentLoaded', () => {
             congelada: true, bloqueada: true, _mapaPosteFicticio: true, _mapaId: idPontoMapa(),
             _mapaEstruturasFicticias: estruturas.slice()
         };
-        if (ponto) { linha.grupoDe = ponto.gid; outros.push(ponto.titulo, ponto.comentario); }
+        if (ponto) { linha.grupoDe = ponto.gid; outros.push(ponto.titulo); }
         return outros.push(linha) - 1;
     }
 
@@ -2620,6 +2620,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!entrada || entrada.length > 500 || /^[#@]/.test(entrada)) return 'Informe uma anotação válida.';
         if (dados.operacao !== row.operacao && !/^(?:\*)?[IMR]$/.test(dados.operacao)) return 'Escolha a operação do ativo.';
         const nova = { ...row, ativo, operacao: dados.operacao };
+        const ponto = tipo === 'poste' && dados.ponto ? prepararPontoNoMapa(dados.ponto.linhas, dados.ponto) : null;
+        if (ponto?.erro) return ponto.erro;
         let erro;
         if (tipo === 'cabo') {
             if (dados.fases !== String(row.fases ?? '') && (!/^\d?$/.test(dados.fases) || dados.fases === '0')) return 'Informe um número de fases de 1 a 9 ou deixe em branco.';
@@ -2639,14 +2641,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (erro) return erro;
                 reclassificarEntidade(nova);
             }
-            if (!mudouAtivo && nova.operacao === row.operacao) return '';
+            if (!mudouAtivo && nova.operacao === row.operacao && !ponto?.aplicar) return '';
             erro = validarEdicaoEstruturaNoMapa(indice, row, nova);
         }
         if (erro) return erro;
         pushHistory();
         Object.assign(row, nova);
+        const novaLista = ponto?.aplicar?.();
         if (tipo === 'cabo') for (const campo of ['fases', 'tensao', 'nivel']) if (!(campo in nova)) delete row[campo];
-        atualizarLinhaDoMapa(tabela, indice, tipo === 'cabo' && mudouAtivo);
+        if (novaLista) aplicarLista('outros', novaLista, null);
+        else atualizarLinhaDoMapa(tabela, indice, tipo === 'cabo' && mudouAtivo);
         return '';
     }
 
@@ -2688,7 +2692,7 @@ document.addEventListener('DOMContentLoaded', () => {
             row._mapaTopologia = true;
             row.vinculoPostes = [dados.poste];
         }
-        // TASK-225: poste e estrutura avulsa viram um ponto (grupo @nome + comentário + a linha); estrutura de um poste entra no grupo desse poste
+        // Estrutura associada a um poste entra no grupo dele. Poste ou estrutura avulsa ganha grupo próprio.
         const GL = GL_(), novoPonto = !!GL && tabela === 'outros' && !poste;
         let ponto = null;
         if (novoPonto) {
@@ -2709,7 +2713,11 @@ document.addEventListener('DOMContentLoaded', () => {
             tableStates.outros.data = nova;
             indice = grupoDoPoste.fim + 1;
         } else {
-            if (ponto) { row.grupoDe = ponto.gid; lista.push(ponto.titulo, ponto.comentario); }
+            if (ponto) {
+                row.grupoDe = ponto.gid;
+                lista.push(ponto.titulo);
+                if (ponto.comentario) lista.push(ponto.comentario);
+            }
             indice = lista.push(row) - 1;
         }
         if (tabela === 'cabos') recalcRowAndAbove(indice);
@@ -2743,42 +2751,53 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     }
     /** Dá nome (ou o número automático) e comentário ao ponto. Sem grupo ainda: cria o grupo, o que leva as linhas do ponto para baixo do título (os vínculos por índice acompanham). */
-    function definirPontoNoMapa(linhas, dados) {
+    function prepararPontoNoMapa(linhas, dados) {
         const outros = tableStates.outros.data, GL = GL_();
-        if (!GL) return 'Grupos indisponíveis.';
+        if (!GL) return { erro: 'Grupos indisponíveis.' };
         const atual = pontoNoMapa(linhas);
-        const comentario = String(dados.comentario == null ? '' : dados.comentario).trim().slice(0, 300);
+        const digitado = GL.nomeLimpo(dados.nome);
         if (!atual) {
+            if (dados.manterSemGrupo && !digitado && !GL.linhaComentarioPonto({}, dados.comentario)) return {};
             const objetos = (linhas || []).map(l => outros[l]).filter(r => r && !r.comentario);
-            if (!objetos.length) return 'O ponto não tem linha na tabela.';
-            const r = nomeParaPonto(outros, dados.nome); if (r.erro) return r.erro;
-            pushHistory();
-            const res = GL.agruparPontos(outros, [{ linhas: objetos, nome: r.nome, comentario }]);
-            if (!res.n) return 'Não foi possível agrupar o ponto.';
-            aplicarLista('outros', res.lista, null);
-            return '';
+            if (!objetos.length) return { erro: 'O ponto não tem linha na tabela.' };
+            const r = nomeParaPonto(outros, dados.nome);
+            if (r.erro) return r;
+            return { aplicar() {
+                return GL.agruparPontos(outros, [{ linhas: objetos, nome: r.nome, comentario: dados.comentario }]).lista;
+            } };
         }
         const titulo = outros[atual.tituloIdx];
-        const automatico = /^P\d+$/i.test(atual.nome);
         let nome = atual.nome;
-        if (dados.nome !== undefined) {
-            const digitado = GL.nomeLimpo(dados.nome);
-            if (digitado) { if (nomeDePontoExiste(outros, digitado, titulo)) return 'Já existe um ponto com o nome «' + digitado + '».'; nome = digitado; }
-            else if (!automatico) nome = GL.proximoNome(outros, 'P', pisoNomePonto(outros));                      // campo vazio = número automático
+        if (digitado) {
+            if (nomeDePontoExiste(outros, digitado, titulo)) return { erro: 'Já existe um ponto com o nome «' + digitado + '».' };
+            nome = digitado;
+        } else if (dados.nome !== undefined && !/^P\d+$/i.test(nome)) {
+            nome = GL.proximoNome(outros, 'P', pisoNomePonto(outros));
         }
-        const textoComentario = comentario ? '# ' + comentario : '#';
+        const comentario = GL.linhaComentarioPonto(titulo, dados.comentario);
         const comentarioAtual = atual.comentarioIdx === null ? null : outros[atual.comentarioIdx];
-        if (nome === atual.nome && ((comentarioAtual && comentarioAtual.ativo === textoComentario) || (!comentarioAtual && !comentario))) return '';
-        pushHistory();
-        titulo.ativo = '@' + nome;
-        if (comentarioAtual) comentarioAtual.ativo = textoComentario;
-        else if (comentario) {
-            const nova = outros.slice();
-            nova.splice(atual.tituloIdx + 1, 0, { entidade: '0', operacao: titulo.operacao || 'I', ativo: textoComentario, comentario: true, congelada: true, grupoDe: atual.gid });
-            _remapearVinculosOutros(GL.mapa(outros, nova));
-            tableStates.outros.data = nova;
+        if (nome === atual.nome && comentarioAtual?.ativo === comentario?.ativo) return {};
+        return { aplicar() {
+            titulo.ativo = '@' + nome;
+            if (comentarioAtual && comentario) comentarioAtual.ativo = comentario.ativo;
+            else if (comentarioAtual || comentario) {
+                const nova = outros.slice();
+                if (comentarioAtual) nova.splice(atual.comentarioIdx, 1);
+                else nova.splice(atual.tituloIdx + 1, 0, comentario);
+                return nova;
+            }
+        } };
+    }
+
+    function definirPontoNoMapa(linhas, dados) {
+        const ponto = prepararPontoNoMapa(linhas, dados);
+        if (ponto.erro) return ponto.erro;
+        if (ponto.aplicar) {
+            pushHistory();
+            const novaLista = ponto.aplicar();
+            if (novaLista) aplicarLista('outros', novaLista, null);
+            else atualizarLinhaDoMapa('outros', linhas[0], false);
         }
-        atualizarLinhaDoMapa('outros', atual.tituloIdx, false);
         return '';
     }
     /** Congela / bloqueia o ponto inteiro (todas as linhas do grupo), como no Resumo: repetir desfaz. */
@@ -2788,7 +2807,7 @@ document.addEventListener('DOMContentLoaded', () => {
         alternarMarcaLinhas('outros', [p.tituloIdx], campo);
         return true;
     }
-    /** «Agrupar pontos»: cada ponto que ainda não é grupo vira «@Pn» + comentário + as suas linhas (um passo de Ctrl+Z). `pontos` = [{linhas: [índices de Outros]}]. */
+    /** «Agrupar pontos»: cada ponto vira «@Pn» + as suas linhas (um passo de Ctrl+Z). */
     function agruparPontosNoMapa(pontos) {
         const outros = tableStates.outros.data, GL = GL_();
         if (!GL) return 0;
@@ -2824,8 +2843,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         copias.forEach(c => { const antigo = c._copiaDe; delete c._copiaDe; if (idPontoValido(antigo) && novosIds.has(antigo)) c._mapaPosteRef = novosIds.get(antigo); });
         pushHistory();
-        const indice = outros.length + 2;
-        outros.push(ab.titulo, ab.comentario, ...copias);
+        outros.push(ab.titulo);
+        if (ab.comentario) outros.push(ab.comentario);
+        const indice = outros.length;
+        outros.push(...copias);
         atualizarLinhaDoMapa('outros', indice, false);
         return { indice, nome };
     }
