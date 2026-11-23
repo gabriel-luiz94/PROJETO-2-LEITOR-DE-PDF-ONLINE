@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-23 — Plugin: montagem manual no formato do mapa
+
+O modo manual do nanoCAD (plugin 0.16.0) entrega cada poste como o ponto «@nome - comentário» com uma linha por campo e a sua operação (F, I, \*I, M, \*M, R, \*R), e cada cabo (linha inteira ou trecho) com a metragem e a geometria, sem vínculo. Com as regras de um projeto, o texto fora delas entra como F. Chega pelo envio incremental de anotações; o vínculo é feito no mapa. [TASK-237](tasks/TASK-237-23-11-2026.md).
+
 ## 2026-11-23 — PDF com coordenadas no mapa
 
 O PDF vetorial monta o mapa como o DXF: rede pela cor do traço, postes nas pontas da rede, associação texto→rede/poste igual à do DXF e escala escolhida entre 1:500 e 1:1000 pelas metragens dos cabos (`services/pdf_geometria.py`). Coordenadas do mapa em metros; `_x/_y` seguem em pontos da página. [TASK-236](tasks/TASK-236-23-11-2026.md).

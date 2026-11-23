@@ -52,6 +52,7 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 | `ORCACORE` / `OC` | tela inicial. O alias `ORCAMENTO` continua disponível. |
 | `ORC_LER` / `ORC_RELER` / `ORC_ATUALIZAR` | lê o desenho pelas regras (layer + cor) · reler do zero (descarta ajustes) · reler mantendo os ajustes |
 | `ORC_CONSTRUIR`, `ORC_POSTE`, `ORC_VAO`, `ORC_VINCULAR` | construir do zero: apontar poste (bloco + anotação) e vão (linha + anotação); refazer vínculos automáticos |
+| `ORC_MODO_MANUAL`, `ORC_PONTO_MAPA`, `ORC_CABO_MAPA` | montagem manual no formato do mapa: regras de um projeto ou sem regras · Selecionar poste (símbolo + textos → campos com operação F, I, \*I, M, \*M, R, \*R) · Selecionar cabo (linha inteira ou trecho + textos) |
 | `ORC_EDITAR` | pop-up do vão/poste: entrada (lida do desenho), saída (para a obra), ajustes — **ativo editável com o autocompletar da Base de Orçamento** (sugestões, parâmetros, `)` automático; não altera o desenho), operação, metros, estrutura do vínculo, troca opcional da layer do texto, **Excluir da obra / Restaurar** |
 | `ORC_NOVO_CABO`, `ORC_NOVO_OUTROS` | linha nova (+ Cabo / + Outros no painel): digitada com o autocompletar, ou **lida de um TEXT/MTEXT escolhido no desenho** pelas regras do leitor. Em + Cabo o texto é lido como cabo e o comprimento vem da mesma linha ou do texto "35 m" ao lado/embaixo no desenho |
 | `ORC_VINCULOS`, `ORC_ATIVOS` | tabela de vínculos · ativos com parâmetros (`N4(9400D, P, 3XA35P_7.94_-13.8KV, ?)`) |
@@ -145,3 +146,12 @@ O ambiente de desenvolvimento não roda o nanoCAD: o teste dentro do CAD é feit
 ### Ler uma região e acrescentar anotações
 
 Em **Montar manualmente**, escolha o projeto e clique em **Ler por região**. Clique nos vértices no nanoCAD, confirme com Enter e revise a grade. **Limpar** esvazia a montagem da sessão. Use o editor para mudar texto, operação e marcas da linha. Abra a obra de destino no Resumo e clique em **Adicionar anotações ao OrçaCore**. O envio usa o mesmo projeto selecionado nas duas telas. A adição pode ser desfeita com Ctrl+Z no Resumo.
+
+### Montar no formato do mapa (0.16.0)
+
+Ao entrar em **Montar manualmente**, escolha **as regras de um projeto** ou **sem regras** (troque depois em **Regras / sem regras**, `ORC_MODO_MANUAL`).
+
+- **Selecionar poste** (`ORC_PONTO_MAPA`): clique no bloco ou círculo do poste (Enter = ponto sem símbolo), selecione os textos da anotação (vários de uma vez) e tecle Enter. Na janela, cada texto é um campo com a sua linha (L). Marque a operação de cada um: **F** (fictício), **I**, **\*I**, **M**, **\*M**, **R**, **\*R**. **+ Novo campo** separa um texto em mais campos na mesma linha; **+ Nova linha** cria a linha seguinte. Ctrl+Enter confirma.
+- **Selecionar cabo** (`ORC_CABO_MAPA`): clique na linha, escolha **Inteira** ou **Trecho** (dois pontos sobre ela) e selecione os textos. O comprimento vem da metragem do texto; o medido na linha aparece ao lado.
+- Com regras, o ativo e a operação vêm do Leitor do projeto; o texto que não se encaixa entra como **F**. Sem regras, o texto entra como está.
+- **Adicionar anotações ao OrçaCore** manda os pontos («@P1 - comentário» com as linhas) e os cabos para a obra aberta. O vínculo é feito no mapa do OrçaCore.

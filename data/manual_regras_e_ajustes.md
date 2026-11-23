@@ -1098,3 +1098,11 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - **Ler projeto** com um **PDF exportado do CAD** monta o mapa como o DXF: as linhas **vermelhas** viram rede MT e as **verdes**, rede BT (mesma regra de cor do projeto); as pontas da rede valem como postes; cada texto vai para a rede/poste mais perto (ou pela linha-guia).
 - **Escala:** o programa escolhe sozinho entre **1:500** e **1:1000** comparando a metragem escrita nos cabos («… 38 m») com o comprimento desenhado. O aviso mostra a escala e quantos cabos confirmaram. Sem nenhum cabo com metragem ligado à rede, usa 1:500 (não confirmada).
 - PDF **escaneado** (imagem) não tem posições: os pontos ficam na coluna ao lado e você monta pelo mapa.
+
+## Plugin do nanoCAD: montar no formato do mapa (23/11/2026)
+
+- Em **Montar manualmente**, escolha **as regras de um projeto** ou **sem regras** (botão **Regras / sem regras** para trocar).
+- **Selecionar poste:** clique no símbolo do poste (Enter = sem símbolo), selecione os textos da anotação e tecle Enter. Na janela, cada texto é um **campo** com a sua linha (**L**). Marque a operação de cada campo: **F**, **I**, **\*I**, **M**, **\*M**, **R**, **\*R**. **+ Novo campo** e **+ Nova linha** separam o texto. Ctrl+Enter confirma.
+- **Selecionar cabo:** clique na linha, escolha **Inteira** ou **Trecho** e selecione os textos. Vale a metragem anotada; a medida na linha aparece ao lado.
+- **Com regras**, o ativo e a operação vêm do Leitor do projeto; o texto que não se encaixa entra como **F** (fictício). **Sem regras**, o texto entra como está.
+- **Adicionar anotações ao OrçaCore** manda os pontos e cabos para a obra aberta: cada poste aparece em Demais Ativos como **«@P1 - comentário»** com as suas linhas, e cada cabo em Cabos. Faça os vínculos no **mapa**. (Plugin 0.16.0 ou mais novo.)

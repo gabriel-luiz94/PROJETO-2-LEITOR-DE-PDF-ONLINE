@@ -225,7 +225,8 @@ namespace OrcamentoNanoCAD
             if (!string.IsNullOrEmpty(projeto)) s.Obra.Projeto = projeto;
             Mudou(s, true);
             PainelObra.Abrir(s);
-            Aplicacao.Msg("Montar manualmente: leia por região ou selecione postes e vãos no painel.");
+            EscolherModoManual(s, true);                                  // TASK-038: regras de um projeto ou sem regras
+            Aplicacao.Msg("Montar manualmente: selecione postes (ORC_PONTO_MAPA) e cabos (ORC_CABO_MAPA) no painel, ou leia por região.");
         }
 
         private static void Continuar(Sessao s, PersistenciaDwg.ObraSalva salva)
@@ -408,12 +409,13 @@ namespace OrcamentoNanoCAD
             Rodar("ORC_LIMPAR_MONTAGEM", s =>
             {
                 if (!PrecisaObra(s) || s.Obra.Modo != "construir" || s.EnviandoAnotacoes) return;
-                if (s.Obra.Elementos.Any() && !Confirmar(s.Doc.Editor, "Limpar a montagem deste desenho?")) return;
+                if ((s.Obra.Elementos.Any() || s.Obra.PontosMapa.Count > 0 || s.Obra.CabosMapa.Count > 0) && !Confirmar(s.Doc.Editor, "Limpar a montagem deste desenho?")) return;
                 Obra anterior = s.Obra;
                 s.Obra = Construtor.NovaObra(s.Doc.Name, s.Regras);
                 s.Obra.Projeto = anterior.Projeto;
                 s.Obra.Nome = anterior.Nome;
                 s.Obra.NumeroObra = anterior.NumeroObra;
+                s.Obra.SemRegras = anterior.SemRegras;
                 s.UltimoBruto = null;
                 s.UltimoDesenho = null;
                 s.UltimaRegiao = null;

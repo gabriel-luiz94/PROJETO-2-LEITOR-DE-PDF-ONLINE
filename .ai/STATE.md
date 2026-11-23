@@ -85,6 +85,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-237](tasks/TASK-237-23-11-2026.md) — Plugin 0.16.0: montagem manual no formato do mapa (Selecionar poste/cabo → campos com operação F/I/\*I/M/\*M/R/\*R; regras de um projeto ou sem regras; cabo inteiro ou trecho).
 - [x] [TASK-236](tasks/TASK-236-23-11-2026.md) — PDF vetorial no mapa: rede pela cor, postes nas pontas, escala 1:500/1:1000 estimada pelas metragens dos cabos, tudo em metros.
 
 - [x] [TASK-235](tasks/TASK-235-23-11-2026.md) — Ponto do mapa = «@nome - comentário» + linhas com operação (F fictícia, congelada mas estrutura no vínculo); POSTE vindo da linha F; edição no painel mantendo vínculos; vínculo por clique; conversão do formato antigo. PDF com coordenadas na 2ª etapa.
