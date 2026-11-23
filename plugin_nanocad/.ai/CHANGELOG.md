@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-23 — fonte (ainda sem build)
+
+Anotação de poste longe do bloco e sem guia casa 1:1 com o bloco livre mais perto (até 25 × a altura, Conferir). A que continua sem bloco leva `_posteAprox` para o mapa do OrçaCore. [TASK-037](tasks/TASK-037-23-11-2026.md).
+
 ## 2026-11-22 — 0.14.0
 
 Montagem manual com polígono, limpeza e editor de anotações. Postes agrupam pelo layer, cor e operação. A área de revisão tem envio incremental à obra aberta no OrçaCore. [TASK-036](tasks/TASK-036-22-11-2026.md).

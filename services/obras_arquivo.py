@@ -69,7 +69,8 @@ CAMPOS_VINCULO = {
     "_mapaPoste": lambda v: _ponto(v) and all(0 <= n <= 1 for n in v),
     "_mapaCabo": lambda v: _ponto(v) and all(-1 <= n <= 1 for n in v),
     "_mapaPoste500": lambda v: _ponto(v) and all(abs(n) <= 100000 for n in v), "_mapaCabo500": lambda v: _ponto(v) and all(abs(n) <= 100000 for n in v),     # TASK-224: ajuste manual do mapa em 1:500 (deslocamento em metros)
-    "_poste": _ponto, "vinculoEstruturas": lambda v: _lista_de(v, _num), "vinculoOrigem": _texto, "vinculoPostes": lambda v: _lista_de(v, _num),          # "Cabos ⇄ Postes": linhas de Outros (postes) a que o cabo chega
+    "_poste": _ponto, "_posteAprox": _ponto,          # TASK-233: poste sem bloco no CAD — coordenada aproximada (a da anotação), só para o mapa
+    "vinculoEstruturas": lambda v: _lista_de(v, _num), "vinculoOrigem": _texto, "vinculoPostes": lambda v: _lista_de(v, _num),          # "Cabos ⇄ Postes": linhas de Outros (postes) a que o cabo chega
     "estruturasFicticias": lambda v: _lista_de(v, _texto), "cabosFicticios": lambda v: _lista_de(v, _texto), "cabosFicticiosSlots": _slots,
     "congelada": lambda v: isinstance(v, bool), "bloqueada": lambda v: isinstance(v, bool), "comentario": lambda v: isinstance(v, bool),          # linha congelada (fora de totalizadora/orçamento/validação) e bloqueada (sem edição)
     "grupoDecl": lambda v: v is True, "grupoRecolhido": lambda v: v is True, "gid": lambda v: _texto(v) and len(v) <= 64, "grupoDe": lambda v: _texto(v) and len(v) <= 64,       # TASK-195/225: grupos de linhas (@) — cada ponto do mapa é um grupo

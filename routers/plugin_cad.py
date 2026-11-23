@@ -211,7 +211,7 @@ def projetos():
 
 # ── configuração de leitura do desenho por projeto (TASK-131) ──
 _LISTAS_LEITURA = ("layers_rede_mt", "layers_rede_bt", "blocos_poste", "layers_poste", "layers_guia")
-_NUMEROS_LEITURA = ("raio_alturas", "guia_max_alturas", "tol_poste_alturas", "guia_toque_alturas", "raio_reserva_alturas")
+_NUMEROS_LEITURA = ("raio_alturas", "guia_max_alturas", "tol_poste_alturas", "guia_toque_alturas", "raio_reserva_alturas", "raio_bloco_livre_alturas")
 
 
 def validar_leitura(cfg) -> dict:

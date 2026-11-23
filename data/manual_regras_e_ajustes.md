@@ -1066,3 +1066,14 @@ A ponta de um cabo só se **liga** a um poste a menos de 5 m. Quando o desenho t
 
 O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um ponto, cria/copia um ponto, usa **Agrupar pontos** ou **Rearranjar**, a posição fica gravada na obra e passa a valer no lugar da coordenada. O aviso do mapa mostra «N ponto(s) com posição ajustada à mão». O botão **Posições do CAD** descarta esses ajustes e volta cada ponto à coordenada do desenho (Ctrl+Z desfaz). Em **1:500**, se a rede for maior que a janela, o aviso lembra que só parte dela aparece: arraste para andar ou escolha **Ajustar à tela**.
 
+
+## Mapa: montagem rápida da rede (23/11/2026)
+
+- **Poste sem bloco no CAD:** o ponto aparece onde está a anotação, com o marcador **tracejado laranja** («posição aproximada»). Ele não liga sozinho as pontas dos cabos (só o bloco do CAD faz isso a 5 m).
+- **Fundo do CAD** (botão **Fundo**): mostra, esmaecidos, os trechos de rede e os **blocos de poste** do desenho que ainda não viraram linha da obra. Clique num bloco para criar o poste **na coordenada do CAD**. Vem do projeto aberto pelo plugin do nanoCAD (ou do DXF lido no Leitor).
+- **Pendências** (topo da lista à direita): barras de **vãos vinculados**, **pontas ligadas** e **pontos com coordenada do CAD**, e a lista do que falta, cada item com o botão que resolve: *Posicionar*, *Usar bloco livre*, *Confirmar posição*, *Ligar a P…*, *Escolher ponto*, *Abrir ponto*. **Ligar N ponta(s) ao ponto mais perto** resolve todas as pontas soltas de uma vez (Ctrl+Z desfaz). Clique no texto do item para ir até ele no mapa.
+- **Arrastar a ponta do cabo:** selecione o cabo; aparecem duas alças amarelas perto das pontas. Arraste uma até um ponto (ele acende) e solte para ligar ou trocar a ponta. O vínculo com a estrutura é aplicado quando não há dúvida.
+- **Traçar vão (V):** clique no ponto de origem e no de destino. O formulário já vem com o último cabo criado e o **comprimento medido**; confirme com Enter. O destino vira a próxima origem, então dá para seguir a rede clicando ponto a ponto. **Shift+clique** no destino cria sem perguntar. Esc encerra.
+- **Atalhos** (fora de campos de texto): **P** poste, **E** estrutura, **C** cabo, **V** traçar vão, **L** ligar a ponta livre do cabo selecionado, **Del** exclui os pontos selecionados (ou o cabo selecionado), **Esc** limpa a seleção/ferramenta.
+- **Seleção:** **Shift+arrastar** no fundo do mapa seleciona por caixa; **Shift+clique** num ponto põe/tira da seleção. Arrastar um ponto selecionado move todos juntos.
+- **Plugin do nanoCAD:** a anotação de poste que fica longe do bloco e sem linha guia agora é ligada ao **bloco livre mais perto** (cada bloco recebe uma só; até 25 × a altura do texto) e vai para **Conferir**. A que continua sem bloco leva a posição da anotação para o mapa. (Precisa da próxima versão do plugin.)

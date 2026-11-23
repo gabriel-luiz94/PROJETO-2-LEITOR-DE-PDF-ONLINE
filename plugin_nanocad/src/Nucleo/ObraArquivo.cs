@@ -93,6 +93,7 @@ namespace OrcamentoNanoCAD.Nucleo
             Coordenadas(linha, e);
             Poste p = e as Poste;
             if (p != null && !string.IsNullOrEmpty(p.Handle)) linha.Set("_poste", Ponto(p.X, p.Y));
+            else if (p != null && (p.X != 0 || p.Y != 0)) linha.Set("_posteAprox", Ponto(p.X, p.Y));     // sem bloco: a posição da anotação, só para o mapa da aplicação
             return linha;
         }
 

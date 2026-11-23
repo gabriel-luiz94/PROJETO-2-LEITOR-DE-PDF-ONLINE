@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Fonte após 0.14.0 (sem build)
+
+TASK-037: 3ª passada liga a anotação de poste que sobrou ao bloco livre mais perto (1:1, até 25 × a altura, Conferir) e o poste sem bloco leva `_posteAprox` no `.obra`. 🟡 Testes do núcleo escritos, ainda não compilados (sem .NET neste ambiente); gerar as DLLs e validar no nanoCAD. [TASK-037](tasks/TASK-037-23-11-2026.md).
+
 ## Plugin 0.14.0
 
 A montagem manual lê por região, agrupa as anotações de cada poste, mantém as linhas dos vãos separadas e oferece um editor por linha. O envio incremental preserva a obra aberta no Resumo. DLLs geradas para nanoCAD 26 e 5. Validação nativa em Windows pendente. [TASK-036](tasks/TASK-036-22-11-2026.md).

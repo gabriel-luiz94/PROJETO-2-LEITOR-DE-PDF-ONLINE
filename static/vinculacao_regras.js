@@ -708,6 +708,12 @@
     }
 
     /** Topologia do mapa. Linhas de Outros com a mesma coordenada representam o mesmo poste. */
+    /** TASK-233: posição aproximada de uma linha sem `_poste` — a que o plugin marcou (`_posteAprox`) ou a da própria anotação (`_x/_y`). */
+    function posicaoAproximada(row) {
+        if (!row || par(row._poste)) return null;
+        return par(row._posteAprox) || par([row._x, row._y]);
+    }
+
     function grafoDaRede(cabos, outros, codigoFn, codigosFn, ehPoste) {
         const postes = new Map(), nos = new Map(), postesPorId = new Map();
         const linhaVisivel = row => !!row && !!trim(row.ativo) && !row.comentario && !row.grupoDecl;
@@ -735,7 +741,11 @@
             const pos = par(row._poste), poste = fisicos.has(l);
             const destino = !poste && row._mapaPosteRef ? postesPorId.get(row._mapaPosteRef) : null;
             if (Number.isInteger(destino)) associados.push([l, destino]);
-            else if (pos || poste || row.entidade === 'ESTRUTURA' || linhasEstrutura.has(l)) incluir(l, pos, poste);
+            else if (pos || poste || row.entidade === 'ESTRUTURA' || linhasEstrutura.has(l)) {
+                const no = incluir(l, pos, poste);
+                // TASK-233: sem bloco de poste no CAD, a anotação ainda diz onde o ponto fica (aproximado). Só desenha: não entra no encaixe de 5 m.
+                if (!no.pos && !no.posAprox) no.posAprox = posicaoAproximada(row);
+            }
         });
         for (const [l, destino] of associados) {
             const no = postes.get(destino);
@@ -1095,7 +1105,7 @@
         return erros;
     }
 
-    const api = { planejarVinculosDoMapa, grafoDaRede, gruposVisuaisDoVao, posteCompletoNoGrafo, postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, nivelDoCabo, diagnosticoDoCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoCaboFicticio, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { planejarVinculosDoMapa, grafoDaRede, posicaoAproximada, gruposVisuaisDoVao, posteCompletoNoGrafo, postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, nivelDoCabo, diagnosticoDoCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoCaboFicticio, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);
