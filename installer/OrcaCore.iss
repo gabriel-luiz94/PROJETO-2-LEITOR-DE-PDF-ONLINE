@@ -21,7 +21,11 @@ ArchitecturesAllowed=x64compatible
 UninstallDisplayIcon={app}\{#AppExe}
 SetupIconFile=..\static\gridr.ico
 OutputDir=..\dist
+#ifdef EntregaDir
+OutputBaseFilename=OrcaCore-Setup-Privado
+#else
 OutputBaseFilename=OrcaCore-Setup
+#endif
 VersionInfoVersion={#AppVersion}
 Compression=lzma2/fast
 SolidCompression=yes
@@ -31,7 +35,13 @@ CloseApplications=no
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Files]
+#ifdef EntregaDir
+Source: "{#EntregaDir}\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#EntregaDir}\.env"; DestDir: "{app}"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "{#EntregaDir}\banco_resumo.db"; DestDir: "{app}"; Flags: onlyifdoesntexist uninsneveruninstall
+#else
 Source: "..\dist\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
+#endif
 
 [Icons]
 Name: "{userprograms}\OrçaCore"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"
