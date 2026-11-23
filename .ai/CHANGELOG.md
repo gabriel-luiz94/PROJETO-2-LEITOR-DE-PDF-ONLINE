@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-23 — Novo conceito do ponto no mapa
+
+O mapa monta a rede com + Ponto, + Cabo e Traçar cabo. O ponto é «@nome - comentário» com linhas e operação por linha; F (fictício) congela a linha fora do orçamento mas mantém a estrutura no vínculo, e o poste da linha F preenche o parâmetro POSTE do ponto. Edição da linha no painel mantém os vínculos quando a nova estrutura aceita os cabos; clique no cabo e na estrutura vincula. Pontos no formato antigo são convertidos sob confirmação (linhas «#» juntas por «; »). [TASK-235](tasks/TASK-235-23-11-2026.md).
+
 ## 2026-11-23 — 2ª ponta do cabo M só à mão
 
 O vínculo automático liga só as `pontas` do cabo (M = 1); o usuário pode ligar à mão até `pontasMax` (M = 2, coluna «Máx. à mão» da Tabela de Cabos). No painel do poste a ponta extra aparece como «Opcional». [TASK-234](tasks/TASK-234-23-11-2026.md).

@@ -85,6 +85,8 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-235](tasks/TASK-235-23-11-2026.md) — Ponto do mapa = «@nome - comentário» + linhas com operação (F fictícia, congelada mas estrutura no vínculo); POSTE vindo da linha F; edição no painel mantendo vínculos; vínculo por clique; conversão do formato antigo. PDF com coordenadas na 2ª etapa.
+
 - [x] [TASK-234](tasks/TASK-234-23-11-2026.md) — Cabo M: o automático liga 1 ponta e a 2ª é sempre manual (`pontasMax`, coluna «Máx. à mão» na Tabela de Cabos); no painel do poste aparece como «Opcional».
 
 - [x] [TASK-233](tasks/TASK-233-23-11-2026.md) — Montagem rápida no mapa: posição aproximada do poste sem bloco, fundo do CAD, pendências com correção a um clique, ímã nas pontas, «Traçar vão», seleção/atalhos. Plugin 0.15.0: bloco livre 1:1 e `_posteAprox` (DLLs geradas; validar no nanoCAD).

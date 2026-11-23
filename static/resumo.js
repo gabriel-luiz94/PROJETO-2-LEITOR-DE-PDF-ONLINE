@@ -71,17 +71,26 @@ document.addEventListener('DOMContentLoaded', () => {
        a célula fica vermelha com o aviso e o valor volta ao anterior. O campo tem a lista (datalist) para quem prefere escolher. */
     const MSG_OPERACAO_INVALIDA = 'Operação inválida: use I, *I, R, *R, M ou *M';
     const normalizarOperacao = t => String(t == null ? '' : t).replace(/\s+/g, '').toUpperCase();
-    const DETALHE_OPERACAO = { 'I': 'instalar', '*I': 'instalar em linha viva', 'R': 'remover', '*R': 'remover em linha viva', 'M': 'manter', '*M': 'manter em linha viva' };
+    // TASK-235: F = fictício (só nas linhas de Cabos e Demais Ativos, não na Totalizadora): a linha fica congelada (fora do orçamento) e vale só para o vínculo
+    const OPERACOES_LINHA = OPERACOES.concat(['F']);
+    const DETALHE_OPERACAO = { 'F': 'fictício (fora do orçamento, só para o vínculo)', 'I': 'instalar', '*I': 'instalar em linha viva', 'R': 'remover', '*R': 'remover em linha viva', 'M': 'manter', '*M': 'manter em linha viva' };
     const ehCampoOperacao = el => !!(el && el.matches && el.matches('input.inp-operacao, input.tot-op-input'));
     /* Lista de operações no estilo do VS Code (static/ide_lista.js): ao entrar no campo aparecem TODAS (a atual selecionada); digitar filtra; ↑↓ navegam; Enter/Tab escolhem; Esc fecha. */
     let _listaOp = null;
+    /** TASK-235: troca a operação da linha. F congela a linha (fora do orçamento); sair de F descongela o que o F congelou. */
+    function aplicarOperacaoNaLinha(row, v) {
+        const eraF = String(row.operacao || '').trim().toUpperCase() === 'F';
+        row.operacao = v;
+        if (v === 'F') { if (!row.congelada) row._congeladaPorF = true; row.congelada = true; }
+        else if (eraF && row._congeladaPorF) { delete row.congelada; delete row._congeladaPorF; }
+    }
     function listaOperacao() {
         return _listaOp || (_listaOp = window.IdeLista.criar({ aoEscolher: (item, campo) => { campo.value = item.valor; campo.dispatchEvent(new Event('change', { bubbles: true })); } }));
     }
     function abrirListaOperacao(inp, filtrar) {
         if (!window.IdeLista || inp.readOnly || inp.disabled) return;
         const q = filtrar ? normalizarOperacao(inp.value) : '';
-        const itens = OPERACOES.filter(v => !q || v.startsWith(q)).map(v => ({ valor: v, detalhe: DETALHE_OPERACAO[v] }));
+        const itens = (inp.dataset.aceitaF ? OPERACOES_LINHA : OPERACOES).filter(v => !q || v.startsWith(q)).map(v => ({ valor: v, detalhe: DETALHE_OPERACAO[v] }));
         const atual = normalizarOperacao(inp.dataset.valorOk || inp.value);
         listaOperacao().abrir(inp, itens, q ? (itens.length ? 0 : -1) : itens.findIndex(x => x.valor === atual));
     }
@@ -136,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         inp.addEventListener('change', () => {
             const v = normalizarOperacao(inp.value), ok = inp.dataset.valorOk;
             if (v === ok) { inp.value = ok; return; }
-            if (!OPERACOES.includes(v)) { recusarOperacao(inp, ok); return; }
+            if (!(inp.dataset.aceitaF ? OPERACOES_LINHA : OPERACOES).includes(v)) { recusarOperacao(inp, ok); return; }
             inp.value = v; inp.dataset.valorOk = v; inp.classList.remove('op-invalida');
             aoMudar(v);
         });
@@ -549,11 +558,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const tdOp = document.createElement('td');
             const selOp = criarCampoOperacao(row.operacao, 'sel-operacao inp-operacao', v => {
                 pushHistory();  // snapshot ANTES da mudança
-                row.operacao = v;
+                aplicarOperacaoNaLinha(row, v);
                 refreshAllFilters(type);
                 atualizarResumoRedeUI();
             });
             selOp.dataset.field = 'operacao';
+            if (!row.grupoDecl && !row.comentario) selOp.dataset.aceitaF = '1';
             if (type === 'outros') selOp.addEventListener('keydown', e => { if (e.key === 'Tab' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && idx > 0) { e.preventDefault(); irParaCelula(type, idx - 1, 1, -1); } });
             tdOp.appendChild(selOp);
             tdOp.dataset.col = '0';
@@ -2497,7 +2507,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* Todo ponto do mapa é um grupo em Demais Ativos com título, ativos e comentário opcional. */
     const GL_ = () => window.GruposLinhas;
-    const nomeDePontoExiste = (outros, nome, exceto) => outros.some(r => r && r.grupoDecl && r !== exceto && GL_().rotuloDe(r).toUpperCase() === nome.toUpperCase());
+    const nomeDePontoExiste = (outros, nome, exceto) => outros.some(r => r && r.grupoDecl && r !== exceto && GL_().nomeDoPonto(r).toUpperCase() === nome.toUpperCase());
     /** Nome escolhido pelo usuário (ou o automático «P7»); `erro` se já existe outro ponto com esse nome. */
     /** Número mínimo do nome automático: pontos ainda sem grupo aparecem no mapa como «P<linha>», e o nome novo não pode repetir um deles. */
     function pisoNomePonto(outros) {
@@ -2618,8 +2628,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const mudouAtivo = entrada.toUpperCase() !== row.ativo.trim().toUpperCase();
         const ativo = mudouAtivo ? entrada.toUpperCase() : row.ativo;
         if (!entrada || entrada.length > 500 || /^[#@]/.test(entrada)) return 'Informe uma anotação válida.';
-        if (dados.operacao !== row.operacao && !/^(?:\*)?[IMR]$/.test(dados.operacao)) return 'Escolha a operação do ativo.';
-        const nova = { ...row, ativo, operacao: dados.operacao };
+        if (dados.operacao !== row.operacao && !/^(?:(?:\*)?[IMR]|F)$/.test(dados.operacao)) return 'Escolha a operação do ativo.';
+        const nova = { ...row, ativo };
+        aplicarOperacaoNaLinha(nova, dados.operacao);
         const ponto = tipo === 'poste' && dados.ponto ? prepararPontoNoMapa(dados.ponto.linhas, dados.ponto) : null;
         if (ponto?.erro) return ponto.erro;
         let erro;
@@ -2647,6 +2658,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (erro) return erro;
         pushHistory();
         Object.assign(row, nova);
+        for (const k of ['congelada', '_congeladaPorF']) if (!(k in nova)) delete row[k];               // sair do F descongela
         const novaLista = ponto?.aplicar?.();
         if (tipo === 'cabo') for (const campo of ['fases', 'tensao', 'nivel']) if (!(campo in nova)) delete row[campo];
         if (novaLista) aplicarLista('outros', novaLista, null);
@@ -2659,8 +2671,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const operacao = dados.operacao;
         const tabela = tipo === 'cabo' ? 'cabos' : 'outros';
         if (!nome || nome.length > 440 || /^[#@]/.test(nome)) return { erro: 'Informe um ativo válido.' };
-        if (!/^(?:\*)?[IMR]$/.test(operacao)) return { erro: 'Escolha a operação do ativo.' };
+        if (!/^(?:(?:\*)?[IMR]|F)$/.test(operacao)) return { erro: 'Escolha a operação do ativo.' };
         const row = { entidade: 'CABO', operacao, ativo: nome, entidadeManual: true };
+        if (operacao === 'F') { row.congelada = true; row._congeladaPorF = true; }                  // TASK-235: cabo fictício (fora do orçamento, vale no vínculo)
         if (tipo === 'cabo') {
             const entrada = String(dados.metros || '').trim().replace(',', '.');
             const metros = Number(entrada), fase = String(dados.fase || '').trim().toUpperCase();
@@ -2745,7 +2758,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const l of linhas || []) {
             const p = GL.pontoDaLinha(outros, l); if (!p) continue;
             const membros = p.membros.map(i => outros[i]), titulo = outros[p.h];
-            return { ...p, tituloIdx: p.h, congelada: membros.length > 0 && membros.every(r => r.congelada), bloqueada: [titulo, ...membros].every(r => r.bloqueada),
+            return { ...p, tituloIdx: p.h, titulo: titulo.ativo, congelada: membros.length > 0 && membros.every(r => r.congelada), bloqueada: [titulo, ...membros].every(r => r.bloqueada),
                 ficticio: membros.some(r => r._mapaPosteFicticio) };
         }
         return null;
@@ -2757,7 +2770,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const atual = pontoNoMapa(linhas);
         const digitado = GL.nomeLimpo(dados.nome);
         if (!atual) {
-            if (dados.manterSemGrupo && !digitado && !GL.linhaComentarioPonto({}, dados.comentario)) return {};
+            if (dados.manterSemGrupo && !digitado && !GL.limparComentario(dados.comentario)) return {};
             const objetos = (linhas || []).map(l => outros[l]).filter(r => r && !r.comentario);
             if (!objetos.length) return { erro: 'O ponto não tem linha na tabela.' };
             const r = nomeParaPonto(outros, dados.nome);
@@ -2774,16 +2787,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (dados.nome !== undefined && !/^P\d+$/i.test(nome)) {
             nome = GL.proximoNome(outros, 'P', pisoNomePonto(outros));
         }
-        const comentario = GL.linhaComentarioPonto(titulo, dados.comentario);
-        const comentarioAtual = atual.comentarioIdx === null ? null : outros[atual.comentarioIdx];
-        if (nome === atual.nome && comentarioAtual?.ativo === comentario?.ativo) return {};
+        // TASK-235: o comentário vai no título («@nome - comentário»); linhas «#» antigas saem (o texto delas já está em `atual.comentario`)
+        const comentario = dados.comentario === undefined ? atual.comentario : dados.comentario;
+        const novoTitulo = GL.tituloDoPonto(nome, comentario);
+        if (novoTitulo === titulo.ativo && !atual.formatoAntigo) return {};
         return { aplicar() {
-            titulo.ativo = '@' + nome;
-            if (comentarioAtual && comentario) comentarioAtual.ativo = comentario.ativo;
-            else if (comentarioAtual || comentario) {
+            titulo.ativo = novoTitulo;
+            if (atual.formatoAntigo) {
                 const nova = outros.slice();
-                if (comentarioAtual) nova.splice(atual.comentarioIdx, 1);
-                else nova.splice(atual.tituloIdx + 1, 0, comentario);
+                for (const k of atual.comentarios.slice().reverse()) nova.splice(k, 1);
                 return nova;
             }
         } };
@@ -2799,6 +2811,113 @@ document.addEventListener('DOMContentLoaded', () => {
             else atualizarLinhaDoMapa('outros', linhas[0], false);
         }
         return '';
+    }
+    /**
+     * TASK-235: grava o ponto inteiro pelo mapa — nome, comentário (no título «@nome - comentário») e as linhas, cada uma com a operação (F = fictícia).
+     * dados = {linhas: índices atuais do ponto | null (ponto novo), nome, comentario, itens: [{indice?, ativo, op}], forcar}.
+     * Trocar a estrutura MANTÉM os vínculos dos cabos quando a nova aceita os mesmos cabos (regras do projeto); senão devolve {conflitos} e só aplica com `forcar`
+     * (aí os vínculos que não servem caem). Um passo de Ctrl+Z. Devolve {indice} (1ª linha do ponto), {conflitos: [texto]} ou {erro}.
+     */
+    function salvarPontoNoMapa(dados, cfgVinculo) {
+        const GL = GL_(), VR = VinculacaoRegras, outros = tableStates.outros.data, cabos = tableStates.cabos.data;
+        if (!GL) return { erro: 'Grupos indisponíveis.' };
+        const itens = (dados.itens || []).map(x => ({ indice: Number.isInteger(x.indice) ? x.indice : null, ativo: String(x.ativo || '').trim().toUpperCase(), op: String(x.op || '').trim().toUpperCase() }))
+            .filter(x => x.ativo || x.indice !== null);
+        if (!itens.some(x => x.ativo)) return { erro: 'Preencha ao menos uma linha do ponto.' };
+        for (const x of itens) {
+            if (!x.ativo) continue;
+            if (x.ativo.length > 440 || /^[#@]/.test(x.ativo)) return { erro: 'Linha inválida: ' + x.ativo };
+            if (!OPERACOES_LINHA.includes(x.op)) return { erro: 'Escolha a operação da linha ' + x.ativo + '.' };
+            const r = AnotacaoOutros.interpretarLinha(x.ativo, 'I', _classicoTotalizadora, _ctxOutros());
+            if (r.erros.length || !r.itens.length) return { erro: x.ativo + ': ' + (r.erros[0]?.msg || 'anotação inválida.') };
+        }
+        const montar = (base, x) => {
+            const row = Object.assign({}, base || { entidade: '0', entidadeManual: true }, { ativo: x.ativo });
+            aplicarOperacaoNaLinha(row, x.op);
+            if (!base || base.ativo !== x.ativo) row.entidade = postesDaLinhaVinculo(x.ativo).length ? 'POSTE' : 'ESTRUTURA';
+            return row;
+        };
+        // ── ponto novo ──
+        if (!dados.linhas || !dados.linhas.length) {
+            const r = nomeParaPonto(outros, dados.nome);
+            if (r.erro) return { erro: r.erro };
+            const linhas = itens.filter(x => x.ativo).map(x => montar(null, x));
+            const ab = GL.abrirPonto(r.nome, linhas[0].operacao, dados.comentario);
+            linhas.forEach(l => { l.grupoDe = ab.gid; });
+            pushHistory();
+            outros.push(ab.titulo);
+            const indice = outros.length;
+            outros.push(...linhas);
+            atualizarLinhaDoMapa('outros', indice, false);
+            return { indice, nome: r.nome };
+        }
+        // ── ponto existente ──
+        const p = pontoNoMapa(dados.linhas);
+        const atuais = p ? p.membros : dados.linhas.filter(l => outros[l] && !outros[l].comentario && !outros[l].grupoDecl);
+        if (atuais.some(l => outros[l].bloqueada && itens.some(x => x.indice === l && (x.ativo !== outros[l].ativo || x.op !== String(outros[l].operacao || '').toUpperCase()))))
+            return { erro: 'Há linha bloqueada no ponto: desbloqueie antes de editar.' };
+        const novos = new Map(), removidas = atuais.filter(l => !itens.some(x => x.indice === l && x.ativo));
+        for (const x of itens) if (x.indice !== null && x.ativo && atuais.includes(x.indice)) {
+            const antes = outros[x.indice];
+            if (antes.ativo !== x.ativo || String(antes.operacao || '').toUpperCase() !== x.op) novos.set(x.indice, montar(antes, x));
+        }
+        // vínculos dos cabos que deixariam de valer
+        const cfg = VR.normalizarConfig(cfgVinculo || window.__vinculacaoConfig || {});
+        const copia = outros.map((r, i) => novos.get(i) || r);
+        const quebrados = [], chave = (ic, id) => ic + ':' + id;
+        const antesA = VR.analisar(cabos, outros, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
+        const depoisA = VR.analisar(cabos, copia, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
+        const okAntes = new Set(antesA.links.filter(l => l.ok).map(l => chave(l.cabo, l.estrutura)));
+        const okDepois = new Map(depoisA.links.map(l => [chave(l.cabo, l.estrutura), l]));
+        cabos.forEach((c, ic) => (c?.vinculoEstruturas || []).forEach(id => {
+            const l = VR.linhaDe(id), k = VR.slotDe(id);
+            const nome = 'Cabo ' + (ic + 1) + ' (' + c.ativo + ')';
+            if (removidas.includes(l)) { quebrados.push({ ic, id, texto: nome + ': a linha ' + outros[l].ativo + ' sai do ponto' }); return; }
+            if (!novos.has(l)) return;
+            const nova = novos.get(l), codigos = _codigosEstruturaVinculo(nova.ativo);
+            if (!VR.participaVinculo(nova)) { quebrados.push({ ic, id, texto: nome + ': ' + nova.ativo + ' em retirada não recebe cabo' }); return; }
+            if (k >= codigos.length) { quebrados.push({ ic, id, texto: nome + ': a estrutura da posição ' + (k + 1) + ' sai da linha' }); return; }
+            const depois = okDepois.get(chave(ic, id));
+            if (okAntes.has(chave(ic, id)) && depois && !depois.ok) quebrados.push({ ic, id, texto: nome + ': ' + (depois.motivo || codigos[k] + ' não aceita este cabo') });
+        }));
+        if (quebrados.length && !dados.forcar) return { conflitos: quebrados.map(q => q.texto) };
+        const tituloAtual = p ? outros[p.tituloIdx] : null;
+        const digitado = GL.nomeLimpo(dados.nome);
+        if (digitado && nomeDePontoExiste(outros, digitado, tituloAtual)) return { erro: 'Já existe um ponto com o nome «' + digitado + '».' };
+        pushHistory();
+        quebrados.forEach(({ ic, id }) => { const c = cabos[ic]; c.vinculoEstruturas = (c.vinculoEstruturas || []).filter(x => x !== id); });
+        novos.forEach((nova, i) => { const row = outros[i]; Object.assign(row, nova); for (const k of ['congelada', '_congeladaPorF']) if (!(k in nova)) delete row[k]; });
+        let lista = outros.slice();
+        const remover = new Set(removidas.map(l => outros[l]));
+        lista = lista.filter(r => !remover.has(r));
+        const adicionar = itens.filter(x => x.indice === null && x.ativo).map(x => montar(null, x));
+        if (p) {
+            const titulo = tituloAtual;
+            titulo.ativo = GL.tituloDoPonto(digitado || p.nome, dados.comentario === undefined ? p.comentario : dados.comentario);
+            if (p.formatoAntigo) { const fora = new Set(p.comentarios.map(k => outros[k])); lista = lista.filter(r => !fora.has(r)); }
+            adicionar.forEach(r => { r.grupoDe = p.gid; });
+            const fim = lista.reduce((f, r, i) => (r.grupoDe === p.gid || r === titulo ? i : f), -1);
+            lista.splice(fim + 1, 0, ...adicionar);
+        } else {
+            const membros = atuais.filter(l => !removidas.includes(l)).map(l => outros[l]);
+            lista.push(...adicionar);
+            lista = GL.agruparPontos(lista, [{ linhas: membros.concat(adicionar), nome: dados.nome, comentario: dados.comentario }], pisoNomePonto(outros)).lista;
+        }
+        aplicarLista('outros', lista, null);
+        const primeira = (p ? lista.findIndex(r => r.grupoDe === p.gid && !r.comentario) : lista.findIndex(r => r === (adicionar[0] || outros[atuais.find(l => !removidas.includes(l))])));
+        return { indice: primeira, quebrados: quebrados.length };
+    }
+    /** TASK-235: converte pontos do formato antigo — grupos com linha «#» (o texto vai para o título, juntos por «; ») e, se pedidos, pontos sem grupo. Um passo de Ctrl+Z. */
+    function converterPontosNoMapa(semGrupo) {
+        const GL = GL_(), outros = tableStates.outros.data;
+        if (!GL) return 0;
+        let res = GL.converterPontos(outros), lista = res.lista, n = res.n;
+        const pontos = (semGrupo || []).map(p => ({ nome: p.nome, linhas: (p.linhas || []).map(l => outros[l]).filter(r => r && !r.comentario && !r.grupoDe && !r.grupoDecl) })).filter(p => p.linhas.length);
+        if (!n && !pontos.length) return 0;
+        pushHistory();
+        if (pontos.length) { const g = GL.agruparPontos(lista, pontos, pisoNomePonto(outros)); lista = g.lista; n += g.n; }
+        aplicarLista('outros', lista, null);
+        return n;
     }
     /** Congela / bloqueia o ponto inteiro (todas as linhas do grupo), como no Resumo: repetir desfaz. */
     function marcarPontoNoMapa(linhas, campo) {
@@ -2921,7 +3040,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /** TASK-084: o que o modal de vinculação (vinculacao_ui.js) precisa saber/fazer na tela do Resumo. */
     window.VinculacaoHost = {
-        copiarPontoNoMapa, copiarCaboNoMapa, removerDoMapa, fundoCad,
+        copiarPontoNoMapa, copiarCaboNoMapa, removerDoMapa, fundoCad, salvarPontoNoMapa, converterPontosNoMapa,
         pontoNoMapa, definirPontoNoMapa, marcarPontoNoMapa, agruparPontosNoMapa,
         cabos: () => tableStates.cabos.data,
         outros: () => tableStates.outros.data,
@@ -2997,6 +3116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ['fases', 'tensao', 'nivel'].forEach(k => { if (obj[k] !== undefined && obj[k] !== '') c[k] = obj[k]; });
         if (obj.entidadeManual) c.entidadeManual = true;   // TASK-065: classificação definida à mão não é recalculada
         if (obj.congelada) c.congelada = true; if (obj.bloqueada) c.bloqueada = true; if (obj.comentario) c.comentario = true;
+        if (obj._congeladaPorF) c._congeladaPorF = true;                                              // TASK-235: a operação F congelou a linha
         if (obj.grupoDecl) { c.grupoDecl = true; c.gid = obj.gid; if (obj.grupoRecolhido) c.grupoRecolhido = true; } else if (obj.grupoDe) c.grupoDe = obj.grupoDe;      // TASK-195: grupos de linhas (@)
         // TASK-182: marcas da linha — sem isto o undo/redo e o SALVAR do projeto as perdiam (tudo passa por esta função)
         // TASK-032: coordenada de origem (presente em obj._raw na primeira montagem da linha, e
@@ -3055,7 +3175,31 @@ document.addEventListener('DOMContentLoaded', () => {
     window.corParametrosLigada = corParametrosLigada;
 
     /** Status (por estrutura) de uma linha de Outros: o que o pedido liga, o que o vínculo injeta, a obra e os padrões da base. */
-    function _statusParametrosDaLinha(item, pvLinha, assin, ctxBase, obra, defLinha, alinhado) {          // alinhado: um resultado POR ITEM do texto (null quando o ativo não declara parâmetros)          // defLinha (TASK-170): {CODIGO: {define, faltou}} desta linha
+    // TASK-235: o poste de cada ponto (grupo «@») — vale para o parâmetro POSTE das estruturas do ponto que estão em outra linha (inclusive a linha F)
+    const _posteDaLinhaCache = new WeakMap();
+    function _posteDaLinhaDoPonto(row) {
+        const c = _posteDaLinhaCache.get(row);
+        if (c && c.ativo === row.ativo) return c.poste;
+        let poste = null;
+        try { poste = postesDaLinhaVinculo(row.ativo)[0] || null; } catch (e) { poste = null; }
+        _posteDaLinhaCache.set(row, { ativo: row.ativo, poste });
+        return poste;
+    }
+    function _postesDosPontos() {
+        const m = new Map();
+        for (const r of tableStates.outros.data) {
+            if (!r || !r.grupoDe || r.comentario || m.has(r.grupoDe) || !String(r.ativo || '').trim()) continue;
+            const p = _posteDaLinhaDoPonto(r);
+            if (p) m.set(r.grupoDe, p);
+        }
+        return m;
+    }
+    function _ctxComPosteDoPonto(ctx, row, postes) {
+        const p = row && row.grupoDe ? (postes || _postesDosPontos()).get(row.grupoDe) : null;
+        return p ? Object.assign({}, ctx, { poste_do_ponto: p }) : ctx;
+    }
+    function _statusParametrosDaLinha(item, pvLinha, assin, ctxBase, obra, defLinha, alinhado) {
+        ctxBase = _ctxComPosteDoPonto(ctxBase, item);          // alinhado: um resultado POR ITEM do texto (null quando o ativo não declara parâmetros)          // defLinha (TASK-170): {CODIGO: {define, faltou}} desta linha
         if (!item || !String(item.ativo || '').trim() || typeof AtivoStatus === 'undefined') return [];
         const op = item.operacao || 'I';
         const sem = AnotacaoOutros.interpretarLinha(item.ativo, op, _classicoTotalizadora, ctxBase);
@@ -7437,12 +7581,13 @@ function construirTotalizadora(cabosData, outrosData, emUso = false) {
     const cfg = window.__vinculacaoConfig;
     const parametrosVinculo = cfg ? (emUso ? _parametrosVinculoPorLinha() :
         VinculacaoRegras.parametrosPorEstrutura(cabosData, outrosData, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo)) : {};
+    const postesDosPontos = _postesDosPontos();
     outrosData.forEach((item, idxOutros) => {
         if (!item || item.congelada) return;                                                     // linha congelada: fora da Totalizadora
         const currentBaseId = baseIdCounter++;
         
         // TASK-081: notação compacta/apelidos/regra do M traduzidos aqui; o que o usuário digitou não muda
-        const ctxLinha = parametrosVinculo[idxOutros] ? Object.assign({}, ctxOutros, { parametros_estrutura: parametrosVinculo[idxOutros] }) : ctxOutros;
+        const ctxLinha = _ctxComPosteDoPonto(parametrosVinculo[idxOutros] ? Object.assign({}, ctxOutros, { parametros_estrutura: parametrosVinculo[idxOutros] }) : ctxOutros, item, postesDosPontos);
         const interp = AnotacaoOutros.interpretarLinha(item.ativo, item.operacao || 'I', _classicoTotalizadora, ctxLinha);
         if (interp.erros.length) {
             rawItems.push({

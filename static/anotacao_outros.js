@@ -120,7 +120,7 @@
         if (r.erros.length) return r;
         const assinaturas = (ctx && ctx.assinaturas) || {};
         const parametrosLinha = (ctx && ctx.parametros_linha) || {}, parametrosEstrutura = (ctx && ctx.parametros_estrutura) || {};      // TASK-096: por estrutura da linha (N1 e N4 não se misturam)
-        let posteAtual = null;
+        let posteAtual = (ctx && ctx.poste_do_ponto) || null;                          // TASK-235: o poste de outra linha do mesmo ponto (inclusive fictícia, F); o da própria linha manda
         const convPostes = ctx && ctx.convencao_postes;
         for (const it of itens) {
             if (ehPoste(it.ativo, convPostes)) posteAtual = posteParaCompacto(it.ativo, convPostes);

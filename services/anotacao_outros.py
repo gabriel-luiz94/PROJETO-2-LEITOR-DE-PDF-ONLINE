@@ -200,7 +200,7 @@ def interpretar_linha(texto, operacao, classico, ctx=None) -> dict:
     assinaturas = (ctx or {}).get("assinaturas") or {}
     parametros_linha = (ctx or {}).get("parametros_linha") or {}
     parametros_estrutura = (ctx or {}).get("parametros_estrutura") or {}        # TASK-096: por estrutura da linha (N1 e N4 não se misturam)
-    poste_atual = None
+    poste_atual = (ctx or {}).get("poste_do_ponto") or None       # TASK-235: o poste de outra linha do mesmo ponto (inclusive fictícia, F); o da própria linha manda
     conv_postes = (ctx or {}).get("convencao_postes")
     for it in itens:
         if eh_poste(it["ativo"], conv_postes):

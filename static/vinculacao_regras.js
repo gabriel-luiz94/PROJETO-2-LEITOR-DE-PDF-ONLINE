@@ -126,7 +126,7 @@
         const dic = cfg.dicionario_cabos, vc = r ? (trim(r.valor_cabo).toUpperCase() || null) : null;
         return { codigo: cod, regra: i, valor_cabo: vc || (dic && dic.length && DC ? DC.valorCabo(dic, cod) : null), pontas, pontasMax, secao: secaoCabo(cod, dic), vincula: !(r && r.vincula === false),
             estruturas: r ? (r.estruturas === undefined ? null : r.estruturas) : null, operacoes: r ? (r.operacoes === undefined ? null : r.operacoes) : null,
-            op: trim(operacao).toUpperCase(), base, fases: extra ? extra.fases : null, nivel: extra ? extra.nivel : null, descricao: extra && extra.descricao ? extra.descricao : cod };
+            op: trim(operacao).toUpperCase(), ficticio: trim(operacao).toUpperCase() === 'F', base, fases: extra ? extra.fases : null, nivel: extra ? extra.nivel : null, descricao: extra && extra.descricao ? extra.descricao : cod };
     }
 
     // TASK-096: parâmetros da estrutura com FONTE por cabo vinculado: "cabo=ativo, cabo=ativo, tipocabo=valor_cabo" (ativo = código do cabo sem 3x/tensão; valor_cabo = tipo da regra do cabo).
@@ -312,10 +312,10 @@
         const [ok, motivo] = podeVincular(c, e);
         if (!ok) return [ok, motivo];
         if (e.qtd !== null && ocupantes.length + 1 > e.qtd) return [false, `a estrutura ${e.codigo} já tem os ${e.qtd} cabo(s) que aceita`];
-        if (!ficticio && e.max_reais !== null && ocupantes.filter(o => !o.ficticio).length + 1 > e.max_reais) return [false, `a estrutura ${e.codigo} aceita só ${e.max_reais} cabo(s) real(is); o excedente deve ser fictício`];
+        if (!ficticio && !c.ficticio && e.max_reais !== null && ocupantes.filter(o => !o.ficticio && !o.info.ficticio).length + 1 > e.max_reais) return [false, `a estrutura ${e.codigo} aceita só ${e.max_reais} cabo(s) real(is); o excedente deve ser fictício`];
         if (e.lados === 'IGUAIS' && ocupantes.length) {
             const ref = ocupantes[0];
-            const mesmo = ref.info.codigo === c.codigo && (ref.ficticio || ref.info.op === c.op);
+            const mesmo = ref.info.codigo === c.codigo && (ref.ficticio || ref.info.ficticio || c.ficticio || ref.info.op === c.op);       // TASK-235: cabo F (fictício) não compara a operação
             if (!mesmo) return [false, `${e.codigo} exige cabos iguais: ${ref.info.codigo} × ${c.codigo}`];
         }
         const codigos = ocupantes.map(o => o.info.codigo).concat([c.codigo]);
@@ -330,7 +330,9 @@
     // TASK-125: o modal lista o que está na tabela Outros — linha ESTRUTURA/POSTE e também a que ainda não foi classificada ('0' ou vazia) mas tem ativo
     // (a classificação automática pode não reconhecer a linha; entidade escolhida à mão — CHAVE, TRAFO, RAMAIS… — continua valendo).
     // Linha de Outros CONGELADA não é estrutura (fora do vínculo); o cabo congelado continua valendo como fonte de um vínculo manual (só não é ligado sozinho pelos algoritmos).
-    const ehLinhaEstrutura = row => !!row && !row.congelada && participaVinculo(row) && (row.entidade === 'ESTRUTURA' || row.entidade === 'POSTE' || ((!row.entidade || row.entidade === '0') && !!trim(row.ativo)));
+    // TASK-235: linha F (fictícia) fica congelada (fora do orçamento) mas É estrutura: recebe cabos e completa o vínculo.
+    const ehFicticia = row => !!row && trim(row.operacao).toUpperCase() === 'F';
+    const ehLinhaEstrutura = row => !!row && (!row.congelada || ehFicticia(row)) && participaVinculo(row) && (row.entidade === 'ESTRUTURA' || row.entidade === 'POSTE' || ((!row.entidade || row.entidade === '0') && !!trim(row.ativo)));
     /** TASK-095: estruturas fictícias do CABO (só o código): preenchem pontas do cabo, sem linha em Outros; entram na Totalizadora como `CABO_ESTRUTURA`. */
     const estruturasFicticiasDe = row => ((row && row.estruturasFicticias) || []).map(x => trim(x).toUpperCase()).filter(Boolean);
 
@@ -1109,7 +1111,7 @@
         return erros;
     }
 
-    const api = { planejarVinculosDoMapa, grafoDaRede, posicaoAproximada, gruposVisuaisDoVao, posteCompletoNoGrafo, postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, nivelDoCabo, diagnosticoDoCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoCaboFicticio, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { planejarVinculosDoMapa, grafoDaRede, posicaoAproximada, ehFicticia, gruposVisuaisDoVao, posteCompletoNoGrafo, postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, nivelDoCabo, diagnosticoDoCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoCaboFicticio, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);
