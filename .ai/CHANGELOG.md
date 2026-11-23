@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-23 — 2ª ponta do cabo M só à mão
+
+O vínculo automático liga só as `pontas` do cabo (M = 1); o usuário pode ligar à mão até `pontasMax` (M = 2, coluna «Máx. à mão» da Tabela de Cabos). No painel do poste a ponta extra aparece como «Opcional». [TASK-234](tasks/TASK-234-23-11-2026.md).
+
 ## 2026-11-23 — Montagem rápida da rede no mapa
 
 Ponto sem bloco no CAD aparece na posição da anotação (`_posteAprox` ou `_x/_y`), marcado como aproximado. O mapa mostra ao fundo a rede e os blocos do CAD que ainda não viraram linha (`services/fundo_cad.py`) e transforma um bloco em ponto com um clique. Painel de pendências com progresso e correção a um clique, ímã nas pontas do cabo, ferramenta «Traçar vão» com o comprimento medido, seleção por caixa, mover em grupo, atalhos e lista em lotes. O plugin casa 1:1 a anotação de poste que sobrou com o bloco livre mais perto (fonte, sem build). [TASK-233](tasks/TASK-233-23-11-2026.md).

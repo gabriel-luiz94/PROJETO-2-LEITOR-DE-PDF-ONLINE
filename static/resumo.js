@@ -2564,7 +2564,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const info = row => VR.infoCabo(_prefixoCaboVinculo(row.ativo) || '', row.operacao, cfg, VR.extraCabo(row, cfg.dicionario_cabos));
         const anterior = info(antes), posterior = info(nova);
         if ((anterior.vincula && !posterior.vincula) ||
-            (posterior.pontas < anterior.pontas && ids.length + ficticias.length > posterior.pontas))
+            (posterior.pontasMax < anterior.pontasMax && ids.length + ficticias.length > posterior.pontasMax))
             return 'A alteração reduz as pontas aceitas ou desativa o vínculo. Remova os vínculos internos que impedem a edição.';
         const cabos = tableStates.cabos.data, outros = tableStates.outros.data;
         const analisar = lista => VR.analisar(lista, outros, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);

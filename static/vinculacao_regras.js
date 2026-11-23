@@ -119,8 +119,12 @@
         const base = opBase(operacao);
         let pontas = base === 'M' ? 1 : 2;
         if (r && r.pontas && typeof r.pontas === 'object' && Number.isInteger(r.pontas[base])) pontas = r.pontas[base];
+        // TASK-234: `pontas` = o que o vínculo AUTOMÁTICO liga e o que conta como completo; `pontasMax` = até onde o usuário pode ligar à mão.
+        // Cabo M: o automático liga 1 ponta; a 2ª (quando existe) é sempre do usuário. `pontas_max` na Tabela de Cabos muda o limite manual.
+        let pontasMax = base === 'M' ? Math.max(pontas, 2) : pontas;
+        if (r && r.pontas_max && typeof r.pontas_max === 'object' && Number.isInteger(r.pontas_max[base])) pontasMax = Math.max(pontas, r.pontas_max[base]);
         const dic = cfg.dicionario_cabos, vc = r ? (trim(r.valor_cabo).toUpperCase() || null) : null;
-        return { codigo: cod, regra: i, valor_cabo: vc || (dic && dic.length && DC ? DC.valorCabo(dic, cod) : null), pontas, secao: secaoCabo(cod, dic), vincula: !(r && r.vincula === false),
+        return { codigo: cod, regra: i, valor_cabo: vc || (dic && dic.length && DC ? DC.valorCabo(dic, cod) : null), pontas, pontasMax, secao: secaoCabo(cod, dic), vincula: !(r && r.vincula === false),
             estruturas: r ? (r.estruturas === undefined ? null : r.estruturas) : null, operacoes: r ? (r.operacoes === undefined ? null : r.operacoes) : null,
             op: trim(operacao).toUpperCase(), base, fases: extra ? extra.fases : null, nivel: extra ? extra.nivel : null, descricao: extra && extra.descricao ? extra.descricao : cod };
     }
@@ -1099,7 +1103,7 @@
                     if (trim(r.nivel) && !['MT', 'BT'].includes(trim(r.nivel).toUpperCase())) erros.push(`${p}: 'nivel' precisa ser MT ou BT.`);
                     let mt = null; if (typeof r.padrao_texto === 'string' && r.padrao_texto) { try { new RegExp(r.padrao_texto); } catch (e) { mt = e.message; } } if (mt) erros.push(`${p}: 'padrao_texto' regex inválida (${mt}).`);
                 }
-                if (tab === 'cabos' && r.pontas != null && (typeof r.pontas !== 'object' || Object.values(r.pontas).some(v => !Number.isInteger(v) || v < 0))) erros.push(`${p}: 'pontas' precisa ser {"I": n, "M": n} com inteiros >= 0.`);
+                if (tab === 'cabos') ['pontas', 'pontas_max'].forEach(k => { if (r[k] != null && (typeof r[k] !== 'object' || Object.values(r[k]).some(v => !Number.isInteger(v) || v < 0))) erros.push(`${p}: '${k}' precisa ser {"I": n, "M": n} com inteiros >= 0.`); });
             });
         });
         return erros;
