@@ -104,6 +104,13 @@ TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 r
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-23 — TASK-229: pontos fora das coordenadas do CAD — verificação e «Posições do CAD»
+
+- **Verificação:** a colocação inicial dos pontos pelas coordenadas do CAD (`_poste`) foi comparada entre a versão 2.7.8 (antes dos grupos/Rearranjar) e a atual com a mesma obra (12 pontos, ruas tortas, 2 estruturas sem coordenada): **idêntica, ponto a ponto**. A importação do `.obra` do plugin também preserva `_poste`/`_geo`/`_geoTipo`. Não há regressão no desenho inicial.
+- **Causas prováveis de o ponto não aparecer na coordenada:** (1) posição **ajustada à mão** gravada na linha (`_mapaPoste`: arrastar, criar/copiar ponto, «Agrupar pontos» e **Rearranjar** gravam) — vale no lugar do CAD ao reabrir o projeto; (2) a escolha **1:500** fica lembrada e a rede maior que a janela mostra só um pedaço.
+- **Novo:** botão **Posições do CAD** (descarta as posições ajustadas à mão — campo do modo atual — e os «puxões» dos cabos; um passo de Ctrl+Z); o aviso do mapa diz quantos pontos têm posição ajustada e, em 1:500, quando a rede não cabe na janela.
+- Arquivos: `static/vinculacao_ui.js`, `tests/test_mapa_posicoes_cad_229.py`.
+
 ## 2026-11-23 — TASK-228: «Rearranjar» deixava os pontos longe dos cabos
 
 - **Causa:** a ponta de um cabo só se liga a um poste a menos de 5 m (`RAIO_POSTE_PADRAO`). Ponta mais longe fica «solta» e era desenhada na coordenada fixa do CAD. O «Rearranjar» (e qualquer arraste) movia os pontos, mas o cabo de ponta solta ficava para trás; e como o ponto não tinha vão ligado, o rearranjo o tratava como **isolado** e o jogava numa grade ao lado → pontos agrupados longe dos cabos.

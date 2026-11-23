@@ -1056,3 +1056,7 @@ Arrastar postes e curvar cabos em 1:500 guarda o ajuste em metros, separado do a
 
 A ponta de um cabo só se **liga** a um poste a menos de 5 m. Quando o desenho tem a ponta mais longe (o cabo termina ao lado do poste), o mapa avisa («⚠ A linha do desenho termina a mais de 5 m de um poste»), mas desenha o cabo junto do ponto mais próximo (até 25 m): se você mover ou **Rearranjar** os pontos, essa ponta acompanha. A ligação para o orçamento continua exigindo as pontas nos postes.
 
+## Mapa: voltar às coordenadas do CAD (23/11/2026)
+
+O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um ponto, cria/copia um ponto, usa **Agrupar pontos** ou **Rearranjar**, a posição fica gravada na obra e passa a valer no lugar da coordenada. O aviso do mapa mostra «N ponto(s) com posição ajustada à mão». O botão **Posições do CAD** descarta esses ajustes e volta cada ponto à coordenada do desenho (Ctrl+Z desfaz). Em **1:500**, se a rede for maior que a janela, o aviso lembra que só parte dela aparece: arraste para andar ou escolha **Ajustar à tela**.
+

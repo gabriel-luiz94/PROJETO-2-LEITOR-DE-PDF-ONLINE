@@ -1460,6 +1460,7 @@
             ...(ME ? [seletorEscala] : []),
             botao('−', () => zoom(1.25), 'Afastar'), botao('+', () => zoom(.8), 'Aproximar'),
             botao('Enquadrar', () => { vb = vistaPadrao(); aplicarVista(); }, escalar() ? 'Centralizar a rede na escala escolhida' : 'Enquadrar'),
+            botao('Posições do CAD', () => restaurarPosicoesDoCad(), 'Descarta as posições ajustadas à mão (arrastar, criar ponto, Rearranjar) e volta cada ponto para a coordenada do CAD. Ctrl+Z desfaz.'),
             botao('Rearranjar', () => rearranjarMapa(), 'Reorganiza os pontos de forma uniforme e limpa (vãos de tamanho parecido, sem sobreposição). Em 1:500 volta os pontos para a posição do CAD. Ctrl+Z desfaz.')
         ]);
         const suporte = el('div', { class: 'vz-scroll vz-grafo-vista' }, [svg, escalaInfo, acoesMapa]);
@@ -1727,6 +1728,25 @@
             aplicarVistaJa();
             avisos.textContent = emEscalaAgora() ? 'Pontos na posição do CAD. Ctrl+Z desfaz.' : 'Pontos rearranjados. Ctrl+Z desfaz.';
         }
+        // posições ajustadas à mão (arrastar, criar/copiar ponto, Rearranjar, Agrupar) valem no lugar das coordenadas do CAD; aqui dá para voltar às do CAD
+        function pontosAjustados() {
+            const campo = campoPonto();
+            return [...grafo.nos.values()].filter(no => outros()[linhaNo(no)] && outros()[linhaNo(no)][campo]).length;
+        }
+        function restaurarPosicoesDoCad() {
+            const n = pontosAjustados();
+            if (!n) { avisos.textContent = 'Nenhum ponto está com posição ajustada à mão.'; return; }
+            host.antes();
+            const campo = campoPonto(), campoC = campoCabo();
+            grafo.nos.forEach(no => { const linha = outros()[linhaNo(no)]; if (linha) delete linha[campo]; });
+            cabos().forEach(c => { if (c) delete c[campoC]; });
+            st.grafoVista = null;
+            cx = null;
+            atualizar();
+            vb = vistaPadrao();
+            aplicarVistaJa();
+            avisos.textContent = n + ' ponto(s) voltaram à posição do CAD (os sem coordenada ficam na coluna ao lado). Ctrl+Z desfaz.';
+        }
         function pontosSemGrupo() {
             return [...grafo.nos.values()].filter(no => !nomeGrupoDoNo(no) && no.linhas.some(l => outros()[l] && !outros()[l].grupoDe))
                 .sort((a, b) => linhaNo(a) - linhaNo(b));
@@ -1923,6 +1943,11 @@
             ficticio.disabled = ![...grafo.nos.values()].some(no => estruturasDoNo(no).some(ie => infoEst(ie).ocupa));
             avisos.textContent = !area.hidden && !nosVisiveis.size && !cabosVisiveis.size ? 'Nenhum ponto ou cabo para este filtro.'
                 : !area.hidden ? 'Arrastar altera somente a disposição visual.' + (() => {
+                    const aj = pontosAjustados(), c = [...posicoes.values()].length ? raiz.MapaLayout && raiz.MapaLayout.caixa([...posicoes.values()]) : null;
+                    const grande = emEscalaAgora() && c && ((c[2] - c[0]) > (svg.clientWidth || W) * 1.05 || (c[3] - c[1]) > (svg.clientHeight || H) * 1.05);
+                    return (aj ? ' ' + aj + ' ponto(s) com posição ajustada à mão (botão «Posições do CAD» volta às coordenadas).' : '')
+                        + (grande ? ' Em 1:500 só parte da rede cabe na janela: arraste para andar ou escolha «Ajustar à tela».' : '');
+                })() + (() => {
                     const ids = [...cabosVisiveis], div = ids.filter(ic => diagDe(ic).diverge).length, semGeo = ids.filter(ic => diagDe(ic).naoDesenhado).length, curtas = ids.filter(ic => diagDe(ic).motivo && !diagDe(ic).naoDesenhado).length;
                     return (div ? ' ⚠ ' + div + ' cabo(s) com nível do rótulo diferente do desenho.' : '') + (semGeo ? ' ⚠ ' + semGeo + ' cabo(s) sem linha do desenho e sem ponta ligada (não aparecem).' : '')
                         + (curtas ? ' ' + curtas + ' com ponta fora do raio de um poste.' : '') + (div || semGeo || curtas ? ' Use o filtro «A conferir».' : '');
