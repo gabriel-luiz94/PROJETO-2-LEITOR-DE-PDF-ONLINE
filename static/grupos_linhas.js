@@ -189,28 +189,59 @@
     }
     /** Texto do nome informado → título do grupo («@» + nome em maiúsculas, sem «@»/«#» soltos). Vazio → null (nome automático). */
     function nomeLimpo(texto) {
-        const t = String(texto == null ? '' : texto).replace(/^[\s@#]+/, '').replace(/\s+/g, ' ').trim().toUpperCase();
+        const t = String(texto == null ? '' : texto).replace(/^[\s@#]+/, '').replace(/\s+-\s+/g, '-').replace(/\s+/g, ' ').trim().toUpperCase();      // « - » separa o comentário (TASK-235)
         return t ? t.slice(0, 60) : null;
     }
+    /* TASK-235: o título do ponto leva o comentário na mesma linha — «@P12 - N3 solta a retirar». */
+    const SEP_COMENTARIO = ' - ';
+    function separarTitulo(ativoOuRotulo) {
+        const t = String(ativoOuRotulo == null ? '' : ativoOuRotulo).trim().replace(/^@+\s*/, '');
+        const i = t.indexOf(SEP_COMENTARIO);
+        return i < 0 ? { nome: t, comentario: '' } : { nome: t.slice(0, i).trim(), comentario: t.slice(i + SEP_COMENTARIO.length).trim() };
+    }
+    function limparComentario(texto) { return String(texto == null ? '' : texto).trim().replace(/^#+\s*/, '').replace(/\s+/g, ' ').trim().slice(0, 300); }
+    function tituloDoPonto(nome, comentario) { const c = limparComentario(comentario); return '@' + nome + (c ? SEP_COMENTARIO + c : ''); }
+    const nomeDoPonto = row => separarTitulo(rotuloDe(row)).nome;
     function linhaComentarioPonto(titulo, comentario) {
         const texto = String(comentario ?? '').trim().replace(/^#+\s*/, '').slice(0, 300).trimEnd();
         if (!texto) return null;
         return { entidade: '0', operacao: titulo.operacao || 'I', ativo: '# ' + texto, comentario: true, congelada: true, grupoDe: titulo.gid };
     }
 
-    /** Abre o ponto com o título do grupo e, se houver texto, a linha de comentário. */
+    /** Abre o ponto: o título do grupo já leva o comentário («@nome - comentário»; TASK-235: sem linha «#» separada). */
     function abrirPonto(nome, operacao, comentario) {
         const gid = novoId();
-        const titulo = { entidade: '0', operacao: operacao || 'I', ativo: '@' + nome, grupoDecl: true, congelada: true, gid };
-        return { gid, titulo, comentario: linhaComentarioPonto(titulo, comentario) };
+        const titulo = { entidade: '0', operacao: operacao === 'F' ? 'I' : (operacao || 'I'), ativo: tituloDoPonto(nome, comentario), grupoDecl: true, congelada: true, gid };
+        return { gid, titulo, comentario: null };
     }
     /** Dados do ponto a partir de uma linha da tabela (índice `i`): título, comentário, membros — ou null se a linha não está em grupo. */
     function pontoDaLinha(lista, i) {
         const b = bloco(lista, i); if (!b) return null;
-        const titulo = lista[b.h], membros = []; let comentario = null;
-        for (let k = b.h + 1; k <= b.fim; k++) { if (lista[k].comentario && !comentario) comentario = k; else membros.push(k); }
-        return { gid: b.gid, h: b.h, fim: b.fim, nome: rotuloDe(titulo), comentarioIdx: comentario,
-            comentario: comentario === null ? '' : String(lista[comentario].ativo || '').replace(/^\s*#\s?/, '').trim(), membros };
+        const titulo = lista[b.h], membros = [], comentarios = [];
+        for (let k = b.h + 1; k <= b.fim; k++) { if (lista[k].comentario) comentarios.push(k); else membros.push(k); }
+        const t = separarTitulo(rotuloDe(titulo));
+        // formato antigo (linha «#» separada): o comentário vem dela(s); o novo vem do título
+        const doTitulo = t.comentario, antigos = comentarios.map(k => limparComentario(lista[k].ativo)).filter(Boolean);
+        return { gid: b.gid, h: b.h, fim: b.fim, nome: t.nome, comentarioIdx: comentarios.length ? comentarios[0] : null, comentarios,
+            comentario: [doTitulo, ...antigos].filter(Boolean).join('; '), formatoAntigo: comentarios.length > 0, membros };
+    }
+    /** TASK-235: converte o ponto do formato antigo — as linhas «#» viram o comentário do título, juntas por «; » (nada se perde). Devolve a lista nova ou null. */
+    function converterPonto(lista, i) {
+        const p = pontoDaLinha(lista, i);
+        if (!p || !p.formatoAntigo) return null;
+        const res = lista.slice(), titulo = res[p.h];
+        titulo.ativo = tituloDoPonto(p.nome, p.comentario);
+        for (const k of p.comentarios.slice().reverse()) res.splice(k, 1);
+        return res;
+    }
+    /** Converte todos os grupos com linha «#» (um passo). Devolve {lista, n}. */
+    function converterPontos(lista) {
+        let atual = lista, n = 0;
+        for (const gid of grupos(lista).map(r => r.gid)) {
+            const h = indiceDaDeclaracao(atual, gid), nova = h < 0 ? null : converterPonto(atual, h);
+            if (nova) { atual = nova; n++; }
+        }
+        return { lista: atual, n };
     }
     /** Agrupa vários pontos de uma vez. Devolve a lista nova e o número de grupos criados. */
     function agruparPontos(lista, pontos, piso = 0) {
@@ -220,22 +251,18 @@
             if (!linhas.length) continue;
             const idxs = linhas.map(r => atual.indexOf(r)).filter(i => i >= 0);
             if (!idxs.length) continue;
-            const existentes = new Set(atual.filter(eDecl).map(r => rotuloDe(r).toUpperCase()));
+            const existentes = new Set(atual.filter(eDecl).map(r => nomeDoPonto(r).toUpperCase()));
             let nome = nomeLimpo(p.nome);
             if (!nome || existentes.has(nome)) nome = proximoNome(atual, 'P', piso);                      // nome pedido já existe: número automático
             const abertura = abrirPonto(nome, linhas[0].operacao, p.comentario);
             const r = criarGrupo(atual, idxs, nome, () => abertura.titulo);
             if (!r) continue;
-            if (abertura.comentario) {
-                abertura.comentario.grupoDe = abertura.titulo.gid; // criarGrupo dá um id novo ao título
-                r.lista.splice(r.lista.indexOf(abertura.titulo) + 1, 0, abertura.comentario);
-            }
             atual = r.lista; n++;
         }
         return { lista: atual, n };
     }
 
-    const api = { proximoNome, nomeLimpo, abrirPonto, linhaComentarioPonto, pontoDaLinha, agruparPontos, ehDeclaracao, novoId, nomeDe, rotuloDe, sincronizar, liberar, bloco, membrosDe, grupos, temGrupos, normalizar, mapa, novaLinhaNoGrupo, novaLinhaSolta,
+    const api = { separarTitulo, tituloDoPonto, nomeDoPonto, limparComentario, converterPonto, converterPontos, proximoNome, nomeLimpo, abrirPonto, linhaComentarioPonto, pontoDaLinha, agruparPontos, ehDeclaracao, novoId, nomeDe, rotuloDe, sincronizar, liberar, bloco, membrosDe, grupos, temGrupos, normalizar, mapa, novaLinhaNoGrupo, novaLinhaSolta,
         adicionarAoGrupo, criarGrupo, tirarDoGrupo, desfazerGrupo, mover, reidentificar, ordemDoGrupo, contar, selecionadas };
     if (typeof module !== 'undefined' && module.exports) module.exports = api; else raiz.GruposLinhas = api;
 })(typeof window !== 'undefined' ? window : globalThis);

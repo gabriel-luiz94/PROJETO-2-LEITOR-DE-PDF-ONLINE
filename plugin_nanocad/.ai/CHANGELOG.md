@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-23 — 0.16.0
+
+Montagem manual no formato do mapa do OrçaCore. **Selecionar poste** e **Selecionar cabo** abrem uma janela no molde do «anota poste», com um campo por linha de texto (L) e a operação de cada um (F, I, \*I, M, \*M, R, \*R). Com as regras de um projeto, o texto fora das regras entra como F; sem regras, entra como está. O cabo usa a linha inteira ou um trecho, e vale a metragem anotada, com a medida ao lado. O vínculo fica para o mapa da aplicação. [TASK-038](tasks/TASK-038-23-11-2026.md).
+
 ## 2026-11-23 — 0.15.0
 
 Anotação de poste longe do bloco e sem guia casa 1:1 com o bloco livre mais perto (até 25 × a altura, Conferir). A que continua sem bloco leva `_posteAprox` para o mapa do OrçaCore. DLLs do nanoCAD 26 e 5 geradas com `compilar.sh`. [TASK-037](tasks/TASK-037-23-11-2026.md).

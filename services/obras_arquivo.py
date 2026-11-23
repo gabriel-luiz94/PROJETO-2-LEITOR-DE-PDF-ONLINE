@@ -18,7 +18,7 @@ VERSAO = 1
 LIMITE_BYTES = 5 * 1024 * 1024
 LIMITE_LINHAS = 5000
 LIMITE_ERROS = 20
-OPERACOES = ("", "I", "*I", "R", "*R", "M", "*M", "0")
+OPERACOES = ("", "I", "*I", "R", "*R", "M", "*M", "0", "F")          # TASK-235: F = fictício (linha congelada, só para o vínculo)
 _RE_ID_PONTO_MAPA = re.compile(r"[a-f0-9]{32}")
 _RE_ENTIDADE = re.compile(r"^[A-Za-z0-9_]{1,30}$")
 
@@ -74,6 +74,7 @@ CAMPOS_VINCULO = {
     "estruturasFicticias": lambda v: _lista_de(v, _texto), "cabosFicticios": lambda v: _lista_de(v, _texto), "cabosFicticiosSlots": _slots,
     "congelada": lambda v: isinstance(v, bool), "bloqueada": lambda v: isinstance(v, bool), "comentario": lambda v: isinstance(v, bool),          # linha congelada (fora de totalizadora/orçamento/validação) e bloqueada (sem edição)
     "grupoDecl": lambda v: v is True, "grupoRecolhido": lambda v: v is True, "gid": lambda v: _texto(v) and len(v) <= 64, "grupoDe": lambda v: _texto(v) and len(v) <= 64,       # TASK-195/225: grupos de linhas (@) — cada ponto do mapa é um grupo
+    "_congeladaPorF": lambda v: v is True,     # TASK-235: a operação F (fictício) congelou a linha
     "origemAvulso": _texto,                    # TASK-171: "<índice do cabo>:<estrutura fictícia>" nas linhas de Outros adicionadas pela sugestão de avulsos
 }
 CAMPOS_TOTALIZADORA = {"id": str, "baseId": str, "obs": str, "operacao": str, "ativo": str, "qtd": (int, float, str, type(None)), "desc": str,
@@ -168,7 +169,7 @@ def _validar_linhas(rotulo, linhas, erros, completo=True):
             if not isinstance(x.get("ativo", ""), str) or len(x.get("ativo", "")) > 500:
                 erros.append(f"{rotulo} linha {i}: 'ativo' precisa ser um texto de até 500 caracteres.")
             if x.get("operacao", "") not in OPERACOES:
-                erros.append(f"{rotulo} linha {i}: operação '{str(x.get('operacao'))[:10]}' inválida (use I, *I, R, *R, M, *M).")
+                erros.append(f"{rotulo} linha {i}: operação '{str(x.get('operacao'))[:10]}' inválida (use I, *I, R, *R, M, *M ou F).")
             ent = x.get("entidade", "0")
             if not isinstance(ent, str) or (ent != "0" and not _RE_ENTIDADE.match(ent)):
                 erros.append(f"{rotulo} linha {i}: 'entidade' inválida.")

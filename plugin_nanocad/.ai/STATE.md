@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.16.0
+
+TASK-038: montagem manual no formato do mapa — Selecionar poste/cabo → textos → janela com campos (L) e operação por campo (F, I, \*I, M, \*M, R, \*R); regras de um projeto (texto fora delas = F) ou sem regras; cabo inteiro ou trecho, metragem anotada com a medida ao lado. ✅ 137 testes do núcleo + contrato com a aplicação; DLLs do nanoCAD 26 e 5 geradas (0.16.0). 🟡 Validar no nanoCAD. [TASK-038](tasks/TASK-038-23-11-2026.md).
+
 ## Plugin 0.15.0
 
 TASK-037: 3ª passada liga a anotação de poste que sobrou ao bloco livre mais perto (1:1, até 25 × a altura, Conferir) e o poste sem bloco leva `_posteAprox` no `.obra`. ✅ 130 testes do núcleo; DLLs do nanoCAD 26 e 5 geradas (manifestos 0.15.0 com SHA-256). 🟡 Validar no nanoCAD com a nota real. [TASK-037](tasks/TASK-037-23-11-2026.md).

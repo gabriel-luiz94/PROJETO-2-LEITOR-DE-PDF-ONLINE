@@ -215,6 +215,10 @@ namespace OrcamentoNanoCAD.Nucleo
         public List<Vao> Vaos = new List<Vao>();
         public List<Avulso> Avulsos = new List<Avulso>();
         public List<TextoIgnorado> Ignorados = new List<TextoIgnorado>();   // só na memória (não vai para o arquivo)
+        // TASK-038: montagem manual no formato do mapa do OrçaCore (ponto = «@nome - comentário» + campos com operação; cabo = linha/trecho + campos)
+        public List<PontoMapa> PontosMapa = new List<PontoMapa>();
+        public List<CaboMapa> CabosMapa = new List<CaboMapa>();
+        public bool? SemRegras;                                              // null = ainda não escolheu; true = texto como está; false = regras do projeto
         public int RedesSemPoste;                                            // linhas nas layers de rede que não passam por poste (descartadas)
 
         public Poste PostePorNumero(string n) { return n == null ? null : Postes.FirstOrDefault(p => p.Numero == n); }

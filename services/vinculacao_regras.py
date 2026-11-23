@@ -305,7 +305,7 @@ def info_cabo(codigo, operacao, cfg, extra=None) -> dict:
         vc = _dc.valor_cabo(dic, cod)
     return {"codigo": cod, "regra": i, "valor_cabo": vc, "pontas": pontas, "pontas_max": pontas_max, "secao": secao_cabo(cod, dic),
             "vincula": not (r is not None and (r.get("vincula") is False)), "estruturas": (r.get("estruturas") if r else None),
-            "operacoes": (r.get("operacoes") if r else None), "op": _trim(operacao).upper(), "base": base,
+            "operacoes": (r.get("operacoes") if r else None), "op": _trim(operacao).upper(), "ficticio": _trim(operacao).upper() == "F", "base": base,
             "fases": extra["fases"] if extra else None, "nivel": extra["nivel"] if extra else None,
             "descricao": extra["descricao"] if extra and extra.get("descricao") else cod}
 
@@ -540,11 +540,11 @@ def pode_com_ocupantes(c, e, ocupantes, ficticio=False):
         return ok, motivo
     if e["qtd"] is not None and len(ocupantes) + 1 > e["qtd"]:
         return False, f"a estrutura {e['codigo']} já tem os {e['qtd']} cabo(s) que aceita"
-    if not ficticio and e["max_reais"] is not None and len([o for o in ocupantes if not o.get("ficticio")]) + 1 > e["max_reais"]:
+    if not ficticio and not c.get("ficticio") and e["max_reais"] is not None and len([o for o in ocupantes if not o.get("ficticio") and not o["info"].get("ficticio")]) + 1 > e["max_reais"]:
         return False, f"a estrutura {e['codigo']} aceita só {e['max_reais']} cabo(s) real(is); o excedente deve ser fictício"
     if e["lados"] == "IGUAIS" and ocupantes:
         ref = ocupantes[0]
-        mesmo = ref["info"]["codigo"] == c["codigo"] and (ref.get("ficticio") or ref["info"]["op"] == c["op"])
+        mesmo = ref["info"]["codigo"] == c["codigo"] and (ref.get("ficticio") or ref["info"].get("ficticio") or c.get("ficticio") or ref["info"]["op"] == c["op"])
         if not mesmo:
             return False, f"{e['codigo']} exige cabos iguais: {ref['info']['codigo']} × {c['codigo']}"
     codigos = [o["info"]["codigo"] for o in ocupantes] + [c["codigo"]]
@@ -622,6 +622,11 @@ def _codigo_cabo(row, prefixo_fn):
 
 
 # TASK-095: só entram no vínculo linhas de operação I, M e as variantes *I e *M. R e *R (retirada/recolocação) ficam de fora — nem listadas, nem contadas.
+def eh_ficticia(row) -> bool:
+    """TASK-235: operação F = linha/cabo fictício (congelado, fora do orçamento; só para o vínculo)."""
+    return _trim((row or {}).get("operacao")).upper() == "F"
+
+
 def participa_vinculo(row) -> bool:
     return _trim((row or {}).get("operacao")).upper() not in ("R", "*R")
 
@@ -638,7 +643,8 @@ def _eh_cabo_valido(row):
 def _eh_linha_estrutura(r):
     # TASK-125: também a linha ainda não classificada ('0' ou vazia) que tem ativo (mesma regra de static/vinculacao_regras.js)
     # Linha de Outros CONGELADA não é estrutura (fora do vínculo); o cabo congelado continua valendo como fonte de um vínculo manual (só não é ligado sozinho pelos algoritmos).
-    return bool(r) and not r.get("congelada") and participa_vinculo(r) and (r.get("entidade") in ("ESTRUTURA", "POSTE") or (r.get("entidade") in (None, "", "0") and bool(_trim(r.get("ativo")))))
+    # TASK-235: linha F (fictícia) fica congelada (fora do orçamento) mas É estrutura: recebe cabos e completa o vínculo
+    return bool(r) and (not r.get("congelada") or eh_ficticia(r)) and participa_vinculo(r) and (r.get("entidade") in ("ESTRUTURA", "POSTE") or (r.get("entidade") in (None, "", "0") and bool(_trim(r.get("ativo")))))
 
 
 # TASK-094: uma linha de Outros pode ter VÁRIAS estruturas (`9400D, N1, N4` = poste + N1 + N4); cada uma é uma "unidade" vinculável.

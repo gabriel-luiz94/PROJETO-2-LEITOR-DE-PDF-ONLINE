@@ -144,6 +144,34 @@
     .vz-pend li > button.vz-pend-alvo{all:unset;cursor:pointer;color:var(--g-text);overflow-wrap:anywhere}.vz-pend li > button.vz-pend-alvo:focus-visible{outline:1px solid var(--g-accent)}
     .vz-pend-acoes{display:flex;gap:4px;flex-wrap:wrap}.vz-pend-acoes .vz-btn{font-size:11px;padding:2px 6px}
     .vz-grafo-mais{width:100%}
+    .vz-ops{display:inline-flex;gap:2px;background:var(--g-bg);border:1px solid var(--g-border);border-radius:7px;padding:2px;flex:none}
+    .vz-op-chip{min-width:26px;padding:3px 5px;border:0;border-radius:5px;background:transparent;color:var(--g-muted);font:700 11px/1.2 Inter,system-ui,sans-serif;cursor:pointer}
+    .vz-op-chip.sel{background:var(--g-accent-bg);color:#fff;box-shadow:inset 0 0 0 1px var(--g-accent)}.vz-op-chip.f.sel{background:#4a3a1c;color:#f6d39a;box-shadow:inset 0 0 0 1px #e9ae68}
+    .vz-op-chip.r.sel{background:#4a1f27;color:#ffb3bd;box-shadow:inset 0 0 0 1px #ff6478}.vz-op-chip.m.sel{background:#1f3a4a;color:#9fd4ff;box-shadow:inset 0 0 0 1px #5fb3ff}
+    .vz-op-chip:focus-visible{outline:2px solid var(--g-accent)}.vz-ops-sep{width:1px;background:var(--g-border);margin:2px}
+    .vz-ponto-dialog.vz-no-dialog.vz-composer-dialog{width:min(720px,96vw)}
+    .vz-nome-linha{display:grid;grid-template-columns:minmax(120px,190px) 14px 1fr;gap:6px;align-items:end}.vz-sep{color:var(--g-muted);font-size:18px;text-align:center;padding-bottom:6px}
+    .vz-previa-titulo{font:12px ui-monospace,Consolas,monospace;color:var(--g-accent);background:var(--g-panel);border:1px dashed var(--g-border);border-radius:6px;padding:5px 8px;overflow-wrap:anywhere}
+    .vz-tipo-ponto{font-size:11px;border:1px solid var(--g-border);border-radius:20px;padding:1px 9px;width:max-content;margin-left:6px;vertical-align:middle;font-weight:600}
+    .vz-tipo-ponto.poste{border-color:#54e1a3;color:#54e1a3}.vz-tipo-ponto.avulso{border-color:#e9ae68;color:#e9ae68}.vz-tipo-ponto.fic{border-color:#e3c9ff;color:#e3c9ff}.vz-tipo-ponto:empty{display:none}
+    .vz-rotulo-linhas{font-size:12px;color:var(--g-muted)}
+    .vz-linhas-ponto{display:grid;gap:5px}.vz-lp{display:grid;grid-template-columns:18px 1fr auto 22px;gap:6px;align-items:center}
+    .vz-lp-n{color:var(--g-muted);font-size:11px;text-align:right}
+    .vz-lp-x{background:transparent;border:0;color:var(--g-muted);cursor:pointer;font-size:14px}.vz-lp-x:hover{color:#ff8293}
+    .vz-secao-linhas h5{display:flex;align-items:center;gap:8px}.vz-secao-linhas h5 .vz-btn{margin-left:auto}
+    .vz-lps{display:grid;gap:4px;margin-bottom:10px}
+    .vz-lp-painel{display:grid;grid-template-columns:34px 1fr auto 20px;gap:8px;align-items:center;padding:4px 8px;border:1px solid var(--g-border);border-radius:8px;background:var(--g-panel);cursor:pointer}
+    .vz-lp-painel:hover,.vz-lp-painel:focus-visible{border-color:var(--g-accent);outline:none}.vz-lp-painel.fic{border-style:dashed}.vz-lp-painel.bloqueada{cursor:default;opacity:.75}
+    .vz-lp-painel.editando{grid-template-columns:1fr auto auto auto;border-color:var(--g-accent);cursor:default}
+    .vz-lp-painel input{background:var(--g-bg);color:var(--g-text);border:1px solid var(--g-border);border-radius:6px;padding:5px 7px;min-width:0}
+    .vz-lp-painel small{color:var(--g-muted);font-size:11px}.vz-lp-texto{overflow-wrap:anywhere}
+    .vz-op-badge{display:inline-block;min-width:28px;text-align:center;font-weight:700;font-size:11px;border-radius:5px;padding:2px 5px;background:var(--g-accent-bg);color:#fff}
+    .vz-op-badge.r{background:#4a1f27;color:#ffb3bd}.vz-op-badge.m{background:#1f3a4a;color:#9fd4ff}.vz-op-badge.f{background:#4a3a1c;color:#f6d39a}
+    .vz-aviso-antigo{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 12px;margin-bottom:10px;border:1px solid #946d34;background:#2b2418;border-radius:9px;color:#f4dcb2}
+    .vz-aviso-antigo[hidden]{display:none}.vz-aviso-antigo span{flex:1 1 260px}
+    .vz-no-cabo-sel{cursor:pointer}.vz-no-cabo.escolhido{border-color:#ffd166;box-shadow:0 0 0 1px #ffd166}
+    .vz-dica-vinculo{font-size:11px;margin:0 0 8px}
+    .vz-no-topo h4 small{font-weight:400;color:var(--g-muted);font-size:14px}
     .vz-esc-sel{background:var(--g-bg);color:var(--g-text);border:1px solid var(--g-border);border-radius:6px;padding:4px 6px;font-size:12px;max-width:128px}
     .vz-grafo-escala{position:absolute;bottom:12px;left:12px;display:flex;align-items:center;gap:8px;padding:5px 9px;background:var(--g-panel);border:1px solid var(--g-border);border-radius:9px;font-size:11px;color:var(--g-text);pointer-events:none}
     .vz-grafo-escala[hidden]{display:none}.vz-esc-barra{display:block;height:6px;border:1.5px solid var(--g-text);border-top:0;min-width:2px}.vz-esc-barra-rot{color:var(--g-muted,#8b949e)}
@@ -1423,7 +1451,7 @@
         };
         vb = st.grafoVista && st.grafoVistaEscala === escala ? st.grafoVista : (!escalar() ? [0, 0, W, H] : null);
         let ultimoNo, ultimoStatus = '', caboEscolhido = null, pontaEscolhida = null;
-        let soPendenciasNo = false, estruturaEmFoco = null;
+        let soPendenciasNo = false, estruturaEmFoco = null, caboSelNo = null;          // TASK-235: cabo escolhido no painel (clique no cabo e depois na estrutura)
         let desenhosPorNo = new Map(), desenhosPorCabo = new Map(), camadaVaos = null, camadaNos = null, cabosSvg = [];
         let desenhos = [], ponto, sugestoes = [], observadorNo, quadro, caboEmFoco = null, filtroMapa = 'todos';
         let cabosFiltrados = new Set(), fecharEdicaoAtiva;
@@ -1479,18 +1507,17 @@
             el('div', {}, [el('h4', { text: 'Grafo da rede' }), instrucao]),
             el('div', { class: 'vz-grafo-cabecalho' }, [contagem, sugerir])
         ]);
-        const ficticio = botao('+ Cabo fictício', () => abrirFicticio(), 'Novo cabo fictício');
+        // TASK-235: só três ações — + Ponto (linhas com operação, F = fictícia), + Cabo e Traçar cabo. Poste/estrutura/fictícios viram linhas do ponto.
+        const ficticio = botao('+ Cabo fictício', () => abrirFicticio(), 'Novo cabo fictício');               // (fora da barra; mantido para quem ainda chama)
+        const btnPonto = botao('+ Ponto', () => abrirPonto(), 'Novo ponto: nome - comentário e as linhas (poste, estruturas), cada uma com a operação. Atalho: P');
+        btnPonto.classList.add('p');
         const ferramentas = el('div', { class: 'vz-grafo-ferramentas' }, [
-            botao('+ Poste', () => abrirCriacao('poste'), 'Novo poste'),
-            botao('+ Estrutura', () => abrirCriacao('estrutura'), 'Nova estrutura'),
-            botao('+ Cabo', () => abrirCriacao('cabo'), 'Novo cabo'),
-            ficticio
+            btnPonto,
+            botao('+ Cabo', () => abrirCriacao('cabo'), 'Novo cabo (operação F = cabo fictício). Atalho: C')
         ]);
-        if (host.inserirPosteFicticioNoMapa) ferramentas.append(botao('+ Poste fictício', abrirPosteFicticio, 'Novo poste fictício'));
-        const btnVao = botao('Traçar vão', () => alternarVao(), 'Clique no ponto de origem e depois no de destino: cria um cabo do último tipo usado, com o comprimento medido, ligado nas duas pontas. Shift+clique no destino cria sem perguntar. Atalho: V');
+        const btnVao = botao('Traçar cabo', () => alternarVao(), 'Clique no ponto de origem e depois no de destino: cria um cabo do último tipo usado, com o comprimento medido, ligado nas duas pontas. Shift+clique no destino cria sem perguntar. Atalho: V');
         if (host.inserirNoMapa) ferramentas.append(btnVao);
-        const btnAgrupar = botao('Agrupar pontos', () => agruparPontos(), 'Cria um grupo «@nome» com as linhas de cada ponto em Demais Ativos');
-        if (host.agruparPontosNoMapa) ferramentas.append(btnAgrupar);
+        const btnAgrupar = botao('Agrupar pontos', () => agruparPontos(), 'Cria um grupo «@nome» com as linhas de cada ponto em Demais Ativos');    // (fora da barra: a conversão do formato antigo faz isso)
         const filtro = el('select', { 'aria-label': 'Filtrar mapa' }, opcoes([
             ['todos', 'Tudo'], ['I', 'A instalar'], ['R', 'A remover'], ['M', 'Mantendo'], ['ficticios', 'Fictícios'], ['conferir', 'A conferir (nível/geometria)']
         ]));
@@ -1498,6 +1525,7 @@
         ferramentas.append(filtro);
         if (host.inserirNoMapa) barra.append(ferramentas);
         else barra.append(ficticio);
+        const avisoAntigo = el('div', { class: 'vz-aviso-antigo', hidden: '' });                             // TASK-235: pontos no formato antigo
         const seletorEscala = el('select', { class: 'vz-esc-sel', 'aria-label': 'Escala do mapa',
             title: '1:500 mostra o desenho em tamanho real de prancha (1 m = 2 mm; aproximado, depende do monitor). Ajustar encaixa toda a rede na tela.' }, opcoes(ME ? ME.ESCALAS : [['ajustar', 'Ajustar à tela']]));
         seletorEscala.value = escala;
@@ -1529,10 +1557,11 @@
         const avisos = el('p', { class: 'vz-grafo-aviso', role: 'status' });
         const dialogo = el('dialog', { class: 'vz-no-dialog', 'aria-labelledby': 'vz-no-titulo' });
         const editor = el('dialog', { class: 'vz-no-dialog vz-composer-dialog', 'aria-labelledby': 'vz-composer-titulo' });
-        corpo.append(barra, vazio, area, revisao, avisos, dialogo, editor);
+        corpo.append(barra, avisoAntigo, vazio, area, revisao, avisos, dialogo, editor);
 
         const linhaNo = no => no.poste ?? no.linhas[0];
         const linhaFicticia = no => outros()[linhaNo(no)]._mapaPosteFicticio === true;
+        const pontoSoFicticio = no => !linhaFicticia(no) && no.linhas.length > 0 && no.linhas.every(l => VR.ehFicticia(outros()[l]));      // TASK-235: ponto só com linhas F
         const estruturasDoNo = no => no.estruturas.filter(ie => !metaDe(linhaDe(ie)).soPoste && codigoDe(ie));
         const ligacoes = ic => cabos()[ic].vinculoEstruturas || [];
         const jaLigadoNo = (ic, no) => ligacoes(ic).some(ie => no.linhas.includes(linhaDe(ie)));
@@ -1701,7 +1730,7 @@
         // TASK-225: cada ponto é um grupo «@nome» em Demais Ativos; o nome do grupo é o nome do ponto (sem grupo: número automático pela linha)
         let titulosGrupo = new Map();
         const GLm = raiz.GruposLinhas;
-        const nomeGrupoDaLinha = l => { const r = outros()[l], t = r && r.grupoDe ? titulosGrupo.get(r.grupoDe) : null; return t && GLm ? GLm.rotuloDe(t) : ''; };
+        const nomeGrupoDaLinha = l => { const r = outros()[l], t = r && r.grupoDe ? titulosGrupo.get(r.grupoDe) : null; return t && GLm ? GLm.nomeDoPonto(t) : ''; };      // TASK-235: só o nome (o comentário fica no painel)
         const nomeGrupoDoNo = no => nomeGrupoDaLinha(linhaNo(no)) || no.linhas.map(nomeGrupoDaLinha).find(Boolean) || '';
         const limitar01 = v => Math.max(0, Math.min(1, v));
         // grava a posição que o ponto tem na tela (Ajustar: fração da tela · 1:500: deslocamento em metros)
@@ -1962,7 +1991,7 @@
                 const denso = labels.some(([a, b, c]) => Math.abs(y - c) < 14 && x + 10 < b && direita > a);
                 if (!denso) labels.push([x + 10, direita, y]);
                 const completo = VR.posteCompletoNoGrafo(estruturas, a);
-                const classe = [denso ? 'vz-rotulo-denso' : '', completo ? 'completo' : 'pendente', avulsa ? 'avulsa' : '', linhaFicticia(n) ? 'ficticio' : '',
+                const classe = [denso ? 'vz-rotulo-denso' : '', completo ? 'completo' : 'pendente', avulsa ? 'avulsa' : '', linhaFicticia(n) || pontoSoFicticio(n) ? 'ficticio' : '',
                     !n.pos && n.posAprox ? 'aproximada' : '', selecao.has(n.id) ? 'escolhido' : '', n.id === vaoOrigem ? 'origem-vao' : ''].join(' ');
                 const estado = (linhaFicticia(n) ? 'Âncora visual' : completo ? 'Vinculação completa' : 'Vinculação pendente')
                     + (!n.pos && n.posAprox ? ' · posição aproximada (anotação sem bloco de poste no CAD)' : '');
@@ -2042,6 +2071,25 @@
             if (caboEmFoco !== null) garantirCartao(caboEmFoco);
             if (vb) atualizarEscala();
             const semGrupo = pontosSemGrupo().length;
+            // TASK-235: pontos no formato antigo (sem grupo ou com comentário em linha «#») — pergunta antes de converter
+            if (host.converterPontosNoMapa && !st.adiarConversao && GLm) {
+                const antigos = outros().reduce((n, r, i) => n + (r && r.grupoDecl && GLm.pontoDaLinha(outros(), i)?.formatoAntigo ? 1 : 0), 0);
+                const total = antigos + semGrupo;
+                avisoAntigo.hidden = !total;
+                if (total) {
+                    const converter = botao('Converter todos', () => {
+                        fixarPosicoes();
+                        const n = host.converterPontosNoMapa(pontosSemGrupo().map(no => ({ linhas: no.linhas, nome: 'P' + (linhaNo(no) + 1) })));
+                        cx = null; metaAtivo.clear();
+                        atualizar();
+                        host.depois?.();
+                        avisos.textContent = n + ' ponto(s) convertido(s) para «@nome - comentário». Ctrl+Z desfaz.';
+                    }, 'Agrupa os pontos sem grupo e leva as linhas «#» para o título (juntas por «; »). Ctrl+Z desfaz.');
+                    converter.classList.add('p');
+                    avisoAntigo.replaceChildren(el('span', { text: '⚠ ' + total + ' ponto(s) no formato antigo (sem grupo ou com comentário em linha separada).' }), converter,
+                        botao('Agora não', () => { st.adiarConversao = true; avisoAntigo.hidden = true; }));
+                }
+            } else avisoAntigo.hidden = true;
             btnAgrupar.disabled = !semGrupo;
             btnAgrupar.textContent = semGrupo ? 'Agrupar pontos (' + semGrupo + ')' : 'Agrupar pontos';
             tituloPontas.textContent = 'Cabos · ' + cabosVisiveis.size;
@@ -2312,7 +2360,7 @@
                 el('button', { class: 'vz-pend-alvo', type: 'button', text: p.texto, title: 'Mostrar no mapa', onclick: () => (p.id ? focarNo(p.id) : focarCabo(p.ic)) }),
                 p.acoes.length ? el('div', { class: 'vz-pend-acoes' }, p.acoes.map(([t, f]) => botao(t, f))) : null
             ])));
-            painelPend.replaceChildren(
+            painelPend.replaceChildren(...[                                                           // (replaceChildren escreveria «null» como texto)
                 el('summary', { text: pendencias.length ? 'Pendências · ' + pendencias.length : 'Rede montada ✓' }),
                 barra('Vãos vinculados', completos, vinculaveis.length),
                 barra('Pontas ligadas', pontas, cabosVisiveis.size * 2),
@@ -2320,7 +2368,7 @@
                 sugestoesPontas && host.inserirNoMapa ? botao('Ligar ' + sugestoesPontas + ' ponta(s) ao ponto mais perto', ligarSugestoes, 'Cada ponta solta vai para o ponto mais perto da ponta do desenho (até 25 m). Ctrl+Z desfaz tudo.') : null,
                 pendencias.length ? lista : null,
                 pendencias.length > LIMITE ? el('small', { text: '… e mais ' + (pendencias.length - LIMITE) + '. Resolva as primeiras ou use os filtros.' }) : null
-            );
+            ].filter(x => x));
             painelPend.hidden = !(nos.length || cabosVisiveis.size);
         }
 
@@ -2340,7 +2388,7 @@
                 return;
             }
             if (!host.inserirNoMapa) return;
-            const acao = { v: () => alternarVao(), V: () => alternarVao(), p: () => abrirCriacao('poste'), e: () => abrirCriacao('estrutura'), c: () => abrirCriacao('cabo'),
+            const acao = { v: () => alternarVao(), V: () => alternarVao(), p: () => abrirPonto(), c: () => abrirCriacao('cabo'),
                 l: () => { if (caboEmFoco !== null && livres(caboEmFoco)) selecionarCabo(caboEmFoco, 1); else avisos.textContent = 'Selecione um cabo com ponta livre para ligar (L).'; },
                 Delete: () => excluirSelecao() }[k];
             if (!acao) return;
@@ -2414,6 +2462,7 @@
             return valores.map(([value, text]) => el('option', { value, text }));
         }
         const operacoesEdicao = [
+            ['F', 'F · Fictício (fora do orçamento, só para o vínculo)'],
             ['I', 'I · Instalar'], ['*I', '*I · Instalar em linha viva'],
             ['M', 'M · Manter ou reaplicar'], ['*M', '*M · Manter ou reaplicar em linha viva'],
             ['R', 'R · Remover'], ['*R', '*R · Remover em linha viva']
@@ -2584,7 +2633,7 @@
             const ativo = el('input', { type: 'text', required: '', maxlength: '440', placeholder: exemplo, 'data-sugestao-origem': cabo ? 'CABOS' : 'OUTROS' });
             const referencia = edicao && outros()[edicao.poste];
             if (referencia) ativo.value = referencia.ativo;
-            const operacao = selectComValor(operacoesEdicao, referencia?.operacao || 'I');
+            const operacao = cabo ? seletorOperacao('I') : selectComValor(operacoesEdicao, referencia?.operacao || 'I');        // TASK-235: no cabo, F = cabo fictício
             const metros = el('input', { type: 'text', inputmode: 'decimal', maxlength: '24', required: '', placeholder: '25' });
             const fases = (raiz.GradeTabela?.FASES || ['A', 'B', 'C', 'AB', 'AC', 'BC', 'ABC']);
             const fase = el('select', {}, opcoes([['', 'Do rótulo'], ...fases.map(v => [v, v])]));
@@ -2659,6 +2708,172 @@
             });
         }
 
+        // ── TASK-235: o ponto = nome - comentário + linhas, cada uma com a operação (F = fictícia: fora do orçamento, só para o vínculo) ──
+        const OPS_PONTO = ['F', '|', 'I', 'M', 'R', '|', '*I', '*M', '*R'];
+        function seletorOperacao(valor, aoMudar) {
+            const caixa = el('div', { class: 'vz-ops', role: 'radiogroup', 'aria-label': 'Operação' });
+            let atual = OPS_PONTO.includes(valor) && valor !== '|' ? valor : 'I';
+            const botoes = OPS_PONTO.map(op => op === '|' ? el('span', { class: 'vz-ops-sep' }) : el('button', {
+                type: 'button', class: 'vz-op-chip' + (op === 'F' ? ' f' : op.includes('R') ? ' r' : op.includes('M') ? ' m' : ''), text: op, role: 'radio',
+                title: op === 'F' ? 'Fictício: fica fora do orçamento e vale só para o vínculo' : op, onclick: () => definir(op, true)
+            }));
+            function definir(op, doUsuario) {
+                atual = op;
+                botoes.forEach(b => { if (b.tagName === 'BUTTON') { const sel = b.textContent === op; b.classList.toggle('sel', sel); b.setAttribute('aria-checked', String(sel)); } });
+                if (doUsuario) aoMudar?.(op);
+            }
+            caixa.append(...botoes);
+            Object.defineProperty(caixa, 'value', { get: () => atual, set: v => definir(v, false) });
+            definir(atual, false);
+            return caixa;
+        }
+        const ehPosteTexto = texto => { try { return (host.postesDaLinha?.(texto) || []).length > 0; } catch (e) { return false; } };
+        function tipoDoPonto(itens) {
+            const cheias = itens.filter(x => x.ativo);
+            if (!cheias.length) return '';
+            if (cheias.every(x => x.op === 'F')) return 'Fictício';
+            return cheias.some(x => ehPosteTexto(x.ativo)) ? 'Poste' : 'Estrutura avulsa';
+        }
+        /** Linhas do ponto (as da tabela, sem título nem comentário «#»). */
+        function linhasDoPonto(no) {
+            const info = host.pontoNoMapa?.(no.linhas);
+            const idx = info ? info.membros : no.linhas.filter(l => outros()[l] && !outros()[l].comentario && !outros()[l].grupoDecl);
+            return { info, idx: idx.filter(l => outros()[l] && !outros()[l].comentario) };
+        }
+        const opDaLinha = r => { const o = trim(r.operacao).toUpperCase(); return o === '' ? 'I' : o; };
+        /** Lista editável de linhas: [nº, ativo, operação, ×]. Ao preencher a última, entra outra vazia com a operação de cima. */
+        function editorDeLinhas(iniciais, aoMudar) {
+            const lista = el('div', { class: 'vz-linhas-ponto' });
+            const linhas = [];
+            function nova(x) {
+                const ativo = el('input', { type: 'text', maxlength: '440', placeholder: 'ex.: 11300D, N3 · N3 · CE2', 'data-sugestao-origem': 'OUTROS', 'aria-label': 'Linha do ponto' });
+                ativo.value = x.ativo || '';
+                const ops = seletorOperacao(x.op || 'I', () => aoMudar?.());
+                const n = el('span', { class: 'vz-lp-n' });
+                const remover = el('button', { type: 'button', class: 'vz-lp-x', text: '×', title: 'Tirar esta linha do ponto', onclick: () => { lista.removeChild(item.el); linhas.splice(linhas.indexOf(item), 1); renumerar(); garantirVazia(); aoMudar?.(); } });
+                const item = { indice: Number.isInteger(x.indice) ? x.indice : null, ativo, ops, el: el('div', { class: 'vz-lp' }, [n, ativo, ops, remover]) };
+                ativo.addEventListener('input', () => { garantirVazia(); aoMudar?.(); });
+                linhas.push(item); lista.append(item.el);
+                return item;
+            }
+            function renumerar() { linhas.forEach((l, i) => { l.el.firstChild.textContent = i + 1; }); }
+            function garantirVazia() {
+                const ult = linhas[linhas.length - 1];
+                if (!ult || trim(ult.ativo.value)) nova({ op: ult ? ult.ops.value : 'I' });
+                renumerar();
+            }
+            iniciais.forEach(nova);
+            garantirVazia();
+            return { el: lista, coletar: () => linhas.map(l => ({ indice: l.indice, ativo: trim(l.ativo.value), op: l.ops.value })), focar: () => linhas[0]?.ativo.focus() };
+        }
+        /** Depois de gravar o ponto: o grafo é refeito e o painel/seleção seguem a linha `indice`. */
+        function depoisDoPonto(indice, mensagem, novo) {
+            cx = null; metaAtivo.clear();
+            grafo = montarGrafo();
+            const id = grafo.nosPorLinha.get(indice)?.id || null;
+            const auto = id ? automatizarPontos(grafo.nos.get(id).linhas) : 0;
+            if (st.grafoNo !== null && !novo) st.grafoNo = id;
+            ultimoStatus = comVinculosAutomaticos(mensagem, auto);
+            atualizar();
+            host.depois?.();
+            avisos.textContent = ultimoStatus;
+            if (novo) { colocarNovoPonto(indice); iniciarPosicionamento(indice); }
+        }
+        /** Formulário do ponto (novo ou existente): nome - comentário na mesma linha, prévia do título e as linhas com a operação. */
+        function abrirPonto(no = null) {
+            if (!host.salvarPontoNoMapa) { abrirCriacao('poste'); return; }
+            const { info, idx } = no ? linhasDoPonto(no) : { info: null, idx: [] };
+            const nome = el('input', { type: 'text', maxlength: '60', placeholder: 'Automático' });
+            const comentario = el('input', { type: 'text', maxlength: '300', placeholder: 'Opcional' });
+            nome.value = info?.nome || ''; comentario.value = info?.comentario || '';
+            const previa = el('div', { class: 'vz-previa-titulo' }), tipo = el('span', { class: 'vz-tipo-ponto' });
+            let forcar = false;
+            const linhas = editorDeLinhas(idx.map(l => ({ indice: l, ativo: outros()[l].ativo, op: opDaLinha(outros()[l]) })), () => { forcar = false; atualizarPrevia(); });
+            function atualizarPrevia() {
+                const n = trim(nome.value).toUpperCase() || (info?.nome || 'P…'), c = trim(comentario.value);
+                previa.textContent = '@' + n + (c ? ' - ' + c : '');
+                const t = tipoDoPonto(linhas.coletar());
+                tipo.textContent = t ? 'Tipo: ' + t : '';
+                tipo.className = 'vz-tipo-ponto ' + (t === 'Poste' ? 'poste' : t === 'Fictício' ? 'fic' : 'avulso');
+            }
+            [nome, comentario].forEach(i => i.addEventListener('input', () => { forcar = false; atualizarPrevia(); }));
+            const nomeLinha = el('div', { class: 'vz-nome-linha' }, [campo('Nome (vazio = automático)', nome), el('span', { class: 'vz-sep', text: '-' }), campo('Comentário', comentario)]);
+            atualizarPrevia();
+            abrirEditor(no ? 'Editar ponto' : 'Novo ponto', no ? 'Salvar ponto' : 'Criar e posicionar', [nomeLinha, previa, tipo, el('span', { class: 'vz-rotulo-linhas', text: 'Linhas do ponto' }), linhas.el], () => {
+                if (st.projeto !== host.projeto()) return 'O projeto mudou. Reabra o mapa para editar.';
+                if (!no) fixarPosicoes();
+                const r = host.salvarPontoNoMapa({ linhas: no ? no.linhas : null, nome: nome.value, comentario: comentario.value, itens: linhas.coletar(), forcar }, st.cfg);
+                if (r.erro) return r.erro;
+                if (r.conflitos) { forcar = true; return 'Vínculos que cairiam: ' + r.conflitos.join(' · ') + '. Clique em «' + (no ? 'Salvar ponto' : 'Criar') + '» de novo para confirmar (Ctrl+Z desfaz).'; }
+                depoisDoPonto(r.indice, no ? 'Ponto atualizado em Demais Ativos' + (r.quebrados ? ' · ' + r.quebrados + ' vínculo(s) removido(s).' : '.') : 'Ponto ' + r.nome + ' criado.', !no);
+                return '';
+            });
+            editor.classList.add('vz-ponto-dialog');
+            editor.addEventListener('close', () => editor.classList.remove('vz-ponto-dialog'), { once: true });
+            linhas.focar();
+        }
+        /** Painel do ponto: «Linhas do ponto» com edição na própria linha (ativo + operação). */
+        function secaoLinhasDoPonto(no, status) {
+            const { idx } = linhasDoPonto(no);
+            const caixa = el('section', { class: 'vz-secao-linhas' });
+            const salvarItens = (itens, mensagem) => {
+                let forcar = !!salvarItens.forcar;
+                const r = host.salvarPontoNoMapa({ linhas: no.linhas, itens, forcar }, st.cfg);
+                if (r.erro) { status.textContent = r.erro; return false; }
+                if (r.conflitos) {
+                    status.textContent = 'Vínculos que cairiam: ' + r.conflitos.join(' · ') + '.';
+                    const confirmar = botao('Trocar mesmo assim', () => { salvarItens.forcar = true; salvarItens(itens, mensagem); salvarItens.forcar = false; });
+                    confirmar.classList.add('p');
+                    status.append(' ', confirmar);
+                    return false;
+                }
+                depoisDoPonto(r.indice, mensagem + (r.quebrados ? ' · ' + r.quebrados + ' vínculo(s) removido(s).' : '.'));
+                return true;
+            };
+            const atuais = () => idx.map(l => ({ indice: l, ativo: outros()[l].ativo, op: opDaLinha(outros()[l]) }));
+            function linhaEmEdicao(item, k) {
+                const ativo = el('input', { type: 'text', maxlength: '440', 'data-sugestao-origem': 'OUTROS', 'aria-label': 'Linha do ponto' });
+                ativo.value = item.ativo;
+                const ops = seletorOperacao(item.op);
+                const ok = botao('OK', () => {
+                    const itens = atuais();
+                    if (k === null) itens.push({ indice: null, ativo: trim(ativo.value), op: ops.value });
+                    else itens[k] = { indice: item.indice, ativo: trim(ativo.value), op: ops.value };
+                    salvarItens(itens, k === null ? 'Linha acrescentada ao ponto' : 'Linha atualizada');
+                }, 'Gravar a linha');
+                ok.classList.add('p');
+                const cancelar = botao('×', () => preencherNo(), 'Cancelar');
+                ativo.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ok.click(); } if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); preencherNo(); } });
+                const linha = el('div', { class: 'vz-lp-painel editando' }, [ativo, ops, ok, cancelar]);
+                setTimeout(() => ativo.focus(), 0);
+                return linha;
+            }
+            const lista = el('div', { class: 'vz-lps' });
+            atuais().forEach((item, k) => {
+                const r = outros()[item.indice], op = item.op, bloqueada = !!r.bloqueada;
+                const linha = el('div', { class: 'vz-lp-painel' + (op === 'F' ? ' fic' : '') + (bloqueada ? ' bloqueada' : ''), ...(bloqueada ? {} : { tabindex: '0', role: 'button' }),
+                    title: bloqueada ? 'Linha bloqueada' : 'Clique para editar a linha e a operação' }, [
+                    el('span', { class: 'vz-op-badge' + (op === 'F' ? ' f' : op.includes('R') ? ' r' : op.includes('M') ? ' m' : ''), text: op }),
+                    el('span', { class: 'vz-lp-texto', text: item.ativo }),
+                    el('small', { text: op === 'F' ? 'fictícia · fora do orçamento' : ehPosteTexto(item.ativo) ? 'poste' : '' }),
+                    bloqueada ? null : el('button', { type: 'button', class: 'vz-lp-x', text: '×', title: 'Tirar esta linha do ponto', onclick: e => {
+                        e.stopPropagation();
+                        const itens = atuais(); itens[k] = { indice: item.indice, ativo: '', op };
+                        salvarItens(itens, 'Linha tirada do ponto');
+                    } })
+                ]);
+                if (!bloqueada) {
+                    const editar = () => linha.replaceWith(linhaEmEdicao(item, k));
+                    linha.addEventListener('click', editar);
+                    linha.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === linha) { e.preventDefault(); editar(); } });
+                }
+                lista.append(linha);
+            });
+            const ultimaOp = idx.length ? opDaLinha(outros()[idx[idx.length - 1]]) : 'I';
+            const mais = botao('+ Linha', () => { mais.disabled = true; lista.append(linhaEmEdicao({ indice: null, ativo: '', op: ultimaOp }, null)); }, 'Acrescentar uma linha ao ponto (operação da linha de cima)');
+            caixa.append(el('h5', {}, ['Linhas do ponto', mais]), lista);
+            return caixa;
+        }
         function abrirFicticio(unidade = null) {
             const camposEstrutura = [];
             grafo.nos.forEach(no => estruturasDoNo(no).forEach(ie => {
@@ -2738,7 +2953,7 @@
         }
 
         function editarNo(id, alvo) {
-            if (st.grafoNo !== id) { soPendenciasNo = false; estruturaEmFoco = null; }
+            if (st.grafoNo !== id) { soPendenciasNo = false; estruturaEmFoco = null; caboSelNo = null; }
             ultimoNo = alvo;
             ultimoStatus = '';
             st.grafoNo = id;
@@ -2765,13 +2980,13 @@
                 atualizar();
                 if (st.grafoNo) ultimoNo = nosSvg.get(st.grafoNo);
             };
-            const salvar = botao(info ? 'Salvar nome e comentário' : 'Criar o grupo do ponto', () => {
+            const salvar = host.salvarPontoNoMapa ? null : botao(info ? 'Salvar nome e comentário' : 'Criar o grupo do ponto', () => {
                 const erro = host.definirPontoNoMapa(no.linhas, { nome: nome.value, comentario: comentario.value });
                 if (erro) { status.textContent = erro; return; }
                 depoisDeMudar('Ponto atualizado em Demais Ativos.');
             }, 'Grava o nome e o comentário do ponto (o grupo @ em Demais Ativos)');
-            salvar.classList.add('p');
-            const botoes = [salvar];
+            salvar?.classList.add('p');
+            const botoes = [salvar].filter(Boolean);
             if (host.copiarPontoNoMapa) botoes.push(botao('Copiar ponto', () => copiarPonto(no, status), 'Copia o ponto (novo grupo com as mesmas linhas, sem vínculos) e pede onde posicioná-lo'));
             if (info && !ehFicticio && host.marcarPontoNoMapa) {
                 botoes.push(botao(info.congelada ? 'Descongelar grupo' : 'Congelar grupo', () => { host.marcarPontoNoMapa(no.linhas, 'congelada'); depoisDeMudar(info.congelada ? 'Grupo descongelado.' : 'Grupo congelado: fora dos cálculos.'); },
@@ -2786,7 +3001,7 @@
             [...no.cabos].sort((a, b) => a - b).forEach(ic => somar('Cabos', ic, cabos()[ic] && cabos()[ic].ativo));
             return el('div', { class: 'vz-ponto' }, [
                 el('h5', { text: 'Ponto' }),
-                campo('Nome (vazio = número automático)', nome), campo('Comentário', comentario),
+                ...(salvar ? [campo('Nome (vazio = número automático)', nome), campo('Comentário', comentario)] : []),
                 el('div', { class: 'vz-ponto-botoes' }, botoes),
                 info ? null : el('small', { class: 'vz-no-ajuda', text: 'Este ponto ainda não é grupo em Demais Ativos.' }),
                 el('h6', { text: 'Linhas nas tabelas' }),
@@ -2858,10 +3073,10 @@
                     ]);
                 })) : el('p', { class: 'vz-no-ajuda', text: 'Nenhuma estrutura cadastrada neste ponto.' })
             ]);
-            const editarPoste = no.poste !== null && host.editarNoMapa && (ehFicticio
-                ? controleEdicao('poste-ficticio', no.poste, 'poste fictício')
-                : botao('Editar poste', () => abrirCriacao('poste', null, no)));
-            if (editarPoste && !ehFicticio) editarPoste.disabled = Boolean(row.bloqueada || row.comentario);
+            // TASK-235: «Editar ponto» abre o formulário do ponto (nome - comentário + linhas); o poste fictício antigo mantém o editor dele
+            const editarPoste = ehFicticio ? (no.poste !== null && host.editarNoMapa && controleEdicao('poste-ficticio', no.poste, 'poste fictício'))
+                : host.salvarPontoNoMapa ? botao('Editar ponto', () => abrirPonto(no), 'Nome, comentário e linhas do ponto')
+                : (no.poste !== null && host.editarNoMapa && botao('Editar poste', () => abrirCriacao('poste', null, no)));
             if (no.poste === null && !estruturas.length) {
                 const editar = controleEdicao('estrutura', linhaNo(no), 'linha do ponto ' + (linhaNo(no) + 1));
                 if (editar) lateral.append(editar);
@@ -2898,8 +3113,9 @@
                         host.depois?.();
                     }
                 }));
-            } else if (host.inserirNoMapa && no.poste !== null) adicionarEstrutura = botao('+ Estrutura', () => abrirCriacao('estrutura', no.poste), 'Nova estrutura neste poste');
+            } else if (host.inserirNoMapa && no.poste !== null && !host.salvarPontoNoMapa) adicionarEstrutura = botao('+ Estrutura', () => abrirCriacao('estrutura', no.poste), 'Nova estrutura neste poste');
             const adicionarCabo = host.inserirNoMapa && botao('+ Cabo', () => abrirCriacao('cabo', linhaNo(no)), 'Novo cabo neste ponto');
+            const tracarDaqui = host.inserirNoMapa && botao('Traçar cabo daqui', () => { dialogo.close(); alternarVao(true); marcarOrigemVao(no.id); avisos.textContent = 'Origem: ' + nomeDoNo(no) + '. Clique no ponto de destino.'; }, 'Começa o «Traçar cabo» com este ponto como origem');
             const painelNo = el('section', {}, [el('h5', { text: 'Cabos' })]);
             const adicionais = [...grafo.cabosDoMapa.keys()].filter(ic => !pontosDoCabo(ic).includes(no.id) && livres(ic));
             if (adicionais.length) {
@@ -3008,9 +3224,22 @@
                         acoes.append(el('span', { class: 'vz-no-ajuda', text: linksComErro.get(ic) || motivoNo(ic, no) || 'Nenhuma estrutura compatível disponível.' }));
                     }
                 }
+                if (!ehFicticio) {                                                               // TASK-235: clique no cabo + clique na estrutura = vínculo (como na aba Vínculo)
+                    const cab = cartao.firstElementChild;
+                    cab.classList.add('vz-no-cabo-sel');
+                    cab.title = 'Clique para escolher este cabo; depois clique na estrutura';
+                    cab.addEventListener('click', e => { if (!e.target.closest('button, select, input, summary')) escolherCaboNo(ic); });
+                    if (caboSelNo === ic) cartao.classList.add('escolhido');
+                }
                 painelNo.append(cartao);
             });
-            const botoes = el('div', { class: 'vz-no-topo-acoes' }, [editarPoste, adicionarEstrutura, adicionarCabo, fecharNo].filter(Boolean));
+            function escolherCaboNo(ic) {
+                if (estruturaEmFoco !== null) { const ie = estruturaEmFoco; estruturaEmFoco = null; caboSelNo = null; mudarVinculo(ic, ie, 'ligar', 'c' + ic); return; }
+                caboSelNo = caboSelNo === ic ? null : ic;
+                painelNo.querySelectorAll('[data-cabo-no]').forEach(c => c.classList.toggle('escolhido', Number(c.dataset.caboNo) === caboSelNo));
+                textoDica();
+            }
+            const botoes = el('div', { class: 'vz-no-topo-acoes' }, [editarPoste, adicionarEstrutura, adicionarCabo, tracarDaqui, fecharNo].filter(Boolean));
             const filtro = el('input', { type: 'checkbox' });
             filtro.checked = soPendenciasNo;
             const filtros = el('div', { class: 'vz-no-filtros' }, [
@@ -3027,14 +3256,33 @@
                 el('p', { text: no.pos ? `X ${no.pos[0].toFixed(2)} · Y ${no.pos[1].toFixed(2)}` : 'Sem coordenadas CAD' }),
                 caixaDoPonto(no, status, ehFicticio)
             ]);
+            const infoPonto = host.pontoNoMapa?.(no.linhas);
+            const tipoPonto = ehFicticio || pontoSoFicticio(no) ? 'Fictício' : no.poste !== null ? 'Poste' : 'Estrutura avulsa';
+            const tituloNo = infoPonto ? [infoPonto.nome, infoPonto.comentario ? el('small', { text: ' - ' + infoPonto.comentario }) : null, el('span', { class: 'vz-tipo-ponto ' + (tipoPonto === 'Poste' ? 'poste' : tipoPonto === 'Fictício' ? 'fic' : 'avulso'), text: tipoPonto })]
+                : [nomeDoNo(no)];
+            const antigo = !ehFicticio && host.salvarPontoNoMapa && (!infoPonto || infoPonto.formatoAntigo) && !(st.manterAntigos || new Set()).has(no.id);
+            const avisoPonto = antigo ? el('div', { class: 'vz-aviso-antigo' }, [
+                el('span', { text: 'Este ponto está no formato antigo. Converter para «@nome - comentário», com a operação em cada linha?' }),
+                botao('Converter este ponto', () => {
+                    const r = host.salvarPontoNoMapa({ linhas: no.linhas, itens: linhasDoPonto(no).idx.map(l => ({ indice: l, ativo: outros()[l].ativo, op: opDaLinha(outros()[l]) })) }, st.cfg);
+                    if (r.erro) { status.textContent = r.erro; return; }
+                    depoisDoPonto(r.indice, 'Ponto convertido.');
+                }),
+                botao('Manter como está', () => { st.manterAntigos = st.manterAntigos || new Set(); st.manterAntigos.add(no.id); preencherNo(); })
+            ]) : null;
+            if (avisoPonto) avisoPonto.querySelector('button').classList.add('p');
+            const linhasPonto = !ehFicticio && host.salvarPontoNoMapa ? secaoLinhasDoPonto(no, status) : null;
+            const dicaVinculo = !ehFicticio && no.cabos.size ? el('p', { class: 'vz-no-ajuda vz-dica-vinculo' }) : null;
+            const textoDica = () => { if (dicaVinculo) dicaVinculo.textContent = caboSelNo !== null ? 'Cabo ' + (caboSelNo + 1) + ' escolhido: clique na estrutura para vincular (Esc ou outro clique no cabo cancela).'
+                : estruturaEmFoco !== null ? codigoDe(estruturaEmFoco) + ' escolhida: clique num cabo para vincular.' : 'Para vincular: clique no cabo e depois na estrutura (ou na estrutura e depois no cabo).'; };
             dialogo.replaceChildren(el('header', { class: 'vz-no-topo' }, [
-                el('div', {}, [el('h4', { id: 'vz-no-titulo', text: nomeDoNo(no) }),
+                el('div', {}, [el('h4', { id: 'vz-no-titulo' }, tituloNo),
                     el('p', { class: completo && !pendentes ? 'vz-no-completo' : '',
                         text: [automaticos && automaticos + ' automáticos', vinculados && vinculados + ' vinculados',
                             pendentes ? pendentes + ' a revisar' : 'Nenhuma ponta a revisar',
                             estruturasPendentes && estruturasPendentes + ' estrutura(s) a revisar'].filter(Boolean).join(' · ') })
                 ]), botoes
-            ]), el('div', { class: 'vz-no-conteudo' }, [filtros, status, mundo, detalhesPonto]));
+            ]), el('div', { class: 'vz-no-conteudo' }, [avisoPonto, filtros, status, linhasPonto, dicaVinculo, mundo, detalhesPonto]));
             function filtrarPendencias() {
                 soPendenciasNo = filtro.checked;
                 painelNo.querySelectorAll('[data-cabo-no]').forEach(card => { card.hidden = soPendenciasNo && card.dataset.pendencia !== 'true'; });
@@ -3042,8 +3290,10 @@
                 desenharLigacoes();
             }
             function destacarEstrutura(ie) {
+                if (caboSelNo !== null) { const ic = caboSelNo; caboSelNo = null; mudarVinculo(ic, ie, 'ligar', 'c' + ic); return; }
                 estruturaEmFoco = estruturaEmFoco === ie ? null : ie;
                 atualizarDestaque();
+                textoDica();
             }
             function atualizarDestaque() {
                 const ligados = new Set(conexoes.filter(l => l.ie === estruturaEmFoco).map(l => l.ic));
@@ -3078,6 +3328,7 @@
                 ligacoesSvg.replaceChildren(...elementos);
             }
             filtro.addEventListener('change', filtrarPendencias);
+            textoDica();
             filtrarPendencias();
             atualizarDestaque();
             observadorNo = new ResizeObserver(desenharLigacoes);

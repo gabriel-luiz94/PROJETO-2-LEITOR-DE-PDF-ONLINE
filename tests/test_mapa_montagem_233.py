@@ -142,7 +142,7 @@ def test_configuracao_de_leitura_aceita_o_raio_do_bloco_livre():
 def test_mapa_tem_as_ferramentas_da_montagem_rapida():
     ui = _ler("vinculacao_ui.js")
     corpo = ui[ui.index("function abaMapa(corpo)"):]
-    for trecho in ("'Traçar vão'", "function cliqueVao(", "function religarPonta(", "dataset.arrastar === 'ponta'", "function calcularPendencias(",
+    for trecho in ("'Traçar cabo'", "function cliqueVao(", "function religarPonta(", "dataset.arrastar === 'ponta'", "function calcularPendencias(",
                    "'Vãos vinculados'", "function ligarSugestoes(", "function fixarCoordenada(", "vz-fundo-bloco", "function transformarBloco(",
                    "function excluirSelecao(", "MM.dentroDoRetangulo(", "doc.addEventListener('keydown', teclaMapa, true)",
                    "doc.removeEventListener('keydown', teclaMapa, true)", "function mostrarMaisCartoes(", "st.modeloCabo ="):

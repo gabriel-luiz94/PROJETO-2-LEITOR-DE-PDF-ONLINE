@@ -1,0 +1,212 @@
+{
+  "formato": "leitor-obra",
+  "versao": 1,
+  "exportado_em": "2026-10-31T12:00:00+00:00",
+  "tipo": "obra",
+  "nome": "Montagem_Manual",
+  "projeto": "081",
+  "dados": {
+    "cabos": [
+      {
+        "entidade": "CABO",
+        "ativo": "3xA35P(7,94)-13,8kV 40 m",
+        "textoOriginal": "3xA35P(7,94)-13,8kV 40 m",
+        "entidadeManual": true,
+        "operacao": "I",
+        "_geo": [
+          [1000, 2000],
+          [1038.4, 2000]
+        ],
+        "_geoTipo": "MT"
+      }
+    ],
+    "outros": [
+      {
+        "entidade": "0",
+        "operacao": "I",
+        "ativo": "@P1 - Rua das Flores, 120",
+        "grupoDecl": true,
+        "congelada": true,
+        "gid": "plug-P1"
+      },
+      {
+        "entidade": "POSTE",
+        "ativo": "9200D, N1",
+        "textoOriginal": "9200D, N1",
+        "entidadeManual": true,
+        "grupoDe": "plug-P1",
+        "operacao": "I",
+        "_poste": [1000, 2000]
+      },
+      {
+        "entidade": "ESTRUTURA",
+        "ativo": "TEXTO QUALQUER 123",
+        "textoOriginal": "TEXTO QUALQUER 123",
+        "entidadeManual": true,
+        "grupoDe": "plug-P1",
+        "operacao": "F",
+        "congelada": true,
+        "_congeladaPorF": true,
+        "_poste": [1000, 2000]
+      },
+      {
+        "entidade": "0",
+        "operacao": "R",
+        "ativo": "@P2",
+        "grupoDecl": true,
+        "congelada": true,
+        "gid": "plug-P2"
+      },
+      {
+        "entidade": "ESTRUTURA",
+        "ativo": "N3",
+        "textoOriginal": "N3",
+        "entidadeManual": true,
+        "grupoDe": "plug-P2",
+        "operacao": "R",
+        "_posteAprox": [1038.4, 2000]
+      },
+      {
+        "entidade": "0",
+        "operacao": "I",
+        "ativo": "@PX - poste existente",
+        "grupoDecl": true,
+        "congelada": true,
+        "gid": "plug-PX"
+      },
+      {
+        "entidade": "POSTE",
+        "ativo": "12600D",
+        "textoOriginal": "12600D",
+        "entidadeManual": true,
+        "grupoDe": "plug-PX",
+        "operacao": "F",
+        "congelada": true,
+        "_congeladaPorF": true,
+        "_poste": [1080, 2000]
+      },
+      {
+        "entidade": "ESTRUTURA",
+        "ativo": "N3",
+        "textoOriginal": "N3",
+        "entidadeManual": true,
+        "grupoDe": "plug-PX",
+        "operacao": "I",
+        "_poste": [1080, 2000]
+      }
+    ],
+    "totalizadora": []
+  },
+  "cad": {
+    "versao": 1,
+    "origem": "plugin-nanocad",
+    "plugin": "0.16.0",
+    "desenho": "C:\\Projetos\\Montagem_Manual.dwg",
+    "regras": "Pernambuco (081) — Leitor",
+    "modo": "construir",
+    "altura_texto": 1,
+    "salvo_em": "23/11/2026 09:00",
+    "postes": [],
+    "vaos": [],
+    "avulsos": [],
+    "pontosMapa": [
+      {
+        "numero": "P1",
+        "nome": "",
+        "comentario": "Rua das Flores, 120",
+        "handle": "1A2",
+        "bloco": "POSTE",
+        "x": 1000,
+        "y": 2000,
+        "enviado": false,
+        "textos": ["T1", "T2"],
+        "campos": [
+          {
+            "l": 1,
+            "texto": "9200D, N1",
+            "operacao": "I",
+            "origem": "regra",
+            "entidade": "POSTE"
+          },
+          {
+            "l": 2,
+            "texto": "TEXTO QUALQUER 123",
+            "operacao": "F",
+            "origem": "sem regra"
+          }
+        ]
+      },
+      {
+        "numero": "P2",
+        "nome": "",
+        "comentario": "",
+        "handle": "",
+        "bloco": "",
+        "x": 1038.4,
+        "y": 2000,
+        "enviado": false,
+        "textos": ["T3"],
+        "campos": [
+          {
+            "l": 1,
+            "texto": "N3",
+            "operacao": "R",
+            "origem": "regra",
+            "entidade": "ESTRUTURA"
+          }
+        ]
+      },
+      {
+        "numero": "P3",
+        "nome": "PX",
+        "comentario": "poste existente",
+        "handle": "1A9",
+        "bloco": "",
+        "x": 1080,
+        "y": 2000,
+        "enviado": false,
+        "textos": ["T5"],
+        "campos": [
+          {
+            "l": 1,
+            "texto": "12600D",
+            "operacao": "F",
+            "origem": "manual"
+          },
+          {
+            "l": 2,
+            "texto": "N3",
+            "operacao": "I",
+            "origem": "manual"
+          }
+        ]
+      }
+    ],
+    "cabosMapa": [
+      {
+        "numero": "C1",
+        "linha": "2B0",
+        "trecho": false,
+        "tipo": "MT",
+        "medido": 38.4,
+        "enviado": false,
+        "pontos": [
+          [1000, 2000],
+          [1038.4, 2000]
+        ],
+        "textos": ["T4"],
+        "campos": [
+          {
+            "l": 1,
+            "texto": "3xA35P(7,94)-13,8kV",
+            "operacao": "I",
+            "origem": "regra",
+            "entidade": "CABO"
+          }
+        ],
+        "metros": 40
+      }
+    ],
+    "semRegras": false
+  }
+}

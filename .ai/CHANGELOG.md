@@ -8,6 +8,18 @@
 
 ---
 
+## 2026-11-23 — Plugin: montagem manual no formato do mapa
+
+O modo manual do nanoCAD (plugin 0.16.0) entrega cada poste como o ponto «@nome - comentário» com uma linha por campo e a sua operação (F, I, \*I, M, \*M, R, \*R), e cada cabo (linha inteira ou trecho) com a metragem e a geometria, sem vínculo. Com as regras de um projeto, o texto fora delas entra como F. Chega pelo envio incremental de anotações; o vínculo é feito no mapa. [TASK-237](tasks/TASK-237-23-11-2026.md).
+
+## 2026-11-23 — PDF com coordenadas no mapa
+
+O PDF vetorial monta o mapa como o DXF: rede pela cor do traço, postes nas pontas da rede, associação texto→rede/poste igual à do DXF e escala escolhida entre 1:500 e 1:1000 pelas metragens dos cabos (`services/pdf_geometria.py`). Coordenadas do mapa em metros; `_x/_y` seguem em pontos da página. [TASK-236](tasks/TASK-236-23-11-2026.md).
+
+## 2026-11-23 — Novo conceito do ponto no mapa
+
+O mapa monta a rede com + Ponto, + Cabo e Traçar cabo. O ponto é «@nome - comentário» com linhas e operação por linha; F (fictício) congela a linha fora do orçamento mas mantém a estrutura no vínculo, e o poste da linha F preenche o parâmetro POSTE do ponto. Edição da linha no painel mantém os vínculos quando a nova estrutura aceita os cabos; clique no cabo e na estrutura vincula. Pontos no formato antigo são convertidos sob confirmação (linhas «#» juntas por «; »). [TASK-235](tasks/TASK-235-23-11-2026.md).
+
 ## 2026-11-23 — 2ª ponta do cabo M só à mão
 
 O vínculo automático liga só as `pontas` do cabo (M = 1); o usuário pode ligar à mão até `pontasMax` (M = 2, coluna «Máx. à mão» da Tabela de Cabos). No painel do poste a ponta extra aparece como «Opcional». [TASK-234](tasks/TASK-234-23-11-2026.md).

@@ -63,6 +63,7 @@ const reclassificarEntidade = () => {};
 let passos = 0, atualizou = [];
 const pushHistory = () => passos++;
 const atualizarLinhaDoMapa = (...args) => atualizou.push(args);
+const aplicarOperacaoNaLinha = (row, v) => { row.operacao = v; };          // TASK-235 (a regra do F é testada em test_ponto_linhas_235)
 """
     testar = r"""
 const cfg = {estruturas:[{padrao:'^N1$', cabos:'^A35P$'}]};

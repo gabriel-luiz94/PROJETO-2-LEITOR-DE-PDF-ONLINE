@@ -1083,3 +1083,26 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - O vínculo **automático** liga só as pontas da coluna **Pontas I · M** da Tabela de Cabos (padrão: I = 2, M = 1). Com elas, o cabo fica completo.
 - O vínculo **à mão** pode ir além, até a coluna **Máx. à mão I · M** (padrão: I = igual às pontas, M = 2). Assim, num cabo M, o automático nunca liga a 2ª ponta: ela é sempre decisão sua.
 - No painel do poste, o cabo M já completo aparece como **Opcional** na outra ponta. Abra **Opções**, escolha a estrutura e clique em **Vincular**.
+
+## Mapa: o ponto com linhas e operação (23/11/2026)
+
+- A barra do mapa tem só **+ Ponto** (P), **+ Cabo** (C) e **Traçar cabo** (V).
+- **+ Ponto:** nome e comentário na mesma linha — vira o grupo **«@P12 - comentário»** em Demais Ativos. Embaixo, as **linhas do ponto** (ex.: `12600D`, `N3`, `CE2`), cada uma com a operação: **F** (fictícia), **I M R** e **\*I \*M \*R**. A linha nova vem com a operação da linha de cima. Se alguma linha tem poste, o ponto é **Poste**; senão é **Estrutura avulsa** (ex.: uma N3 solta removendo = ponto com a linha `N3` em **R**).
+- **F (fictícia):** a linha fica congelada — **fora do orçamento** —, mas continua recebendo cabos no vínculo. Ponto só com linhas F não entra no orçamento. O poste de uma linha F preenche o parâmetro **POSTE** das estruturas do mesmo ponto (ex.: `12600D` em F + `N3` em I → `N3(POSTE=12600D)`). Cabo com **F** é cabo fictício (congelado).
+- **Painel do ponto:** clique numa linha para trocar o texto e a operação ali mesmo (Enter grava, Esc cancela, × tira a linha, **+ Linha** acrescenta). Trocar a estrutura **mantém os vínculos** quando a nova aceita os mesmos cabos; se não aceitar, o painel diz quais vínculos cairiam e pede **Trocar mesmo assim**.
+- **Vincular por clique:** no painel, clique no cabo e depois na estrutura (ou na estrutura e depois no cabo).
+- **Formato antigo** (ponto sem grupo ou com comentário em linha «#»): o mapa pergunta **Converter todos**; ao abrir um ponto antigo, **Converter este ponto**. Várias linhas «#» viram um comentário só, juntas por «; ». Ctrl+Z desfaz.
+
+## PDF no mapa (23/11/2026)
+
+- **Ler projeto** com um **PDF exportado do CAD** monta o mapa como o DXF: as linhas **vermelhas** viram rede MT e as **verdes**, rede BT (mesma regra de cor do projeto); as pontas da rede valem como postes; cada texto vai para a rede/poste mais perto (ou pela linha-guia).
+- **Escala:** o programa escolhe sozinho entre **1:500** e **1:1000** comparando a metragem escrita nos cabos («… 38 m») com o comprimento desenhado. O aviso mostra a escala e quantos cabos confirmaram. Sem nenhum cabo com metragem ligado à rede, usa 1:500 (não confirmada).
+- PDF **escaneado** (imagem) não tem posições: os pontos ficam na coluna ao lado e você monta pelo mapa.
+
+## Plugin do nanoCAD: montar no formato do mapa (23/11/2026)
+
+- Em **Montar manualmente**, escolha **as regras de um projeto** ou **sem regras** (botão **Regras / sem regras** para trocar).
+- **Selecionar poste:** clique no símbolo do poste (Enter = sem símbolo), selecione os textos da anotação e tecle Enter. Na janela, cada texto é um **campo** com a sua linha (**L**). Marque a operação de cada campo: **F**, **I**, **\*I**, **M**, **\*M**, **R**, **\*R**. **+ Novo campo** e **+ Nova linha** separam o texto. Ctrl+Enter confirma.
+- **Selecionar cabo:** clique na linha, escolha **Inteira** ou **Trecho** e selecione os textos. Vale a metragem anotada; a medida na linha aparece ao lado.
+- **Com regras**, o ativo e a operação vêm do Leitor do projeto; o texto que não se encaixa entra como **F** (fictício). **Sem regras**, o texto entra como está.
+- **Adicionar anotações ao OrçaCore** manda os pontos e cabos para a obra aberta: cada poste aparece em Demais Ativos como **«@P1 - comentário»** com as suas linhas, e cada cabo em Cabos. Faça os vínculos no **mapa**. (Plugin 0.16.0 ou mais novo.)

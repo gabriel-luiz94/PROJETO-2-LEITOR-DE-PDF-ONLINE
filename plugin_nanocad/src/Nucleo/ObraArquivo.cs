@@ -19,7 +19,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public const string Formato = "leitor-obra";
         public const int Versao = 1;
         public const int VersaoCad = 1;
-        public const string VersaoPlugin = "0.15.0";
+        public const string VersaoPlugin = "0.16.0";
         private const int MaxPontosGeo = 60;
 
         public static string NomeDoArquivo(string desenho)
@@ -131,6 +131,9 @@ namespace OrcamentoNanoCAD.Nucleo
             JObj d = new JObj();
             d.Set("cabos", cabos);
             d.Set("outros", elementosOutros.Select(e => (object)LinhaAnotacao(e)).ToList());
+            // TASK-038: pontos e cabos montados no formato do mapa (vão depois das linhas lidas)
+            ((List<object>)d["outros"]).AddRange(obra.PontosMapa.SelectMany(MapaManual.LinhasDoPonto));
+            cabos.AddRange(obra.CabosMapa.SelectMany(MapaManual.LinhasDoCabo));
             d.Set("totalizadora", new List<object>());
             return d;
         }
@@ -272,6 +275,9 @@ namespace OrcamentoNanoCAD.Nucleo
             c.Set("postes", postes);
             c.Set("vaos", vaos);
             c.Set("avulsos", avulsos);
+            if (obra.PontosMapa.Count > 0) c.Set("pontosMapa", MapaManual.PontosParaJson(obra.PontosMapa));
+            if (obra.CabosMapa.Count > 0) c.Set("cabosMapa", MapaManual.CabosParaJson(obra.CabosMapa));
+            if (obra.SemRegras.HasValue) c.Set("semRegras", obra.SemRegras.Value);
             return c;
         }
 
@@ -339,6 +345,9 @@ namespace OrcamentoNanoCAD.Nucleo
             obra.FonteDxf = cad.Str("fonte_dxf");
             obra.HashLeitor = cad.Str("regras_leitor");
             obra.Modo = cad.Str("modo") ?? "ler";
+            obra.PontosMapa = MapaManual.PontosDeJson(cad["pontosMapa"]);
+            obra.CabosMapa = MapaManual.CabosDeJson(cad["cabosMapa"]);
+            if (cad["semRegras"] is bool) obra.SemRegras = (bool)cad["semRegras"];
             obra.SalvoEm = cad.Str("salvo_em");
             obra.AlturaTexto = cad.Num("altura_texto") ?? 1;
             ProjetoArquivo.LerTrabalho(env, obra);           // TASK-020: nome e número de obra do projeto de trabalho (.obra)

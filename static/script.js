@@ -437,6 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("Dados extraídos com sucesso:", result.data.length, "itens");
             extractedDataCache = result.data;
             try { if (result.geometria) localStorage.setItem('mapa_geometria_fundo', JSON.stringify(result.geometria)); else localStorage.removeItem('mapa_geometria_fundo'); } catch (e) { /* sem espaço: o mapa só fica sem a rede ao fundo */ }   // TASK-091: rede/postes ao fundo do mapa (não aparecem na tabela)
+            if (result.escala && window.showToast) window.showToast('PDF: escala 1:' + result.escala.denominador + (result.escala.confirmada ? ' (estimada por ' + result.escala.amostras + ' cabo(s) com metragem)' : ' (não confirmada: nenhum cabo com metragem ligado à rede)'));      // TASK-236
             renderTable(extractedDataCache);
             resultsSection.classList.remove('hidden');
             
@@ -765,6 +766,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // TASK-091: linha da rede (cabo) e poste (estrutura) associados no servidor; só viajam, não aparecem na tabela
                 if (item._geo) { linha._geo = item._geo; linha._geoTipo = item._geoTipo; }
                 if (item._poste) linha._poste = item._poste;
+                if (item._posteAprox) linha._posteAprox = item._posteAprox;                   // TASK-236: PDF — posição do texto em metros
                 exportData.push(linha);
                 if (engineFields[idx]) {
                     const en = engineFields[idx];

@@ -156,8 +156,10 @@ namespace OrcamentoNanoCAD.UI
                     Visual.Executar("ORC_REGRAS_MONTAGEM " + regras.Codigo);
             };
             _botoesConstruir.Controls.Add(Visual.Botao("Ler por região", (o, e) => Visual.Executar("ORC_REGIAO"), true));
-            _botoesConstruir.Controls.Add(Visual.Botao("Selecionar poste", (o, e) => Visual.Executar("ORC_POSTE"), false, "poste"));
-            _botoesConstruir.Controls.Add(Visual.Botao("Selecionar cabo e vão", (o, e) => Visual.Executar("ORC_VAO"), false, "vao"));
+            // TASK-038: no formato do mapa do OrçaCore (ponto = «@nome - comentário» + campos com operação; cabo = linha/trecho + campos)
+            _botoesConstruir.Controls.Add(Visual.Botao("Selecionar poste", (o, e) => Visual.Executar("ORC_PONTO_MAPA"), false, "poste"));
+            _botoesConstruir.Controls.Add(Visual.Botao("Selecionar cabo", (o, e) => Visual.Executar("ORC_CABO_MAPA"), false, "vao"));
+            _botoesConstruir.Controls.Add(Visual.Botao("Regras / sem regras", (o, e) => Visual.Executar("ORC_MODO_MANUAL")));
             _botoesConstruir.Controls.Add(Visual.Botao("Limpar", (o, e) => Visual.Executar("ORC_LIMPAR_MONTAGEM")));
             _botoesConstruir.Controls.Add(Visual.Botao("Vincular automático", (o, e) => Visual.Executar("ORC_VINCULAR"), false, "vincular"));
             _botoesConstruir.Controls.Add(Visual.Botao("Selecionar cabos", (o,e) => Visual.Executar("ORC_SELECIONAR_CABOS")));
@@ -482,10 +484,13 @@ namespace OrcamentoNanoCAD.UI
             List<Elemento> cabos, outros;
             ObraArquivo.ElementosDasLinhas(atual, out cabos, out outros);
             var novas = new HashSet<Elemento>(cabos.Concat(outros).Where(e => !e.EnviadaNaMontagem));
-            if (novas.Count == 0) { _entregaManual.Text = "Nenhuma anotação nova para enviar."; return; }
+            var pontosNovos = atual.PontosMapa.Where(p => !p.Enviado).ToList();                         // TASK-038
+            var cabosNovos = atual.CabosMapa.Where(c => !c.Enviado).ToList();
+            int total = novas.Count + pontosNovos.Count + cabosNovos.Count;
+            if (total == 0) { _entregaManual.Text = "Nenhuma anotação nova para enviar."; return; }
             var obra = new Obra { Projeto = atual.Projeto, Nome = atual.Nome, Modo = atual.Modo,
                 Postes = atual.Postes.Where(novas.Contains).ToList(), Vaos = atual.Vaos.Where(novas.Contains).ToList(),
-                Avulsos = atual.Avulsos.Where(novas.Contains).ToList() };
+                Avulsos = atual.Avulsos.Where(novas.Contains).ToList(), PontosMapa = pontosNovos, CabosMapa = cabosNovos };
             var env = new JObj().Set("formato", ObraArquivo.Formato).Set("versao", ObraArquivo.Versao)
                 .Set("tipo", "obra").Set("projeto", obra.Projeto).Set("dados", ObraArquivo.Dados(obra));
             string conteudo = Json.Escrever(env, false);
@@ -498,7 +503,7 @@ namespace OrcamentoNanoCAD.UI
             s.EnviandoAnotacoes = true;
             _enviarManual.Enabled = _botoesConstruir.Enabled = false;
             EstadoEditorManual();
-            _entregaManual.Text = "Enviando " + novas.Count + " anotações…";
+            _entregaManual.Text = "Enviando " + total + " anotações…";
             System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
                 string erro;
@@ -510,10 +515,15 @@ namespace OrcamentoNanoCAD.UI
                     {
                         s.EnviandoAnotacoes = false;
                         if (erro == null && s.Obra == atual)
+                        {
                             foreach (Elemento linha in novas) linha.EnviadaNaMontagem = true;
+                            foreach (PontoMapa p in pontosNovos) p.Enviado = true;
+                            foreach (CaboMapa c in cabosNovos) c.Enviado = true;
+                        }
                         if (_s != s || s.Obra != atual) return;
                         Mostrar(s);
-                        _entregaManual.Text = erro ?? (novas.Count + " anotações acrescentadas à obra aberta.");
+                        _entregaManual.Text = erro ?? (total + " anotações acrescentadas à obra aberta"
+                            + (pontosNovos.Count + cabosNovos.Count > 0 ? " (" + pontosNovos.Count + " ponto(s) e " + cabosNovos.Count + " cabo(s) no formato do mapa)." : "."));
                     }));
                 }
                 catch (InvalidOperationException) { s.EnviandoAnotacoes = false; }

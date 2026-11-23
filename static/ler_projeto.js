@@ -36,6 +36,7 @@
             if (item._x !== undefined && item._y !== undefined) { linha._x = item._x; linha._y = item._y; }
             if (item._geo) { linha._geo = item._geo; linha._geoTipo = item._geoTipo; }      // TASK-091
             if (item._poste) linha._poste = item._poste;
+            if (item._posteAprox) linha._posteAprox = item._posteAprox;                       // TASK-236: PDF — posição do texto em metros
             saida.push(linha);
             if (i % 500 === 499) await cedeVez();
         }
@@ -102,6 +103,7 @@
         if (guardarGeometria) {
             try { if (json.geometria) localStorage.setItem('mapa_geometria_fundo', JSON.stringify(json.geometria)); else localStorage.removeItem('mapa_geometria_fundo'); } catch (e) { /* sem espaço: o mapa só fica sem a rede ao fundo */ }
         }
+            if (json.escala && raiz.showToast) raiz.showToast('PDF: escala 1:' + json.escala.denominador + (json.escala.confirmada ? ' (estimada por ' + json.escala.amostras + ' cabo(s) com metragem)' : ' (não confirmada: nenhum cabo com metragem ligado à rede)'));      // TASK-236
         if (!itens.length) throw new Error('Não encontrei texto neste arquivo; nada foi alterado.');
         return itens;
     }
