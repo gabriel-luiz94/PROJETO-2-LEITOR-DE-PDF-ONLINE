@@ -7,6 +7,7 @@
 //   4) numeração seguindo a rede (P1, V1, P2…), vínculo automático pelas regras de vínculo e conferência (Ok/Conferir/Erro).
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace OrcamentoNanoCAD.Nucleo
@@ -376,6 +377,7 @@ namespace OrcamentoNanoCAD.Nucleo
             public double Dist;
             public List<Ponto> Guia;
             public bool Reserva;         // sem guia, por proximidade ampliada
+            public bool Livre;           // 3ª passada: bloco livre mais perto, casado 1:1 (TASK-233 da aplicação)
         }
 
         /// <summary>Nível que a anotação do cabo indica: MT com tensão em kV; BT para multiplex (PB/RAMA); null = não diz.</summary>
@@ -501,6 +503,7 @@ namespace OrcamentoNanoCAD.Nucleo
                 }
             }
             // 2ª passada (sem guia e longe): elemento SEM anotação mais perto, até o raio de reserva; vai para Conferir
+            List<TextoLido> semBloco = new List<TextoLido>();
             foreach (TextoLido tl in sobra)
             {
                 double h = tl.T.Altura > 0 ? tl.T.Altura : ctx.H;
@@ -511,6 +514,15 @@ namespace OrcamentoNanoCAD.Nucleo
                     avulsos.Add(NovoAvulso(tl, "anotação de cabo sem vão por perto (rede nas layers " + string.Join("/", cfg.LayersRedeMT.Concat(cfg.LayersRedeBT).ToArray()) + ")"));
                     continue;
                 }
+                semBloco.Add(tl);
+            }
+            // 3ª passada: anotação de poste ainda sem bloco ↔ bloco de poste LIVRE (sem anotação), pares 1:1 pela menor distância até
+            // RaioBlocoLivreAlturas × a altura. Um bloco recebe no máximo uma anotação daqui (sem disputa, sem "roubar" o vizinho); vai para Conferir.
+            HashSet<TextoLido> casadas = new HashSet<TextoLido>();
+            foreach (Candidato c in CasarComBlocosLivres(semBloco, ctx, por)) { Lista(por, c.E).Add(c); casadas.Add(c.T); }
+            foreach (TextoLido tl in semBloco)
+            {
+                if (casadas.Contains(tl)) continue;
                 Poste novo = new Poste();                                       // sem bloco: poste só da anotação (fica sem vãos)
                 novo.Handle = ""; novo.X = tl.T.X; novo.Y = tl.T.Y;
                 Anotar(novo, tl);
@@ -526,11 +538,41 @@ namespace OrcamentoNanoCAD.Nucleo
                 List<Candidato> l = kv.Value.OrderBy(x => x.T.R.Entidade == "POSTE" ? 0 : 1).ThenBy(x => x.Nota).ToList();
                 Anotar(kv.Key, l[0].T);
                 kv.Key.GuiaUsada = l[0].Guia;
-                if (l[0].Reserva) kv.Key.MensagensFixas.Add("anotação ligada por proximidade (sem linha guia): confira");
+                if (l[0].Livre) kv.Key.MensagensFixas.Add("anotação ligada ao bloco de poste livre mais perto (" + Math.Round(l[0].Dist, 1).ToString(CultureInfo.InvariantCulture) + " m, sem linha guia): confira");
+                else if (l[0].Reserva) kv.Key.MensagensFixas.Add("anotação ligada por proximidade (sem linha guia): confira");
                 if (l.Count > 1) extras[kv.Key] = l.Skip(1).Select(x => x.T).ToList();
                 for (int i = 1; i < l.Count; i++) _guiaExtra[l[i].T] = l[i].Guia;
             }
             return extras;
+        }
+
+        /// <summary>Pares 1:1 (anotação de poste sem bloco ↔ bloco de poste sem anotação) pela menor distância, até RaioBlocoLivreAlturas × a altura
+        /// do texto. Empate desfaz pela ordem de leitura (anotação) e pela ordem dos blocos — o resultado não depende de sorteio.</summary>
+        private static List<Candidato> CasarComBlocosLivres(List<TextoLido> semBloco, Contexto ctx, Dictionary<Elemento, List<Candidato>> por)
+        {
+            List<Poste> livres = ctx.Postes.Where(p => !string.IsNullOrEmpty(p.Handle) && !por.ContainsKey(p)).ToList();
+            List<Tuple<double, int, int>> pares = new List<Tuple<double, int, int>>();
+            for (int a = 0; a < semBloco.Count; a++)
+            {
+                TextoLido tl = semBloco[a];
+                double h = tl.T.Altura > 0 ? tl.T.Altura : ctx.H;
+                double raio = ctx.Cfg.RaioBlocoLivreAlturas * h;
+                Ponto pt = new Ponto(tl.T.X, tl.T.Y);
+                for (int b = 0; b < livres.Count; b++)
+                {
+                    double d = pt.Dist(livres[b].Ponto);
+                    if (d <= raio) pares.Add(Tuple.Create(d, a, b));
+                }
+            }
+            HashSet<int> usadasA = new HashSet<int>(), usadosB = new HashSet<int>();
+            List<Candidato> saida = new List<Candidato>();
+            foreach (Tuple<double, int, int> par in pares.OrderBy(x => x.Item1).ThenBy(x => x.Item2).ThenBy(x => x.Item3))
+            {
+                if (usadasA.Contains(par.Item2) || usadosB.Contains(par.Item3)) continue;
+                usadasA.Add(par.Item2); usadosB.Add(par.Item3);
+                saida.Add(new Candidato { T = semBloco[par.Item2], E = livres[par.Item3], Nota = 2000 + par.Item1, Dist = par.Item1, Reserva = true, Livre = true });
+            }
+            return saida;
         }
 
         [ThreadStatic] private static Dictionary<TextoLido, List<Ponto>> _guiaExtraTs;

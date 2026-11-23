@@ -415,6 +415,15 @@
         avisar('Rascunho recuperado.');
     }
 
+    /** TASK-233: rede e blocos de poste sem anotação do desenho (seção «cad» do projeto do plugin), esmaecidos ao fundo do mapa de vinculação. */
+    function aplicarFundoCad(pr) {
+        try {
+            let f = raiz.OrcaFundoCad;
+            try { if (!f && raiz.top !== raiz) f = raiz.top.OrcaFundoCad; } catch (x) { /* outra origem */ }
+            if (f) f.definir((pr && pr.fundo) || null);
+        } catch (x) { /* sem mapa nesta tela */ }
+    }
+
     /** TASK-166: projeto do plugin do nanoCAD (tem geometria) abre já vinculado pelo que chega em cada poste. Devolve o resumo em texto (ou ''). */
     async function vincularPorPosteAoAbrir(pr) {
         if (!pr || !pr.cad || !resumo || !resumo.vincularPorPoste) return '';
@@ -448,7 +457,7 @@
         const r = await p.projeto_abrir(e.caminho, codigoRegras());
         if (!r || !r.ok) { avisar('Não foi possível recarregar o projeto: ' + ((r && r.erro) || '')); return; }
         definirProjeto(r, e.auto === true);
-        if (resumo) { resumo.carregar(r.projeto.dados); dadosProntos = true; sujo = false; }
+        if (resumo) { resumo.carregar(r.projeto.dados); aplicarFundoCad(r.projeto); dadosProntos = true; sujo = false; }
         suspenso = false; pendente = null; aplicarNumero(); atualizarMenu();
         await aplicarContexto(r.projeto.contexto);
         avisar('Projeto recarregado do arquivo.');
@@ -470,8 +479,8 @@
         definirProjeto(r, false);
         suspenso = false; pendente = null; ultimaGravacao = null; sujo = false;
         if (resumo) {
-            if (modo === 'abrir') { resumo.carregar(pr.dados); await aplicarContexto(pr.contexto); vinc = await vincularPorPosteAoAbrir(pr); }          // TASK-165: Abrir seleciona o contexto da obra; Mesclar e Sobrescrever mantêm o atual
-            else if (modo === 'mesclar') { resumo.mesclar(pr.dados); sujo = true; }
+            if (modo === 'abrir') { resumo.carregar(pr.dados); aplicarFundoCad(pr); await aplicarContexto(pr.contexto); vinc = await vincularPorPosteAoAbrir(pr); }          // TASK-165: Abrir seleciona o contexto da obra; Mesclar e Sobrescrever mantêm o atual
+            else if (modo === 'mesclar') { resumo.mesclar(pr.dados); if (pr.fundo) aplicarFundoCad(pr); sujo = true; }
             else sujo = true;                                   // sobrescrever: a tela vale e vai por cima do arquivo quando salvar
             dadosProntos = true;
         }
@@ -503,7 +512,7 @@
             }
             if (selecionarProjeto) selecionarProjeto();
             definirProjeto(r, e.auto === true);
-            if (resumo) { resumo.carregar(r.projeto.dados); dadosProntos = true; sujo = false; }
+            if (resumo) { resumo.carregar(r.projeto.dados); aplicarFundoCad(r.projeto); dadosProntos = true; sujo = false; }
             suspenso = false; pendente = null; aplicarNumero(); atualizarMenu();
             await aplicarContexto(r.projeto.contexto);
             const vincAtual = await vincularPorPosteAoAbrir(r.projeto);

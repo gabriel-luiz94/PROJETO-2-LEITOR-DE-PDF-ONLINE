@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-23 — Montagem rápida da rede no mapa
+
+Ponto sem bloco no CAD aparece na posição da anotação (`_posteAprox` ou `_x/_y`), marcado como aproximado. O mapa mostra ao fundo a rede e os blocos do CAD que ainda não viraram linha (`services/fundo_cad.py`) e transforma um bloco em ponto com um clique. Painel de pendências com progresso e correção a um clique, ímã nas pontas do cabo, ferramenta «Traçar vão» com o comprimento medido, seleção por caixa, mover em grupo, atalhos e lista em lotes. O plugin casa 1:1 a anotação de poste que sobrou com o bloco livre mais perto (fonte, sem build). [TASK-233](tasks/TASK-233-23-11-2026.md).
+
 ## 2026-11-22 — Edição pelos cartões do mapa
 
 Os cartões editam cabos, postes e estruturas nas próprias tabelas da obra. No cabo, a edição inclui a anotação com metragem, a operação, o número de fases, a tensão e o nível. [TASK-223](tasks/TASK-223-22-11-2026.md).

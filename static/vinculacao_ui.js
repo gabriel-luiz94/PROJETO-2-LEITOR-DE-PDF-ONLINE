@@ -124,6 +124,26 @@
     .vz-mapa .vz-alvo-aresta{fill:none;stroke:transparent;stroke-width:14;pointer-events:stroke}
     .vz-mapa [data-cabo-mapa]:focus-visible .vz-aresta{stroke-width:6}
     .vz-mapa .vz-aresta.sugerida{stroke:#e9ae68;stroke-width:3;pointer-events:none}
+    .vz-mapa [data-no].aproximada .vz-marcador{stroke:#e9ae68;stroke-dasharray:2 2}.vz-mapa [data-no].aproximada .vz-halo{fill:#e9ae6833}
+    .vz-mapa [data-no].escolhido .vz-halo{fill:#5fb3ff;opacity:.8}.vz-mapa [data-no].origem-vao .vz-halo{fill:#ffd166;opacity:.95}
+    .vz-mapa [data-no].iman .vz-halo{fill:#ffd166;opacity:.95}.vz-mapa [data-no].iman .vz-marcador{stroke:#ffd166}
+    .vz-mapa .vz-camada-fundo{pointer-events:none}.vz-mapa .vz-fundo-rede{fill:none;stroke:#9a93ad;stroke-opacity:.3;stroke-width:1;vector-effect:non-scaling-stroke}
+    .vz-mapa .vz-fundo-rede.mt{stroke:#ff6478;stroke-opacity:.26}.vz-mapa .vz-fundo-rede.bt{stroke:#54e1a3;stroke-opacity:.26}
+    .vz-mapa .vz-fundo-bloco{fill:#17161c;stroke:#c9c0dc;stroke-opacity:.6;stroke-width:1.2;vector-effect:non-scaling-stroke;pointer-events:all;cursor:copy}
+    .vz-mapa .vz-fundo-bloco:hover{stroke:#ffd166;stroke-opacity:1}
+    .vz-mapa .vz-alca{fill:#ffd166;stroke:#17161c;stroke-width:1.5;vector-effect:non-scaling-stroke;cursor:crosshair}
+    .vz-mapa .vz-elastico{stroke:#ffd166;stroke-width:2;stroke-dasharray:5 4;fill:none;vector-effect:non-scaling-stroke;pointer-events:none}
+    .vz-mapa .vz-retangulo{fill:#5fb3ff1f;stroke:#5fb3ff;stroke-dasharray:4 3;vector-effect:non-scaling-stroke;pointer-events:none}
+    .vz-mapa.tracando,.vz-mapa.tracando [data-no]{cursor:crosshair}
+    .vz-btn.ligado{background:var(--g-accent-bg)!important;border-color:var(--g-accent)!important}
+    .vz-pend{border:1px solid var(--g-border);border-radius:8px;padding:6px 8px;background:var(--g-raised);display:grid;gap:6px;max-height:46%;overflow:auto;flex:none}
+    .vz-pend[hidden]{display:none}.vz-pend summary{cursor:pointer;font-weight:600}
+    .vz-pend-barra{display:grid;gap:2px;font-size:11px;color:var(--g-muted)}.vz-pend-barra i{display:block;height:5px;border-radius:3px;background:var(--g-border);overflow:hidden}
+    .vz-pend-barra i b{display:block;height:100%;background:#54e1a3}
+    .vz-pend ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}.vz-pend li{display:grid;gap:3px;font-size:11px;padding:4px 0;border-top:1px solid var(--g-border)}
+    .vz-pend li > button.vz-pend-alvo{all:unset;cursor:pointer;color:var(--g-text);overflow-wrap:anywhere}.vz-pend li > button.vz-pend-alvo:focus-visible{outline:1px solid var(--g-accent)}
+    .vz-pend-acoes{display:flex;gap:4px;flex-wrap:wrap}.vz-pend-acoes .vz-btn{font-size:11px;padding:2px 6px}
+    .vz-grafo-mais{width:100%}
     .vz-esc-sel{background:var(--g-bg);color:var(--g-text);border:1px solid var(--g-border);border-radius:6px;padding:4px 6px;font-size:12px;max-width:128px}
     .vz-grafo-escala{position:absolute;bottom:12px;left:12px;display:flex;align-items:center;gap:8px;padding:5px 9px;background:var(--g-panel);border:1px solid var(--g-border);border-radius:9px;font-size:11px;color:var(--g-text);pointer-events:none}
     .vz-grafo-escala[hidden]{display:none}.vz-esc-barra{display:block;height:6px;border:1.5px solid var(--g-text);border-top:0;min-width:2px}.vz-esc-barra-rot{color:var(--g-muted,#8b949e)}
@@ -1406,6 +1426,14 @@
         let desenhosPorNo = new Map(), desenhosPorCabo = new Map(), camadaVaos = null, camadaNos = null, cabosSvg = [];
         let desenhos = [], ponto, sugestoes = [], observadorNo, quadro, caboEmFoco = null, filtroMapa = 'todos';
         let cabosFiltrados = new Set(), fecharEdicaoAtiva;
+        // TASK-233: montagem rápida — seleção por caixa, ferramenta «Traçar vão», alças das pontas, fundo do CAD e pendências
+        const MM = raiz.MapaMontagem;
+        const selecao = new Set();
+        let ferramenta = null, vaoOrigem = null, camadaAlcas = null, fundoLivres = [], pendencias = [], cartoes = null;
+        const lerFundo = () => { try { return raiz.localStorage.getItem('vz_mapa_fundo') !== '0'; } catch (e) { return true; } };
+        let fundoLigado = lerFundo();
+        const posCadNo = n => n && (n.pos || n.posAprox);
+        const RAIO_BLOCO_LIVRE = 30;                                         // metros: anotação sem bloco ↔ bloco livre do CAD (sugestão nas pendências)
         const escalaInfo = el('div', { class: 'vz-grafo-escala', hidden: '' }, [el('span', { class: 'vz-esc-rot' }), el('i', { class: 'vz-esc-barra' }), el('small', { class: 'vz-esc-barra-rot' })]);
         function atualizarEscala() {
             const pxTela = Math.min((svg.clientWidth || W) / vb[2], (svg.clientHeight || H) / vb[3]);
@@ -1430,6 +1458,7 @@
             st.grafoVista = vb; st.grafoVistaEscala = escala;
             svg.setAttribute('viewBox', vb.join(' '));
             atualizarEscala(); recortarVista();
+            if (caboEmFoco !== null) desenharAlcas();
         };
         // pan/zoom chegam várias vezes por quadro (mouse/roda): aplica uma vez por quadro; em redes grandes some o texto enquanto mexe (o texto é o que mais pesa)
         const aplicarVista = () => {
@@ -1457,6 +1486,8 @@
             ficticio
         ]);
         if (host.inserirPosteFicticioNoMapa) ferramentas.append(botao('+ Poste fictício', abrirPosteFicticio, 'Novo poste fictício'));
+        const btnVao = botao('Traçar vão', () => alternarVao(), 'Clique no ponto de origem e depois no de destino: cria um cabo do último tipo usado, com o comprimento medido, ligado nas duas pontas. Shift+clique no destino cria sem perguntar. Atalho: V');
+        if (host.inserirNoMapa) ferramentas.append(btnVao);
         const btnAgrupar = botao('Agrupar pontos', () => agruparPontos(), 'Cria um grupo «@nome» com as linhas de cada ponto em Demais Ativos');
         if (host.agruparPontosNoMapa) ferramentas.append(btnAgrupar);
         const filtro = el('select', { 'aria-label': 'Filtrar mapa' }, opcoes([
@@ -1482,13 +1513,15 @@
             ...(ME ? [seletorEscala] : []),
             botao('−', () => zoom(1.25), 'Afastar'), botao('+', () => zoom(.8), 'Aproximar'),
             botao('Enquadrar', () => { vb = vistaPadrao(); aplicarVista(); }, escalar() ? 'Centralizar a rede na escala escolhida' : 'Enquadrar'),
+            botao('Fundo', () => alternarFundo(), 'Mostra/oculta, esmaecidos, a rede e os blocos de poste do CAD que ainda não viraram linha da obra. Clique num bloco para transformá-lo em ponto.'),
             botao('Posições do CAD', () => restaurarPosicoesDoCad(), 'Descarta as posições ajustadas à mão (arrastar, criar ponto, Rearranjar) e volta cada ponto para a coordenada do CAD. Ctrl+Z desfaz.'),
             botao('Rearranjar', () => rearranjarMapa(), 'Reorganiza os pontos de forma uniforme e limpa (vãos de tamanho parecido, sem sobreposição). Em 1:500 volta os pontos para a posição do CAD. Ctrl+Z desfaz.')
         ]);
         const suporte = el('div', { class: 'vz-scroll vz-grafo-vista' }, [svg, escalaInfo, acoesMapa]);
         const lista = el('div', { class: 'vz-grafo-lista' });
         const tituloPontas = el('h5');
-        const lateralMapa = el('aside', { class: 'vz-grafo-cabos', 'aria-label': 'Cabos do mapa' }, [tituloPontas, lista]);
+        const painelPend = el('details', { class: 'vz-pend', open: '' });
+        const lateralMapa = el('aside', { class: 'vz-grafo-cabos', 'aria-label': 'Cabos do mapa' }, [painelPend, tituloPontas, lista]);
         const area = el('div', { class: 'vz-grafo-area' }, [suporte, lateralMapa]);
         const revisao = el('div', { class: 'vz-grafo-revisao' });
         const vazio = el('p', { class: 'vz-nota', text: 'Adicione postes ou cabos à obra para montar a rede.' });
@@ -1594,7 +1627,9 @@
         function destacarCabo(ic, rolar = false) {
             caboEmFoco = ic;
             caboEscolhido = pontaEscolhida = null;
+            if (rolar) garantirCartao(ic);
             atualizarSelecao();
+            desenharAlcas();
             if (rolar) lista.querySelector(`[data-cartao-cabo="${ic}"]`)?.scrollIntoView({ block: 'nearest' });
         }
 
@@ -1605,7 +1640,9 @@
             caboEscolhido = desmarcar ? null : ic;
             pontaEscolhida = desmarcar ? null : ponta;
             avisos.textContent = '';
+            garantirCartao(ic);
             atualizarSelecao();
+            desenharAlcas();
         }
 
         function calcularSugestoes() {
@@ -1747,6 +1784,7 @@
             caboEmFoco = r.indice;
             caboEscolhido = livres(r.indice) ? r.indice : null;
             pontaEscolhida = caboEscolhido === null ? null : 1;
+            garantirCartao(r.indice);
             atualizarSelecao();
             lista.querySelector(`[data-cartao-cabo="${r.indice}"]`)?.scrollIntoView({ block: 'nearest' });
             avisos.textContent = 'Cabo copiado (linha ' + (r.indice + 1) + ' de Cabos). Clique num ponto destacado para ligar a ponta.';
@@ -1826,11 +1864,14 @@
             titulosGrupo = new Map();
             outros().forEach(r => { if (r && r.grupoDecl) titulosGrupo.set(r.gid, r); });
             grafo = montarGrafo();
+            for (const id of [...selecao]) if (!grafo.nos.has(id)) selecao.delete(id);
+            if (vaoOrigem && !grafo.nos.has(vaoOrigem)) vaoOrigem = null;
             let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
             const limitar = ([x, y]) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); };
-            grafo.nos.forEach(n => { if (n.pos) limitar(n.pos); });
+            const posCad = n => n.pos || n.posAprox;                                                       // TASK-233: sem bloco no CAD, vale a posição aproximada da anotação
+            grafo.nos.forEach(n => { if (posCad(n)) limitar(posCad(n)); });
             grafo.vaos.forEach(v => (v.pontos || v.pontas || []).forEach(limitar));
-            const sinteticos = [...grafo.nos.values()].filter(n => !n.pos);
+            const sinteticos = [...grafo.nos.values()].filter(n => !posCad(n));
             const temGeo = Number.isFinite(x0);
             const emEscala = escalar() && temGeo && !!ME;                                                       // TASK-224: 1:500 = fator fixo (px por metro), o desenho pode passar da área do «Ajustar»
             const largura = temGeo && sinteticos.length && !emEscala ? W * .74 : W;
@@ -1849,8 +1890,8 @@
             desenhos = [];
             grafo.vaos.forEach(v => v.cabos.forEach(ic => vaosPorCabo.set(ic, v)));
             grafo.nos.forEach(n => {
-                if (!n.pos) return;
-                const base = ponto(n.pos);
+                if (!posCad(n)) return;
+                const base = ponto(posCad(n));
                 bases.set(n.id, base);
                 posicoes.set(n.id, posicaoSalva(n, base));
             });
@@ -1865,6 +1906,12 @@
                 posicoes.set(n.id, posicaoSalva(n, base));
             });
             limites = emEscala ? (() => { const c = ME.caixaDe([...posicoes.values()], 700); return [c[0], c[1], c[2], c[3]]; })() : [18, 18, W - 18, H - 18];
+            // TASK-233: fundo do CAD (rede e blocos de poste sem anotação) — só o que encosta na rede; o bloco que já é ponto não aparece
+            const fundoBruto = temGeo && MM && host.fundoCad ? host.fundoCad() : null;
+            const fundo = fundoBruto ? MM.recortarFundo(fundoBruto, [x0, y0, x1, y1]) : null;
+            fundoLivres = fundo ? MM.blocosLivres(fundo.postes, [...grafo.nos.values()].map(n => n.pos).filter(Boolean), 1) : [];       // as pendências usam mesmo com o fundo oculto
+            const svgFundo = !fundo || !fundoLigado ? '' : fundo.redes.map(r => `<polyline class="vz-fundo-rede ${r.t === 'MT' ? 'mt' : r.t === 'BT' ? 'bt' : ''}" points="${r.p.map(q => ponto(q).map(v => v.toFixed(1)).join(',')).join(' ')}"/>`).join('')
+                + fundoLivres.map(b => { const [bx, by] = ponto(b.p); return `<rect class="vz-fundo-bloco" data-bloco="${b.id}" x="${(bx - 4).toFixed(1)}" y="${(by - 4).toFixed(1)}" width="8" height="8"><title>Bloco de poste do CAD sem anotação · clique para transformar em ponto</title></rect>`; }).join('');
 
             const a = analise();
             const rede = [];
@@ -1914,31 +1961,33 @@
                 const denso = labels.some(([a, b, c]) => Math.abs(y - c) < 14 && x + 10 < b && direita > a);
                 if (!denso) labels.push([x + 10, direita, y]);
                 const completo = VR.posteCompletoNoGrafo(estruturas, a);
-                const classe = [denso ? 'vz-rotulo-denso' : '', completo ? 'completo' : 'pendente', avulsa ? 'avulsa' : '', linhaFicticia(n) ? 'ficticio' : ''].join(' ');
-                const estado = linhaFicticia(n) ? 'Âncora visual' : completo ? 'Vinculação completa' : 'Vinculação pendente';
+                const classe = [denso ? 'vz-rotulo-denso' : '', completo ? 'completo' : 'pendente', avulsa ? 'avulsa' : '', linhaFicticia(n) ? 'ficticio' : '',
+                    !n.pos && n.posAprox ? 'aproximada' : '', selecao.has(n.id) ? 'escolhido' : '', n.id === vaoOrigem ? 'origem-vao' : ''].join(' ');
+                const estado = (linhaFicticia(n) ? 'Âncora visual' : completo ? 'Vinculação completa' : 'Vinculação pendente')
+                    + (!n.pos && n.posAprox ? ' · posição aproximada (anotação sem bloco de poste no CAD)' : '');
                 return `<g class="${classe}" data-no="${esc(n.id)}" data-arrastar="poste" tabindex="0" role="button" aria-label="${esc(rotulo)}"><title>${esc(rotulo)} · ${estado}</title><circle class="vz-alvo" r="19"/><circle class="vz-halo" r="10"/><circle class="vz-marcador" r="6"/><text x="14" y="-7">${esc(curto)}</text>${ficticios ? `<text class="vz-ficticio-rotulo" x="13" y="10">F × ${ficticios}</text>` : ''}</g>`;
             }).join('');
-            svg.innerHTML = '<g class="vz-camada-vaos">' + rede.join('') + '</g><g class="vz-camada-nos">' + nos + '</g>';
-            camadaVaos = svg.firstElementChild; camadaNos = svg.lastElementChild;
+            svg.innerHTML = '<g class="vz-camada-fundo">' + svgFundo + '</g><g class="vz-camada-vaos">' + rede.join('') + '</g><g class="vz-camada-nos">' + nos + '</g><g class="vz-camada-alcas"></g>';
+            camadaVaos = svg.querySelector('.vz-camada-vaos'); camadaNos = svg.querySelector('.vz-camada-nos'); camadaAlcas = svg.querySelector('.vz-camada-alcas');
             cabosSvg = [...svg.querySelectorAll('[data-cabo-mapa]')];
             svg.querySelectorAll('[data-no]').forEach(g => nosSvg.set(g.dataset.no, g));
             svg.querySelectorAll('.vz-aresta').forEach((linha, i) => { desenhos[i].linha = linha; });
             // TASK-228: ponta de cabo sem poste (a mais de 5 m de qualquer um) segue visualmente o ponto mais perto (até 25 m) — assim o cabo anda junto quando o ponto é movido/rearranjado.
             // A ligação de verdade (d.v.ids) continua exigindo 5 m; isto só ancora o desenho.
-            const comPos = [...grafo.nos.values()].filter(n => n.pos);
+            const comPos = [...grafo.nos.values()].filter(posCad);                                       // TASK-233: o ponto de posição aproximada também ancora (costuma ser o poste certo da ponta solta)
             for (const d of desenhos) {
                 d.ancoras = [null, null];
                 if (!d.v.pontas) continue;
                 d.v.ids.forEach((id, i) => {
                     if (id || !d.v.pontas[i]) return;
                     let melhor = null, dmin = RAIO_ANCORA_VISUAL;
-                    for (const n of comPos) { const dd = Math.hypot(n.pos[0] - d.v.pontas[i][0], n.pos[1] - d.v.pontas[i][1]); if (dd <= dmin) { dmin = dd; melhor = n.id; } }
+                    for (const n of comPos) { const q = posCad(n), dd = Math.hypot(q[0] - d.v.pontas[i][0], q[1] - d.v.pontas[i][1]); if (dd <= dmin) { dmin = dd; melhor = n.id; } }
                     d.ancoras[i] = melhor;
                 });
             }
             desenhosPorNo = new Map(); desenhosPorCabo = new Map();
             for (const d of desenhos) {
-                d.v.ids.forEach(id => { if (id) { if (!desenhosPorNo.has(id)) desenhosPorNo.set(id, []); desenhosPorNo.get(id).push(d); } });
+                new Set([...d.v.ids, ...(d.ancoras || [])]).forEach(id => { if (id) { if (!desenhosPorNo.has(id)) desenhosPorNo.set(id, []); desenhosPorNo.get(id).push(d); } });     // a ponta ancorada (TASK-228) anda junto ao arrastar
                 if (d.ic !== null) { if (!desenhosPorCabo.has(d.ic)) desenhosPorCabo.set(d.ic, []); desenhosPorCabo.get(d.ic).push(d); }
             }
             desenharPosicoes();
@@ -1956,7 +2005,8 @@
             if (!cabosVisiveis.has(caboEmFoco)) caboEmFoco = null;
             if (caboEscolhido !== null && (!cabosVisiveis.has(caboEscolhido) || !livres(caboEscolhido)))
                 caboEscolhido = pontaEscolhida = null;
-            lista.replaceChildren(...[...cabosVisiveis].map(ic => {
+            // TASK-233: lista lateral em lotes (rede grande abre rápido); o resto entra ao rolar até o fim
+            const fabricar = ic => {
                 const c = cabos()[ic], grupo = VR.gruposVisuaisDoVao([ic], cabos(), a, st.cfg.dicionario_cabos)[0];
                 const nome = `Cabo ${ic + 1} · ${c.ativo}`, qtd = livres(ic);
                 const botoes = pontosDoCabo(ic).map(id => {
@@ -1983,13 +2033,20 @@
                     el('div', { class: 'vz-grafo-pontas' }, botoes),
                     controleEdicao('cabo', ic), host.copiarCaboNoMapa ? botao('Copiar', () => copiarCabo(ic), 'Copiar ' + nome + ' (cabo novo, sem pontas ligadas)') : null, consulta
                 ]);
-            }));
+            };
+            cartoes?.observador?.disconnect();
+            cartoes = { ordem: [...cabosVisiveis], fabricar, feitos: 0, mais: null, observador: null };
+            lista.replaceChildren();
+            mostrarMaisCartoes(LOTE_CARTOES);
+            if (caboEmFoco !== null) garantirCartao(caboEmFoco);
             if (vb) atualizarEscala();
             const semGrupo = pontosSemGrupo().length;
             btnAgrupar.disabled = !semGrupo;
             btnAgrupar.textContent = semGrupo ? 'Agrupar pontos (' + semGrupo + ')' : 'Agrupar pontos';
             tituloPontas.textContent = 'Cabos · ' + cabosVisiveis.size;
-            lateralMapa.hidden = !cabosVisiveis.size;
+            pendencias = calcularPendencias(a, cabosVisiveis, nosVisiveis);
+            renderPendencias(a, cabosVisiveis, nosVisiveis);
+            lateralMapa.hidden = !cabosVisiveis.size && !pendencias.length;
             area.classList.toggle('sem-lateral', lateralMapa.hidden);
             vazio.hidden = !!(grafo.nos.size || grafo.cabosDoMapa.size);
             area.hidden = !vazio.hidden;
@@ -2008,7 +2065,288 @@
                 })() : '';
             atualizarSelecao();
             renderRevisao();
+            desenharAlcas();
         }
+
+        // ── TASK-233: montagem rápida ──────────────────────────────────────────────────────────────────────────
+        const LOTE_CARTOES = 60;
+        function mostrarMaisCartoes(n) {
+            if (!cartoes) return;
+            const fim = Math.min(cartoes.ordem.length, cartoes.feitos + n);
+            const novos = [];
+            for (let k = cartoes.feitos; k < fim; k++) novos.push(cartoes.fabricar(cartoes.ordem[k]));
+            cartoes.feitos = fim;
+            cartoes.mais?.remove();
+            cartoes.observador?.disconnect();
+            lista.append(...novos);
+            const resta = cartoes.ordem.length - cartoes.feitos;
+            if (resta > 0) {
+                cartoes.mais = botao('Mostrar mais ' + resta + ' cabo(s)', () => mostrarMaisCartoes(LOTE_CARTOES));
+                cartoes.mais.classList.add('vz-grafo-mais');
+                lista.append(cartoes.mais);
+                if (raiz.IntersectionObserver) {
+                    cartoes.observador = new raiz.IntersectionObserver(ents => { if (ents.some(x => x.isIntersecting)) mostrarMaisCartoes(LOTE_CARTOES); }, { root: lista });
+                    cartoes.observador.observe(cartoes.mais);
+                }
+            } else cartoes.mais = null;
+        }
+        function garantirCartao(ic) {
+            if (!cartoes) return;
+            const k = cartoes.ordem.indexOf(ic);
+            if (k >= cartoes.feitos) mostrarMaisCartoes(k - cartoes.feitos + 1 + 10);
+        }
+
+        // alças nas pontas do cabo em foco: arrastar até um ponto liga a ponta (ímã)
+        function desenharAlcas() {
+            if (!camadaAlcas) return;
+            const d = caboEmFoco !== null && host.inserirNoMapa && ferramenta !== 'vao' ? (desenhosPorCabo.get(caboEmFoco) || []).find(x => x.caminho) : null;
+            if (!d) { if (!arrasto?.ponta) camadaAlcas.replaceChildren(); return; }
+            // a alça fica um pouco para dentro do cabo: o ponto da ponta continua clicável/arrastável
+            const porPx = vb ? vb[2] / (svg.clientWidth || W) : 1, recuo = 16 * porPx;
+            const dentro = (a, b) => { const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, t = Math.min(recuo, L * .4) / L; return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; };
+            const c = d.caminho, fins = [dentro(c[0], c[1]), dentro(c[c.length - 1], c[c.length - 2])];
+            let alcas = [...camadaAlcas.querySelectorAll('.vz-alca')];
+            if (alcas.length !== 2 || Number(alcas[0].dataset.ic) !== d.ic) {
+                camadaAlcas.replaceChildren();
+                alcas = [0, 1].map(i => {
+                    const c = doc.createElementNS(ns, 'circle');
+                    c.setAttribute('class', 'vz-alca'); c.setAttribute('r', '6');
+                    c.dataset.arrastar = 'ponta'; c.dataset.ic = d.ic; c.dataset.i = i;
+                    const t = doc.createElementNS(ns, 'title');
+                    t.textContent = 'Ponta ' + (i + 1) + ' do cabo ' + (d.ic + 1) + ': arraste até um ponto para ligar';
+                    c.appendChild(t);
+                    camadaAlcas.appendChild(c);
+                    return c;
+                });
+            }
+            alcas.forEach((c, i) => { c.setAttribute('cx', fins[i][0].toFixed(1)); c.setAttribute('cy', fins[i][1].toFixed(1)); });
+        }
+        function idsDoCabo(ic) {
+            const d = (desenhosPorCabo.get(ic) || [])[0];
+            return (d ? d.v.ids : grafo.cabosDoMapa.get(ic)?.ids || [null, null]).slice(0, 2).concat([null, null]).slice(0, 2);
+        }
+        /** Liga a ponta `i` do cabo ao ponto `no` (troca o ponto, se ela já chegava em outro). Devolve a mensagem de erro ou ''. */
+        function religarPonta(ic, i, no, silencioso) {
+            const ids = idsDoCabo(ic), atual = ids[i] ? grafo.nos.get(ids[i]) : null;
+            if (!no || (atual && atual.id === no.id)) return '';
+            if (ids[1 - i] === no.id) return 'As duas pontas do cabo não podem ficar no mesmo ponto.';
+            if (cabos()[ic].bloqueada) return 'O cabo está bloqueado.';
+            if (atual && jaLigadoNo(ic, atual)) return 'Remova primeiro o vínculo com a estrutura de ' + nomeDoNo(atual) + '.';
+            ids[i] = no.id;
+            const linhasAfetadas = [...new Set([...ids, atual?.id].filter(Boolean))].map(id => linhaNo(grafo.nos.get(id)));
+            if (!silencioso) host.antes();
+            gravarPontos(ic, ids.filter(Boolean));
+            if (atual && linhaFicticia(atual)) {
+                const c = cabos()[ic], id = outros()[linhaNo(atual)]._mapaId;
+                c._mapaAncoras = (c._mapaAncoras || []).filter(([anterior]) => anterior !== id);
+            }
+            if (silencioso) return linhasAfetadas;
+            caboEscolhido = pontaEscolhida = null;
+            ultimoStatus = comVinculosAutomaticos('Ponta do cabo ' + (ic + 1) + ' ligada a ' + nomeDoNo(no) + '.', automatizarPontos(linhasAfetadas));
+            atualizar();
+            host.depois?.();
+            avisos.textContent = ultimoStatus;
+            return '';
+        }
+        function ligarSugestoes() {
+            const itens = pendencias.filter(p => p.tipo === 'ponta' && p.sugestao);
+            if (!itens.length) return;
+            host.antes();
+            let n = 0; const afetadas = new Set();
+            for (const p of itens) {
+                const r = religarPonta(p.ic, p.i, grafo.nos.get(p.sugestao), true);
+                if (Array.isArray(r)) { n++; r.forEach(l => afetadas.add(l)); }
+            }
+            const auto = automatizarPontos([...afetadas]);
+            atualizar();
+            host.depois?.();
+            avisos.textContent = comVinculosAutomaticos(n + ' ponta(s) ligada(s) ao ponto mais perto. Ctrl+Z desfaz.', auto);
+        }
+        // ponto sem bloco no CAD: usa o bloco livre (ou confirma a posição da anotação) — vira coordenada do CAD
+        function fixarCoordenada(no, p, texto) {
+            host.antes();
+            const linhas = no.linhas.filter(l => !outros()[l]._mapaPosteRef);
+            linhas.forEach(l => { const r = outros()[l]; r._poste = [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]; delete r._posteAprox; delete r._mapaPoste; delete r._mapaPoste500; });
+            cx = null;
+            atualizar();
+            host.depois?.();
+            avisos.textContent = texto + ' Ctrl+Z desfaz.';
+        }
+        function transformarBloco(idBloco) {
+            const b = fundoLivres.find(x => x.id === idBloco);
+            if (!b || !host.inserirNoMapa) return;
+            abrirCriacao('poste', null, null, { cad: b.p });
+        }
+        function alternarFundo() {
+            fundoLigado = !fundoLigado;
+            try { raiz.localStorage.setItem('vz_mapa_fundo', fundoLigado ? '1' : '0'); } catch (e) { /* vale só nesta abertura */ }
+            pintar();
+            avisos.textContent = fundoLigado ? (fundoLivres.length || svg.querySelector('.vz-fundo-rede') ? 'Fundo do CAD visível: ' + fundoLivres.length + ' bloco(s) de poste livre(s). Clique num bloco para transformá-lo em ponto.' : 'Sem fundo do CAD para esta obra (abra o projeto do plugin ou leia o DXF).') : 'Fundo do CAD oculto.';
+        }
+
+        // «Traçar vão»: origem → destino cria o cabo ligado nas duas pontas, com o comprimento medido
+        function alternarVao(ligar = ferramenta !== 'vao') {
+            ferramenta = ligar ? 'vao' : null;
+            if (!ligar) { vaoOrigem = null; nosSvg.forEach(g => g.classList.remove('origem-vao')); }
+            btnVao.classList.toggle('ligado', ligar);
+            btnVao.setAttribute('aria-pressed', String(ligar));
+            svg.classList.toggle('tracando', ligar);
+            desenharAlcas();
+            avisos.textContent = ligar ? 'Traçar vão: clique no ponto de origem (Esc encerra).' : 'Traçar vão encerrado.';
+        }
+        function metrosEntre(a, b) {
+            if (emEscalaAgora()) { const p = posicoes.get(a), q = posicoes.get(b); return p && q ? MM.metros([p[0] / kLayout, p[1] / kLayout], [q[0] / kLayout, q[1] / kLayout]) : null; }
+            return MM.metros(posCadNo(grafo.nos.get(a)), posCadNo(grafo.nos.get(b)));
+        }
+        function marcarOrigemVao(id) {
+            vaoOrigem = id;
+            nosSvg.forEach((g, k) => g.classList.toggle('origem-vao', k === id));
+        }
+        function cliqueVao(id, rapido) {
+            const no = grafo.nos.get(id);
+            if (!no) return;
+            if (!vaoOrigem || !grafo.nos.has(vaoOrigem)) { marcarOrigemVao(id); avisos.textContent = 'Origem: ' + nomeDoNo(no) + '. Clique no ponto de destino.'; return; }
+            if (vaoOrigem === id) { marcarOrigemVao(null); avisos.textContent = 'Origem desmarcada. Clique no ponto de origem.'; return; }
+            const a = vaoOrigem, m = metrosEntre(a, id), modelo = st.modeloCabo;
+            if (rapido && modelo && m) {
+                fixarPosicoes();
+                const r = host.inserirNoMapa('cabo', Object.assign({}, modelo, { metros: String(m), poste: linhaNo(grafo.nos.get(a)) }));
+                if (r.erro) { avisos.textContent = r.erro; return; }
+                concluirVao(r.indice, a, id);
+                return;
+            }
+            abrirCriacao('cabo', linhaNo(grafo.nos.get(a)), null, { vao: { a, b: id }, metros: m });
+        }
+        function concluirVao(ic, a, b) {
+            const la = linhaNo(grafo.nos.get(a)), lb = linhaNo(grafo.nos.get(b));
+            const c = cabos()[ic];
+            c.vinculoPostes = [la, lb]; c._mapaTopologia = true;
+            cx = null;
+            const auto = automatizarPontos([la, lb]);
+            atualizar();
+            host.depois?.();
+            marcarOrigemVao(grafo.nosPorLinha.get(lb)?.id || null);
+            avisos.textContent = comVinculosAutomaticos('Vão criado: cabo ' + (ic + 1) + ' (' + c.ativo + '). Clique no próximo ponto para continuar.', auto);
+        }
+
+        // seleção (Shift+arrastar no fundo ou Shift+clique num ponto): mover juntos, excluir com Del
+        function pintarSelecao() { nosSvg.forEach((g, id) => g.classList.toggle('escolhido', selecao.has(id))); }
+        function limparSelecao() { if (!selecao.size) return; selecao.clear(); pintarSelecao(); }
+        function avisoSelecao() {
+            avisos.textContent = selecao.size ? selecao.size + ' ponto(s) selecionado(s): arraste um deles para mover todos · Del exclui · Esc limpa.' : 'Seleção vazia.';
+        }
+        function excluirSelecao() {
+            if (!host.removerDoMapa) return;
+            const nos = [...selecao].map(id => grafo.nos.get(id)).filter(Boolean);
+            const alvo = nos.length ? { outros: [...new Set(nos.flatMap(no => no.linhas))], cabos: [] } : caboEmFoco !== null ? { cabos: [caboEmFoco], outros: [] } : null;
+            if (!alvo) { avisos.textContent = 'Selecione pontos (Shift+arrastar) ou um cabo para excluir.'; return; }
+            const r = host.removerDoMapa(alvo);
+            if (r.erro) { avisos.textContent = r.erro; return; }
+            selecao.clear(); caboEmFoco = caboEscolhido = pontaEscolhida = null;
+            cx = null; metaAtivo.clear();
+            atualizar();
+            host.depois?.();
+            avisos.textContent = (r.outros ? r.outros + ' linha(s) de Demais Ativos' : '') + (r.outros && r.cabos ? ' e ' : '') + (r.cabos ? r.cabos + ' cabo(s)' : '') + ' excluído(s). Ctrl+Z desfaz.';
+        }
+
+        // Pendências: o que falta para a rede ficar montada e vinculada, com a correção a um clique
+        function centralizarEm(p) {
+            if (!p || !vb) return;
+            vb = [p[0] - vb[2] / 2, p[1] - vb[3] / 2, vb[2], vb[3]];
+            aplicarVista();
+        }
+        function focarNo(id) { const g = nosSvg.get(id); centralizarEm(posicoes.get(id)); g?.focus(); }
+        function focarCabo(ic) {
+            const d = (desenhosPorCabo.get(ic) || []).find(x => x.caminho);
+            if (d) centralizarEm([(d.caminho[0][0] + d.caminho[d.caminho.length - 1][0]) / 2, (d.caminho[0][1] + d.caminho[d.caminho.length - 1][1]) / 2]);
+            destacarCabo(ic, true);
+        }
+        function calcularPendencias(a, cabosVisiveis, nosVisiveis) {
+            const itens = [];
+            const visiveis = [...nosVisiveis].map(id => grafo.nos.get(id)).filter(Boolean).filter(no => !linhaFicticia(no));
+            const aprox = visiveis.filter(no => !no.pos && no.posAprox);
+            const pares = new Map((MM ? MM.casar(aprox.map(no => ({ id: no.id, p: no.posAprox })), fundoLivres, RAIO_BLOCO_LIVRE) : []).map(p => [p.a, p]));
+            for (const no of visiveis) {
+                if (!posCadNo(no)) itens.push({ tipo: 'sem-posicao', id: no.id, texto: nomeDoNo(no) + ': sem coordenada no CAD (está na coluna ao lado)',
+                    acoes: [['Posicionar', () => iniciarPosicionamento(linhaNo(no))]] });
+                else if (!no.pos) {
+                    const par = pares.get(no.id), bloco = par && fundoLivres.find(b => b.id === par.b);
+                    itens.push({ tipo: 'aproximada', id: no.id, texto: nomeDoNo(no) + ': sem bloco de poste no CAD, posição aproximada (a da anotação)',
+                        acoes: [...(bloco ? [['Usar bloco livre (' + Math.round(par.d) + ' m)', () => fixarCoordenada(no, bloco.p, nomeDoNo(no) + ' no bloco livre do CAD.')]] : []),
+                            ['Confirmar posição', () => fixarCoordenada(no, no.posAprox, 'Posição de ' + nomeDoNo(no) + ' confirmada.')]] });
+                }
+            }
+            for (const ic of cabosVisiveis) {
+                const c = cabos()[ic], nome = 'Cabo ' + (ic + 1) + ' · ' + c.ativo;
+                const d = (desenhosPorCabo.get(ic) || [])[0], ids = idsDoCabo(ic);
+                ids.forEach((id, i) => {
+                    if (id) return;
+                    const sug = d && d.ancoras && d.ancoras[i] && d.ancoras[i] !== ids[1 - i] ? d.ancoras[i] : null;
+                    const noSug = sug && grafo.nos.get(sug);
+                    itens.push({ tipo: 'ponta', ic, i, sugestao: sug, texto: nome + ': ponta ' + (i + 1) + ' solta' + (d ? '' : ' (sem desenho)'),
+                        acoes: [...(noSug ? [['Ligar a ' + nomeDoNo(noSug), () => { const m = religarPonta(ic, i, noSug); if (m) avisos.textContent = m; }]] : []),
+                            ...(livres(ic) ? [['Escolher ponto', () => { focarCabo(ic); selecionarCabo(ic, 1); }]] : [])] });
+                });
+                if (ids.every(Boolean) && infoCabo(ic).vincula && !VR.gruposVisuaisDoVao([ic], cabos(), a, st.cfg.dicionario_cabos)[0].completo) {
+                    const pendente = ids.map(id => grafo.nos.get(id)).find(no => no && !jaLigadoNo(ic, no)) || grafo.nos.get(ids[0]);
+                    itens.push({ tipo: 'vinculo', ic, texto: nome + ': vínculo com a estrutura pendente em ' + nomeDoNo(pendente),
+                        acoes: [['Abrir ponto', () => { destacarCabo(ic); editarNo(pendente.id, nosSvg.get(pendente.id)); }]] });
+                }
+                if (diagDe(ic).diverge) itens.push({ tipo: 'nivel', ic, texto: nome + ': nível ' + diagDe(ic).nivel + ' no rótulo, linha ' + diagDe(ic).geo + ' no desenho', acoes: [] });
+            }
+            return itens;
+        }
+        function renderPendencias(a, cabosVisiveis, nosVisiveis) {
+            const vinculaveis = [...cabosVisiveis].filter(ic => infoCabo(ic).vincula);
+            const completos = vinculaveis.filter(ic => VR.gruposVisuaisDoVao([ic], cabos(), a, st.cfg.dicionario_cabos)[0].completo).length;
+            const pontas = [...cabosVisiveis].reduce((s, ic) => s + idsDoCabo(ic).filter(Boolean).length, 0);
+            const nos = [...nosVisiveis].map(id => grafo.nos.get(id)).filter(no => no && !linhaFicticia(no));
+            const barra = (rotulo, feitos, total) => {
+                const p = MM ? MM.progresso(feitos, total) : { pct: 0, texto: feitos + '/' + total };
+                return el('div', { class: 'vz-pend-barra' }, [el('span', { text: rotulo + ' · ' + p.texto }), el('i', {}, [el('b', { style: 'width:' + p.pct + '%' })])]);
+            };
+            const sugestoesPontas = pendencias.filter(p => p.tipo === 'ponta' && p.sugestao).length;
+            const LIMITE = 150;
+            const lista = el('ul', {}, pendencias.slice(0, LIMITE).map(p => el('li', {}, [
+                el('button', { class: 'vz-pend-alvo', type: 'button', text: p.texto, title: 'Mostrar no mapa', onclick: () => (p.id ? focarNo(p.id) : focarCabo(p.ic)) }),
+                p.acoes.length ? el('div', { class: 'vz-pend-acoes' }, p.acoes.map(([t, f]) => botao(t, f))) : null
+            ])));
+            painelPend.replaceChildren(
+                el('summary', { text: pendencias.length ? 'Pendências · ' + pendencias.length : 'Rede montada ✓' }),
+                barra('Vãos vinculados', completos, vinculaveis.length),
+                barra('Pontas ligadas', pontas, cabosVisiveis.size * 2),
+                barra('Pontos com coordenada do CAD', nos.filter(no => no.pos).length, nos.length),
+                sugestoesPontas && host.inserirNoMapa ? botao('Ligar ' + sugestoesPontas + ' ponta(s) ao ponto mais perto', ligarSugestoes, 'Cada ponta solta vai para o ponto mais perto da ponta do desenho (até 25 m). Ctrl+Z desfaz tudo.') : null,
+                pendencias.length ? lista : null,
+                pendencias.length > LIMITE ? el('small', { text: '… e mais ' + (pendencias.length - LIMITE) + '. Resolva as primeiras ou use os filtros.' }) : null
+            );
+            painelPend.hidden = !(nos.length || cabosVisiveis.size);
+        }
+
+        // atalhos do mapa (fora de campos de texto e diálogos)
+        const teclaMapa = e => {
+            if (colocando || e.ctrlKey || e.metaKey || e.altKey || dialogo.open || editor.open) return;
+            const t = e.target;
+            if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.closest?.('dialog'))) return;
+            if (!svg.isConnected) return;
+            const k = e.key;
+            if (k === 'Escape') {
+                if (!ferramenta && !selecao.size && caboEscolhido === null && !arrasto) return;
+                e.preventDefault(); e.stopPropagation();
+                if (ferramenta) alternarVao(false);
+                limparSelecao();
+                if (caboEscolhido !== null) { caboEscolhido = pontaEscolhida = null; atualizarSelecao(); }
+                return;
+            }
+            if (!host.inserirNoMapa) return;
+            const acao = { v: () => alternarVao(), V: () => alternarVao(), p: () => abrirCriacao('poste'), e: () => abrirCriacao('estrutura'), c: () => abrirCriacao('cabo'),
+                l: () => { if (caboEmFoco !== null && livres(caboEmFoco)) selecionarCabo(caboEmFoco, 1); else avisos.textContent = 'Selecione um cabo com ponta livre para ligar (L).'; },
+                Delete: () => excluirSelecao() }[k];
+            if (!acao) return;
+            e.preventDefault();
+            acao();
+        };
+        doc.addEventListener('keydown', teclaMapa, true);
 
         const RAIO_ANCORA_VISUAL = 25;                                       // metros do CAD
         // posição de uma ponta de cabo sem poste: a do desenho + o quanto o ponto mais perto saiu do lugar original
@@ -2025,12 +2363,15 @@
         const escalaCurva = () => (emEscalaAgora() ? [kLayout, kLayout] : [W, H]);       // o «puxar» do cabo é guardado em fração da tela (Ajustar) ou em metros (1:500)
         function desenharPosicoes(alvo) {
             const desenharNo = (g, id) => g.setAttribute('transform', 'translate(' + posicoes.get(id).join(' ') + ')');
-            if (alvo?.idNo) {
-                desenharNo(nosSvg.get(alvo.idNo), alvo.idNo);
-                const it = itensPorNo.get(alvo.idNo);
-                if (it) { it.b = caixaDoNo(alvo.idNo); if (!it.v) { it.v = true; it.camada.appendChild(it.el); } }
+            const idsAlvo = alvo?.ids || (alvo?.idNo ? [alvo.idNo] : null);                       // TASK-233: vários pontos (seleção) redesenham só o que muda
+            if (idsAlvo) {
+                for (const id of idsAlvo) {
+                    if (nosSvg.has(id)) desenharNo(nosSvg.get(id), id);
+                    const it = itensPorNo.get(id);
+                    if (it) { it.b = caixaDoNo(id); if (!it.v) { it.v = true; it.camada.appendChild(it.el); } }
+                }
             } else if (!alvo) nosSvg.forEach(desenharNo);
-            const lista = alvo?.idNo ? desenhosPorNo.get(alvo.idNo) || [] : alvo?.ic !== undefined ? desenhosPorCabo.get(alvo.ic) || [] : desenhos;
+            const lista = idsAlvo ? [...new Set(idsAlvo.flatMap(id => desenhosPorNo.get(id) || []))] : alvo?.ic !== undefined ? desenhosPorCabo.get(alvo.ic) || [] : desenhos;
             const [cw, ch] = escalaCurva();
             for (const d of lista) {
                 const {v, ic, deslocamento, linha} = d;
@@ -2056,10 +2397,12 @@
                 const pontos = caminho.map(([x, y]) =>
                     `${(x - dy * deslocamento / comprimento).toFixed(2)},${(y + dx * deslocamento / comprimento).toFixed(2)}`).join(' ');
                 linha.setAttribute('points', pontos);
+                d.caminho = caminho;
                 if (linha.parentNode.hasAttribute('data-cabo-mapa')) linha.nextElementSibling.setAttribute('points', pontos);
                 d.b = ME ? ME.caixaDe(caminho, 14 + Math.abs(deslocamento)) : null;
                 if (d.item) { d.item.b = d.b; if (alvo && !d.item.v) { d.item.v = true; d.item.camada.appendChild(d.item.el); } }
             }
+            if (caboEmFoco !== null && !arrasto?.ponta) desenharAlcas();
         }
 
         function campo(rotulo, controle) {
@@ -2231,9 +2574,11 @@
             atualizar();
         }
 
-        function abrirCriacao(tipo, poste = null, edicao = null) {
+        function abrirCriacao(tipo, poste = null, edicao = null, extra = {}) {
             const cabo = tipo === 'cabo';
-            const titulo = edicao ? 'Editar poste' : cabo ? 'Novo cabo' : tipo === 'poste' ? 'Novo poste' : 'Nova estrutura';
+            const vao = cabo && extra.vao ? extra.vao : null;                                     // TASK-233: «Traçar vão» (origem → destino)
+            const titulo = edicao ? 'Editar poste' : vao ? 'Novo vão · ' + nomeDoNo(grafo.nos.get(vao.a)) + ' → ' + nomeDoNo(grafo.nos.get(vao.b))
+                : cabo ? 'Novo cabo' : tipo === 'poste' ? (extra.cad ? 'Novo poste no bloco do CAD' : 'Novo poste') : 'Nova estrutura';
             const exemplo = cabo ? '3xA35P-13,8kV ou CAA2' : tipo === 'poste' ? '12600D, N3' : 'N3 ou 2-N3';
             const ativo = el('input', { type: 'text', required: '', maxlength: '440', placeholder: exemplo, 'data-sugestao-origem': cabo ? 'CABOS' : 'OUTROS' });
             const referencia = edicao && outros()[edicao.poste];
@@ -2243,6 +2588,13 @@
             const fases = (raiz.GradeTabela?.FASES || ['A', 'B', 'C', 'AB', 'AC', 'BC', 'ABC']);
             const fase = el('select', {}, opcoes([['', 'Do rótulo'], ...fases.map(v => [v, v])]));
             const nivel = el('select', {}, opcoes([['', 'Pelo ativo'], ['MT', 'MT'], ['BT', 'BT']]));
+            if (vao && st.modeloCabo) {                                                                // o último cabo criado é o modelo do próximo vão
+                ativo.value = st.modeloCabo.ativo || '';
+                operacao.value = st.modeloCabo.operacao || operacao.value;
+                fase.value = st.modeloCabo.fase || '';
+                nivel.value = st.modeloCabo.nivel || '';
+            }
+            if (cabo && extra.metros) metros.value = String(extra.metros);
             const campos = [campo(cabo ? 'Ativo ou rótulo, sem a metragem' : 'Anotação', ativo), campo('Operação', operacao)];
             if (cabo) campos.push(campo('Comprimento em metros', metros), campo('Fases', fase), campo('Nível', nivel));
             const novoPonto = !edicao && !cabo && poste === null && !!host.definirPontoNoMapa;
@@ -2284,6 +2636,9 @@
                 const resultado = host.inserirNoMapa(tipo, { ativo: ativo.value, operacao: operacao.value,
                     metros: metros.value, fase: fase.value, nivel: nivel.value, poste, nome: nomePonto.value, comentario: comentarioPonto.value });
                 if (resultado.erro) return resultado.erro;
+                if (cabo) st.modeloCabo = { ativo: ativo.value, operacao: operacao.value, fase: fase.value, nivel: nivel.value };
+                if (vao) { concluirVao(resultado.indice, vao.a, vao.b); return ''; }
+                if (novoPonto && extra.cad) outros()[resultado.indice]._poste = [Math.round(extra.cad[0] * 100) / 100, Math.round(extra.cad[1] * 100) / 100];
                 cx = null;
                 const linhas = cabo ? VR.postesAtribuidos(cabos()[resultado.indice]) : poste === null ? [] : [resultado.indice];
                 const auto = automatizarPontos(linhas);
@@ -2297,7 +2652,8 @@
                 atualizar();
                 if (auto) host.depois?.();
                 avisos.textContent = texto;
-                if (novoPonto) { colocarNovoPonto(resultado.indice); iniciarPosicionamento(resultado.indice); }
+                if (novoPonto && extra.cad) { host.depois?.(); avisos.textContent = 'Ponto criado no bloco do CAD. ' + texto; }
+                else if (novoPonto) { colocarNovoPonto(resultado.indice); iniciarPosicionamento(resultado.indice); }
                 return '';
             });
         }
@@ -2747,13 +3103,27 @@
             if (e.button !== 0 || !e.isPrimary) return;
             mover = false;
             const alvo = e.target.closest('[data-arrastar]');
+            const base = { id: e.pointerId, x: e.clientX, y: e.clientY, vb, matriz: svg.getScreenCTM().inverse(), valor: null };
+            if (alvo?.dataset.arrastar === 'ponta') {                                   // TASK-233: alça da ponta do cabo → solta sobre um ponto para ligar
+                arrasto = Object.assign(base, { ponta: { ic: Number(alvo.dataset.ic), i: Number(alvo.dataset.i), el: alvo, alvo: null, elastico: null } });
+                return;
+            }
+            if (!alvo && e.shiftKey) { arrasto = Object.assign(base, { caixa: { inicio: pontoDaVista(e), el: null } }); return; }     // Shift+arrastar no fundo: seleção por caixa
             const idNo = alvo?.dataset.no;
             const ic = alvo?.dataset.caboMapa !== undefined ? Number(alvo.dataset.caboMapa) : undefined;
             const linha = idNo ? outros()[linhaNo(grafo.nos.get(idNo))] : ic !== undefined ? cabos()[ic] : null;
             const campo = idNo ? campoPonto() : campoCabo();
             const origem = idNo ? posicoes.get(idNo) : linha?.[campo] || [0, 0];
-            arrasto = { id: e.pointerId, x: e.clientX, y: e.clientY, vb, matriz: svg.getScreenCTM().inverse(), idNo, ic, linha, campo, origem, valor: null };
+            const grupo = idNo && selecao.has(idNo) && selecao.size > 1 ? [...selecao].filter(id => posicoes.has(id)).map(id => [id, posicoes.get(id).slice()]) : null;
+            arrasto = Object.assign(base, { idNo, ic, linha, campo, origem, grupo });
         });
+        // ponto mais perto do mouse para o ímã (raio em pixels da tela convertidos para o mapa)
+        function noSobMouse(pt, exceto) {
+            const raio = 22 * Math.abs(arrasto.matriz.a || 1);
+            let melhor = null, dmin = raio;
+            nosSvg.forEach((g, id) => { if (id === exceto || !g.isConnected) return; const p = posicoes.get(id), d = Math.hypot(p[0] - pt.x, p[1] - pt.y); if (d <= dmin) { dmin = d; melhor = id; } });
+            return melhor;
+        }
         svg.addEventListener('pointermove', e => {
             if (!arrasto || e.pointerId !== arrasto.id) return;
             if (!(e.buttons & 1)) { soltar(e, true); return; }
@@ -2765,6 +3135,31 @@
                 mover = true;
             }
             const x = dx * arrasto.matriz.a, y = dy * arrasto.matriz.d;
+            if (arrasto.ponta) {
+                const pt = pontoDaVista(e), pa = arrasto.ponta, ids = idsDoCabo(pa.ic);
+                const alvoId = noSobMouse(pt, ids[1 - pa.i]);
+                if (alvoId !== pa.alvo) { if (pa.alvo) nosSvg.get(pa.alvo)?.classList.remove('iman'); pa.alvo = alvoId; if (alvoId) nosSvg.get(alvoId)?.classList.add('iman'); }
+                const fim = alvoId ? posicoes.get(alvoId) : [pt.x, pt.y];
+                pa.el.setAttribute('cx', fim[0].toFixed(1)); pa.el.setAttribute('cy', fim[1].toFixed(1));
+                const d = (desenhosPorCabo.get(pa.ic) || []).find(q => q.caminho), outra = d ? d.caminho[pa.i === 0 ? d.caminho.length - 1 : 0] : fim;
+                if (!pa.elastico) { pa.elastico = doc.createElementNS(ns, 'line'); pa.elastico.setAttribute('class', 'vz-elastico'); camadaAlcas.appendChild(pa.elastico); }
+                pa.elastico.setAttribute('x1', outra[0]); pa.elastico.setAttribute('y1', outra[1]); pa.elastico.setAttribute('x2', fim[0]); pa.elastico.setAttribute('y2', fim[1]);
+                return;
+            }
+            if (arrasto.caixa) {
+                const c = arrasto.caixa, pt = pontoDaVista(e);
+                if (!c.el) { c.el = doc.createElementNS(ns, 'rect'); c.el.setAttribute('class', 'vz-retangulo'); camadaAlcas.appendChild(c.el); }
+                c.fim = [pt.x, pt.y];
+                c.el.setAttribute('x', Math.min(c.inicio.x, pt.x)); c.el.setAttribute('y', Math.min(c.inicio.y, pt.y));
+                c.el.setAttribute('width', Math.abs(pt.x - c.inicio.x)); c.el.setAttribute('height', Math.abs(pt.y - c.inicio.y));
+                return;
+            }
+            if (arrasto.grupo) {
+                for (const [id, [ox, oy]] of arrasto.grupo) posicoes.set(id, [limitar(ox + x, limites[0], limites[2]), limitar(oy + y, limites[1], limites[3])]);
+                arrasto.valor = true;
+                if (!quadro) quadro = raiz.requestAnimationFrame(() => { quadro = null; if (arrasto?.grupo) desenharPosicoes({ ids: arrasto.grupo.map(([id]) => id) }); });
+                return;
+            }
             if (!arrasto.linha) {
                 vb = [arrasto.vb[0] - x, arrasto.vb[1] - y, arrasto.vb[2], arrasto.vb[3]];
                 aplicarVista();
@@ -2791,6 +3186,34 @@
                 quadro = null;
             }
             svg.classList.remove('arrastando');
+            if (alteracao.ponta) {
+                const pa = alteracao.ponta;
+                pa.elastico?.remove();
+                if (pa.alvo) nosSvg.get(pa.alvo)?.classList.remove('iman');
+                if (!mover) { desenharAlcas(); return; }
+                if (!cancelar && pa.alvo) { const msg = religarPonta(pa.ic, pa.i, grafo.nos.get(pa.alvo)); if (msg) avisos.textContent = msg; }
+                else if (!cancelar) avisos.textContent = 'Solte a ponta sobre um ponto para ligar o cabo.';
+                desenharAlcas();
+                return;
+            }
+            if (alteracao.caixa) {
+                const c = alteracao.caixa;
+                c.el?.remove();
+                if (!cancelar && c.fim) {
+                    const visiveis = new Map([...posicoes].filter(([id]) => nosSvg.get(id)?.isConnected));
+                    MM.dentroDoRetangulo(visiveis, [c.inicio.x, c.inicio.y], c.fim).forEach(id => selecao.add(id));
+                    pintarSelecao();
+                    avisoSelecao();
+                }
+                return;
+            }
+            if (alteracao.grupo) {
+                if (valor && !cancelar) { host.antes(); alteracao.grupo.forEach(([id]) => guardarPosicao(id)); }
+                else alteracao.grupo.forEach(([id, p]) => posicoes.set(id, p));
+                desenharPosicoes({ ids: alteracao.grupo.map(([id]) => id) });
+                recortarVista(true);
+                return;
+            }
             if (valor && !cancelar) {
                 host.antes();
                 linha[campo] = valor;
@@ -2808,11 +3231,20 @@
             const nos = pontosDoCabo(ic).map(id => grafo.nos.get(id));
             consultar({ tipo: 'vão', rotulo: cabos()[ic].ativo, cabos: [ic], outros: nos.flatMap(n => n.linhas) });
         }
-        function ativarMapa(alvo) {
+        function ativarMapa(alvo, e) {
+            const bloco = alvo.closest('[data-bloco]');
+            if (bloco) { transformarBloco(bloco.dataset.bloco); return; }
+            const no = alvo.closest('[data-no]');
+            if (ferramenta === 'vao') { if (no) cliqueVao(no.dataset.no, !!e?.shiftKey); return; }
+            if (no && e?.shiftKey) {                                                         // Shift+clique: entra/sai da seleção
+                const id = no.dataset.no;
+                if (selecao.has(id)) selecao.delete(id); else selecao.add(id);
+                pintarSelecao(); avisoSelecao();
+                return;
+            }
             const cabo = alvo.closest('[data-cabo-mapa]');
             if (cabo) { destacarCabo(Number(cabo.dataset.caboMapa), true); return; }
-            const no = alvo.closest('[data-no]');
-            if (!no) return;
+            if (!no) { if (!alvo.closest('[data-arrastar]')) limparSelecao(); return; }
             const id = no.dataset.no;
             if (caboEscolhido === null) editarNo(id, no);
             else {
@@ -2841,7 +3273,7 @@
             desenharPosicoes({ idNo: colocando.id });
             encerrarPosicionamento(true);
         }, true);
-        svg.addEventListener('click', e => { if (!mover || e.detail === 0) ativarMapa(e.target); });
+        svg.addEventListener('click', e => { if (!mover || e.detail === 0) ativarMapa(e.target, e); });
         svg.addEventListener('keydown', e => {
             if (e.target.closest('[data-no], [data-cabo-mapa]') && (e.key === 'Enter' || e.key === ' ')) {
                 e.preventDefault();
@@ -2856,6 +3288,8 @@
             if (quadroVista) { raiz.cancelAnimationFrame(quadroVista); quadroVista = 0; }
             raiz.clearTimeout(fimMovimento);
             encerrarPosicionamento(true, true);
+            doc.removeEventListener('keydown', teclaMapa, true);
+            cartoes?.observador?.disconnect();
         };
         mapaAtualizar = () => {
             sugestoes = [];

@@ -1445,7 +1445,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pushHistory();
         const copias = alvos.map(i => {
             const c = deepClone(dados[i]);
-            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', '_mapaPoste', '_mapaCabo', '_mapaPoste500', '_mapaCabo500', '_mapaId', '_mapaPosteRef', '_mapaTopologia', '_mapaAncoras', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
+            ['grupoDecl', 'gid', 'grupoRecolhido', 'bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', '_posteAprox', '_mapaPoste', '_mapaCabo', '_mapaPoste500', '_mapaCabo500', '_mapaId', '_mapaPosteRef', '_mapaTopologia', '_mapaAncoras', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios', 'cabosFicticiosSlots', 'origemAvulso'].forEach(k => delete c[k]);
             return c;
         });
         const depois = alvos[alvos.length - 1] + 1;
@@ -2821,7 +2821,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /** Campos que NÃO vão para uma cópia: geometria do CAD, vínculos com cabos, posição no mapa, identidade e grupo (a cópia ganha os seus). */
-    const CAMPOS_FORA_DA_COPIA = ['bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios',
+    const CAMPOS_FORA_DA_COPIA = ['bloqueada', '_x', '_y', '_geo', '_geoTipo', '_poste', '_posteAprox', 'vinculoEstruturas', 'vinculoOrigem', 'vinculoPostes', 'estruturasFicticias', 'cabosFicticios',
         'cabosFicticiosSlots', 'origemAvulso', '_mapaPoste', '_mapaPoste500', '_mapaCabo', '_mapaCabo500', '_mapaId', '_mapaPosteRef', '_mapaTopologia', '_mapaAncoras', 'grupoDe', 'grupoDecl', 'gid', 'grupoRecolhido'];
     /** Copia o ponto: um grupo novo (nome automático, mesmo comentário) com cópias das linhas do ativo, sem vínculos nem posição. Devolve {indice, nome} (indice = 1ª linha copiada) ou {erro}. */
     function copiarPontoNoMapa(linhas) {
@@ -2863,9 +2863,65 @@ document.addEventListener('DOMContentLoaded', () => {
         return { indice };
     }
 
+    /**
+     * TASK-233: exclui pelo mapa (tecla Del) — cabos pelo índice e pontos pelas linhas de Demais Ativos. Um passo de histórico.
+     * Grupo «@» que fica sem membros sai inteiro (declaração e comentário); vínculos dos cabos acompanham os índices novos.
+     */
+    function removerDoMapa(sel) {
+        const remC = new Set((sel && sel.cabos || []).filter(Number.isInteger)), remO = new Set((sel && sel.outros || []).filter(Number.isInteger));
+        const outros = tableStates.outros.data, cabos = tableStates.cabos.data, GL = GL_();
+        for (const i of [...remC]) if (!cabos[i] || cabos[i].bloqueada) remC.delete(i);
+        for (const i of [...remO]) if (!outros[i] || outros[i].bloqueada) remO.delete(i);
+        if (GL) {                                                                   // grupo sem nenhum membro restante: some a declaração e o comentário
+            const gids = new Set([...remO].map(i => outros[i].grupoDe).filter(Boolean));
+            for (const gid of gids) {
+                const restam = outros.some((r, i) => r && r.grupoDe === gid && !r.comentario && !remO.has(i));
+                if (!restam) outros.forEach((r, i) => { if (r && (r.grupoDe === gid || (r.grupoDecl && r.gid === gid))) remO.add(i); });
+            }
+        }
+        if (!remC.size && !remO.size) return { erro: 'Nada a excluir (linhas bloqueadas ficam).' };
+        pushHistory();
+        if (remC.size) {
+            const novoIndice = new Map(); let k = 0;
+            cabos.forEach((r, i) => { if (!remC.has(i)) novoIndice.set(i, k++); });
+            outros.forEach(r => {                                                    // TASK-171: avulsos da fictícia guardam o índice do cabo
+                if (!r || !r.origemAvulso) return;
+                const m = /^(\d+)(:.*)$/.exec(r.origemAvulso);
+                if (!m) return;
+                const n = novoIndice.get(Number(m[1]));
+                if (n === undefined) r.origemAvulso = m[1] + m[2] + (m[2].endsWith('!velho') ? '' : '!velho'); else r.origemAvulso = n + m[2];
+            });
+            tableStates.cabos.data = cabos.filter((r, i) => !remC.has(i));
+        }
+        if (remO.size) {
+            let nova = outros.filter((r, i) => !remO.has(i));
+            if (GL) nova = GL.normalizar(nova);
+            const pos = new Map(); nova.forEach((r, k) => pos.set(r, k));
+            _remapearVinculosOutros(outros.map(r => pos.get(r)));
+            tableStates.outros.data = nova;
+        }
+        ['cabos', 'outros'].forEach(t => { renderTable(t); refreshAllFilters(t); });
+        buildAtivoSets(); buildDataLists();
+        return { cabos: remC.size, outros: remO.size };
+    }
+    // TASK-233: fundo do CAD para o mapa (rede e blocos de poste sem anotação) — vem do projeto do plugin ou da leitura do DXF
+    let fundoCadAtual = null;
+    function definirFundoCad(fundo) {
+        fundoCadAtual = fundo && Array.isArray(fundo.redes) && Array.isArray(fundo.postes) ? fundo : null;
+        try { if (fundoCadAtual) sessionStorage.setItem('orcacore_fundo_cad', JSON.stringify(fundoCadAtual)); else sessionStorage.removeItem('orcacore_fundo_cad'); } catch (e) { /* grande demais ou sem storage: vale só nesta tela */ }
+    }
+    function fundoCad() {
+        if (fundoCadAtual) return fundoCadAtual;
+        for (const [store, chave] of [[sessionStorage, 'orcacore_fundo_cad'], [localStorage, 'mapa_geometria_fundo']]) {
+            try { const f = JSON.parse(store.getItem(chave) || 'null'); if (f && Array.isArray(f.redes) && Array.isArray(f.postes)) return f; } catch (e) { /* sem fundo */ }
+        }
+        return null;
+    }
+    window.OrcaFundoCad = { definir: definirFundoCad, atual: fundoCad };
+
     /** TASK-084: o que o modal de vinculação (vinculacao_ui.js) precisa saber/fazer na tela do Resumo. */
     window.VinculacaoHost = {
-        copiarPontoNoMapa, copiarCaboNoMapa,
+        copiarPontoNoMapa, copiarCaboNoMapa, removerDoMapa, fundoCad,
         pontoNoMapa, definirPontoNoMapa, marcarPontoNoMapa, agruparPontosNoMapa,
         cabos: () => tableStates.cabos.data,
         outros: () => tableStates.outros.data,
@@ -2954,6 +3010,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const geo = obj._geo || (obj._raw && obj._raw._geo), poste = obj._poste || (obj._raw && obj._raw._poste);
         if (geo) { c._geo = geo; c._geoTipo = obj._geoTipo || (obj._raw && obj._raw._geoTipo); }
         if (poste) c._poste = poste;
+        const aprox = obj._posteAprox || (obj._raw && obj._raw._posteAprox);                             // TASK-233: poste sem bloco no CAD (posição aproximada)
+        if (Array.isArray(aprox) && aprox.length === 2 && aprox.every(Number.isFinite)) c._posteAprox = aprox.slice();
         for (const [campo, min] of [['_mapaPoste', 0], ['_mapaCabo', -1]]) {
             const par = obj[campo];
             if (Array.isArray(par) && par.length === 2 && par.every(n => Number.isFinite(n) && n >= min && n <= 1)) c[campo] = par.slice();

@@ -16,6 +16,7 @@ import re
 from datetime import datetime, timezone
 
 from services import obras_arquivo
+from services.fundo_cad import fundo_do_cad
 
 EXTENSAO = ".obra"
 LIMITE_BYTES = 60 * 1024 * 1024
@@ -164,4 +165,5 @@ def ler_carga(carga, projeto_selecionado: str) -> dict:
             "contexto": _texto(trabalho.get("contexto"), LIMITE_CONTEXTO) if trabalho else "",
             "resultado": resultado_limpo(trabalho.get("resultado")) if trabalho else None,
             "dados": pronta["dados"], "projeto": pronta["projeto"], "legado": trabalho is None,
-            "cad": isinstance(carga.get("cad"), dict)}          # TASK-166: veio do plugin do nanoCAD (tem geometria): o programa vincula por poste ao abrir
+            "cad": isinstance(carga.get("cad"), dict),          # TASK-166: veio do plugin do nanoCAD (tem geometria): o programa vincula por poste ao abrir
+            "fundo": fundo_do_cad(carga.get("cad"))}            # TASK-233: rede e blocos de poste sem anotação, esmaecidos ao fundo do mapa

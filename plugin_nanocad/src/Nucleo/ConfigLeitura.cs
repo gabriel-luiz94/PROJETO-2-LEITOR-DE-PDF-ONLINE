@@ -29,6 +29,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public double TolPosteAlturas = 2.5;    // poste "na" rede (e blocos juntos = um poste): até 2,5 × a altura típica
         public double GuiaToqueAlturas = 6;     // guia vale quando a ponta chega a até 6 × a altura do texto (do contorno)
         public double RaioReservaAlturas = 12;  // sem guia e sem nada no raio: elemento SEM anotação até 12 × a altura (vira Conferir)
+        public double RaioBlocoLivreAlturas = 25; // anotação de poste que sobrou ↔ bloco de poste livre, 1:1, até 25 × a altura (vira Conferir)
         public string PlacaRegex = "^[A-Z]{1,2}\\d{5,7}$";   // placa do poste (B039571), ligada ao poste mais perto
 
         /// <summary>O nome CONTÉM o trecho (sem diferença de maiúsculas); "=NOME" exige o nome exato (ex.: "=0" = só a layer 0).</summary>
@@ -133,7 +134,8 @@ namespace OrcamentoNanoCAD.Nucleo
                 .Set("regra", Regra).Set("cor_mt", CorMT).Set("cor_bt", CorBT)
                 .Set("blocos_poste", L(BlocosPoste)).Set("layers_poste", L(LayersPoste)).Set("layers_guia", L(LayersGuia))
                 .Set("raio_alturas", RaioAlturas).Set("guia_max_alturas", GuiaMaxAlturas).Set("tol_poste_alturas", TolPosteAlturas)
-                .Set("auditoria_tolerancia_m", ToleranciaMetros).Set("guia_toque_alturas", GuiaToqueAlturas).Set("raio_reserva_alturas", RaioReservaAlturas).Set("placa_regex", PlacaRegex);
+                .Set("auditoria_tolerancia_m", ToleranciaMetros).Set("guia_toque_alturas", GuiaToqueAlturas).Set("raio_reserva_alturas", RaioReservaAlturas)
+                .Set("raio_bloco_livre_alturas", RaioBlocoLivreAlturas).Set("placa_regex", PlacaRegex);
         }
 
         public static ConfigLeitura De(JObj o)
@@ -155,6 +157,7 @@ namespace OrcamentoNanoCAD.Nucleo
             c.GuiaToqueAlturas = Positivo(o.Num("guia_toque_alturas"), 6);
             c.ToleranciaMetros = Math.Max(0, o.Num("auditoria_tolerancia_m") ?? 0);
             c.RaioReservaAlturas = Positivo(o.Num("raio_reserva_alturas"), 12);
+            c.RaioBlocoLivreAlturas = Positivo(o.Num("raio_bloco_livre_alturas"), 25);
             if (o.Has("placa_regex")) c.PlacaRegex = o.Str("placa_regex") ?? "";
             return c;
         }
