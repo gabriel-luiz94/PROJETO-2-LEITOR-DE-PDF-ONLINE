@@ -89,6 +89,8 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 - [x] [TASK-230](tasks/TASK-230-23-11-2026.md) — Mapa: comentário opcional nos grupos de pontos. Limpar o campo e salvar remove a linha de comentário.
 
+- [x] [TASK-230](tasks/TASK-230-23-11-2026.md) — Script do pacote de entrega: instalador + banco higienizado + .env limpo + Instalar.bat, com conferência (login, base) antes de concluir.
+
 - [x] [TASK-229](tasks/TASK-229-23-11-2026.md) — Mapa: botão «Posições do CAD» e avisos de posição ajustada / 1:500 maior que a janela (verificado: desenho inicial idêntico ao da 2.7.8).
 
 - [x] [TASK-228](tasks/TASK-228-23-11-2026.md) — Mapa: pontas de cabo sem poste seguem o ponto mais perto; «Rearranjar» não deixa mais os pontos longe dos cabos.

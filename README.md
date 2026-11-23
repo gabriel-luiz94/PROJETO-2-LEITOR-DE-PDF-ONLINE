@@ -14,6 +14,23 @@ Funciona tanto como aplicativo desktop nativo (via `pywebview`, empacotável em 
 
 O arquivo `OrcaCore.exe` continua disponível para uso portátil. Se você já usa uma cópia portátil com dados locais, feche o OrçaCore antes de copiar o banco `banco_resumo.db`, a pasta `skills` e o `.env` (se existirem) para a nova pasta. Faça essa migração antes de começar a trabalhar pela instalação e preserve uma cópia de segurança se a pasta de destino já tiver dados. Guarde os arquivos de obra que você salvou nos locais escolhidos.
 
+## 📦 Entregar o OrçaCore a outra pessoa
+
+`scripts/montar_pacote_entrega.py` monta uma pasta (e, com `--zip`, um `.zip`) pronta para enviar: instalador, `Instalar.bat`, banco **higienizado**, `.env` **limpo**, skills suas e `LEIA-ME.txt`.
+
+```bash
+python scripts/montar_pacote_entrega.py --saida entrega --instalador dist/OrcaCore-Setup.exe --email fulano@empresa.com --zip
+# banco/skills de uma instalação (em vez da pasta do projeto) e base de orçamento de uma conta específica:
+python scripts/montar_pacote_entrega.py --saida entrega --instalador OrcaCore-Setup.exe --email fulano@empresa.com \
+    --banco "%LOCALAPPDATA%\Programs\OrcaCore\banco_resumo.db" --skills "%LOCALAPPDATA%\Programs\OrcaCore\skills" --base-de voce@empresa.com
+```
+
+* **O que o script garante:** antes de terminar ele abre o programa de verdade sobre uma cópia do pacote e confere saúde do banco, base de orçamento, login com a conta nova (e recusa de senha errada), leitura da base e projetos. Se algo falhar, nada é entregue.
+* **O que NÃO vai:** usuários/senhas/sessões, chaves de IA salvas, obras e históricos pessoais (`--com-obras`/`--com-historico` levam de propósito), chaves do `.env` (`--com-nuvem` e `--com-chaves-ia` levam só as de nuvem/IA). A base de orçamento entregue é a que a conta de origem enxerga (`--base-de` se houver edições de mais de um usuário).
+* **Conta do usuário:** administrador novo, com `--email` e `--senha` (vazio = o script gera). A senha **não** vai no pacote: fica em `ACESSO_<pacote>.txt`, ao lado da pasta — envie por outro canal.
+* **Instalação no destino:** o usuário extrai o zip e executa `Instalar.bat` (instala sem administrador em `%LOCALAPPDATA%\Programs\OrcaCore`, guarda um banco existente como `banco_resumo.db.anterior`, copia banco/.env/skills e abre o programa).
+* Use um instalador da **mesma versão** do código com que o pacote foi conferido (o script avisa a versão).
+
 ## 🚀 Tecnologias Utilizadas
 
 * **FastAPI**: backend do servidor e das APIs.
