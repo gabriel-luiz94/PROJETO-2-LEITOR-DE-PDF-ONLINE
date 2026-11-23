@@ -1,4 +1,4 @@
-"""TASK-225 — pontos do mapa como grupos de Demais Ativos (@nome + comentário + linhas), posições estáveis, «Rearranjar» e «Agrupar pontos»."""
+"""Pontos do mapa como grupos de Demais Ativos, com comentário opcional e posições estáveis."""
 import json
 import os
 import shutil
@@ -57,21 +57,26 @@ def test_nome_automatico_nome_do_usuario_e_comentario():
 const lista = [{ativo: '@P3 Rua', grupoDecl: true, gid: 'a'}, {ativo: '@RUA X', grupoDecl: true, gid: 'b'}, {ativo: '#nota'}];
 const ab = M.abrirPonto('P7', 'R', '  # esquina ');
 console.log(JSON.stringify([M.proximoNome(lista), M.proximoNome(lista, 'P', 12), M.nomeLimpo('  @#rua das flores   1 '), M.nomeLimpo('  '), M.nomeLimpo('x'.repeat(90)).length,
-  ab.titulo, ab.comentario, ab.comentario.grupoDe === ab.gid && ab.titulo.gid === ab.gid, M.abrirPonto('P8', 'I').comentario.ativo]));""")
+  ab.titulo, ab.comentario, ab.comentario.grupoDe === ab.gid && ab.titulo.gid === ab.gid,
+  [undefined, '', '  ', ' # '].map(texto => M.abrirPonto('P8', 'I', texto).comentario)]));""")
     assert r[0] == "P4" and r[1] == "P13" and r[2] == "RUA DAS FLORES 1" and r[3] is None and r[4] == 60
     assert r[5]["ativo"] == "@P7" and r[5]["grupoDecl"] and r[5]["congelada"] and r[5]["operacao"] == "R"
-    assert r[6]["ativo"] == "# esquina" and r[6]["comentario"] and r[6]["congelada"] and r[7] is True and r[8] == "#"
+    assert r[6]["ativo"] == "# esquina" and r[6]["comentario"] and r[6]["congelada"] and r[7] is True
+    assert r[8] == [None, None, None, None]
 
 
-def test_agrupar_pontos_mantem_nome_pedido_evita_repetido_e_poe_o_comentario():
+def test_agrupar_pontos_mantem_nomes_unicos_e_so_insere_comentario_preenchido():
     r = _node("grupos_linhas.js", """
 const a = {ativo: '12600D, N3', operacao: 'I'}, b = {ativo: 'N1', operacao: 'I'}, c = {ativo: '9600D', operacao: 'M'}, d = {ativo: 'N4', operacao: 'I'}, solto = {ativo: 'X'};
-const res = M.agruparPontos([a, solto, b, c, d], [{linhas: [a, b], nome: 'p5'}, {linhas: [c], nome: 'P5'}, {linhas: [d]}], 9);
+const res = M.agruparPontos([a, solto, b, c, d], [{linhas: [a, b], nome: 'p5'}, {linhas: [c], nome: 'P5', comentario: '  esquina  '}, {linhas: [d], comentario: '  '}], 9);
 const nomes = l => l.map(x => (x.grupoDecl ? 'D:' : x.grupoDe ? 'M:' : '') + x.ativo);
 const p = M.pontoDaLinha(res.lista, res.lista.indexOf(b));
-console.log(JSON.stringify([nomes(res.lista), res.n, p.nome, p.comentarioIdx, p.membros.length, M.pontoDaLinha(res.lista, res.lista.indexOf(solto))]));""")
-    assert r[0] == ["D:@P5", "M:#", "M:12600D, N3", "M:N1", "X", "D:@P10", "M:#", "M:9600D", "D:@P11", "M:#", "M:N4"]    # nome repetido → automático (a partir do piso 9)
-    assert r[1] == 3 and r[2] == "P5" and r[3] == 1 and r[4] == 2 and r[5] is None
+const comentado = M.pontoDaLinha(res.lista, res.lista.indexOf(c));
+console.log(JSON.stringify([nomes(res.lista), res.n, p.nome, p.comentarioIdx, p.membros.length,
+  M.pontoDaLinha(res.lista, res.lista.indexOf(solto)), comentado.comentario, res.lista[comentado.comentarioIdx].grupoDe === comentado.gid]));""")
+    assert r[0] == ["D:@P5", "M:12600D, N3", "M:N1", "X", "D:@P10", "M:# esquina", "M:9600D", "D:@P11", "M:N4"]
+    assert r[1:6] == [3, "P5", None, 2, None]
+    assert r[6:] == ["esquina", True]
 
 
 def test_grupos_do_ponto_sobrevivem_ao_arquivo_da_obra():

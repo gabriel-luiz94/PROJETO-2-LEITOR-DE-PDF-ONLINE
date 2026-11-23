@@ -1435,7 +1435,7 @@
             ficticio
         ]);
         if (host.inserirPosteFicticioNoMapa) ferramentas.append(botao('+ Poste fictício', abrirPosteFicticio, 'Novo poste fictício'));
-        const btnAgrupar = botao('Agrupar pontos', () => agruparPontos(), 'Transforma cada ponto que ainda não é grupo em «@nome» + comentário + as suas linhas em Demais Ativos');
+        const btnAgrupar = botao('Agrupar pontos', () => agruparPontos(), 'Cria um grupo «@nome» com as linhas de cada ponto em Demais Ativos');
         if (host.agruparPontosNoMapa) ferramentas.append(btnAgrupar);
         const filtro = el('select', { 'aria-label': 'Filtrar mapa' }, opcoes([
             ['todos', 'Tudo'], ['I', 'A instalar'], ['R', 'A remover'], ['M', 'Mantendo'], ['ficticios', 'Fictícios'], ['conferir', 'A conferir (nível/geometria)']
@@ -2186,7 +2186,7 @@
             const nivel = el('select', {}, opcoes([['', 'Pelo ativo'], ['MT', 'MT'], ['BT', 'BT']]));
             const campos = [campo(cabo ? 'Ativo ou rótulo, sem a metragem' : 'Anotação', ativo), campo('Operação', operacao)];
             if (cabo) campos.push(campo('Comprimento em metros', metros), campo('Fases', fase), campo('Nível', nivel));
-            const novoPonto = !cabo && poste === null && !!host.definirPontoNoMapa;                       // TASK-225: o ponto vira um grupo «@nome» + comentário + a linha
+            const novoPonto = !cabo && poste === null && !!host.definirPontoNoMapa;
             const nomePonto = el('input', { type: 'text', maxlength: '60', placeholder: 'Automático' });
             const comentarioPonto = el('input', { type: 'text', maxlength: '300', placeholder: 'Opcional' });
             if (novoPonto) campos.push(campo('Nome do ponto (vazio = número automático)', nomePonto), campo('Comentário do ponto', comentarioPonto));

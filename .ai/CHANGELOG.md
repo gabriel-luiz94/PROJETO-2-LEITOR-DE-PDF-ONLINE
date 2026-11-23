@@ -104,6 +104,10 @@ TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 r
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-23 — TASK-230: comentário opcional nos pontos do mapa
+
+- Criar, agrupar ou copiar um ponto sem texto de comentário gera o título e as linhas de ativos. Ao limpar o comentário e salvar no painel, a linha é removida e os vínculos acompanham os índices das linhas. [TASK-230](tasks/TASK-230-23-11-2026.md).
+
 ## 2026-11-23 — TASK-229: pontos fora das coordenadas do CAD — verificação e «Posições do CAD»
 
 - **Verificação:** a colocação inicial dos pontos pelas coordenadas do CAD (`_poste`) foi comparada entre a versão 2.7.8 (antes dos grupos/Rearranjar) e a atual com a mesma obra (12 pontos, ruas tortas, 2 estruturas sem coordenada): **idêntica, ponto a ponto**. A importação do `.obra` do plugin também preserva `_poste`/`_geo`/`_geoTipo`. Não há regressão no desenho inicial.

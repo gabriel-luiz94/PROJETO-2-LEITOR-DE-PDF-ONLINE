@@ -179,8 +179,7 @@
     /** Quantas linhas de dados (sem comentário nem linha em branco) o grupo tem. */
     function contar(lista, gid) { return membrosDe(lista, gid).filter(r => String(r.ativo || '').trim() !== '' && !r.comentario).length; }
 
-    /* ── Pontos do mapa (TASK-225): cada ponto é um grupo «@nome» + linha de comentário «#» + as linhas do ativo ── */
-    const TEXTO_COMENTARIO_VAZIO = '#';
+    /* ── Pontos do mapa: grupo «@nome», linhas do ativo e comentário opcional ── */
     /** Próximo nome automático «P7»: maior número entre os grupos «P<n>» da tabela + 1. */
     function proximoNome(lista, prefixo = 'P', piso = 0) {
         const re = new RegExp('^' + prefixo + '(\\d+)$', 'i');
@@ -193,15 +192,17 @@
         const t = String(texto == null ? '' : texto).replace(/^[\s@#]+/, '').replace(/\s+/g, ' ').trim().toUpperCase();
         return t ? t.slice(0, 60) : null;
     }
-    /** As duas linhas que abrem um ponto: o título do grupo e a linha de comentário (já membro). `operacao` = a do ativo (a herança de operação não muda). */
+    function linhaComentarioPonto(titulo, comentario) {
+        const texto = String(comentario ?? '').trim().replace(/^#+\s*/, '').slice(0, 300).trimEnd();
+        if (!texto) return null;
+        return { entidade: '0', operacao: titulo.operacao || 'I', ativo: '# ' + texto, comentario: true, congelada: true, grupoDe: titulo.gid };
+    }
+
+    /** Abre o ponto com o título do grupo e, se houver texto, a linha de comentário. */
     function abrirPonto(nome, operacao, comentario) {
-        const gid = novoId(), op = operacao || 'I';
-        const texto = String(comentario == null ? '' : comentario).trim().replace(/^#+\s*/, '');
-        return {
-            gid,
-            titulo: { entidade: '0', operacao: op, ativo: '@' + nome, grupoDecl: true, congelada: true, gid },
-            comentario: { entidade: '0', operacao: op, ativo: texto ? '# ' + texto : TEXTO_COMENTARIO_VAZIO, comentario: true, congelada: true, grupoDe: gid }
-        };
+        const gid = novoId();
+        const titulo = { entidade: '0', operacao: operacao || 'I', ativo: '@' + nome, grupoDecl: true, congelada: true, gid };
+        return { gid, titulo, comentario: linhaComentarioPonto(titulo, comentario) };
     }
     /** Dados do ponto a partir de uma linha da tabela (índice `i`): título, comentário, membros — ou null se a linha não está em grupo. */
     function pontoDaLinha(lista, i) {
@@ -211,7 +212,7 @@
         return { gid: b.gid, h: b.h, fim: b.fim, nome: rotuloDe(titulo), comentarioIdx: comentario,
             comentario: comentario === null ? '' : String(lista[comentario].ativo || '').replace(/^\s*#\s?/, '').trim(), membros };
     }
-    /** Agrupa vários pontos de uma vez: `pontos` = [{linhas: [objetos de linha], nome?}]. Cada um vira «@nome», «#» e as suas linhas (nome automático quando falta). Lista nova + quantos grupos. */
+    /** Agrupa vários pontos de uma vez. Devolve a lista nova e o número de grupos criados. */
     function agruparPontos(lista, pontos, piso = 0) {
         let atual = lista.slice(), n = 0;
         for (const p of pontos) {
@@ -225,14 +226,16 @@
             const abertura = abrirPonto(nome, linhas[0].operacao, p.comentario);
             const r = criarGrupo(atual, idxs, nome, () => abertura.titulo);
             if (!r) continue;
-            abertura.comentario.grupoDe = abertura.titulo.gid;                                                   // criarGrupo dá um id novo ao título
-            r.lista.splice(r.lista.indexOf(abertura.titulo) + 1, 0, abertura.comentario);
+            if (abertura.comentario) {
+                abertura.comentario.grupoDe = abertura.titulo.gid; // criarGrupo dá um id novo ao título
+                r.lista.splice(r.lista.indexOf(abertura.titulo) + 1, 0, abertura.comentario);
+            }
             atual = r.lista; n++;
         }
         return { lista: atual, n };
     }
 
-    const api = { proximoNome, nomeLimpo, abrirPonto, pontoDaLinha, agruparPontos, ehDeclaracao, novoId, nomeDe, rotuloDe, sincronizar, liberar, bloco, membrosDe, grupos, temGrupos, normalizar, mapa, novaLinhaNoGrupo, novaLinhaSolta,
+    const api = { proximoNome, nomeLimpo, abrirPonto, linhaComentarioPonto, pontoDaLinha, agruparPontos, ehDeclaracao, novoId, nomeDe, rotuloDe, sincronizar, liberar, bloco, membrosDe, grupos, temGrupos, normalizar, mapa, novaLinhaNoGrupo, novaLinhaSolta,
         adicionarAoGrupo, criarGrupo, tirarDoGrupo, desfazerGrupo, mover, reidentificar, ordemDoGrupo, contar, selecionadas };
     if (typeof module !== 'undefined' && module.exports) module.exports = api; else raiz.GruposLinhas = api;
 })(typeof window !== 'undefined' ? window : globalThis);
