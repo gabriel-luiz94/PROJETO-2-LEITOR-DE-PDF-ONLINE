@@ -104,6 +104,10 @@ TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 r
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-23 — TASK-232: instalador privado com dados locais
+
+- A compilação privada empacota o executável, o `.env` do destinatário e uma cópia SQLite sem sessões. O Setup instala os arquivos ao lado do executável e preserva os que já existem. A abertura é local, com acesso direto ao Supabase pelo fluxo desktop. [TASK-232](tasks/TASK-232-23-11-2026.md).
+
 ## 2026-11-23 — TASK-231: revisão dos vínculos no ponto e edição do poste
 
 - O painel mostra cabos e estruturas em duas colunas, desenha os vínculos, destaca os cabos de uma estrutura selecionada e oferece **Só pendências**.

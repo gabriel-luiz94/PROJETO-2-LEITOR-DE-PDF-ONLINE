@@ -14,6 +14,16 @@ Funciona tanto como aplicativo desktop nativo (via `pywebview`, empacotável em 
 
 O arquivo `OrcaCore.exe` continua disponível para uso portátil. Se você já usa uma cópia portátil com dados locais, feche o OrçaCore antes de copiar o banco `banco_resumo.db`, a pasta `skills` e o `.env` (se existirem) para a nova pasta. Faça essa migração antes de começar a trabalhar pela instalação e preserve uma cópia de segurança se a pasta de destino já tiver dados. Guarde os arquivos de obra que você salvou nos locais escolhidos.
 
+### Instalador privado com configuração e banco local
+
+Em um Windows com Inno Setup 6 e as dependências Python do projeto, use o `OrcaCore.exe` portátil da release correspondente e os arquivos que você pretende entregar:
+
+```powershell
+python scripts/compilar_instalador_privado.py --executavel OrcaCore.exe --versao 2.8.2 --env .env --banco banco_resumo.db --saida entrega-privada
+```
+
+O `OrcaCore-Setup-Privado.exe` coloca o programa, o `.env` e o instantâneo do banco em `%LOCALAPPDATA%\Programs\OrcaCore`. A primeira abertura continua no aplicativo local, que usa o Supabase configurado no `.env` e a rede adaptativa do desktop. O instantâneo conserva os dados e as contas locais e descarta as sessões gravadas. Se o computador de destino já tiver um dos arquivos de dados, o instalador preserva esse arquivo. Envie o instalador privado apenas ao destinatário autorizado, pois ele contém o `.env` e o banco. As releases públicas continuam usando o instalador padrão.
+
 ## 📦 Entregar o OrçaCore a outra pessoa
 
 `scripts/montar_pacote_entrega.py` monta uma pasta (e, com `--zip`, um `.zip`) pronta para enviar: instalador, `Instalar.bat`, banco **higienizado**, `.env` **limpo**, skills suas e `LEIA-ME.txt`.

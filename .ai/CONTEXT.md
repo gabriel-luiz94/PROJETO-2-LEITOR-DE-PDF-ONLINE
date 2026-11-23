@@ -73,6 +73,8 @@ pelo próprio FastAPI. Estado de trabalho trafega entre páginas via `localStora
 
 As releases Windows distribuem o executável portátil e o instalador por usuário. A instalação usa uma pasta gravável da conta atual para conservar a atualização pelo próprio aplicativo. [TASK-206](tasks/TASK-206-20-11-2026.md).
 
+O instalador privado pode levar um `.env` e uma cópia do banco local para um destinatário autorizado. O programa abre localmente e consulta o Supabase configurado nesses arquivos. [TASK-232](tasks/TASK-232-23-11-2026.md).
+
 ## 3. Fluxo geral
 
 ```

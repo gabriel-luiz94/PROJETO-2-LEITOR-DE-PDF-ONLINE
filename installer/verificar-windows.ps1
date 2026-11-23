@@ -92,3 +92,55 @@ if ((Start-Process -FilePath $desinstalador -ArgumentList $argumentos -Wait -Pas
     throw 'A desinstalação não removeu a instalação corretamente ou alterou dados locais.'
 }
 Write-Host 'Manifestos, instalação por usuário, versão, atalho e preservação dos dados verificados.'
+
+# Ensaia o Setup privado com dados sintéticos fora da pasta dos artefatos da release.
+Remove-Item -LiteralPath $dados
+$amostra = Join-Path $env:RUNNER_TEMP 'instalador-privado-teste'
+New-Item -ItemType Directory -Path $amostra | Out-Null
+$exeAmostra = Join-Path $amostra 'OrcaCore.exe'
+$envAmostra = Join-Path $amostra '.env'
+$bancoAmostra = Join-Path $amostra 'banco_resumo.db'
+$saidaPrivada = Join-Path $amostra 'saida'
+Set-Content -LiteralPath $exeAmostra -Value 'Executavel sintetico' -Encoding ascii
+Set-Content -LiteralPath $envAmostra -Value @(
+    'SUPABASE_URL=https://exemplo.supabase.co', 'SUPABASE_KEY=chave-sintetica'
+) -Encoding ascii
+$env:ORCACORE_BANCO_AMOSTRA = $bancoAmostra
+@'
+import os
+import sqlite3
+
+with sqlite3.connect(os.environ["ORCACORE_BANCO_AMOSTRA"]) as banco:
+    banco.executescript("""
+        CREATE TABLE usuarios_locais (email TEXT);
+        CREATE TABLE sessoes (token TEXT);
+        CREATE TABLE tabela_orcamento (ativo TEXT);
+        INSERT INTO tabela_orcamento VALUES ('N3');
+    """)
+'@ | python -
+if ($LASTEXITCODE -ne 0) { throw 'Falha ao criar o banco de teste.' }
+python scripts/compilar_instalador_privado.py --executavel $exeAmostra --env $envAmostra --banco $bancoAmostra --versao $versao --saida $saidaPrivada
+if ($LASTEXITCODE -ne 0) { throw 'Falha ao compilar o instalador privado.' }
+
+$setup = Join-Path $saidaPrivada 'OrcaCore-Setup-Privado.exe'
+Confirmar-SemElevacao $setup
+$envInstalado = Join-Path $pasta '.env'
+if ((Instalar-OrcaCore) -ne 0 -or (Get-FileHash $envInstalado).Hash -ne (Get-FileHash $envAmostra).Hash -or
+    -not (Test-Path $dados) -or (Get-FileHash $exe).Hash -ne (Get-FileHash $exeAmostra).Hash) {
+    throw 'O instalador privado não colocou os três arquivos no diretório do programa.'
+}
+Set-Content -LiteralPath $envInstalado -Value 'configuracao do usuario'
+Set-Content -LiteralPath $dados -Value 'banco do usuario'
+$hashEnvPrivado = (Get-FileHash $envInstalado).Hash
+$hashBancoPrivado = (Get-FileHash $dados).Hash
+if ((Instalar-OrcaCore) -ne 0 -or (Get-FileHash $envInstalado).Hash -ne $hashEnvPrivado -or
+    (Get-FileHash $dados).Hash -ne $hashBancoPrivado) {
+    throw 'O instalador privado sobrescreveu arquivos existentes.'
+}
+$registroPrivado = Get-ItemProperty -LiteralPath $chave
+$desinstaladorPrivado = [regex]::Match($registroPrivado.UninstallString, '^"([^"]+)"').Groups[1].Value
+if ((Start-Process -FilePath $desinstaladorPrivado -ArgumentList $argumentos -Wait -PassThru).ExitCode -ne 0 -or
+    (Get-FileHash $envInstalado).Hash -ne $hashEnvPrivado -or (Get-FileHash $dados).Hash -ne $hashBancoPrivado) {
+    throw 'A desinstalação privada removeu dados do usuário.'
+}
+Write-Host 'Instalação privada e preservação dos dados verificadas.'

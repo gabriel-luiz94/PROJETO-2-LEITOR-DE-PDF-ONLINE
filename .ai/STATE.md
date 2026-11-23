@@ -85,6 +85,8 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-232](tasks/TASK-232-23-11-2026.md) — Compilação de um Setup privado com `.env` e banco local. O acesso ao Supabase usa o fluxo desktop. Validação da compilação e instalação em Windows pendente.
+
 - [x] [TASK-231](tasks/TASK-231-23-11-2026.md) — Painel do ponto em duas colunas, edição do poste pelo cadastro e vinculação automática segura durante a montagem.
 
 - [x] [TASK-230](tasks/TASK-230-23-11-2026.md) — Mapa: comentário opcional nos grupos de pontos. Limpar o campo e salvar remove a linha de comentário.
@@ -845,6 +847,8 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-11-23
+
+**Motivo:** [TASK-232](tasks/TASK-232-23-11-2026.md) adicionou o instalador privado com dados locais.
 
 **Motivo:** [TASK-231](tasks/TASK-231-23-11-2026.md) reuniu a revisão e a edição no painel do ponto e automatizou os vínculos inequívocos.
 
