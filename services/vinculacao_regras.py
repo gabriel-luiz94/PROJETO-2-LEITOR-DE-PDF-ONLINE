@@ -115,9 +115,10 @@ def validar_config(cfg) -> list:
                 elif v is not None and not isinstance(v, (str, list)):
                     erros.append(f"{p}: '{campo}' precisa ser texto ou lista.")
             if tabela == "cabos":
-                pontas = r.get("pontas")
-                if pontas is not None and (not isinstance(pontas, dict) or any(not isinstance(v, int) or isinstance(v, bool) or v < 0 for v in pontas.values())):
-                    erros.append(f"{p}: 'pontas' precisa ser {{\"I\": n, \"M\": n}} com inteiros >= 0.")
+                for chave in ("pontas", "pontas_max"):
+                    pontas = r.get(chave)
+                    if pontas is not None and (not isinstance(pontas, dict) or any(not isinstance(v, int) or isinstance(v, bool) or v < 0 for v in pontas.values())):
+                        erros.append(f"{p}: '{chave}' precisa ser {{\"I\": n, \"M\": n}} com inteiros >= 0.")
                 ops = r.get("operacoes")
                 if ops is not None and not isinstance(ops, list):
                     erros.append(f"{p}: 'operacoes' precisa ser uma lista.")
@@ -294,11 +295,15 @@ def info_cabo(codigo, operacao, cfg, extra=None) -> dict:
     pontas = 1 if base == "M" else 2
     if r is not None and isinstance(r.get("pontas"), dict) and isinstance(r["pontas"].get(base), int):
         pontas = r["pontas"][base]
+    # TASK-234: `pontas` = o que o vínculo automático liga (e o que conta como completo); `pontas_max` = até onde o usuário liga à mão (cabo M: 2)
+    pontas_max = max(pontas, 2) if base == "M" else pontas
+    if r is not None and isinstance(r.get("pontas_max"), dict) and isinstance(r["pontas_max"].get(base), int) and not isinstance(r["pontas_max"].get(base), bool):
+        pontas_max = max(pontas, r["pontas_max"][base])
     vc = (_trim(r.get("valor_cabo")).upper() or None) if r else None
     dic = cfg.get("dicionario_cabos")
     if not vc and dic:                                                                                     # TASK-173: sem valor na Tabela de Cabos, vale o do dicionário
         vc = _dc.valor_cabo(dic, cod)
-    return {"codigo": cod, "regra": i, "valor_cabo": vc, "pontas": pontas, "secao": secao_cabo(cod, dic),
+    return {"codigo": cod, "regra": i, "valor_cabo": vc, "pontas": pontas, "pontas_max": pontas_max, "secao": secao_cabo(cod, dic),
             "vincula": not (r is not None and (r.get("vincula") is False)), "estruturas": (r.get("estruturas") if r else None),
             "operacoes": (r.get("operacoes") if r else None), "op": _trim(operacao).upper(), "base": base,
             "fases": extra["fases"] if extra else None, "nivel": extra["nivel"] if extra else None,

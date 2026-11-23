@@ -497,8 +497,8 @@
         if (!VR.ehCaboValido(c) || c.comentario) return 'O cabo está fora da vinculação.';
         const info = infoCabo(ic);
         if (!info.vincula) return `O cabo ${info.codigo} não vincula (acompanha o cabo principal).`;
-        if ((c.vinculoEstruturas || []).length + VR.estruturasFicticiasDe(c).length >= info.pontas)
-            return `O cabo ${info.codigo} já tem as ${info.pontas} ponta(s); remova uma antes.`;
+        if ((c.vinculoEstruturas || []).length + VR.estruturasFicticiasDe(c).length >= info.pontasMax)                  // TASK-234: o manual vai até pontasMax (cabo M: 2ª ponta)
+            return `O cabo ${info.codigo} já tem as ${info.pontasMax} ponta(s); remova uma antes.`;
         const [ok, motivo] = podeLigar(ic, ie);
         return ok ? '' : motivo || 'Estrutura incompatível.';
     }
@@ -583,10 +583,10 @@
         return codigos.map(cod => { const [ok, motivo] = VR.podeVincular(info, VR.infoEstrutura(cod, st.cfg)); return { cod, ok, motivo }; }).sort((a, b) => (b.ok - a.ok));
     }
     function menuCabo(e, ic) {
-        const c = cabos()[ic], info = infoCabo(ic), fict = VR.estruturasFicticiasDe(c), cheio = (c.vinculoEstruturas || []).length + fict.length >= info.pontas;
+        const c = cabos()[ic], info = infoCabo(ic), fict = VR.estruturasFicticiasDe(c), cheio = (c.vinculoEstruturas || []).length + fict.length >= info.pontasMax;
         const itens = [{ hd: 'Cabo ' + (c.ativo || '') }, { t: 'Desvincular este cabo', fn: () => { host.antes(); c.vinculoEstruturas = []; atualizar(); } }, '-', { hd: 'Estrutura fictícia' }];
         const add = cod => { host.antes(); c.estruturasFicticias = fict.concat([cod.toUpperCase()]); atualizar(); };
-        if (cheio) itens.push({ t: `O cabo já tem as ${info.pontas} ponta(s)`, off: true });
+        if (cheio) itens.push({ t: `O cabo já tem as ${info.pontasMax} ponta(s)`, off: true });
         else {
             const cands = candidatosEstruturasFicticias(ic), aceitas = cands.filter(x => x.ok);
             if (!aceitas.length) itens.push({ t: 'Nenhuma estrutura aceita por este cabo', off: true });
@@ -771,7 +771,7 @@
         ctx();
         const cb = cabos()[ic], info = infoCabo(ic), at = VR.postesAtribuidos(cb), ja = at.includes(l);
         if (!info.vincula) { toast(`O cabo ${info.codigo} não vincula (acompanha o cabo principal).`); return; }
-        if (!ja && at.length >= info.pontas) { toast(`O cabo ${info.codigo} já chega a ${info.pontas} poste(s); remova um antes.`); return; }
+        if (!ja && at.length >= info.pontasMax) { toast(`O cabo ${info.codigo} já chega a ${info.pontasMax} poste(s); remova um antes.`); return; }
         host.antes();
         const nova = ja ? at.filter(x => x !== l) : at.concat([l]);
         if (nova.length) cb.vinculoPostes = nova;
@@ -872,7 +872,7 @@
                 const k = cx, c = cabos()[it.ic], r = k.a.cabos[it.ic], at = VR.postesAtribuidos(c), info = infoCabo(it.ic);
                 const selC = st.sel && st.sel.t === 'c' ? st.sel.i : null, selP = st.sel && st.sel.t === 'p' ? st.sel.i : null;
                 let cls = 'vl-cab' + CORES[r.estado] + (selC === it.ic ? ' sel' : ''), tip = '';
-                if (selP !== null) { if (at.includes(selP) || (info.vincula && at.length < info.pontas)) cls += ' glow'; else { cls += ' vl-dim'; tip = info.vincula ? 'o cabo já chega ao máximo de postes' : 'cabo que não vincula'; } }
+                if (selP !== null) { if (at.includes(selP) || (info.vincula && at.length < info.pontasMax)) cls += ' glow'; else { cls += ' vl-dim'; tip = info.vincula ? 'o cabo já chega ao máximo de postes' : 'cabo que não vincula'; } }
                 const op = trim(c.operacao).toUpperCase(), nomes = at.map(l => (postesDe(l).length ? postesDe(l).join(' ') : '#' + (l + 1))).join(' · ');
                 const es = (c.vinculoEstruturas || []).map(ie => codigoDe(ie)).filter(Boolean).join(' · ');
                 return `<div class="${cls}" data-c="${it.ic}" style="top:${it.y}px;height:${it.h - 4}px" title="${esc(tip || c.ativo || '')}"><span class="vz-op${opClasse(op)}">${esc(op || 'I')}</span><span class="t">${esc(c.ativo || '')}</span>`
@@ -881,7 +881,7 @@
             htmlD(it) {
                 const k = cx, a = k.a, o = outros()[it.l], selC = st.sel && st.sel.t === 'c' ? st.sel.i : null, selP = st.sel && st.sel.t === 'p' ? st.sel.i : null;
                 let cls = 'vl-pst';
-                if (selC !== null) { const cb = cabos()[selC], at = VR.postesAtribuidos(cb), info = infoCabo(selC); if (at.includes(it.l) || (info.vincula && at.length < info.pontas)) cls += ' glow'; else cls += ' vl-dim'; }
+                if (selC !== null) { const cb = cabos()[selC], at = VR.postesAtribuidos(cb), info = infoCabo(selC); if (at.includes(it.l) || (info.vincula && at.length < info.pontasMax)) cls += ' glow'; else cls += ' vl-dim'; }
                 let h = `<div class="${cls}${selP === it.l || (st.kbModo === 'p' && st.kbP === it.l) ? ' sel' : ''}" data-p="${it.l}" style="top:${it.y}px;height:${it.h - 4}px;cursor:pointer" title="${esc(o.ativo || '')}"><span class="lab">${esc(it.label)}</span>`;
                 it.ids.forEach((ie, kk) => { const r = a.estruturas[ie], eqp = r.ocupa === false; h += `<div class="vl-chip${eqp ? ' eqp' : CORES[r.estado]}" style="left:${LAB + kk * (CW + CG)}px;cursor:inherit" title="${esc(r.codigo || '')}"><b>${esc(r.codigo || '?')}</b>${eqp ? '' : `<i>${r.tem}${r.precisa ? '/' + faixaCabos(r) : ''}</i>`}</div>`; });
                 return h + `<span class="pp" style="margin-left:auto;padding-right:8px;font-size:10.5px;color:${it.n ? '#58a6ff' : '#6e7681'}">${it.n} cabo(s)</span></div>`;
@@ -915,7 +915,7 @@
             onchange: e => { const t = e.target.value.trim(); if (!t) { delete r[campo]; marcarSujo(); return; } try { r[campo] = JSON.parse(t); marcarSujo(); } catch (err) { raiz.alert('JSON inválido em ' + campo + ': ' + err.message); e.target.value = v === undefined ? '' : JSON.stringify(v); } } });          // TASK-170
         if (tipo === 'number') return el('input', { type: 'number', min: '1', value: v == null ? '' : v, onchange: e => { r[campo] = e.target.value === '' ? undefined : parseInt(e.target.value, 10); marcarSujo(); } });
         if (tipo === 'ops') return el('input', { type: 'text', value: Array.isArray(v) ? v.join(', ') : '', placeholder: 'I, M', onchange: e => { const l = e.target.value.split(',').map(trim).filter(Boolean); if (l.length) r[campo] = l; else delete r[campo]; marcarSujo(); } });
-        if (tipo === 'pontas') return el('div', { style: 'display:flex;gap:4px' }, ['I', 'M'].map(k => el('input', { type: 'number', min: '0', title: 'pontas do cabo ' + k, placeholder: k, value: r.pontas && r.pontas[k] != null ? r.pontas[k] : '', onchange: e => { r.pontas = r.pontas || {}; if (e.target.value === '') delete r.pontas[k]; else r.pontas[k] = parseInt(e.target.value, 10); marcarSujo(); } })));
+        if (tipo === 'pontas') return el('div', { style: 'display:flex;gap:4px' }, ['I', 'M'].map(k => el('input', { type: 'number', min: '0', title: campo + ' do cabo ' + k, placeholder: k, value: r[campo] && r[campo][k] != null ? r[campo][k] : '', onchange: e => { r[campo] = r[campo] || {}; if (e.target.value === '') delete r[campo][k]; else r[campo][k] = parseInt(e.target.value, 10); if (!Object.keys(r[campo]).length) delete r[campo]; marcarSujo(); } })));
         return el('input', { type: 'text', value: Array.isArray(v) ? v.join(', ') : (v == null ? '' : v), placeholder: extra || '', onchange: e => { r[campo] = e.target.value; marcarSujo(); } });
     }
 
@@ -1262,7 +1262,8 @@
         tabelaEditavel(corpo, st.cfg.cabos, [
             { campo: 'padrao', rot: 'Padrão do cabo', tipo: 'text', extra: '^C\\d+$ ou C16, C25', dica: 'regex ou lista; o código vem sem o 3x e sem a tensão' }, { campo: 'grupo', rot: 'Grupo', tipo: 'text' },
             { campo: 'valor_cabo', rot: 'Valor de cabo', tipo: 'text', w: '90px', dica: 'valor do parâmetro `cabo` (A, P, C…); vazio = sem parâmetro' }, { campo: 'operacoes', rot: 'Operações', tipo: 'ops', w: '100px' },
-            { campo: 'pontas', rot: 'Pontas I · M', tipo: 'pontas', w: '120px' }, { campo: 'estruturas', rot: 'Estruturas que aceita', tipo: 'text', extra: '^[NUB][1-4] (vazio = qualquer)' },
+            { campo: 'pontas', rot: 'Pontas I · M', tipo: 'pontas', w: '120px', dica: 'pontas que o vínculo automático liga (e que deixam o cabo completo); vazio = I 2 · M 1' },
+            { campo: 'pontas_max', rot: 'Máx. à mão I · M', tipo: 'pontas', w: '120px', dica: 'até quantas pontas o usuário pode ligar à mão; vazio = I igual às pontas · M 2 (a 2ª ponta do cabo M é sempre manual)' }, { campo: 'estruturas', rot: 'Estruturas que aceita', tipo: 'text', extra: '^[NUB][1-4] (vazio = qualquer)' },
             { campo: 'fases', rot: 'Fases', tipo: 'text', w: '55px', extra: '3 ou 1,2', dica: 'só vale para cabos com essa quantidade de fases (do 3x do texto; sem Nx = 1); vazio = qualquer' },
             { campo: 'nivel', rot: 'Nível', tipo: 'select', extra: ['', 'MT', 'BT'], w: '65px', dica: 'MT = tensão acima de 1 kV no texto (ex.: 13,8kV); BT = sem tensão; vazio = qualquer' },
             { campo: 'padrao_texto', rot: 'Padrão no texto', tipo: 'text', extra: '13,8kV (vazio = qualquer)', dica: 'regex contra o texto ORIGINAL do cabo (com 3x e kV)' },
@@ -1272,7 +1273,7 @@
                 const r = raiz.AnotacaoCabos && raiz.AnotacaoCabos.ehNotacao(txt) ? raiz.AnotacaoCabos.interpretar(txt) : null;
                 const cod = r && r.itens.length ? (r.itens.find(i => !i.neutro) || r.itens[0]).ativo : (host.prefixoCabo(txt) || txt.split(' ')[0]);
                 const i = VR.infoCabo(cod, 'I', st.cfg);
-                return `código <b style="color:#79c0ff">${esc(i.codigo)}</b> → ${i.regra === null ? 'nenhuma linha casa (aceita tudo)' : 'linha #' + (i.regra + 1) + (i.valor_cabo ? ' · tipocabo=<b>' + esc(i.valor_cabo) + '</b>' : '') + ' · pontas I=' + VR.infoCabo(cod, 'I', st.cfg).pontas + ' M=' + VR.infoCabo(cod, 'M', st.cfg).pontas}`;
+                return `código <b style="color:#79c0ff">${esc(i.codigo)}</b> → ${i.regra === null ? 'nenhuma linha casa (aceita tudo)' : 'linha #' + (i.regra + 1) + (i.valor_cabo ? ' · tipocabo=<b>' + esc(i.valor_cabo) + '</b>' : '') + ' · pontas I=' + VR.infoCabo(cod, 'I', st.cfg).pontas + ' M=' + VR.infoCabo(cod, 'M', st.cfg).pontas + ' (à mão até I=' + VR.infoCabo(cod, 'I', st.cfg).pontasMax + ' M=' + VR.infoCabo(cod, 'M', st.cfg).pontasMax + ')'}`;
             },
             '<b>O que esta tabela diz:</b> para cada tipo de cabo, a que estruturas ele pode se ligar, quantas pontas precisa e que <b>valor do parâmetro <code>cabo</code></b> ele carrega. O código é lido sem o <code>3x</code> e sem a tensão. A <b>primeira linha ativa que casa</b> vale; padrão = regex ou lista (<code>C16, C25</code>).', 'cabos');
     }
@@ -2943,8 +2944,9 @@
                 const outroNo = chega && pontos.find(id => id !== no.id);
                 const origem = outroNo ? nomeDoNo(grafo.nos.get(outroNo)) : (chega ? 'Outra ponta livre' : 'Sem conexão no mapa neste ponto');
                 const temVinculo = ehFicticio ? !!ancora : existentes.length > 0;
+                const completoSemEsta = !ehFicticio && !temVinculo && chega && r?.vincula && r.tem >= r.precisa;          // TASK-234: ponta extra (cabo M) — opcional, só à mão
                 const revisaoPendente = ehFicticio ? chega && !ancora : linksComErro.has(ic) ||
-                    (!temVinculo && chega && r?.vincula && !c.congelada);
+                    (!temVinculo && chega && r?.vincula && !c.congelada && !completoSemEsta);
                 const automatico = temVinculo && !revisaoPendente && c.vinculoOrigem === 'mapa' && !ehFicticio;
                 if (revisaoPendente) pendentes++;
                 else if (automatico) automaticos++;
@@ -2970,7 +2972,8 @@
                     el('div', { class: 'vz-no-linha' }, [
                         titulo, el('span', { class: 'vz-nivel ' + nivel.toLowerCase(), text: nivel }),
                         el('span', { class: 'vz-op' + opClasse(trim(c.operacao)), text: c.operacao || 'I' }),
-                        el('span', { class: 'vz-no-estado', text: revisaoPendente ? 'Pendente' : automatico ? 'Automático' : temVinculo ? 'Vinculado' : 'Fora da revisão' })
+                        el('span', { class: 'vz-no-estado', text: revisaoPendente ? 'Pendente' : automatico ? 'Automático' : temVinculo ? 'Vinculado' : completoSemEsta ? 'Opcional' : 'Fora da revisão',
+                            ...(completoSemEsta ? { title: 'O cabo já está completo pelas pontas automáticas. Esta ponta é opcional: vincule à mão se precisar.' } : {}) })
                     ]),
                     el('p', { class: 'vz-no-rotulo', text: c.ativo, title: c.ativo }),
                     detalhes

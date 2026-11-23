@@ -1077,3 +1077,9 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - **Atalhos** (fora de campos de texto): **P** poste, **E** estrutura, **C** cabo, **V** traçar vão, **L** ligar a ponta livre do cabo selecionado, **Del** exclui os pontos selecionados (ou o cabo selecionado), **Esc** limpa a seleção/ferramenta.
 - **Seleção:** **Shift+arrastar** no fundo do mapa seleciona por caixa; **Shift+clique** num ponto põe/tira da seleção. Arrastar um ponto selecionado move todos juntos.
 - **Plugin do nanoCAD:** a anotação de poste que fica longe do bloco e sem linha guia agora é ligada ao **bloco livre mais perto** (cada bloco recebe uma só; até 25 × a altura do texto) e vai para **Conferir**. A que continua sem bloco leva a posição da anotação para o mapa. (Plugin 0.15.0 ou mais novo.)
+
+## Cabo M com duas pontas (23/11/2026)
+
+- O vínculo **automático** liga só as pontas da coluna **Pontas I · M** da Tabela de Cabos (padrão: I = 2, M = 1). Com elas, o cabo fica completo.
+- O vínculo **à mão** pode ir além, até a coluna **Máx. à mão I · M** (padrão: I = igual às pontas, M = 2). Assim, num cabo M, o automático nunca liga a 2ª ponta: ela é sempre decisão sua.
+- No painel do poste, o cabo M já completo aparece como **Opcional** na outra ponta. Abra **Opções**, escolha a estrutura e clique em **Vincular**.
