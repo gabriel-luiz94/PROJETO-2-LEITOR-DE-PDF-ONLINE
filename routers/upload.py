@@ -121,9 +121,11 @@ async def upload_file(request: Request, file: UploadFile = File(...), projeto: s
             return {"data": linhas, "geometria": geometria}
 
         import pymupdf
+        from services.pdf_geometria import extrair_pdf_com_geometria
 
         with pymupdf.open(stream=contents, filetype="pdf") as doc:
-            return {"data": extract_pdf_content(doc)}
+            itens, geometria, escala = extrair_pdf_com_geometria(doc, leitura)             # TASK-236: rede pelos vetores + escala 1:500/1:1000
+            return {"data": itens, "geometria": geometria, "escala": escala}
     except Exception as e:
         logger.error(f"Erro no upload: {e}")
         return {"error": str(e), "data": []}
@@ -154,9 +156,11 @@ async def extract_local(request: Request, path: str, projeto: str = ""):
             linhas, geometria = _extrair_dxf(path, leitura)
             return {"data": linhas, "geometria": geometria, "filename": os.path.basename(path)}
         import pymupdf
+        from services.pdf_geometria import extrair_pdf_com_geometria
 
         with pymupdf.open(path) as doc:
-            return {"data": extract_pdf_content(doc), "filename": os.path.basename(path)}
+            itens, geometria, escala = extrair_pdf_com_geometria(doc, leitura)             # TASK-236
+            return {"data": itens, "geometria": geometria, "escala": escala, "filename": os.path.basename(path)}
     except Exception as e:
         logger.error(f"Erro em extract-local: {e}")
         return {"error": str(e), "data": []}

@@ -85,6 +85,8 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-236](tasks/TASK-236-23-11-2026.md) — PDF vetorial no mapa: rede pela cor, postes nas pontas, escala 1:500/1:1000 estimada pelas metragens dos cabos, tudo em metros.
+
 - [x] [TASK-235](tasks/TASK-235-23-11-2026.md) — Ponto do mapa = «@nome - comentário» + linhas com operação (F fictícia, congelada mas estrutura no vínculo); POSTE vindo da linha F; edição no painel mantendo vínculos; vínculo por clique; conversão do formato antigo. PDF com coordenadas na 2ª etapa.
 
 - [x] [TASK-234](tasks/TASK-234-23-11-2026.md) — Cabo M: o automático liga 1 ponta e a 2ª é sempre manual (`pontasMax`, coluna «Máx. à mão» na Tabela de Cabos); no painel do poste aparece como «Opcional».

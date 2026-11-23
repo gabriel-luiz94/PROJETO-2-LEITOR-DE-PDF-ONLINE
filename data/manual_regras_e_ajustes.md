@@ -1092,3 +1092,9 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - **Painel do ponto:** clique numa linha para trocar o texto e a operação ali mesmo (Enter grava, Esc cancela, × tira a linha, **+ Linha** acrescenta). Trocar a estrutura **mantém os vínculos** quando a nova aceita os mesmos cabos; se não aceitar, o painel diz quais vínculos cairiam e pede **Trocar mesmo assim**.
 - **Vincular por clique:** no painel, clique no cabo e depois na estrutura (ou na estrutura e depois no cabo).
 - **Formato antigo** (ponto sem grupo ou com comentário em linha «#»): o mapa pergunta **Converter todos**; ao abrir um ponto antigo, **Converter este ponto**. Várias linhas «#» viram um comentário só, juntas por «; ». Ctrl+Z desfaz.
+
+## PDF no mapa (23/11/2026)
+
+- **Ler projeto** com um **PDF exportado do CAD** monta o mapa como o DXF: as linhas **vermelhas** viram rede MT e as **verdes**, rede BT (mesma regra de cor do projeto); as pontas da rede valem como postes; cada texto vai para a rede/poste mais perto (ou pela linha-guia).
+- **Escala:** o programa escolhe sozinho entre **1:500** e **1:1000** comparando a metragem escrita nos cabos («… 38 m») com o comprimento desenhado. O aviso mostra a escala e quantos cabos confirmaram. Sem nenhum cabo com metragem ligado à rede, usa 1:500 (não confirmada).
+- PDF **escaneado** (imagem) não tem posições: os pontos ficam na coluna ao lado e você monta pelo mapa.
