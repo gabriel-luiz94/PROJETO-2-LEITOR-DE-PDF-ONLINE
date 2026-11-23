@@ -104,6 +104,12 @@ TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 r
 
 - A declaração de `_cacheAssin` (resumo.js) tinha sido apagada numa edição da TASK-185; o `ReferenceError` era engolido por `try/catch` e o balão «N1 · completo (3 de 3) … manual» e a coloração por parâmetros ficavam vazios. Declaração restaurada no topo do arquivo e teste de regressão (`test_cache_de_assinaturas_declarado_no_topo_do_resumo`).
 
+## 2026-11-23 — TASK-228: «Rearranjar» deixava os pontos longe dos cabos
+
+- **Causa:** a ponta de um cabo só se liga a um poste a menos de 5 m (`RAIO_POSTE_PADRAO`). Ponta mais longe fica «solta» e era desenhada na coordenada fixa do CAD. O «Rearranjar» (e qualquer arraste) movia os pontos, mas o cabo de ponta solta ficava para trás; e como o ponto não tinha vão ligado, o rearranjo o tratava como **isolado** e o jogava numa grade ao lado → pontos agrupados longe dos cabos.
+- **Correção:** cada ponta solta é ancorada visualmente no ponto mais perto (até 25 m do CAD; `d.ancoras`, `pontaAncorada`): a ponta anda junto com o ponto (mesmo deslocamento) e conta como ligação para o layout do «Rearranjar». A ligação de verdade (vínculo/topologia) continua exigindo 5 m — nada muda no orçamento. O alerta «⚠ A linha do desenho termina a mais de 5 m de um poste» (TASK-227) segue marcando esses cabos.
+- Arquivos: `static/vinculacao_ui.js`, `tests/test_mapa_ancora_pontas_228.py`.
+
 ## 2026-11-22 — TASK-227: nível MT/BT igual na lista e no mapa; diagnóstico dos cabos que não aparecem
 
 - **Causa do MT na lista × BT no mapa:** a lista (coluna Nível / `extraCabo`) deriva o nível do **rótulo** (13,8kV ou dicionário), e o mapa (`gruposVisuaisDoVao`) dava prioridade ao **tipo da linha do desenho** (`_geoTipo`, cor+layer da rede MT/BT que o CAD associou ao rótulo). Quando o CAD ligava um rótulo MT a uma linha BT (redes paralelas na mesma rua, raio de busca) o mapa mostrava BT.

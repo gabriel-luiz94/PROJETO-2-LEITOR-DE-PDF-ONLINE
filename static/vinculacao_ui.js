@@ -1705,7 +1705,7 @@
                 cabos().forEach(c => { if (c) delete c._mapaCabo500; });
             } else if (raiz.MapaLayout) {
                 const ids = [...grafo.nos.keys()], vistos = new Set(), arestas = [];
-                desenhos.forEach(d => { const [a, b] = d.v.ids; if (a && b && a !== b) { const k = a < b ? a + '|' + b : b + '|' + a; if (!vistos.has(k)) { vistos.add(k); arestas.push([a, b]); } } });
+                desenhos.forEach(d => { const a = d.v.ids[0] || (d.ancoras && d.ancoras[0]), b = d.v.ids[1] || (d.ancoras && d.ancoras[1]); if (a && b && a !== b) { const k = a < b ? a + '|' + b : b + '|' + a; if (!vistos.has(k)) { vistos.add(k); arestas.push([a, b]); } } });
                 const nos = ids.map(id => ({ id, x: posicoes.get(id)[0], y: posicoes.get(id)[1] }));
                 const L = Math.max(36, Math.min(110, Math.sqrt((W - 2 * margem) * (H - 2 * margem) / ids.length) * .9));
                 const fixos = ids.filter(id => { const no = grafo.nos.get(id); return !linhaFicticia(no) && no.linhas.some(l => outros()[l].bloqueada); });     // grupo bloqueado não sai do lugar
@@ -1849,6 +1849,19 @@
             cabosSvg = [...svg.querySelectorAll('[data-cabo-mapa]')];
             svg.querySelectorAll('[data-no]').forEach(g => nosSvg.set(g.dataset.no, g));
             svg.querySelectorAll('.vz-aresta').forEach((linha, i) => { desenhos[i].linha = linha; });
+            // TASK-228: ponta de cabo sem poste (a mais de 5 m de qualquer um) segue visualmente o ponto mais perto (até 25 m) — assim o cabo anda junto quando o ponto é movido/rearranjado.
+            // A ligação de verdade (d.v.ids) continua exigindo 5 m; isto só ancora o desenho.
+            const comPos = [...grafo.nos.values()].filter(n => n.pos);
+            for (const d of desenhos) {
+                d.ancoras = [null, null];
+                if (!d.v.pontas) continue;
+                d.v.ids.forEach((id, i) => {
+                    if (id || !d.v.pontas[i]) return;
+                    let melhor = null, dmin = RAIO_ANCORA_VISUAL;
+                    for (const n of comPos) { const dd = Math.hypot(n.pos[0] - d.v.pontas[i][0], n.pos[1] - d.v.pontas[i][1]); if (dd <= dmin) { dmin = dd; melhor = n.id; } }
+                    d.ancoras[i] = melhor;
+                });
+            }
             desenhosPorNo = new Map(); desenhosPorCabo = new Map();
             for (const d of desenhos) {
                 d.v.ids.forEach(id => { if (id) { if (!desenhosPorNo.has(id)) desenhosPorNo.set(id, []); desenhosPorNo.get(id).push(d); } });
@@ -1918,6 +1931,14 @@
             renderRevisao();
         }
 
+        const RAIO_ANCORA_VISUAL = 25;                                       // metros do CAD
+        // posição de uma ponta de cabo sem poste: a do desenho + o quanto o ponto mais perto saiu do lugar original
+        function pontaAncorada(d, i) {
+            const p = ponto(d.v.pontas[i]), a = d.ancoras && d.ancoras[i];
+            if (!a) return p;
+            const pos = posicoes.get(a), base = bases.get(a);
+            return pos && base ? [p[0] + pos[0] - base[0], p[1] + pos[1] - base[1]] : p;
+        }
         // caixa de um ponto no mapa (marcador + rótulo à direita)
         const caixaDoNo = id => { const [x, y] = posicoes.get(id); return [x - 26, y - 26, x + 200, y + 26]; };
         const emEscalaAgora = () => escalar() && kLayout !== null;                  // sem coordenadas do CAD não existe escala: vale o modo «Ajustar»
@@ -1934,7 +1955,7 @@
             const [cw, ch] = escalaCurva();
             for (const d of lista) {
                 const {v, ic, deslocamento, linha} = d;
-                const pts = v.ids.map((id, i) => id ? posicoes.get(id) : v.pontas && ponto(v.pontas[i]));
+                const pts = v.ids.map((id, i) => id ? posicoes.get(id) : v.pontas && pontaAncorada(d, i));
                 if (!pts.every(Boolean)) {
                     const i = pts[0] ? 0 : 1;
                     const [x, y] = pts[i], sinal = x > W / 2 ? -1 : 1;

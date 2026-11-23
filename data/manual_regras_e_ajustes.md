@@ -1052,3 +1052,7 @@ Arrastar postes e curvar cabos em 1:500 guarda o ajuste em metros, separado do a
 - Quando o rótulo diz um nível e a linha do desenho associada é do outro, o cartão do cabo avisa «⚠ Nível MT pelo rótulo, mas a linha do desenho é BT» e o vão fica tracejado: normalmente o CAD ligou o texto à linha errada (redes MT e BT paralelas). Confira no desenho.
 - Cabo que não aparece: o cartão diz o motivo — sem linha do desenho e sem ponta ligada (não é desenhado; ligue pelas «Ponta livre»), sem linha do desenho (só a ponta ligada aparece) ou linha do desenho que termina a mais de 5 m de um poste. O filtro **A conferir** lista só esses cabos.
 
+## Mapa: cabo com ponta longe do poste (23/11/2026)
+
+A ponta de um cabo só se **liga** a um poste a menos de 5 m. Quando o desenho tem a ponta mais longe (o cabo termina ao lado do poste), o mapa avisa («⚠ A linha do desenho termina a mais de 5 m de um poste»), mas desenha o cabo junto do ponto mais próximo (até 25 m): se você mover ou **Rearranjar** os pontos, essa ponta acompanha. A ligação para o orçamento continua exigindo as pontas nos postes.
+

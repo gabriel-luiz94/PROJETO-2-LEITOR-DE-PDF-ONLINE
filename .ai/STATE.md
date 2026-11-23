@@ -85,6 +85,8 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-228](tasks/TASK-228-23-11-2026.md) — Mapa: pontas de cabo sem poste seguem o ponto mais perto; «Rearranjar» não deixa mais os pontos longe dos cabos.
+
 - [x] [TASK-227](tasks/TASK-227-22-11-2026.md) — Mapa: nível MT/BT igual ao da lista (o rótulo manda) e diagnóstico de cabos com nível divergente ou sem geometria (filtro «A conferir»).
 
 - [x] [TASK-226](tasks/TASK-226-22-11-2026.md) — Mapa: ponto novo/copiado pede posicionamento com o mouse; copiar ponto e copiar cabo.
