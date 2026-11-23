@@ -113,6 +113,12 @@ TASK-197 e TASK-198: entrega do .obra à janela desktop, regras do 081 para N3 r
 
 - Criar, agrupar ou copiar um ponto sem texto de comentário gera o título e as linhas de ativos. Ao limpar o comentário e salvar no painel, a linha é removida e os vínculos acompanham os índices das linhas. [TASK-230](tasks/TASK-230-23-11-2026.md).
 
+## 2026-11-23 — TASK-230: script do pacote de entrega (instalador + dados prontos para outra pessoa)
+
+- `scripts/montar_pacote_entrega.py`: copia o banco com a API de backup (consistente com o programa aberto/WAL), **higieniza** (apaga usuários, sessões, auditoria, sync, chaves salvas em `configuracoes`, obras/histórico REC e históricos de regras; `VACUUM` para apagar de verdade; sem `-wal/-shm`), cria a conta de administrador do usuário e torna a base que a conta de origem enxerga a base padrão (edições pessoais > mestre > seed — a mesma ordem de `get_merged_orcamento`), gera `.env` limpo (nuvem/IA só com `--com-nuvem`/`--com-chaves-ia`; a senha do usuário não entra no `.env`), `Instalar.bat`, `LEIA-ME.txt`, `SHA256SUMS.txt`, `ACESSO_*.txt` (senha, fora da pasta e do zip) e `--zip`.
+- **Conferência obrigatória:** roda o programa sobre uma cópia do pacote (init do banco, `/api/health`, login certo/errado, `/api/orcamento/dados`, `/api/projetos`); se falhar, apaga a entrega parcial e sai com erro. Recusa também: e-mail/senha inválidos, base vazia, base de mais de um dono sem `--base-de`, banco inválido.
+- Testes: `tests/test_pacote_entrega_230.py` (inclui varredura de bytes: nada do dono sobra no pacote). README: seção «Entregar o OrçaCore a outra pessoa».
+
 ## 2026-11-23 — TASK-229: pontos fora das coordenadas do CAD — verificação e «Posições do CAD»
 
 - **Verificação:** a colocação inicial dos pontos pelas coordenadas do CAD (`_poste`) foi comparada entre a versão 2.7.8 (antes dos grupos/Rearranjar) e a atual com a mesma obra (12 pontos, ruas tortas, 2 estruturas sem coordenada): **idêntica, ponto a ponto**. A importação do `.obra` do plugin também preserva `_poste`/`_geo`/`_geoTipo`. Não há regressão no desenho inicial.
