@@ -197,12 +197,13 @@ def _expandir_compostos(itens, compostos, avisos, profundidade_max=10, formais=N
                     nao_encontrados.append(f"{sem_colchetes(av['ativo'])} ({'; '.join(ped['erros'])})")
                 return
             valores = _valores_por_nome(formais[base]["nomes"], ped["params"])
-            if ped["faltando"]:
+            if ped["faltando"] and not _removendo(av):
                 avisos.append(f"{ped['texto']}: faltou informar {', '.join(nome_tela(n) for n in ped['faltando'])} — os itens que dependem disso não foram calculados.")
             for it in formais[base]["itens"]:
                 texto, faltando = substituir_variaveis(it["ativo"], valores)
                 if faltando:
-                    avisos.append(f"{base}: o item {it['ativo']} não foi calculado (faltou informar {', '.join(faltando)}).")
+                    if not _removendo(av):
+                        avisos.append(f"{base}: o item {it['ativo']} não foi calculado (faltou informar {', '.join(faltando)}).")
                     continue
                 expande(dict(av, ativo=texto, qtd=av["qtd"] * it["qtd"]), nivel + 1, pilha + (base,))
             return
@@ -287,6 +288,11 @@ def _preparar_parametros(orcamento_rows, req_proj):
                 grupos.setdefault(a["base"], {})[novo["ativo"]] = restricoes_do_grupo(a)
         linhas.append(novo)
     return linhas, assinaturas, grupos
+
+
+def _removendo(av) -> bool:
+    """TASK-247: item de retirada (R, *R) — não gera aviso de parâmetro faltando (o cálculo continua igual)."""
+    return str((av or {}).get("operacao") or "").strip().upper() in ("R", "*R")
 
 
 def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcamento_rows: list, obra=None, convencao_postes=None, perfil_exportacao=None) -> dict:
@@ -481,7 +487,7 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
             if pedido["erros"]:
                 nao_encontrados.append(f"{nome_ativo} ({'; '.join(pedido['erros'])})")
                 continue
-            if pedido["faltando"]:
+            if pedido["faltando"] and not _removendo(av):                  # TASK-247: R e *R não avisam parâmetro faltando
                 sig = assinaturas[base]
                 avisos.append(
                     f"{pedido['texto']}: faltou informar " + "; ".join(f"{n} ({', '.join(sig['valores'].get(n, []))})" for n in pedido["faltando"])
@@ -503,7 +509,8 @@ def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcam
                     for it in g["itens"]:
                         texto, faltando = substituir_variaveis(it["ativo"], valores)
                         if faltando:
-                            avisos.append(f"{pedido['texto']}: o item {it['ativo']} não foi calculado (faltou informar {', '.join(faltando)}).")
+                            if not _removendo(av):
+                                avisos.append(f"{pedido['texto']}: o item {it['ativo']} não foi calculado (faltou informar {', '.join(faltando)}).")
                             continue
                         fila.extend(_expandir_compostos([dict(av, ativo=texto, qtd=av["qtd"] * it["qtd"])], compostos, avisos, formais=compostos_formais, assinaturas=assinaturas,
                                                         nao_encontrados=nao_encontrados, nivel0=nivel, obra=valores_obra))
