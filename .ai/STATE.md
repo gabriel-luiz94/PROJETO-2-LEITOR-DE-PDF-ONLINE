@@ -85,6 +85,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-244](tasks/TASK-244-24-11-2026.md) — Mapa/vínculo: estrutura com quantidade inteira vira uma unidade por estrutura («2 FLABIT» = duas).
 - [x] [TASK-243](tasks/TASK-243-24-11-2026.md) — Mapa: pré-preenchimento do ativo do cabo (3 → 3x, A35P( → 7,94)-13,8kV, - → 13,8kV).
 - [x] [TASK-242](tasks/TASK-242-24-11-2026.md) — Mapa: «Editar» do cabo = formulário do + Cabo; «Editar» da estrutura = linha em «Linhas do ponto».
 - [x] [TASK-241](tasks/TASK-241-24-11-2026.md) — Mapa (antigo Vincular cabos) como visualização igual ao Resultado/Base e em outra janela do Windows, sincronizado; Esc só deseleciona.

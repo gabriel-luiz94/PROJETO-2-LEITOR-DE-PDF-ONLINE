@@ -2862,6 +2862,14 @@
             return { info, idx: idx.filter(l => outros()[l] && !outros()[l].comentario) };
         }
         const opDaLinha = r => { const o = trim(r.operacao).toUpperCase(); return o === '' ? 'I' : o; };
+        /** TASK-244: «2 FLABIT» são duas unidades; a 2ª fica no fim da linha (para não mexer nos vínculos), mas na lista aparece junto da 1ª, como «FLABIT · 2ª». */
+        function estruturasNaTela(lista) {
+            const primeira = new Map(), contagem = new Map();
+            lista.forEach((ie, k) => { const ch = linhaDe(ie) + '|' + codigoDe(ie); if (!primeira.has(ch)) primeira.set(ch, k); });
+            return lista.map((ie, k) => ({ ie, k, ch: linhaDe(ie) + '|' + codigoDe(ie) }))
+                .sort((x, y) => primeira.get(x.ch) - primeira.get(y.ch) || x.k - y.k)
+                .map(({ ie, ch }) => { const n = (contagem.get(ch) || 0) + 1; contagem.set(ch, n); return [ie, n]; });
+        }
         const OPS_INSTALANDO = ['I', '*I', 'M', '*M'];                                       // TASK-238: em destaque na lista de estruturas do ponto
         const seloOperacao = op => el('span', { class: 'vz-op-badge' + (/R$/.test(op) ? ' r' : /M$/.test(op) ? ' m' : op === 'F' ? ' f' : ''), text: op, title: 'Operação ' + op });
         /** Lista editável de linhas: [nº, ativo, operação, ×]. Ao preencher a última, entra outra vazia com a operação de cima. */
@@ -3177,8 +3185,8 @@
                 ehFicticio ? el('div', { class: 'vz-no-estruturas' }, estruturasFicticias.map((codigo, i) =>
                     el('div', { class: 'vz-no-estrutura', 'data-estrutura-ancora': i }, [
                         el('div', { class: 'vz-no-linha' }, [el('strong', { text: codigo }), el('span', { text: 'Fictícia' })])
-                    ]))) : estruturas.length || removendo.length ? el('div', { class: 'vz-no-estruturas' }, estruturas.map(ie => {
-                    const r = a.estruturas[ie], e = infoEst(ie), codigo = codigoDe(ie);
+                    ]))) : estruturas.length || removendo.length ? el('div', { class: 'vz-no-estruturas' }, estruturasNaTela(estruturas).map(([ie, ordem]) => {
+                    const r = a.estruturas[ie], e = infoEst(ie), codigo = codigoDe(ie) + (ordem > 1 ? ' · ' + ordem + 'ª' : '');
                     const ficticios = ficticiosDe(ie);
                     const controlesFicticios = e.ocupa ? el('details', { class: 'vz-no-mais' }, [
                         el('summary', { text: ficticios.length ? 'Cabos fictícios (' + ficticios.length + ')' : 'Cabo fictício' }),

@@ -1155,3 +1155,9 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
   - **3xC25-** → **3xC25-13,8kV**
 - **Tab** (ou → / End) aceita; continuar digitando troca a sugestão; **Backspace** apaga.
 - A sugestão usa o que já existe nos cabos da obra (ex.: se a obra tem «1xC16(16)», ao digitar «1xC16(» vem «16)»). Sem exemplo, vale o padrão: «7,94)-13,8kV» para cabo protegido (A..P) e «13,8kV» de tensão.
+
+## Mapa: estrutura com quantidade (24/11/2026)
+
+- Uma estrutura com quantidade na linha do ponto — ex.: **12600D, CEJ2, 2 FLABIT, IT-R** — conta como **duas** FLABIT no Mapa e no vínculo: cada uma recebe o seu cabo.
+- No painel do ponto elas aparecem juntas: **FLABIT** e **FLABIT · 2ª**.
+- Só quantidade inteira (2, 3…) separa; «1,5 FLABIT» continua uma. Os vínculos que já existiam não mudam.

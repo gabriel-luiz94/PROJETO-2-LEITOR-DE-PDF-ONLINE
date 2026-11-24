@@ -250,11 +250,28 @@ def contexto_da_base(linhas, projeto, convencao_postes=None) -> dict:
     return {"apelidos": apelidos_do_projeto(linhas, projeto), "nomes": nomes, "postes": postes, "assinaturas": assinaturas_do_projeto(linhas, projeto), "convencao_postes": convencao_postes}
 
 
+MAX_UNIDADES = 20
+
+
 def codigos_estruturas(texto, classico, ctx=None) -> list:
-    """Nomes de TODOS os itens que não são poste, na ordem da linha (TASK-094: `9400D, N1, N4` → ["N1", "N4"]); vazio se só houver poste."""
+    """Nomes de TODOS os itens que não são poste, na ordem da linha (TASK-094: `9400D, N1, N4` → ["N1", "N4"]); vazio se só houver poste.
+    TASK-244: quantidade inteira ≥ 2 vira uma unidade por estrutura (`2 FLABIT` → duas); as cópias vão no FIM, depois de todas as da linha,
+    para não mudar a posição (e os vínculos) das que já existiam. No máximo MAX_UNIDADES por linha."""
     r = interpretar_linha(texto, "", classico, ctx)
     conv = (ctx or {}).get("convencao_postes")
-    return [nome_base(i["ativo"]) for i in r["itens"] if not eh_poste(nome_base(i["ativo"]), conv)]
+    itens = [i for i in r["itens"] if not eh_poste(nome_base(i["ativo"]), conv)]
+    nomes = [nome_base(i["ativo"]) for i in itens]
+    for i in itens:
+        try:
+            q = float(i.get("qtd") or 1)
+        except (TypeError, ValueError):
+            q = 1
+        if q.is_integer() and q > 1:
+            for _ in range(1, int(q)):
+                if len(nomes) >= MAX_UNIDADES:
+                    break
+                nomes.append(nome_base(i["ativo"]))
+    return nomes
 
 
 def codigo_estrutura(texto, classico, ctx=None) -> str:
