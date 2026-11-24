@@ -256,6 +256,10 @@ def _detalhe_do_pedido(pedido: str, nao_encontrados: list, apelidos: dict):
     return None
 
 
+def _removendo(linha) -> bool:
+    return str((linha or {}).get("operacao") or "").strip().upper() in ("R", "*R")
+
+
 def validar_base(cabos_payload: list, outros_payload: list, projeto, base_rows: list) -> list:
     """C1-BASE (nome) e C1-PARAM (parâmetros) sobre o payload de cálculo (Totalizadora, já após as regras de conversão).
 
@@ -288,6 +292,8 @@ def validar_base(cabos_payload: list, outros_payload: list, projeto, base_rows: 
                         f"Ativo '{nome}' não encontrado na base técnica"
                         f"{' (projeto ' + str(projeto) + ')' if projeto else ''}.",
                     ))
+                elif _removendo(linha):                                      # TASK-247: R e *R não avisam parâmetros
+                    continue
                 else:                                                        # o nome existe: o que falhou foram os parâmetros
                     if detalhe.endswith("não tem variantes cadastradas"):
                         detalhe = f"ativo sem parâmetros declarados na base ('{av['ativo'][len(nome):] if av['ativo'].upper().startswith(nome.upper()) else av['ativo']}' não vale)"

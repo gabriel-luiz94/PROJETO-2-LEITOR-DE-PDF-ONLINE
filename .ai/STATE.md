@@ -85,6 +85,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-247](tasks/TASK-247-24-11-2026.md) — Validação: R/*R sem aviso de vínculo/parâmetros e fora das cores; F sem aviso de vínculo; cor dos parâmetros na hora.
 - [x] [TASK-245](tasks/TASK-245-24-11-2026.md) — Resumo: modal «Transporte de material» (TRANSP/TRANSP_KM igual à aba TRANSPORT da ICP), parte `transporte` do pacote.
 - [x] [TASK-246](tasks/TASK-246-24-11-2026.md) — Plugin 0.16.4: Selecionar cabo pelo trecho clicado da polilinha, comprimento usado = medido arredondado, metragem por linha do cabo.
 - [x] [TASK-244](tasks/TASK-244-24-11-2026.md) — Mapa/vínculo: estrutura com quantidade inteira vira uma unidade por estrutura («2 FLABIT» = duas).
@@ -868,6 +869,8 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 ## Última atualização
 
 **Data:** 2026-11-24
+
+**Motivo:** [TASK-247](tasks/TASK-247-24-11-2026.md) tirou removendo/fictícia dos avisos e deixou a cor dos parâmetros imediata.
 
 **Motivo:** [TASK-245](tasks/TASK-245-24-11-2026.md) adicionou o modal Transporte de material e a parte `transporte` do pacote.
 

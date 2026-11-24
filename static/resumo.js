@@ -88,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
         row.operacao = v;
         if (v === 'F') { if (!row.congelada) row._congeladaPorF = true; row.congelada = true; }
         else if (eraF && row._congeladaPorF) { delete row.congelada; delete row._congeladaPorF; }
+        if (typeof aplicarCoresJa === 'function') aplicarCoresJa();          // TASK-247: R/*R saem das cores na hora
     }
     function listaOperacao() {
         return _listaOp || (_listaOp = window.IdeLista.criar({ aoEscolher: (item, campo) => { campo.value = item.valor; campo.dispatchEvent(new Event('change', { bubbles: true })); } }));
@@ -689,6 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 row.ativo = snap; pushHistory(); row.ativo = novo; prevAtivo = novo;
                 inpAt._sincronizarCheio();
                 confirmarMudanca(snap);
+                aplicarCoresJa();                                                         // TASK-247: preencheu pelo balão → a cor muda na hora (laranja → verde)
             };
             inpAt.addEventListener('blur', () => {
                 setTimeout(() => {
@@ -3389,7 +3391,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return sem.erros.length ? [] : sem.itens.map(i => i.ativo);
     }
     /** Pinta o ativo das linhas de Outros e Cabos (só com a opção ligada; desligada, tira as cores): Outros → verde/laranja pelos parâmetros; vermelho = o ativo não existe na base (Cabos e Outros).
-     *  Linha congelada nunca é pintada. */
+     *  Linha congelada ou removendo (R, *R) nunca é pintada (TASK-247). */
     function aplicarCoresParametros() {
         const inputs = document.querySelectorAll('#table-outros .inp-ativo, #table-cabos .inp-ativo');
         const ligada = corParametrosLigada();
@@ -3407,7 +3409,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const tipo = inp.dataset.parTipo === 'cabos' ? 'cabos' : 'outros';
             const idx = Number(inp.dataset.parIdx), row = tableStates[tipo].data[idx];
             limpar(inp);
-            if (!row || row.congelada) return;
+            if (!row || row.congelada || ['R', '*R'].includes(String(row.operacao || '').trim().toUpperCase())) return;          // TASK-247: removendo não entra nas cores
             const chave = tipo + '|' + row.ativo + '|' + (row.operacao || '') + '|' + (tipo === 'outros' ? JSON.stringify(pv[idx] || 0) + '|' + JSON.stringify(dv[idx] || 0) : '');
             let r = _cacheCores.m.get(chave);
             if (r === undefined) {
@@ -3435,7 +3437,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     window.aplicarCoresParametros = aplicarCoresParametros;
     let _tmCoresParametros = null;
-    function agendarCoresParametros() { if (!corParametrosLigada()) return; clearTimeout(_tmCoresParametros); _tmCoresParametros = setTimeout(aplicarCoresParametros, 350); }
+    // TASK-247: a cor acompanha a edição — digitando, recalcula logo após a última tecla (antes, 350 ms); gravando (balão, operação), na hora
+    function agendarCoresParametros() { if (!corParametrosLigada()) return; clearTimeout(_tmCoresParametros); _tmCoresParametros = setTimeout(aplicarCoresParametros, 60); }
+    function aplicarCoresJa() { if (!corParametrosLigada()) return; clearTimeout(_tmCoresParametros); aplicarCoresParametros(); }
 
     function _htmlBalaoParametros(status) {
         const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
