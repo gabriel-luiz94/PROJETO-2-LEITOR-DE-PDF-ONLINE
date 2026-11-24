@@ -63,3 +63,18 @@ const ns = N.nomesDaBase([{ ativo: '[CAZ7,94]', origem: 'CABOS' }, { ativo: 'N1'
 process.stdout.write(JSON.stringify(N.foraDaBase(ns, ['CAZ7,94', '[CAZ7,94]', 'N1(A)', 'CAZ7', 'XYZ', 'CAZ7,5'])));"""
     r = subprocess.run([NODE, "-e", js, os.path.join(config.STATIC_DIR, "ativo_na_base.js")], capture_output=True, text=True, check=True)
     assert json.loads(r.stdout) == ["CAZ7", "XYZ", "CAZ7,5"]
+
+
+def test_calculo_nao_avisa_parametro_faltando_em_removendo():
+    """Resultado: «faltou informar CABO …» (variantes dos ativos) não aparece para R e *R; o cálculo continua igual."""
+    from services.orcamento_calc import processar_calculo
+
+    def r(at, comp, cod):
+        return {"ativo": at, "desc_ativo": "", "componente": comp, "projeto": "", "mdo": "MATERIAL", "codigo": cod, "desc_codigo": "d", "fator_i": 1, "fator_r": 1,
+                "filtro": "", "origem": "OUTROS", "lv": "A", "arred": "NORMAL", "formula_i": "", "formula_r": ""}
+    base = [r("N3", "N3", "1"), r("N3(cabo=C)", "N3C", "2"), r("N3(cabo=A)", "N3A", "3")]
+    for op in ("I", "*I", "M", "R", "*R"):
+        out = processar_calculo([], [{"entidade": "0", "operacao": op, "ativo": "1-N3"}], "", [dict(x) for x in base])
+        avisa = any("faltou informar CABO" in a for a in out.get("avisos", []))
+        assert avisa == (op not in ("R", "*R")), op
+        assert [(x["codigo"], x["total"]) for x in out["resultado"]] == [("1", 1.0)], op

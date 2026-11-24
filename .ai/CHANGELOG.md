@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-24 — Resultado: removendo sem aviso de parâmetro faltando
+
+O aviso «faltou informar CABO … — calculado só o que não depende disso» do Resultado do orçamento não aparece mais para itens R e *R (o cálculo não muda). Complemento da [TASK-247](tasks/TASK-247-24-11-2026.md).
+
 ## 2026-11-24 — Removendo e fictícia fora dos avisos; cor dos parâmetros na hora
 
 Avisos de vinculação só para I, *I, M, *M (R, *R e F não avisam); C1-PARAM não avisa linhas R/*R (o C1-BASE continua); «Colorir ativos por parâmetros» não pinta removendo e atualiza na hora ao gravar pelo balão ou trocar a operação; cabo `CAZ7,94` não fica mais vermelho quando a base tem o literal `[CAZ7,94]`. [TASK-247](tasks/TASK-247-24-11-2026.md).
