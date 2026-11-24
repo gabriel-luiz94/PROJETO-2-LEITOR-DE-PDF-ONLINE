@@ -7584,9 +7584,9 @@ if (window.AtivoDica) window.AtivoDica.iniciar({
     }
 });
 // TASK-186: balão interativo dos ativos/parâmetros de Outros (Ctrl+Enter, duplo clique, mouse parado, "(" com «Ocultar parâmetros» ligado)
-if (window.AtivoBalao && window.AtivoItens) window.AtivoBalao.iniciar({
-    itens: input => {
-        const idx = Number(input.dataset.parIdx), row = tableStates.outros.data[idx], itens = window.AtivoItens.itens(row ? row.ativo : '');
+/** Os itens do balão para uma linha de Outros (`row`, na posição `idx` da tabela — ou idx < 0 para uma linha que ainda não está nela). */
+function _itensDoBalao(row, idx) {
+        const itens = window.AtivoItens.itens(row ? row.ativo : '');
         let al = [], sts = [];
         try {
             const c = _contextoParametros(), pv = _parametrosVinculoPorLinha()[idx], dv = _defineDoVinculo()[idx];
@@ -7596,7 +7596,14 @@ if (window.AtivoBalao && window.AtivoItens) window.AtivoBalao.iniciar({
         const porPosicao = al.length === itens.length;
         return itens.map((it, i) => ({ nome: it.nome, base: it.base, params: it.params, raw: it.raw,
             status: porPosicao ? al[i] : (sts.find(x => String(AtivoParametros.nomeBase(x.ativo)).toUpperCase() === String(AtivoParametros.nomeBase(it.base || it.nome)).toUpperCase()) || null) }));
-    },
+}
+/** O texto da linha com o parâmetro gravado (a quantidade fica no texto); null = não gravou. */
+function _gravarParametroNoTexto(texto, i, nomeParam, valor) {
+    const AD = window.AtivoDica, c = AD.contextoAtual();
+    return window.AtivoItens.gravarParametro(texto, i, nomeParam, valor, nome => c && AD.dica(nome, c), AD.aplicarValor);
+}
+if (window.AtivoBalao && window.AtivoItens) window.AtivoBalao.iniciar({
+    itens: input => { const idx = Number(input.dataset.parIdx); return _itensDoBalao(tableStates.outros.data[idx], idx); },
     dica: nome => { try { const c = window.AtivoDica && window.AtivoDica.contextoAtual(); return c ? window.AtivoDica.dica(nome, c) : null; } catch (e) { return null; } },
     origens: (input, ativo) => {
         try {
@@ -7609,11 +7616,29 @@ if (window.AtivoBalao && window.AtivoItens) window.AtivoBalao.iniciar({
         } catch (e) { return null; }
     },
     gravar: (input, i, nomeParam, valor) => {
-        const idx = Number(input.dataset.parIdx), row = tableStates.outros.data[idx], AD = window.AtivoDica;
-        const c = AD.contextoAtual();
+        const idx = Number(input.dataset.parIdx), row = tableStates.outros.data[idx];
         // TASK-194: a base conhece «CON», não «6 CON» — a gravação procura a dica pelo nome SEM a quantidade (como a leitura já fazia) e mantém a quantidade no texto
-        const novo = window.AtivoItens.gravarParametro(row.ativo, i, nomeParam, valor, nome => c && AD.dica(nome, c), AD.aplicarValor);
+        const novo = _gravarParametroNoTexto(row.ativo, i, nomeParam, valor);
         if (novo !== null) input._gravarCheio(novo);
+    },
+    // TASK-249: as linhas do ponto no MAPA (e os campos de estruturas dos formulários do mapa) abrem o mesmo balão — Ctrl+Enter, duplo clique, mouse parado
+    seletorExtra: 'input[data-sugestao-origem="OUTROS"]:not([data-sem-balao])',
+    preparar: input => {
+        input._ativoBalao = {
+            itens: inp => {
+                const idx = inp.dataset.linhaOutros === undefined || inp.dataset.linhaOutros === '' ? -1 : Number(inp.dataset.linhaOutros);
+                const base = idx >= 0 ? tableStates.outros.data[idx] : null;
+                const op = typeof inp._operacao === 'function' ? inp._operacao() : (base && base.operacao) || 'I';
+                return _itensDoBalao(Object.assign({}, base || {}, { ativo: String(inp.value || '').toUpperCase(), operacao: op }), idx);
+            },
+            gravar: (inp, i, nomeParam, valor) => {
+                const novo = _gravarParametroNoTexto(String(inp.value || '').toUpperCase(), i, nomeParam, valor);
+                if (novo === null) return;
+                inp.value = String(novo).toUpperCase();
+                inp.dispatchEvent(new Event('input', { bubbles: true }));
+            },
+            rotulo: inp => (inp.dataset.linhaOutros !== undefined && inp.dataset.linhaOutros !== '' ? 'Linha ' + (Number(inp.dataset.linhaOutros) + 1) : (inp.getAttribute('aria-label') || 'Linha nova'))
+        };
     },
     carregarBase: () => carregarBaseOrcamento(),
     mensagem: t => showToast(t)

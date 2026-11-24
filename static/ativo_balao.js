@@ -4,11 +4,14 @@
  *   · lista de ativos: ↑↓ e Tab/Shift+Tab navegam, Enter (ou clique) entra nos parâmetros do ativo, Esc fecha e devolve o foco ao campo;
  *   · parâmetros: Tab/Shift+Tab andam entre os parâmetros, ↑↓ escolhem o valor, Enter grava e vai ao próximo (no último, ao próximo ativo com pendência; sem pendência, fecha), Esc volta à lista.
  * A tela (resumo.js) fornece as pontas em iniciar(cfg): itens(input), dica(nome), origens(input, nome), gravar(input, i, nomeParam, valor), carregarBase(), mensagem(texto).
+ * TASK-249: outros campos (as linhas do ponto no MAPA) usam o mesmo balão — `cfg.seletorExtra` diz quais; `cfg.preparar(input)` põe em
+ * `input._ativoBalao` as pontas próprias do campo (itens/gravar/rotulo), que valem por cima das da tabela enquanto o balão está aberto nele.
+ * Dentro de um <dialog> modal (camada de cima), o balão é desenhado dentro do próprio dialog para não ficar por trás.
  */
 (function (raiz) {
     'use strict';
     const doc = raiz.document;
-    let cfg = null, balao = null, S = null, timerHover = 0, timerFecha = 0;
+    let cfgBase = null, cfg = null, balao = null, S = null, timerHover = 0, timerFecha = 0;
     const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
     const DEMORA_HOVER = 1500;
 
@@ -67,11 +70,13 @@
             balao.addEventListener('mouseleave', () => { if (S && S.hover) agendarFechar(); });
             doc.body.appendChild(balao);
         }
-        const itens = cfg.itens(S.input);
+        const casa = (S.input.closest && S.input.closest('dialog[open]')) || doc.body;          // TASK-249: num <dialog> modal o balão vai junto (camada de cima)
+        if (balao.parentNode !== casa) casa.appendChild(balao);
+        const itens = cfg.itens(S.input), rotulo = cfg.rotulo ? cfg.rotulo(S.input) : 'Linha ' + (Number(S.input.dataset.parIdx) + 1);
         let h = '';
         if (S.modo === 'ativos') {
             if (S.i >= itens.length) S.i = Math.max(0, itens.length - 1);
-            h += `<div class="ab-h">Linha ${esc(String(Number(S.input.dataset.parIdx) + 1))} · ${itens.length} ativo(s)</div>`;
+            h += `<div class="ab-h">${esc(rotulo)} · ${itens.length} ativo(s)</div>`;
             if (!itens.length) h += '<div class="ab-vazio">Escreva um ativo na linha.</div>';
             itens.forEach((it, i) => {
                 const s = it.status, ic = !s ? '<span class="m">–</span>' : (s.naoExiste ? '<span class="f">✖</span>' : (s.completo ? '<span class="v">✓</span>' : '<span class="f">⚠</span>'));
@@ -80,7 +85,7 @@
             h += '<div class="ab-ft"><kbd>↑↓</kbd>/<kbd>Tab</kbd> navega · <kbd>Enter</kbd> parâmetros · <kbd>Esc</kbd> fecha</div>';
         } else {
             const it = itens[S.i], pd = paramsDe(S.i);
-            h += `<div class="ab-h">Linha ${esc(String(Number(S.input.dataset.parIdx) + 1))} › <b>${esc(it ? it.nome : '')}</b> · parâmetros</div>`;
+            h += `<div class="ab-h">${esc(rotulo)} › <b>${esc(it ? it.nome : '')}</b> · parâmetros</div>`;
             if (pd.carregando) { h += '<div class="ab-vazio">Carregando a base…</div>'; if (cfg.carregarBase) Promise.resolve(cfg.carregarBase()).then(() => { if (S && S.modo === 'params') desenhar(); }); }
             else if (pd.msg) h += `<div class="ab-vazio">${esc(pd.msg)}</div>`;
             else {
@@ -116,7 +121,9 @@
     function abrir(input, opcoesAbrir) {
         const o = opcoesAbrir || {};
         clearTimeout(timerHover); clearTimeout(timerFecha);
-        if (!cfg || !input) return;
+        if (!cfgBase || !input) return;
+        if (!input._ativoBalao && cfgBase.preparar && extra(input)) cfgBase.preparar(input);
+        cfg = input._ativoBalao ? Object.assign({}, cfgBase, input._ativoBalao) : cfgBase;           // TASK-249: as pontas do próprio campo (mapa) valem por cima das da tabela
         const itens = cfg.itens(input);
         if (!itens.length && !o.modo) { if (cfg.mensagem) cfg.mensagem('Escreva um ativo na linha primeiro.'); return; }
         doc.body.classList.add('ab-aberto');                                                                  // a lista de sugestões de ativos não fica por cima do balão (CSS)
@@ -140,7 +147,8 @@
 
     /** "(" no campo compacto: abre nos parâmetros do ativo sob (ou logo antes de) o cursor. */
     function abrirNoCursor(input) {
-        if (!cfg) return false;
+        if (!cfgBase) return false;
+        cfg = input._ativoBalao ? Object.assign({}, cfgBase, input._ativoBalao) : cfgBase;
         const AI = raiz.AtivoItens, t = AI.tokens(input.value), c = input.selectionStart == null ? input.value.length : input.selectionStart;
         if (!t.length) { if (cfg.mensagem) cfg.mensagem('Escreva o nome do ativo antes de abrir os parâmetros.'); return true; }
         let i = t.findIndex(k => c >= k.ini && c <= k.fim);
@@ -230,22 +238,34 @@
         }
     }
 
+    /** TASK-249: campo fora das tabelas que também abre o balão (as linhas do ponto no MAPA). */
+    function extra(el) {
+        return !!(el && cfgBase && cfgBase.seletorExtra && el.matches && el.matches(cfgBase.seletorExtra) && !(el.dataset && el.dataset.parTipo));
+    }
     function iniciar(opcoesIniciar) {
-        cfg = opcoesIniciar || {};
+        cfgBase = cfg = opcoesIniciar || {};
         doc.addEventListener('keydown', aoTeclar, true);
+        doc.addEventListener('keydown', e => {                                                            // Ctrl+Enter num campo extra: abre o balão (antes do Enter do próprio campo)
+            if (S || e.key !== 'Enter' || !e.ctrlKey || e.altKey || e.metaKey || e.isComposing || !extra(e.target)) return;
+            e.preventDefault(); e.stopImmediatePropagation();
+            abrir(e.target, { foco: true });
+        }, true);
         doc.addEventListener('mousedown', e => { if (S && !(balao && balao.contains(e.target)) && e.target !== S.input) fechar(false); }, true);
         doc.addEventListener('focusout', e => { if (S && S.foco && e.target === S.input) setTimeout(() => { if (S && doc.activeElement !== S.input && !(balao && balao.contains(doc.activeElement))) fechar(false); }, 120); });
-        doc.addEventListener('dblclick', e => { const el = e.target && e.target.closest ? e.target.closest('input[data-par-tipo="outros"]') : null; if (el) { e.preventDefault(); abrir(el, { foco: true }); } });
+        doc.addEventListener('dblclick', e => {
+            const el = e.target && e.target.closest ? e.target.closest('input[data-par-tipo="outros"]') || (extra(e.target) ? e.target : null) : null;
+            if (el) { e.preventDefault(); abrir(el, { foco: true }); }
+        });
         // Mouse parado ~1,5 s sobre a linha SELECIONADA (o campo está com o foco): abre o balão já com o teclado ativo (setas, Tab, Enter, Esc). Em linha não selecionada, nada abre.
         doc.addEventListener('mouseover', e => {
-            const el = e.target && e.target.closest ? e.target.closest('[data-par-tipo="outros"]') : null;
+            const el = e.target && e.target.closest ? e.target.closest('[data-par-tipo="outros"]') || (extra(e.target) ? e.target : null) : null;
             if (!el || (S && S.input === el)) return;
             clearTimeout(timerHover);
             if (doc.activeElement !== el) return;
             timerHover = setTimeout(() => { if (!S && doc.activeElement === el) abrir(el, { foco: true, hover: true }); }, DEMORA_HOVER);
         });
         doc.addEventListener('mouseout', e => {
-            const el = e.target && e.target.closest ? e.target.closest('[data-par-tipo="outros"]') : null;
+            const el = e.target && e.target.closest ? e.target.closest('[data-par-tipo="outros"]') || (extra(e.target) ? e.target : null) : null;
             if (!el) return;
             clearTimeout(timerHover);
             if (S && S.hover && S.input === el && !(e.relatedTarget && balao && balao.contains(e.relatedTarget))) agendarFechar();

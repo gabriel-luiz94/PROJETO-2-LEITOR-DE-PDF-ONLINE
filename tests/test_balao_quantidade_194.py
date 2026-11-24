@@ -64,7 +64,10 @@ def test_resumo_usa_a_gravacao_nova_e_so_um_balao_e_iniciado():
     assert js.count("window.AtivoBalao.iniciar(") == 1                      # um corte de texto errado já duplicou este bloco uma vez
     i = js.index("gravar: (input, i, nomeParam, valor)")
     corpo = js[i:js.index("carregarBase:", i)]
-    assert "AtivoItens.gravarParametro(" in corpo and "it.nome, c" not in corpo
+    assert "_gravarParametroNoTexto(row.ativo, i, nomeParam, valor)" in corpo           # TASK-249: a gravação foi para uma função (o balão do mapa usa a mesma)
+    j = js.index("function _gravarParametroNoTexto(")
+    funcao = js[j:js.index("\n}", j)]
+    assert "AtivoItens.gravarParametro(" in funcao and "it.nome, c" not in funcao
 
 
 def test_quantidade_decimal_com_virgula_nao_quebra_o_item():

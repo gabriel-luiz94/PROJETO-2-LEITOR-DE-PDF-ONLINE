@@ -1193,3 +1193,9 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - A localidade vem do **bairro** da obra (ou do município); dá para trocar digitando o nome. Localidade fora da tabela da ICP = 0 cavas.
 - **Lançar em Outros** escreve a linha `6-CAVA_ROCHA` (substitui a de um cálculo anterior; Ctrl+Z desfaz). Com 0 cavas, só apaga a anterior.
 - Se a base do projeto não tem o ativo CAVA_ROCHA, o modal avisa antes de lançar.
+
+## Mapa: parâmetros dos ativos com Ctrl+Enter (24/11/2026)
+
+- Ao editar uma linha no Mapa (no painel do ponto, em **+ Linha**, **Editar ponto**, **Editar** de uma estrutura ou numa **Nova estrutura / Novo poste**), aperte **Ctrl+Enter** (ou dê duplo clique, ou deixe o mouse parado no campo): abre o mesmo balão de parâmetros das tabelas.
+- Ele lista os ativos da linha com o que está preenchido e o que falta. **Enter** entra nos parâmetros do ativo; **↑↓** escolhe o valor (ou digite outro); **Enter** grava e vai ao próximo; **Del** limpa; **Esc** volta e fecha.
+- O parâmetro entra no texto da linha (ex.: `N3(TIPOCABO=A)`); a linha vai para a tabela quando você confirma com **OK**, como antes.

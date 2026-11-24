@@ -2614,13 +2614,14 @@
                 const campos = [campo(ficticio ? 'Nome no mapa' : cabo ? 'Anotação do cabo (inclui comprimento)' : 'Anotação da linha', ativo)];
                 let coletar;
                 if (ficticio) {
-                    const estruturas = el('input', { type: 'text', maxlength: '440', required: '', 'data-sugestao-origem': 'OUTROS' });
+                    const estruturas = el('input', { type: 'text', maxlength: '440', required: '', 'data-sugestao-origem': 'OUTROS', 'data-sem-balao': '' });
                     estruturas.value = (referencia._mapaEstruturasFicticias || []).join(', ');
                     campos.push(campo('Estruturas fictícias, separadas por vírgula', estruturas));
                     coletar = () => ({ ativo: trim(ativo.value), estruturas: [...new Set(estruturas.value.split(',').map(s => trim(s).toUpperCase()).filter(Boolean))] });
                 } else {
                     const operacao = selectComValor(operacoesEdicao, referencia.operacao);
                     campos.push(campo('Operação', operacao));
+                    if (!cabo) { ativo.dataset.linhaOutros = String(indice); ativo._operacao = () => operacao.value; }      // TASK-249: Ctrl+Enter = parâmetros dos ativos (como nas tabelas)
                     if (cabo) {
                         const nivel = selectComValor([['', 'Pelo ativo'], ['MT', 'MT'], ['BT', 'BT']], referencia.nivel);
                         const fases = el('input', { type: 'text', inputmode: 'numeric', maxlength: '4', placeholder: 'Pelo ativo' });
@@ -2703,7 +2704,7 @@
 
         function pedirEstruturasFicticias(titulo, salvar, comNome = false) {
             const nome = el('input', { type: 'text', maxlength: '80', placeholder: 'Poste fictício' });
-            const codigos = el('input', { type: 'text', maxlength: '440', placeholder: 'N1, N3', 'data-sugestao-origem': 'OUTROS' });
+            const codigos = el('input', { type: 'text', maxlength: '440', placeholder: 'N1, N3', 'data-sugestao-origem': 'OUTROS', 'data-sem-balao': '' });
             const campos = comNome ? [campo('Nome no mapa', nome)] : [];
             campos.push(campo('Estruturas fictícias, separadas por vírgula', codigos));
             abrirEditor(titulo, 'Salvar', campos, () => {
@@ -2755,6 +2756,7 @@
             if (referencia) ativo.value = referencia.ativo;
             if (cabo) completarCabo(ativo);                                                               // TASK-243: «3» → «3x», «A35P(» → «7,94)-13,8kV», «-» → «13,8kV»
             const operacao = cabo ? seletorOperacao('I') : selectComValor(operacoesEdicao, referencia?.operacao || 'I');        // TASK-235: no cabo, F = cabo fictício
+            if (!cabo) { if (referencia) ativo.dataset.linhaOutros = String(edicao.poste); ativo._operacao = () => operacao.value; }    // TASK-249: Ctrl+Enter = parâmetros
             const metros = el('input', { type: 'text', inputmode: 'decimal', maxlength: '24', required: '', placeholder: '25' });
             const fases = (raiz.GradeTabela?.FASES || ['A', 'B', 'C', 'AB', 'AC', 'BC', 'ABC']);
             const fase = el('select', {}, opcoes([['', 'Do rótulo'], ...fases.map(v => [v, v])]));
@@ -2880,6 +2882,8 @@
                 const ativo = el('input', { type: 'text', maxlength: '440', placeholder: 'ex.: 11300D, N3 · N3 · CE2', 'data-sugestao-origem': 'OUTROS', 'aria-label': 'Linha do ponto' });
                 ativo.value = x.ativo || '';
                 const ops = seletorOperacao(x.op || 'I', () => aoMudar?.());
+                if (Number.isInteger(x.indice)) ativo.dataset.linhaOutros = String(x.indice);
+                ativo._operacao = () => ops.value;                                                     // TASK-249: Ctrl+Enter = parâmetros dos ativos da linha
                 const n = el('span', { class: 'vz-lp-n' });
                 const remover = el('button', { type: 'button', class: 'vz-lp-x', text: '×', title: 'Tirar esta linha do ponto', onclick: () => { lista.removeChild(item.el); linhas.splice(linhas.indexOf(item), 1); renumerar(); garantirVazia(); aoMudar?.(); } });
                 const item = { indice: Number.isInteger(x.indice) ? x.indice : null, ativo, ops, el: el('div', { class: 'vz-lp' }, [n, ativo, ops, remover]) };
@@ -2966,6 +2970,8 @@
                 const ativo = el('input', { type: 'text', maxlength: '440', 'data-sugestao-origem': 'OUTROS', 'aria-label': 'Linha do ponto' });
                 ativo.value = item.ativo;
                 const ops = seletorOperacao(item.op);
+                if (Number.isInteger(item.indice)) ativo.dataset.linhaOutros = String(item.indice);
+                ativo._operacao = () => ops.value;                                                     // TASK-249: Ctrl+Enter / duplo clique = parâmetros dos ativos (como nas tabelas)
                 const ok = botao('OK', () => {
                     const itens = atuais();
                     if (k === null) itens.push({ indice: null, ativo: trim(ativo.value), op: ops.value });
