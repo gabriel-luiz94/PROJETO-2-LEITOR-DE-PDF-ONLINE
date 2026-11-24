@@ -1,0 +1,861 @@
+{
+ "formato": "cava-rocha",
+ "versao": 1,
+ "fonte": "ICP V1.62 Neoenergia PE, aba CAVA_ROCHA (A:I, linhas 3-123)",
+ "ativo": "CAVA_ROCHA",
+ "servico": "SDEMU3007II",
+ "contagem": [
+  "SDEMU3002II",
+  "SDEMU1004II",
+  "SDEMU1005II"
+ ],
+ "localidades": [
+  {
+   "localidade": "AGRESTINA",
+   "indice": 0.65,
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "ALTINHO",
+   "indice": 0.518324607329843,
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "BELO JARDIM",
+   "indice": 0.5045417010734929,
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "CUPIRA",
+   "indice": 0.4146341463414634,
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "relacao": "1:3"
+  },
+  {
+   "localidade": "PANELAS",
+   "indice": 0.5607843137254902,
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "SANHARO",
+   "indice": 0.67,
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "SAO BENTO DO UNA",
+   "indice": 0.5338078291814946,
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "SAO CAETANO",
+   "indice": 0.7841191066997518,
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "SAO JOAQUIM DO MONTE",
+   "indice": 0.5533333333333333,
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "TACAIMBO",
+   "indice": 0.7921348314606742,
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "CARUARU",
+   "indice": 0.6028326940100325,
+   "utd": "CARUARU",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "RIACHO DAS ALMAS",
+   "indice": 0.6787564766839378,
+   "utd": "CARUARU",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "AGUA PRETA",
+   "indice": 0.2971014492753623,
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "relacao": "1:4"
+  },
+  {
+   "localidade": "BEZERROS",
+   "indice": 0.6329639889196675,
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "BONITO",
+   "indice": 0.2966360856269113,
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "relacao": "1:4"
+  },
+  {
+   "localidade": "CAMOCIM DE SAO FELIX",
+   "indice": 0.2696629213483146,
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "relacao": "1:4"
+  },
+  {
+   "localidade": "CHA GRANDE",
+   "indice": 0.281786941580756,
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "relacao": "1:4"
+  },
+  {
+   "localidade": "GRAVATA",
+   "indice": 0.45595353339787026,
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "relacao": "1:3"
+  },
+  {
+   "localidade": "PALMARES (PAL)",
+   "indice": 0.0784313725490196,
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "relacao": "1:13"
+  },
+  {
+   "localidade": "SAIRE",
+   "indice": 0.29518072289156627,
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "relacao": "1:4"
+  },
+  {
+   "localidade": "JATAUBA",
+   "indice": 0.5255474452554745,
+   "utd": "SANTA CRUZ DO CAPIBARIBE",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "TORITAMA",
+   "indice": 0.6132075471698113,
+   "utd": "SANTA CRUZ DO CAPIBARIBE",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "BOM JARDIM",
+   "indice": 0.32779097387173395,
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "relacao": "1:3"
+  },
+  {
+   "localidade": "CASINHAS",
+   "indice": 0.5526315789473685,
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "FREI MIGUELINHO",
+   "indice": 0.7471264367816092,
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "JOAO ALFREDO",
+   "indice": 0.4292929292929293,
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "relacao": "1:3"
+  },
+  {
+   "localidade": "OROBO",
+   "indice": 0.4857142857142857,
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "relacao": "1:3"
+  },
+  {
+   "localidade": "SURUBIM",
+   "indice": 0.42482517482517484,
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "relacao": "1:3"
+  },
+  {
+   "localidade": "VERTENTES",
+   "indice": 0.7003484320557491,
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "BETANIA",
+   "indice": 1.2088724584103512,
+   "utd": "AFOGADOS DA INGAZEIRA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "BREJINHO",
+   "indice": 0.640625,
+   "utd": "AFOGADOS DA INGAZEIRA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "CARNAIBA",
+   "indice": 0.8248730964467005,
+   "utd": "AFOGADOS DA INGAZEIRA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "CUSTODIA",
+   "indice": 1.0943738656987296,
+   "utd": "AFOGADOS DA INGAZEIRA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "FLORES",
+   "indice": 1.1773308957952469,
+   "utd": "AFOGADOS DA INGAZEIRA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "IGUARACI",
+   "indice": 0.65625,
+   "utd": "AFOGADOS DA INGAZEIRA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "INGAZEIRA",
+   "indice": 0.8153846153846154,
+   "utd": "AFOGADOS DA INGAZEIRA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "ITAPETIM",
+   "indice": 0.9105504587155964,
+   "utd": "AFOGADOS DA INGAZEIRA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "QUIXABA (AFI)",
+   "indice": 0.8175675675675675,
+   "utd": "AFOGADOS DA INGAZEIRA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "SANTA TEREZINHA",
+   "indice": 0.5492957746478874,
+   "utd": "AFOGADOS DA INGAZEIRA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "SAO JOSE DO EGITO",
+   "indice": 0.9053627760252366,
+   "utd": "AFOGADOS DA INGAZEIRA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "SOLIDAO",
+   "indice": 0.6126126126126126,
+   "utd": "AFOGADOS DA INGAZEIRA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "TABIRA",
+   "indice": 0.7586206896551724,
+   "utd": "AFOGADOS DA INGAZEIRA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "TUPARETAMA",
+   "indice": 0.9064327485380117,
+   "utd": "AFOGADOS DA INGAZEIRA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "ALAGOINHA",
+   "indice": 0.7838616714697406,
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "ARCOVERDE",
+   "indice": 0.6093525179856115,
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "BUIQUE",
+   "indice": 0.459375,
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:3"
+  },
+  {
+   "localidade": "IBIMIRIM",
+   "indice": 0.9297218155197657,
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "PEDRA",
+   "indice": 0.8147138964577657,
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "PESQUEIRA",
+   "indice": 0.7846655791190864,
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "POCAO",
+   "indice": 0.8188976377952756,
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "SERTANIA",
+   "indice": 1.0572472594397078,
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "TUPANATINGA",
+   "indice": 0.695852534562212,
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "VENTUROSA",
+   "indice": 0.9526813880126183,
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "AGUAS BELAS",
+   "indice": 1.1175523349436394,
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "BOM CONSELHO",
+   "indice": 0.8895966029723992,
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "BREJAO",
+   "indice": 0.9602272727272727,
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "CORRENTES",
+   "indice": 1.0105263157894737,
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "IATI",
+   "indice": 0.8975741239892183,
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "ITAIBA",
+   "indice": 1.1216783216783217,
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "LAGOA DO OURO",
+   "indice": 1.0439024390243903,
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "PALMEIRINA",
+   "indice": 0.7111111111111111,
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "SALOA",
+   "indice": 1.0537190082644627,
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "TEREZINHA",
+   "indice": 0.8235294117647058,
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "CABROBO",
+   "indice": 1.0320987654320988,
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "FLORESTA (FLO)",
+   "indice": 0.9700176366843033,
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "INAJA",
+   "indice": 0.8990228013029316,
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "ITACURUBA",
+   "indice": 0.8484848484848485,
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "JATOBA (FLO)",
+   "indice": 0.9270833333333334,
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "MANARI",
+   "indice": 0.9654088050314465,
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "PETROLANDIA",
+   "indice": 0.45901639344262296,
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:3"
+  },
+  {
+   "localidade": "TACARATU",
+   "indice": 0.7936962750716332,
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "ANGELIM (GAR)",
+   "indice": 0.628099173553719,
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "CACHOEIRINHA",
+   "indice": 0.9393939393939394,
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "CAETES",
+   "indice": 0.7512953367875648,
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "CALCADO",
+   "indice": 0.8818897637795275,
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "CANHOTINHO",
+   "indice": 1.0692307692307692,
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "CAPOEIRAS",
+   "indice": 1.030188679245283,
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:1"
+  },
+  {
+   "localidade": "GARANHUNS",
+   "indice": 0.7418139262726741,
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "JUCATI",
+   "indice": 0.9219512195121952,
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "JUPI",
+   "indice": 0.6974789915966386,
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "JUREMA",
+   "indice": 0.9196428571428571,
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "LAJEDO",
+   "indice": 0.8009708737864077,
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "PARANATAMA",
+   "indice": 0.757085020242915,
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "QUIPAPA",
+   "indice": 0.673469387755102,
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "SAO JOAO",
+   "indice": 0.7028423772609819,
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "OLINDA",
+   "indice": 0.06769230769230769,
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "relacao": "1:15"
+  },
+  {
+   "localidade": "SAO LOURENCO DA MATA",
+   "indice": 0.030379746835443037,
+   "utd": "CAMARAGIBE",
+   "utep": "NORTE",
+   "relacao": "1:32"
+  },
+  {
+   "localidade": "CUMARU",
+   "indice": 0.19540229885057472,
+   "utd": "CARPINA",
+   "utep": "NORTE",
+   "relacao": "1:5"
+  },
+  {
+   "localidade": "LIMOEIRO",
+   "indice": 0.20270270270270271,
+   "utd": "CARPINA",
+   "utep": "NORTE",
+   "relacao": "1:5"
+  },
+  {
+   "localidade": "PEDRAS DE FOGO",
+   "indice": 0.17721518987341772,
+   "utd": "GOIANA",
+   "utep": "NORTE",
+   "relacao": "1:6"
+  },
+  {
+   "localidade": "PAULISTA",
+   "indice": 0.042232277526395176,
+   "utd": "PAULISTA",
+   "utep": "NORTE",
+   "relacao": "1:23"
+  },
+  {
+   "localidade": "ALIANCA",
+   "indice": 0.045081967213114756,
+   "utd": "TIMBAUBA",
+   "utep": "NORTE",
+   "relacao": "1:22"
+  },
+  {
+   "localidade": "CAMUTANGA",
+   "indice": 0.4528301886792453,
+   "utd": "TIMBAUBA",
+   "utep": "NORTE",
+   "relacao": "1:3"
+  },
+  {
+   "localidade": "MACAPARANA",
+   "indice": 0.0821917808219178,
+   "utd": "TIMBAUBA",
+   "utep": "NORTE",
+   "relacao": "1:12"
+  },
+  {
+   "localidade": "TIMBAUBA",
+   "indice": 0.07171314741035857,
+   "utd": "TIMBAUBA",
+   "utep": "NORTE",
+   "relacao": "1:14"
+  },
+  {
+   "localidade": "ARARIPINA",
+   "indice": 0.1715706548498277,
+   "utd": "ARARIPINA",
+   "utep": "OESTE",
+   "relacao": "1:6"
+  },
+  {
+   "localidade": "IPUBI",
+   "indice": 0.050816696914700546,
+   "utd": "ARARIPINA",
+   "utep": "OESTE",
+   "relacao": "1:19"
+  },
+  {
+   "localidade": "TRINDADE",
+   "indice": 0.05504587155963303,
+   "utd": "ARARIPINA",
+   "utep": "OESTE",
+   "relacao": "1:18"
+  },
+  {
+   "localidade": "BODOCO",
+   "indice": 0.3695219123505976,
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "relacao": "1:3"
+  },
+  {
+   "localidade": "EXU",
+   "indice": 0.2190366972477064,
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "relacao": "1:5"
+  },
+  {
+   "localidade": "GRANITO",
+   "indice": 0.717741935483871,
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "OURICURI",
+   "indice": 0.22809076682316118,
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "relacao": "1:5"
+  },
+  {
+   "localidade": "PARNAMIRIM (OUR)",
+   "indice": 0.6128205128205129,
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "SANTA CRUZ",
+   "indice": 0.577023498694517,
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "SANTA FILOMENA",
+   "indice": 0.43562610229276894,
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "relacao": "1:3"
+  },
+  {
+   "localidade": "PETROLINA",
+   "indice": 0.3739338109860116,
+   "utd": "PETROLINA",
+   "utep": "OESTE",
+   "relacao": "1:3"
+  },
+  {
+   "localidade": "AFRANIO",
+   "indice": 0.6808923375363725,
+   "utd": "SANTA MARIA DA BOA VISTA",
+   "utep": "OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "DORMENTES",
+   "indice": 0.5765661252900232,
+   "utd": "SANTA MARIA DA BOA VISTA",
+   "utep": "OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "LAGOA GRANDE (SMBV)",
+   "indice": 0.720626631853786,
+   "utd": "SANTA MARIA DA BOA VISTA",
+   "utep": "OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "OROCO",
+   "indice": 0.7397260273972602,
+   "utd": "SANTA MARIA DA BOA VISTA",
+   "utep": "OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "CALUMBI",
+   "indice": 0.5037037037037037,
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "CARNAUBEIRA DA PENHA",
+   "indice": 0.45689655172413796,
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "relacao": "1:3"
+  },
+  {
+   "localidade": "MIRANDIBA",
+   "indice": 0.3968609865470852,
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "relacao": "1:3"
+  },
+  {
+   "localidade": "SALGUEIRO",
+   "indice": 0.6828543111992071,
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "SAO JOSE DO BELMONTE",
+   "indice": 0.1925192519251925,
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "relacao": "1:5"
+  },
+  {
+   "localidade": "SERRA TALHADA",
+   "indice": 0.5570530098831986,
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "SERRITA",
+   "indice": 0.8815261044176707,
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "TERRA NOVA",
+   "indice": 0.7394366197183099,
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "TRIUNFO",
+   "indice": 0.54337899543379,
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "VERDEJANTE",
+   "indice": 0.5527777777777778,
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "relacao": "1:2"
+  },
+  {
+   "localidade": "RIBEIRAO",
+   "indice": 0.09135066505441354,
+   "utd": "RIBEIRAO",
+   "utep": "SUL",
+   "relacao": "1:11"
+  }
+ ]
+}

@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-24 — Cava em rocha (modal ao lado do MAPA)
+
+Nova parte `cava_rocha` do pacote (pacote 081 traz as 121 localidades da aba CAVA_ROCHA da ICP). Botão **⛏ CAVA EM ROCHA** na barra de modais, logo depois do MAPA, só no projeto que tem a parte: calcula SDEMU3007II = mín(F; parte inteira de MARRED(F × índice; 0,1)), com F = estais em solo + postes de 9 m ou mais instalados no orçamento do Resumo (+ extra digitado), e lança `<qtd>-CAVA_ROCHA` em Outros (substitui a anterior; Ctrl+Z desfaz). `services/cava_rocha.py` e `static/cava_rocha.js` com a mesma conta; rota `GET /api/orcamento/cava_rocha` (com `ativo_na_base`). [TASK-248](tasks/TASK-248-24-11-2026.md).
+
 ## 2026-11-24 — Resultado: removendo sem aviso de parâmetro faltando
 
 O aviso «faltou informar CABO … — calculado só o que não depende disso» do Resultado do orçamento não aparece mais para itens R e *R (o cálculo não muda). Complemento da [TASK-247](tasks/TASK-247-24-11-2026.md).

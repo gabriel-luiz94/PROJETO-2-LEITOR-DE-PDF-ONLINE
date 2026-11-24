@@ -3,7 +3,7 @@
  "versao_formato": 1,
  "id": "081",
  "nome": "Pernambuco (Neoenergia)",
- "descricao": "Ponto de partida do projeto de Pernambuco: vinculação, leitor, dicionário de cabos, postes, desenho, exportação, tabela regional e transporte de material.",
+ "descricao": "Ponto de partida do projeto de Pernambuco: vinculação, leitor, dicionário de cabos, postes, desenho, exportação, tabela regional, transporte de material e cava em rocha.",
  "projeto_codigo_padrao": "081",
  "nome_projeto": "PERNAMBUCO",
  "origem": "pernambuco",
@@ -29,7 +29,8 @@
   "postes": "postes.json",
   "desenho": "leitura_desenho.json",
   "exportacao": "exportacao.json",
-  "transporte": "transporte.json"
+  "transporte": "transporte.json",
+  "cava_rocha": "cava_rocha.json"
  },
  "complementos_leitor": {
   "processamento": {

@@ -85,6 +85,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-248](tasks/TASK-248-24-11-2026.md) — Cava em rocha: parte `cava_rocha` do pacote, botão CAVA EM ROCHA ao lado do MAPA, conta igual à aba CAVA_ROCHA da ICP e lançamento em Outros.
 - [x] [TASK-247](tasks/TASK-247-24-11-2026.md) — Validação: R/*R sem aviso de vínculo/parâmetros e fora das cores; F sem aviso de vínculo; cor dos parâmetros na hora.
 - [x] [TASK-245](tasks/TASK-245-24-11-2026.md) — Resumo: modal «Transporte de material» (TRANSP/TRANSP_KM igual à aba TRANSPORT da ICP), parte `transporte` do pacote.
 - [x] [TASK-246](tasks/TASK-246-24-11-2026.md) — Plugin 0.16.4: Selecionar cabo pelo trecho clicado da polilinha, comprimento usado = medido arredondado, metragem por linha do cabo.
