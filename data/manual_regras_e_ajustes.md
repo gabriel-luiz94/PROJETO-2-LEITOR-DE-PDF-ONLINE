@@ -1146,3 +1146,12 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 
 - **Editar** de um cabo (na lista ou nas Opções do cabo dentro do ponto) abre o mesmo formulário do **+ Cabo**: ativo sem a metragem, operação nos botões **F / I / M / R / \*I / \*M / \*R**, **comprimento em metros** separado, nível, fases e tensão.
 - **Editar** de uma estrutura no painel do ponto abre a linha em **Linhas do ponto**: troque o texto e a operação e clique **OK** (Enter grava, Esc cancela).
+
+## Mapa: cadastro rápido de cabos (24/11/2026)
+
+- Nos formulários de cabo do Mapa (**+ Cabo**, **Traçar cabo** e **Editar cabo**), o ativo se completa enquanto você digita. A parte sugerida aparece **selecionada** depois do cursor:
+  - **3** → **3x**
+  - **3xA35P(** → **3xA35P(7,94)-13,8kV**
+  - **3xC25-** → **3xC25-13,8kV**
+- **Tab** (ou → / End) aceita; continuar digitando troca a sugestão; **Backspace** apaga.
+- A sugestão usa o que já existe nos cabos da obra (ex.: se a obra tem «1xC16(16)», ao digitar «1xC16(» vem «16)»). Sem exemplo, vale o padrão: «7,94)-13,8kV» para cabo protegido (A..P) e «13,8kV» de tensão.

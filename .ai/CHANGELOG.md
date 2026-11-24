@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-24 — Pré-preenchimento do ativo do cabo
+
+Nos formulários de cabo do Mapa, o ativo se completa enquanto se digita: «3» → «3x», «A35P(» → «7,94)-13,8kV», «-» → «13,8kV» (aprendendo com os cabos da obra); Tab aceita. [TASK-243](tasks/TASK-243-24-11-2026.md).
+
 ## 2026-11-24 — Editar cabo e poste no Mapa pelos formulários novos
 
 «Editar» do cabo abre o formulário do «+ Cabo» (F/I/M/R, comprimento separado) e «Editar» da estrutura abre a linha em «Linhas do ponto»; o cartão antigo saiu. [TASK-242](tasks/TASK-242-24-11-2026.md).

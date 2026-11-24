@@ -2531,6 +2531,8 @@
             return campo;
         }
 
+        /** TASK-243: pré-preenchimento do ativo do cabo, aprendendo com os cabos da obra (cabo_autocompletar.js). */
+        const completarCabo = input => raiz.CaboAutocompletar?.ligar(input, () => cabos().map(c => c?.ativo).filter(Boolean));
         // ── TASK-242: editar cabo e linha do ponto pelos formulários novos (os mesmos de + Cabo e de «Linhas do ponto») ──
         const RE_METRAGEM = /\s+(\d+(?:[.,]\d+)?)\s*m\.?\s*$/i;
         function botaoEditarCabo(ic) {
@@ -2558,6 +2560,7 @@
             const m = RE_METRAGEM.exec(ref.ativo || '');
             const ativo = el('input', { type: 'text', required: '', maxlength: '440', placeholder: '3xA35P-13,8kV ou CAA2', 'data-sugestao-origem': 'CABOS' });
             ativo.value = m ? ref.ativo.slice(0, m.index) : (ref.ativo || '');
+            completarCabo(ativo);
             const operacao = seletorOperacao(opDaLinha(ref));
             const metros = el('input', { type: 'text', inputmode: 'decimal', maxlength: '24', placeholder: 'sem metragem' });
             metros.value = m ? m[1] : '';
@@ -2750,6 +2753,7 @@
             const ativo = el('input', { type: 'text', required: '', maxlength: '440', placeholder: exemplo, 'data-sugestao-origem': cabo ? 'CABOS' : 'OUTROS' });
             const referencia = edicao && outros()[edicao.poste];
             if (referencia) ativo.value = referencia.ativo;
+            if (cabo) completarCabo(ativo);                                                               // TASK-243: «3» → «3x», «A35P(» → «7,94)-13,8kV», «-» → «13,8kV»
             const operacao = cabo ? seletorOperacao('I') : selectComValor(operacoesEdicao, referencia?.operacao || 'I');        // TASK-235: no cabo, F = cabo fictício
             const metros = el('input', { type: 'text', inputmode: 'decimal', maxlength: '24', required: '', placeholder: '25' });
             const fases = (raiz.GradeTabela?.FASES || ['A', 'B', 'C', 'AB', 'AC', 'BC', 'ABC']);
