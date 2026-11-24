@@ -185,6 +185,12 @@ namespace OrcamentoNanoCAD
         public bool AnaliseCores;
         private readonly Marcas _destaque = new Marcas();
         public readonly Marcas MarcasMapa = new Marcas();          // 0.16.3: o que já foi coletado no modo mapa (só com o painel aberto)
+        /// <summary>0.16.4: destaca (amarelo) o trecho do cabo escolhido enquanto se selecionam as anotações.</summary>
+        public void DestacarTrecho(List<Ponto> pontos)
+        {
+            try { _destaque.Limpar(); _destaque.Trecho(pontos); }
+            catch (System.Exception ex) { Aplicacao.Log("Destaque do trecho: " + ex.Message); }
+        }
         public void DestacarMapa(string numero)
         {
             try { _destaque.Limpar(); if (Obra != null && !string.IsNullOrEmpty(numero)) _destaque.DestacarMapa(Obra, numero); }

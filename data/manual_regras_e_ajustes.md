@@ -1172,3 +1172,8 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - **Lançar em Outros** troca as linhas TRANSP/TRANSP_KM de um cálculo anterior pelas novas, ex.: `12.6-TRANSP(faixa=14T)` e `1537.19-TRANSP_KM(faixa=14T)`. Ctrl+Z desfaz.
 - As bordas da ICP são mantidas de propósito (ex.: entre 4 e 4,001 t não sai serviço; os postes 3302087 e 3302014 contam em dobro).
 
+## Plugin: modo mapa — cabo pelo trecho clicado e metragem por linha (24/11/2026)
+
+- **Selecionar cabo** não pergunta mais «Inteira/Trecho»: numa **linha** vale ela inteira; numa **polilinha** vale o **trecho que você clicou**, de vértice a vértice. O trecho fica em amarelo enquanto você escolhe as anotações.
+- A janela do cabo mostra o **Medido na linha** (só para conferência) e o **Comprimento usado**, que é o que vai para a anotação. Ele já vem com o medido **arredondado** (31,2 m → 31 m); digite outro valor se precisar.
+- Cada linha do cabo tem o seu **m**. Se o texto capturado tem metragem — **PB70 32 m** ou **PB70/32 m** —, ela fica naquela linha (em preto). As linhas sem metragem própria usam o comprimento usado (em cinza). Apagar o **m** de uma linha faz ela voltar ao comprimento usado. (Plugin 0.16.4.)

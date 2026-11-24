@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.16.4
+
+TASK-038 (ajuste): Selecionar cabo sem «Inteira/Trecho» — polilinha = trecho clicado (vértice a vértice), LINE = inteira; janela com Medido na linha + Comprimento usado (medido arredondado) e metragem por linha do cabo («PB70 32 m», «PB70/32 m»). ✅ 153 testes do núcleo; DLLs 0.16.4. 🟡 Validar no nanoCAD (clique no trecho e janela do cabo).
+
 ## Plugin 0.16.3
 
 TASK-038 (ajuste): tipo do cabo pela cor; coletados marcados na tela (ciano/laranja/cinza) com o painel aberto; item do mapa no painel: clique = zoom + destaque com o objeto base; Editar, Excluir, Definir poste/cabo. ✅ 151 testes do núcleo; DLLs 0.16.3. 🟡 Validar no nanoCAD (marcas transitórias e zoom pelo painel).

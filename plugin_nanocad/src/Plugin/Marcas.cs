@@ -273,6 +273,18 @@ namespace OrcamentoNanoCAD
             }
         }
 
+        /// <summary>0.16.4: o trecho do cabo que acabou de ser escolhido (amarelo, com as pontas).</summary>
+        public void Trecho(IList<Ponto> pts)
+        {
+            if (pts == null || pts.Count < 2) return;
+            Caminho(pts, Amarelo);
+            double r = Math.Max(Comprimento(pts) * 0.02, 0.3);
+            Circulo(pts[0].X, pts[0].Y, r, Amarelo);
+            Circulo(pts[pts.Count - 1].X, pts[pts.Count - 1].Y, r, Amarelo);
+        }
+
+        private static double Comprimento(IList<Ponto> pts) { double s = 0; for (int i = 1; i < pts.Count; i++) s += pts[i - 1].Dist(pts[i]); return s; }
+
         /// <summary>Destaque (amarelo) do item escolhido no painel, junto com o objeto base: o poste (círculo) ou a linha/trecho do cabo.</summary>
         public void DestacarMapa(Obra obra, string numero)
         {
