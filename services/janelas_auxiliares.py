@@ -6,7 +6,7 @@ from config import logger
 from services.arquivos_desktop import ApiArquivos
 from services.projeto_desktop import ApiProjeto
 
-TITULOS = {"resultado": "Resultado", "base": "Base de Orçamento"}
+TITULOS = {"resultado": "Resultado", "base": "Base de Orçamento", "mapa": "Mapa"}          # TASK-241: o Mapa (Resumo em modo janela)
 
 
 class ApiVisualizacao(ApiArquivos):

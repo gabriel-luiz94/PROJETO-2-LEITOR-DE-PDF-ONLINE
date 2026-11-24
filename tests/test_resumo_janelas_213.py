@@ -101,9 +101,13 @@ def test_importacao_comparacao_e_janelas_auxiliares(tmp_path, monkeypatch):
                 base.get_by_role("button", name="Minimizar", exact=True).click()
                 assert not base.is_visible()
                 assert pagina.get_by_role("button", name="Maximizar Base de Orçamento").is_visible()
+                # TASK-241: o Mapa (antigo Vincular cabos) abre como as janelas de Resultado e Base, já na aba Mapa
                 pagina.locator("[data-modal-id=vincular]").click()
-                pagina.get_by_role("button", name="Abrir em janela").click()
-                vinculo = pagina.get_by_role("region", name="Vinculação")
+                vinculo = pagina.get_by_role("region", name="Mapa")
+                vinculo.locator("svg.vz-mapa").wait_for()
+                assert vinculo.locator(".vz-tab.on").inner_text() == "Mapa"
+                pagina.keyboard.press("Escape")
+                assert vinculo.is_visible()                                       # Esc no Mapa só deseleciona
                 vinculo.get_by_role("button", name="Minimizar", exact=True).click()
                 pagina.locator("[data-modal-id=vincular]").click()
                 assert vinculo.locator("#vz-corpo").is_visible()
@@ -137,7 +141,7 @@ def test_importacao_comparacao_e_janelas_auxiliares(tmp_path, monkeypatch):
                 linha_nativa = quadro_nativo.locator("#resultado-orcamento-tbody tr")
                 linha_nativa.get_by_text("4321", exact=True).wait_for()
                 resultado.wait_for(state="hidden")
-                assert vinculo.is_visible()
+                assert pagina.get_by_role("button", name="Maximizar Mapa").is_visible()        # uma visualização por vez: o Mapa foi para o rodapé
                 montar()
                 linha_nativa.get_by_text("4322", exact=True).wait_for()
                 linha_nativa.locator("td").nth(3).fill("Ajuste <literal>")
@@ -149,7 +153,7 @@ def test_importacao_comparacao_e_janelas_auxiliares(tmp_path, monkeypatch):
                 assert resultado.is_visible()
                 resultado.locator("iframe").evaluate("(f) => f.contentWindow.voltarOuFechar()")
                 resultado.wait_for(state="detached")
-                assert vinculo.is_visible()
+                assert pagina.get_by_role("button", name="Maximizar Mapa").is_visible()
                 assert pagina.get_by_role("button", name="Maximizar Base de Orçamento").is_visible()
                 # A Base usa o mesmo protocolo e mantém a edição ainda não gravada.
                 pagina.get_by_role("button", name="Maximizar Base de Orçamento").click()

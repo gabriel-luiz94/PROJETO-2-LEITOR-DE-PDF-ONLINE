@@ -1134,3 +1134,24 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - **Tipo do cabo:** vem da **cor** da linha escolhida (vermelho = MT, verde = BT, ou as cores do projeto). Sem cor de rede, vale a layer e, por fim, o texto (kV/A35P → MT; PB/C16 → BT).
 - **O que já foi coletado aparece na tela:** pontos em **ciano**, cabos em **laranja**, já enviados ao OrçaCore em **cinza**, com as anotações usadas emolduradas. Só enquanto o painel está aberto; ao fechar, some (nada é gravado no desenho). **Mostrar ou ocultar marcas** também liga/desliga.
 - **No painel**, clique num ponto ou cabo da lista: o desenho **enquadra e destaca em amarelo** o item, as anotações e o objeto base (o poste ou a linha/trecho do cabo). Use **Editar** (campos e comprimento), **Excluir** ou **Definir poste / Definir cabo** (escolher outro bloco ou outra linha; os campos ficam). (Plugin 0.16.3.)
+
+## Mapa: janela própria e outra janela do Windows (24/11/2026)
+
+- O antigo **Vincular cabos** agora é o botão **MAPA**. Ele abre direto no mapa; as outras abas (Vínculo, tabelas, Script…) continuam lá.
+- O Mapa abre como o **Resultado** e a **Base de Orçamento**: ocupa a área principal; **Minimizar** manda para o rodapé (clique em **Maximizar Mapa** para voltar); **Maximizar/Restaurar** muda o tamanho; **Fechar** fecha.
+- **Abrir em nova janela** leva o Mapa para uma janela do Windows (por exemplo, no outro monitor). O que você faz lá aparece na hora nas tabelas da janela principal, e o que muda nas tabelas aparece no Mapa. **Retornar à visualização principal** (ou fechar a janela) traz o Mapa de volta. Ctrl+Z na janela principal desfaz o que veio do Mapa.
+- **Esc** no Mapa só tira a seleção (pontos, cabo, ferramenta). Para fechar, use o **Fechar** da janela.
+
+## Mapa: editar cabo e poste (24/11/2026)
+
+- **Editar** de um cabo (na lista ou nas Opções do cabo dentro do ponto) abre o mesmo formulário do **+ Cabo**: ativo sem a metragem, operação nos botões **F / I / M / R / \*I / \*M / \*R**, **comprimento em metros** separado, nível, fases e tensão.
+- **Editar** de uma estrutura no painel do ponto abre a linha em **Linhas do ponto**: troque o texto e a operação e clique **OK** (Enter grava, Esc cancela).
+
+## Mapa: cadastro rápido de cabos (24/11/2026)
+
+- Nos formulários de cabo do Mapa (**+ Cabo**, **Traçar cabo** e **Editar cabo**), o ativo se completa enquanto você digita. A parte sugerida aparece **selecionada** depois do cursor:
+  - **3** → **3x**
+  - **3xA35P(** → **3xA35P(7,94)-13,8kV**
+  - **3xC25-** → **3xC25-13,8kV**
+- **Tab** (ou → / End) aceita; continuar digitando troca a sugestão; **Backspace** apaga.
+- A sugestão usa o que já existe nos cabos da obra (ex.: se a obra tem «1xC16(16)», ao digitar «1xC16(» vem «16)»). Sem exemplo, vale o padrão: «7,94)-13,8kV» para cabo protegido (A..P) e «13,8kV» de tensão.

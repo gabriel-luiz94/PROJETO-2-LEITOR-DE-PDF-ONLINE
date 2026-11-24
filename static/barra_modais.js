@@ -17,7 +17,7 @@
         { id: 'cabos', nome: 'CABOS', icone: '〰️' },
         { id: 'conexoes', nome: 'CONEXÕES', icone: '🔌' },
         { id: 'ramais', nome: 'RAMAIS', icone: '📍' },
-        { id: 'vincular', nome: 'VINCULAR CABOS', icone: '🔗' }
+        { id: 'vincular', nome: 'MAPA', icone: '🗺' }
     ];
 
     /** Ordem efetiva: a salva (só ids que existem) + os que faltam na ordem padrão. */

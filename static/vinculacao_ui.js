@@ -12,6 +12,8 @@
     .vz-ov{position:fixed;inset:0;background:#05080d;z-index:9000;display:flex;align-items:center;justify-content:center}
     .vz{width:min(1500px,96vw);height:min(900px,94vh);background:#0d1117;border:1px solid #30363d;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;color:#c9d1d9;font:13px/1.35 -apple-system,Segoe UI,Roboto,sans-serif}
     .vz-ov.vz-destacada{position:relative;inset:auto;z-index:auto;flex:1;min-height:0;background:transparent}
+    .vz-ov.vz-destacada.vz-pagina{position:fixed;inset:0;z-index:9000;background:#0d1117}
+    .vz-ov.vz-destacada:not(.vz-pagina) .vz-top .vz-x{display:none}
     .vz-destacada > .vz{width:100%;height:100%;border:0;border-radius:0}
     .vz-destacada .vz-destacar{display:none}
     .vz-destacada .vz-foot{gap:6px;flex-wrap:wrap}
@@ -317,7 +319,9 @@
         if (abrindo) return;
         if (overlay && overlay.style.display !== 'none') {
             if (host === h && st.projeto === h.projeto() && !opcoes?.aba) {
-                if (!raiz.AbrirNaApp?.trazerPainel('vinculacao')) overlay.focus();
+                if (raiz.AbrirNaApp?.nativaAtiva?.('mapa')) { toast('O Mapa está aberto em outra janela.'); return; }
+                raiz.AbrirNaApp?.trazerConteudo?.('mapa');
+                overlay.focus();
                 return;
             }
             if (!fechar()) return;
@@ -332,43 +336,68 @@
         }
         abrindo = false;
         if (projeto !== host.projeto()) return;
-        st = { projeto, cfg: clone(VR.normalizarConfig(cfg)), aba: (opcoes && opcoes.aba) || 'vinculo', sel: null, filtro: 'todos', filtroCP: 'todos', kbModo: 'c', kbP: null, elAch: null, auto: true, cfgVer: 0, resultadoPoste: null, elRes: null, dirty: false, scriptIdx: 0, previa: null, textoScript: null, erroScript: '', teste: {} };
+        st = { projeto, cfg: clone(VR.normalizarConfig(cfg)), aba: (opcoes && opcoes.aba) || 'mapa', sel: null, filtro: 'todos', filtroCP: 'todos', kbModo: 'c', kbP: null, elAch: null, auto: true, cfgVer: 0, resultadoPoste: null, elRes: null, dirty: false, scriptIdx: 0, previa: null, textoScript: null, erroScript: '', teste: {} };
         if (!overlay) {
-            overlay = el('div', { class: 'vz-ov', onkeydown: e => { if (tecladoCabosPostes(e)) return; if (e.defaultPrevented || e.target.closest('dialog')) return; if (e.key === 'Escape') { if (menuAberto) fecharMenu(); else fechar(); } } });
+            // TASK-241: Esc no Mapa só deseleciona; na janela (visualização) nunca fecha — só o modal antigo (sem AbrirNaApp) fecha fora do mapa
+            overlay = el('div', { class: 'vz-ov', onkeydown: e => { if (tecladoCabosPostes(e)) return; if (e.defaultPrevented || e.target.closest('dialog')) return; if (e.key === 'Escape') { if (menuAberto) fecharMenu(); else if (st.aba !== 'mapa' && !overlay.classList.contains('vz-destacada')) fechar(); } } });
             overlay.setAttribute('tabindex', '-1');
             doc.body.appendChild(overlay);
         }
         if (!overlay.isConnected) doc.body.appendChild(overlay);
         overlay.style.display = 'flex';
+        montarJanela();
         cx = null; painel = null; metaAtivo.clear();
         render();
         overlay.focus();
     }
 
-    function destacar() {
-        if (!raiz.AbrirNaApp || !overlay || overlay.classList.contains('vz-destacada')) return;
-        fecharMenu();
+    // TASK-241: o Mapa abre como as janelas de Resultado e Base de Orçamento (área principal, minimiza para o rodapé, maximizar/restaurar
+    // e «Abrir em nova janela» do Windows). Na janela nativa, o Resumo roda em modo janela (__modoJanelaMapa) e mostra só o Mapa, a página toda.
+    let assinaturaNativa = '', envioNativa = 0;
+    function montarJanela() {
+        if (raiz.__modoJanelaMapa) { overlay.classList.add('vz-destacada', 'vz-pagina'); return; }
+        if (!raiz.AbrirNaApp?.abrirConteudo) return;                        // sem a moldura do programa: o modal de sempre
         overlay.classList.add('vz-destacada');
-        raiz.AbrirNaApp.painel('vinculacao', 'Vinculação', overlay, {
+        assinaturaNativa = '';
+        raiz.AbrirNaApp.abrirConteudo('mapa', 'Mapa', overlay, {
             aoFechar: fechar,
-            aoReencaixar() {
-                overlay.classList.remove('vz-destacada');
-                doc.body.append(overlay);
-                raiz.AbrirNaApp.removerPainel('vinculacao');
-                overlay.focus();
-            }
+            capturar: () => (host?.instantaneo ? { dados: host.instantaneo(), fundo: host.fundoCad?.() || null } : null),
+            restaurar: estado => {
+                if (estado?.dados) aplicarDaNativa(estado.dados);
+                raiz.requestAnimationFrame(() => atualizarObra(false, true));      // voltou da janela nativa: redesenha com o que mudou lá
+            },
+            aoDados: dados => aplicarDaNativa(dados)
+        });
+    }
+    /** A janela nativa mudou a obra: aplica aqui (um passo de Ctrl+Z) sem devolver o mesmo estado para ela. */
+    function aplicarDaNativa(dados) {
+        if (!dados || !host?.aplicarInstantaneo) return;
+        assinaturaNativa = JSON.stringify(dados);
+        host.aplicarInstantaneo(dados);
+    }
+    /** A obra mudou nesta janela com o Mapa aberto na janela nativa: manda o estado para lá (uma vez por quadro, só se mudou). */
+    function sincronizarNativa() {
+        if (!raiz.AbrirNaApp?.nativaAtiva?.('mapa') || !host?.instantaneo || envioNativa) return;
+        envioNativa = raiz.requestAnimationFrame(() => {
+            envioNativa = 0;
+            const dados = host.instantaneo(), assinatura = JSON.stringify(dados);
+            if (assinatura === assinaturaNativa) return;
+            assinaturaNativa = assinatura;
+            raiz.AbrirNaApp.enviarNativa('mapa', 'dados', { dados });
         });
     }
 
     let atualizacao = 0;
-    function atualizarObra(substituida = false) {
-        if (!overlay?.classList.contains('vz-destacada')) return;
+    function atualizarObra(substituida = false, forcar = false) {
+        if (!overlay?.classList.contains('vz-destacada') || overlay.style.display === 'none') return;
+        sincronizarNativa();
+        if (raiz.AbrirNaApp?.nativaAtiva?.('mapa')) return;                 // o Mapa está na janela nativa: aqui fica escondido
         if (substituida) {
             overlay.querySelectorAll('.vz-no-dialog[open]').forEach(d => d.close());
             st.grafoNo = null;
             st.grafoVista = null;
             st.sel = null;
-        } else if (overlay.contains(doc.activeElement)) return;
+        } else if (!forcar && overlay.contains(doc.activeElement)) return;
         if (atualizacao) return;
         atualizacao = raiz.requestAnimationFrame(() => {
             atualizacao = 0;
@@ -388,9 +417,10 @@
         mapaDesmontar = mapaAtualizar = null;
         if (overlay) {
             overlay.style.display = 'none';
-            if (overlay.classList.contains('vz-destacada')) {
+            if (raiz.__modoJanelaMapa) { raiz.AbrirNaApp?.voltarOuFechar?.(); }      // janela nativa: fechar o Mapa fecha a janela (a obra volta antes)
+            else if (overlay.classList.contains('vz-destacada')) {
                 overlay.classList.remove('vz-destacada');
-                raiz.AbrirNaApp.removerPainel('vinculacao');
+                raiz.AbrirNaApp?.removerConteudo?.('mapa');
             }
         }
         if (host && host.depois) host.depois();
@@ -426,18 +456,17 @@
         overlay.innerHTML = '';
         if (st.projeto !== host.projeto()) {
             overlay.appendChild(el('div', { class: 'vz' }, [
-                el('div', { class: 'vz-top' }, [el('h3', { text: 'Vinculação' }), el('button', { class: 'vz-x', text: '✕', 'aria-label': 'Fechar', onclick: fechar })]),
-                el('div', { class: 'vz-corpo' }, [el('p', { role: 'status', text: 'O projeto do Resumo mudou. Feche esta janela e abra a Vinculação do projeto atual.' })])
+                el('div', { class: 'vz-top' }, [el('h3', { text: 'Mapa' }), el('button', { class: 'vz-x', text: '✕', 'aria-label': 'Fechar', onclick: fechar })]),
+                el('div', { class: 'vz-corpo' }, [el('p', { role: 'status', text: 'O projeto do Resumo mudou. Feche esta janela e abra o Mapa do projeto atual.' })])
             ]));
             return;
         }
-        const abas = [['vinculo', 'Vínculo', ''], ['cabopostes', 'Cabos ⇄ Postes', ''], ['mapa', 'Mapa', ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''], ['casos', 'Casos', ''], ['pacote', 'Pacote', ''],
+        const abas = [['mapa', 'Mapa', ''], ['vinculo', 'Vínculo', ''], ['cabopostes', 'Cabos ⇄ Postes', ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''], ['casos', 'Casos', ''], ['pacote', 'Pacote', ''],
             ['script', 'Script', st.cfg.scripts.length]];
         const vz = el('div', { class: st.aba === 'mapa' ? 'vz vz--grafo' : 'vz' }, [
-            el('div', { class: 'vz-top' }, [el('h3', { text: '🔗 Vinculação cabo ⇄ estrutura' }), el('span', { class: 'vz-chip', text: 'Projeto ' + host.projeto() }),
+            el('div', { class: 'vz-top' }, [el('h3', { text: '🗺 Mapa' }), el('span', { class: 'vz-chip', text: 'Projeto ' + host.projeto() }),
                 st.dirty ? el('span', { class: 'vz-chip', style: 'color:#d29922;border-color:#d29922', text: 'alterações não salvas' }) : null,
-                raiz.AbrirNaApp ? el('button', { class: 'vz-btn vz-destacar', text: 'Abrir em janela', onclick: destacar }) : null,
-                el('button', { class: 'vz-x', text: '✕', 'aria-label': 'Fechar vinculação', onclick: fechar })]),
+                el('button', { class: 'vz-x', text: '✕', 'aria-label': 'Fechar mapa', onclick: fechar })]),
             el('div', { class: 'vz-tabs' }, abas.map(([id, nome, n]) => el('button', { class: 'vz-tab' + (st.aba === id ? ' on' : ''), onclick: () => { st.aba = id; st.sel = null; render(); } }, [nome, id === 'vinculo' ? el('b', { id: 'vz-pend', text: String(n), style: n === '' ? 'display:none' : '' }) : (n !== '' ? el('b', { text: String(n) }) : null)]))),
             el('div', { class: 'vz-corpo', id: 'vz-corpo' }),
             rodape()]);
@@ -2068,7 +2097,7 @@
                     diagDe(ic).diverge ? el('small', { class: 'vz-grafo-alerta', text: '⚠ Nível ' + diagDe(ic).nivel + ' pelo ' + (diagDe(ic).fonte === 'linha' ? 'nível da linha' : diagDe(ic).fonte) + ', mas a linha do desenho é ' + diagDe(ic).geo + ' (confira a associação no CAD)' }) : null,
                     diagDe(ic).motivo ? el('small', { class: 'vz-grafo-alerta', text: '⚠ ' + diagDe(ic).motivo.charAt(0).toUpperCase() + diagDe(ic).motivo.slice(1) }) : null,
                     el('div', { class: 'vz-grafo-pontas' }, botoes),
-                    controleEdicao('cabo', ic), host.copiarCaboNoMapa ? botao('Copiar', () => copiarCabo(ic), 'Copiar ' + nome + ' (cabo novo, sem pontas ligadas)') : null, consulta
+                    botaoEditarCabo(ic), host.copiarCaboNoMapa ? botao('Copiar', () => copiarCabo(ic), 'Copiar ' + nome + ' (cabo novo, sem pontas ligadas)') : null, consulta
                 ]);
             };
             cartoes?.observador?.disconnect();
@@ -2384,14 +2413,15 @@
             if (colocando || e.ctrlKey || e.metaKey || e.altKey || dialogo.open || editor.open) return;
             const t = e.target;
             if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.closest?.('dialog'))) return;
-            if (!svg.isConnected) return;
+            if (!svg.isConnected || !svg.getClientRects().length) return;                     // TASK-241: Mapa minimizado/escondido não pega teclas
+            if (t && t !== doc.body && t !== doc.documentElement && !overlay?.contains(t)) return;       // foco em outra tela do Resumo
             const k = e.key;
             if (k === 'Escape') {
-                if (!ferramenta && !selecao.size && caboEscolhido === null && !arrasto) return;
+                // TASK-241: Esc no Mapa só deseleciona (ferramenta, seleção, ponta escolhida, cabo em foco) — nunca fecha o Mapa
                 e.preventDefault(); e.stopPropagation();
                 if (ferramenta) alternarVao(false);
                 limparSelecao();
-                if (caboEscolhido !== null) { caboEscolhido = pontaEscolhida = null; atualizarSelecao(); }
+                if (caboEscolhido !== null || caboEmFoco !== null) { caboEscolhido = pontaEscolhida = null; caboEmFoco = null; atualizarSelecao(); desenharAlcas(); }
                 return;
             }
             if (!host.inserirNoMapa) return;
@@ -2499,6 +2529,70 @@
             const campo = el('select', {}, opcoes(todas));
             campo.value = atual;
             return campo;
+        }
+
+        /** TASK-243: pré-preenchimento do ativo do cabo, aprendendo com os cabos da obra (cabo_autocompletar.js). */
+        const completarCabo = input => raiz.CaboAutocompletar?.ligar(input, () => cabos().map(c => c?.ativo).filter(Boolean));
+        // ── TASK-242: editar cabo e linha do ponto pelos formulários novos (os mesmos de + Cabo e de «Linhas do ponto») ──
+        const RE_METRAGEM = /\s+(\d+(?:[.,]\d+)?)\s*m\.?\s*$/i;
+        function botaoEditarCabo(ic) {
+            const c = cabos()[ic];
+            if (!c || !host.editarNoMapa) return null;
+            const b = botao('Editar', () => abrirEdicaoCabo(ic), 'Editar cabo ' + (ic + 1));
+            b.disabled = Boolean(c.bloqueada || c.comentario);
+            return b;
+        }
+        /** «Editar» da estrutura no painel do ponto: abre a mesma linha no editor «Linhas do ponto» (texto + F/I/M/R). null = sem esse editor. */
+        function editarLinhaNoPonto(indice, rotulo) {
+            if (!host.salvarPontoNoMapa || !outros()[indice] || outros()[indice].grupoDecl) return null;
+            const b = botao('Editar', () => {
+                const alvo = dialogo.querySelector(`.vz-lp-painel[data-linha-ponto="${indice}"]`);
+                if (!alvo) return;
+                alvo.scrollIntoView({ block: 'nearest' });
+                alvo.click();
+            }, 'Editar ' + rotulo + ' nas linhas do ponto');
+            b.disabled = Boolean(outros()[indice].bloqueada || outros()[indice].comentario);
+            return b;
+        }
+        function abrirEdicaoCabo(ic) {
+            const ref = cabos()[ic];
+            if (!ref) return;
+            const m = RE_METRAGEM.exec(ref.ativo || '');
+            const ativo = el('input', { type: 'text', required: '', maxlength: '440', placeholder: '3xA35P-13,8kV ou CAA2', 'data-sugestao-origem': 'CABOS' });
+            ativo.value = m ? ref.ativo.slice(0, m.index) : (ref.ativo || '');
+            completarCabo(ativo);
+            const operacao = seletorOperacao(opDaLinha(ref));
+            const metros = el('input', { type: 'text', inputmode: 'decimal', maxlength: '24', placeholder: 'sem metragem' });
+            metros.value = m ? m[1] : '';
+            const nivel = el('select', {}, opcoes([['', 'Pelo ativo'], ['MT', 'MT'], ['BT', 'BT']]));
+            nivel.value = ['MT', 'BT'].includes(ref.nivel) ? ref.nivel : '';
+            const fases = el('input', { type: 'text', inputmode: 'numeric', maxlength: '1', placeholder: 'Pelo ativo' });
+            fases.value = ref.fases ?? '';
+            const tensao = el('input', { type: 'text', maxlength: '40', placeholder: 'Pelo ativo' });
+            tensao.value = ref.tensao ?? '';
+            const campos = [campo('Ativo ou rótulo, sem a metragem', ativo), campo('Operação', operacao), campo('Comprimento em metros', metros),
+                campo('Nível', nivel), campo('Fases (quantidade)', fases), campo('Tensão', tensao)];
+            abrirEditor('Editar cabo ' + (ic + 1), 'Salvar edição', campos, () => {
+                if (st.projeto !== host.projeto()) return 'O projeto mudou. Reabra o mapa para editar.';
+                let rotulo = trim(ativo.value), mt = trim(metros.value);
+                const digitada = RE_METRAGEM.exec(rotulo);
+                if (digitada && !mt) { mt = digitada[1]; rotulo = trim(rotulo.slice(0, digitada.index)); }      // «CAA2 35 m» no rótulo: vale como comprimento
+                if (!rotulo) return 'Informe o ativo do cabo.';
+                if (mt && !(Number(mt.replace(',', '.')) > 0)) return 'Informe um comprimento maior que zero, em metros.';
+                const anterior = JSON.stringify(ref);
+                const erro = host.editarNoMapa('cabo', ic, ref, { ativo: mt ? rotulo + ' ' + mt + ' m' : rotulo, operacao: operacao.value,
+                    fases: trim(fases.value), tensao: trim(tensao.value), nivel: nivel.value }, st.cfg);
+                if (erro) return erro;
+                caboEmFoco = ic;
+                const total = anterior !== JSON.stringify(ref) ? automatizarPontos(VR.postesAtribuidos(cabos()[ic])) : 0;
+                ultimoStatus = comVinculosAutomaticos('Cabo atualizado na tabela.', total);
+                cx = null;
+                metaAtivo.clear();
+                atualizar();
+                host.depois?.();
+                avisos.textContent = ultimoStatus;
+                return '';
+            });
         }
 
         function controleEdicao(tipo, indice, rotulo) {
@@ -2659,6 +2753,7 @@
             const ativo = el('input', { type: 'text', required: '', maxlength: '440', placeholder: exemplo, 'data-sugestao-origem': cabo ? 'CABOS' : 'OUTROS' });
             const referencia = edicao && outros()[edicao.poste];
             if (referencia) ativo.value = referencia.ativo;
+            if (cabo) completarCabo(ativo);                                                               // TASK-243: «3» → «3x», «A35P(» → «7,94)-13,8kV», «-» → «13,8kV»
             const operacao = cabo ? seletorOperacao('I') : selectComValor(operacoesEdicao, referencia?.operacao || 'I');        // TASK-235: no cabo, F = cabo fictício
             const metros = el('input', { type: 'text', inputmode: 'decimal', maxlength: '24', required: '', placeholder: '25' });
             const fases = (raiz.GradeTabela?.FASES || ['A', 'B', 'C', 'AB', 'AC', 'BC', 'ABC']);
@@ -2879,7 +2974,7 @@
             const lista = el('div', { class: 'vz-lps' });
             atuais().forEach((item, k) => {
                 const r = outros()[item.indice], op = item.op, bloqueada = !!r.bloqueada;
-                const linha = el('div', { class: 'vz-lp-painel' + (op === 'F' ? ' fic' : '') + (bloqueada ? ' bloqueada' : ''), ...(bloqueada ? {} : { tabindex: '0', role: 'button' }),
+                const linha = el('div', { class: 'vz-lp-painel' + (op === 'F' ? ' fic' : '') + (bloqueada ? ' bloqueada' : ''), 'data-linha-ponto': item.indice, ...(bloqueada ? {} : { tabindex: '0', role: 'button' }),
                     title: bloqueada ? 'Linha bloqueada' : 'Clique para editar a linha e a operação' }, [
                     el('span', { class: 'vz-op-badge' + (op === 'F' ? ' f' : op.includes('R') ? ' r' : op.includes('M') ? ' m' : ''), text: op }),
                     el('span', { class: 'vz-lp-texto', text: item.ativo }),
@@ -3093,7 +3188,7 @@
                             botao('+ Fictício', () => abrirFicticio(ie), 'Adicionar cabo fictício a ' + codigo)
                         ])
                     ]) : null;
-                    const editar = controleEdicao(ehLinhaPosteNoPainel(linhaDe(ie)) ? 'poste' : 'estrutura', linhaDe(ie), 'estrutura ' + codigo);
+                    const editar = editarLinhaNoPonto(linhaDe(ie), 'estrutura ' + codigo) || controleEdicao(ehLinhaPosteNoPainel(linhaDe(ie)) ? 'poste' : 'estrutura', linhaDe(ie), 'estrutura ' + codigo);
                     const op = opDaLinha(outros()[linhaDe(ie)]);
                     return el('div', { class: 'vz-no-estrutura' + (OPS_INSTALANDO.includes(op) ? ' instalando' : ''), 'data-estrutura-no': ie }, [
                         el('div', { class: 'vz-no-linha' }, [
@@ -3114,7 +3209,7 @@
                 : host.salvarPontoNoMapa ? botao('Editar ponto', () => abrirPonto(no), 'Nome, comentário e linhas do ponto')
                 : (no.poste !== null && host.editarNoMapa && botao('Editar poste', () => abrirCriacao('poste', null, no)));
             if (no.poste === null && !estruturas.length) {
-                const editar = controleEdicao('estrutura', linhaNo(no), 'linha do ponto ' + (linhaNo(no) + 1));
+                const editar = editarLinhaNoPonto(linhaNo(no), 'linha do ponto') || controleEdicao('estrutura', linhaNo(no), 'linha do ponto ' + (linhaNo(no) + 1));
                 if (editar) lateral.append(editar);
             }
             if (host.associarNoMapa) {
@@ -3209,7 +3304,7 @@
                 const detalhes = el('details', { class: 'vz-no-mais' }, [
                     el('summary', { text: revisaoPendente ? 'Revisar' : 'Opções', 'data-foco': 'c' + ic }),
                     el('div', { class: 'vz-no-acoes' }, [
-                        controleEdicao('cabo', ic),
+                        botaoEditarCabo(ic),
                         chega ? botao('Soltar ponta do mapa', () => {
                             const mensagem = alterarPontoDoCabo(ic, no, false);
                             if (mensagem) status.textContent = mensagem;

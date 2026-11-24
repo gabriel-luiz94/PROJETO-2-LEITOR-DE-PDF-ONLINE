@@ -250,6 +250,11 @@ async def serve_mapa_layout_js():
 async def serve_mapa_montagem_js():
     return _serve_js("mapa_montagem.js")        # TASK-233
 
+
+@app.get("/static/cabo_autocompletar.js")
+async def serve_cabo_autocompletar_js():
+    return _serve_js("cabo_autocompletar.js")   # TASK-243
+
 @app.get("/static/mapa_escala.js")
 async def serve_mapa_escala_js():
     return _serve_js("mapa_escala.js")          # TASK-224

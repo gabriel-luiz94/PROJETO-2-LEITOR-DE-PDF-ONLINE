@@ -85,6 +85,9 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-243](tasks/TASK-243-24-11-2026.md) — Mapa: pré-preenchimento do ativo do cabo (3 → 3x, A35P( → 7,94)-13,8kV, - → 13,8kV).
+- [x] [TASK-242](tasks/TASK-242-24-11-2026.md) — Mapa: «Editar» do cabo = formulário do + Cabo; «Editar» da estrutura = linha em «Linhas do ponto».
+- [x] [TASK-241](tasks/TASK-241-24-11-2026.md) — Mapa (antigo Vincular cabos) como visualização igual ao Resultado/Base e em outra janela do Windows, sincronizado; Esc só deseleciona.
 - [x] Plugin 0.16.3 — modo mapa: tipo do cabo pela cor; coletados marcados na tela com o painel aberto; clique no item = zoom + destaque; Editar, Excluir, Definir poste/cabo ([TASK-038 do plugin](../plugin_nanocad/.ai/tasks/TASK-038-23-11-2026.md)).
 - [x] [TASK-240](tasks/TASK-240-24-11-2026.md) — Mapa: cabos do mesmo par de pontos lado a lado, sem sobreposição, espaço mínimo de 9 px em qualquer zoom.
 - [x] Plugin 0.16.2 — Selecionar poste/cabo: parágrafo de continuação do mesmo MTEXT junta ao campo de cima; metragem já juntada pela regra não vira campo ([TASK-038 do plugin](../plugin_nanocad/.ai/tasks/TASK-038-23-11-2026.md)).

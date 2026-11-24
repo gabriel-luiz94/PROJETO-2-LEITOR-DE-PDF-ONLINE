@@ -3,6 +3,9 @@
  *   • abrir(url, titulo, chave): com chave, visualização do Resumo em tela inteira, minimizável e destacável no desktop.
  *     Sem chave, mantém a moldura simples no desktop.
  *   • navegar(url): troca a página atual (para fluxos que já levam tudo pelo localStorage, como Leitor → Resumo).
+ *   • abrirConteudo(chave, titulo, elemento, opcoes) (TASK-241): a mesma visualização para um elemento VIVO da página (o Mapa), sem iframe.
+ *     Para a janela nativa, `opcoes.capturar()` dá o estado, `opcoes.restaurar(estado)` aplica a volta e `opcoes.aoDados(dados)` recebe
+ *     o que a janela nativa mudou; `enviarNativa(chave, acao, dados)` manda as mudanças da janela principal para ela.
  * Na versão online, as telas sem chave continuam abrindo em uma nova aba do navegador.
  * As telas abertas aqui fecham pelo botão "Voltar" delas (voltarOuFechar → postMessage) ou pelo Fechar da moldura.
  */
@@ -133,6 +136,7 @@
     const ponte = () => raiz.pywebview?.api;
     const avisar = mensagem => raiz.showToast?.(mensagem);
     const conteudoDa = p => p.quadro?.contentDocument && p.quadro.contentWindow.JanelaConteudo;
+    const capturarDe = p => (p.capturar ? p.capturar() : conteudoDa(p)?.capturar());          // TASK-241: visualização de elemento vivo
     const donoProjeto = () => raiz.GridRProjeto;
 
     function abaDe(p) {
@@ -167,7 +171,7 @@
         p.el.remove();
         abaDe(p);
         p.aba.remove();
-        doc.dispatchEvent(new CustomEvent('tela-app-fechada', { detail: { url: p.url } }));
+        if (p.url) doc.dispatchEvent(new CustomEvent('tela-app-fechada', { detail: { url: p.url } }));
     }
 
     function criarQuadro(p, estado, pronto) {
@@ -211,6 +215,7 @@
     function recuperarFalha(p, mensagem) {
         desligarNativa(p);
         if (p.quadro) p.quadro.inert = false;
+        if (p.conteudo) p.conteudo.inert = false;
         p.destacar.disabled = !ponte()?.janela_auxiliar_abrir;
         if (p.recalculoPendente && conteudoDa(p)) {
             p.recalculoPendente = false;
@@ -237,15 +242,16 @@
         const n = p.nativa, projeto = donoProjeto();
         if (!n || !msg) return;
         if (msg.acao === 'pronta' && !n.ativa) {
-            const estado = conteudoDa(p)?.capturar();
+            const estado = capturarDe(p);
             if (!estado) { recuperarFalha(p, 'Aguarde a conclusão da operação para destacar a janela.'); return; }
-            p.quadro.inert = true;
+            if (p.quadro) p.quadro.inert = true;
+            if (p.conteudo) p.conteudo.inert = true;
             n.enviar('iniciar', { estado, editado: projeto?.resultadoEditado() });
         } else if (msg.acao === 'conectada' && !n.ativa) {
             clearTimeout(n.tempo);
             conteudoDa(p)?.suspender?.();
-            p.quadro.remove();
-            p.quadro = null;
+            if (p.quadro) { p.quadro.remove(); p.quadro = null; }
+            if (p.conteudo) p.conteudo.inert = false;                 // o elemento vivo fica na página, escondido com a visualização
             p.estado = 'destacada';
             p.el.hidden = true;
             if (naFrente === p) naFrente = null;
@@ -267,6 +273,7 @@
             if (msg.erro) console.error('Falha ao transferir a visualização:', msg.erro);
             recuperarFalha(p, 'Não foi possível conectar a janela nativa.');
         } else if (n.ativa && msg.epoca === n.epoca) {
+            if (msg.acao === 'dados' && p.conteudo) p.aoDados?.(msg.dados);                 // TASK-241: a janela nativa mudou a obra
             if (p.chave === 'resultado') {
                 if (msg.acao === 'editado' || msg.editado) projeto?.__marcarEdicaoResultado();
                 if (['resultado', 'coleta', 'retornar', 'fechar'].includes(msg.acao)) n.resultado = msg.resultado;
@@ -287,6 +294,14 @@
             }
             if (msg.acao === 'fechar' || msg.acao === 'retornar') {
                 if (msg.resultado && p.chave === 'resultado') projeto?.__enviar({ resultado: msg.resultado });
+                if (p.conteudo) {                                     // TASK-241: volta para o elemento vivo, com o estado da janela nativa
+                    if (msg.estado) p.restaurar?.(msg.estado);
+                    desligarNativa(p, true, false);
+                    p.destacar.disabled = false;
+                    if (msg.acao === 'fechar') fecharConteudo(p);
+                    else exibir(p, true);
+                    return;
+                }
                 if (msg.acao === 'fechar') { fecharVisualizacao(p); return; }
                 n.reencaixando = true;
                 criarQuadro(p, msg.estado, erro => {
@@ -310,7 +325,7 @@
     async function destacarVisualizacao(p) {
         const api = ponte();
         if (!api?.janela_auxiliar_abrir || p.nativa || !raiz.BroadcastChannel) return;
-        if (!conteudoDa(p)?.capturar()) { avisar('Aguarde a conclusão da operação para destacar a janela.'); return; }
+        if (!capturarDe(p)) { avisar('Aguarde a conclusão da operação para destacar a janela.'); return; }
         const id = raiz.crypto.randomUUID().replace(/-/g, '');
         const canal = new BroadcastChannel('orcacore-janela-' + id);
         const n = p.nativa = {
@@ -334,7 +349,8 @@
         if (!p) return;
         if (p.nativa.ativa) {
             desligarNativa(p, false);
-            if (!p.quadro) fecharVisualizacao(p);
+            if (p.conteudo) { p.destacar.disabled = false; exibir(p, true); }     // TASK-241: a obra já veio a cada mudança; o Mapa volta para cá
+            else if (!p.quadro) fecharVisualizacao(p);
         } else recuperarFalha(p, 'A janela nativa foi fechada.');
     }
 
@@ -383,6 +399,80 @@
         criarQuadro(p);
         exibir(p, true);
         return el;
+    }
+
+    /** TASK-241: visualização de um elemento vivo da página (o Mapa): mesma barra, rodapé, maximizar/restaurar e «Abrir em nova janela». */
+    function abrirConteudo(chave, titulo, elemento, opcoes = {}) {
+        const existente = visualizacoes.get(chave);
+        if (existente) {
+            if (existente.conteudo !== elemento) { existente.conteudo?.remove(); existente.el.append(elemento); existente.conteudo = elemento; }
+            if (!existente.nativa?.ativa) exibir(existente, true);
+            return existente;
+        }
+        const el = doc.createElement('section');
+        el.className = 'janela-inteira janela-conteudo';
+        el.setAttribute('aria-label', titulo);
+        const barra = doc.createElement('header');
+        barra.className = 'janela-titulo';
+        const nome = doc.createElement('strong');
+        nome.textContent = titulo;
+        const aba = doc.createElement('div');
+        aba.className = 'janela-aba';
+        const nomeAba = doc.createElement('strong');
+        nomeAba.textContent = titulo;
+        const p = { el, aba, titulo, chave, url: null, conteudo: elemento, capturar: opcoes.capturar, restaurar: opcoes.restaurar,
+            aoDados: opcoes.aoDados, aoFechar: opcoes.aoFechar };
+        const b = raiz.JanelaAuxiliar.botao;
+        p.destacar = b('destacar', 'Abrir em nova janela', () => destacarVisualizacao(p));
+        const atualizarBotao = () => {
+            p.destacar.disabled = !p.capturar || !ponte()?.janela_auxiliar_abrir || !raiz.BroadcastChannel;
+        };
+        atualizarBotao();
+        raiz.addEventListener('pywebviewready', atualizarBotao, { once: true });
+        p.maximo = b('maximizar', 'Maximizar', () => {
+            el.classList.toggle('janela-restaurada');
+            exibir(p, false);
+        });
+        barra.append(nome, p.destacar, b('minimizar', 'Minimizar', () => minimizarVisualizacao(p)),
+            p.maximo, b('fechar', 'Fechar', () => fecharConteudo(p)));
+        aba.append(nomeAba, b('maximizar', 'Maximizar ' + titulo, () => exibir(p, true)),
+            b('fechar', 'Fechar ' + titulo, () => fecharConteudo(p)));
+        visualizacoes.set(chave, p);
+        doc.getElementById('janelas-rodape')?.append(aba);
+        el.append(barra, elemento);
+        doc.body.append(el);
+        exibir(p, true);
+        return p;
+    }
+
+    /** Fechar pela barra/rodapé: pergunta ao dono (ele pode recusar, ex.: alterações não salvas) e tira a visualização. */
+    function fecharConteudo(p) {
+        if (p.aoFechar && p.aoFechar() === false) { if (!p.nativa?.ativa) exibir(p, true); return; }
+        if (visualizacoes.get(p.chave) === p) fecharVisualizacao(p);
+    }
+
+    /** O dono já fechou: só tira a visualização (sem perguntar de novo). */
+    function removerConteudo(chave) {
+        const p = visualizacoes.get(chave);
+        if (p?.conteudo) fecharVisualizacao(p);
+    }
+
+    /** Leva o Mapa de volta à frente (desminimiza). false se não há visualização ou ela está na janela nativa. */
+    function trazerConteudo(chave) {
+        const p = visualizacoes.get(chave);
+        if (!p?.conteudo || p.nativa?.ativa) return false;
+        exibir(p, true);
+        return true;
+    }
+
+    const nativaAtiva = chave => !!visualizacoes.get(chave)?.nativa?.ativa;
+
+    /** Manda uma mensagem para a janela nativa da visualização (se estiver ligada). */
+    function enviarNativa(chave, acao, dados = {}) {
+        const n = visualizacoes.get(chave)?.nativa;
+        if (!n?.ativa || n.reencaixando) return false;
+        n.enviar(acao, dados);
+        return true;
     }
 
     raiz.addEventListener('obra-resumo-substituida', () => {
@@ -446,5 +536,6 @@
         else raiz.location.href = destino || '/';
     }
 
-    raiz.AbrirNaApp = { abrir, navegar, fechar, voltarOuFechar, painel, trazerPainel, fecharPainel, removerPainel, nativaFechada };
+    raiz.AbrirNaApp = { abrir, navegar, fechar, voltarOuFechar, painel, trazerPainel, fecharPainel, removerPainel, nativaFechada,
+        abrirConteudo, removerConteudo, trazerConteudo, nativaAtiva, enviarNativa };
 })(window);

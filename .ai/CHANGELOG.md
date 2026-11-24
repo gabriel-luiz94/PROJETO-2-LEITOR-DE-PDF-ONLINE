@@ -8,6 +8,18 @@
 
 ---
 
+## 2026-11-24 — Pré-preenchimento do ativo do cabo
+
+Nos formulários de cabo do Mapa, o ativo se completa enquanto se digita: «3» → «3x», «A35P(» → «7,94)-13,8kV», «-» → «13,8kV» (aprendendo com os cabos da obra); Tab aceita. [TASK-243](tasks/TASK-243-24-11-2026.md).
+
+## 2026-11-24 — Editar cabo e poste no Mapa pelos formulários novos
+
+«Editar» do cabo abre o formulário do «+ Cabo» (F/I/M/R, comprimento separado) e «Editar» da estrutura abre a linha em «Linhas do ponto»; o cartão antigo saiu. [TASK-242](tasks/TASK-242-24-11-2026.md).
+
+## 2026-11-24 — Mapa como janela e em outra janela do Windows
+
+«Vincular cabos» passa a ser o **Mapa** (abre na aba Mapa) e abre como as janelas de Resultado e Base: área principal, rodapé, maximizar/restaurar e «Abrir em nova janela» — o Resumo em modo janela mostra só o Mapa numa janela do Windows, sincronizado nos dois sentidos com a principal. Esc no Mapa só deseleciona. [TASK-241](tasks/TASK-241-24-11-2026.md).
+
 ## 2026-11-24 — Plugin 0.16.3: cor do cabo, coletados na tela e ações do item
 
 Modo mapa do plugin: tipo do cabo pela cor da linha; pontos e cabos coletados marcados na tela enquanto o painel está aberto; no painel, clicar num item enquadra e destaca o item com o objeto base, e há Editar, Excluir e Definir poste/cabo. [TASK-038 do plugin](../plugin_nanocad/.ai/tasks/TASK-038-23-11-2026.md).
