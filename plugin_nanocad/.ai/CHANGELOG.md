@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-24 — 0.16.1
+
+Os pontos e cabos de **Selecionar poste/cabo** aparecem nas abas «Postes e outros» e «Vãos e cabos» do painel (antes ficavam só na montagem, sem linha no painel). Duplo clique ou **Ajustar ponto/cabo…** (`ORC_MAPA_ITEM`) enquadra o item e reabre a janela dos campos, com **Excluir**. [TASK-038](tasks/TASK-038-23-11-2026.md).
+
 ## 2026-11-23 — 0.16.0
 
 Montagem manual no formato do mapa do OrçaCore. **Selecionar poste** e **Selecionar cabo** abrem uma janela no molde do «anota poste», com um campo por linha de texto (L) e a operação de cada um (F, I, \*I, M, \*M, R, \*R). Com as regras de um projeto, o texto fora das regras entra como F; sem regras, entra como está. O cabo usa a linha inteira ou um trecho, e vale a metragem anotada, com a medida ao lado. O vínculo fica para o mapa da aplicação. [TASK-038](tasks/TASK-038-23-11-2026.md).

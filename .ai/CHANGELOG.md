@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-24 — Plugin 0.16.1: pontos e cabos do mapa no painel
+
+No plugin, os pontos e cabos de Selecionar poste/cabo aparecem nas abas do painel e podem ser ajustados ou excluídos (`ORC_MAPA_ITEM`). [TASK-038 do plugin](../plugin_nanocad/.ai/tasks/TASK-038-23-11-2026.md).
+
 ## 2026-11-24 — Um ponto só por grupo no mapa
 
 O grupo «@nome» é um ponto só no mapa, com todas as operações: as linhas sem coordenada própria entram no ponto do grupo (antes, cada uma virava um «P1»). O painel do ponto lista todas as estruturas, com I/\*I/M/\*M em destaque e R/\*R apagadas, fora do vínculo. [TASK-238](tasks/TASK-238-24-11-2026.md).

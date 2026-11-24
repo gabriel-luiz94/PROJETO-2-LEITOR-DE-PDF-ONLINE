@@ -174,5 +174,45 @@ namespace OrcamentoNanoCAD
                 }
             });
         }
+
+        /// <summary>Painel → item do mapa («M:P1» / «M:C1»): enquadra no desenho e abre a janela dos campos para ajustar ou excluir.</summary>
+        [CommandMethod("ORC_MAPA_ITEM")]
+        public void CmdMapaItem()
+        {
+            Rodar("ORC_MAPA_ITEM", s =>
+            {
+                if (!PrecisaObra(s) || s.EnviandoAnotacoes) return;
+                PromptResult r = s.Doc.Editor.GetString(new PromptStringOptions("\nItem do mapa (P1, C2…): ") { AllowSpaces = false });
+                if (r.Status != PromptStatus.OK) return;
+                string n = (r.StringResult ?? "").Trim().ToUpperInvariant();
+                if (n.StartsWith(MapaManual.PrefixoPainel)) n = n.Substring(MapaManual.PrefixoPainel.Length);
+                List<Ponto> pts = MapaManual.PontosParaZoom(s.Obra, n);
+                if (pts.Count > 0) ZoomPontos(s, pts);
+                PontoMapa ponto = s.Obra.PontosMapa.FirstOrDefault(x => x.Numero == n);
+                CaboMapa cabo = ponto == null ? s.Obra.CabosMapa.FirstOrDefault(x => x.Numero == n) : null;
+                if (ponto == null && cabo == null) { Aplicacao.Msg("Item " + n + " não existe na montagem."); return; }
+                bool enviado = ponto != null ? ponto.Enviado : cabo.Enviado;
+                string aviso = enviado ? "Já enviado ao OrçaCore: o ajuste fica aqui e não é reenviado (altere também no OrçaCore)." : InfoRegras(s);
+                if (ponto != null)
+                {
+                    using (var tela = new TelaCamposMapa("Ponto " + ponto.Numero + (string.IsNullOrEmpty(ponto.Handle) ? " · sem símbolo" : " · poste"), false,
+                        ponto.Campos, ponto.NomeFinal, ponto.Comentario, 0, null, aviso, true))
+                    {
+                        DialogResult d = Application.ShowModalDialog(tela);
+                        if (d == DialogResult.Abort) { s.Obra.PontosMapa.Remove(ponto); Aplicacao.Msg("Ponto " + ponto.Numero + " excluído da montagem."); Mudou(s, true); }
+                        else if (d == DialogResult.OK) { ponto.Nome = tela.Nome; ponto.Comentario = tela.Comentario; ponto.Campos = tela.Campos; Mudou(s, true); }
+                    }
+                    return;
+                }
+                double? anotado = cabo.Metros.HasValue && System.Math.Abs(cabo.Metros.Value - cabo.Medido) > 0.05 ? cabo.Metros : null;
+                using (var tela = new TelaCamposMapa("Cabo " + cabo.Numero + " · " + (cabo.Trecho ? "trecho de " : "linha de ") + MapaManual.FormatarMetros(cabo.Medido) + " m"
+                    + (string.IsNullOrEmpty(cabo.Tipo) ? "" : " · " + cabo.Tipo), true, cabo.Campos, "", "", cabo.Medido, anotado, aviso, true))
+                {
+                    DialogResult d = Application.ShowModalDialog(tela);
+                    if (d == DialogResult.Abort) { s.Obra.CabosMapa.Remove(cabo); Aplicacao.Msg("Cabo " + cabo.Numero + " excluído da montagem."); Mudou(s, true); }
+                    else if (d == DialogResult.OK) { cabo.Campos = tela.Campos; cabo.Metros = tela.Metros; Mudou(s, true); }
+                }
+            });
+        }
     }
 }

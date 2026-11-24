@@ -85,6 +85,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] Plugin 0.16.1 — pontos e cabos do modo mapa listados nas abas do painel do nanoCAD, com ajustar/excluir ([TASK-038 do plugin](../plugin_nanocad/.ai/tasks/TASK-038-23-11-2026.md)).
 - [x] [TASK-238](tasks/TASK-238-24-11-2026.md) — Mapa: um ponto só por grupo «@nome» (linhas sem coordenada entram no ponto do grupo); painel lista todas as estruturas, instalando/mantendo em destaque e removendo apagadas.
 - [x] [TASK-237](tasks/TASK-237-23-11-2026.md) — Plugin 0.16.0: montagem manual no formato do mapa (Selecionar poste/cabo → campos com operação F/I/\*I/M/\*M/R/\*R; regras de um projeto ou sem regras; cabo inteiro ou trecho).
 - [x] [TASK-236](tasks/TASK-236-23-11-2026.md) — PDF vetorial no mapa: rede pela cor, postes nas pontas, escala 1:500/1:1000 estimada pelas metragens dos cabos, tudo em metros.

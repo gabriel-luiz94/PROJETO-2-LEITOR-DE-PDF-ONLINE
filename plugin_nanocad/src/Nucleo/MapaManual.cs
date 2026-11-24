@@ -273,6 +273,55 @@ namespace OrcamentoNanoCAD.Nucleo
             return linhas;
         }
 
+        // ── painel do plugin (abas «Postes e outros» e «Vãos e cabos») ──
+        public const string PrefixoPainel = "M:";
+
+        public static string ResumoCampos(IEnumerable<CampoMapa> campos)
+        {
+            return string.Join(" · ", campos.Where(c => !string.IsNullOrEmpty((c.Texto ?? "").Trim())).Select(c => c.Operacao + " " + c.Texto.Trim()).ToArray());
+        }
+
+        private static string OperacoesDe(IEnumerable<CampoMapa> campos)
+        {
+            return string.Join("/", campos.Select(c => c.Operacao).Where(o => !string.IsNullOrEmpty(o)).Distinct().ToArray());
+        }
+
+        /// <summary>Linhas da aba «Postes e outros» (colunas: "", Nº, Op., Anotação, Layer CAD, Cor, Marcas). Chave «M:P1».</summary>
+        public static List<LinhaTabela> LinhasDoPainelPontos(Obra obra)
+        {
+            return obra.PontosMapa.Select(p =>
+            {
+                string titulo = "@" + p.NomeFinal.ToUpperInvariant() + (string.IsNullOrEmpty((p.Comentario ?? "").Trim()) ? "" : " - " + p.Comentario.Trim());
+                string op = OperacoesDe(p.Campos);
+                return new LinhaTabela { Chave = PrefixoPainel + p.Numero,
+                    Celulas = new[] { "", p.Numero, op, titulo + ": " + ResumoCampos(p.Campos), string.IsNullOrEmpty(p.Handle) ? "sem símbolo" : "mapa", "", p.Enviado ? "Enviada" : "Mapa" },
+                    Icones = new[] { "estado:" + Estados.Ok, null, op.Contains("/") ? null : "op:" + op, null, null, null, null } };
+            }).ToList();
+        }
+
+        /// <summary>Linhas da aba «Vãos e cabos» (colunas: "", Vão, Rede, Op., Anotação, m, Postes, Marcas). Chave «M:C1».</summary>
+        public static List<LinhaTabela> LinhasDoPainelCabos(Obra obra)
+        {
+            return obra.CabosMapa.Select(c =>
+            {
+                string op = OperacoesDe(c.Campos);
+                double? m = c.Metros ?? (c.Medido > 0 ? (double?)c.Medido : null);
+                return new LinhaTabela { Chave = PrefixoPainel + c.Numero,
+                    Celulas = new[] { "", c.Numero, c.Tipo ?? "", op, ResumoCampos(c.Campos) + (c.Trecho ? " (trecho)" : ""), m.HasValue ? FormatarMetros(m.Value) : "", "no mapa", c.Enviado ? "Enviada" : "Mapa" },
+                    Icones = new[] { "estado:" + Estados.Ok, null, string.IsNullOrEmpty(c.Tipo) ? null : "rede:" + c.Tipo, op.Contains("/") ? null : "op:" + op, null, null, null, null } };
+            }).ToList();
+        }
+
+        /// <summary>Pontos da obra para enquadrar o item no desenho (o ponto ou a linha do cabo).</summary>
+        public static List<Ponto> PontosParaZoom(Obra obra, string chave)
+        {
+            string n = (chave ?? "").StartsWith(PrefixoPainel) ? chave.Substring(PrefixoPainel.Length) : chave;
+            PontoMapa p = obra.PontosMapa.FirstOrDefault(x => x.Numero == n);
+            if (p != null) return new List<Ponto> { new Ponto(p.X, p.Y) };
+            CaboMapa c = obra.CabosMapa.FirstOrDefault(x => x.Numero == n);
+            return c != null ? c.Pontos.ToList() : new List<Ponto>();
+        }
+
         // ── seção "cad" (Continuar obra salva) ──
         private static JObj CampoParaJson(CampoMapa c)
         {
