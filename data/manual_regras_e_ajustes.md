@@ -1113,3 +1113,12 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - Todas as linhas de um ponto «@P1» aparecem como **um único ponto** no mapa, qualquer que seja a operação (I, \*I, M, \*M, R, \*R, F), mesmo sem coordenada do CAD.
 - No painel do ponto, a lista **Estruturas** mostra todas as estruturas com a operação. As que estão **instalando ou mantendo** (I, \*I, M, \*M) ficam em **destaque verde** e recebem cabos. As que estão **removendo** (R, \*R) aparecem apagadas e riscadas, fora do vínculo.
 - Quando o ponto tem um poste em **F** (existente) e outro instalando, o nome do ponto mostra o poste instalando.
+
+## Leitura do DXF: cabos sem traçado (24/11/2026)
+
+- **Rede em outra layer:** se a rede de MT (ou BT) do desenho está numa layer que não é REDE_MT/REDE_BT — por exemplo o tracejado vermelho na **ANOTACOES** —, inclua essa layer em **⚙ Leitura → Layers da rede MT** (aba **Desenho** do vínculo, ou ⚙ Leitura no plugin). Para só a layer «0», escreva **=0**.
+- **Anotação dentro de moldura:** a linha-guia que sai da borda do retângulo em volta do texto agora é usada.
+- **MT e BT lado a lado:** o cabo que diz a tensão (kV, A35P → MT; PB, RAMA, C16( → BT) só pega a rede do seu tipo.
+- **Marcas de X** riscando anotações não contam como rede.
+- **Cartão do cabo:** os botões das pontas mostram o mesmo nome do ponto que o mapa (P1, P2…).
+- Cabo que continua sem traçado: no cartão, **Ponta livre** → clique no ponto, para cada ponta.

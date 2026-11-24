@@ -1735,6 +1735,7 @@
         const GLm = raiz.GruposLinhas;
         const nomeGrupoDaLinha = l => { const r = outros()[l], t = r && r.grupoDe ? titulosGrupo.get(r.grupoDe) : null; return t && GLm ? GLm.nomeDoPonto(t) : ''; };      // TASK-235: só o nome (o comentário fica no painel)
         const nomeGrupoDoNo = no => nomeGrupoDaLinha(linhaNo(no)) || no.linhas.map(nomeGrupoDaLinha).find(Boolean) || '';
+        const numeroDoNo = no => nomeGrupoDoNo(no) || `P${linhaNo(no) + 1}`;                  // TASK-239: o mesmo nome no mapa e no cartão do cabo
         const limitar01 = v => Math.max(0, Math.min(1, v));
         // grava a posição que o ponto tem na tela (Ajustar: fração da tela · 1:500: deslocamento em metros)
         function guardarPosicao(id) {
@@ -1986,7 +1987,7 @@
                 const estruturas = estruturasDoNo(n);
                 const tituloAvulsa = avulsa ? estruturas.slice(0, 2).map(codigoDe).join(' / ') || trim(outros()[linhaNo(n)].ativo) : '';
                 const nomeGrupo = nomeGrupoDoNo(n);
-                const numero = nomeGrupo ? (nomeGrupo.length > 16 ? nomeGrupo.slice(0, 15) + '…' : nomeGrupo) : `P${linhaNo(n) + 1}`;
+                const numero = nomeGrupo ? (nomeGrupo.length > 16 ? nomeGrupo.slice(0, 15) + '…' : nomeGrupo) : numeroDoNo(n);
                 const curto = avulsa ? numero + ' · ' + tituloAvulsa.slice(0, 18) + (tituloAvulsa.length > 18 ? '…' : '')
                     : linhaFicticia(n) ? numero + ' · Fictício' : numero;
                 const ficticios = estruturas.reduce((q, ie) => q + ficticiosDe(ie).length, 0);
@@ -2044,7 +2045,7 @@
                 const nome = `Cabo ${ic + 1} · ${c.ativo}`, qtd = livres(ic);
                 const botoes = pontosDoCabo(ic).map(id => {
                     const no = grafo.nos.get(id);
-                    return botao('P' + (linhaNo(no) + 1), () => {
+                    return botao(numeroDoNo(no), () => {
                         destacarCabo(ic);
                         editarNo(id, nosSvg.get(id));
                     }, 'Abrir ' + nomeDoNo(no) + ' · ' + nome);

@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-24 — Cabos sem geometria no DXF (moldura, tipo, X) e nome do ponto no cartão
+
+Leitura do DXF: a anotação emoldurada procura a linha-guia pela borda da moldura; o cabo que diz a tensão só vai para a rede do seu tipo; marcas de X não são rede. Pacote 081 com ANOTACOES nas layers de MT. O cartão do cabo usa o nome do ponto do mapa. Na NOTA_9101578729: 87 de 94 cabos com geometria (antes 50), nenhum no tipo errado. [TASK-239](tasks/TASK-239-24-11-2026.md).
+
 ## 2026-11-24 — Plugin 0.16.1: pontos e cabos do mapa no painel
 
 No plugin, os pontos e cabos de Selecionar poste/cabo aparecem nas abas do painel e podem ser ajustados ou excluídos (`ORC_MAPA_ITEM`). [TASK-038 do plugin](../plugin_nanocad/.ai/tasks/TASK-038-23-11-2026.md).

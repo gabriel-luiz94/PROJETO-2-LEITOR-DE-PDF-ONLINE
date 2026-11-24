@@ -380,15 +380,23 @@ namespace OrcamentoNanoCAD.Nucleo
             public bool Livre;           // 3ª passada: bloco livre mais perto, casado 1:1 (TASK-233 da aplicação)
         }
 
-        /// <summary>Nível que a anotação do cabo indica: MT com tensão em kV; BT para multiplex (PB/RAMA); null = não diz.</summary>
-        private static string NivelDoTexto(TextoLido tl)
+        private static readonly System.Text.RegularExpressions.Regex _reMT = new System.Text.RegularExpressions.Regex(@"\bA\d+P\b|\dXA\d+P", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        private static readonly System.Text.RegularExpressions.Regex _reBT = new System.Text.RegularExpressions.Regex(@"\bPB\s*\d|\bRAMA|(\b|\dX)C\d+\s*\(", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>Nível que a anotação do cabo indica: MT com tensão em kV ou cabo protegido (A35P); BT para multiplex (PB/RAMA) e
+        /// concêntrico (C16(…)); null = não diz. Mesma regra da aplicação (services/dxf_geometria.nivel_do_texto, TASK-239).</summary>
+        public static string NivelDoTexto(string ativo)
         {
-            CaboLido c = Anotacoes.LerCabo(tl.R.Ativo);
+            CaboLido c = Anotacoes.LerCabo(ativo);
             if (!string.IsNullOrEmpty(c.Tensao)) return c.Nivel;
+            string t = ativo ?? "";
+            if (_reMT.IsMatch(t)) return "MT";
             string cod = (c.Codigo ?? "").ToUpperInvariant();
-            if (cod.StartsWith("PB") || cod.StartsWith("RAMA")) return "BT";
+            if (cod.StartsWith("PB") || cod.StartsWith("RAMA") || _reBT.IsMatch(t)) return "BT";
             return null;
         }
+
+        private static string NivelDoTexto(TextoLido tl) { return NivelDoTexto(tl.R.Ativo); }
 
         private static List<Candidato> Candidatos(TextoLido tl, Contexto ctx, bool cabo, double raio, bool reserva)
         {
