@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-24 — 0.16.2
+
+Selecionar poste/cabo: o parágrafo de continuação do mesmo MTEXT («FLABIM, IT-R» embaixo de «12600D, CEJ2, FLABIT, IT-R») entra no campo de cima, com a operação dele; o texto que a regra já juntou a outro ativo (o «32 m» do cabo) e, no cabo, o texto que é só metragem não viram campo próprio. Antes viravam campos F e, trocados para I, dividiam o ativo. [TASK-038](tasks/TASK-038-23-11-2026.md).
+
 ## 2026-11-24 — 0.16.1
 
 Os pontos e cabos de **Selecionar poste/cabo** aparecem nas abas «Postes e outros» e «Vãos e cabos» do painel (antes ficavam só na montagem, sem linha no painel). Duplo clique ou **Ajustar ponto/cabo…** (`ORC_MAPA_ITEM`) enquadra o item e reabre a janela dos campos, com **Excluir**. [TASK-038](tasks/TASK-038-23-11-2026.md). O nível do cabo pela anotação segue a regra da aplicação: cabo protegido (A35P) sem «kV» é MT e C16(…) é BT ([TASK-239](../../.ai/tasks/TASK-239-24-11-2026.md) da aplicação).

@@ -100,7 +100,7 @@
   "cad": {
     "versao": 1,
     "origem": "plugin-nanocad",
-    "plugin": "0.16.1",
+    "plugin": "0.16.2",
     "desenho": "C:\\Projetos\\Montagem_Manual.dwg",
     "regras": "Pernambuco (081) — Leitor",
     "modo": "construir",

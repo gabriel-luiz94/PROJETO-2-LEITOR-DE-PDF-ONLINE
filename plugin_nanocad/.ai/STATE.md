@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.16.2
+
+TASK-038 (ajuste): campos da janela sem ativo dividido — parágrafo de continuação do mesmo MTEXT junta ao campo de cima; texto já juntado pela regra (metragem) não vira campo. ✅ 149 testes do núcleo; DLLs 0.16.2. 🟡 Validar no nanoCAD.
+
 ## Plugin 0.16.1
 
 TASK-038 (ajuste): pontos e cabos do mapa listados nas abas do painel; duplo clique/Ajustar reabre a janela (com Excluir). ✅ 138 testes do núcleo; DLLs 0.16.1. 🟡 Validar no nanoCAD.

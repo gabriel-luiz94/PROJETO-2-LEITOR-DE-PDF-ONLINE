@@ -85,6 +85,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] Plugin 0.16.2 — Selecionar poste/cabo: parágrafo de continuação do mesmo MTEXT junta ao campo de cima; metragem já juntada pela regra não vira campo ([TASK-038 do plugin](../plugin_nanocad/.ai/tasks/TASK-038-23-11-2026.md)).
 - [x] [TASK-239](tasks/TASK-239-24-11-2026.md) — DXF: guia pela moldura da anotação, cabo só na rede do seu tipo, marcas de X fora da rede, pacote 081 com ANOTACOES como MT; cartão do cabo com o nome do ponto.
 - [x] Plugin 0.16.1 — pontos e cabos do modo mapa listados nas abas do painel do nanoCAD, com ajustar/excluir ([TASK-038 do plugin](../plugin_nanocad/.ai/tasks/TASK-038-23-11-2026.md)).
 - [x] [TASK-238](tasks/TASK-238-24-11-2026.md) — Mapa: um ponto só por grupo «@nome» (linhas sem coordenada entram no ponto do grupo); painel lista todas as estruturas, instalando/mantendo em destaque e removendo apagadas.

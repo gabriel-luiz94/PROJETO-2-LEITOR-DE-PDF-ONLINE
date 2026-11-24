@@ -76,6 +76,9 @@ namespace OrcamentoNanoCAD.Nucleo
         /// <summary>
         /// Campos iniciais da janela: um por texto (parágrafo), na linha L dele. `regras` = null → sem regras (texto como está, operação `opPadrao`).
         /// Com regras: ativo/operação da regra; texto selecionado sem regra (ou que a regra manda ignorar) → F.
+        /// Correção 0.16.2: (1) texto que a regra já juntou ao ativo de outro (vizinho: o «32 m» do cabo) não vira campo próprio, e no cabo
+        /// texto que é só metragem também não (é o comprimento); (2) no ponto, o parágrafo de continuação do MESMO MTEXT («FLABIM, IT-R» embaixo de
+        /// «12600D, CEJ2, FLABIT, IT-R») entra no campo de cima, com a operação dele — antes virava um campo F e, trocado para I, dividia o ativo.
         /// </summary>
         public static List<CampoMapa> CamposDosTextos(IEnumerable<TextoDesenho> textos, RegrasProjeto regras, string opPadrao, bool cabo)
         {
@@ -84,36 +87,54 @@ namespace OrcamentoNanoCAD.Nucleo
             if (ordem.Count == 0) return saida;
             string padrao = NormalizarOperacao(opPadrao) ?? "I";
             var porTexto = new Dictionary<TextoDesenho, TextoLido>();
+            var absorvidos = new HashSet<TextoDesenho>();
             if (regras != null)
-                foreach (TextoLido tl in LeitorProjeto.ClassificarTextos(ordem, regras))
-                    if (tl != null && tl.T != null && !porTexto.ContainsKey(tl.T)) porTexto[tl.T] = tl;
-            for (int i = 0; i < ordem.Count; i++)
             {
-                TextoDesenho t = ordem[i];
-                var campo = new CampoMapa { L = i + 1 };
+                List<TextoLido> lidos = LeitorProjeto.ClassificarTextos(ordem, regras);
+                foreach (TextoLido tl in lidos)
+                    if (tl != null && tl.T != null && !porTexto.ContainsKey(tl.T)) porTexto[tl.T] = tl;
+                foreach (TextoLido tl in lidos)
+                    if (tl != null && tl.R != null && !string.IsNullOrEmpty((tl.R.Ativo ?? "").Trim()))
+                        foreach (int i in tl.R.Vizinhos)
+                            if (i >= 0 && i < lidos.Count && lidos[i].T != tl.T) absorvidos.Add(lidos[i].T);
+            }
+            CampoMapa anterior = null;
+            TextoDesenho textoAnterior = null;
+            int linha = 0;
+            foreach (TextoDesenho t in ordem)
+            {
                 TextoLido tl;
-                string ativo = null, op = null;
+                string ativo = null, op = null, ent = null;
                 if (regras != null && porTexto.TryGetValue(t, out tl) && tl.R != null)
                 {
                     ativo = (tl.R.Ativo ?? "").Trim();
                     op = NormalizarOperacao(tl.R.Operacao);
-                    string ent = (tl.R.Entidade ?? "").Trim();
-                    if (ent.Length > 0 && ent != "0") campo.Entidade = ent;
+                    ent = (tl.R.Entidade ?? "").Trim();
                 }
-                if (regras != null && (string.IsNullOrEmpty(ativo) || op == null || op == "F"))
+                bool temRegra = regras != null && !string.IsNullOrEmpty(ativo) && op != null && op != "F";
+                // (1) já está no ativo de outro texto, ou é só a metragem do cabo
+                if (!temRegra && (absorvidos.Contains(t) || (cabo && Construtor.EhComprimento(t.Texto)))) continue;
+                // (2) continuação do mesmo MTEXT no ponto: junta ao campo de cima
+                if (!cabo && !temRegra && anterior != null && textoAnterior != null && t.Parte > 0
+                    && !string.IsNullOrEmpty(t.Handle) && t.Handle == textoAnterior.Handle)
                 {
-                    campo.Texto = Limpar(t.Texto); campo.Operacao = "F"; campo.Origem = "sem regra";
+                    string resto = Limpar(t.Texto);
+                    if (resto.Length > 0) anterior.Texto = anterior.Texto.TrimEnd(' ', ',', '/') + ", " + resto;
+                    textoAnterior = t;
+                    continue;
                 }
-                else if (regras != null)
+                var campo = new CampoMapa { L = ++linha };
+                if (temRegra)
                 {
                     campo.Texto = ativo; campo.Operacao = op; campo.Origem = "regra";
+                    if (ent.Length > 0 && ent != "0") campo.Entidade = ent;
                 }
-                else
-                {
-                    campo.Texto = Limpar(t.Texto); campo.Operacao = padrao; campo.Origem = "manual";
-                }
+                else if (regras != null) { campo.Texto = Limpar(t.Texto); campo.Operacao = "F"; campo.Origem = "sem regra"; }
+                else { campo.Texto = Limpar(t.Texto); campo.Operacao = padrao; campo.Origem = "manual"; }
                 if (cabo) campo.Texto = SemMetragem(campo.Texto);
-                if (campo.Texto.Length > 0) saida.Add(campo);
+                if (campo.Texto.Length == 0) { linha--; continue; }
+                saida.Add(campo);
+                anterior = campo; textoAnterior = t;
             }
             return saida;
         }

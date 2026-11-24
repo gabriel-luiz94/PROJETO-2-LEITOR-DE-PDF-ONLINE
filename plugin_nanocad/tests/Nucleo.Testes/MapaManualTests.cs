@@ -150,5 +150,39 @@ namespace OrcamentoNanoCAD.Testes
             Assert.Equal(new[] { new Ponto(1000, 2000).X, 1038.4 }, MapaManual.PontosParaZoom(o, "M:C1").Select(p => p.X).ToArray());
             Assert.Equal(1080, MapaManual.PontosParaZoom(o, "P3")[0].X);
         }
+
+        private static TextoDesenho P(string handle, int parte, string texto, double y, string layer)
+        {
+            return new TextoDesenho { Handle = handle, Parte = parte, Texto = texto, X = 288391.2, Y = y, Layer = layer, Altura = 1.2, Tipo = "MTEXT" };
+        }
+
+        [Fact]
+        public void Paragrafo_de_continuacao_do_mesmo_mtext_entra_no_campo_de_cima()
+        {
+            // NOTA_9101578729: «12600D, CEJ2, FLABIT, IT-R\PFLABIM, IT-R» — o 2º parágrafo virava um campo F e, trocado para I, dividia o ativo
+            var textos = new[] { P("5BFC0", 0, "12600D, CEJ2, FLABIT, IT-R", 9113465.3, "POSTE_INSTALANDO_LV"), P("5BFC0", 1, "FLABIM, IT-R", 9113465.3, "POSTE_INSTALANDO_LV"),
+                                 P("5BFC2", 0, "11300D, N3-2, IT-2, CFU", 9113459.1, "POSTE_REMOVENDO_LV") };
+            List<CampoMapa> c = MapaManual.CamposDosTextos(textos, Apoio.Pernambuco, "I", false);
+            Assert.Equal(new[] { "1 *I 12600D, CEJ2, FLABIT, IT-R, FLABIM, IT-R", "2 *R 11300D, N3-2, IT-2, CFU" }, c.Select(x => x.L + " " + x.Operacao + " " + x.Texto).ToArray());
+            List<CampoMapa> sem = MapaManual.CamposDosTextos(textos, null, "I", false);
+            Assert.Equal(new[] { "12600D, CEJ2, FLABIT, IT-R, FLABIM, IT-R", "11300D, N3-2, IT-2, CFU" }, sem.Select(x => x.Texto).ToArray());
+        }
+
+        [Fact]
+        public void Metragem_ja_juntada_ao_cabo_nao_vira_campo_proprio()
+        {
+            var textos = new[] { new TextoDesenho { Handle = "5C03E", Texto = "3xA35P(7,94)", X = 288398.9, Y = 9113450.6, Layer = "POSTE_INSTALANDO_LV", Altura = 1.2, Tipo = "MTEXT" },
+                                 new TextoDesenho { Handle = "5C040", Texto = "32 m", X = 288398.9, Y = 9113445.7, Layer = "0", Altura = 1.2, Tipo = "MTEXT" } };
+            CampoMapa c = Assert.Single(MapaManual.CamposDosTextos(textos, Apoio.Pernambuco, "I", true));
+            Assert.Equal("3xA35P(7,94)", c.Texto); Assert.Equal("*I", c.Operacao);
+            Assert.Single(MapaManual.CamposDosTextos(textos, null, "I", true));                  // sem regras: a metragem também não vira campo
+        }
+
+        [Fact]
+        public void Textos_de_mtexts_diferentes_continuam_em_campos_separados()
+        {
+            var textos = new[] { P("A1", 0, "12600D, CEJ2", 10, "POSTE_INSTALANDO_LV"), P("A2", 0, "LD", 8, "POSTE_INSTALANDO_LV") };
+            Assert.Equal(new[] { "12600D, CEJ2", "LD" }, MapaManual.CamposDosTextos(textos, null, "I", false).Select(x => x.Texto).ToArray());
+        }
 }
 }

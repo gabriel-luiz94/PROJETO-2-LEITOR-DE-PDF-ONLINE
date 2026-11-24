@@ -1105,6 +1105,7 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - **Selecionar poste:** clique no símbolo do poste (Enter = sem símbolo), selecione os textos da anotação e tecle Enter. Na janela, cada texto é um **campo** com a sua linha (**L**). Marque a operação de cada campo: **F**, **I**, **\*I**, **M**, **\*M**, **R**, **\*R**. **+ Novo campo** e **+ Nova linha** separam o texto. Ctrl+Enter confirma.
 - **Selecionar cabo:** clique na linha, escolha **Inteira** ou **Trecho** e selecione os textos. Vale a metragem anotada; a medida na linha aparece ao lado.
 - **Com regras**, o ativo e a operação vêm do Leitor do projeto; o texto que não se encaixa entra como **F** (fictício). **Sem regras**, o texto entra como está.
+- **Anotação de várias linhas** (um MTEXT com mais de um parágrafo): as linhas de continuação entram no mesmo campo (ex.: «12600D, CEJ2, FLABIT, IT-R, FLABIM, IT-R»); a metragem do cabo não vira campo. Para separar, use **+ Novo campo**. (Plugin 0.16.2.)
 - Os pontos e cabos aparecem no painel do plugin, nas abas **Postes e outros** e **Vãos e cabos**. **Duplo clique** (ou **Ajustar ponto/cabo…**) mostra o item no desenho e reabre a janela para corrigir ou **Excluir**. (Plugin 0.16.1.)
 - **Adicionar anotações ao OrçaCore** manda os pontos e cabos para a obra aberta: cada poste aparece em Demais Ativos como **«@P1 - comentário»** com as suas linhas, e cada cabo em Cabos. Faça os vínculos no **mapa**. (Plugin 0.16.0 ou mais novo.)
 
