@@ -69,6 +69,7 @@ def test_secao_cad_guarda_a_montagem_para_continuar(envelope):
     assert cad["semRegras"] is False
     assert [p["numero"] for p in cad["pontosMapa"]] == ["P1", "P2", "P3"]
     assert cad["cabosMapa"][0]["metros"] == 40 and cad["cabosMapa"][0]["medido"] == 38.4
+    assert cad["cabosMapa"][0]["campos"][0]["metros"] == 40                             # 0.16.4: a metragem da própria linha do cabo
 
 
 @pytest.mark.skipif(not NODE, reason="node indisponível")

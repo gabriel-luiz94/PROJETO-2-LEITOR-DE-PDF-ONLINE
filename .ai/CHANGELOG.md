@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-24 — Plugin 0.16.4: cabo pelo trecho clicado e metragem por linha
+
+Modo mapa do plugin, Selecionar cabo: sem a pergunta «Inteira/Trecho» — polilinha vale o trecho clicado (vértice a vértice), LINE vale inteira. Janela com Medido na linha e Comprimento usado (padrão: medido arredondado) e metragem própria em cada linha do cabo («PB70 32 m», «PB70/32 m»). [TASK-245](tasks/TASK-245-24-11-2026.md).
+
 ## 2026-11-24 — Estrutura com quantidade no Mapa
 
 «2 FLABIT» passa a ser duas estruturas no vínculo/Mapa (a 2ª entra no fim da linha, sem mexer nos vínculos existentes) e aparece como «FLABIT · 2ª» no painel do ponto. [TASK-244](tasks/TASK-244-24-11-2026.md).

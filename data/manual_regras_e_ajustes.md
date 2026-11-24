@@ -1161,3 +1161,9 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - Uma estrutura com quantidade na linha do ponto — ex.: **12600D, CEJ2, 2 FLABIT, IT-R** — conta como **duas** FLABIT no Mapa e no vínculo: cada uma recebe o seu cabo.
 - No painel do ponto elas aparecem juntas: **FLABIT** e **FLABIT · 2ª**.
 - Só quantidade inteira (2, 3…) separa; «1,5 FLABIT» continua uma. Os vínculos que já existiam não mudam.
+
+## Plugin: modo mapa — cabo pelo trecho clicado e metragem por linha (24/11/2026)
+
+- **Selecionar cabo** não pergunta mais «Inteira/Trecho»: numa **linha** vale ela inteira; numa **polilinha** vale o **trecho que você clicou**, de vértice a vértice. O trecho fica em amarelo enquanto você escolhe as anotações.
+- A janela do cabo mostra o **Medido na linha** (só para conferência) e o **Comprimento usado**, que é o que vai para a anotação. Ele já vem com o medido **arredondado** (31,2 m → 31 m); digite outro valor se precisar.
+- Cada linha do cabo tem o seu **m**. Se o texto capturado tem metragem — **PB70 32 m** ou **PB70/32 m** —, ela fica naquela linha (em preto). As linhas sem metragem própria usam o comprimento usado (em cinza). Apagar o **m** de uma linha faz ela voltar ao comprimento usado. (Plugin 0.16.4.)

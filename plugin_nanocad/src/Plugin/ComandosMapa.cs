@@ -97,10 +97,11 @@ namespace OrcamentoNanoCAD
             }
         }
 
-        /// <summary>Linha/polilinha do cabo, inteira ou um trecho entre dois pontos. false = cancelou.</summary>
-        private static bool EscolherLinhaDoCabo(Sessao s, string mensagem, out LinhaDesenho linha, out List<Ponto> pontos, out bool trecho)
+        /// <summary>0.16.4: a linha do cabo sem perguntar «Inteira/Trecho» — LINE vale inteira; polilinha vale o TRECHO clicado (vértice a vértice).
+        /// `segmento` = 1, 2… (0 = a linha toda). false = cancelou.</summary>
+        private static bool EscolherLinhaDoCabo(Sessao s, string mensagem, out LinhaDesenho linha, out List<Ponto> pontos, out int segmento)
         {
-            linha = null; pontos = null; trecho = false;
+            linha = null; pontos = null; segmento = 0;
             Editor ed = s.Doc.Editor;
             while (true)
             {
@@ -110,22 +111,14 @@ namespace OrcamentoNanoCAD
                 if (r.Status != PromptStatus.OK) return false;
                 linha = Montar(s, new[] { r.ObjectId }).Linhas.FirstOrDefault(l => !l.Leader);
                 if (linha == null || linha.Pontos.Count < 2) { Aplicacao.Msg("Isso não é linha nem polilinha. Tente de novo."); continue; }
-                break;
+                pontos = MapaManual.TrechoClicado(linha.Pontos, new Ponto(r.PickedPoint.X, r.PickedPoint.Y), out segmento);
+                return pontos.Count >= 2;
             }
-            pontos = linha.Pontos;
-            PromptKeywordOptions k = new PromptKeywordOptions("\nUsar [Inteira/Trecho] <Inteira>: ", "Inteira Trecho") { AllowNone = true };
-            PromptResult kr = ed.GetKeywords(k);
-            if (kr.Status == PromptStatus.Cancel) return false;
-            if (kr.Status == PromptStatus.OK && kr.StringResult == "Trecho")
-            {
-                PromptPointResult a = ed.GetPoint(new PromptPointOptions("\nPrimeiro ponto do trecho (sobre a linha): "));
-                if (a.Status != PromptStatus.OK) return false;
-                PromptPointResult b = ed.GetPoint(new PromptPointOptions("\nSegundo ponto do trecho: "));
-                if (b.Status != PromptStatus.OK) return false;
-                pontos = MapaManual.Trecho(linha.Pontos, new Ponto(a.Value.X, a.Value.Y), new Ponto(b.Value.X, b.Value.Y));
-                trecho = true;
-            }
-            return true;
+        }
+
+        private static string DescreverTrecho(int segmento, double medido)
+        {
+            return (segmento > 0 ? "trecho " + segmento + " da polilinha · " : "linha · ") + MapaManual.FormatarMetros(medido) + " m";
         }
 
         [CommandMethod("ORC_PONTO_MAPA")]
@@ -173,18 +166,22 @@ namespace OrcamentoNanoCAD
                 string ultimaOp = "I";
                 while (true)
                 {
-                    LinhaDesenho linha; List<Ponto> pontos; bool trecho;
-                    if (!EscolherLinhaDoCabo(s, "\nSelecione a LINHA do cabo — linha ou polilinha (Esc = terminar): ", out linha, out pontos, out trecho)) break;
+                    LinhaDesenho linha; List<Ponto> pontos; int segmento;
+                    if (!EscolherLinhaDoCabo(s, "\nSelecione a LINHA do cabo — linha ou polilinha (o trecho clicado; Esc = terminar): ", out linha, out pontos, out segmento)) break;
+                    bool trecho = segmento > 0;
                     double medido = MapaManual.Comprimento(pontos);
+                    s.DestacarTrecho(pontos);
+                    Aplicacao.Msg(MapaManual.ProximoNumero(s.Obra.CabosMapa.Select(c => c.Numero), "C") + ": " + DescreverTrecho(segmento, medido));
                     List<TextoDesenho> textos = SelecionarTextos(s, "\nSelecione as anotações do cabo (TEXT/MTEXT, várias) e Enter: ");
                     List<CampoMapa> campos = MapaManual.CamposDosTextos(textos, s.Obra.SemRegras == true ? null : s.Regras, ultimaOp, true);
-                    double? anotado = MapaManual.OrdemDeLeitura(textos).Select(t => MapaManual.MetrosDoTexto(t.Texto)).FirstOrDefault(m => m.HasValue);
                     string numero = MapaManual.ProximoNumero(s.Obra.CabosMapa.Select(c => c.Numero), "C");
                     string tipoPrevio = MapaManual.TipoDoCabo(s.Regras.Leitura, linha.Layer, linha.Cor, campos);
-                    string titulo = "Cabo " + numero + " · " + (trecho ? "trecho de " : "linha de ") + MapaManual.FormatarMetros(medido) + " m" + (tipoPrevio.Length > 0 ? " · " + tipoPrevio : "");
-                    using (var tela = new TelaCamposMapa(titulo, true, campos, "", "", medido, anotado, InfoRegras(s)))
+                    string titulo = "Cabo " + numero + " · " + DescreverTrecho(segmento, medido) + (tipoPrevio.Length > 0 ? " · " + tipoPrevio : "");
+                    using (var tela = new TelaCamposMapa(titulo, true, campos, "", "", medido, null, InfoRegras(s)))
                     {
-                        if (Application.ShowModalDialog(tela) != DialogResult.OK) continue;
+                        DialogResult dr = Application.ShowModalDialog(tela);
+                        s.DestacarMapa(null);                                                            // tira o destaque do trecho
+                        if (dr != DialogResult.OK) continue;
                         var cabo = new CaboMapa { Numero = numero, LinhaHandle = linha.Handle ?? "", Trecho = trecho, Pontos = pontos, Medido = medido,
                             Metros = tela.Metros, Campos = tela.Campos, Textos = textos.Select(t => t.Handle).Distinct().ToList(), Caixas = MapaManual.CaixasDosTextos(textos) };
                         cabo.Tipo = MapaManual.TipoDoCabo(s.Regras.Leitura, linha.Layer, linha.Cor, cabo.Campos);       // 0.16.3: a cor da linha manda
@@ -257,9 +254,8 @@ namespace OrcamentoNanoCAD
                     }
                     return;
                 }
-                double? anotado = cabo.Metros.HasValue && System.Math.Abs(cabo.Metros.Value - cabo.Medido) > 0.05 ? cabo.Metros : null;
-                using (var tela = new TelaCamposMapa("Cabo " + cabo.Numero + " · " + (cabo.Trecho ? "trecho de " : "linha de ") + MapaManual.FormatarMetros(cabo.Medido) + " m"
-                    + (string.IsNullOrEmpty(cabo.Tipo) ? "" : " · " + cabo.Tipo), true, cabo.Campos, "", "", cabo.Medido, anotado, aviso, true))
+                using (var tela = new TelaCamposMapa("Cabo " + cabo.Numero + " · " + (cabo.Trecho ? "trecho" : "linha") + " · " + MapaManual.FormatarMetros(cabo.Medido) + " m"
+                    + (string.IsNullOrEmpty(cabo.Tipo) ? "" : " · " + cabo.Tipo), true, cabo.Campos, "", "", cabo.Medido, cabo.Metros, aviso, true))
                 {
                     DialogResult d = Application.ShowModalDialog(tela);
                     if (d == DialogResult.Abort) { s.Obra.CabosMapa.Remove(cabo); Aplicacao.Msg("Cabo " + cabo.Numero + " excluído da montagem."); s.DestacarMapa(null); Mudou(s, true); }
@@ -315,13 +311,13 @@ namespace OrcamentoNanoCAD
                 }
                 else
                 {
-                    LinhaDesenho linha; List<Ponto> pontos; bool trecho;
-                    if (!EscolherLinhaDoCabo(s, "\nNova LINHA do cabo " + cabo.Numero + " — linha ou polilinha (Esc = manter): ", out linha, out pontos, out trecho)) return;
-                    bool eraMedido = !cabo.Metros.HasValue || System.Math.Abs(cabo.Metros.Value - cabo.Medido) <= 0.05;
-                    cabo.LinhaHandle = linha.Handle ?? ""; cabo.Trecho = trecho; cabo.Pontos = pontos; cabo.Medido = MapaManual.Comprimento(pontos);
-                    if (eraMedido) cabo.Metros = cabo.Medido;                                   // o comprimento anotado no texto fica; o medido acompanha a linha nova
+                    LinhaDesenho linha; List<Ponto> pontos; int segmento;
+                    if (!EscolherLinhaDoCabo(s, "\nNova LINHA do cabo " + cabo.Numero + " — linha ou polilinha (o trecho clicado; Esc = manter): ", out linha, out pontos, out segmento)) return;
+                    bool eraMedido = !cabo.Metros.HasValue || System.Math.Abs(cabo.Metros.Value - MapaManual.UsadoPadrao(cabo.Medido)) <= 0.05;
+                    cabo.LinhaHandle = linha.Handle ?? ""; cabo.Trecho = segmento > 0; cabo.Pontos = pontos; cabo.Medido = MapaManual.Comprimento(pontos);
+                    if (eraMedido) cabo.Metros = MapaManual.UsadoPadrao(cabo.Medido);          // o usado digitado fica; o que era o medido acompanha a linha nova
                     cabo.Tipo = MapaManual.TipoDoCabo(s.Regras.Leitura, linha.Layer, linha.Cor, cabo.Campos);
-                    Aplicacao.Msg("Cabo " + cabo.Numero + ": " + (trecho ? "trecho de " : "linha de ") + MapaManual.FormatarMetros(cabo.Medido) + " m"
+                    Aplicacao.Msg("Cabo " + cabo.Numero + ": " + DescreverTrecho(segmento, cabo.Medido)
                         + (cabo.Tipo.Length > 0 ? " · " + cabo.Tipo : "") + " · vale " + MapaManual.FormatarMetros(cabo.Metros ?? cabo.Medido) + " m.");
                 }
                 Mudou(s, true);

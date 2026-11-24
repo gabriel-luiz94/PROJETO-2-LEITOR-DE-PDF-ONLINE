@@ -38,11 +38,44 @@ namespace OrcamentoNanoCAD.Testes
         public void Cabo_tira_a_metragem_do_campo_e_le_o_comprimento()
         {
             List<CampoMapa> c = MapaManual.CamposDosTextos(new[] { T("3xA35P(7,94)-13,8kV 45 m", 0, 0) }, null, "I", true);
-            Assert.Equal("3XA35P(7,94)-13,8KV", c[0].Texto);
+            Assert.Equal("3XA35P(7,94)-13,8KV", c[0].Texto); Assert.Equal(45.0, c[0].Metros);
             Assert.Equal(45.0, MapaManual.MetrosDoTexto("3xA35P(7,94)-13,8kV 45 m"));
             Assert.Equal(38.4, MapaManual.MetrosDoTexto("PB35 38,4m"));
+            Assert.Equal(32.0, MapaManual.MetrosDoTexto("PB70/32 m")); Assert.Equal(32.0, MapaManual.MetrosDoTexto("PB70 / 32m"));
+            Assert.Equal("PB70", MapaManual.SemMetragem("PB70/32 m"));
+            Assert.Null(MapaManual.MetrosDoTexto("PB35 / RAMA25")); Assert.Null(MapaManual.MetrosDoTexto("3xC16(16)+16"));
             Assert.Null(MapaManual.MetrosDoTexto("3xA35P(7,94)-13,8kV"));
             Assert.Equal("38,4", MapaManual.FormatarMetros(38.42)); Assert.Equal("40", MapaManual.FormatarMetros(40.01));
+        }
+
+        [Fact]
+        public void Polilinha_vale_o_trecho_clicado_e_linha_vale_inteira()
+        {
+            var poli = new List<Ponto> { new Ponto(0, 0), new Ponto(40, 0), new Ponto(40, 30), new Ponto(70, 30) };
+            int seg;
+            List<Ponto> t = MapaManual.TrechoClicado(poli, new Ponto(40.4, 12), out seg);          // clique perto do 2º trecho
+            Assert.Equal(2, seg); Assert.Equal(2, t.Count);
+            Assert.Equal(40.0, t[0].X); Assert.Equal(0.0, t[0].Y); Assert.Equal(40.0, t[1].X); Assert.Equal(30.0, t[1].Y);
+            MapaManual.TrechoClicado(poli, new Ponto(5, -1), out seg); Assert.Equal(1, seg);
+            MapaManual.TrechoClicado(poli, new Ponto(69, 31), out seg); Assert.Equal(3, seg);
+            var linha = new List<Ponto> { new Ponto(0, 0), new Ponto(31.4, 0) };
+            t = MapaManual.TrechoClicado(linha, new Ponto(10, 0), out seg);
+            Assert.Equal(0, seg); Assert.Equal(2, t.Count);
+            Assert.Equal(31.0, MapaManual.UsadoPadrao(MapaManual.Comprimento(t))); Assert.Equal(32.0, MapaManual.UsadoPadrao(31.5));
+        }
+
+        [Fact]
+        public void Cada_linha_do_cabo_guarda_a_sua_metragem_e_vai_no_json()
+        {
+            List<CampoMapa> c = MapaManual.CamposDosTextos(new[] { T("PB70/32 m", 0, 10), T("PB35", 0, 5), T("PB50 28 m", 0, 0) }, null, "I", true);
+            Assert.Equal(new[] { "PB70", "PB35", "PB50" }, c.Select(x => x.Texto).ToArray());
+            Assert.Equal(new double?[] { 32, null, 28 }, c.Select(x => x.Metros).ToArray());
+            var cabo = new CaboMapa { Numero = "C1", Pontos = { new Ponto(0, 0), new Ponto(31.2, 0) }, Medido = 31.2, Campos = c };
+            Assert.Equal(new[] { "PB70 32 m", "PB35 31 m", "PB50 28 m" }, MapaManual.LinhasDoCabo(cabo).Cast<JObj>().Select(x => x.Str("ativo")).ToArray());
+            Obra o = Construtor.NovaObra(@"C:\x\Mapa.dwg", Apoio.Pernambuco);
+            o.CabosMapa.Add(cabo);
+            Obra lida = ObraArquivo.Ler(Json.Escrever(ObraArquivo.Envelope(o, ObraArquivoTests.Data), true), Apoio.Pernambuco);
+            Assert.Equal(new double?[] { 32, null, 28 }, lida.CabosMapa[0].Campos.Select(x => x.Metros).ToArray());
         }
 
         [Fact]
@@ -75,10 +108,12 @@ namespace OrcamentoNanoCAD.Testes
             var cabo = new CaboMapa { Numero = "C1", Pontos = { new Ponto(0, 0), new Ponto(38.4, 0) }, Tipo = "MT", Medido = 38.4,
                 Campos = { new CampoMapa { Texto = "3XA35P(7,94)-13,8KV", Operacao = "I" }, new CampoMapa { Texto = "3XC25-13,8KV 30 m", Operacao = "R" } } };
             List<JObj> c = MapaManual.LinhasDoCabo(cabo).Cast<JObj>().ToList();
-            Assert.Equal(new[] { "3XA35P(7,94)-13,8KV 38,4 m", "3XC25-13,8KV 38,4 m" }, c.Select(x => x.Str("ativo")).ToArray());
+            Assert.Equal(new[] { "3XA35P(7,94)-13,8KV 38 m", "3XC25-13,8KV 30 m" }, c.Select(x => x.Str("ativo")).ToArray());   // medido arredondado; a linha com metragem própria fica com a dela
             Assert.Equal("MT", c[0].Str("_geoTipo")); Assert.Equal(2, c[0].Lista("_geo").Count); Assert.Equal("R", c[1].Str("operacao"));
             cabo.Metros = 40;
             Assert.Equal("3XA35P(7,94)-13,8KV 40 m", MapaManual.LinhasDoCabo(cabo).Cast<JObj>().First().Str("ativo"));
+            cabo.Campos[0].Metros = 31;
+            Assert.Equal("3XA35P(7,94)-13,8KV 31 m", MapaManual.LinhasDoCabo(cabo).Cast<JObj>().First().Str("ativo"));
         }
 
         [Fact]
