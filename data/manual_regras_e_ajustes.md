@@ -1183,4 +1183,5 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - Linhas **R** e ***R** (removendo) não geram aviso de vinculação nem de parâmetros («Parâmetros de …»). Se o ativo não existe na base, o aviso de ativo não encontrado continua.
 - Linhas **F** (fictícias) continuam valendo no vínculo, mas não geram aviso de vinculação. Só **I**, **M**, ***I** e ***M** avisam.
 - **Colorir ativos por parâmetros**: linhas R e *R ficam sem cor. A cor muda na hora: ao preencher o último parâmetro pelo balão, a linha passa de laranja para verde sem precisar sair do campo.
+- **Vermelho** = o ativo não existe na base. Nome com vírgula cadastrado entre colchetes (ex.: **[CAZ7,94]**) vale para o cabo escrito **CAZ7,94** — não fica mais vermelho.
 

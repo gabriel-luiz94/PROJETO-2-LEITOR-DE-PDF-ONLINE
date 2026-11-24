@@ -53,3 +53,13 @@ def test_cores_pulam_removendo():
         js = f.read()
     corpo = js[js.index("function aplicarCoresParametros()"):js.index("function agendarCoresAposDesenhar()")]
     assert "['R', '*R'].includes" in corpo
+
+
+@pytest.mark.skipif(not NODE, reason="node indisponível")
+def test_nome_com_virgula_cadastrado_como_literal_existe_na_base():
+    """[CAZ7,94] na base: o cabo «CAZ7,94 35 m» (sem colchetes) não fica vermelho; o que não existe continua vermelho."""
+    js = """const N = require(process.argv[1]);
+const ns = N.nomesDaBase([{ ativo: '[CAZ7,94]', origem: 'CABOS' }, { ativo: 'N1' }], '', 'CABOS');
+process.stdout.write(JSON.stringify(N.foraDaBase(ns, ['CAZ7,94', '[CAZ7,94]', 'N1(A)', 'CAZ7', 'XYZ', 'CAZ7,5'])));"""
+    r = subprocess.run([NODE, "-e", js, os.path.join(config.STATIC_DIR, "ativo_na_base.js")], capture_output=True, text=True, check=True)
+    assert json.loads(r.stdout) == ["CAZ7", "XYZ", "CAZ7,5"]
