@@ -1134,3 +1134,10 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - **Tipo do cabo:** vem da **cor** da linha escolhida (vermelho = MT, verde = BT, ou as cores do projeto). Sem cor de rede, vale a layer e, por fim, o texto (kV/A35P → MT; PB/C16 → BT).
 - **O que já foi coletado aparece na tela:** pontos em **ciano**, cabos em **laranja**, já enviados ao OrçaCore em **cinza**, com as anotações usadas emolduradas. Só enquanto o painel está aberto; ao fechar, some (nada é gravado no desenho). **Mostrar ou ocultar marcas** também liga/desliga.
 - **No painel**, clique num ponto ou cabo da lista: o desenho **enquadra e destaca em amarelo** o item, as anotações e o objeto base (o poste ou a linha/trecho do cabo). Use **Editar** (campos e comprimento), **Excluir** ou **Definir poste / Definir cabo** (escolher outro bloco ou outra linha; os campos ficam). (Plugin 0.16.3.)
+
+## Mapa: janela própria e outra janela do Windows (24/11/2026)
+
+- O antigo **Vincular cabos** agora é o botão **MAPA**. Ele abre direto no mapa; as outras abas (Vínculo, tabelas, Script…) continuam lá.
+- O Mapa abre como o **Resultado** e a **Base de Orçamento**: ocupa a área principal; **Minimizar** manda para o rodapé (clique em **Maximizar Mapa** para voltar); **Maximizar/Restaurar** muda o tamanho; **Fechar** fecha.
+- **Abrir em nova janela** leva o Mapa para uma janela do Windows (por exemplo, no outro monitor). O que você faz lá aparece na hora nas tabelas da janela principal, e o que muda nas tabelas aparece no Mapa. **Retornar à visualização principal** (ou fechar a janela) traz o Mapa de volta. Ctrl+Z na janela principal desfaz o que veio do Mapa.
+- **Esc** no Mapa só tira a seleção (pontos, cabo, ferramenta). Para fechar, use o **Fechar** da janela.

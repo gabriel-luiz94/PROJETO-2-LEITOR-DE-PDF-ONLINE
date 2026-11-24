@@ -12,6 +12,8 @@
     .vz-ov{position:fixed;inset:0;background:#05080d;z-index:9000;display:flex;align-items:center;justify-content:center}
     .vz{width:min(1500px,96vw);height:min(900px,94vh);background:#0d1117;border:1px solid #30363d;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;color:#c9d1d9;font:13px/1.35 -apple-system,Segoe UI,Roboto,sans-serif}
     .vz-ov.vz-destacada{position:relative;inset:auto;z-index:auto;flex:1;min-height:0;background:transparent}
+    .vz-ov.vz-destacada.vz-pagina{position:fixed;inset:0;z-index:9000;background:#0d1117}
+    .vz-ov.vz-destacada:not(.vz-pagina) .vz-top .vz-x{display:none}
     .vz-destacada > .vz{width:100%;height:100%;border:0;border-radius:0}
     .vz-destacada .vz-destacar{display:none}
     .vz-destacada .vz-foot{gap:6px;flex-wrap:wrap}
@@ -317,7 +319,9 @@
         if (abrindo) return;
         if (overlay && overlay.style.display !== 'none') {
             if (host === h && st.projeto === h.projeto() && !opcoes?.aba) {
-                if (!raiz.AbrirNaApp?.trazerPainel('vinculacao')) overlay.focus();
+                if (raiz.AbrirNaApp?.nativaAtiva?.('mapa')) { toast('O Mapa está aberto em outra janela.'); return; }
+                raiz.AbrirNaApp?.trazerConteudo?.('mapa');
+                overlay.focus();
                 return;
             }
             if (!fechar()) return;
@@ -332,43 +336,68 @@
         }
         abrindo = false;
         if (projeto !== host.projeto()) return;
-        st = { projeto, cfg: clone(VR.normalizarConfig(cfg)), aba: (opcoes && opcoes.aba) || 'vinculo', sel: null, filtro: 'todos', filtroCP: 'todos', kbModo: 'c', kbP: null, elAch: null, auto: true, cfgVer: 0, resultadoPoste: null, elRes: null, dirty: false, scriptIdx: 0, previa: null, textoScript: null, erroScript: '', teste: {} };
+        st = { projeto, cfg: clone(VR.normalizarConfig(cfg)), aba: (opcoes && opcoes.aba) || 'mapa', sel: null, filtro: 'todos', filtroCP: 'todos', kbModo: 'c', kbP: null, elAch: null, auto: true, cfgVer: 0, resultadoPoste: null, elRes: null, dirty: false, scriptIdx: 0, previa: null, textoScript: null, erroScript: '', teste: {} };
         if (!overlay) {
-            overlay = el('div', { class: 'vz-ov', onkeydown: e => { if (tecladoCabosPostes(e)) return; if (e.defaultPrevented || e.target.closest('dialog')) return; if (e.key === 'Escape') { if (menuAberto) fecharMenu(); else fechar(); } } });
+            // TASK-241: Esc no Mapa só deseleciona; na janela (visualização) nunca fecha — só o modal antigo (sem AbrirNaApp) fecha fora do mapa
+            overlay = el('div', { class: 'vz-ov', onkeydown: e => { if (tecladoCabosPostes(e)) return; if (e.defaultPrevented || e.target.closest('dialog')) return; if (e.key === 'Escape') { if (menuAberto) fecharMenu(); else if (st.aba !== 'mapa' && !overlay.classList.contains('vz-destacada')) fechar(); } } });
             overlay.setAttribute('tabindex', '-1');
             doc.body.appendChild(overlay);
         }
         if (!overlay.isConnected) doc.body.appendChild(overlay);
         overlay.style.display = 'flex';
+        montarJanela();
         cx = null; painel = null; metaAtivo.clear();
         render();
         overlay.focus();
     }
 
-    function destacar() {
-        if (!raiz.AbrirNaApp || !overlay || overlay.classList.contains('vz-destacada')) return;
-        fecharMenu();
+    // TASK-241: o Mapa abre como as janelas de Resultado e Base de Orçamento (área principal, minimiza para o rodapé, maximizar/restaurar
+    // e «Abrir em nova janela» do Windows). Na janela nativa, o Resumo roda em modo janela (__modoJanelaMapa) e mostra só o Mapa, a página toda.
+    let assinaturaNativa = '', envioNativa = 0;
+    function montarJanela() {
+        if (raiz.__modoJanelaMapa) { overlay.classList.add('vz-destacada', 'vz-pagina'); return; }
+        if (!raiz.AbrirNaApp?.abrirConteudo) return;                        // sem a moldura do programa: o modal de sempre
         overlay.classList.add('vz-destacada');
-        raiz.AbrirNaApp.painel('vinculacao', 'Vinculação', overlay, {
+        assinaturaNativa = '';
+        raiz.AbrirNaApp.abrirConteudo('mapa', 'Mapa', overlay, {
             aoFechar: fechar,
-            aoReencaixar() {
-                overlay.classList.remove('vz-destacada');
-                doc.body.append(overlay);
-                raiz.AbrirNaApp.removerPainel('vinculacao');
-                overlay.focus();
-            }
+            capturar: () => (host?.instantaneo ? { dados: host.instantaneo(), fundo: host.fundoCad?.() || null } : null),
+            restaurar: estado => {
+                if (estado?.dados) aplicarDaNativa(estado.dados);
+                raiz.requestAnimationFrame(() => atualizarObra(false, true));      // voltou da janela nativa: redesenha com o que mudou lá
+            },
+            aoDados: dados => aplicarDaNativa(dados)
+        });
+    }
+    /** A janela nativa mudou a obra: aplica aqui (um passo de Ctrl+Z) sem devolver o mesmo estado para ela. */
+    function aplicarDaNativa(dados) {
+        if (!dados || !host?.aplicarInstantaneo) return;
+        assinaturaNativa = JSON.stringify(dados);
+        host.aplicarInstantaneo(dados);
+    }
+    /** A obra mudou nesta janela com o Mapa aberto na janela nativa: manda o estado para lá (uma vez por quadro, só se mudou). */
+    function sincronizarNativa() {
+        if (!raiz.AbrirNaApp?.nativaAtiva?.('mapa') || !host?.instantaneo || envioNativa) return;
+        envioNativa = raiz.requestAnimationFrame(() => {
+            envioNativa = 0;
+            const dados = host.instantaneo(), assinatura = JSON.stringify(dados);
+            if (assinatura === assinaturaNativa) return;
+            assinaturaNativa = assinatura;
+            raiz.AbrirNaApp.enviarNativa('mapa', 'dados', { dados });
         });
     }
 
     let atualizacao = 0;
-    function atualizarObra(substituida = false) {
-        if (!overlay?.classList.contains('vz-destacada')) return;
+    function atualizarObra(substituida = false, forcar = false) {
+        if (!overlay?.classList.contains('vz-destacada') || overlay.style.display === 'none') return;
+        sincronizarNativa();
+        if (raiz.AbrirNaApp?.nativaAtiva?.('mapa')) return;                 // o Mapa está na janela nativa: aqui fica escondido
         if (substituida) {
             overlay.querySelectorAll('.vz-no-dialog[open]').forEach(d => d.close());
             st.grafoNo = null;
             st.grafoVista = null;
             st.sel = null;
-        } else if (overlay.contains(doc.activeElement)) return;
+        } else if (!forcar && overlay.contains(doc.activeElement)) return;
         if (atualizacao) return;
         atualizacao = raiz.requestAnimationFrame(() => {
             atualizacao = 0;
@@ -388,9 +417,10 @@
         mapaDesmontar = mapaAtualizar = null;
         if (overlay) {
             overlay.style.display = 'none';
-            if (overlay.classList.contains('vz-destacada')) {
+            if (raiz.__modoJanelaMapa) { raiz.AbrirNaApp?.voltarOuFechar?.(); }      // janela nativa: fechar o Mapa fecha a janela (a obra volta antes)
+            else if (overlay.classList.contains('vz-destacada')) {
                 overlay.classList.remove('vz-destacada');
-                raiz.AbrirNaApp.removerPainel('vinculacao');
+                raiz.AbrirNaApp?.removerConteudo?.('mapa');
             }
         }
         if (host && host.depois) host.depois();
@@ -426,18 +456,17 @@
         overlay.innerHTML = '';
         if (st.projeto !== host.projeto()) {
             overlay.appendChild(el('div', { class: 'vz' }, [
-                el('div', { class: 'vz-top' }, [el('h3', { text: 'Vinculação' }), el('button', { class: 'vz-x', text: '✕', 'aria-label': 'Fechar', onclick: fechar })]),
-                el('div', { class: 'vz-corpo' }, [el('p', { role: 'status', text: 'O projeto do Resumo mudou. Feche esta janela e abra a Vinculação do projeto atual.' })])
+                el('div', { class: 'vz-top' }, [el('h3', { text: 'Mapa' }), el('button', { class: 'vz-x', text: '✕', 'aria-label': 'Fechar', onclick: fechar })]),
+                el('div', { class: 'vz-corpo' }, [el('p', { role: 'status', text: 'O projeto do Resumo mudou. Feche esta janela e abra o Mapa do projeto atual.' })])
             ]));
             return;
         }
-        const abas = [['vinculo', 'Vínculo', ''], ['cabopostes', 'Cabos ⇄ Postes', ''], ['mapa', 'Mapa', ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''], ['casos', 'Casos', ''], ['pacote', 'Pacote', ''],
+        const abas = [['mapa', 'Mapa', ''], ['vinculo', 'Vínculo', ''], ['cabopostes', 'Cabos ⇄ Postes', ''], ['cabos', 'Tabela de Cabos', st.cfg.cabos.length], ['estruturas', 'Tabela de Estruturas', st.cfg.estruturas.length], ['dicionario', 'Dicionário de cabos', (st.cfg.dicionario_cabos || []).length], ['postes', 'Postes', st.cfg.postes ? '✓' : ''], ['desenho', 'Desenho', ''], ['exportacao', 'Exportação', st.cfg.exportacao ? '✓' : ''], ['casos', 'Casos', ''], ['pacote', 'Pacote', ''],
             ['script', 'Script', st.cfg.scripts.length]];
         const vz = el('div', { class: st.aba === 'mapa' ? 'vz vz--grafo' : 'vz' }, [
-            el('div', { class: 'vz-top' }, [el('h3', { text: '🔗 Vinculação cabo ⇄ estrutura' }), el('span', { class: 'vz-chip', text: 'Projeto ' + host.projeto() }),
+            el('div', { class: 'vz-top' }, [el('h3', { text: '🗺 Mapa' }), el('span', { class: 'vz-chip', text: 'Projeto ' + host.projeto() }),
                 st.dirty ? el('span', { class: 'vz-chip', style: 'color:#d29922;border-color:#d29922', text: 'alterações não salvas' }) : null,
-                raiz.AbrirNaApp ? el('button', { class: 'vz-btn vz-destacar', text: 'Abrir em janela', onclick: destacar }) : null,
-                el('button', { class: 'vz-x', text: '✕', 'aria-label': 'Fechar vinculação', onclick: fechar })]),
+                el('button', { class: 'vz-x', text: '✕', 'aria-label': 'Fechar mapa', onclick: fechar })]),
             el('div', { class: 'vz-tabs' }, abas.map(([id, nome, n]) => el('button', { class: 'vz-tab' + (st.aba === id ? ' on' : ''), onclick: () => { st.aba = id; st.sel = null; render(); } }, [nome, id === 'vinculo' ? el('b', { id: 'vz-pend', text: String(n), style: n === '' ? 'display:none' : '' }) : (n !== '' ? el('b', { text: String(n) }) : null)]))),
             el('div', { class: 'vz-corpo', id: 'vz-corpo' }),
             rodape()]);
@@ -2384,14 +2413,15 @@
             if (colocando || e.ctrlKey || e.metaKey || e.altKey || dialogo.open || editor.open) return;
             const t = e.target;
             if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.closest?.('dialog'))) return;
-            if (!svg.isConnected) return;
+            if (!svg.isConnected || !svg.getClientRects().length) return;                     // TASK-241: Mapa minimizado/escondido não pega teclas
+            if (t && t !== doc.body && t !== doc.documentElement && !overlay?.contains(t)) return;       // foco em outra tela do Resumo
             const k = e.key;
             if (k === 'Escape') {
-                if (!ferramenta && !selecao.size && caboEscolhido === null && !arrasto) return;
+                // TASK-241: Esc no Mapa só deseleciona (ferramenta, seleção, ponta escolhida, cabo em foco) — nunca fecha o Mapa
                 e.preventDefault(); e.stopPropagation();
                 if (ferramenta) alternarVao(false);
                 limparSelecao();
-                if (caboEscolhido !== null) { caboEscolhido = pontaEscolhida = null; atualizarSelecao(); }
+                if (caboEscolhido !== null || caboEmFoco !== null) { caboEscolhido = pontaEscolhida = null; caboEmFoco = null; atualizarSelecao(); desenharAlcas(); }
                 return;
             }
             if (!host.inserirNoMapa) return;

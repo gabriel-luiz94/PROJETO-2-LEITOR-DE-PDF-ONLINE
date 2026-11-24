@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-24 — Mapa como janela e em outra janela do Windows
+
+«Vincular cabos» passa a ser o **Mapa** (abre na aba Mapa) e abre como as janelas de Resultado e Base: área principal, rodapé, maximizar/restaurar e «Abrir em nova janela» — o Resumo em modo janela mostra só o Mapa numa janela do Windows, sincronizado nos dois sentidos com a principal. Esc no Mapa só deseleciona. [TASK-241](tasks/TASK-241-24-11-2026.md).
+
 ## 2026-11-24 — Plugin 0.16.3: cor do cabo, coletados na tela e ações do item
 
 Modo mapa do plugin: tipo do cabo pela cor da linha; pontos e cabos coletados marcados na tela enquanto o painel está aberto; no painel, clicar num item enquadra e destaca o item com o objeto base, e há Editar, Excluir e Definir poste/cabo. [TASK-038 do plugin](../plugin_nanocad/.ai/tasks/TASK-038-23-11-2026.md).

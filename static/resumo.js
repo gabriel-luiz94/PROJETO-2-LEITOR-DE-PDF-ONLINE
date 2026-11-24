@@ -5,6 +5,11 @@
  * Funcionalidades: Add linha, Excluir linha, Copiar, Undo (Ctrl+Z), Redo (Ctrl+Y).
  */
 document.addEventListener('DOMContentLoaded', () => {
+    // TASK-241: Resumo aberto na janela nativa do Mapa («Abrir em nova janela»): mostra só o Mapa, com uma cópia da obra sincronizada
+    // com a janela principal (ela grava o projeto; esta cópia nunca grava os dados da obra no navegador).
+    const MODO_JANELA_MAPA = new URLSearchParams(location.search).has('janela_transferida');
+    window.__modoJanelaMapa = MODO_JANELA_MAPA;
+    if (MODO_JANELA_MAPA) document.body.classList.add('janela-mapa');
 
     /* ── Helpers ── */
     function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
@@ -473,6 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTable(type) {
         window.VinculacaoUI?.atualizarObra();
+        if (MODO_JANELA_MAPA && (type === 'cabos' || type === 'outros')) window.__agendarEnvioMapa?.();
         const state = tableStates[type];
         const body = document.getElementById(state.bodyId);
         body.innerHTML = '';
@@ -3057,11 +3063,67 @@ document.addEventListener('DOMContentLoaded', () => {
         removerPosteFicticioNoMapa,
         associarNoMapa: associarEstruturaNoMapa,
         linhaSoPoste(ativo) { return !AnotacaoOutros.codigoEstrutura(ativo || '', _classicoTotalizadora, _ctxOutros()); },
-        consultarAssistente: selecao => selecionarMapaAssistente(selecao),
+        consultarAssistente: MODO_JANELA_MAPA ? undefined : selecao => selecionarMapaAssistente(selecao),
         antes() { pushHistory(); },
         desfazer() { undo(); },
-        depois() { try { renderTable('outros'); atualizarResumoRedeUI(); if (typeof updateHistoryUI === 'function') updateHistoryUI(); } catch (e) { /* tela ainda carregando */ } }
+        depois() { try { renderTable('outros'); atualizarResumoRedeUI(); if (typeof updateHistoryUI === 'function') updateHistoryUI(); } catch (e) { /* tela ainda carregando */ } },
+        instantaneo: instantaneoDoMapa,
+        aplicarInstantaneo: aplicarInstantaneoDoMapa
     };
+
+    /** TASK-241: cópia das linhas de Cabos e Demais Ativos (o que o Mapa lê e muda) para a outra janela do Mapa. */
+    function instantaneoDoMapa() {
+        return JSON.parse(JSON.stringify({ cabos: tableStates.cabos.data, outros: tableStates.outros.data }));
+    }
+    /** TASK-241: aplica as linhas vindas da outra janela do Mapa (um passo de Ctrl+Z). false = igual ao que já está aqui. */
+    function aplicarInstantaneoDoMapa(dados) {
+        if (!dados || !Array.isArray(dados.cabos) || !Array.isArray(dados.outros)) return false;
+        if (JSON.stringify({ cabos: tableStates.cabos.data, outros: tableStates.outros.data }) === JSON.stringify({ cabos: dados.cabos, outros: dados.outros })) return false;
+        pushHistory();
+        tableStates.cabos.data = JSON.parse(JSON.stringify(dados.cabos));
+        tableStates.outros.data = JSON.parse(JSON.stringify(dados.outros));
+        try {
+            buildAtivoSets();
+            renderTable('cabos');
+            renderTable('outros');
+            buildDataLists();
+            refreshAllFilters('cabos');
+            refreshAllFilters('outros');
+            updateCounters();
+            atualizarResumoRedeUI();
+            updateHistoryUI();
+        } catch (e) { console.error('Mapa: falha ao aplicar a obra da outra janela.', e); }
+        return true;
+    }
+
+    if (MODO_JANELA_MAPA) {
+        let assinaturaMapa = '', envioMapa = 0;
+        const aplicarDaPrincipal = dados => {
+            window.VinculacaoHost.aplicarInstantaneo(dados);
+            assinaturaMapa = JSON.stringify(instantaneoDoMapa());              // não devolve à principal o que veio dela
+        };
+        window.__agendarEnvioMapa = () => {
+            if (envioMapa) return;
+            envioMapa = requestAnimationFrame(() => {
+                envioMapa = 0;
+                const dados = instantaneoDoMapa(), assinatura = JSON.stringify(dados);
+                if (assinatura === assinaturaMapa) return;
+                assinaturaMapa = assinatura;
+                try { window.top.__enviarDadosMapa?.(dados); } catch (e) { /* moldura de outra origem: sem sincronização */ }
+            });
+        };
+        window.JanelaConteudo = {
+            capturar: () => ({ dados: instantaneoDoMapa() }),
+            async restaurar(estado) {
+                if (estado?.fundo) definirFundoCad(estado.fundo);
+                if (estado?.dados) aplicarDaPrincipal(estado.dados);
+                await window.VinculacaoUI?.abrir(window.VinculacaoHost, { aba: 'mapa' });
+            },
+            dados(dados) { aplicarDaPrincipal(dados); window.VinculacaoUI?.atualizarObra(false, true); },
+            suspender() {},
+            recalcular() {}
+        };
+    }
 
     document.getElementById('select-projeto')?.addEventListener('change', () => window.VinculacaoUI?.atualizarObra());
 
@@ -4069,7 +4131,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     outros: tableStates.outros.data.map(x => ({ entidade: x.entidade, operacao: x.operacao, ativo: x.ativo }))
                 };
             }
-            try { localStorage.setItem('processar_dados', JSON.stringify(extractedDataCache)); } catch (e) { /* sem espaço: a tela segue valendo, só não sobrevive ao F5 */ }
+            if (!MODO_JANELA_MAPA) { try { localStorage.setItem('processar_dados', JSON.stringify(extractedDataCache)); } catch (e) { /* sem espaço: a tela segue valendo, só não sobrevive ao F5 */ } }
             renderTable('cabos');
             renderTable('outros');
             if (window.renderTotalizadora) window.renderTotalizadora();

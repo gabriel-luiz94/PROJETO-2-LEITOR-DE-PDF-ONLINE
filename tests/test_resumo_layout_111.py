@@ -90,7 +90,7 @@ def test_barra_de_titulo():
 def test_barra_de_modais():
     for i in ["btn-resumo-rede", "btn-ajustar", "btn-validar", "select-contexto", "btn-regras-validacao", "barra-modais-montaveis"]:
         assert _dentro("barra-modais", i), i
-    for titulo in ["Gerador de Postes e Estruturas", "Gerador de Cabos", "Gerador de Conexões", "Vincular cabos a estruturas/postes"]:
+    for titulo in ["Gerador de Postes e Estruturas", "Gerador de Cabos", "Gerador de Conexões", "Mapa da rede: pontos, cabos e vínculos às estruturas/postes"]:
         assert f'title="{titulo}"' in HTML
 
 

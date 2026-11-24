@@ -28,8 +28,9 @@
 
     const moldura = doc.getElementById('janela-nativa');
     if (!moldura) return;
-    const telas = { resultado: ['/resultado_orcamento', 'Resultado'], base: ['/orcamento', 'Base de Orçamento'] };
-    const ref = /^(resultado|base)=([0-9a-f]{32})$/.exec(raiz.location.hash.slice(1));
+    // TASK-241: o Mapa abre o Resumo em modo janela (só o mapa, com uma cópia da obra sincronizada com a janela principal)
+    const telas = { resultado: ['/resultado_orcamento', 'Resultado'], base: ['/orcamento', 'Base de Orçamento'], mapa: ['/resumo', 'Mapa'] };
+    const ref = /^(resultado|base|mapa)=([0-9a-f]{32})$/.exec(raiz.location.hash.slice(1));
     const status = doc.getElementById('janela-nativa-status');
     if (!ref || !raiz.BroadcastChannel) { status.textContent = 'Visualização indisponível.'; return; }
 
@@ -70,6 +71,7 @@
         enviar(acao, { estado, resultado: lerResultado(), editado });
     };
     raiz.fecharVisualizacaoNativa = () => sair('fechar');
+    raiz.__enviarDadosMapa = dados => { if (ligada) enviar('dados', { dados }); };      // TASK-241: o Mapa daqui mudou a obra → janela principal
 
     barra.append(botao('retornar', 'Retornar à visualização principal', () => sair('retornar')));
 
@@ -108,6 +110,7 @@
             if (data.acao === 'obra') aoAbrir?.(data.info);
             if (data.acao === 'coletar') enviar('coleta', { id: data.id, resultado: lerResultado(), editado });
             if (data.acao === 'continuar') { ligada = true; quadro.inert = false; }
+            if (data.acao === 'dados') conteudo()?.dados?.(data.dados);                       // TASK-241: a janela principal mudou a obra
         }
     };
     raiz.addEventListener('pagehide', () => canal.close(), { once: true });
