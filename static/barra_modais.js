@@ -17,7 +17,8 @@
         { id: 'cabos', nome: 'CABOS', icone: '〰️' },
         { id: 'conexoes', nome: 'CONEXÕES', icone: '🔌' },
         { id: 'ramais', nome: 'RAMAIS', icone: '📍' },
-        { id: 'vincular', nome: 'MAPA', icone: '🗺' }
+        { id: 'vincular', nome: 'MAPA', icone: '🗺' },
+        { id: 'cava', nome: 'CAVA EM ROCHA', icone: '⛏' }           // TASK-248: só aparece no projeto que tem a parte `cava_rocha`
     ];
 
     /** Ordem efetiva: a salva (só ids que existem) + os que faltam na ordem padrão. */

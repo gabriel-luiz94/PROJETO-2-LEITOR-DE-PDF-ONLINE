@@ -280,6 +280,19 @@ def get_transporte(projeto: str = ""):
     return dados_do_projeto(projeto)
 
 
+@router.get("/cava_rocha")
+def get_cava_rocha(request: Request, projeto: str = ""):
+    """TASK-248: parte `cava_rocha` do projeto (ativo, códigos contados, índice por localidade) + `ativo_na_base` (a base do usuário
+    tem o ativo para o projeto?); {} se o projeto não tem a parte (o botão nem aparece)."""
+    from services import cava_rocha as cr
+    dados = cr.dados_do_projeto(projeto)
+    if not dados:
+        return {}
+    user = getattr(request.state, "user", None)
+    rows = get_merged_orcamento(user["user_id"] if user else None)
+    return dict(dados, ativo_na_base=cr.ativo_na_base(rows, dados.get("ativo"), projeto))
+
+
 @router.post("/calcular")
 def calcular_orcamento(req: OrcamentoRequest, request: Request):
     user = getattr(request.state, "user", None)

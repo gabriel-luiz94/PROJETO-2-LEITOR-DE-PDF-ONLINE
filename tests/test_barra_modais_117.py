@@ -88,7 +88,7 @@ console.log(JSON.stringify([B.ordemEfetiva([],padrao), B.ordemEfetiva(['c','zzz'
     e = json.loads(r.stdout)
     assert e[0] == ["a", "b", "c", "mm:x"] and e[1] == ["c", "a", "b", "mm:x"] and e[2] == ["a", "b", "c", "mm:x"]
     assert e[3] == ["b", "a", "c"] and e[4] == ["a", "b", "c"] and e[5] == ["a", "b", "c"] and e[6] == ["a", "b", "c"]
-    assert e[7] == ["resumo-rede", "ajustar", "validar", "contexto", "regras", "postes", "cabos", "conexoes", "ramais", "vincular"]
+    assert e[7] == ["resumo-rede", "ajustar", "validar", "contexto", "regras", "postes", "cabos", "conexoes", "ramais", "vincular", "cava"]
 
 
 # ── tela ──
@@ -98,7 +98,7 @@ def test_barra_do_html_tem_um_id_para_cada_modal_do_sistema():
     ids = set(re.findall(r'data-modal-id="([^"]+)"', barra))
     js = open(os.path.join(STATIC, "barra_modais.js"), encoding="utf-8").read()
     sistema = set(re.findall(r"\{ id: '([a-z-]+)', nome:", js))
-    assert ids == sistema and len(sistema) == 10
+    assert ids == sistema and len(sistema) == 11
     assert 'id="cfg-modais-corpo"' in html and "/static/barra_modais.js" in html and "BarraModais.recarregar()" in html
 
 

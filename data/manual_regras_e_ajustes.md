@@ -1186,3 +1186,16 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - **Colorir ativos por parâmetros**: linhas R e *R ficam sem cor. A cor muda na hora: ao preencher o último parâmetro pelo balão, a linha passa de laranja para verde sem precisar sair do campo.
 - **Vermelho** = o ativo não existe na base. Nome com vírgula cadastrado entre colchetes (ex.: **[CAZ7,94]**) vale para o cabo escrito **CAZ7,94** — não fica mais vermelho.
 
+## Cava em rocha (24/11/2026)
+
+- No projeto que tem a tabela de cava em rocha (Pernambuco), aparece o botão **⛏ CAVA EM ROCHA** na barra, logo depois do **MAPA**.
+- O modal calcula a quantidade de **SDEMU3007II – CAVA EM ROCHA** como a aba CAVA_ROCHA da ICP: soma os **estais em solo** e os **postes de 9 m ou mais** instalados no orçamento do Resumo (mais o que você digitar em **Qtd extra**), multiplica pelo **índice da localidade**, arredonda a 0,1 e fica com a parte inteira, sem passar do total contado. Poste de 7 e 8 m não entra.
+- A localidade vem do **bairro** da obra (ou do município); dá para trocar digitando o nome. Localidade fora da tabela da ICP = 0 cavas.
+- **Lançar em Outros** escreve a linha `6-CAVA_ROCHA` (substitui a de um cálculo anterior; Ctrl+Z desfaz). Com 0 cavas, só apaga a anterior.
+- Se a base do projeto não tem o ativo CAVA_ROCHA, o modal avisa antes de lançar.
+
+## Mapa: parâmetros dos ativos com Ctrl+Enter (24/11/2026)
+
+- Ao editar uma linha no Mapa (no painel do ponto, em **+ Linha**, **Editar ponto**, **Editar** de uma estrutura ou numa **Nova estrutura / Novo poste**), aperte **Ctrl+Enter** (ou dê duplo clique, ou deixe o mouse parado no campo): abre o mesmo balão de parâmetros das tabelas.
+- Ele lista os ativos da linha com o que está preenchido e o que falta. **Enter** entra nos parâmetros do ativo; **↑↓** escolhe o valor (ou digite outro); **Enter** grava e vai ao próximo; **Del** limpa; **Esc** volta e fecha.
+- O parâmetro entra no texto da linha (ex.: `N3(TIPOCABO=A)`); a linha vai para a tabela quando você confirma com **OK**, como antes.

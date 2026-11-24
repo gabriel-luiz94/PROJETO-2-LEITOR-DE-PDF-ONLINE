@@ -3199,6 +3199,71 @@ document.addEventListener('DOMContentLoaded', () => {
     atualizarItemTransporte();
     setTimeout(atualizarItemTransporte, 1500);                // o projeto é escolhido por código ao carregar a lista (sem evento)
 
+    /* ═══════════════════════════════════════
+       CAVA EM ROCHA (TASK-248) — o cálculo e o modal estão em static/cava_rocha.js.
+       O botão "CAVA EM ROCHA" (na barra, ao lado do MAPA) só aparece quando o projeto ativo tem a parte `cava_rocha` do pacote.
+    ═══════════════════════════════════════ */
+    const _cavaCache = new Map();               // projeto → Promise(dados | {})
+    function _dadosCava(projeto) {
+        if (!projeto) return Promise.resolve({});
+        if (!_cavaCache.has(projeto)) {
+            _cavaCache.set(projeto, fetch('/api/orcamento/cava_rocha?projeto=' + encodeURIComponent(projeto))
+                .then(r => (r.ok ? r.json() : {})).catch(() => { _cavaCache.delete(projeto); return {}; }));
+        }
+        return _cavaCache.get(projeto);
+    }
+    async function atualizarBotaoCava() {
+        const btn = document.getElementById('btn-cava-rocha');
+        if (!btn) return;
+        const projeto = _projetoAtivoNome(), dados = await _dadosCava(projeto);
+        if (projeto === _projetoAtivoNome()) btn.hidden = !(dados && dados.formato);
+    }
+    /** "Lançar em Outros": troca a linha CAVA_ROCHA de um cálculo anterior pela nova (um passo de Ctrl+Z). */
+    function lancarCavaEmOutros(texto, dados) {
+        const antiga = tableStates.outros.data;
+        const velhas = antiga.filter(r => r && !r.comentario && CavaRocha.ehLinhaCava(r.ativo, dados));
+        if (!texto && !velhas.length) return 'Nada a lançar: a quantidade de cavas em rocha é 0.';
+        pushHistory();
+        const nova = antiga.filter(r => !velhas.includes(r));
+        let fim = nova.length;
+        while (fim > 0 && nova[fim - 1] && !String(nova[fim - 1].ativo || '').trim() && !nova[fim - 1].grupoDecl && !nova[fim - 1].grupoDe) fim--;   // antes das linhas vazias do fim
+        if (texto) nova.splice(fim, 0, Object.assign(window.GradeTabela.novaLinha('outros', 'I'), { ativo: texto, entidade: 'OUTROS', origemCavaRocha: true }));
+        const pos = new Map(); nova.forEach((r, k) => pos.set(r, k));
+        _remapearVinculosOutros(antiga.map(r => pos.get(r)));
+        tableStates.outros.data = nova;
+        renderTable('outros');
+        try { atualizarResumoRedeUI(); } catch (e) { /* tela carregando */ }
+        if (window.GridRProjeto && GridRProjeto.marcarSujo) GridRProjeto.marcarSujo(false);
+        const msg = texto
+            ? `${texto} lançado em Outros` + (velhas.length ? ` (${velhas.length} linha(s) antiga(s) substituída(s))` : '') + '. Ctrl+Z desfaz.'
+            : `Quantidade 0: ${velhas.length} linha(s) antiga(s) de cava em rocha removida(s). Ctrl+Z desfaz.`;
+        showToast(msg);
+        return msg;
+    }
+    async function abrirCavaRocha() {
+        const projeto = _projetoAtivoNome(), dados = await _dadosCava(projeto);
+        if (!dados || !dados.formato) { showToast('O projeto ativo não tem a parte "cava_rocha" no pacote.'); return; }
+        CavaRocha.abrirModal({
+            dados,
+            obra: window.ObraParams ? ObraParams.obraDoProjeto() : {},
+            async obterResultado() {
+                // o mesmo pedido do Montar Orçamento, sem as linhas CAVA_ROCHA que já estão em Outros
+                const p = await obterPayloadCalculo();
+                const outros = p.outros.filter(o => !CavaRocha.ehLinhaCava(o.ativo, dados));
+                const r = await fetch('/api/orcamento/calcular', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cabos: p.cabos, outros, projeto, obra: window.ObraParams ? ObraParams.obraDoProjeto() : {} }) });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok) return { erro: 'O orçamento do Resumo não pôde ser calculado' + (d && d.detail ? ` (${typeof d.detail === 'string' ? d.detail : 'erro'})` : '') + '.' };
+                return d;
+            },
+            lancar: texto => lancarCavaEmOutros(texto, dados)
+        });
+    }
+    document.getElementById('btn-cava-rocha')?.addEventListener('click', abrirCavaRocha);
+    document.getElementById('select-projeto')?.addEventListener('change', atualizarBotaoCava);
+    atualizarBotaoCava();
+    setTimeout(atualizarBotaoCava, 1500);
+
     window.abrirModalVinculacao = function () {
         if (window.VinculacaoUI) window.VinculacaoUI.abrir(window.VinculacaoHost);
     };
@@ -7519,9 +7584,9 @@ if (window.AtivoDica) window.AtivoDica.iniciar({
     }
 });
 // TASK-186: balão interativo dos ativos/parâmetros de Outros (Ctrl+Enter, duplo clique, mouse parado, "(" com «Ocultar parâmetros» ligado)
-if (window.AtivoBalao && window.AtivoItens) window.AtivoBalao.iniciar({
-    itens: input => {
-        const idx = Number(input.dataset.parIdx), row = tableStates.outros.data[idx], itens = window.AtivoItens.itens(row ? row.ativo : '');
+/** Os itens do balão para uma linha de Outros (`row`, na posição `idx` da tabela — ou idx < 0 para uma linha que ainda não está nela). */
+function _itensDoBalao(row, idx) {
+        const itens = window.AtivoItens.itens(row ? row.ativo : '');
         let al = [], sts = [];
         try {
             const c = _contextoParametros(), pv = _parametrosVinculoPorLinha()[idx], dv = _defineDoVinculo()[idx];
@@ -7531,7 +7596,14 @@ if (window.AtivoBalao && window.AtivoItens) window.AtivoBalao.iniciar({
         const porPosicao = al.length === itens.length;
         return itens.map((it, i) => ({ nome: it.nome, base: it.base, params: it.params, raw: it.raw,
             status: porPosicao ? al[i] : (sts.find(x => String(AtivoParametros.nomeBase(x.ativo)).toUpperCase() === String(AtivoParametros.nomeBase(it.base || it.nome)).toUpperCase()) || null) }));
-    },
+}
+/** O texto da linha com o parâmetro gravado (a quantidade fica no texto); null = não gravou. */
+function _gravarParametroNoTexto(texto, i, nomeParam, valor) {
+    const AD = window.AtivoDica, c = AD.contextoAtual();
+    return window.AtivoItens.gravarParametro(texto, i, nomeParam, valor, nome => c && AD.dica(nome, c), AD.aplicarValor);
+}
+if (window.AtivoBalao && window.AtivoItens) window.AtivoBalao.iniciar({
+    itens: input => { const idx = Number(input.dataset.parIdx); return _itensDoBalao(tableStates.outros.data[idx], idx); },
     dica: nome => { try { const c = window.AtivoDica && window.AtivoDica.contextoAtual(); return c ? window.AtivoDica.dica(nome, c) : null; } catch (e) { return null; } },
     origens: (input, ativo) => {
         try {
@@ -7544,11 +7616,29 @@ if (window.AtivoBalao && window.AtivoItens) window.AtivoBalao.iniciar({
         } catch (e) { return null; }
     },
     gravar: (input, i, nomeParam, valor) => {
-        const idx = Number(input.dataset.parIdx), row = tableStates.outros.data[idx], AD = window.AtivoDica;
-        const c = AD.contextoAtual();
+        const idx = Number(input.dataset.parIdx), row = tableStates.outros.data[idx];
         // TASK-194: a base conhece «CON», não «6 CON» — a gravação procura a dica pelo nome SEM a quantidade (como a leitura já fazia) e mantém a quantidade no texto
-        const novo = window.AtivoItens.gravarParametro(row.ativo, i, nomeParam, valor, nome => c && AD.dica(nome, c), AD.aplicarValor);
+        const novo = _gravarParametroNoTexto(row.ativo, i, nomeParam, valor);
         if (novo !== null) input._gravarCheio(novo);
+    },
+    // TASK-249: as linhas do ponto no MAPA (e os campos de estruturas dos formulários do mapa) abrem o mesmo balão — Ctrl+Enter, duplo clique, mouse parado
+    seletorExtra: 'input[data-sugestao-origem="OUTROS"]:not([data-sem-balao])',
+    preparar: input => {
+        input._ativoBalao = {
+            itens: inp => {
+                const idx = inp.dataset.linhaOutros === undefined || inp.dataset.linhaOutros === '' ? -1 : Number(inp.dataset.linhaOutros);
+                const base = idx >= 0 ? tableStates.outros.data[idx] : null;
+                const op = typeof inp._operacao === 'function' ? inp._operacao() : (base && base.operacao) || 'I';
+                return _itensDoBalao(Object.assign({}, base || {}, { ativo: String(inp.value || '').toUpperCase(), operacao: op }), idx);
+            },
+            gravar: (inp, i, nomeParam, valor) => {
+                const novo = _gravarParametroNoTexto(String(inp.value || '').toUpperCase(), i, nomeParam, valor);
+                if (novo === null) return;
+                inp.value = String(novo).toUpperCase();
+                inp.dispatchEvent(new Event('input', { bubbles: true }));
+            },
+            rotulo: inp => (inp.dataset.linhaOutros !== undefined && inp.dataset.linhaOutros !== '' ? 'Linha ' + (Number(inp.dataset.linhaOutros) + 1) : (inp.getAttribute('aria-label') || 'Linha nova'))
+        };
     },
     carregarBase: () => carregarBaseOrcamento(),
     mensagem: t => showToast(t)

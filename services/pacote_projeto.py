@@ -2,7 +2,7 @@
 services/pacote_projeto.py — Pacote de projeto (TASK-177, ADR-007): exportar e importar tudo o que um projeto precisa num arquivo `.zip`, e pontos de partida embutidos.
 
 Formato: `.zip` com `manifest.json` (`formato: "pacote-projeto"`, `versao_formato`, `versao_programa`, `projeto`, `descricao`, `partes` = [{nome, arquivo, hash}]) e um arquivo por parte.
-Partes ausentes = "não mexer". Partes: base (`base.csv`), vinculacao, dicionario_cabos, postes, exportacao, desenho, leitor_processamento, leitor_classificacao, regional, casos, transporte (`<parte>.json`).
+Partes ausentes = "não mexer". Partes: base (`base.csv`), vinculacao, dicionario_cabos, postes, exportacao, desenho, leitor_processamento, leitor_classificacao, regional, casos, transporte, cava_rocha (`<parte>.json`).
 Importar mostra antes (`previa`) o que muda por parte (novo / substitui / igual, contagens e avisos do validador) e só grava em `aplicar`, depois de confirmado.
 
 Pontos de partida: cada pasta de `data/pacotes/<id>/` tem um `manifest.json` (`projeto_codigo_padrao`, `nome_projeto`, `partes` apontando para os arquivos) — um projeto sem configuração usa o
@@ -22,10 +22,10 @@ from config import logger
 
 FORMATO = "pacote-projeto"
 VERSAO_FORMATO = 1
-PARTES = ("base", "vinculacao", "dicionario_cabos", "postes", "exportacao", "desenho", "leitor_processamento", "leitor_classificacao", "regional", "casos", "transporte")
+PARTES = ("base", "vinculacao", "dicionario_cabos", "postes", "exportacao", "desenho", "leitor_processamento", "leitor_classificacao", "regional", "casos", "transporte", "cava_rocha")
 ROTULOS = {"base": "Base técnica", "vinculacao": "Vinculação (cabos, estruturas, scripts)", "dicionario_cabos": "Dicionário de cabos", "postes": "Convenção de postes",
            "exportacao": "Perfil de exportação", "desenho": "Leitura do desenho (DXF)", "leitor_processamento": "Regras do leitor (processamento)",
-           "leitor_classificacao": "Regras do leitor (classificação)", "regional": "Tabela regional (OBRA.REGIAO)", "casos": "Casos de referência", "transporte": "Transporte de material"}
+           "leitor_classificacao": "Regras do leitor (classificação)", "regional": "Tabela regional (OBRA.REGIAO)", "casos": "Casos de referência", "transporte": "Transporte de material", "cava_rocha": "Cava em rocha"}
 CHAVES_VINCULACAO = ("versao", "cabos", "estruturas", "ordem_maior", "scripts")
 COLUNAS_BASE = ("ATIVO", "DESC ATIVO", "COMPONENTE", "PROJETO", "MDO", "CODIGO", "DESC CODIGO", "FATOR I", "FATOR R", "FILTRO", "ORIGEM", "LV", "ARRED")
 LIMITE_BYTES = 80 * 1024 * 1024
@@ -280,8 +280,8 @@ def valor_atual(projeto, parte):
         return r or None
     if parte == "regional":
         return parte_guardada(codigo, "regional") or parte_inicial(codigo, "regional")
-    if parte == "transporte":                                                                 # TASK-245
-        return parte_guardada(codigo, "transporte") or parte_inicial(codigo, "transporte")
+    if parte in ("transporte", "cava_rocha"):                                                 # TASK-245 / TASK-248
+        return parte_guardada(codigo, parte) or parte_inicial(codigo, parte)
     if parte == "casos":
         from services import casos_referencia as cr
         return [{k: v for k, v in c.items() if k != "id"} for c in cr.listar(codigo)] or None
@@ -396,6 +396,9 @@ def _avisos_da_parte(parte, v, destino):
         elif parte == "transporte":
             from services import transporte
             avisos += transporte.validar(v)
+        elif parte == "cava_rocha":                                                           # TASK-248
+            from services import cava_rocha
+            avisos += cava_rocha.validar(v)
         elif parte == "desenho":
             from services import leitura_desenho as ld
             avisos += ld.validar(v)
@@ -504,8 +507,8 @@ def _aplicar_parte(proj, parte, valor, user_id, email):
             cr.excluir(codigo, c["id"])
         for c in valor:
             cr.gravar(codigo, c, email)
-    elif parte == "transporte":
-        guardar_parte(codigo, "transporte", valor)
+    elif parte in ("transporte", "cava_rocha"):
+        guardar_parte(codigo, parte, valor)
     elif parte == "regional":
         guardar_parte(codigo, "regional", valor)
         from services import obra_params

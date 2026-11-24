@@ -112,6 +112,11 @@ async def serve_obra_params_js():
 async def serve_transporte_js():
     return _serve_js("transporte.js")           # TASK-245
 
+
+@app.get("/static/cava_rocha.js")
+async def serve_cava_rocha_js():
+    return _serve_js("cava_rocha.js")           # TASK-248
+
 @app.get("/static/ativo_status.js")
 async def serve_ativo_status_js():
     return _serve_js("ativo_status.js")         # TASK-167
