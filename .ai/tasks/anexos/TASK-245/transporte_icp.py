@@ -8,12 +8,25 @@ Entrada:
 Saída: lista [(codigo_servico, quantidade arredondada 2 casas)] na ordem das linhas 14..17 da aba.
 """
 
+class _Erro(str):
+    """#VALOR! do Excel: propaga em contas, SOMASE e comparações."""
+
+
+ERRO = _Erro('#VALUE!')
+
+
+def _err(*xs):
+    return any(isinstance(x, _Erro) for x in xs)
+
+
 BANDAS_ATE50 = ['SDETU5001SI', 'SDETU5003SI', 'SDETU5005SI', 'SDETU5007SI', 'SDETU5009SI']
 BANDAS_MAIS50 = ['SDETU5002SI', 'SDETU5004SI', 'SDETU5006SI', 'SDETU5008SI', 'SDETU5010SI']
 
 
 def _gt(a, b):
     """Comparação do Excel: texto é maior que qualquer número; "" (vazio de fórmula) também é texto."""
+    if _err(a, b):
+        raise _Propaga()
     if isinstance(a, str) and not isinstance(b, str):
         return True
     if not isinstance(a, str) and isinstance(b, str):
@@ -31,6 +44,16 @@ def _le(a, b):
 
 def _lt(a, b):
     return not _ge(a, b)
+
+
+class _Propaga(Exception):
+    pass
+
+
+def arred(x, casas=2):
+    """ARRED do Excel: meio para longe do zero, sobre o número com 15 algarismos significativos (0,185 -> 0,19)."""
+    from decimal import Decimal, ROUND_HALF_UP
+    return float(Decimal(format(x, '.15g')).quantize(Decimal(1).scaleb(-casas), rounding=ROUND_HALF_UP))
 
 
 def _num(x):
@@ -111,7 +134,7 @@ def calcular(qtd_odi, extra, km, pesos, h15_preenchido=True):
     elif _lt(o6, 50):
         o10 = 'DISTÂNCIA INFERIOR A 50 Km'
     elif _gt(r3, 50) or _gt(o5, 25):
-        o10 = o5 * r4 if not isinstance(r4, str) else '#VALOR'
+        o10 = o5 * r4 if not isinstance(r4, str) else ERRO
     else:
         o10 = ''
     # ---- quantidades por carga (coluna V) ----
@@ -121,7 +144,7 @@ def calcular(qtd_odi, extra, km, pesos, h15_preenchido=True):
         if _gt(x, 0.001) and _lt(x, 25):
             return x
         if _gt(x, 25):
-            return x - prox if prox != '' else '#VALOR'
+            return x - prox if prox != '' else ERRO
         return ''
     v13 = o5 if _le(o5, 25) else (o5 - v3)
     v15 = load_qty(v3, y3); v17 = load_qty(y3, ab3); v19 = load_qty(ab3, ae3); v21 = load_qty(ae3, ah3)
@@ -129,7 +152,7 @@ def calcular(qtd_odi, extra, km, pesos, h15_preenchido=True):
 
     def mult(a, b):
         if isinstance(a, str) or isinstance(b, str):
-            return '#VALOR' if (a != '' and b != '') else '#VALOR'
+            return ERRO                                  # texto ("" ou "-") x número = #VALOR!
         return a * b
     # T10, V10, Y10 ...
     if not h15_preenchido:
@@ -155,21 +178,44 @@ def calcular(qtd_odi, extra, km, pesos, h15_preenchido=True):
     linhas.append((af3 if af3 != '' else '', v21)); linhas.append((af4, af10 if af4 != '' else ''))
     linhas.append((ai3 if ai3 != '' else '', v23)); linhas.append((ai4, ai10 if ai4 != '' else ''))
     linhas.append((al3 if al3 != '' else '', v25)); linhas.append((al4, al10 if al4 != '' else ''))
-    # ---- AF: SUMIF por código (SUMIF ignora texto) ----
+    # ---- AF: SOMASE por código (erro numa célula que casa = erro) ----
     af = {}
     for cod in BANDAS_ATE50 + BANDAS_MAIS50:
-        af[cod] = sum(v for u, v in linhas if u == cod and isinstance(v, (int, float)))
-    ac23 = sum(af[c] for c in BANDAS_ATE50)
-    # ---- AK13..AK16 e saída K14..K17 ----
-    ak13 = next((c for c in BANDAS_ATE50 if af[c] > 0.001), '')
-    ak14 = '' if not h15_preenchido else next((c for c in BANDAS_MAIS50 if af[c] > 0.001), '')
-    ak15 = 'SDETU5009SI' if (ac23 > 25 and af['SDETU5009SI'] > 0.001 and ak13 != 'SDETU5009SI') else ''
+        casam = [v for u, v in linhas if u == cod]
+        af[cod] = ERRO if _err(*casam) else sum(v for v in casam if isinstance(v, (int, float)))
+    ac23 = ERRO if _err(*(af[c] for c in BANDAS_ATE50)) else sum(af[c] for c in BANDAS_ATE50)
+
+    def primeiro(ordem):                              # IF(AF>0,001;cod;IF(…)) com curto-circuito
+        for c in ordem:
+            if _err(af[c]):
+                return ERRO
+            if af[c] > 0.001:
+                return c
+        return ''
+
+    def e(*conds):                                   # E(…) do Excel: erro em qualquer argumento = erro
+        vals = []
+        for f in conds:
+            try:
+                vals.append(f())
+            except _Propaga:
+                return ERRO
+        return all(vals)
+    ak13 = primeiro(BANDAS_ATE50)
+    ak14 = '' if not h15_preenchido else primeiro(BANDAS_MAIS50)
+    c15 = e(lambda: _gt(ac23, 25), lambda: _gt(af['SDETU5009SI'], 0.001), lambda: _err(ak13) and (_ for _ in ()).throw(_Propaga()) or ak13 != 'SDETU5009SI')
+    ak15 = ERRO if _err(c15) else ('SDETU5009SI' if c15 else '')
     k14 = ak13
-    k15 = ak15 if ak14 == '' else ak14
-    k16 = '' if ak14 == '' else ('SDETU5009SI' if (ac23 > 25 and af['SDETU5009SI'] > 0.001 and ak13 != 'SDETU5009SI') else '')
-    k17 = 'SDETU5010SI' if (ak15 == 'SDETU5009SI' and af['SDETU5010SI'] > 0.001 and ak13 != 'SDETU5010SI') else ''
+    k15 = ERRO if _err(ak14) else (ak15 if ak14 == '' else ak14)
+    k16 = ERRO if _err(ak14) else ('' if ak14 == '' else (ERRO if _err(c15) else ('SDETU5009SI' if c15 else '')))
+    c17 = e(lambda: _err(ak15) and (_ for _ in ()).throw(_Propaga()) or ak15 == 'SDETU5009SI',
+            lambda: _gt(af['SDETU5010SI'], 0.001),
+            lambda: _err(ak13) and (_ for _ in ()).throw(_Propaga()) or ak13 != 'SDETU5010SI')
+    k17 = ERRO if _err(c17) else ('SDETU5010SI' if c17 else '')
     out = []
     for k in (k14, k15, k16, k17):
-        if k:
-            out.append((k, round(af[k] + 0.0, 2)))
+        if _err(k):
+            out.append((ERRO, ERRO))
+        elif k:
+            out.append((k, ERRO if _err(af[k]) else arred(af[k], 2)))
     return {'toneladas': o5, 'km': r3, 'servicos': out}
