@@ -1,0 +1,2973 @@
+{
+ "fonte": "aba TRANSPORT da ICP V1.62 recalculada no LibreOffice (24/11/2026)",
+ "casos": [
+  {
+   "qtd_odi": {
+    "3300082": 0.2175
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 0.2999325,
+   "saida_icp": [
+    [
+     "SDETU5001SI",
+     0.3
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.2175
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 0.2999325,
+   "saida_icp": [
+    [
+     "SDETU5001SI",
+     0.3
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.2175
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 0.2999325,
+   "saida_icp": [
+    [
+     "SDETU5001SI",
+     0.3
+    ],
+    [
+     "SDETU5002SI",
+     0.6
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.2175
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 0.2999325,
+   "saida_icp": [
+    [
+     "SDETU5001SI",
+     0.3
+    ],
+    [
+     "SDETU5002SI",
+     15.6
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.2175
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 0.2999325,
+   "saida_icp": [
+    [
+     "SDETU5001SI",
+     0.3
+    ],
+    [
+     "SDETU5002SI",
+     36.59
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.2175
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 0.2999325,
+   "saida_icp": [
+    [
+     "SDETU5001SI",
+     0.3
+    ],
+    [
+     "SDETU5002SI",
+     59.99
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.4351
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 0.6000029,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     0.6
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.4351
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 0.6000029,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     0.6
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.4351
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 0.6000029,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     0.6
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.4351
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 0.6000029,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     0.6
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.4351
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 0.6000029,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     0.6
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.4351
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 0.6000029,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     0.6
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.4496
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 0.6199984,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     0.62
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.4496
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 0.6199984,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     0.62
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.4496
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 0.6199984,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     0.62
+    ],
+    [
+     "SDETU5004SI",
+     1.24
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.4496
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 0.6199984,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     0.62
+    ],
+    [
+     "SDETU5004SI",
+     32.24
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.4496
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 0.6199984,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     0.62
+    ],
+    [
+     "SDETU5004SI",
+     75.64
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 0.4496
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 0.6199984,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     0.62
+    ],
+    [
+     "SDETU5004SI",
+     124
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.8281
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 3.8999499,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     3.9
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.8281
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 3.8999499,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     3.9
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.8281
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 3.8999499,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     3.9
+    ],
+    [
+     "SDETU5004SI",
+     7.8
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.8281
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 3.8999499,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     3.9
+    ],
+    [
+     "SDETU5004SI",
+     202.8
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.8281
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 3.8999499,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     3.9
+    ],
+    [
+     "SDETU5004SI",
+     475.79
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.8281
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 3.8999499,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     3.9
+    ],
+    [
+     "SDETU5004SI",
+     779.99
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.9007
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 4.0000653,
+   "saida_icp": []
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.9007
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 4.0000653,
+   "saida_icp": []
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.9007
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 4.0000653,
+   "saida_icp": [
+    [
+     "SDETU5006SI",
+     8
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.9007
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 4.0000653,
+   "saida_icp": [
+    [
+     "SDETU5006SI",
+     208
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.9007
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 4.0000653,
+   "saida_icp": [
+    [
+     "SDETU5006SI",
+     488.01
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.9007
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 4.0000653,
+   "saida_icp": [
+    [
+     "SDETU5006SI",
+     800.01
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.901
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 4.000479,
+   "saida_icp": []
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.901
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 4.000479,
+   "saida_icp": []
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.901
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 4.000479,
+   "saida_icp": [
+    [
+     "SDETU5006SI",
+     8
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.901
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 4.000479,
+   "saida_icp": [
+    [
+     "SDETU5006SI",
+     208.02
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.901
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 4.000479,
+   "saida_icp": [
+    [
+     "SDETU5006SI",
+     488.06
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 2.901
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 4.000479,
+   "saida_icp": [
+    [
+     "SDETU5006SI",
+     800.1
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 4.7136
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 6.5000544,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     6.5
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 4.7136
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 6.5000544,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     6.5
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 4.7136
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 6.5000544,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     6.5
+    ],
+    [
+     "SDETU5006SI",
+     13
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 4.7136
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 6.5000544,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     6.5
+    ],
+    [
+     "SDETU5006SI",
+     338
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 4.7136
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 6.5000544,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     6.5
+    ],
+    [
+     "SDETU5006SI",
+     793.01
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 4.7136
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 6.5000544,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     6.5
+    ],
+    [
+     "SDETU5006SI",
+     1300.01
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 5.8013
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 7.9999927,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     8
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 5.8013
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 7.9999927,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     8
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 5.8013
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 7.9999927,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     8
+    ],
+    [
+     "SDETU5006SI",
+     16
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 5.8013
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 7.9999927,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     8
+    ],
+    [
+     "SDETU5006SI",
+     416
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 5.8013
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 7.9999927,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     8
+    ],
+    [
+     "SDETU5006SI",
+     976
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 5.8013
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 7.9999927,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     8
+    ],
+    [
+     "SDETU5006SI",
+     1600
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 8.702
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 12.000058,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     12
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 8.702
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 12.000058,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     12
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 8.702
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 12.000058,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     12
+    ],
+    [
+     "SDETU5008SI",
+     24
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 8.702
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 12.000058,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     12
+    ],
+    [
+     "SDETU5008SI",
+     624
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 8.702
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 12.000058,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     12
+    ],
+    [
+     "SDETU5008SI",
+     1464.01
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 8.702
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 12.000058,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     12
+    ],
+    [
+     "SDETU5008SI",
+     2400.01
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 10.1523
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 14.0000217,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     14
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 10.1523
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 14.0000217,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     14
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 10.1523
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 14.0000217,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     14
+    ],
+    [
+     "SDETU5010SI",
+     28
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 10.1523
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 14.0000217,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     14
+    ],
+    [
+     "SDETU5010SI",
+     728
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 10.1523
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 14.0000217,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     14
+    ],
+    [
+     "SDETU5010SI",
+     1708
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 10.1523
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 14.0000217,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     14
+    ],
+    [
+     "SDETU5010SI",
+     2800
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 14.5033
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 20.0000507,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     20
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 14.5033
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 20.0000507,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     20
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 14.5033
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 20.0000507,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     20
+    ],
+    [
+     "SDETU5010SI",
+     40
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 14.5033
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 20.0000507,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     20
+    ],
+    [
+     "SDETU5010SI",
+     1040
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 14.5033
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 20.0000507,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     20
+    ],
+    [
+     "SDETU5010SI",
+     2440.01
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 14.5033
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 20.0000507,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     20
+    ],
+    [
+     "SDETU5010SI",
+     4000.01
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 18.1291
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 25.0000289,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     25
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 18.1291
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 25.0000289,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     25
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 18.1291
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 25.0000289,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     50
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 18.1291
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 25.0000289,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     1300
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 18.1291
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 25.0000289,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     3050
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 18.1291
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 25.0000289,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     5000
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 18.4191
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 25.3999389,
+   "saida_icp": [
+    [
+     "SDETU5001SI",
+     0.4
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 18.4191
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 25.3999389,
+   "saida_icp": [
+    [
+     "SDETU5001SI",
+     0.4
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 18.4191
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 25.3999389,
+   "saida_icp": [
+    [
+     "SDETU5001SI",
+     0.4
+    ],
+    [
+     "SDETU5002SI",
+     0.8
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     50
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 18.4191
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 25.3999389,
+   "saida_icp": [
+    [
+     "SDETU5001SI",
+     0.4
+    ],
+    [
+     "SDETU5002SI",
+     20.8
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     1300
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 18.4191
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 25.3999389,
+   "saida_icp": [
+    [
+     "SDETU5001SI",
+     0.4
+    ],
+    [
+     "SDETU5002SI",
+     48.79
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     3050
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 18.4191
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 25.3999389,
+   "saida_icp": [
+    [
+     "SDETU5001SI",
+     0.4
+    ],
+    [
+     "SDETU5002SI",
+     79.99
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     5000
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 21.7549
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 30.0000071,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     5
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 21.7549
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 30.0000071,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     5
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 21.7549
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 30.0000071,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     5
+    ],
+    [
+     "SDETU5006SI",
+     10
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     50
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 21.7549
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 30.0000071,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     5
+    ],
+    [
+     "SDETU5006SI",
+     260
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     1300
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 21.7549
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 30.0000071,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     5
+    ],
+    [
+     "SDETU5006SI",
+     610
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     3050
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 21.7549
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 30.0000071,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     5
+    ],
+    [
+     "SDETU5006SI",
+     1000
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     5000
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 27.2661
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 37.5999519,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     12.6
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 27.2661
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 37.5999519,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     12.6
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 27.2661
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 37.5999519,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     12.6
+    ],
+    [
+     "SDETU5008SI",
+     25.2
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     50
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 27.2661
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 37.5999519,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     12.6
+    ],
+    [
+     "SDETU5008SI",
+     655.2
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     1300
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 27.2661
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 37.5999519,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     12.6
+    ],
+    [
+     "SDETU5008SI",
+     1537.19
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     3050
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 27.2661
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 37.5999519,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     12.6
+    ],
+    [
+     "SDETU5008SI",
+     2519.99
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     5000
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 36.1856
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 49.8999424,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     49.9
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 36.1856
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 49.8999424,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     49.9
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 36.1856
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 49.8999424,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     49.9
+    ],
+    [
+     "SDETU5010SI",
+     99.8
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 36.1856
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 49.8999424,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     49.9
+    ],
+    [
+     "SDETU5010SI",
+     2594.8
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 36.1856
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 49.8999424,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     49.9
+    ],
+    [
+     "SDETU5010SI",
+     6087.79
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 36.1856
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 49.8999424,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     49.9
+    ],
+    [
+     "SDETU5010SI",
+     9979.99
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 36.2582
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 50.0000578,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     50
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 36.2582
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 50.0000578,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     50
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 36.2582
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 50.0000578,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     50
+    ],
+    [
+     "#VALUE!",
+     "#VALUE!"
+    ],
+    [
+     "#VALUE!",
+     "#VALUE!"
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 36.2582
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 50.0000578,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     50
+    ],
+    [
+     "#VALUE!",
+     "#VALUE!"
+    ],
+    [
+     "#VALUE!",
+     "#VALUE!"
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 36.2582
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 50.0000578,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     50
+    ],
+    [
+     "#VALUE!",
+     "#VALUE!"
+    ],
+    [
+     "#VALUE!",
+     "#VALUE!"
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 36.2582
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 50.0000578,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     50
+    ],
+    [
+     "#VALUE!",
+     "#VALUE!"
+    ],
+    [
+     "#VALUE!",
+     "#VALUE!"
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 37.1284
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 51.2000636,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     1.2
+    ],
+    [
+     "SDETU5009SI",
+     50
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 37.1284
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 51.2000636,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     1.2
+    ],
+    [
+     "SDETU5009SI",
+     50
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 37.1284
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 51.2000636,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     1.2
+    ],
+    [
+     "SDETU5004SI",
+     2.4
+    ],
+    [
+     "SDETU5009SI",
+     50
+    ],
+    [
+     "SDETU5010SI",
+     100
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 37.1284
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 51.2000636,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     1.2
+    ],
+    [
+     "SDETU5004SI",
+     62.4
+    ],
+    [
+     "SDETU5009SI",
+     50
+    ],
+    [
+     "SDETU5010SI",
+     2600
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 37.1284
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 51.2000636,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     1.2
+    ],
+    [
+     "SDETU5004SI",
+     146.41
+    ],
+    [
+     "SDETU5009SI",
+     50
+    ],
+    [
+     "SDETU5010SI",
+     6100
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 37.1284
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 51.2000636,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     1.2
+    ],
+    [
+     "SDETU5004SI",
+     240.01
+    ],
+    [
+     "SDETU5009SI",
+     50
+    ],
+    [
+     "SDETU5010SI",
+     10000
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 45.6853
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 63.0000287,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     13
+    ],
+    [
+     "SDETU5009SI",
+     50
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 45.6853
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 63.0000287,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     13
+    ],
+    [
+     "SDETU5009SI",
+     50
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 45.6853
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 63.0000287,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     13
+    ],
+    [
+     "SDETU5008SI",
+     26
+    ],
+    [
+     "SDETU5009SI",
+     50
+    ],
+    [
+     "SDETU5010SI",
+     100
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 45.6853
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 63.0000287,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     13
+    ],
+    [
+     "SDETU5008SI",
+     676
+    ],
+    [
+     "SDETU5009SI",
+     50
+    ],
+    [
+     "SDETU5010SI",
+     2600
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 45.6853
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 63.0000287,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     13
+    ],
+    [
+     "SDETU5008SI",
+     1586
+    ],
+    [
+     "SDETU5009SI",
+     50
+    ],
+    [
+     "SDETU5010SI",
+     6100
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 45.6853
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 63.0000287,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     13
+    ],
+    [
+     "SDETU5008SI",
+     2600.01
+    ],
+    [
+     "SDETU5009SI",
+     50
+    ],
+    [
+     "SDETU5010SI",
+     10000
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 58.0131
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 80.0000649,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     5
+    ],
+    [
+     "SDETU5009SI",
+     75
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 58.0131
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 80.0000649,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     5
+    ],
+    [
+     "SDETU5009SI",
+     75
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 58.0131
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 80.0000649,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     5
+    ],
+    [
+     "SDETU5006SI",
+     10
+    ],
+    [
+     "SDETU5009SI",
+     75
+    ],
+    [
+     "SDETU5010SI",
+     150
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 58.0131
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 80.0000649,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     5
+    ],
+    [
+     "SDETU5006SI",
+     260
+    ],
+    [
+     "SDETU5009SI",
+     75
+    ],
+    [
+     "SDETU5010SI",
+     3900
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 58.0131
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 80.0000649,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     5
+    ],
+    [
+     "SDETU5006SI",
+     610.01
+    ],
+    [
+     "SDETU5009SI",
+     75
+    ],
+    [
+     "SDETU5010SI",
+     9150
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 58.0131
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 80.0000649,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     5
+    ],
+    [
+     "SDETU5006SI",
+     1000.01
+    ],
+    [
+     "SDETU5009SI",
+     75
+    ],
+    [
+     "SDETU5010SI",
+     15000
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 87.0196
+   },
+   "qtd_extra": {},
+   "utd_km": 0.26,
+   "municipio_informado": true,
+   "toneladas": 120.0000284,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     120
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 87.0196
+   },
+   "qtd_extra": {},
+   "utd_km": 42,
+   "municipio_informado": true,
+   "toneladas": 120.0000284,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     120
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 87.0196
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 120.0000284,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     120
+    ],
+    [
+     "SDETU5010SI",
+     240
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 87.0196
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 120.0000284,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     120
+    ],
+    [
+     "SDETU5010SI",
+     6240
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 87.0196
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 120.0000284,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     120
+    ],
+    [
+     "SDETU5010SI",
+     14640
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 87.0196
+   },
+   "qtd_extra": {},
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 120.0000284,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     120
+    ],
+    [
+     "SDETU5010SI",
+     24000.01
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3310009": 1,
+    "3302087": 1,
+    "3302019": 8
+   },
+   "qtd_extra": {
+    "3300109": 1
+   },
+   "utd_km": 190.4,
+   "municipio_informado": true,
+   "toneladas": 15.615,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     15.62
+    ],
+    [
+     "SDETU5010SI",
+     2192.35
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3310014": 5
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": true,
+   "toneladas": 0.185,
+   "saida_icp": [
+    [
+     "SDETU5001SI",
+     0.19
+    ],
+    [
+     "SDETU5002SI",
+     0.37
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3302014": 13,
+    "3310021": 13,
+    "3300082": 8,
+    "3310029": 1
+   },
+   "qtd_extra": {},
+   "utd_km": 152,
+   "municipio_informado": true,
+   "toneladas": 43.014,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     43.01
+    ],
+    [
+     "SDETU5010SI",
+     4387.43
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3310013": 2,
+    "3300153": 3
+   },
+   "qtd_extra": {},
+   "utd_km": 190.4,
+   "municipio_informado": true,
+   "toneladas": 4.234,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     4.23
+    ],
+    [
+     "SDETU5006SI",
+     594.45
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300102": 1,
+    "3300153": 8,
+    "3302014": 8,
+    "3302003": 13,
+    "3303013": 2
+   },
+   "qtd_extra": {
+    "3300153": 1
+   },
+   "utd_km": 190.6,
+   "municipio_informado": true,
+   "toneladas": 47.587,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     47.59
+    ],
+    [
+     "SDETU5010SI",
+     6690.73
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300094": 3,
+    "3300152": 5,
+    "3302003": 8,
+    "3300007": 5,
+    "3302014": 3
+   },
+   "qtd_extra": {
+    "3302016": 1
+   },
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 31.075,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     6.08
+    ],
+    [
+     "SDETU5006SI",
+     1215
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     5000
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300082": 3
+   },
+   "qtd_extra": {},
+   "utd_km": 104,
+   "municipio_informado": false,
+   "toneladas": 4.137,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     4.14
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300068": 8,
+    "3300095": 5,
+    "3310010": 2,
+    "3310029": 3
+   },
+   "qtd_extra": {
+    "3300152": 2
+   },
+   "utd_km": 0.26,
+   "municipio_informado": false,
+   "toneladas": 14.844,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     14.84
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3302083": 8
+   },
+   "qtd_extra": {},
+   "utd_km": 104,
+   "municipio_informado": true,
+   "toneladas": 19.24,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     19.24
+    ],
+    [
+     "SDETU5010SI",
+     1038.96
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3302085": 1,
+    "3300095": 3,
+    "3300152": 5,
+    "3300109": 13,
+    "3300012": 13,
+    "3310010": 1
+   },
+   "qtd_extra": {
+    "3302010": 2
+   },
+   "utd_km": 228,
+   "municipio_informado": false,
+   "toneladas": 44.63,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     44.63
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3302014": 3,
+    "3300002": 1,
+    "3300068": 5,
+    "3303230": 3,
+    "3302086": 2,
+    "3302000": 8
+   },
+   "qtd_extra": {
+    "3310021": 1
+   },
+   "utd_km": 102,
+   "municipio_informado": true,
+   "toneladas": 33.891,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     8.89
+    ],
+    [
+     "SDETU5008SI",
+     462.33
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     1300
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3301140": 5,
+    "3302087": 5,
+    "3302014": 8,
+    "3300152": 3,
+    "3310014": 2,
+    "3324021": 5
+   },
+   "qtd_extra": {},
+   "utd_km": 102,
+   "municipio_informado": false,
+   "toneladas": 69.26,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     69.26
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3302085": 2,
+    "3302003": 1,
+    "3302086": 2,
+    "3301549": 2
+   },
+   "qtd_extra": {
+    "3301549": 1
+   },
+   "utd_km": 172,
+   "municipio_informado": false,
+   "toneladas": 16.777,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     16.78
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300019": 1,
+    "3300068": 2
+   },
+   "qtd_extra": {},
+   "utd_km": 104,
+   "municipio_informado": false,
+   "toneladas": 3.213,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     3.21
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3302082": 13,
+    "3310001": 13,
+    "3302010": 13,
+    "3300016": 1,
+    "3300076": 5
+   },
+   "qtd_extra": {},
+   "utd_km": 228,
+   "municipio_informado": false,
+   "toneladas": 51.1835,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     1.18
+    ],
+    [
+     "SDETU5009SI",
+     50
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3302087": 5,
+    "3310007": 1,
+    "3300080": 2,
+    "3302027": 1
+   },
+   "qtd_extra": {},
+   "utd_km": 172,
+   "municipio_informado": true,
+   "toneladas": 32.692,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     7.69
+    ],
+    [
+     "SDETU5006SI",
+     938.42
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ],
+    [
+     "SDETU5010SI",
+     3050
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3302058": 8
+   },
+   "qtd_extra": {
+    "3324010": 1
+   },
+   "utd_km": 190.4,
+   "municipio_informado": true,
+   "toneladas": 16.07,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     16.07
+    ],
+    [
+     "SDETU5010SI",
+     2256.23
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300076": 2,
+    "3324009": 8,
+    "3310010": 5
+   },
+   "qtd_extra": {
+    "3300019": 2
+   },
+   "utd_km": 190.6,
+   "municipio_informado": true,
+   "toneladas": 3.739,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     3.74
+    ],
+    [
+     "SDETU5004SI",
+     525.7
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3310029": 5,
+    "3300152": 3,
+    "3300012": 1,
+    "3300080": 2
+   },
+   "qtd_extra": {
+    "3302058": 2
+   },
+   "utd_km": 172,
+   "municipio_informado": false,
+   "toneladas": 11.487,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     11.49
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300083": 2,
+    "3324009": 8
+   },
+   "qtd_extra": {
+    "3302010": 1
+   },
+   "utd_km": 190.4,
+   "municipio_informado": true,
+   "toneladas": 3.6265,
+   "saida_icp": [
+    [
+     "SDETU5003SI",
+     3.63
+    ],
+    [
+     "SDETU5004SI",
+     509.16
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3310014": 3,
+    "3302010": 2,
+    "3300019": 8,
+    "3300083": 8,
+    "3302059": 8,
+    "3324021": 3
+   },
+   "qtd_extra": {},
+   "utd_km": 190.6,
+   "municipio_informado": true,
+   "toneladas": 42.019,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     42.02
+    ],
+    [
+     "SDETU5010SI",
+     5907.87
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3302014": 13,
+    "3302087": 2
+   },
+   "qtd_extra": {
+    "3300152": 2
+   },
+   "utd_km": 250,
+   "municipio_informado": true,
+   "toneladas": 45.283,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     45.28
+    ],
+    [
+     "SDETU5010SI",
+     9056.6
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3302016": 3
+   },
+   "qtd_extra": {},
+   "utd_km": 52,
+   "municipio_informado": false,
+   "toneladas": 5.163,
+   "saida_icp": [
+    [
+     "SDETU5005SI",
+     5.16
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3302085": 1,
+    "3300002": 2,
+    "3302087": 1,
+    "3300106": 2,
+    "3302059": 5
+   },
+   "qtd_extra": {
+    "3300094": 2
+   },
+   "utd_km": 190.6,
+   "municipio_informado": false,
+   "toneladas": 33.556,
+   "saida_icp": [
+    [
+     "SDETU5007SI",
+     8.56
+    ],
+    [
+     "SDETU5009SI",
+     25
+    ]
+   ]
+  },
+  {
+   "qtd_odi": {
+    "3300080": 13
+   },
+   "qtd_extra": {
+    "3302019": 1
+   },
+   "utd_km": 228,
+   "municipio_informado": true,
+   "toneladas": 18.485,
+   "saida_icp": [
+    [
+     "SDETU5009SI",
+     18.49
+    ],
+    [
+     "SDETU5010SI",
+     3290.33
+    ]
+   ]
+  }
+ ]
+}

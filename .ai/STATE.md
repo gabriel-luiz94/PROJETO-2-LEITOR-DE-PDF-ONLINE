@@ -85,7 +85,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
-- [x] [TASK-245](tasks/TASK-245-24-11-2026.md) — Plugin 0.16.4: Selecionar cabo pelo trecho clicado da polilinha, comprimento usado = medido arredondado, metragem por linha do cabo.
+- [x] [TASK-246](tasks/TASK-246-24-11-2026.md) — Plugin 0.16.4: Selecionar cabo pelo trecho clicado da polilinha, comprimento usado = medido arredondado, metragem por linha do cabo.
 - [x] [TASK-244](tasks/TASK-244-24-11-2026.md) — Mapa/vínculo: estrutura com quantidade inteira vira uma unidade por estrutura («2 FLABIT» = duas).
 - [x] [TASK-243](tasks/TASK-243-24-11-2026.md) — Mapa: pré-preenchimento do ativo do cabo (3 → 3x, A35P( → 7,94)-13,8kV, - → 13,8kV).
 - [x] [TASK-242](tasks/TASK-242-24-11-2026.md) — Mapa: «Editar» do cabo = formulário do + Cabo; «Editar» da estrutura = linha em «Linhas do ponto».
