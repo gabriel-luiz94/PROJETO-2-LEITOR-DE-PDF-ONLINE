@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-24 — 0.16.4
+
+Selecionar cabo (modo mapa) sem a pergunta «Inteira/Trecho»: LINE vale inteira; polilinha vale sempre o trecho clicado, de vértice a vértice (`MapaManual.TrechoClicado`), destacado em amarelo enquanto se escolhem as anotações. A janela mostra **Medido na linha** (só informação) e **Comprimento usado** (padrão: o medido arredondado sem casas decimais — `MapaManual.UsadoPadrao`), e cada linha do cabo tem o seu campo **m**: a metragem do texto capturado («PB70 32 m» ou «PB70/32 m») fica naquela linha (`CampoMapa.Metros`, «metros» na seção `cad`); as linhas sem metragem própria usam o comprimento usado. [TASK-038](tasks/TASK-038-23-11-2026.md).
+
 ## 2026-11-24 — 0.16.3
 
 Modo mapa: o tipo (MT/BT) do cabo escolhido à mão vem da **cor** da linha (cores do projeto; vermelho/verde no padrão), depois da layer de rede e, por fim, do texto. O que já foi coletado aparece na tela — pontos em ciano, cabos em laranja, enviados em cinza, com as anotações emolduradas — só com o painel aberto (gráficos transitórios; somem ao fechar o painel). No painel, clicar num item do mapa enquadra e destaca o item com o poste/linha dele; botões **Editar**, **Excluir** e **Definir poste/cabo** (`ORC_MAPA_ZOOM`, `ORC_MAPA_EXCLUIR`, `ORC_MAPA_OBJETO`). [TASK-038](tasks/TASK-038-23-11-2026.md).

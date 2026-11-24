@@ -24,6 +24,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public string Operacao = "I";     // F | I | *I | M | *M | R | *R
         public string Origem = "";        // regra | sem regra | manual
         public string Entidade;           // da regra (POSTE, ESTRUTURA…); vazio = decide pelo texto
+        public double? Metros;            // 0.16.4 (cabo): comprimento desta linha («PB70 32 m», «PB70/32 m»); null = o comprimento usado do cabo
     }
 
     public class PontoMapa
@@ -59,7 +60,8 @@ namespace OrcamentoNanoCAD.Nucleo
     public static class MapaManual
     {
         public static readonly string[] Operacoes = { "F", "I", "*I", "M", "*M", "R", "*R" };
-        private static readonly Regex Metragem = new Regex(@"\s+(\d+(?:[.,]\d+)?)\s*[mM]?\s*$");
+        // «… 38 m», «… 38m», «… 38» e (0.16.4) «PB70/32 m» (com a barra, o «m» é obrigatório)
+        private static readonly Regex Metragem = new Regex(@"(?:\s+(\d+(?:[.,]\d+)?)\s*[mM]?|\s*/\s*(\d+(?:[.,]\d+)?)\s*[mM])\s*$");
         private const int MaxPontosGeo = 60;
 
         public static string NormalizarOperacao(string op)
@@ -133,7 +135,11 @@ namespace OrcamentoNanoCAD.Nucleo
                 }
                 else if (regras != null) { campo.Texto = Limpar(t.Texto); campo.Operacao = "F"; campo.Origem = "sem regra"; }
                 else { campo.Texto = Limpar(t.Texto); campo.Operacao = padrao; campo.Origem = "manual"; }
-                if (cabo) campo.Texto = SemMetragem(campo.Texto);
+                if (cabo)
+                {
+                    campo.Metros = MetrosDoTexto(campo.Texto) ?? MetrosDoTexto(Limpar(t.Texto));       // 0.16.4: cada linha guarda a sua metragem
+                    campo.Texto = SemMetragem(campo.Texto);
+                }
                 if (campo.Texto.Length == 0) { linha--; continue; }
                 saida.Add(campo);
                 anterior = campo; textoAnterior = t;
@@ -151,8 +157,9 @@ namespace OrcamentoNanoCAD.Nucleo
         {
             Match m = Metragem.Match(texto ?? "");
             if (!m.Success) return null;
+            string n = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value;
             double v;
-            return double.TryParse(m.Groups[1].Value.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out v) && v > 0 ? (double?)v : null;
+            return double.TryParse(n.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out v) && v > 0 ? (double?)v : null;
         }
 
         public static string SemMetragem(string texto)
@@ -208,6 +215,24 @@ namespace OrcamentoNanoCAD.Nucleo
         }
 
         /// <summary>O trecho da polilinha entre os dois pontos (projetados sobre ela), no sentido da linha.</summary>
+        /// <summary>0.16.4: o trecho clicado — numa polilinha, o segmento (vértice a vértice) mais perto do clique; numa linha, ela toda.
+        /// `segmento` = 1, 2, … (0 = a linha inteira, sem vértices no meio).</summary>
+        public static List<Ponto> TrechoClicado(IList<Ponto> pts, Ponto clique, out int segmento)
+        {
+            segmento = 0;
+            if (pts == null || pts.Count < 2) return new List<Ponto>();
+            if (pts.Count == 2) return new List<Ponto> { pts[0], pts[1] };
+            int melhor = 0; double dMin = double.MaxValue;
+            for (int i = 0; i + 1 < pts.Count; i++)
+            {
+                if (pts[i].Dist(pts[i + 1]) < 1e-9) continue;
+                double d = Geometria.ProjetarSegmento(clique, pts[i], pts[i + 1]).Distancia;
+                if (d < dMin) { dMin = d; melhor = i; }
+            }
+            segmento = melhor + 1;
+            return new List<Ponto> { pts[melhor], pts[melhor + 1] };
+        }
+
         public static List<Ponto> Trecho(IList<Ponto> pts, Ponto a, Ponto b)
         {
             if (pts == null || pts.Count < 2) return new List<Ponto>();
@@ -279,14 +304,19 @@ namespace OrcamentoNanoCAD.Nucleo
             return linhas;
         }
 
-        /// <summary>Linhas de Cabos: uma por campo, todas com a mesma geometria (a linha/trecho) e a metragem do cabo.</summary>
+        /// <summary>0.16.4: o comprimento que vai para a anotação quando nada foi informado — o medido, sem casas decimais.</summary>
+        public static double UsadoPadrao(double medido) { return Math.Round(medido, 0, MidpointRounding.AwayFromZero); }
+
+        /// <summary>Linhas de Cabos: uma por campo, todas com a mesma geometria (a linha/trecho). Cada uma com a SUA metragem (0.16.4) ou, sem ela,
+        /// o comprimento usado do cabo (sem ele, o medido arredondado).</summary>
         public static List<object> LinhasDoCabo(CaboMapa c)
         {
             var linhas = new List<object>();
-            double? m = c.Metros ?? (c.Medido > 0 ? (double?)c.Medido : null);
+            double? usado = c.Metros ?? (c.Medido > 0 ? (double?)UsadoPadrao(c.Medido) : null);
             foreach (CampoMapa campo in c.Campos.Where(x => !string.IsNullOrEmpty((x.Texto ?? "").Trim())))
             {
                 string rotulo = SemMetragem(campo.Texto.Trim());
+                double? m = campo.Metros ?? MetrosDoTexto(campo.Texto) ?? usado;                          // a metragem da própria linha manda
                 string ativo = m.HasValue ? rotulo + " " + FormatarMetros(m.Value) + " m" : rotulo;
                 JObj l = new JObj().Set("entidade", "CABO").Set("ativo", ativo).Set("textoOriginal", ativo).Set("entidadeManual", true);
                 Operacao(l, campo.Operacao);
@@ -380,6 +410,7 @@ namespace OrcamentoNanoCAD.Nucleo
         {
             JObj o = new JObj().Set("l", c.L).Set("texto", c.Texto).Set("operacao", c.Operacao).Set("origem", c.Origem);
             if (!string.IsNullOrEmpty(c.Entidade)) o.Set("entidade", c.Entidade);
+            if (c.Metros.HasValue) o.Set("metros", c.Metros.Value);
             return o;
         }
 
@@ -390,7 +421,7 @@ namespace OrcamentoNanoCAD.Nucleo
             if (l == null) return saida;
             foreach (JObj o in l.OfType<JObj>())
                 saida.Add(new CampoMapa { L = (int)(o.Num("l") ?? 1), Texto = o.Str("texto") ?? "", Operacao = NormalizarOperacao(o.Str("operacao")) ?? "I",
-                    Origem = o.Str("origem") ?? "", Entidade = o.Str("entidade") });
+                    Origem = o.Str("origem") ?? "", Entidade = o.Str("entidade"), Metros = o.Num("metros") });
             return saida;
         }
 
