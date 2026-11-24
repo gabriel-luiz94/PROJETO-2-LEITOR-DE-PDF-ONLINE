@@ -161,8 +161,17 @@
     }
 
     /** TASK-094: nomes de TODOS os itens que não são poste, na ordem da linha (`9400D, N1, N4` → N1, N4). */
+    // TASK-244: «2 FLABIT» são DUAS estruturas no vínculo. As cópias (2ª, 3ª…) vão no FIM da lista, depois de todas as da linha,
+    // para não mudar a posição (e os vínculos) das que já existiam. Só quantidade inteira ≥ 2; no máximo MAX_UNIDADES por linha.
+    const MAX_UNIDADES = 20;
     function codigosEstruturas(texto, classico, ctx) {
-        return interpretarLinha(texto, '', classico, ctx).itens.map(i => AP.nomeBase(i.ativo)).filter(n => !ehPoste(n, ctx && ctx.convencao_postes));
+        const itens = interpretarLinha(texto, '', classico, ctx).itens.filter(i => !ehPoste(AP.nomeBase(i.ativo), ctx && ctx.convencao_postes));
+        const nomes = itens.map(i => AP.nomeBase(i.ativo));
+        itens.forEach(i => {
+            const q = Number(i.qtd);
+            if (Number.isInteger(q) && q > 1) for (let k = 1; k < q && nomes.length < MAX_UNIDADES; k++) nomes.push(AP.nomeBase(i.ativo));
+        });
+        return nomes;
     }
 
     function codigoEstrutura(texto, classico, ctx) {

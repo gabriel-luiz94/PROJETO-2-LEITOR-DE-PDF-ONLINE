@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-24 — Estrutura com quantidade no Mapa
+
+«2 FLABIT» passa a ser duas estruturas no vínculo/Mapa (a 2ª entra no fim da linha, sem mexer nos vínculos existentes) e aparece como «FLABIT · 2ª» no painel do ponto. [TASK-244](tasks/TASK-244-24-11-2026.md).
+
 ## 2026-11-24 — Pré-preenchimento do ativo do cabo
 
 Nos formulários de cabo do Mapa, o ativo se completa enquanto se digita: «3» → «3x», «A35P(» → «7,94)-13,8kV», «-» → «13,8kV» (aprendendo com os cabos da obra); Tab aceita. [TASK-243](tasks/TASK-243-24-11-2026.md).
