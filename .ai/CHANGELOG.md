@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-24 — Plugin 0.16.3: cor do cabo, coletados na tela e ações do item
+
+Modo mapa do plugin: tipo do cabo pela cor da linha; pontos e cabos coletados marcados na tela enquanto o painel está aberto; no painel, clicar num item enquadra e destaca o item com o objeto base, e há Editar, Excluir e Definir poste/cabo. [TASK-038 do plugin](../plugin_nanocad/.ai/tasks/TASK-038-23-11-2026.md).
+
 ## 2026-11-24 — Cabos lado a lado no mapa
 
 Cabos entre o mesmo par de pontos ficam lado a lado (juntos pelo par, não pela geometria), cada um do seu lado qualquer que seja o sentido, com no mínimo 9 px entre eles em qualquer zoom. [TASK-240](tasks/TASK-240-24-11-2026.md).

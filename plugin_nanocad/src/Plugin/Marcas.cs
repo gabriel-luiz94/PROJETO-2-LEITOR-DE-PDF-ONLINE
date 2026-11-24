@@ -2,6 +2,7 @@
 // não entram no DWG (sem camada de marcas). Somem ao fechar o desenho; o comando ORC_MARCAS liga/desliga.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OrcamentoNanoCAD.Nucleo;
 using Teigha.Colors;
 using Teigha.DatabaseServices;
@@ -221,5 +222,87 @@ namespace OrcamentoNanoCAD
                 for (int i = 0; i + 1 < v.Pontos.Count; i++)
                     Add(new Line(P(v.Pontos[i]), P(v.Pontos[i + 1])), Amarelo);
         }
-    }
+    
+        // ── 0.16.3: montagem no formato do mapa — o que já foi coletado aparece em outra cor (some ao fechar o painel) ──
+        private const short Laranja = 30;
+
+        private void Retangulo(double[] c, double folga, short cor)
+        {
+            if (c == null || c.Length != 4) return;
+            double x0 = c[0] - folga, y0 = c[1] - folga, x1 = c[2] + folga, y1 = c[3] + folga;
+            Add(new Line(new Point3d(x0, y0, 0), new Point3d(x1, y0, 0)), cor);
+            Add(new Line(new Point3d(x1, y0, 0), new Point3d(x1, y1, 0)), cor);
+            Add(new Line(new Point3d(x1, y1, 0), new Point3d(x0, y1, 0)), cor);
+            Add(new Line(new Point3d(x0, y1, 0), new Point3d(x0, y0, 0)), cor);
+        }
+
+        private void Circulo(double x, double y, double r, short cor)
+        {
+            const int n = 20;                                  // em linhas: também funciona com os vetores temporários do nanoCAD 5
+            for (int i = 0; i < n; i++)
+            {
+                double a = 2 * Math.PI * i / n, b = 2 * Math.PI * (i + 1) / n;
+                Add(new Line(new Point3d(x + r * Math.Cos(a), y + r * Math.Sin(a), 0), new Point3d(x + r * Math.Cos(b), y + r * Math.Sin(b), 0)), cor);
+            }
+        }
+
+        private void Caminho(IList<Ponto> pts, short cor)
+        {
+            for (int i = 0; pts != null && i + 1 < pts.Count; i++) Add(new Line(P(pts[i]), P(pts[i + 1])), cor);
+        }
+
+        /// <summary>Pontos (ciano) e cabos (laranja) já coletados no modo mapa, com as anotações usadas emolduradas; enviados ao OrçaCore em cinza.</summary>
+        public void MostrarMapa(Obra obra)
+        {
+            Limpar();
+            if (obra == null) return;
+            double h = Math.Max(obra.AlturaTexto, 1e-3);
+            foreach (PontoMapa p in obra.PontosMapa)
+            {
+                short cor = p.Enviado ? Cinza : Ciano;
+                Circulo(p.X, p.Y, h * 1.6, cor);
+                foreach (double[] c in p.Caixas) Retangulo(c, h * 0.25, cor);
+                Rotulo(p.NomeFinal, new Point3d(p.X + h * 1.9, p.Y + h * 0.5, 0), h * 0.9, cor);
+            }
+            foreach (CaboMapa c in obra.CabosMapa)
+            {
+                short cor = c.Enviado ? Cinza : Laranja;
+                Caminho(c.Pontos, cor);
+                foreach (double[] cx in c.Caixas) Retangulo(cx, h * 0.25, cor);
+                if (c.Pontos.Count >= 2) { Ponto m = Geometria.Meio(c.Pontos); Rotulo(c.Numero, new Point3d(m.X + h * 0.5, m.Y + h * 0.5, 0), h * 0.9, cor); }
+            }
+        }
+
+        /// <summary>Destaque (amarelo) do item escolhido no painel, junto com o objeto base: o poste (círculo) ou a linha/trecho do cabo.</summary>
+        public void DestacarMapa(Obra obra, string numero)
+        {
+            if (obra == null || string.IsNullOrEmpty(numero)) return;
+            double h = Math.Max(obra.AlturaTexto, 1e-3);
+            PontoMapa p = obra.PontosMapa.FirstOrDefault(x => x.Numero == numero);
+            if (p != null)
+            {
+                Circulo(p.X, p.Y, h * 2.6, Amarelo);
+                Circulo(p.X, p.Y, h * 3.2, Amarelo);
+                foreach (double[] c in p.Caixas) { Retangulo(c, h * 0.5, Amarelo); Add(new Line(new Point3d(p.X, p.Y, 0), new Point3d((c[0] + c[2]) / 2, (c[1] + c[3]) / 2, 0)), Amarelo); }
+                Rotulo(p.NomeFinal, new Point3d(p.X + h * 3.4, p.Y - h * 1.8, 0), h, Amarelo);
+                return;
+            }
+            CaboMapa cabo = obra.CabosMapa.FirstOrDefault(x => x.Numero == numero);
+            if (cabo == null) return;
+            Caminho(cabo.Pontos, Amarelo);
+            if (cabo.Pontos.Count >= 2)
+            {
+                Circulo(cabo.Pontos[0].X, cabo.Pontos[0].Y, h * 0.8, Amarelo);
+                Circulo(cabo.Pontos[cabo.Pontos.Count - 1].X, cabo.Pontos[cabo.Pontos.Count - 1].Y, h * 0.8, Amarelo);
+            }
+            bool temMeio = cabo.Pontos.Count >= 2;
+            Ponto meio = temMeio ? Geometria.Meio(cabo.Pontos) : new Ponto(0, 0);
+            foreach (double[] c in cabo.Caixas)
+            {
+                Retangulo(c, h * 0.5, Amarelo);
+                if (temMeio) Add(new Line(P(meio), new Point3d((c[0] + c[2]) / 2, (c[1] + c[3]) / 2, 0)), Amarelo);
+            }
+            if (temMeio) Rotulo(cabo.Numero, new Point3d(meio.X + h, meio.Y - h * 1.8, 0), h, Amarelo);
+        }
+}
 }

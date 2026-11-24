@@ -75,6 +75,59 @@ namespace OrcamentoNanoCAD
         [CommandMethod("ORC_MODO_MANUAL")]
         public void CmdModoManual() { Rodar("ORC_MODO_MANUAL", s => { PrepararConstrucao(s); EscolherModoManual(s, true); }); }
 
+        // ── escolha do objeto base (usada ao coletar e em «Definir poste/cabo») ──
+
+        /// <summary>Bloco ou círculo do poste. 1 = escolheu (bloco), 0 = Enter (sem símbolo), -1 = cancelou.</summary>
+        private static int EscolherPoste(Sessao s, string mensagem, out PosteDesenho bloco)
+        {
+            bloco = null;
+            Editor ed = s.Doc.Editor;
+            while (true)
+            {
+                PromptEntityOptions o = new PromptEntityOptions(mensagem);
+                o.AllowNone = true;
+                PromptEntityResult r = ed.GetEntity(o);
+                if (r.Status == PromptStatus.None) return 0;
+                if (r.Status != PromptStatus.OK) return -1;
+                DesenhoBruto b = ExtratorDesenho.LerSelecao(s.Doc, new[] { r.ObjectId });
+                EntidadeBruta e = b.Entidades.FirstOrDefault();
+                if (e == null || (e.Tipo != "INSERT" && e.Tipo != "CIRCLE")) { Aplicacao.Msg("Isso não é bloco nem círculo. Tente de novo (Enter = sem símbolo)."); continue; }
+                bloco = new PosteDesenho { Handle = e.Handle, X = e.X, Y = e.Y, Bloco = e.Tipo == "CIRCLE" ? "(círculo)" : (e.Bloco ?? ""), Layer = e.Layer };
+                return 1;
+            }
+        }
+
+        /// <summary>Linha/polilinha do cabo, inteira ou um trecho entre dois pontos. false = cancelou.</summary>
+        private static bool EscolherLinhaDoCabo(Sessao s, string mensagem, out LinhaDesenho linha, out List<Ponto> pontos, out bool trecho)
+        {
+            linha = null; pontos = null; trecho = false;
+            Editor ed = s.Doc.Editor;
+            while (true)
+            {
+                PromptEntityOptions o = new PromptEntityOptions(mensagem);
+                o.AllowNone = true;
+                PromptEntityResult r = ed.GetEntity(o);
+                if (r.Status != PromptStatus.OK) return false;
+                linha = Montar(s, new[] { r.ObjectId }).Linhas.FirstOrDefault(l => !l.Leader);
+                if (linha == null || linha.Pontos.Count < 2) { Aplicacao.Msg("Isso não é linha nem polilinha. Tente de novo."); continue; }
+                break;
+            }
+            pontos = linha.Pontos;
+            PromptKeywordOptions k = new PromptKeywordOptions("\nUsar [Inteira/Trecho] <Inteira>: ", "Inteira Trecho") { AllowNone = true };
+            PromptResult kr = ed.GetKeywords(k);
+            if (kr.Status == PromptStatus.Cancel) return false;
+            if (kr.Status == PromptStatus.OK && kr.StringResult == "Trecho")
+            {
+                PromptPointResult a = ed.GetPoint(new PromptPointOptions("\nPrimeiro ponto do trecho (sobre a linha): "));
+                if (a.Status != PromptStatus.OK) return false;
+                PromptPointResult b = ed.GetPoint(new PromptPointOptions("\nSegundo ponto do trecho: "));
+                if (b.Status != PromptStatus.OK) return false;
+                pontos = MapaManual.Trecho(linha.Pontos, new Ponto(a.Value.X, a.Value.Y), new Ponto(b.Value.X, b.Value.Y));
+                trecho = true;
+            }
+            return true;
+        }
+
         [CommandMethod("ORC_PONTO_MAPA")]
         public void CmdPontoMapa()
         {
@@ -83,22 +136,11 @@ namespace OrcamentoNanoCAD
                 if (s.EnviandoAnotacoes) return;
                 PrepararConstrucao(s);
                 if (!EscolherModoManual(s, false)) return;
-                Editor ed = s.Doc.Editor;
                 string ultimaOp = "I";
                 while (true)
                 {
-                    PromptEntityOptions o = new PromptEntityOptions("\nSelecione o POSTE — bloco ou círculo (Enter = sem símbolo, Esc = terminar): ");
-                    o.AllowNone = true;
-                    PromptEntityResult r = ed.GetEntity(o);
-                    if (r.Status == PromptStatus.Cancel || r.Status == PromptStatus.Error) break;
-                    PosteDesenho bloco = null;
-                    if (r.Status == PromptStatus.OK)
-                    {
-                        DesenhoBruto b = ExtratorDesenho.LerSelecao(s.Doc, new[] { r.ObjectId });
-                        EntidadeBruta e = b.Entidades.FirstOrDefault();
-                        if (e == null || (e.Tipo != "INSERT" && e.Tipo != "CIRCLE")) { Aplicacao.Msg("Isso não é bloco nem círculo. Tente de novo (Enter = ponto sem símbolo)."); continue; }
-                        bloco = new PosteDesenho { Handle = e.Handle, X = e.X, Y = e.Y, Bloco = e.Tipo == "CIRCLE" ? "(círculo)" : (e.Bloco ?? ""), Layer = e.Layer };
-                    }
+                    PosteDesenho bloco;
+                    if (EscolherPoste(s, "\nSelecione o POSTE — bloco ou círculo (Enter = sem símbolo, Esc = terminar): ", out bloco) < 0) break;
                     List<TextoDesenho> textos = SelecionarTextos(s, "\nSelecione as anotações do ponto (TEXT/MTEXT, várias) e Enter: ");
                     if (bloco == null && textos.Count == 0) break;
                     List<CampoMapa> campos = MapaManual.CamposDosTextos(textos, s.Obra.SemRegras == true ? null : s.Regras, ultimaOp, false);
@@ -108,13 +150,12 @@ namespace OrcamentoNanoCAD
                     {
                         if (Application.ShowModalDialog(tela) != DialogResult.OK) continue;
                         var ponto = new PontoMapa { Numero = numero, Nome = tela.Nome, Comentario = tela.Comentario, Campos = tela.Campos,
-                            Textos = textos.Select(t => t.Handle).Distinct().ToList() };
+                            Textos = textos.Select(t => t.Handle).Distinct().ToList(), Caixas = MapaManual.CaixasDosTextos(textos) };
                         if (bloco != null) { ponto.Handle = bloco.Handle; ponto.Bloco = bloco.Bloco; ponto.X = bloco.X; ponto.Y = bloco.Y; }
                         else { TextoDesenho t0 = MapaManual.OrdemDeLeitura(textos).First(); ponto.X = t0.X; ponto.Y = t0.Y; }
                         s.Obra.PontosMapa.Add(ponto);
                         if (ponto.Campos.Count > 0) ultimaOp = ponto.Campos[ponto.Campos.Count - 1].Operacao;
-                        Aplicacao.Msg("@" + ponto.NomeFinal + (ponto.Comentario.Length > 0 ? " - " + ponto.Comentario : "") + ": "
-                                      + string.Join(" · ", ponto.Campos.Select(c => c.Operacao + " " + c.Texto).ToArray()));
+                        Aplicacao.Msg("@" + ponto.NomeFinal + (ponto.Comentario.Length > 0 ? " - " + ponto.Comentario : "") + ": " + MapaManual.ResumoCampos(ponto.Campos));
                         Mudou(s, true);
                     }
                 }
@@ -129,77 +170,89 @@ namespace OrcamentoNanoCAD
                 if (s.EnviandoAnotacoes) return;
                 PrepararConstrucao(s);
                 if (!EscolherModoManual(s, false)) return;
-                Editor ed = s.Doc.Editor;
                 string ultimaOp = "I";
                 while (true)
                 {
-                    PromptEntityOptions o = new PromptEntityOptions("\nSelecione a LINHA do cabo — linha ou polilinha (Esc = terminar): ");
-                    o.AllowNone = true;
-                    PromptEntityResult r = ed.GetEntity(o);
-                    if (r.Status != PromptStatus.OK) break;
-                    LinhaDesenho linha = Montar(s, new[] { r.ObjectId }).Linhas.FirstOrDefault(l => !l.Leader);
-                    if (linha == null || linha.Pontos.Count < 2) { Aplicacao.Msg("Isso não é linha nem polilinha. Tente de novo."); continue; }
-                    List<Ponto> pontos = linha.Pontos;
-                    bool trecho = false;
-                    PromptKeywordOptions k = new PromptKeywordOptions("\nUsar [Inteira/Trecho] <Inteira>: ", "Inteira Trecho") { AllowNone = true };
-                    PromptResult kr = ed.GetKeywords(k);
-                    if (kr.Status == PromptStatus.Cancel) break;
-                    if (kr.Status == PromptStatus.OK && kr.StringResult == "Trecho")
-                    {
-                        PromptPointResult a = ed.GetPoint(new PromptPointOptions("\nPrimeiro ponto do trecho (sobre a linha): "));
-                        if (a.Status != PromptStatus.OK) continue;
-                        PromptPointResult b = ed.GetPoint(new PromptPointOptions("\nSegundo ponto do trecho: "));
-                        if (b.Status != PromptStatus.OK) continue;
-                        pontos = MapaManual.Trecho(linha.Pontos, new Ponto(a.Value.X, a.Value.Y), new Ponto(b.Value.X, b.Value.Y));
-                        trecho = true;
-                    }
+                    LinhaDesenho linha; List<Ponto> pontos; bool trecho;
+                    if (!EscolherLinhaDoCabo(s, "\nSelecione a LINHA do cabo — linha ou polilinha (Esc = terminar): ", out linha, out pontos, out trecho)) break;
                     double medido = MapaManual.Comprimento(pontos);
                     List<TextoDesenho> textos = SelecionarTextos(s, "\nSelecione as anotações do cabo (TEXT/MTEXT, várias) e Enter: ");
                     List<CampoMapa> campos = MapaManual.CamposDosTextos(textos, s.Obra.SemRegras == true ? null : s.Regras, ultimaOp, true);
                     double? anotado = MapaManual.OrdemDeLeitura(textos).Select(t => MapaManual.MetrosDoTexto(t.Texto)).FirstOrDefault(m => m.HasValue);
                     string numero = MapaManual.ProximoNumero(s.Obra.CabosMapa.Select(c => c.Numero), "C");
-                    string tipo = s.Regras.Leitura.ClassificarRede(linha.Layer, linha.Cor) ?? "";
-                    string titulo = "Cabo " + numero + " · " + (trecho ? "trecho de " : "linha de ") + MapaManual.FormatarMetros(medido) + " m" + (tipo.Length > 0 ? " · " + tipo : "");
+                    string tipoPrevio = MapaManual.TipoDoCabo(s.Regras.Leitura, linha.Layer, linha.Cor, campos);
+                    string titulo = "Cabo " + numero + " · " + (trecho ? "trecho de " : "linha de ") + MapaManual.FormatarMetros(medido) + " m" + (tipoPrevio.Length > 0 ? " · " + tipoPrevio : "");
                     using (var tela = new TelaCamposMapa(titulo, true, campos, "", "", medido, anotado, InfoRegras(s)))
                     {
                         if (Application.ShowModalDialog(tela) != DialogResult.OK) continue;
-                        var cabo = new CaboMapa { Numero = numero, LinhaHandle = linha.Handle ?? "", Trecho = trecho, Pontos = pontos, Tipo = tipo, Medido = medido,
-                            Metros = tela.Metros, Campos = tela.Campos, Textos = textos.Select(t => t.Handle).Distinct().ToList() };
+                        var cabo = new CaboMapa { Numero = numero, LinhaHandle = linha.Handle ?? "", Trecho = trecho, Pontos = pontos, Medido = medido,
+                            Metros = tela.Metros, Campos = tela.Campos, Textos = textos.Select(t => t.Handle).Distinct().ToList(), Caixas = MapaManual.CaixasDosTextos(textos) };
+                        cabo.Tipo = MapaManual.TipoDoCabo(s.Regras.Leitura, linha.Layer, linha.Cor, cabo.Campos);       // 0.16.3: a cor da linha manda
                         s.Obra.CabosMapa.Add(cabo);
                         if (cabo.Campos.Count > 0) ultimaOp = cabo.Campos[cabo.Campos.Count - 1].Operacao;
-                        Aplicacao.Msg(numero + " (" + MapaManual.FormatarMetros(cabo.Metros ?? medido) + " m): "
-                                      + string.Join(" · ", cabo.Campos.Select(c => c.Operacao + " " + c.Texto).ToArray()));
+                        Aplicacao.Msg(numero + " (" + MapaManual.FormatarMetros(cabo.Metros ?? medido) + " m" + (cabo.Tipo.Length > 0 ? ", " + cabo.Tipo : "") + "): " + MapaManual.ResumoCampos(cabo.Campos));
                         Mudou(s, true);
                     }
                 }
             });
         }
 
-        /// <summary>Painel → item do mapa («M:P1» / «M:C1»): enquadra no desenho e abre a janela dos campos para ajustar ou excluir.</summary>
+        // ── item do mapa escolhido no painel («M:P1» / «M:C1») ──
+
+        private static string LerItemDoMapa(Sessao s, string prompt)
+        {
+            PromptResult r = s.Doc.Editor.GetString(new PromptStringOptions("\n" + prompt + " (P1, C2…): ") { AllowSpaces = false });
+            if (r.Status != PromptStatus.OK) return null;
+            string n = (r.StringResult ?? "").Trim().ToUpperInvariant();
+            return n.StartsWith(MapaManual.PrefixoPainel) ? n.Substring(MapaManual.PrefixoPainel.Length) : n;
+        }
+
+        private static string AvisoEnviado(bool enviado)
+        {
+            return enviado ? "Já enviado ao OrçaCore: o ajuste fica aqui e não é reenviado (altere também no OrçaCore)." : null;
+        }
+
+        /// <summary>Clique no painel: enquadra o item e o destaca junto com o objeto base (poste ou linha do cabo).</summary>
+        [CommandMethod("ORC_MAPA_ZOOM")]
+        public void CmdMapaZoom()
+        {
+            Rodar("ORC_MAPA_ZOOM", s =>
+            {
+                if (!PrecisaObra(s)) return;
+                string n = LerItemDoMapa(s, "Item do mapa");
+                if (n == null) return;
+                List<Ponto> pts = MapaManual.PontosParaZoom(s.Obra, n);
+                PontoMapa p = s.Obra.PontosMapa.FirstOrDefault(x => x.Numero == n);
+                CaboMapa c = p == null ? s.Obra.CabosMapa.FirstOrDefault(x => x.Numero == n) : null;
+                foreach (double[] cx in p != null ? p.Caixas : c != null ? c.Caixas : new List<double[]>())
+                { pts.Add(new Ponto(cx[0], cx[1])); pts.Add(new Ponto(cx[2], cx[3])); }
+                if (pts.Count > 0) ZoomPontos(s, pts);
+                s.DestacarMapa(n);
+            });
+        }
+
         [CommandMethod("ORC_MAPA_ITEM")]
         public void CmdMapaItem()
         {
             Rodar("ORC_MAPA_ITEM", s =>
             {
                 if (!PrecisaObra(s) || s.EnviandoAnotacoes) return;
-                PromptResult r = s.Doc.Editor.GetString(new PromptStringOptions("\nItem do mapa (P1, C2…): ") { AllowSpaces = false });
-                if (r.Status != PromptStatus.OK) return;
-                string n = (r.StringResult ?? "").Trim().ToUpperInvariant();
-                if (n.StartsWith(MapaManual.PrefixoPainel)) n = n.Substring(MapaManual.PrefixoPainel.Length);
+                string n = LerItemDoMapa(s, "Item do mapa");
+                if (n == null) return;
                 List<Ponto> pts = MapaManual.PontosParaZoom(s.Obra, n);
                 if (pts.Count > 0) ZoomPontos(s, pts);
+                s.DestacarMapa(n);
                 PontoMapa ponto = s.Obra.PontosMapa.FirstOrDefault(x => x.Numero == n);
                 CaboMapa cabo = ponto == null ? s.Obra.CabosMapa.FirstOrDefault(x => x.Numero == n) : null;
                 if (ponto == null && cabo == null) { Aplicacao.Msg("Item " + n + " não existe na montagem."); return; }
-                bool enviado = ponto != null ? ponto.Enviado : cabo.Enviado;
-                string aviso = enviado ? "Já enviado ao OrçaCore: o ajuste fica aqui e não é reenviado (altere também no OrçaCore)." : InfoRegras(s);
+                string aviso = AvisoEnviado(ponto != null ? ponto.Enviado : cabo.Enviado) ?? InfoRegras(s);
                 if (ponto != null)
                 {
                     using (var tela = new TelaCamposMapa("Ponto " + ponto.Numero + (string.IsNullOrEmpty(ponto.Handle) ? " · sem símbolo" : " · poste"), false,
                         ponto.Campos, ponto.NomeFinal, ponto.Comentario, 0, null, aviso, true))
                     {
                         DialogResult d = Application.ShowModalDialog(tela);
-                        if (d == DialogResult.Abort) { s.Obra.PontosMapa.Remove(ponto); Aplicacao.Msg("Ponto " + ponto.Numero + " excluído da montagem."); Mudou(s, true); }
+                        if (d == DialogResult.Abort) { s.Obra.PontosMapa.Remove(ponto); Aplicacao.Msg("Ponto " + ponto.Numero + " excluído da montagem."); s.DestacarMapa(null); Mudou(s, true); }
                         else if (d == DialogResult.OK) { ponto.Nome = tela.Nome; ponto.Comentario = tela.Comentario; ponto.Campos = tela.Campos; Mudou(s, true); }
                     }
                     return;
@@ -209,9 +262,70 @@ namespace OrcamentoNanoCAD
                     + (string.IsNullOrEmpty(cabo.Tipo) ? "" : " · " + cabo.Tipo), true, cabo.Campos, "", "", cabo.Medido, anotado, aviso, true))
                 {
                     DialogResult d = Application.ShowModalDialog(tela);
-                    if (d == DialogResult.Abort) { s.Obra.CabosMapa.Remove(cabo); Aplicacao.Msg("Cabo " + cabo.Numero + " excluído da montagem."); Mudou(s, true); }
+                    if (d == DialogResult.Abort) { s.Obra.CabosMapa.Remove(cabo); Aplicacao.Msg("Cabo " + cabo.Numero + " excluído da montagem."); s.DestacarMapa(null); Mudou(s, true); }
                     else if (d == DialogResult.OK) { cabo.Campos = tela.Campos; cabo.Metros = tela.Metros; Mudou(s, true); }
                 }
+            });
+        }
+
+        /// <summary>Excluir o item (o painel já confirmou).</summary>
+        [CommandMethod("ORC_MAPA_EXCLUIR")]
+        public void CmdMapaExcluir()
+        {
+            Rodar("ORC_MAPA_EXCLUIR", s =>
+            {
+                if (!PrecisaObra(s) || s.EnviandoAnotacoes) return;
+                string n = LerItemDoMapa(s, "Item do mapa a excluir");
+                if (n == null) return;
+                int tirados = s.Obra.PontosMapa.RemoveAll(x => x.Numero == n) + s.Obra.CabosMapa.RemoveAll(x => x.Numero == n);
+                if (tirados == 0) { Aplicacao.Msg("Item " + n + " não existe na montagem."); return; }
+                s.DestacarMapa(null);
+                Aplicacao.Msg((n.StartsWith("C") ? "Cabo " : "Ponto ") + n + " excluído da montagem.");
+                Mudou(s, true);
+            });
+        }
+
+        /// <summary>Definir o objeto base: outro bloco/círculo para o ponto (Enter = sem símbolo) ou outra linha/trecho para o cabo. Os campos ficam.</summary>
+        [CommandMethod("ORC_MAPA_OBJETO")]
+        public void CmdMapaObjeto()
+        {
+            Rodar("ORC_MAPA_OBJETO", s =>
+            {
+                if (!PrecisaObra(s) || s.EnviandoAnotacoes) return;
+                string n = LerItemDoMapa(s, "Item do mapa");
+                if (n == null) return;
+                PontoMapa ponto = s.Obra.PontosMapa.FirstOrDefault(x => x.Numero == n);
+                CaboMapa cabo = ponto == null ? s.Obra.CabosMapa.FirstOrDefault(x => x.Numero == n) : null;
+                if (ponto == null && cabo == null) { Aplicacao.Msg("Item " + n + " não existe na montagem."); return; }
+                s.DestacarMapa(n);
+                string aviso = AvisoEnviado(ponto != null ? ponto.Enviado : cabo.Enviado);
+                if (aviso != null) Aplicacao.Msg(aviso);
+                if (ponto != null)
+                {
+                    PosteDesenho bloco;
+                    int r = EscolherPoste(s, "\nNovo POSTE de " + ponto.NomeFinal + " — bloco ou círculo (Enter = sem símbolo, Esc = manter): ", out bloco);
+                    if (r < 0) return;
+                    if (bloco != null) { ponto.Handle = bloco.Handle; ponto.Bloco = bloco.Bloco; ponto.X = bloco.X; ponto.Y = bloco.Y; }
+                    else
+                    {
+                        ponto.Handle = ""; ponto.Bloco = "";
+                        if (ponto.Caixas.Count > 0) { ponto.X = ponto.Caixas[0][0]; ponto.Y = ponto.Caixas[0][3]; }
+                    }
+                    Aplicacao.Msg("Ponto " + ponto.NomeFinal + ": " + (bloco != null ? "poste (" + (string.IsNullOrEmpty(bloco.Bloco) ? "bloco" : bloco.Bloco) + ")" : "sem símbolo (posição da anotação)") + ".");
+                }
+                else
+                {
+                    LinhaDesenho linha; List<Ponto> pontos; bool trecho;
+                    if (!EscolherLinhaDoCabo(s, "\nNova LINHA do cabo " + cabo.Numero + " — linha ou polilinha (Esc = manter): ", out linha, out pontos, out trecho)) return;
+                    bool eraMedido = !cabo.Metros.HasValue || System.Math.Abs(cabo.Metros.Value - cabo.Medido) <= 0.05;
+                    cabo.LinhaHandle = linha.Handle ?? ""; cabo.Trecho = trecho; cabo.Pontos = pontos; cabo.Medido = MapaManual.Comprimento(pontos);
+                    if (eraMedido) cabo.Metros = cabo.Medido;                                   // o comprimento anotado no texto fica; o medido acompanha a linha nova
+                    cabo.Tipo = MapaManual.TipoDoCabo(s.Regras.Leitura, linha.Layer, linha.Cor, cabo.Campos);
+                    Aplicacao.Msg("Cabo " + cabo.Numero + ": " + (trecho ? "trecho de " : "linha de ") + MapaManual.FormatarMetros(cabo.Medido) + " m"
+                        + (cabo.Tipo.Length > 0 ? " · " + cabo.Tipo : "") + " · vale " + MapaManual.FormatarMetros(cabo.Metros ?? cabo.Medido) + " m.");
+                }
+                Mudou(s, true);
+                s.DestacarMapa(n);
             });
         }
     }

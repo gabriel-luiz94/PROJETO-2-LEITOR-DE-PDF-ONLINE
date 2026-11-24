@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-24 — 0.16.3
+
+Modo mapa: o tipo (MT/BT) do cabo escolhido à mão vem da **cor** da linha (cores do projeto; vermelho/verde no padrão), depois da layer de rede e, por fim, do texto. O que já foi coletado aparece na tela — pontos em ciano, cabos em laranja, enviados em cinza, com as anotações emolduradas — só com o painel aberto (gráficos transitórios; somem ao fechar o painel). No painel, clicar num item do mapa enquadra e destaca o item com o poste/linha dele; botões **Editar**, **Excluir** e **Definir poste/cabo** (`ORC_MAPA_ZOOM`, `ORC_MAPA_EXCLUIR`, `ORC_MAPA_OBJETO`). [TASK-038](tasks/TASK-038-23-11-2026.md).
+
 ## 2026-11-24 — 0.16.2
 
 Selecionar poste/cabo: o parágrafo de continuação do mesmo MTEXT («FLABIM, IT-R» embaixo de «12600D, CEJ2, FLABIT, IT-R») entra no campo de cima, com a operação dele; o texto que a regra já juntou a outro ativo (o «32 m» do cabo) e, no cabo, o texto que é só metragem não viram campo próprio. Antes viravam campos F e, trocados para I, dividiam o ativo. [TASK-038](tasks/TASK-038-23-11-2026.md).

@@ -100,7 +100,7 @@
   "cad": {
     "versao": 1,
     "origem": "plugin-nanocad",
-    "plugin": "0.16.2",
+    "plugin": "0.16.3",
     "desenho": "C:\\Projetos\\Montagem_Manual.dwg",
     "regras": "Pernambuco (081) — Leitor",
     "modo": "construir",
@@ -120,6 +120,9 @@
         "y": 2000,
         "enviado": false,
         "textos": ["T1", "T2"],
+        "caixas": [
+          [1002.5, 2003.2, 1014, 2004.4]
+        ],
         "campos": [
           {
             "l": 1,
@@ -146,6 +149,7 @@
         "y": 2000,
         "enviado": false,
         "textos": ["T3"],
+        "caixas": [],
         "campos": [
           {
             "l": 1,
@@ -166,6 +170,7 @@
         "y": 2000,
         "enviado": false,
         "textos": ["T5"],
+        "caixas": [],
         "campos": [
           {
             "l": 1,
@@ -195,6 +200,7 @@
           [1038.4, 2000]
         ],
         "textos": ["T4"],
+        "caixas": [],
         "campos": [
           {
             "l": 1,

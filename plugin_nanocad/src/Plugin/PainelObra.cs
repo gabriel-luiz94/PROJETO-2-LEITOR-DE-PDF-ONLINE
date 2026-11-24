@@ -33,7 +33,8 @@ namespace OrcamentoNanoCAD.UI
         private readonly List<RadioButton> _operacoesManuais = new List<RadioButton>();
         private Elemento _linhaManual;
         private readonly ComboBox _regrasManuais = new ComboBox { Width = 330, DropDownStyle = ComboBoxStyle.DropDownList };
-        private readonly Button _editar, _associar, _conferir, _lote;
+        private readonly Button _editar, _associar, _conferir, _lote, _excluirMapa, _objetoMapa;
+        private string _ultimoZoomMapa;                       // 0.16.3: o clique num item do mapa enquadra uma vez (o painel se repreenche sem repetir o zoom)
         private bool _preenchendo;
         private Dictionary<string, TextoIgnorado> _fora = new Dictionary<string, TextoIgnorado>();
         private Dictionary<string, string> _avisos = new Dictionary<string, string>();
@@ -186,7 +187,10 @@ namespace OrcamentoNanoCAD.UI
             _associar = Visual.Botao("Escolher destino", (o,e) => Comando("ORC_REASSOCIAR"));
             _conferir = Visual.Botao("Conferido", (o,e) => Conferir());
             _lote = Visual.Botao("Operação em lote…", (o,e) => Lote());
-            acoes.Controls.AddRange(new Control[] { _editar, _associar, _conferir, _lote });
+            _excluirMapa = Visual.Botao("Excluir", (o,e) => ExcluirItemDoMapa());
+            _objetoMapa = Visual.Botao("Definir poste", (o,e) => Comando("ORC_MAPA_OBJETO"));
+            _excluirMapa.Visible = _objetoMapa.Visible = false;
+            acoes.Controls.AddRange(new Control[] { _editar, _associar, _conferir, _lote, _excluirMapa, _objetoMapa });
             _editorManual = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, WrapContents = false,
                 FlowDirection = FlowDirection.TopDown, Padding = new Padding(10, 5, 10, 5), Tag = "cartao" };
             _contextoManual = Visual.Rotulo("Selecione uma anotação", Visual.Secao);
@@ -398,13 +402,40 @@ namespace OrcamentoNanoCAD.UI
             MostrarEdicaoManual(e);
             _editar.Enabled = e != null && (!e.Bloqueada && !e.EnviadaNaMontagem && !_s.EnviandoAnotacoes);
             _editar.Text = e != null && e.Excluido ? "Restaurar…" : e is Vao ? "Ajustar vão…" : "Ajustar…";
-            if (ItemDoMapa) { _editar.Enabled = !_s.EnviandoAnotacoes; _editar.Text = id.StartsWith(MapaManual.PrefixoPainel + "C") ? "Ajustar cabo…" : "Ajustar ponto…"; }
+            bool mapa = ItemDoMapa, caboMapa = mapa && id.StartsWith(MapaManual.PrefixoPainel + "C");
+            if (mapa) { _editar.Enabled = !_s.EnviandoAnotacoes; _editar.Text = caboMapa ? "Editar cabo…" : "Editar ponto…"; }
+            _excluirMapa.Visible = _objetoMapa.Visible = mapa;                                   // 0.16.3: item do mapa → Editar · Excluir · Definir poste/cabo
+            _associar.Visible = _conferir.Visible = _lote.Visible = !mapa;
+            _excluirMapa.Enabled = _objetoMapa.Enabled = mapa && !_s.EnviandoAnotacoes;
+            _objetoMapa.Text = caboMapa ? "Definir cabo" : "Definir poste";
             _associar.Enabled = _s.Obra.Modo != "construir" && e != null && e.Candidatos.Count > 1;
             _conferir.Enabled = id != null && Lista == _pendencias;
             _lote.Enabled = e != null && !e.Excluido && (!e.Bloqueada && !e.EnviadaNaMontagem && !_s.EnviandoAnotacoes);
             _detalhe.Text = e != null ? Auditoria.Detalhe(_s.Obra,e) + Environment.NewLine + (_avisos.ContainsKey(id) ? _avisos[id] : "") :
                 t != null ? t.Texto + Environment.NewLine + "Layer " + t.Layer + " · " + t.Cor + Environment.NewLine + t.Motivo + " · Fora da exportação" : "";
             if (Ativa && Visible) _s.Destacar(e,t);
+            if (mapa && Ativa && Visible)
+            {
+                _s.DestacarMapa(id.Substring(MapaManual.PrefixoPainel.Length));              // destaca o item com o poste/linha dele
+                if (id != _ultimoZoomMapa) { _ultimoZoomMapa = id; Comando("ORC_MAPA_ZOOM"); }  // e enquadra no desenho
+            }
+            else if (!mapa) _ultimoZoomMapa = null;
+        }
+
+        private void ExcluirItemDoMapa()
+        {
+            if (!Ativa || !ItemDoMapa) return;
+            string n = Id.Substring(MapaManual.PrefixoPainel.Length);
+            bool cabo = n.StartsWith("C");
+            if (MessageBox.Show(this, (cabo ? "Excluir o cabo " : "Excluir o ponto ") + n + " da montagem?", "OrçaCore", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            _ultimoZoomMapa = null;
+            Comando("ORC_MAPA_EXCLUIR");
+        }
+
+        /// <summary>0.16.3: o painel está aberto para esta sessão (as marcas do modo mapa só aparecem com ele aberto).</summary>
+        public static bool VisivelPara(Sessao s)
+        {
+            return _aberto != null && !_aberto.IsDisposed && _aberto.Visible && _aberto._s == s;
         }
 
         private static List<LinhaTabela> LinhasManuais(List<LinhaTabela> linhas, Obra obra, ListView lista, bool cabos)
@@ -577,8 +608,11 @@ namespace OrcamentoNanoCAD.UI
             if (!Visible && Ativa)
             {
                 _s.Destacar(null,null);
+                _s.MarcasMapa.Limpar();                                                         // 0.16.3: fechou o painel → as marcas do modo mapa somem
+                _ultimoZoomMapa = null;
                 if (_s.AnaliseCores) { _s.AnaliseCores = false; _s.Atualizar(); }
             }
+            else if (Visible && Ativa && _s.Obra.Modo == "construir") _s.Atualizar();         // reabriu → voltam
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)

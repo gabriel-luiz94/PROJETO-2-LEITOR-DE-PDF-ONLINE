@@ -109,7 +109,7 @@ namespace OrcamentoNanoCAD.Testes
             Obra o = Construtor.NovaObra(@"C:\Projetos\Montagem_Manual.dwg", rg);
             o.SemRegras = false;
             o.SalvoEm = "23/11/2026 09:00";
-            o.PontosMapa.Add(new PontoMapa { Numero = "P1", Comentario = "Rua das Flores, 120", Handle = "1A2", Bloco = "POSTE", X = 1000, Y = 2000, Textos = { "T1", "T2" },
+            o.PontosMapa.Add(new PontoMapa { Numero = "P1", Comentario = "Rua das Flores, 120", Handle = "1A2", Bloco = "POSTE", X = 1000, Y = 2000, Textos = { "T1", "T2" }, Caixas = { new[] { 1002.5, 2003.2, 1014.0, 2004.4 } },
                 Campos = MapaManual.CamposDosTextos(new[] { T("9200D, N1", 1003, 2004), T("TEXTO QUALQUER 123", 1003, 2001, "LAYER_ESTRANHA") }, rg, "I", false) });
             o.PontosMapa.Add(new PontoMapa { Numero = "P2", X = 1038.4, Y = 2000, Textos = { "T3" },          // sem símbolo: posição aproximada (a da anotação)
                 Campos = MapaManual.CamposDosTextos(new[] { T("N3", 1038.4, 2000, "01_REMOVER") }, rg, "I", false) });
@@ -183,6 +183,38 @@ namespace OrcamentoNanoCAD.Testes
         {
             var textos = new[] { P("A1", 0, "12600D, CEJ2", 10, "POSTE_INSTALANDO_LV"), P("A2", 0, "LD", 8, "POSTE_INSTALANDO_LV") };
             Assert.Equal(new[] { "12600D, CEJ2", "LD" }, MapaManual.CamposDosTextos(textos, null, "I", false).Select(x => x.Texto).ToArray());
+        }
+
+        [Fact]
+        public void Tipo_do_cabo_escolhido_a_mao_depende_da_cor()
+        {
+            var cfg = new ConfigLeitura();                                                        // padrão: REDE_MT/REDE_BT, vermelho/verde
+            var mt = new List<CampoMapa> { new CampoMapa { Texto = "3xA35P(7,94)" } };
+            Assert.Equal("MT", MapaManual.TipoDoCabo(cfg, "ANOTACOES", "#ff0000", null));          // layer qualquer: a cor manda
+            Assert.Equal("BT", MapaManual.TipoDoCabo(cfg, "0", "#00ff00", mt));                     // cor manda sobre o texto
+            Assert.Equal("MT", MapaManual.TipoDoCabo(cfg, "REDE_MT", "#ffffff", null));            // sem cor de rede: a layer
+            Assert.Equal("MT", MapaManual.TipoDoCabo(cfg, "POSTE_INSTALANDO", "#000000", mt));      // sem cor nem layer: o texto
+            Assert.Equal("", MapaManual.TipoDoCabo(cfg, "0", "#000000", new[] { new CampoMapa { Texto = "CABO X" } }));
+            var amarelo = new ConfigLeitura { CorMT = "#ffff00" };
+            Assert.Equal("MT", MapaManual.TipoDoCabo(amarelo, "0", "#ffff00", null));                // cor de MT do projeto
+        }
+
+        [Fact]
+        public void Caixas_dos_textos_coletados_vao_e_voltam_na_secao_cad()
+        {
+            var textos = new[] { new TextoDesenho { Handle = "A", Texto = "N3", X = 10, Y = 20, Altura = 1, Caixa = new[] { 10.0, 19.0, 12.0, 20.0 } },
+                                 new TextoDesenho { Handle = "B", Texto = "CE2", X = 10, Y = 18, Altura = 1 },
+                                 new TextoDesenho { Handle = "A", Parte = 1, Texto = "IT-R", X = 10, Y = 20, Altura = 1, Caixa = new[] { 10.0, 19.0, 12.0, 20.0 } } };
+            List<double[]> cx = MapaManual.CaixasDosTextos(textos);
+            Assert.Equal(2, cx.Count);                                                            // parágrafos do mesmo MTEXT: uma caixa
+            Assert.Equal(new[] { 10.0, 19.0, 12.0, 20.0 }, cx[0]);
+            Assert.True(cx[1][0] < 10 && cx[1][2] > 12 && cx[1][1] < 18 && cx[1][3] > 18);       // sem caixa do CAD: em volta do ponto de inserção
+            Obra o = Construtor.NovaObra(@"C:\x\Caixas.dwg", Apoio.Pernambuco);
+            o.PontosMapa.Add(new PontoMapa { Numero = "P1", X = 1, Y = 2, Caixas = cx, Campos = { new CampoMapa { Texto = "N3", Operacao = "I" } } });
+            o.CabosMapa.Add(new CaboMapa { Numero = "C1", Pontos = { new Ponto(0, 0), new Ponto(5, 0) }, Medido = 5, Caixas = { new[] { 1.0, 1.0, 3.0, 2.0 } }, Campos = { new CampoMapa { Texto = "PB35", Operacao = "I" } } });
+            Obra lida = ObraArquivo.Ler(Json.Escrever(ObraArquivo.Envelope(o, ObraArquivoTests.Data), true), Apoio.Pernambuco);
+            Assert.Equal(new[] { 10.0, 19.0, 12.0, 20.0 }, lida.PontosMapa[0].Caixas[0]);
+            Assert.Equal(new[] { 1.0, 1.0, 3.0, 2.0 }, lida.CabosMapa[0].Caixas[0]);
         }
 }
 }

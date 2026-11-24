@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.16.3
+
+TASK-038 (ajuste): tipo do cabo pela cor; coletados marcados na tela (ciano/laranja/cinza) com o painel aberto; item do mapa no painel: clique = zoom + destaque com o objeto base; Editar, Excluir, Definir poste/cabo. ✅ 151 testes do núcleo; DLLs 0.16.3. 🟡 Validar no nanoCAD (marcas transitórias e zoom pelo painel).
+
 ## Plugin 0.16.2
 
 TASK-038 (ajuste): campos da janela sem ativo dividido — parágrafo de continuação do mesmo MTEXT junta ao campo de cima; texto já juntado pela regra (metragem) não vira campo. ✅ 149 testes do núcleo; DLLs 0.16.2. 🟡 Validar no nanoCAD.

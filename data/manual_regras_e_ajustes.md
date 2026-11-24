@@ -1128,3 +1128,9 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 
 - Vários cabos entre os mesmos dois pontos aparecem **lado a lado**, nunca um em cima do outro — com ou sem traçado do CAD, e em qualquer sentido. A MT fica de um lado, a BT do outro.
 - O espaço entre eles é de pelo menos 9 px na tela, mesmo com o zoom afastado.
+
+## Plugin: modo mapa — cor do cabo, coletados na tela e ações do item (24/11/2026)
+
+- **Tipo do cabo:** vem da **cor** da linha escolhida (vermelho = MT, verde = BT, ou as cores do projeto). Sem cor de rede, vale a layer e, por fim, o texto (kV/A35P → MT; PB/C16 → BT).
+- **O que já foi coletado aparece na tela:** pontos em **ciano**, cabos em **laranja**, já enviados ao OrçaCore em **cinza**, com as anotações usadas emolduradas. Só enquanto o painel está aberto; ao fechar, some (nada é gravado no desenho). **Mostrar ou ocultar marcas** também liga/desliga.
+- **No painel**, clique num ponto ou cabo da lista: o desenho **enquadra e destaca em amarelo** o item, as anotações e o objeto base (o poste ou a linha/trecho do cabo). Use **Editar** (campos e comprimento), **Excluir** ou **Definir poste / Definir cabo** (escolher outro bloco ou outra linha; os campos ficam). (Plugin 0.16.3.)
