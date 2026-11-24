@@ -8,6 +8,18 @@
 
 ---
 
+## 2026-11-24 — Plugin 0.16.3: cor do cabo, coletados na tela e ações do item
+
+Modo mapa do plugin: tipo do cabo pela cor da linha; pontos e cabos coletados marcados na tela enquanto o painel está aberto; no painel, clicar num item enquadra e destaca o item com o objeto base, e há Editar, Excluir e Definir poste/cabo. [TASK-038 do plugin](../plugin_nanocad/.ai/tasks/TASK-038-23-11-2026.md).
+
+## 2026-11-24 — Cabos lado a lado no mapa
+
+Cabos entre o mesmo par de pontos ficam lado a lado (juntos pelo par, não pela geometria), cada um do seu lado qualquer que seja o sentido, com no mínimo 9 px entre eles em qualquer zoom. [TASK-240](tasks/TASK-240-24-11-2026.md).
+
+## 2026-11-24 — Plugin 0.16.2: anotação de várias linhas sem ativo dividido
+
+Selecionar poste/cabo no plugin: o parágrafo de continuação do mesmo MTEXT entra no campo de cima e a metragem já juntada pela regra não vira campo F separado (que, trocado para I, dividia o ativo). [TASK-038 do plugin](../plugin_nanocad/.ai/tasks/TASK-038-23-11-2026.md).
+
 ## 2026-11-24 — Cabos sem geometria no DXF (moldura, tipo, X) e nome do ponto no cartão
 
 Leitura do DXF: a anotação emoldurada procura a linha-guia pela borda da moldura; o cabo que diz a tensão só vai para a rede do seu tipo; marcas de X não são rede. Pacote 081 com ANOTACOES nas layers de MT. O cartão do cabo usa o nome do ponto do mapa. Na NOTA_9101578729: 87 de 94 cabos com geometria (antes 50), nenhum no tipo errado. [TASK-239](tasks/TASK-239-24-11-2026.md).

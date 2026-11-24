@@ -1490,6 +1490,8 @@
             st.grafoVista = vb; st.grafoVistaEscala = escala;
             svg.setAttribute('viewBox', vb.join(' '));
             atualizarEscala(); recortarVista();
+            const sep = separacaoCabos();                                                         // TASK-240: zoom mudou bastante → refaz o espaço entre cabos lado a lado
+            if (unidadesDaSeparacao && Math.abs(sep - unidadesDaSeparacao) > .25 * unidadesDaSeparacao) desenharPosicoes();
             if (caboEmFoco !== null) desenharAlcas();
         };
         // pan/zoom chegam várias vezes por quadro (mouse/roda): aplica uma vez por quadro; em redes grandes some o texto enquanto mexe (o texto é o que mais pesa)
@@ -1967,7 +1969,7 @@
                     const nome = `Cabo ${ic + 1} · ${cabos()[ic].ativo}`;
                     const rotulo = `${nome} · ${grupo.tipo || 'Cabo'} · ${grupo.completo ? 'Vinculado' : 'Pendente'}`;
                     const classe = (grupo.tipo === 'MT' ? 'mt' : grupo.tipo === 'BT' ? 'bt' : '') + (diagDe(ic).diverge ? ' diverge' : '');
-                    desenhos.push({v, grupo, ic: candidato ? null : ic, deslocamento: (i - (indices.length - 1) / 2) * 10});
+                    desenhos.push({v, grupo, ic: candidato ? null : ic, faixa: 0, inverte: false});
                     const tracado = `<polyline class="vz-aresta ${classe}${grupo.completo ? ' completo' : ''}${candidato ? ' sugerida' : ''}" fill="none" vector-effect="non-scaling-stroke" ${candidato || (v.ids.includes(null) && !grupo.completo) ? 'stroke-dasharray="5 4"' : ''}><title>${esc(rotulo)}</title></polyline>`;
                     rede.push(candidato ? tracado : `<g data-cabo-mapa="${ic}" data-arrastar="cabo" tabindex="0" role="button" aria-label="${esc(nome)}"><title>${esc(rotulo)}</title>${tracado}<polyline class="vz-alvo-aresta" vector-effect="non-scaling-stroke"/></g>`);
                 });
@@ -1979,6 +1981,7 @@
             for (const { ic, ids } of sugestoes) {
                 exibir({ ids: [ids[0], ids[1] || null], pontos: null, pontas: null, cabos: [ic] }, true);
             }
+            faixasDosCabos(desenhos);
 
             const labels = [];
             const nos = [...grafo.nos.values()].filter(n => nosVisiveis.has(n.id)).map(n => {
@@ -2413,7 +2416,24 @@
         const caixaDoNo = id => { const [x, y] = posicoes.get(id); return [x - 26, y - 26, x + 200, y + 26]; };
         const emEscalaAgora = () => escalar() && kLayout !== null;                  // sem coordenadas do CAD não existe escala: vale o modo «Ajustar»
         const campoPonto = () => (emEscalaAgora() ? '_mapaPoste500' : '_mapaPoste'), campoCabo = () => (emEscalaAgora() ? '_mapaCabo500' : '_mapaCabo');
-        const escalaCurva = () => (emEscalaAgora() ? [kLayout, kLayout] : [W, H]);       // o «puxar» do cabo é guardado em fração da tela (Ajustar) ou em metros (1:500)
+        const escalaCurva = () => (emEscalaAgora() ? [kLayout, kLayout] : [W, H]);
+        // TASK-240: cabos entre o MESMO par de pontos ficam lado a lado — juntos por par (e não pela geometria de cada um), cada um com a sua faixa,
+        // do mesmo lado qualquer que seja o sentido em que foi traçado — e o espaço entre eles nunca fica abaixo de SEP_CABO_PX na tela.
+        const SEP_CABO_PX = 9, SEP_CABO_MIN = 10;
+        let unidadesDaSeparacao = 0;
+        const separacaoCabos = () => Math.max(SEP_CABO_MIN, SEP_CABO_PX * (vb ? vb[2] / (svg.clientWidth || W) : 1));
+        function faixasDosCabos(lista) {
+            const grupos = new Map();
+            for (const d of lista) {
+                const [a, b] = d.v.ids, par = a && b && a !== b ? [a, b].sort() : null;
+                const chave = par ? par.join('|') : d.v;
+                if (!grupos.has(chave)) grupos.set(chave, []);
+                grupos.get(chave).push(d);
+                d.inverte = !!par && a !== par[0];
+            }
+            const ordem = d => (d.grupo?.tipo === 'MT' ? 0 : d.grupo?.tipo === 'BT' ? 1 : 2) * 1e6 + (d.ic ?? 5e5);
+            for (const g of grupos.values()) g.sort((x, y) => ordem(x) - ordem(y)).forEach((d, i) => { d.faixa = i - (g.length - 1) / 2; });
+        }       // o «puxar» do cabo é guardado em fração da tela (Ajustar) ou em metros (1:500)
         function desenharPosicoes(alvo) {
             const desenharNo = (g, id) => g.setAttribute('transform', 'translate(' + posicoes.get(id).join(' ') + ')');
             const idsAlvo = alvo?.ids || (alvo?.idNo ? [alvo.idNo] : null);                       // TASK-233: vários pontos (seleção) redesenham só o que muda
@@ -2425,9 +2445,11 @@
                 }
             } else if (!alvo) nosSvg.forEach(desenharNo);
             const lista = idsAlvo ? [...new Set(idsAlvo.flatMap(id => desenhosPorNo.get(id) || []))] : alvo?.ic !== undefined ? desenhosPorCabo.get(alvo.ic) || [] : desenhos;
+            if ((!idsAlvo && alvo?.ic === undefined) || !unidadesDaSeparacao) unidadesDaSeparacao = separacaoCabos();
             const [cw, ch] = escalaCurva();
             for (const d of lista) {
-                const {v, ic, deslocamento, linha} = d;
+                const {v, ic, linha} = d;
+                const deslocamento = d.faixa * unidadesDaSeparacao * (d.inverte ? -1 : 1);
                 const pts = v.ids.map((id, i) => id ? posicoes.get(id) : v.pontas && pontaAncorada(d, i));
                 if (!pts.every(Boolean)) {
                     const i = pts[0] ? 0 : 1;

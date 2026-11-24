@@ -1027,6 +1027,7 @@ namespace OrcamentoNanoCAD
                 s.Obra = null;
                 s.Modificada = false;
                 s.Marcas.Limpar();
+                s.MarcasMapa.Limpar();
                 PainelObra.Esconder();
                 Aplicacao.Msg("Obra fechada (o desenho não foi alterado). ORCACORE abre a tela inicial.");
             });

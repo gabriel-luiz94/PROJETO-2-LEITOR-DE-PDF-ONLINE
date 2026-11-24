@@ -109,7 +109,7 @@ namespace OrcamentoNanoCAD.Testes
             Obra o = Construtor.NovaObra(@"C:\Projetos\Montagem_Manual.dwg", rg);
             o.SemRegras = false;
             o.SalvoEm = "23/11/2026 09:00";
-            o.PontosMapa.Add(new PontoMapa { Numero = "P1", Comentario = "Rua das Flores, 120", Handle = "1A2", Bloco = "POSTE", X = 1000, Y = 2000, Textos = { "T1", "T2" },
+            o.PontosMapa.Add(new PontoMapa { Numero = "P1", Comentario = "Rua das Flores, 120", Handle = "1A2", Bloco = "POSTE", X = 1000, Y = 2000, Textos = { "T1", "T2" }, Caixas = { new[] { 1002.5, 2003.2, 1014.0, 2004.4 } },
                 Campos = MapaManual.CamposDosTextos(new[] { T("9200D, N1", 1003, 2004), T("TEXTO QUALQUER 123", 1003, 2001, "LAYER_ESTRANHA") }, rg, "I", false) });
             o.PontosMapa.Add(new PontoMapa { Numero = "P2", X = 1038.4, Y = 2000, Textos = { "T3" },          // sem símbolo: posição aproximada (a da anotação)
                 Campos = MapaManual.CamposDosTextos(new[] { T("N3", 1038.4, 2000, "01_REMOVER") }, rg, "I", false) });
@@ -149,6 +149,72 @@ namespace OrcamentoNanoCAD.Testes
             Assert.Equal(new[] { "", "C1", "MT", "I", "I 3xA35P(7,94)-13,8kV", "40", "no mapa", "Mapa" }, cabo.Celulas);
             Assert.Equal(new[] { new Ponto(1000, 2000).X, 1038.4 }, MapaManual.PontosParaZoom(o, "M:C1").Select(p => p.X).ToArray());
             Assert.Equal(1080, MapaManual.PontosParaZoom(o, "P3")[0].X);
+        }
+
+        private static TextoDesenho P(string handle, int parte, string texto, double y, string layer)
+        {
+            return new TextoDesenho { Handle = handle, Parte = parte, Texto = texto, X = 288391.2, Y = y, Layer = layer, Altura = 1.2, Tipo = "MTEXT" };
+        }
+
+        [Fact]
+        public void Paragrafo_de_continuacao_do_mesmo_mtext_entra_no_campo_de_cima()
+        {
+            // NOTA_9101578729: «12600D, CEJ2, FLABIT, IT-R\PFLABIM, IT-R» — o 2º parágrafo virava um campo F e, trocado para I, dividia o ativo
+            var textos = new[] { P("5BFC0", 0, "12600D, CEJ2, FLABIT, IT-R", 9113465.3, "POSTE_INSTALANDO_LV"), P("5BFC0", 1, "FLABIM, IT-R", 9113465.3, "POSTE_INSTALANDO_LV"),
+                                 P("5BFC2", 0, "11300D, N3-2, IT-2, CFU", 9113459.1, "POSTE_REMOVENDO_LV") };
+            List<CampoMapa> c = MapaManual.CamposDosTextos(textos, Apoio.Pernambuco, "I", false);
+            Assert.Equal(new[] { "1 *I 12600D, CEJ2, FLABIT, IT-R, FLABIM, IT-R", "2 *R 11300D, N3-2, IT-2, CFU" }, c.Select(x => x.L + " " + x.Operacao + " " + x.Texto).ToArray());
+            List<CampoMapa> sem = MapaManual.CamposDosTextos(textos, null, "I", false);
+            Assert.Equal(new[] { "12600D, CEJ2, FLABIT, IT-R, FLABIM, IT-R", "11300D, N3-2, IT-2, CFU" }, sem.Select(x => x.Texto).ToArray());
+        }
+
+        [Fact]
+        public void Metragem_ja_juntada_ao_cabo_nao_vira_campo_proprio()
+        {
+            var textos = new[] { new TextoDesenho { Handle = "5C03E", Texto = "3xA35P(7,94)", X = 288398.9, Y = 9113450.6, Layer = "POSTE_INSTALANDO_LV", Altura = 1.2, Tipo = "MTEXT" },
+                                 new TextoDesenho { Handle = "5C040", Texto = "32 m", X = 288398.9, Y = 9113445.7, Layer = "0", Altura = 1.2, Tipo = "MTEXT" } };
+            CampoMapa c = Assert.Single(MapaManual.CamposDosTextos(textos, Apoio.Pernambuco, "I", true));
+            Assert.Equal("3xA35P(7,94)", c.Texto); Assert.Equal("*I", c.Operacao);
+            Assert.Single(MapaManual.CamposDosTextos(textos, null, "I", true));                  // sem regras: a metragem também não vira campo
+        }
+
+        [Fact]
+        public void Textos_de_mtexts_diferentes_continuam_em_campos_separados()
+        {
+            var textos = new[] { P("A1", 0, "12600D, CEJ2", 10, "POSTE_INSTALANDO_LV"), P("A2", 0, "LD", 8, "POSTE_INSTALANDO_LV") };
+            Assert.Equal(new[] { "12600D, CEJ2", "LD" }, MapaManual.CamposDosTextos(textos, null, "I", false).Select(x => x.Texto).ToArray());
+        }
+
+        [Fact]
+        public void Tipo_do_cabo_escolhido_a_mao_depende_da_cor()
+        {
+            var cfg = new ConfigLeitura();                                                        // padrão: REDE_MT/REDE_BT, vermelho/verde
+            var mt = new List<CampoMapa> { new CampoMapa { Texto = "3xA35P(7,94)" } };
+            Assert.Equal("MT", MapaManual.TipoDoCabo(cfg, "ANOTACOES", "#ff0000", null));          // layer qualquer: a cor manda
+            Assert.Equal("BT", MapaManual.TipoDoCabo(cfg, "0", "#00ff00", mt));                     // cor manda sobre o texto
+            Assert.Equal("MT", MapaManual.TipoDoCabo(cfg, "REDE_MT", "#ffffff", null));            // sem cor de rede: a layer
+            Assert.Equal("MT", MapaManual.TipoDoCabo(cfg, "POSTE_INSTALANDO", "#000000", mt));      // sem cor nem layer: o texto
+            Assert.Equal("", MapaManual.TipoDoCabo(cfg, "0", "#000000", new[] { new CampoMapa { Texto = "CABO X" } }));
+            var amarelo = new ConfigLeitura { CorMT = "#ffff00" };
+            Assert.Equal("MT", MapaManual.TipoDoCabo(amarelo, "0", "#ffff00", null));                // cor de MT do projeto
+        }
+
+        [Fact]
+        public void Caixas_dos_textos_coletados_vao_e_voltam_na_secao_cad()
+        {
+            var textos = new[] { new TextoDesenho { Handle = "A", Texto = "N3", X = 10, Y = 20, Altura = 1, Caixa = new[] { 10.0, 19.0, 12.0, 20.0 } },
+                                 new TextoDesenho { Handle = "B", Texto = "CE2", X = 10, Y = 18, Altura = 1 },
+                                 new TextoDesenho { Handle = "A", Parte = 1, Texto = "IT-R", X = 10, Y = 20, Altura = 1, Caixa = new[] { 10.0, 19.0, 12.0, 20.0 } } };
+            List<double[]> cx = MapaManual.CaixasDosTextos(textos);
+            Assert.Equal(2, cx.Count);                                                            // parágrafos do mesmo MTEXT: uma caixa
+            Assert.Equal(new[] { 10.0, 19.0, 12.0, 20.0 }, cx[0]);
+            Assert.True(cx[1][0] < 10 && cx[1][2] > 12 && cx[1][1] < 18 && cx[1][3] > 18);       // sem caixa do CAD: em volta do ponto de inserção
+            Obra o = Construtor.NovaObra(@"C:\x\Caixas.dwg", Apoio.Pernambuco);
+            o.PontosMapa.Add(new PontoMapa { Numero = "P1", X = 1, Y = 2, Caixas = cx, Campos = { new CampoMapa { Texto = "N3", Operacao = "I" } } });
+            o.CabosMapa.Add(new CaboMapa { Numero = "C1", Pontos = { new Ponto(0, 0), new Ponto(5, 0) }, Medido = 5, Caixas = { new[] { 1.0, 1.0, 3.0, 2.0 } }, Campos = { new CampoMapa { Texto = "PB35", Operacao = "I" } } });
+            Obra lida = ObraArquivo.Ler(Json.Escrever(ObraArquivo.Envelope(o, ObraArquivoTests.Data), true), Apoio.Pernambuco);
+            Assert.Equal(new[] { 10.0, 19.0, 12.0, 20.0 }, lida.PontosMapa[0].Caixas[0]);
+            Assert.Equal(new[] { 1.0, 1.0, 3.0, 2.0 }, lida.CabosMapa[0].Caixas[0]);
         }
 }
 }

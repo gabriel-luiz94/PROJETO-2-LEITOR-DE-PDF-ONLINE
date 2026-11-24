@@ -36,6 +36,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public double X, Y;               // símbolo do poste; sem símbolo, a posição da anotação
         public List<CampoMapa> Campos = new List<CampoMapa>();
         public List<string> Textos = new List<string>();   // handles das anotações usadas
+        public List<double[]> Caixas = new List<double[]>(); // 0.16.3: contorno [x0, y0, x1, y1] de cada anotação usada (marcas na tela)
         public bool Enviado;
         public string NomeFinal { get { return string.IsNullOrEmpty((Nome ?? "").Trim()) ? Numero : Nome.Trim(); } }
     }
@@ -51,6 +52,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public double? Metros;            // o que vai para o orçamento (anotado ou medido)
         public List<CampoMapa> Campos = new List<CampoMapa>();
         public List<string> Textos = new List<string>();
+        public List<double[]> Caixas = new List<double[]>(); // 0.16.3: contorno de cada anotação usada (marcas na tela)
         public bool Enviado;
     }
 
@@ -76,6 +78,9 @@ namespace OrcamentoNanoCAD.Nucleo
         /// <summary>
         /// Campos iniciais da janela: um por texto (parágrafo), na linha L dele. `regras` = null → sem regras (texto como está, operação `opPadrao`).
         /// Com regras: ativo/operação da regra; texto selecionado sem regra (ou que a regra manda ignorar) → F.
+        /// Correção 0.16.2: (1) texto que a regra já juntou ao ativo de outro (vizinho: o «32 m» do cabo) não vira campo próprio, e no cabo
+        /// texto que é só metragem também não (é o comprimento); (2) no ponto, o parágrafo de continuação do MESMO MTEXT («FLABIM, IT-R» embaixo de
+        /// «12600D, CEJ2, FLABIT, IT-R») entra no campo de cima, com a operação dele — antes virava um campo F e, trocado para I, dividia o ativo.
         /// </summary>
         public static List<CampoMapa> CamposDosTextos(IEnumerable<TextoDesenho> textos, RegrasProjeto regras, string opPadrao, bool cabo)
         {
@@ -84,36 +89,54 @@ namespace OrcamentoNanoCAD.Nucleo
             if (ordem.Count == 0) return saida;
             string padrao = NormalizarOperacao(opPadrao) ?? "I";
             var porTexto = new Dictionary<TextoDesenho, TextoLido>();
+            var absorvidos = new HashSet<TextoDesenho>();
             if (regras != null)
-                foreach (TextoLido tl in LeitorProjeto.ClassificarTextos(ordem, regras))
-                    if (tl != null && tl.T != null && !porTexto.ContainsKey(tl.T)) porTexto[tl.T] = tl;
-            for (int i = 0; i < ordem.Count; i++)
             {
-                TextoDesenho t = ordem[i];
-                var campo = new CampoMapa { L = i + 1 };
+                List<TextoLido> lidos = LeitorProjeto.ClassificarTextos(ordem, regras);
+                foreach (TextoLido tl in lidos)
+                    if (tl != null && tl.T != null && !porTexto.ContainsKey(tl.T)) porTexto[tl.T] = tl;
+                foreach (TextoLido tl in lidos)
+                    if (tl != null && tl.R != null && !string.IsNullOrEmpty((tl.R.Ativo ?? "").Trim()))
+                        foreach (int i in tl.R.Vizinhos)
+                            if (i >= 0 && i < lidos.Count && lidos[i].T != tl.T) absorvidos.Add(lidos[i].T);
+            }
+            CampoMapa anterior = null;
+            TextoDesenho textoAnterior = null;
+            int linha = 0;
+            foreach (TextoDesenho t in ordem)
+            {
                 TextoLido tl;
-                string ativo = null, op = null;
+                string ativo = null, op = null, ent = null;
                 if (regras != null && porTexto.TryGetValue(t, out tl) && tl.R != null)
                 {
                     ativo = (tl.R.Ativo ?? "").Trim();
                     op = NormalizarOperacao(tl.R.Operacao);
-                    string ent = (tl.R.Entidade ?? "").Trim();
-                    if (ent.Length > 0 && ent != "0") campo.Entidade = ent;
+                    ent = (tl.R.Entidade ?? "").Trim();
                 }
-                if (regras != null && (string.IsNullOrEmpty(ativo) || op == null || op == "F"))
+                bool temRegra = regras != null && !string.IsNullOrEmpty(ativo) && op != null && op != "F";
+                // (1) já está no ativo de outro texto, ou é só a metragem do cabo
+                if (!temRegra && (absorvidos.Contains(t) || (cabo && Construtor.EhComprimento(t.Texto)))) continue;
+                // (2) continuação do mesmo MTEXT no ponto: junta ao campo de cima
+                if (!cabo && !temRegra && anterior != null && textoAnterior != null && t.Parte > 0
+                    && !string.IsNullOrEmpty(t.Handle) && t.Handle == textoAnterior.Handle)
                 {
-                    campo.Texto = Limpar(t.Texto); campo.Operacao = "F"; campo.Origem = "sem regra";
+                    string resto = Limpar(t.Texto);
+                    if (resto.Length > 0) anterior.Texto = anterior.Texto.TrimEnd(' ', ',', '/') + ", " + resto;
+                    textoAnterior = t;
+                    continue;
                 }
-                else if (regras != null)
+                var campo = new CampoMapa { L = ++linha };
+                if (temRegra)
                 {
                     campo.Texto = ativo; campo.Operacao = op; campo.Origem = "regra";
+                    if (ent.Length > 0 && ent != "0") campo.Entidade = ent;
                 }
-                else
-                {
-                    campo.Texto = Limpar(t.Texto); campo.Operacao = padrao; campo.Origem = "manual";
-                }
+                else if (regras != null) { campo.Texto = Limpar(t.Texto); campo.Operacao = "F"; campo.Origem = "sem regra"; }
+                else { campo.Texto = Limpar(t.Texto); campo.Operacao = padrao; campo.Origem = "manual"; }
                 if (cabo) campo.Texto = SemMetragem(campo.Texto);
-                if (campo.Texto.Length > 0) saida.Add(campo);
+                if (campo.Texto.Length == 0) { linha--; continue; }
+                saida.Add(campo);
+                anterior = campo; textoAnterior = t;
             }
             return saida;
         }
@@ -273,6 +296,36 @@ namespace OrcamentoNanoCAD.Nucleo
             return linhas;
         }
 
+        /// <summary>0.16.3: contorno de cada texto coletado (a caixa que o CAD informa ou, sem ela, um quadrado em volta do ponto de inserção).</summary>
+        public static List<double[]> CaixasDosTextos(IEnumerable<TextoDesenho> textos)
+        {
+            var saida = new List<double[]>();
+            var vistas = new HashSet<string>();
+            foreach (TextoDesenho t in textos ?? Enumerable.Empty<TextoDesenho>())
+            {
+                double h = t.Altura > 0 ? t.Altura : 1;
+                double[] c = t.Caixa != null && t.Caixa.Length == 4 ? t.Caixa : new[] { t.X - h * 0.3, t.Y - h * 1.2, t.X + h * 0.3 + h * 0.8 * (t.Texto ?? "").Length, t.Y + h * 0.3 };
+                string chave = string.Join("|", c.Select(v => Math.Round(v, 3).ToString(CultureInfo.InvariantCulture)).ToArray());
+                if (vistas.Add(chave)) saida.Add(new[] { c[0], c[1], c[2], c[3] });
+            }
+            return saida;
+        }
+
+        /// <summary>0.16.3: tipo do cabo escolhido à mão — pela COR da linha (cores de MT/BT do projeto; vermelho/verde no padrão), depois pela
+        /// layer de rede da ⚙ Leitura, depois pelo que o texto diz (kV/A35P → MT; PB/RAMA/C16( → BT). Vazio = não dá para saber.</summary>
+        public static string TipoDoCabo(ConfigLeitura cfg, string layer, string cor, IEnumerable<CampoMapa> campos)
+        {
+            ConfigLeitura c = cfg ?? new ConfigLeitura();
+            string tipo = c.CorDoProjeto(cor) ?? c.TipoPelaLayer(layer);
+            if (!string.IsNullOrEmpty(tipo)) return tipo;
+            foreach (CampoMapa x in campos ?? Enumerable.Empty<CampoMapa>())
+            {
+                string n = LeitorProjeto.NivelDoTexto(x.Texto);
+                if (!string.IsNullOrEmpty(n)) return n;
+            }
+            return "";
+        }
+
         // ── painel do plugin (abas «Postes e outros» e «Vãos e cabos») ──
         public const string PrefixoPainel = "M:";
 
@@ -345,7 +398,7 @@ namespace OrcamentoNanoCAD.Nucleo
         {
             return pontos.Select(p => (object)new JObj().Set("numero", p.Numero).Set("nome", p.Nome).Set("comentario", p.Comentario).Set("handle", p.Handle)
                 .Set("bloco", p.Bloco).Set("x", p.X).Set("y", p.Y).Set("enviado", p.Enviado)
-                .Set("textos", p.Textos.Cast<object>().ToList()).Set("campos", p.Campos.Select(c => (object)CampoParaJson(c)).ToList())).ToList();
+                .Set("textos", p.Textos.Cast<object>().ToList()).Set("caixas", CaixasParaJson(p.Caixas)).Set("campos", p.Campos.Select(c => (object)CampoParaJson(c)).ToList())).ToList();
         }
 
         public static List<object> CabosParaJson(IEnumerable<CaboMapa> cabos)
@@ -354,10 +407,23 @@ namespace OrcamentoNanoCAD.Nucleo
             {
                 JObj o = new JObj().Set("numero", c.Numero).Set("linha", c.LinhaHandle).Set("trecho", c.Trecho).Set("tipo", c.Tipo).Set("medido", c.Medido)
                     .Set("enviado", c.Enviado).Set("pontos", c.Pontos.Select(q => (object)new List<object> { q.X, q.Y }).ToList())
-                    .Set("textos", c.Textos.Cast<object>().ToList()).Set("campos", c.Campos.Select(x => (object)CampoParaJson(x)).ToList());
+                    .Set("textos", c.Textos.Cast<object>().ToList()).Set("caixas", CaixasParaJson(c.Caixas)).Set("campos", c.Campos.Select(x => (object)CampoParaJson(x)).ToList());
                 if (c.Metros.HasValue) o.Set("metros", c.Metros.Value);
                 return (object)o;
             }).ToList();
+        }
+
+        private static List<object> CaixasParaJson(IEnumerable<double[]> caixas)
+        {
+            return (caixas ?? Enumerable.Empty<double[]>()).Where(c => c != null && c.Length == 4)
+                .Select(c => (object)c.Select(v => (object)Math.Round(v, 3)).ToList()).ToList();
+        }
+
+        private static List<double[]> CaixasDeJson(object v)
+        {
+            List<object> l = v as List<object>;
+            if (l == null) return new List<double[]>();
+            return l.OfType<List<object>>().Where(x => x.Count == 4).Select(x => x.Select(n => Json.ComoNumero(n) ?? 0).ToArray()).ToList();
         }
 
         public static List<PontoMapa> PontosDeJson(object v)
@@ -368,7 +434,7 @@ namespace OrcamentoNanoCAD.Nucleo
             foreach (JObj o in l.OfType<JObj>())
                 saida.Add(new PontoMapa { Numero = o.Str("numero") ?? "", Nome = o.Str("nome") ?? "", Comentario = o.Str("comentario") ?? "", Handle = o.Str("handle") ?? "",
                     Bloco = o.Str("bloco") ?? "", X = o.Num("x") ?? 0, Y = o.Num("y") ?? 0, Enviado = o.Bool("enviado", false),
-                    Textos = Json.ListaDeTextos(o["textos"]), Campos = CamposDeJson(o["campos"]) });
+                    Textos = Json.ListaDeTextos(o["textos"]), Caixas = CaixasDeJson(o["caixas"]), Campos = CamposDeJson(o["campos"]) });
             return saida;
         }
 
@@ -383,7 +449,7 @@ namespace OrcamentoNanoCAD.Nucleo
                     .Select(x => new Ponto(Json.ComoNumero(x[0]) ?? 0, Json.ComoNumero(x[1]) ?? 0)).ToList();
                 saida.Add(new CaboMapa { Numero = o.Str("numero") ?? "", LinhaHandle = o.Str("linha") ?? "", Trecho = o.Bool("trecho", false), Tipo = o.Str("tipo") ?? "",
                     Medido = o.Num("medido") ?? 0, Metros = o.Num("metros"), Enviado = o.Bool("enviado", false), Pontos = pts,
-                    Textos = Json.ListaDeTextos(o["textos"]), Campos = CamposDeJson(o["campos"]) });
+                    Textos = Json.ListaDeTextos(o["textos"]), Caixas = CaixasDeJson(o["caixas"]), Campos = CamposDeJson(o["campos"]) });
             }
             return saida;
         }

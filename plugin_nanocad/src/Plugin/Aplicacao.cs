@@ -184,6 +184,12 @@ namespace OrcamentoNanoCAD
         public readonly Marcas Marcas = new Marcas();
         public bool AnaliseCores;
         private readonly Marcas _destaque = new Marcas();
+        public readonly Marcas MarcasMapa = new Marcas();          // 0.16.3: o que já foi coletado no modo mapa (só com o painel aberto)
+        public void DestacarMapa(string numero)
+        {
+            try { _destaque.Limpar(); if (Obra != null && !string.IsNullOrEmpty(numero)) _destaque.DestacarMapa(Obra, numero); }
+            catch (System.Exception ex) { Aplicacao.Log("Destaque do mapa: " + ex.Message); }
+        }
         public void Destacar(Elemento e, TextoIgnorado t)
         {
             try
@@ -243,7 +249,9 @@ namespace OrcamentoNanoCAD
                     Marcas.Mostrar(Obra, Regras, AnaliseCores);
                     if (Obra.Modo == "construir") Marcas.RegiaoFechada(UltimaRegiao, Math.Max(0.01, Obra.AlturaTexto / 4.0));
                 }
-                else Marcas.Limpar(); }
+                else Marcas.Limpar();
+                if (MarcasVisiveis && Obra.Modo == "construir" && UI.PainelObra.VisivelPara(this) && (Obra.PontosMapa.Count + Obra.CabosMapa.Count) > 0) MarcasMapa.MostrarMapa(Obra);
+                else MarcasMapa.Limpar(); }
             catch (System.Exception e) { Aplicacao.Msg("Marcas na tela indisponíveis: " + e.Message); }
             UI.PainelObra.AtualizarSeAberto(this);
         }

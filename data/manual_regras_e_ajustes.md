@@ -1105,6 +1105,7 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - **Selecionar poste:** clique no símbolo do poste (Enter = sem símbolo), selecione os textos da anotação e tecle Enter. Na janela, cada texto é um **campo** com a sua linha (**L**). Marque a operação de cada campo: **F**, **I**, **\*I**, **M**, **\*M**, **R**, **\*R**. **+ Novo campo** e **+ Nova linha** separam o texto. Ctrl+Enter confirma.
 - **Selecionar cabo:** clique na linha, escolha **Inteira** ou **Trecho** e selecione os textos. Vale a metragem anotada; a medida na linha aparece ao lado.
 - **Com regras**, o ativo e a operação vêm do Leitor do projeto; o texto que não se encaixa entra como **F** (fictício). **Sem regras**, o texto entra como está.
+- **Anotação de várias linhas** (um MTEXT com mais de um parágrafo): as linhas de continuação entram no mesmo campo (ex.: «12600D, CEJ2, FLABIT, IT-R, FLABIM, IT-R»); a metragem do cabo não vira campo. Para separar, use **+ Novo campo**. (Plugin 0.16.2.)
 - Os pontos e cabos aparecem no painel do plugin, nas abas **Postes e outros** e **Vãos e cabos**. **Duplo clique** (ou **Ajustar ponto/cabo…**) mostra o item no desenho e reabre a janela para corrigir ou **Excluir**. (Plugin 0.16.1.)
 - **Adicionar anotações ao OrçaCore** manda os pontos e cabos para a obra aberta: cada poste aparece em Demais Ativos como **«@P1 - comentário»** com as suas linhas, e cada cabo em Cabos. Faça os vínculos no **mapa**. (Plugin 0.16.0 ou mais novo.)
 
@@ -1122,3 +1123,14 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - **Marcas de X** riscando anotações não contam como rede.
 - **Cartão do cabo:** os botões das pontas mostram o mesmo nome do ponto que o mapa (P1, P2…).
 - Cabo que continua sem traçado: no cartão, **Ponta livre** → clique no ponto, para cada ponta.
+
+## Mapa: cabos lado a lado (24/11/2026)
+
+- Vários cabos entre os mesmos dois pontos aparecem **lado a lado**, nunca um em cima do outro — com ou sem traçado do CAD, e em qualquer sentido. A MT fica de um lado, a BT do outro.
+- O espaço entre eles é de pelo menos 9 px na tela, mesmo com o zoom afastado.
+
+## Plugin: modo mapa — cor do cabo, coletados na tela e ações do item (24/11/2026)
+
+- **Tipo do cabo:** vem da **cor** da linha escolhida (vermelho = MT, verde = BT, ou as cores do projeto). Sem cor de rede, vale a layer e, por fim, o texto (kV/A35P → MT; PB/C16 → BT).
+- **O que já foi coletado aparece na tela:** pontos em **ciano**, cabos em **laranja**, já enviados ao OrçaCore em **cinza**, com as anotações usadas emolduradas. Só enquanto o painel está aberto; ao fechar, some (nada é gravado no desenho). **Mostrar ou ocultar marcas** também liga/desliga.
+- **No painel**, clique num ponto ou cabo da lista: o desenho **enquadra e destaca em amarelo** o item, as anotações e o objeto base (o poste ou a linha/trecho do cabo). Use **Editar** (campos e comprimento), **Excluir** ou **Definir poste / Definir cabo** (escolher outro bloco ou outra linha; os campos ficam). (Plugin 0.16.3.)
