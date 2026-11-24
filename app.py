@@ -107,6 +107,11 @@ async def serve_ativo_sugestao_js():
 async def serve_obra_params_js():
     return _serve_js("obra_params.js")          # TASK-165
 
+
+@app.get("/static/transporte.js")
+async def serve_transporte_js():
+    return _serve_js("transporte.js")           # TASK-245
+
 @app.get("/static/ativo_status.js")
 async def serve_ativo_status_js():
     return _serve_js("ativo_status.js")         # TASK-167

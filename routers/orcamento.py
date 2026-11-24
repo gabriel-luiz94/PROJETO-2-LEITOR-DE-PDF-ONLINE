@@ -273,6 +273,13 @@ def get_regionais(projeto: str = ""):
     return tabela_regional(projeto)
 
 
+@router.get("/transporte")
+def get_transporte(projeto: str = ""):
+    """TASK-245: parte `transporte` do projeto (faixas, pesos, km por UTD, município/bairro → UTD); {} se o projeto não tem (o menu nem aparece)."""
+    from services.transporte import dados_do_projeto
+    return dados_do_projeto(projeto)
+
+
 @router.post("/calcular")
 def calcular_orcamento(req: OrcamentoRequest, request: Request):
     user = getattr(request.state, "user", None)

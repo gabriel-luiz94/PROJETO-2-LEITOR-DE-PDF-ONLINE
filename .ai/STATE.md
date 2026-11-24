@@ -85,6 +85,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-245](tasks/TASK-245-24-11-2026.md) — Resumo: modal «Transporte de material» (TRANSP/TRANSP_KM igual à aba TRANSPORT da ICP), parte `transporte` do pacote.
 - [x] [TASK-244](tasks/TASK-244-24-11-2026.md) — Mapa/vínculo: estrutura com quantidade inteira vira uma unidade por estrutura («2 FLABIT» = duas).
 - [x] [TASK-243](tasks/TASK-243-24-11-2026.md) — Mapa: pré-preenchimento do ativo do cabo (3 → 3x, A35P( → 7,94)-13,8kV, - → 13,8kV).
 - [x] [TASK-242](tasks/TASK-242-24-11-2026.md) — Mapa: «Editar» do cabo = formulário do + Cabo; «Editar» da estrutura = linha em «Linhas do ponto».
@@ -865,7 +866,9 @@ Próximo passo natural, se o usuário quiser mais cobertura: as regras RN-03 a R
 
 ## Última atualização
 
-**Data:** 2026-11-23
+**Data:** 2026-11-24
+
+**Motivo:** [TASK-245](tasks/TASK-245-24-11-2026.md) adicionou o modal Transporte de material e a parte `transporte` do pacote.
 
 **Motivo:** [TASK-232](tasks/TASK-232-23-11-2026.md) adicionou o instalador privado com dados locais.
 

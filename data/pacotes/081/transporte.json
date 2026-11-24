@@ -1,0 +1,4737 @@
+{
+ "formato": "transporte-material",
+ "versao": 1,
+ "fonte": "ICP V1.62, aba TRANSPORT (pesos e serviços) e aba MUNICÍPIO_UTD (km por UTD)",
+ "ativos": {
+  "ate_50km": "TRANSP",
+  "acima_50km": "TRANSP_KM"
+ },
+ "faixas": [
+  {
+   "faixa": "0.6T",
+   "ate_50km": "SDETU5001SI",
+   "acima_50km": "SDETU5002SI"
+  },
+  {
+   "faixa": "4T",
+   "ate_50km": "SDETU5003SI",
+   "acima_50km": "SDETU5004SI"
+  },
+  {
+   "faixa": "8T",
+   "ate_50km": "SDETU5005SI",
+   "acima_50km": "SDETU5006SI"
+  },
+  {
+   "faixa": "14T",
+   "ate_50km": "SDETU5007SI",
+   "acima_50km": "SDETU5008SI"
+  },
+  {
+   "faixa": "25T",
+   "ate_50km": "SDETU5009SI",
+   "acima_50km": "SDETU5010SI"
+  }
+ ],
+ "pesos": [
+  {
+   "linha": 6,
+   "codigo": "3324010",
+   "descricao": "BLOCO CONCRETO ANCOR.200X200X600MM",
+   "kg": 62
+  },
+  {
+   "linha": 7,
+   "codigo": "3324009",
+   "descricao": "BLOCO CONCRETO ANCOR.250X60X200MM",
+   "kg": 17
+  },
+  {
+   "linha": 8,
+   "codigo": "3310013",
+   "descricao": "CRUZETA CONC  L 1700 MM 300DAN",
+   "kg": 53
+  },
+  {
+   "linha": 9,
+   "codigo": "3310021",
+   "descricao": "CRUZETA CONC  T 1900 MM 350DAN",
+   "kg": 58
+  },
+  {
+   "linha": 10,
+   "codigo": "3310010",
+   "descricao": "CRUZETA CONC CDL (L) 1025MM 200DAN",
+   "kg": 39
+  },
+  {
+   "linha": 11,
+   "codigo": "3310014",
+   "descricao": "CRUZETA CONC CDN (T) 1200MM 200DAN",
+   "kg": 37
+  },
+  {
+   "linha": 12,
+   "codigo": "3310007",
+   "descricao": "CRUZETA CONC RET  2400MM  200DAN",
+   "kg": 67
+  },
+  {
+   "linha": 13,
+   "codigo": "3310029",
+   "descricao": "CRUZETA CONC RET  2400MM  400DAN",
+   "kg": 67
+  },
+  {
+   "linha": 14,
+   "codigo": "3310001",
+   "descricao": "CRUZETA CONC T    2400MM  200DAN",
+   "kg": 80
+  },
+  {
+   "linha": 15,
+   "codigo": "3310009",
+   "descricao": "CRUZETA CONC T    2400MM  400DAN",
+   "kg": 89
+  },
+  {
+   "linha": 16,
+   "codigo": "3324021",
+   "descricao": "PLACA CONC ESTAI 400 F22",
+   "kg": 37
+  },
+  {
+   "linha": 17,
+   "codigo": "3303013",
+   "descricao": "POSTE CONC CIRC           14/1000",
+   "kg": 2220
+  },
+  {
+   "linha": 18,
+   "codigo": "3303325",
+   "descricao": "POSTE CONC CIRC 22/2500 SUBTR",
+   "kg": 7687
+  },
+  {
+   "linha": 19,
+   "codigo": "3300094",
+   "descricao": "POSTE CONC DT             12/ 600 ORLA",
+   "kg": 1302
+  },
+  {
+   "linha": 20,
+   "codigo": "3301549",
+   "descricao": "POSTE CONC DT             14/1000 15F",
+   "kg": 1973
+  },
+  {
+   "linha": 21,
+   "codigo": "3301140",
+   "descricao": "POSTE CONC DT             14/2000 B-4,5",
+   "kg": 3384
+  },
+  {
+   "linha": 22,
+   "codigo": "3300019",
+   "descricao": "POSTE CONC DT           9/600",
+   "kg": 843
+  },
+  {
+   "linha": 23,
+   "codigo": "3300009",
+   "descricao": "POSTE CONC DT          12/600",
+   "kg": 1295
+  },
+  {
+   "linha": 24,
+   "codigo": "3300068",
+   "descricao": "POSTE CONC DT   11,0/ 300 44F",
+   "kg": 1185
+  },
+  {
+   "linha": 25,
+   "codigo": "3300102",
+   "descricao": "POSTE CONC DT   12,0/2000 44F",
+   "kg": 2435
+  },
+  {
+   "linha": 26,
+   "codigo": "3302082",
+   "descricao": "POSTE CONCRETO CIRCULAR 11/1000",
+   "kg": 2607
+  },
+  {
+   "linha": 27,
+   "codigo": "3302058",
+   "descricao": "POSTE CONCRETO CIRCULAR 12/1000",
+   "kg": 2001
+  },
+  {
+   "linha": 28,
+   "codigo": "3302085",
+   "descricao": "POSTE CONCRETO CIRCULAR 12/1500",
+   "kg": 2502
+  },
+  {
+   "linha": 29,
+   "codigo": "3302059",
+   "descricao": "POSTE CONCRETO CIRCULAR 12/2000",
+   "kg": 2843
+  },
+  {
+   "linha": 30,
+   "codigo": "3302086",
+   "descricao": "POSTE CONCRETO CIRCULAR 14/1000",
+   "kg": 2575
+  },
+  {
+   "linha": 31,
+   "codigo": "3302087",
+   "descricao": "POSTE CONCRETO CIRCULAR 14/1500",
+   "kg": 3061
+  },
+  {
+   "linha": 32,
+   "codigo": "3302088",
+   "descricao": "POSTE CONCRETO CIRCULAR 14/2000",
+   "kg": 3471
+  },
+  {
+   "linha": 33,
+   "codigo": "3302014",
+   "descricao": "POSTE CONCRETO CIRCULAR 9/1000",
+   "kg": 1237
+  },
+  {
+   "linha": 34,
+   "codigo": "3300002",
+   "descricao": "POSTE CONCRETO DT  11/300",
+   "kg": 1187
+  },
+  {
+   "linha": 35,
+   "codigo": "3300012",
+   "descricao": "POSTE CONCRETO DT  9/400 29F",
+   "kg": 860
+  },
+  {
+   "linha": 36,
+   "codigo": "3300080",
+   "descricao": "POSTE CONCRETO DT 11/1000 44F",
+   "kg": 1345
+  },
+  {
+   "linha": 37,
+   "codigo": "3300152",
+   "descricao": "POSTE CONCRETO DT 11/400 44F",
+   "kg": 1200
+  },
+  {
+   "linha": 38,
+   "codigo": "3300016",
+   "descricao": "POSTE CONCRETO DT 11/600 44F",
+   "kg": 1203
+  },
+  {
+   "linha": 39,
+   "codigo": "3300083",
+   "descricao": "POSTE CONCRETO DT 12/300 44F",
+   "kg": 1332
+  },
+  {
+   "linha": 40,
+   "codigo": "3300007",
+   "descricao": "POSTE CONCRETO DT 12/400 44Fu",
+   "kg": 1325
+  },
+  {
+   "linha": 41,
+   "codigo": "3300153",
+   "descricao": "POSTE CONCRETO DT 12/400 44F",
+   "kg": 1376
+  },
+  {
+   "linha": 42,
+   "codigo": "3300082",
+   "descricao": "POSTE CONCRETO DT 12/600 44F",
+   "kg": 1379
+  },
+  {
+   "linha": 43,
+   "codigo": "3300109",
+   "descricao": "POSTE CONCRETO DT 14/600 44F",
+   "kg": 1665
+  },
+  {
+   "linha": 44,
+   "codigo": "3300095",
+   "descricao": "POSTE CONCRETO DT 9/200 29F",
+   "kg": 537
+  },
+  {
+   "linha": 45,
+   "codigo": "3300076",
+   "descricao": "POSTE CONCRETO DT 9/600 29F",
+   "kg": 861
+  },
+  {
+   "linha": 46,
+   "codigo": "3302027",
+   "descricao": "POSTE CONC CIRC         9,0/ 200 CELPE",
+   "kg": 630
+  },
+  {
+   "linha": 47,
+   "codigo": "3302019",
+   "descricao": "POSTE CONC CIRC         9/ 300",
+   "kg": 1000
+  },
+  {
+   "linha": 48,
+   "codigo": "3302000",
+   "descricao": "POSTE CONC CIRC         9/200",
+   "kg": 635
+  },
+  {
+   "linha": 49,
+   "codigo": "3302003",
+   "descricao": "POSTE CONC CIRC         9/400",
+   "kg": 704
+  },
+  {
+   "linha": 50,
+   "codigo": "3302010",
+   "descricao": "POSTE CONC CIRC         9/600",
+   "kg": 826.5
+  },
+  {
+   "linha": 51,
+   "codigo": "3303230",
+   "descricao": "POSTE CONC CIRC 14/2000",
+   "kg": 3100
+  },
+  {
+   "linha": 52,
+   "codigo": "3300106",
+   "descricao": "POSTE CONC DT   12,0/3000 44F",
+   "kg": 3000
+  },
+  {
+   "linha": 53,
+   "codigo": "3300110",
+   "descricao": "POSTE CONC DT   13,0/3000 44F",
+   "kg": 3500
+  },
+  {
+   "linha": 54,
+   "codigo": "3302083",
+   "descricao": "POSTE CONCRETO CIRCULAR 11/1500",
+   "kg": 2405
+  },
+  {
+   "linha": 55,
+   "codigo": "3302006",
+   "descricao": "POSTE CONCRETO CIRCULAR 12/400",
+   "kg": 1372
+  },
+  {
+   "linha": 56,
+   "codigo": "3302016",
+   "descricao": "POSTE CONCRETO CIRCULAR 12/600",
+   "kg": 1721
+  },
+  {
+   "linha": 57,
+   "codigo": "3302087",
+   "descricao": "POSTE CONCRETO CIRCULAR 14/1500",
+   "kg": 2800
+  },
+  {
+   "linha": 58,
+   "codigo": "3302014",
+   "descricao": "POSTE CONCRETO CIRCULAR 9/1000",
+   "kg": 1160
+  },
+  {
+   "linha": 59,
+   "codigo": "3300151",
+   "descricao": "POSTE CONCRETO DT  11/200 29F",
+   "kg": 695
+  }
+ ],
+ "km_por_utd": {
+  "JAB GUARARAPES": 52,
+  "OLINDA": 42,
+  "PAULISTA": 102,
+  "CASA FORTE": 42,
+  "BOA VIAGEM": 42,
+  "AFOG INGAZ": 152,
+  "STA M BOA VISTA": 0.26,
+  "BELO JARDIM": 9.12,
+  "PALMARES": 190.4,
+  "BOM CONSELHO": 152,
+  "ARCOVERDE": 152,
+  "TIMBAUBA": 102,
+  "RIBEIRAO": 190.4,
+  "PIEDADE": 52,
+  "GARANHUNS": 152,
+  "CARPINA": 102,
+  "ARARIPINA": 228,
+  "BONGI": 42,
+  "FLORESTA": 152,
+  "OURICURI": 228,
+  "SURUBIM": 172,
+  "VARZEA": 42,
+  "STA C CAPIBARIBE": 172,
+  "CABO S AGOST": 52,
+  "SERRA TALHADA": 190.6,
+  "CAMARAGIBE": 102,
+  "CARUARU": 104,
+  "VIT STO ANTAO": 250,
+  "GOIANA": 102,
+  "PETROLINA": 0.26,
+  "NPPE": null
+ },
+ "municipio_utd": [
+  {
+   "bairro": "13 DE MAIO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "7 RO",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ABREU E LIMA",
+   "municipio": "ABREU E LIMA",
+   "utd": "PAULISTA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "AFLITOS",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "AFOGADOS",
+   "municipio": "RECIFE",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "AFOGADOS DA INGAZEIRA",
+   "municipio": "AFOGADOS DA INGAZEIRA",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "AFRANIO",
+   "municipio": "AFRANIO",
+   "utd": "STA M BOA VISTA",
+   "utep": "OESTE",
+   "km_ida_volta": 0.26
+  },
+  {
+   "bairro": "AGRESTINA",
+   "municipio": "AGRESTINA",
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 9.12
+  },
+  {
+   "bairro": "AGUA FRIA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "AGUA PRETA",
+   "municipio": "AGUA PRETA",
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "km_ida_volta": 190.4
+  },
+  {
+   "bairro": "AGUAS BELAS",
+   "municipio": "AGUAS BELAS",
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "ALAGOINHA",
+   "municipio": "ALAGOINHA",
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "ALIANCA",
+   "municipio": "ALIANCA",
+   "utd": "TIMBAUBA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "ALTINHO",
+   "municipio": "ALTINHO",
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 9.12
+  },
+  {
+   "bairro": "ALTO B HORIZONTE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO BELA VISTA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO DA BATALHA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO DA BICA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO DA BONDADE",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO DA COLINA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO DA CONQUISTA",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO DA FABRICA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO DA FAVELA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO DA GOIABEIRA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO DA SANTA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO DO BURITI - RECIFE",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO DO CAPITAO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO DO CEU",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO DO CRISTO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO DO DENDE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO DO MANDU",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO DO MARACANA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO DO PASCOAL",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO DO RAPOSO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO FLORESTA",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO GOABA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO JOSE BONIFACIO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO JOSE DO PINHO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO QUITANDIN",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO S ANTONIO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO S BENTO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO SANTA ISABEL",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO SANTA TEREZINHA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ALTO SAO SEBASTIAO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ALTO STA TEREZINHA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "AMARAJI",
+   "municipio": "AMARAJI",
+   "utd": "RIBEIRAO",
+   "utep": "SUL",
+   "km_ida_volta": 190.4
+  },
+  {
+   "bairro": "AMERICANO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ANGELIM (GAR)",
+   "municipio": "ANGELIM",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "ANGELIM (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "APIPUCOS",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ARACOIABA",
+   "municipio": "ARACOIABA",
+   "utd": "CARPINA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "ARARIPINA",
+   "municipio": "ARARIPINA",
+   "utd": "ARARIPINA",
+   "utep": "OESTE",
+   "km_ida_volta": 228
+  },
+  {
+   "bairro": "ARCOVERDE",
+   "municipio": "ARCOVERDE",
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "AREA VERDE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "AREIAS",
+   "municipio": "RECIFE",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ARRUDA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ASA BRANCA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BAIRRO NOVO",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BAR. DE MORENO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BARRA DA GUABIRABA (REC)",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BARRA DE GUABIRABA (PAL)",
+   "municipio": "BARRA DE GUABIRABA",
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "BARRA DE JANGADA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BARRAGEM DUAS UNAS",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BARREIROS",
+   "municipio": "BARREIROS",
+   "utd": "RIBEIRAO",
+   "utep": "SUL",
+   "km_ida_volta": 190.4
+  },
+  {
+   "bairro": "BARRO (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BARRO (REC)",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BASINHA",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BATOREL",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BEBERIBE",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BEIRA RIO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BELA VISTA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BELEM DE MARIA",
+   "municipio": "BELEM DE MARIA",
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "BELEM DE SAO FRANCISCO",
+   "municipio": "BELEM DE SAO FRANCISCO",
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "BELO HORIZONTE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BELO JARDIM",
+   "municipio": "BELO JARDIM",
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 9.12
+  },
+  {
+   "bairro": "BENFICA",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BETANIA",
+   "municipio": "BETANIA",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "BEZERROS",
+   "municipio": "BEZERROS",
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "BOA ESPERANCA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BOA VIAGEM",
+   "municipio": "RECIFE",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BOA VISTA (REC)",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BOA VISTA (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BODOCO",
+   "municipio": "BODOCO",
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "km_ida_volta": 228
+  },
+  {
+   "bairro": "BOLDRO",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BOM CONSELHO",
+   "municipio": "BOM CONSELHO",
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "BOM JARDIM",
+   "municipio": "BOM JARDIM",
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "BOM JESUS",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BOM PASTOR",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BOMBA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BOMBA DO HEMETERIO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BONGI",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BONITO",
+   "municipio": "BONITO",
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "BRASILIA TEIMOSA",
+   "municipio": "RECIFE",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BRASILIT",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BREJAO",
+   "municipio": "BREJAO",
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "BREJINHO",
+   "municipio": "BREJINHO",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "BREJO DA GUABIRABA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BREJO DA MADRE DE DEUS",
+   "municipio": "BREJO DA MADRE DE DEUS",
+   "utd": "STA C CAPIBARIBE",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "BREJO DE BEBERIBE",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BREJO DO BEBERIBE",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BRUM",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "BUENOS AIRES",
+   "municipio": "BUENOS AIRES",
+   "utd": "TIMBAUBA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "BUIQUE",
+   "municipio": "BUIQUE",
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "BULHOES",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "BULTRINS",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CABANGA",
+   "municipio": "RECIFE",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CABO DE SANTO AGOSTINHO",
+   "municipio": "CABO DE SANTO AGOSTINHO",
+   "utd": "CABO S AGOST",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CABROBO",
+   "municipio": "CABROBO",
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "CACHOEIRINHA",
+   "municipio": "CACHOEIRINHA",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "CACOTE",
+   "municipio": "RECIFE",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CAETES",
+   "municipio": "CAETES",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "CAIS DO APOLO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CAIXA D'AGUA",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CAJUEIRO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CAJUEIRO SECO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CALCADO",
+   "municipio": "CALCADO",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "CALUMBI",
+   "municipio": "CALUMBI",
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "km_ida_volta": 190.6
+  },
+  {
+   "bairro": "CAMACARI",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CAMARAGIBE",
+   "municipio": "CAMARAGIBE",
+   "utd": "CAMARAGIBE",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "CAMOCIM DE SAO FELIX",
+   "municipio": "CAMOCIM DE SAO FELIX",
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "CAMPINA DO BARRETO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CAMPO DO MONTA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CAMPO GRANDE",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CAMUTANGA",
+   "municipio": "CAMUTANGA",
+   "utd": "TIMBAUBA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "CANAA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CANDEIAS",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CANHOTINHO",
+   "municipio": "CANHOTINHO",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "CAPIVARA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CAPOEIRAS",
+   "municipio": "CAPOEIRAS",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "CAPUNGA",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CARNAIBA",
+   "municipio": "CARNAIBA",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "CARNAUBEIRA DA PENHA",
+   "municipio": "CARNAUBEIRA DA PENHA",
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "km_ida_volta": 190.6
+  },
+  {
+   "bairro": "CAROLINAS",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CARPINA",
+   "municipio": "CARPINA",
+   "utd": "CARPINA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "CARUARU",
+   "municipio": "CARUARU",
+   "utd": "CARUARU",
+   "utep": "CENTRO",
+   "km_ida_volta": 104
+  },
+  {
+   "bairro": "CASA AMARELA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CASA CAIADA",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CASA FORTE",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CASCATA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CASINHAS",
+   "municipio": "CASINHAS",
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "CATENDE",
+   "municipio": "CATENDE",
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "CAVALEIRO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CAXANGA",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CEASA",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CEDRO",
+   "municipio": "CEDRO",
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "km_ida_volta": 190.6
+  },
+  {
+   "bairro": "CENTRO (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CENTRO (FER)",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CHA DE ALEGRIA",
+   "municipio": "CHA DE ALEGRIA",
+   "utd": "CARPINA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "CHA GRANDE",
+   "municipio": "CHA GRANDE",
+   "utd": "VIT STO ANTAO",
+   "utep": "SUL",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "CHAO DE ESTRELAS",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CIDADE TABAJARA",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CIDADE UNIVERSITARIA",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "COELHOS",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "COHAB",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "COHAB II",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "COLONIA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "COLONIA DOS PADRES",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "COMPORTA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CONCEICAO",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CONDADO",
+   "municipio": "CONDADO",
+   "utd": "GOIANA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "CONJ MARCOS FREIRE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CONJ MURIBECA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CONS RURAL",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "COQUE",
+   "municipio": "RECIFE",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "COQUEIRAL",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CORDEIRO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "COREIA",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CORREGO DA AREIA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CORREGO DA BATALHA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CORREGO DA GAMELEIRA - JA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CORREGO DEODATO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CORREGO DO EUCLIDES",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CORREGO DO JENIPAPO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CORRENTES",
+   "municipio": "CORRENTES",
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "CORTES",
+   "municipio": "CORTES",
+   "utd": "RIBEIRAO",
+   "utep": "SUL",
+   "km_ida_volta": 190.4
+  },
+  {
+   "bairro": "COVA DE ONCA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "COVA DE ONÇA",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CRISTO REDENTOR",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CRUZEIRO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CUCURANA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CUMARU",
+   "municipio": "CUMARU",
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "CUPIRA",
+   "municipio": "CUPIRA",
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 9.12
+  },
+  {
+   "bairro": "CURADO (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CURADO (REC)",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "CURADO I",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CURADO II",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CURADO III",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CURADO IV",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CURADO V",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "CUSTODIA",
+   "municipio": "CUSTODIA",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "DERBY",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "DOIS CARNEIROS",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "DOIS IRMAOS",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "DOIS RIOS (REC)",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "DOIS RIOS (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "DOIS UNIDOS",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "DOM HELDER",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "DORMENTES",
+   "municipio": "DORMENTES",
+   "utd": "STA M BOA VISTA",
+   "utep": "OESTE",
+   "km_ida_volta": 0.26
+  },
+  {
+   "bairro": "DPV",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "DUAS UNAS",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ENCRUZILHADA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ENG CACANDUNBA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ENG. CAMACARI",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ENG. VELHO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ENGENHO CACHITO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ENGENHO CANANDUBA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ENGENHO CORVETA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ENGENHO DO MEIO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ENGENHO GOIABEIRA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ENGENHO PALMEIRA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ENGENHO SANTANA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ENGENHO VELHO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ENTRE RIOS",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ESCADA",
+   "municipio": "ESCADA",
+   "utd": "RIBEIRAO",
+   "utep": "SUL",
+   "km_ida_volta": 190.4
+  },
+  {
+   "bairro": "ESPINHEIRO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ESPIRITO SANTO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ESTANCIA",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ESTRADA DE BULHOES",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "EXU",
+   "municipio": "EXU",
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "km_ida_volta": 228
+  },
+  {
+   "bairro": "FEIRA NOVA",
+   "municipio": "FEIRA NOVA",
+   "utd": "VIT STO ANTAO",
+   "utep": "SUL",
+   "km_ida_volta": 72
+  },
+  {
+   "bairro": "FERNANDO DE NORONHA",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "FERREIROS",
+   "municipio": "FERREIROS",
+   "utd": "TIMBAUBA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "FICTICIO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "FLORES",
+   "municipio": "FLORES",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "FLORESTA (FLO)",
+   "municipio": "FLORESTA",
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "FLORESTA (FER)",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "FLORESTA NOVA",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "FLORESTA VELHA",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "FLORIANO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "FRAGOSO",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "FREI MIGUELINHO",
+   "municipio": "FREI MIGUELINHO",
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "FUNDAO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "FUNDAO DE FORA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "GAMELEIRA",
+   "municipio": "GAMELEIRA",
+   "utd": "RIBEIRAO",
+   "utep": "SUL",
+   "km_ida_volta": 190.4
+  },
+  {
+   "bairro": "GARANHUNS",
+   "municipio": "GARANHUNS",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "GARAPEIRA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "GLORIA DO GOITA",
+   "municipio": "GLORIA DO GOITA",
+   "utd": "VIT STO ANTAO",
+   "utep": "SUL",
+   "km_ida_volta": 72
+  },
+  {
+   "bairro": "GOIABEIRA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "GOIANA",
+   "municipio": "GOIANA",
+   "utd": "GOIANA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "GRACAS",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "GRANITO",
+   "municipio": "GRANITO",
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "km_ida_volta": 228
+  },
+  {
+   "bairro": "GRAVATA",
+   "municipio": "GRAVATA",
+   "utd": "VIT STO ANTAO",
+   "utep": "SUL",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "GUABIRABA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "GUARARAPES",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "GUARARAPES - JABOATAO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "GURUGI",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "HIPODROMO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IATI",
+   "municipio": "IATI",
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "IBIMIRIM",
+   "municipio": "IBIMIRIM",
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "IBIRAJUBA",
+   "municipio": "IBIRAJUBA",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "IBURA (REC)",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IBURA (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "IBURA BAIXO",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IBURA DE BAIXO",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IBURA DE CIMA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "IBURA UR 01",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IBURA UR 02",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IBURA UR 03",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IBURA UR 04",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IBURA UR 05",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IBURA UR 06",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IBURA UR 10",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IBURA UR 11 - JABOATAO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "IBURA UR 12",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IBURA UR-11",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IBURA(UR 05)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "IGARASSU",
+   "municipio": "IGARASSU",
+   "utd": "GOIANA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "IGUARACI",
+   "municipio": "IGUARACI",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "ILHA DE DEUS",
+   "municipio": "RECIFE",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ILHA DO LEITE",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ILHA DO RETIRO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ILHA JOANA BEZERRA",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ILZA ZULEIDE",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IMBIRIBEIRA",
+   "municipio": "RECIFE",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "INAJA",
+   "municipio": "INAJA",
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "INGAZEIRA",
+   "municipio": "INGAZEIRA",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "INT. MURIBECA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "IPIRANGA",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IPOJUCA",
+   "municipio": "IPOJUCA",
+   "utd": "CABO S AGOST",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "IPSEP",
+   "municipio": "RECIFE",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "IPUBI",
+   "municipio": "IPUBI",
+   "utd": "ARARIPINA",
+   "utep": "OESTE",
+   "km_ida_volta": 228
+  },
+  {
+   "bairro": "IPUTINGA",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ITACURUBA",
+   "municipio": "ITACURUBA",
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "ITAIBA",
+   "municipio": "ITAIBA",
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "ITAITUBA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "ITAMARACA",
+   "municipio": "ITAMARACA",
+   "utd": "GOIANA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "ITAMBE",
+   "municipio": "ITAMBE",
+   "utd": "GOIANA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "ITAPETIM",
+   "municipio": "ITAPETIM",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "ITAPISSUMA",
+   "municipio": "ITAPISSUMA",
+   "utd": "GOIANA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "ITAQUITINGA",
+   "municipio": "ITAQUITINGA",
+   "utd": "GOIANA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "ITAUCABLE",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "J B HORIZONTE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JABOATAO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JANGADINHA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JAQUEIRA (PAL)",
+   "municipio": "JAQUEIRA",
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "JAQUEIRA (REC)",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "JARDIM ATLANTICO",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "JARDIM BRASIL II",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "JARDIM BULHOES",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JARDIM CAJUEIRO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JARDIM COPACABANA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JARDIM COQUEIRAL",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JARDIM DO NAUTICO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JARDIM FELIZ",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JARDIM GUARARAPES",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JARDIM JORDAO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JARDIM MANASSU",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JARDIM MURIBECA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JARDIM PIEDADE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JARDIM PLANALTO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JARDIM QUITANDINHA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JARDIM SAO PAULO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "JATAUBA",
+   "municipio": "JATAUBA",
+   "utd": "STA C CAPIBARIBE",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "JATOBA (FLO)",
+   "municipio": "JATOBA",
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "JATOBA (OLI)",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "JD. BEIRA RIO",
+   "municipio": "RECIFE",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "JD. PLANALTO",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "JD. PRAZERES",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JD. SAO PAULO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "JD. UCHOA",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "JIQUIA",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "JOAO ALFREDO",
+   "municipio": "JOAO ALFREDO",
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "JOAO DE DEUS",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JOAQUIM NABUCO",
+   "municipio": "JOAQUIM NABUCO",
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "JORDAO (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JORDAO (REC)",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "JORDAO ALTO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JORDAO BAIXO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "JOSE BONIFACIO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "JUCATI",
+   "municipio": "JUCATI",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "JUPI",
+   "municipio": "JUPI",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "JUREMA",
+   "municipio": "JUREMA",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "LAGOA DE ITAENGA",
+   "municipio": "LAGOA DE ITAENGA",
+   "utd": "CARPINA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "LAGOA DO CARRO",
+   "municipio": "LAGOA DO CARRO",
+   "utd": "CARPINA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "LAGOA DO OURO",
+   "municipio": "LAGOA DO OURO",
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "LAGOA DOS GATOS",
+   "municipio": "LAGOA DOS GATOS",
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 9.12
+  },
+  {
+   "bairro": "LAGOA ENCANTADA",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "LAGOA GARCAS",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LAGOA GRANDE (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LAGOA GRANDE (SMBV)",
+   "municipio": "LAGOA GRANDE",
+   "utd": "STA M BOA VISTA",
+   "utep": "OESTE",
+   "km_ida_volta": 0.26
+  },
+  {
+   "bairro": "LAGOA NAUTICO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LAJEDO",
+   "municipio": "LAJEDO",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "LIMOEIRO",
+   "municipio": "LIMOEIRO",
+   "utd": "CARPINA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "LINHA DO TIRO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "LINHA FERREA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOT 92",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOT 96",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOT GRANDE RECIFE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOT MURIBECA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOT PORTAL DE PRAZERES -",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOT. BULHOES",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOT. COLONIA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOT. JARDIM PROGRESSO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOT. NILTON CARNEIRO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOT. PE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOT. SAO JOSE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOTE 02",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOTE 06",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOTE 19",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOTE 23",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOTE 31",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOTE 56",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOTE 64",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOTE 66",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOTE 89",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOTE 92",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LOTTO STOS COSME E DAMIAO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "LT. SANTA LUZIA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "LUIZ GONZAGA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MACAPARANA",
+   "municipio": "MACAPARANA",
+   "utd": "TIMBAUBA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "MACAXEIRA (REC)",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "MACAXEIRA (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MACHADOS",
+   "municipio": "MACHADOS",
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "MACUJE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MACUJE - JABOATAO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MADALENA",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "MALVINA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MANARI",
+   "municipio": "MANARI",
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "MANASSU",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MANGABEIRA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "MANGUEIRA",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "MARAIAL",
+   "municipio": "MARAIAL",
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "MARCOS FREIRE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MASSANGANA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MASSARANDUBA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MILAGRES",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "MIRANDIBA",
+   "municipio": "MIRANDIBA",
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "km_ida_volta": 190.6
+  },
+  {
+   "bairro": "MOENDA BRONZE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MONSENHOR FABRICIO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "MONTE JUNIOR",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MONTE NEBLINA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MONTE VERDE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MONTEIRO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "MOREILANDIA",
+   "municipio": "MOREILANDIA",
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "km_ida_volta": 228
+  },
+  {
+   "bairro": "MORENO (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MORENO (VIT)",
+   "municipio": "MORENO",
+   "utd": "VIT STO ANTAO",
+   "utep": "SUL",
+   "km_ida_volta": 72
+  },
+  {
+   "bairro": "MORRO DA CONCEICAO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "MORRO FRANCES - FERNANDO",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "MUNDO NOVO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MURIBECA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MURIBECA (RUR)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MURIBECA I",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MURIBECA II",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MURIBEQUINHA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MUSSAIBA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "MUSTARDINHA",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "N. SA. DA ESPERANÇA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "NASSAU",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "NAZARE DA MATA",
+   "municipio": "NAZARE DA MATA",
+   "utd": "TIMBAUBA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "NOVA ALIANCA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "NOVA DESCOBERTA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "NOVA DIVINEIA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "NOVA ESPERANCA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "NOVA ESPERANÇA II",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "NOVA JERUSALEM",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "NOVA MURIBECA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "NOVO HORIZONTE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "OLINDA",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "OROBO",
+   "municipio": "OROBO",
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "OROCO",
+   "municipio": "OROCO",
+   "utd": "STA M BOA VISTA",
+   "utep": "OESTE",
+   "km_ida_volta": 0.26
+  },
+  {
+   "bairro": "OURICURI",
+   "municipio": "OURICURI",
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "km_ida_volta": 228
+  },
+  {
+   "bairro": "OURO PRETO",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "PACHECO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "PAISSANDU",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "PALMARES (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "PALMARES (PAL)",
+   "municipio": "PALMARES",
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "PALMEIRINA",
+   "municipio": "PALMEIRINA",
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "PANELAS",
+   "municipio": "PANELAS",
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 9.12
+  },
+  {
+   "bairro": "PARANATAMA",
+   "municipio": "PARANATAMA",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "PARNAMIRIM (OUR)",
+   "municipio": "PARNAMIRIM",
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "km_ida_volta": 228
+  },
+  {
+   "bairro": "PARNAMIRIM (REC)",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "PARQUE AMORIM",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "PASSARINHO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "PASSIRA",
+   "municipio": "PASSIRA",
+   "utd": "CARPINA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "PAU DO MEIO",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "PAU FERRO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "PAUDALHO",
+   "municipio": "PAUDALHO",
+   "utd": "CARPINA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "PAULISTA",
+   "municipio": "PAULISTA",
+   "utd": "PAULISTA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "PE ROMA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "PEDRA",
+   "municipio": "PEDRA",
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "PEDRAS DE FOGO",
+   "municipio": "PEDRAS DE FOGO",
+   "utd": "GOIANA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "PEIXINHOS",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "PENADUBINHA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "PESQUEIRA",
+   "municipio": "PESQUEIRA",
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "PETROLANDIA",
+   "municipio": "PETROLANDIA",
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "PETROLINA",
+   "municipio": "PETROLINA",
+   "utd": "PETROLINA",
+   "utep": "OESTE",
+   "km_ida_volta": 0.26
+  },
+  {
+   "bairro": "PIEDADE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "PINA",
+   "municipio": "RECIFE",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "PIRACICABA",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "POCAO",
+   "municipio": "POCAO",
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "POCO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "POCO DA PANELA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "POMBOS",
+   "municipio": "POMBOS",
+   "utd": "VIT STO ANTAO",
+   "utep": "SUL",
+   "km_ida_volta": 72
+  },
+  {
+   "bairro": "PONTO DE PARADA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "PORTA LARGA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "PORTO",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "PORTO DA MADEIRA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "PORTO STO ANTONIO",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "PRADO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "PRAIA DO BODE",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "PRAZERES",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "PRIMAVERA",
+   "municipio": "PRIMAVERA",
+   "utd": "RIBEIRAO",
+   "utep": "SUL",
+   "km_ida_volta": 190.4
+  },
+  {
+   "bairro": "QUADRO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "QUIPAPA",
+   "municipio": "QUIPAPA",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "QUIXABA (AFI)",
+   "municipio": "QUIXABA",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "QUIXABA (FER)",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "RECIFE",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "RECIFE ANTIGO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "RIACHO DAS ALMAS",
+   "municipio": "RIACHO DAS ALMAS",
+   "utd": "CARUARU",
+   "utep": "CENTRO",
+   "km_ida_volta": 104
+  },
+  {
+   "bairro": "RIBEIRAO",
+   "municipio": "RIBEIRAO",
+   "utd": "RIBEIRAO",
+   "utep": "SUL",
+   "km_ida_volta": 190.4
+  },
+  {
+   "bairro": "RIO BRANCO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "RIO DAS ILHAS",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "RIO DAS VELHAS",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "RIO DOCE",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "RIO FORMOSO",
+   "municipio": "RIO FORMOSO",
+   "utd": "RIBEIRAO",
+   "utep": "SUL",
+   "km_ida_volta": 190.4
+  },
+  {
+   "bairro": "ROCHA NEGRA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "RODA DE FOGO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ROSARINHO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "RURAL (FER)",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "RURAL (JAB",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "SAIRE",
+   "municipio": "SAIRE",
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "SALGADINHO",
+   "municipio": "SALGADINHO",
+   "utd": "CARPINA",
+   "utep": "NORTE",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "SALGUEIRO",
+   "municipio": "SALGUEIRO",
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "km_ida_volta": 190.6
+  },
+  {
+   "bairro": "SALOA",
+   "municipio": "SALOA",
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "SAN MARTIN",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "SANCHO",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "SANHARO",
+   "municipio": "SANHARO",
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 9.12
+  },
+  {
+   "bairro": "SANTA CRUZ",
+   "municipio": "SANTA CRUZ",
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "km_ida_volta": 228
+  },
+  {
+   "bairro": "SANTA CRUZ DA BAIXA VERDE",
+   "municipio": "SANTA CRUZ DA BAIXA VERDE",
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "km_ida_volta": 190.6
+  },
+  {
+   "bairro": "SANTA CRUZ DO CAPIBARIBE",
+   "municipio": "SANTA CRUZ DO CAPIBARIBE",
+   "utd": "STA C CAPIBARIBE",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "SANTA FILOMENA",
+   "municipio": "SANTA FILOMENA",
+   "utd": "OURICURI",
+   "utep": "OESTE",
+   "km_ida_volta": 228
+  },
+  {
+   "bairro": "SANTA MARIA DA BOA VISTA",
+   "municipio": "SANTA MARIA DA BOA VISTA",
+   "utd": "STA M BOA VISTA",
+   "utep": "OESTE",
+   "km_ida_volta": 0.26
+  },
+  {
+   "bairro": "SANTA MARIA DO CAMBUCA",
+   "municipio": "SANTA MARIA DO CAMBUCA",
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "SANTA TEREZINHA",
+   "municipio": "SANTA TEREZINHA",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "SANTANA (REC)",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "SANTANA (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "SANTO ALEIXO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "SANTO ANTONIO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "SAO BENEDITO DO SUL",
+   "municipio": "SAO BENEDITO DO SUL",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "SAO BENTO DO UNA",
+   "municipio": "SAO BENTO DO UNA",
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 9.12
+  },
+  {
+   "bairro": "SAO CAETANO",
+   "municipio": "SAO CAETANO",
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 9.12
+  },
+  {
+   "bairro": "SAO JOAO",
+   "municipio": "SAO JOAO",
+   "utd": "GARANHUNS",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "SAO JOAQUIM DO MONTE",
+   "municipio": "SAO JOAQUIM DO MONTE",
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 9.12
+  },
+  {
+   "bairro": "SAO JOSE (REC)",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "SAO JOSE (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "SAO JOSE DA COROA GRANDE",
+   "municipio": "SAO JOSE DA COROA GRANDE",
+   "utd": "RIBEIRAO",
+   "utep": "SUL",
+   "km_ida_volta": 190.4
+  },
+  {
+   "bairro": "SAO JOSE DO BELMONTE",
+   "municipio": "SAO JOSE DO BELMONTE",
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "km_ida_volta": 190.6
+  },
+  {
+   "bairro": "SAO JOSE DO EGITO",
+   "municipio": "SAO JOSE DO EGITO",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "SAO LOURENCO DA MATA",
+   "municipio": "SAO LOURENCO DA MATA",
+   "utd": "CAMARAGIBE",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "SAO MIGUEL",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "SAO PEDRO (FER)",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "SAO PEDRO (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "SAO SEBASTIAO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "SAO VICENTE FERRER",
+   "municipio": "SAO VICENTE FERRER",
+   "utd": "TIMBAUBA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "SERRA TALHADA",
+   "municipio": "SERRA TALHADA",
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "km_ida_volta": 190.6
+  },
+  {
+   "bairro": "SERRITA",
+   "municipio": "SERRITA",
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "km_ida_volta": 190.6
+  },
+  {
+   "bairro": "SERTANIA",
+   "municipio": "SERTANIA",
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "SETUBAL",
+   "municipio": "RECIFE",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "SIRINHAEM",
+   "municipio": "SIRINHAEM",
+   "utd": "RIBEIRAO",
+   "utep": "SUL",
+   "km_ida_volta": 190.4
+  },
+  {
+   "bairro": "SIT. DOS PINTOS",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "SITIO GRANDE",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "SITIO NOVO",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "SOCORRO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "SOLEDADE",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "SOLIDAO",
+   "municipio": "SOLIDAO",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "SOTAVE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "SOVACO DE COBRA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "STA TEREZINHA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "STA. LUZIA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "STA. MARTA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "STA. RITA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "STO AMARO (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "STO AMARO (REC)",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "STO ANTONIO",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "STO. ALEIXO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "STO. ANDRE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "STO. ANTONIO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "SUCUPIRA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "SUESTE",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "SURUBIM",
+   "municipio": "SURUBIM",
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "TABAJARA",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "TABIRA",
+   "municipio": "TABIRA",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "TACAIMBO",
+   "municipio": "TACAIMBO",
+   "utd": "BELO JARDIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 9.12
+  },
+  {
+   "bairro": "TACARATU",
+   "municipio": "TACARATU",
+   "utd": "FLORESTA",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "TAMANDARE",
+   "municipio": "TAMANDARE",
+   "utd": "RIBEIRAO",
+   "utep": "SUL",
+   "km_ida_volta": 190.4
+  },
+  {
+   "bairro": "TAMARINEIRA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "TAQUARITINGA DO NORTE",
+   "municipio": "TAQUARITINGA DO NORTE",
+   "utd": "STA C CAPIBARIBE",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "TEJIPIO (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "TEJIPIO (REC)",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "TEREZINHA",
+   "municipio": "TEREZINHA",
+   "utd": "BOM CONSELHO",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "TERRA NOVA",
+   "municipio": "TERRA NOVA",
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "km_ida_volta": 190.6
+  },
+  {
+   "bairro": "TIMBAUBA",
+   "municipio": "TIMBAUBA",
+   "utd": "TIMBAUBA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "TORITAMA",
+   "municipio": "TORITAMA",
+   "utd": "STA C CAPIBARIBE",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "TORRE",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "TORREAO",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "TORROES",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "TOTO (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "TOTO (REC)",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "TRACUNHAEM",
+   "municipio": "TRACUNHAEM",
+   "utd": "CARPINA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "TRES CARNEIROS",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "TRES PAUS",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "TRINDADE",
+   "municipio": "TRINDADE",
+   "utd": "ARARIPINA",
+   "utep": "OESTE",
+   "km_ida_volta": 228
+  },
+  {
+   "bairro": "TRIUNFO",
+   "municipio": "TRIUNFO",
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "km_ida_volta": 190.6
+  },
+  {
+   "bairro": "TUPANATINGA",
+   "municipio": "TUPANATINGA",
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "TUPARETAMA",
+   "municipio": "TUPARETAMA",
+   "utd": "AFOG INGAZ",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "UR 01",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "UR 02",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "UR-03",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "UR-05",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "UR-06",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "UR-10",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "UR-11",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "USINA BULHOES",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "USINA JABOATAO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VACARIA",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VAQUEJADA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VARADOURO",
+   "municipio": "OLINDA",
+   "utd": "OLINDA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VARGEM FRIA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VARZEA (JAB)",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VARZEA (REC)",
+   "municipio": "VARZEA",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VASCO DA GAMA",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VENDA GRANDE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VENTUROSA",
+   "municipio": "VENTUROSA",
+   "utd": "ARCOVERDE",
+   "utep": "CENTRO OESTE",
+   "km_ida_volta": 152
+  },
+  {
+   "bairro": "VERA LUCIA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VERDEJANTE",
+   "municipio": "VERDEJANTE",
+   "utd": "SERRA TALHADA",
+   "utep": "OESTE",
+   "km_ida_volta": 190.6
+  },
+  {
+   "bairro": "VERTENTE DO LERIO",
+   "municipio": "VERTENTE DO LERIO",
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "VERTENTES",
+   "municipio": "VERTENTES",
+   "utd": "SURUBIM",
+   "utep": "CENTRO",
+   "km_ida_volta": 172
+  },
+  {
+   "bairro": "VICENCIA",
+   "municipio": "VICENCIA",
+   "utd": "TIMBAUBA",
+   "utep": "NORTE",
+   "km_ida_volta": 102
+  },
+  {
+   "bairro": "VILA",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VILA DA SUDENE",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VILA DO BOLDRO",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VILA DO SESI",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VILA DOIS CARNEIROS",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VILA DOS MILAGRES",
+   "municipio": "RECIFE",
+   "utd": "VARZEA",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VILA DPV",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VILA FABRICA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VILA JOAO DE DEUS",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VILA MAURICEIA",
+   "municipio": "RECIFE",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VILA NOSSA SENHORA DA CON",
+   "municipio": "RECIFE",
+   "utd": "CASA FORTE",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VILA NOVA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VILA PALMARES",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VILA PEDRO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VILA PIEDADE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VILA PORTO",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VILA QUIXABA",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VILA REMEDIOS",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VILA RICA",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VILA SOTAVE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VILA TAMANDARE",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VILA TOPAZIO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VILA TRES PAUS",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VILA TRINTA",
+   "municipio": "FERNANDO DE NORONHA",
+   "utd": "BOA VIAGEM",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "VILA UNIAO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VISTA ALEGRE",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "VITORIA DE SANTO ANTAO",
+   "municipio": "VITORIA DE SANTO ANTAO",
+   "utd": "VIT STO ANTAO",
+   "utep": "SUL",
+   "km_ida_volta": 72
+  },
+  {
+   "bairro": "VL SOCIAL",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "PIEDADE",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "XEXEU",
+   "municipio": "XEXEU",
+   "utd": "PALMARES",
+   "utep": "CENTRO",
+   "km_ida_volta": 250
+  },
+  {
+   "bairro": "ZUMBI",
+   "municipio": "RECIFE",
+   "utd": "BONGI",
+   "utep": "METROPOLITANO",
+   "km_ida_volta": 42
+  },
+  {
+   "bairro": "ZUMBI DO PACHECO",
+   "municipio": "JABOATAO DOS GUARARAPES",
+   "utd": "JAB GUARARAPES",
+   "utep": "SUL",
+   "km_ida_volta": 52
+  },
+  {
+   "bairro": "UNIDADE DE PROJETOS",
+   "municipio": null,
+   "utd": "NPPE",
+   "utep": null,
+   "km_ida_volta": null
+  }
+ ]
+}

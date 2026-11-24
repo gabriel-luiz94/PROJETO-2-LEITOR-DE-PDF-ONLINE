@@ -1161,3 +1161,14 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - Uma estrutura com quantidade na linha do ponto — ex.: **12600D, CEJ2, 2 FLABIT, IT-R** — conta como **duas** FLABIT no Mapa e no vínculo: cada uma recebe o seu cabo.
 - No painel do ponto elas aparecem juntas: **FLABIT** e **FLABIT · 2ª**.
 - Só quantidade inteira (2, 3…) separa; «1,5 FLABIT» continua uma. Os vínculos que já existiam não mudam.
+
+## Transporte de material (24/11/2026)
+
+- Só aparece no projeto cujo pacote tem a parte **transporte** (Pernambuco): Resumo → **Mais ▾ → 🚚 Transporte de material…**.
+- O modal calcula o frete dos materiais pesados (postes, cruzetas, blocos e placas de concreto) **igual à aba TRANSPORT da ICP**:
+  - **Qtd ODI**: vem sozinha do orçamento do Resumo (só instalação, I e *I); **Qtd extra**: digite o que não está na obra. «Mostrar todas» lista os 54 materiais.
+  - **UTD**: a da obra; sem ela, a do bairro e depois a do município do cabeçalho. Pode trocar na lista. Sem UTD não entra a parte acima de 50 km.
+  - O total em toneladas e os serviços (SDETU5001…5010) aparecem na hora; linha que na ICP dá #VALOR! fica em vermelho e não é lançada.
+- **Lançar em Outros** troca as linhas TRANSP/TRANSP_KM de um cálculo anterior pelas novas, ex.: `12.6-TRANSP(faixa=14T)` e `1537.19-TRANSP_KM(faixa=14T)`. Ctrl+Z desfaz.
+- As bordas da ICP são mantidas de propósito (ex.: entre 4 e 4,001 t não sai serviço; os postes 3302087 e 3302014 contam em dobro).
+
