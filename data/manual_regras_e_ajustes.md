@@ -1123,3 +1123,8 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - **Marcas de X** riscando anotações não contam como rede.
 - **Cartão do cabo:** os botões das pontas mostram o mesmo nome do ponto que o mapa (P1, P2…).
 - Cabo que continua sem traçado: no cartão, **Ponta livre** → clique no ponto, para cada ponta.
+
+## Mapa: cabos lado a lado (24/11/2026)
+
+- Vários cabos entre os mesmos dois pontos aparecem **lado a lado**, nunca um em cima do outro — com ou sem traçado do CAD, e em qualquer sentido. A MT fica de um lado, a BT do outro.
+- O espaço entre eles é de pelo menos 9 px na tela, mesmo com o zoom afastado.

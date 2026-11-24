@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-24 — Cabos lado a lado no mapa
+
+Cabos entre o mesmo par de pontos ficam lado a lado (juntos pelo par, não pela geometria), cada um do seu lado qualquer que seja o sentido, com no mínimo 9 px entre eles em qualquer zoom. [TASK-240](tasks/TASK-240-24-11-2026.md).
+
 ## 2026-11-24 — Plugin 0.16.2: anotação de várias linhas sem ativo dividido
 
 Selecionar poste/cabo no plugin: o parágrafo de continuação do mesmo MTEXT entra no campo de cima e a metragem já juntada pela regra não vira campo F separado (que, trocado para I, dividia o ativo). [TASK-038 do plugin](../plugin_nanocad/.ai/tasks/TASK-038-23-11-2026.md).
