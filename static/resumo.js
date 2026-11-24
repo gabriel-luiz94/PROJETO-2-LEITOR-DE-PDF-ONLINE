@@ -3127,6 +3127,76 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('select-projeto')?.addEventListener('change', () => window.VinculacaoUI?.atualizarObra());
 
+    /* ═══════════════════════════════════════
+       TRANSPORTE DE MATERIAL (TASK-245) — o cálculo e o modal estão em static/transporte.js.
+       O item "Transporte de material…" só aparece quando o projeto ativo tem a parte `transporte` do pacote.
+    ═══════════════════════════════════════ */
+    const _transporteCache = new Map();          // projeto → Promise(dados | {})
+    function _projetoAtivoNome() {
+        const sel = document.getElementById('select-projeto');
+        return (sel && sel.value) || localStorage.getItem('projeto_selecionado') || '';
+    }
+    function _dadosTransporte(projeto) {
+        if (!projeto) return Promise.resolve({});
+        if (!_transporteCache.has(projeto)) {
+            _transporteCache.set(projeto, fetch('/api/orcamento/transporte?projeto=' + encodeURIComponent(projeto))
+                .then(r => (r.ok ? r.json() : {})).catch(() => { _transporteCache.delete(projeto); return {}; }));
+        }
+        return _transporteCache.get(projeto);
+    }
+    async function atualizarItemTransporte() {
+        const btn = document.getElementById('btn-transporte');
+        if (!btn) return;
+        const projeto = _projetoAtivoNome(), dados = await _dadosTransporte(projeto);
+        if (projeto === _projetoAtivoNome()) btn.hidden = !(dados && dados.formato);
+    }
+    /** "Lançar em Outros": troca as linhas TRANSP/TRANSP_KM de um cálculo anterior pelas novas (um passo de Ctrl+Z). */
+    function lancarTransporteEmOutros(linhas, dados) {
+        const antiga = tableStates.outros.data;
+        const velhas = antiga.filter(r => r && !r.comentario && Transporte.ehLinhaTransporte(r.ativo, dados));
+        if (!linhas.length && !velhas.length) return 'Nada a lançar: a obra não tem material pesado.';
+        pushHistory();
+        const nova = antiga.filter(r => !velhas.includes(r));
+        let fim = nova.length;
+        while (fim > 0 && nova[fim - 1] && !String(nova[fim - 1].ativo || '').trim() && !nova[fim - 1].grupoDecl && !nova[fim - 1].grupoDe) fim--;   // antes das linhas vazias do fim
+        nova.splice(fim, 0, ...linhas.map(texto => Object.assign(window.GradeTabela.novaLinha('outros', 'I'), { ativo: texto, entidade: 'OUTROS', origemTransporte: true })));
+        const pos = new Map(); nova.forEach((r, k) => pos.set(r, k));
+        _remapearVinculosOutros(antiga.map(r => pos.get(r)));
+        tableStates.outros.data = nova;
+        renderTable('outros');
+        try { atualizarResumoRedeUI(); } catch (e) { /* tela carregando */ }
+        if (window.GridRProjeto && GridRProjeto.marcarSujo) GridRProjeto.marcarSujo(false);
+        const msg = linhas.length
+            ? `${linhas.length} linha(s) de transporte lançada(s) em Outros` + (velhas.length ? ` (${velhas.length} antiga(s) substituída(s))` : '') + '. Ctrl+Z desfaz.'
+            : `Sem serviço de transporte: ${velhas.length} linha(s) antiga(s) removida(s). Ctrl+Z desfaz.`;
+        showToast(msg);
+        return msg;
+    }
+    async function abrirTransporte() {
+        const projeto = _projetoAtivoNome(), dados = await _dadosTransporte(projeto);
+        if (!dados || !dados.formato) { showToast('O projeto ativo não tem a parte "transporte" no pacote.'); return; }
+        Transporte.abrirModal({
+            dados,
+            obra: window.ObraParams ? ObraParams.obraDoProjeto() : {},
+            async obterResultado() {
+                // o mesmo pedido do Montar Orçamento, sem as linhas TRANSP/TRANSP_KM que já estão em Outros (a Totalizadora já deixa de fora congeladas e comentários)
+                const p = await obterPayloadCalculo();
+                const outros = p.outros.filter(o => !Transporte.ehLinhaTransporte(o.ativo, dados));
+                const r = await fetch('/api/orcamento/calcular', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cabos: p.cabos, outros, projeto, obra: window.ObraParams ? ObraParams.obraDoProjeto() : {} }) });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok) return { erro: 'O orçamento do Resumo não pôde ser calculado' + (d && d.detail ? ` (${typeof d.detail === 'string' ? d.detail : 'erro'})` : '') + '.' };
+                return d;
+            },
+            lancar: linhas => lancarTransporteEmOutros(linhas, dados)
+        });
+    }
+    document.getElementById('btn-transporte')?.addEventListener('click', abrirTransporte);
+    document.getElementById('select-projeto')?.addEventListener('change', atualizarItemTransporte);
+    document.getElementById('btn-menu-obra')?.addEventListener('pointerdown', atualizarItemTransporte);
+    atualizarItemTransporte();
+    setTimeout(atualizarItemTransporte, 1500);                // o projeto é escolhido por código ao carregar a lista (sem evento)
+
     window.abrirModalVinculacao = function () {
         if (window.VinculacaoUI) window.VinculacaoUI.abrir(window.VinculacaoHost);
     };

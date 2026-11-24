@@ -84,6 +84,7 @@ body { display: block; overflow: hidden; }
     display: block; width: 100%; text-align: left; border: 0; border-radius: 5px; padding: 7px 10px; font-size: 0.8rem; color: #c9d1d9; background: transparent;
 }
 .titlebar .menu-susp-itens .btn-secondary:hover { background: rgba(255,255,255,0.07); color: #e6edf3; }
+.titlebar .menu-susp-itens .btn-secondary[hidden] { display: none; }
 [data-menu][aria-expanded="true"] { background: rgba(255,255,255,0.08); color: #e6edf3; border-color: #8b949e; }
 .menu-exibicao { min-width: 330px; padding: 10px 12px; gap: 6px; }
 .menu-exibicao .seg-layout button { white-space: nowrap; flex: 1; }
