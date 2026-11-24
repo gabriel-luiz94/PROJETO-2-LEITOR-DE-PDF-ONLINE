@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.16.1
+
+TASK-038 (ajuste): pontos e cabos do mapa listados nas abas do painel; duplo clique/Ajustar reabre a janela (com Excluir). ✅ 138 testes do núcleo; DLLs 0.16.1. 🟡 Validar no nanoCAD.
+
 ## Plugin 0.16.0
 
 TASK-038: montagem manual no formato do mapa — Selecionar poste/cabo → textos → janela com campos (L) e operação por campo (F, I, \*I, M, \*M, R, \*R); regras de um projeto (texto fora delas = F) ou sem regras; cabo inteiro ou trecho, metragem anotada com a medida ao lado. ✅ 137 testes do núcleo + contrato com a aplicação; DLLs do nanoCAD 26 e 5 geradas (0.16.0). 🟡 Validar no nanoCAD. [TASK-038](tasks/TASK-038-23-11-2026.md).

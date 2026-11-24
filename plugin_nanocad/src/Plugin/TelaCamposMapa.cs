@@ -56,7 +56,7 @@ namespace OrcamentoNanoCAD.UI
         }
 
         /// <summary>`titulo` = «Ponto P12 · poste (bloco …)» ou «Cabo C3 · trecho de 38,4 m». Para cabo: `medido` (m) e `anotado` (metragem do texto).</summary>
-        public TelaCamposMapa(string titulo, bool cabo, List<CampoMapa> campos, string nome, string comentario, double medido, double? anotado, string infoRegras)
+        public TelaCamposMapa(string titulo, bool cabo, List<CampoMapa> campos, string nome, string comentario, double medido, double? anotado, string infoRegras, bool podeExcluir = false)
         {
             _cabo = cabo; _medido = medido; _anotado = anotado;
             Text = titulo; Width = 960; Height = 600; StartPosition = FormStartPosition.CenterParent; KeyPreview = true; MinimizeBox = false;
@@ -99,6 +99,12 @@ namespace OrcamentoNanoCAD.UI
             Button cancelar = Visual.Botao("Cancelar", (s, e) => { DialogResult = DialogResult.Cancel; });
             CancelButton = cancelar;
             rodape.Controls.Add(ok); rodape.Controls.Add(cancelar);
+            if (podeExcluir)
+                rodape.Controls.Add(Visual.Botao(cabo ? "Excluir cabo" : "Excluir ponto", (s, e) =>
+                {
+                    if (MessageBox.Show(this, cabo ? "Excluir este cabo da montagem?" : "Excluir este ponto da montagem?", "OrçaCore", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                        DialogResult = DialogResult.Abort;
+                }));
             rodape.Controls.Add(Visual.Rotulo("Ctrl+Enter confirma · Esc cancela", Visual.Normal, Visual.Suave));
 
             Controls.Add(_lista); Controls.Add(rodapeCampos); Controls.Add(rodape); Controls.Add(barraCampos); Controls.Add(topo);

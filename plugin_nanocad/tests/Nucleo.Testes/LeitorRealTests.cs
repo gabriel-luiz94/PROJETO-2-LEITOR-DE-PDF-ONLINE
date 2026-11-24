@@ -92,5 +92,25 @@ namespace OrcamentoNanoCAD.Testes
             Assert.False(ConfigLeitura.Contem(new[] { "=0" }, "01_INSTALANDO"));
             Assert.True(ConfigLeitura.Contem(new[] { "0" }, "01_INSTALANDO"));
         }
-    }
+    
+        [Theory]
+        [InlineData("3xA35P(7,94)-13,8kV 32 m", "MT")]
+        [InlineData("3xA35P(7.94)", "MT")]
+        [InlineData("3xC25-13,8kV", "MT")]
+        [InlineData("PB35 23 m", "BT")]
+        [InlineData("1xC16(16) 21 m", "BT")]
+        [InlineData("3xC16(16)+16 35 m", "BT")]
+        [InlineData("N3", null)]
+        public void Nivel_do_texto_igual_ao_da_aplicacao(string ativo, string nivel)
+        {
+            Assert.Equal(nivel, LeitorProjeto.NivelDoTexto(ativo));
+        }
+
+        [Fact]
+        public void Cabo_protegido_sem_kV_nunca_vai_para_vao_de_BT()
+        {
+            Obra o = Ler(Regras("REDE_MT"));                                             // sem ANOTACOES/0: quase não há MT
+            Assert.DoesNotContain(o.Vaos, v => v.TemAnotacao && v.Tipo == "BT" && (v.AtivoLido ?? "").Contains("A35P"));
+        }
+}
 }

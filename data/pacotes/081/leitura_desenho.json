@@ -1,6 +1,7 @@
 {
  "layers_rede_mt": [
-  "REDE_MT"
+  "REDE_MT",
+  "ANOTACOES"
  ],
  "layers_rede_bt": [
   "REDE_BT"

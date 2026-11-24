@@ -1105,6 +1105,7 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - **Selecionar poste:** clique no símbolo do poste (Enter = sem símbolo), selecione os textos da anotação e tecle Enter. Na janela, cada texto é um **campo** com a sua linha (**L**). Marque a operação de cada campo: **F**, **I**, **\*I**, **M**, **\*M**, **R**, **\*R**. **+ Novo campo** e **+ Nova linha** separam o texto. Ctrl+Enter confirma.
 - **Selecionar cabo:** clique na linha, escolha **Inteira** ou **Trecho** e selecione os textos. Vale a metragem anotada; a medida na linha aparece ao lado.
 - **Com regras**, o ativo e a operação vêm do Leitor do projeto; o texto que não se encaixa entra como **F** (fictício). **Sem regras**, o texto entra como está.
+- Os pontos e cabos aparecem no painel do plugin, nas abas **Postes e outros** e **Vãos e cabos**. **Duplo clique** (ou **Ajustar ponto/cabo…**) mostra o item no desenho e reabre a janela para corrigir ou **Excluir**. (Plugin 0.16.1.)
 - **Adicionar anotações ao OrçaCore** manda os pontos e cabos para a obra aberta: cada poste aparece em Demais Ativos como **«@P1 - comentário»** com as suas linhas, e cada cabo em Cabos. Faça os vínculos no **mapa**. (Plugin 0.16.0 ou mais novo.)
 
 ## Mapa: um ponto só com todas as operações (24/11/2026)
@@ -1112,3 +1113,12 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - Todas as linhas de um ponto «@P1» aparecem como **um único ponto** no mapa, qualquer que seja a operação (I, \*I, M, \*M, R, \*R, F), mesmo sem coordenada do CAD.
 - No painel do ponto, a lista **Estruturas** mostra todas as estruturas com a operação. As que estão **instalando ou mantendo** (I, \*I, M, \*M) ficam em **destaque verde** e recebem cabos. As que estão **removendo** (R, \*R) aparecem apagadas e riscadas, fora do vínculo.
 - Quando o ponto tem um poste em **F** (existente) e outro instalando, o nome do ponto mostra o poste instalando.
+
+## Leitura do DXF: cabos sem traçado (24/11/2026)
+
+- **Rede em outra layer:** se a rede de MT (ou BT) do desenho está numa layer que não é REDE_MT/REDE_BT — por exemplo o tracejado vermelho na **ANOTACOES** —, inclua essa layer em **⚙ Leitura → Layers da rede MT** (aba **Desenho** do vínculo, ou ⚙ Leitura no plugin). Para só a layer «0», escreva **=0**.
+- **Anotação dentro de moldura:** a linha-guia que sai da borda do retângulo em volta do texto agora é usada.
+- **MT e BT lado a lado:** o cabo que diz a tensão (kV, A35P → MT; PB, RAMA, C16( → BT) só pega a rede do seu tipo.
+- **Marcas de X** riscando anotações não contam como rede.
+- **Cartão do cabo:** os botões das pontas mostram o mesmo nome do ponto que o mapa (P1, P2…).
+- Cabo que continua sem traçado: no cartão, **Ponta livre** → clique no ponto, para cada ponta.

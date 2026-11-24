@@ -182,7 +182,7 @@ namespace OrcamentoNanoCAD.UI
             FlowLayoutPanel acoes = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(5) };
             acoes.Controls.Add(Visual.Botao("Anterior", (o,e) => Avancar(-1)));
             acoes.Controls.Add(Visual.Botao("Próxima", (o,e) => Avancar(1)));
-            _editar = Visual.Botao("Ajustar", (o,e) => Comando("ORC_EDITAR"));
+            _editar = Visual.Botao("Ajustar", (o,e) => Comando(ItemDoMapa ? "ORC_MAPA_ITEM" : "ORC_EDITAR"));
             _associar = Visual.Botao("Escolher destino", (o,e) => Comando("ORC_REASSOCIAR"));
             _conferir = Visual.Botao("Conferido", (o,e) => Conferir());
             _lote = Visual.Botao("Operação em lote…", (o,e) => Lote());
@@ -234,7 +234,7 @@ namespace OrcamentoNanoCAD.UI
             tab.Controls.Add(lista);
             _abas.TabPages.Add(tab);
             lista.SelectedIndexChanged += (o,e) => Selecao();
-            lista.ItemActivate += (o,e) => Comando("ORC_ZOOM");
+            lista.ItemActivate += (o,e) => Comando(ItemDoMapa ? "ORC_MAPA_ITEM" : "ORC_ZOOM");
             return lista;
         }
 
@@ -248,6 +248,7 @@ namespace OrcamentoNanoCAD.UI
             }
         }
         private string Id { get { return Lista.SelectedItems.Count == 0 ? null : Lista.SelectedItems[0].Tag as string; } }
+        private bool ItemDoMapa { get { return Id != null && Id.StartsWith(MapaManual.PrefixoPainel); } }
         private bool Ativa { get { return _s != null && _s.Obra != null && Aplicacao.Doc() == _s.Doc; } }
         private void Comando(string cmd)
         {
@@ -350,14 +351,18 @@ namespace OrcamentoNanoCAD.UI
                         pend.Add(new LinhaTabela { Chave = id, Estado = Estados.Conferir, Celulas = new[] { t.Texto, "—", t.Motivo } });
                 }
                 Popular(_pendencias, pend.OrderByDescending(x => x.Estado == Estados.Erro).ToList());
-                Popular(_outros, LinhasManuais(Relatorios.Outros(o,null), o, _outros, false).Where(x => mostrar.Contains(x.Chave)).ToList());
-                Popular(_cabos, LinhasManuais(Relatorios.Cabos(o,null), o, _cabos, true).Where(x => mostrar.Contains(x.Chave)).ToList());
+                // TASK-038: pontos e cabos do mapa (Selecionar poste/cabo) entram nas mesmas abas, chave «M:P1»/«M:C1»
+                bool filtroDeElemento = _poste.SelectedIndex > 0 || _mudancas.Checked || _estado.SelectedIndex > 0;
+                var pontosMapa = o.Modo == "construir" && !filtroDeElemento ? MapaManual.LinhasDoPainelPontos(o).Where(x => Corresponde(x.Celulas)).ToList() : new List<LinhaTabela>();
+                var cabosMapa = o.Modo == "construir" && !filtroDeElemento ? MapaManual.LinhasDoPainelCabos(o).Where(x => Corresponde(x.Celulas)).ToList() : new List<LinhaTabela>();
+                Popular(_outros, LinhasManuais(Relatorios.Outros(o,null), o, _outros, false).Where(x => mostrar.Contains(x.Chave)).Concat(pontosMapa).ToList());
+                Popular(_cabos, LinhasManuais(Relatorios.Cabos(o,null), o, _cabos, true).Where(x => mostrar.Contains(x.Chave)).Concat(cabosMapa).ToList());
                 Popular(_ignorados, fora);
                 List<Elemento> cabos, outros;
                 ObraArquivo.ElementosDasLinhas(o, out cabos, out outros);
                 _abas.TabPages[0].Text = "Pendências (" + pend.Count + ")";
-                _abas.TabPages[1].Text = (o.Modo == "construir" ? "Postes e outros" : "Postes e estruturas") + " (" + outros.Count + ")";
-                _abas.TabPages[2].Text = "Vãos e cabos (" + cabos.Count + ")";
+                _abas.TabPages[1].Text = (o.Modo == "construir" ? "Postes e outros" : "Postes e estruturas") + " (" + (outros.Count + o.PontosMapa.Count) + ")";
+                _abas.TabPages[2].Text = "Vãos e cabos (" + (cabos.Count + o.CabosMapa.Count) + ")";
                 _abas.TabPages[3].Text = "Fora (" + (o.Ignorados.Count + Relatorios.Excluidos(o)) + ")";
             }
             finally { _preenchendo = false; }
@@ -393,6 +398,7 @@ namespace OrcamentoNanoCAD.UI
             MostrarEdicaoManual(e);
             _editar.Enabled = e != null && (!e.Bloqueada && !e.EnviadaNaMontagem && !_s.EnviandoAnotacoes);
             _editar.Text = e != null && e.Excluido ? "Restaurar…" : e is Vao ? "Ajustar vão…" : "Ajustar…";
+            if (ItemDoMapa) { _editar.Enabled = !_s.EnviandoAnotacoes; _editar.Text = id.StartsWith(MapaManual.PrefixoPainel + "C") ? "Ajustar cabo…" : "Ajustar ponto…"; }
             _associar.Enabled = _s.Obra.Modo != "construir" && e != null && e.Candidatos.Count > 1;
             _conferir.Enabled = id != null && Lista == _pendencias;
             _lote.Enabled = e != null && !e.Excluido && (!e.Bloqueada && !e.EnviadaNaMontagem && !_s.EnviandoAnotacoes);

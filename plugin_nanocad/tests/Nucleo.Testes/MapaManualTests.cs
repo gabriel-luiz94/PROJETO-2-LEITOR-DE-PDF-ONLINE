@@ -131,5 +131,24 @@ namespace OrcamentoNanoCAD.Testes
             if (Environment.GetEnvironmentVariable("ATUALIZAR_EXEMPLOS") == "1") System.IO.File.WriteAllText(caminho, gerado);
             Assert.Equal(gerado, System.IO.File.ReadAllText(caminho).Replace("\r\n", "\n"));
         }
-    }
+    
+        [Fact]
+        public void Pontos_e_cabos_do_mapa_aparecem_nas_abas_do_painel()
+        {
+            Obra o = ObraDeExemplo();
+            o.PontosMapa[1].Enviado = true;
+            List<LinhaTabela> pontos = MapaManual.LinhasDoPainelPontos(o);
+            Assert.Equal(new[] { "M:P1", "M:P2", "M:P3" }, pontos.Select(x => x.Chave).ToArray());
+            Assert.Equal(7, pontos[0].Celulas.Length);
+            Assert.Equal("I/F", pontos[0].Celulas[2]);
+            Assert.Equal("@P1 - Rua das Flores, 120: I 9200D, N1 · F TEXTO QUALQUER 123", pontos[0].Celulas[3]);
+            Assert.Equal("sem símbolo", pontos[1].Celulas[4]); Assert.Equal("Enviada", pontos[1].Celulas[6]); Assert.Equal("op:R", pontos[1].Icones[2]);
+            Assert.Equal("@PX - poste existente: F 12600D · I N3", pontos[2].Celulas[3]);
+            LinhaTabela cabo = Assert.Single(MapaManual.LinhasDoPainelCabos(o));
+            Assert.Equal(8, cabo.Celulas.Length);
+            Assert.Equal(new[] { "", "C1", "MT", "I", "I 3xA35P(7,94)-13,8kV", "40", "no mapa", "Mapa" }, cabo.Celulas);
+            Assert.Equal(new[] { new Ponto(1000, 2000).X, 1038.4 }, MapaManual.PontosParaZoom(o, "M:C1").Select(p => p.X).ToArray());
+            Assert.Equal(1080, MapaManual.PontosParaZoom(o, "P3")[0].X);
+        }
+}
 }
