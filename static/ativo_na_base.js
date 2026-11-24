@@ -33,8 +33,14 @@
     }
 
     /** Dos `ativos` pedidos (texto, com ou sem parâmetros), os que NÃO existem em `nomes`. */
+    // TASK-247: nome com vírgula cadastrado como literal ([CAZ7,94]) e pedido sem colchetes (CAZ7,94): vale o nome inteiro, não só até a vírgula
     function foraDaBase(nomes, ativos) {
-        return (ativos || []).filter(a => { const n = up(AP.nomeBase(a)); return n !== '' && !nomes.has(n); });
+        return (ativos || []).filter(a => {
+            const n = up(AP.nomeBase(a));
+            if (n === '' || nomes.has(n)) return false;
+            const t = String(a == null ? '' : a).trim(), i = t.indexOf('(');
+            return !nomes.has(up(AP.semColchetes(i >= 0 ? t.slice(0, i) : t)));
+        });
     }
 
     const api = { nomesDaBase, foraDaBase, valeNoProjeto };

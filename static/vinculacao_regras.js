@@ -326,6 +326,9 @@
 
     // TASK-095: só entram no vínculo linhas de operação I, M e as variantes *I e *M. R e *R (retirada/recolocação) ficam de fora — nem listadas, nem contadas.
     const participaVinculo = row => !['R', '*R'].includes(trim(row && row.operacao).toUpperCase());
+    // TASK-247: aviso de vínculo só para quem está sendo instalado/mantido — I, *I, M, *M (vazio = I). R, *R e F (fictícia) não avisam.
+    const OPS_AVISO_VINCULO = ['', 'I', '*I', 'M', '*M'];
+    const avisaVinculo = row => !!row && OPS_AVISO_VINCULO.includes(trim(row.operacao).toUpperCase());
     const ehCaboValido = row => !!row && !!trim(row.ativo) && participaVinculo(row);
     // TASK-125: o modal lista o que está na tabela Outros — linha ESTRUTURA/POSTE e também a que ainda não foi classificada ('0' ou vazia) mas tem ativo
     // (a classificação automática pode não reconhecer a linha; entidade escolhida à mão — CHAVE, TRAFO, RAMAIS… — continua valendo).
@@ -581,7 +584,7 @@
         const add = (ie, mensagem, explicacao) => saida.push({ linha_id: `OUTROS-${linhaDe(ie)}`, tabela: 'outros', regra_id: 'VINCULO-ESTRUTURA', severidade: 'aviso', mensagem, explicacao });
         Object.keys(a.estruturas).sort((x, y) => x - y).forEach(k => {
             const ie = Number(k), r = a.estruturas[k], linhaO = outros[linhaDe(ie)], nome = codigosFn && (codigosFn(linhaO.ativo) || []).filter(Boolean).length > 1 ? `${linhaO.ativo} [${r.codigo}]` : linhaO.ativo;
-            if (r.regra === null) return;
+            if (r.regra === null || !avisaVinculo(linhaO)) return;
             if (r.ocupa === false) {                                           // TASK-169: equipamento lê do poste — só avisa quando falta cabo (ou bloqueia)
                 r.erros.forEach(msg => add(ie, `Estrutura "${nome}": ${msg}.`, 'O equipamento lê os cabos do poste e a regra manda bloquear sem cabo (se_faltar = BLOQUEAR).'));
                 r.avisos.forEach(msg => add(ie, `Estrutura "${nome}": ${msg}.`, 'O equipamento lê os cabos do poste; sem cabo o parâmetro fica no padrão da base.'));
@@ -1122,7 +1125,7 @@
         return erros;
     }
 
-    const api = { planejarVinculosDoMapa, grafoDaRede, posicaoAproximada, ehFicticia, gruposVisuaisDoVao, posteCompletoNoGrafo, postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, nivelDoCabo, diagnosticoDoCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoCaboFicticio, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
+    const api = { planejarVinculosDoMapa, grafoDaRede, posicaoAproximada, ehFicticia, gruposVisuaisDoVao, posteCompletoNoGrafo, postesAtribuidos, parametrosDoCaboNaEstrutura, defineDeEstruturas, vincularPorPoste, RAIO_POSTE_PADRAO, descricaoCabo, normalizarParametros, parametrosPorEstrutura, participaVinculo, avisaVinculo, estruturasFicticiasDe, idUnidade, linhaDe, slotDe, ficticiosDe, codigosDaLinha, derivarCabo, nivelDoCabo, diagnosticoDoCabo, extraCabo, opFicticio, validarConfig, casa, configVazia, normalizarConfig, opBase, infoCabo, infoCaboFicticio, infoEstrutura, podeVincular, podeComOcupantes, estruturasDisponiveis, validarScript, executarScript, analisar, parametrosPorLinha, achados, ehCaboValido };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.VinculacaoRegras = api;
 })(typeof window !== 'undefined' ? window : globalThis);

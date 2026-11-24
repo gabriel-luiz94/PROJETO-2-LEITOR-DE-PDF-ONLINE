@@ -1177,3 +1177,11 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - **Selecionar cabo** não pergunta mais «Inteira/Trecho»: numa **linha** vale ela inteira; numa **polilinha** vale o **trecho que você clicou**, de vértice a vértice. O trecho fica em amarelo enquanto você escolhe as anotações.
 - A janela do cabo mostra o **Medido na linha** (só para conferência) e o **Comprimento usado**, que é o que vai para a anotação. Ele já vem com o medido **arredondado** (31,2 m → 31 m); digite outro valor se precisar.
 - Cada linha do cabo tem o seu **m**. Se o texto capturado tem metragem — **PB70 32 m** ou **PB70/32 m** —, ela fica naquela linha (em preto). As linhas sem metragem própria usam o comprimento usado (em cinza). Apagar o **m** de uma linha faz ela voltar ao comprimento usado. (Plugin 0.16.4.)
+
+## Validação: removendo e fictícia (24/11/2026)
+
+- Linhas **R** e ***R** (removendo) não geram aviso de vinculação nem de parâmetros («Parâmetros de …»). Se o ativo não existe na base, o aviso de ativo não encontrado continua.
+- Linhas **F** (fictícias) continuam valendo no vínculo, mas não geram aviso de vinculação. Só **I**, **M**, ***I** e ***M** avisam.
+- **Colorir ativos por parâmetros**: linhas R e *R ficam sem cor. A cor muda na hora: ao preencher o último parâmetro pelo balão, a linha passa de laranja para verde sem precisar sair do campo.
+- **Vermelho** = o ativo não existe na base. Nome com vírgula cadastrado entre colchetes (ex.: **[CAZ7,94]**) vale para o cabo escrito **CAZ7,94** — não fica mais vermelho.
+

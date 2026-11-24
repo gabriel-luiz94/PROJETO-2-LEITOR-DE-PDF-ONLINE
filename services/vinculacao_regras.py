@@ -958,6 +958,14 @@ def parametros_por_estrutura(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_
     return saida
 
 
+OPS_AVISO_VINCULO = ("", "I", "*I", "M", "*M")
+
+
+def avisa_vinculo(row) -> bool:
+    """TASK-247: aviso de vínculo só para I, *I, M, *M (vazio = I). R, *R e F (fictícia) não avisam."""
+    return bool(row) and str(row.get("operacao") or "").strip().upper() in OPS_AVISO_VINCULO
+
+
 def achados(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> list:
     """Avisos de validação (formato de services/validacao_planilhas.py), severidade "aviso"."""
     cfg = normalizar_config(cfg)
@@ -972,7 +980,7 @@ def achados(cabos, outros, cfg, prefixo_fn, codigo_fn, codigos_fn=None) -> list:
     for ie, r in sorted(a["estruturas"].items()):
         linha_o = outros[linha_de(ie)]
         nome = f"{linha_o.get('ativo')} [{r['codigo']}]" if codigos_fn and len([c for c in (codigos_fn(linha_o.get("ativo")) or []) if c]) > 1 else linha_o.get("ativo")
-        if r["regra"] is None:
+        if r["regra"] is None or not avisa_vinculo(linha_o):
             continue
         if not r.get("ocupa", True):                                           # TASK-169: equipamento lê do poste — só avisa quando falta cabo (ou bloqueia)
             for msg in r["erros"]:
