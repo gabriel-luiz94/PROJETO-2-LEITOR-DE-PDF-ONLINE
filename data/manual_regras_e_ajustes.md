@@ -1141,3 +1141,8 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - O Mapa abre como o **Resultado** e a **Base de Orçamento**: ocupa a área principal; **Minimizar** manda para o rodapé (clique em **Maximizar Mapa** para voltar); **Maximizar/Restaurar** muda o tamanho; **Fechar** fecha.
 - **Abrir em nova janela** leva o Mapa para uma janela do Windows (por exemplo, no outro monitor). O que você faz lá aparece na hora nas tabelas da janela principal, e o que muda nas tabelas aparece no Mapa. **Retornar à visualização principal** (ou fechar a janela) traz o Mapa de volta. Ctrl+Z na janela principal desfaz o que veio do Mapa.
 - **Esc** no Mapa só tira a seleção (pontos, cabo, ferramenta). Para fechar, use o **Fechar** da janela.
+
+## Mapa: editar cabo e poste (24/11/2026)
+
+- **Editar** de um cabo (na lista ou nas Opções do cabo dentro do ponto) abre o mesmo formulário do **+ Cabo**: ativo sem a metragem, operação nos botões **F / I / M / R / \*I / \*M / \*R**, **comprimento em metros** separado, nível, fases e tensão.
+- **Editar** de uma estrutura no painel do ponto abre a linha em **Linhas do ponto**: troque o texto e a operação e clique **OK** (Enter grava, Esc cancela).

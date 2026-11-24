@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-24 — Editar cabo e poste no Mapa pelos formulários novos
+
+«Editar» do cabo abre o formulário do «+ Cabo» (F/I/M/R, comprimento separado) e «Editar» da estrutura abre a linha em «Linhas do ponto»; o cartão antigo saiu. [TASK-242](tasks/TASK-242-24-11-2026.md).
+
 ## 2026-11-24 — Mapa como janela e em outra janela do Windows
 
 «Vincular cabos» passa a ser o **Mapa** (abre na aba Mapa) e abre como as janelas de Resultado e Base: área principal, rodapé, maximizar/restaurar e «Abrir em nova janela» — o Resumo em modo janela mostra só o Mapa numa janela do Windows, sincronizado nos dois sentidos com a principal. Esc no Mapa só deseleciona. [TASK-241](tasks/TASK-241-24-11-2026.md).

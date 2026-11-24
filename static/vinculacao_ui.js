@@ -2097,7 +2097,7 @@
                     diagDe(ic).diverge ? el('small', { class: 'vz-grafo-alerta', text: '⚠ Nível ' + diagDe(ic).nivel + ' pelo ' + (diagDe(ic).fonte === 'linha' ? 'nível da linha' : diagDe(ic).fonte) + ', mas a linha do desenho é ' + diagDe(ic).geo + ' (confira a associação no CAD)' }) : null,
                     diagDe(ic).motivo ? el('small', { class: 'vz-grafo-alerta', text: '⚠ ' + diagDe(ic).motivo.charAt(0).toUpperCase() + diagDe(ic).motivo.slice(1) }) : null,
                     el('div', { class: 'vz-grafo-pontas' }, botoes),
-                    controleEdicao('cabo', ic), host.copiarCaboNoMapa ? botao('Copiar', () => copiarCabo(ic), 'Copiar ' + nome + ' (cabo novo, sem pontas ligadas)') : null, consulta
+                    botaoEditarCabo(ic), host.copiarCaboNoMapa ? botao('Copiar', () => copiarCabo(ic), 'Copiar ' + nome + ' (cabo novo, sem pontas ligadas)') : null, consulta
                 ]);
             };
             cartoes?.observador?.disconnect();
@@ -2531,6 +2531,67 @@
             return campo;
         }
 
+        // ── TASK-242: editar cabo e linha do ponto pelos formulários novos (os mesmos de + Cabo e de «Linhas do ponto») ──
+        const RE_METRAGEM = /\s+(\d+(?:[.,]\d+)?)\s*m\.?\s*$/i;
+        function botaoEditarCabo(ic) {
+            const c = cabos()[ic];
+            if (!c || !host.editarNoMapa) return null;
+            const b = botao('Editar', () => abrirEdicaoCabo(ic), 'Editar cabo ' + (ic + 1));
+            b.disabled = Boolean(c.bloqueada || c.comentario);
+            return b;
+        }
+        /** «Editar» da estrutura no painel do ponto: abre a mesma linha no editor «Linhas do ponto» (texto + F/I/M/R). null = sem esse editor. */
+        function editarLinhaNoPonto(indice, rotulo) {
+            if (!host.salvarPontoNoMapa || !outros()[indice] || outros()[indice].grupoDecl) return null;
+            const b = botao('Editar', () => {
+                const alvo = dialogo.querySelector(`.vz-lp-painel[data-linha-ponto="${indice}"]`);
+                if (!alvo) return;
+                alvo.scrollIntoView({ block: 'nearest' });
+                alvo.click();
+            }, 'Editar ' + rotulo + ' nas linhas do ponto');
+            b.disabled = Boolean(outros()[indice].bloqueada || outros()[indice].comentario);
+            return b;
+        }
+        function abrirEdicaoCabo(ic) {
+            const ref = cabos()[ic];
+            if (!ref) return;
+            const m = RE_METRAGEM.exec(ref.ativo || '');
+            const ativo = el('input', { type: 'text', required: '', maxlength: '440', placeholder: '3xA35P-13,8kV ou CAA2', 'data-sugestao-origem': 'CABOS' });
+            ativo.value = m ? ref.ativo.slice(0, m.index) : (ref.ativo || '');
+            const operacao = seletorOperacao(opDaLinha(ref));
+            const metros = el('input', { type: 'text', inputmode: 'decimal', maxlength: '24', placeholder: 'sem metragem' });
+            metros.value = m ? m[1] : '';
+            const nivel = el('select', {}, opcoes([['', 'Pelo ativo'], ['MT', 'MT'], ['BT', 'BT']]));
+            nivel.value = ['MT', 'BT'].includes(ref.nivel) ? ref.nivel : '';
+            const fases = el('input', { type: 'text', inputmode: 'numeric', maxlength: '1', placeholder: 'Pelo ativo' });
+            fases.value = ref.fases ?? '';
+            const tensao = el('input', { type: 'text', maxlength: '40', placeholder: 'Pelo ativo' });
+            tensao.value = ref.tensao ?? '';
+            const campos = [campo('Ativo ou rótulo, sem a metragem', ativo), campo('Operação', operacao), campo('Comprimento em metros', metros),
+                campo('Nível', nivel), campo('Fases (quantidade)', fases), campo('Tensão', tensao)];
+            abrirEditor('Editar cabo ' + (ic + 1), 'Salvar edição', campos, () => {
+                if (st.projeto !== host.projeto()) return 'O projeto mudou. Reabra o mapa para editar.';
+                let rotulo = trim(ativo.value), mt = trim(metros.value);
+                const digitada = RE_METRAGEM.exec(rotulo);
+                if (digitada && !mt) { mt = digitada[1]; rotulo = trim(rotulo.slice(0, digitada.index)); }      // «CAA2 35 m» no rótulo: vale como comprimento
+                if (!rotulo) return 'Informe o ativo do cabo.';
+                if (mt && !(Number(mt.replace(',', '.')) > 0)) return 'Informe um comprimento maior que zero, em metros.';
+                const anterior = JSON.stringify(ref);
+                const erro = host.editarNoMapa('cabo', ic, ref, { ativo: mt ? rotulo + ' ' + mt + ' m' : rotulo, operacao: operacao.value,
+                    fases: trim(fases.value), tensao: trim(tensao.value), nivel: nivel.value }, st.cfg);
+                if (erro) return erro;
+                caboEmFoco = ic;
+                const total = anterior !== JSON.stringify(ref) ? automatizarPontos(VR.postesAtribuidos(cabos()[ic])) : 0;
+                ultimoStatus = comVinculosAutomaticos('Cabo atualizado na tabela.', total);
+                cx = null;
+                metaAtivo.clear();
+                atualizar();
+                host.depois?.();
+                avisos.textContent = ultimoStatus;
+                return '';
+            });
+        }
+
         function controleEdicao(tipo, indice, rotulo) {
             if (!host.editarNoMapa) return null;
             const referencia = (tipo === 'cabo' ? cabos() : outros())[indice];
@@ -2909,7 +2970,7 @@
             const lista = el('div', { class: 'vz-lps' });
             atuais().forEach((item, k) => {
                 const r = outros()[item.indice], op = item.op, bloqueada = !!r.bloqueada;
-                const linha = el('div', { class: 'vz-lp-painel' + (op === 'F' ? ' fic' : '') + (bloqueada ? ' bloqueada' : ''), ...(bloqueada ? {} : { tabindex: '0', role: 'button' }),
+                const linha = el('div', { class: 'vz-lp-painel' + (op === 'F' ? ' fic' : '') + (bloqueada ? ' bloqueada' : ''), 'data-linha-ponto': item.indice, ...(bloqueada ? {} : { tabindex: '0', role: 'button' }),
                     title: bloqueada ? 'Linha bloqueada' : 'Clique para editar a linha e a operação' }, [
                     el('span', { class: 'vz-op-badge' + (op === 'F' ? ' f' : op.includes('R') ? ' r' : op.includes('M') ? ' m' : ''), text: op }),
                     el('span', { class: 'vz-lp-texto', text: item.ativo }),
@@ -3123,7 +3184,7 @@
                             botao('+ Fictício', () => abrirFicticio(ie), 'Adicionar cabo fictício a ' + codigo)
                         ])
                     ]) : null;
-                    const editar = controleEdicao(ehLinhaPosteNoPainel(linhaDe(ie)) ? 'poste' : 'estrutura', linhaDe(ie), 'estrutura ' + codigo);
+                    const editar = editarLinhaNoPonto(linhaDe(ie), 'estrutura ' + codigo) || controleEdicao(ehLinhaPosteNoPainel(linhaDe(ie)) ? 'poste' : 'estrutura', linhaDe(ie), 'estrutura ' + codigo);
                     const op = opDaLinha(outros()[linhaDe(ie)]);
                     return el('div', { class: 'vz-no-estrutura' + (OPS_INSTALANDO.includes(op) ? ' instalando' : ''), 'data-estrutura-no': ie }, [
                         el('div', { class: 'vz-no-linha' }, [
@@ -3144,7 +3205,7 @@
                 : host.salvarPontoNoMapa ? botao('Editar ponto', () => abrirPonto(no), 'Nome, comentário e linhas do ponto')
                 : (no.poste !== null && host.editarNoMapa && botao('Editar poste', () => abrirCriacao('poste', null, no)));
             if (no.poste === null && !estruturas.length) {
-                const editar = controleEdicao('estrutura', linhaNo(no), 'linha do ponto ' + (linhaNo(no) + 1));
+                const editar = editarLinhaNoPonto(linhaNo(no), 'linha do ponto') || controleEdicao('estrutura', linhaNo(no), 'linha do ponto ' + (linhaNo(no) + 1));
                 if (editar) lateral.append(editar);
             }
             if (host.associarNoMapa) {
@@ -3239,7 +3300,7 @@
                 const detalhes = el('details', { class: 'vz-no-mais' }, [
                     el('summary', { text: revisaoPendente ? 'Revisar' : 'Opções', 'data-foco': 'c' + ic }),
                     el('div', { class: 'vz-no-acoes' }, [
-                        controleEdicao('cabo', ic),
+                        botaoEditarCabo(ic),
                         chega ? botao('Soltar ponta do mapa', () => {
                             const mensagem = alterarPontoDoCabo(ic, no, false);
                             if (mensagem) status.textContent = mensagem;
