@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-24 — Um ponto só por grupo no mapa
+
+O grupo «@nome» é um ponto só no mapa, com todas as operações: as linhas sem coordenada própria entram no ponto do grupo (antes, cada uma virava um «P1»). O painel do ponto lista todas as estruturas, com I/\*I/M/\*M em destaque e R/\*R apagadas, fora do vínculo. [TASK-238](tasks/TASK-238-24-11-2026.md).
+
 ## 2026-11-23 — Plugin: montagem manual no formato do mapa
 
 O modo manual do nanoCAD (plugin 0.16.0) entrega cada poste como o ponto «@nome - comentário» com uma linha por campo e a sua operação (F, I, \*I, M, \*M, R, \*R), e cada cabo (linha inteira ou trecho) com a metragem e a geometria, sem vínculo. Com as regras de um projeto, o texto fora delas entra como F. Chega pelo envio incremental de anotações; o vínculo é feito no mapa. [TASK-237](tasks/TASK-237-23-11-2026.md).

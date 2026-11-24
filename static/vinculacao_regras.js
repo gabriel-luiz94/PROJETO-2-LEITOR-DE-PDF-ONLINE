@@ -726,15 +726,25 @@
         const ehLinhaPoste = (row, l) => linhaVisivel(row) && (row.entidade === 'POSTE' || ehPoste?.(row, l));
         const ests = estruturasDisponiveis(outros, codigoFn, codigosFn);
         const linhasEstrutura = new Set(ests.map(linhaDe));
-        function incluir(linha, pos, poste = false) {
-            const id = pos ? pos.join(',') : `linha:${linha}`;
+        function incluir(linha, pos, poste = false, idSemPos = null) {
+            const id = pos ? pos.join(',') : (idSemPos || `linha:${linha}`);
             if (!nos.has(id)) nos.set(id, { id, pos, poste: null, linhas: [], estruturas: [], cabos: new Set() });
             const no = nos.get(id);
-            if (poste && no.poste === null) no.poste = linha;
+            // TASK-238: o poste do ponto é a 1ª linha de poste; uma linha de poste não fictícia passa à frente da fictícia (12600D em F + 11300D em I → 11300D)
+            if (poste && (no.poste === null || (ehFicticia(outros[no.poste]) && !ehFicticia(outros[linha])))) no.poste = linha;
             no.linhas.push(linha);
             postes.set(linha, no);
             return no;
         }
+        // TASK-238: o grupo «@nome» É o ponto. As linhas do grupo sem coordenada própria vão para o ponto do grupo:
+        // a coordenada do 1º membro que tem `_poste` ou, sem nenhuma, um ponto só (id da 1ª linha do grupo). Antes, cada linha sem coordenada virava um ponto.
+        const ancoraDoGrupo = new Map();
+        outros.forEach((row, l) => {
+            if (!linhaVisivel(row) || !row.grupoDe) return;
+            const a = ancoraDoGrupo.get(row.grupoDe) || { pos: null, id: `linha:${l}` };
+            if (!a.pos && par(row._poste)) a.pos = par(row._poste);
+            ancoraDoGrupo.set(row.grupoDe, a);
+        });
         const fisicos = new Set();
         outros.forEach((row, l) => {
             if (!ehLinhaPoste(row, l)) return;
@@ -748,7 +758,8 @@
             const destino = !poste && row._mapaPosteRef ? postesPorId.get(row._mapaPosteRef) : null;
             if (Number.isInteger(destino)) associados.push([l, destino]);
             else if (pos || poste || row.entidade === 'ESTRUTURA' || linhasEstrutura.has(l)) {
-                const no = incluir(l, pos, poste);
+                const grupo = !pos && row.grupoDe ? ancoraDoGrupo.get(row.grupoDe) : null;
+                const no = grupo ? incluir(l, grupo.pos, poste, grupo.id) : incluir(l, pos, poste);
                 // TASK-233: sem bloco de poste no CAD, a anotação ainda diz onde o ponto fica (aproximado). Só desenha: não entra no encaixe de 5 m.
                 if (!no.pos && !no.posAprox) no.posAprox = posicaoAproximada(row);
             }
