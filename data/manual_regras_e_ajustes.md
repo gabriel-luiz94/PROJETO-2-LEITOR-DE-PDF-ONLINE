@@ -1106,3 +1106,9 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - **Selecionar cabo:** clique na linha, escolha **Inteira** ou **Trecho** e selecione os textos. Vale a metragem anotada; a medida na linha aparece ao lado.
 - **Com regras**, o ativo e a operação vêm do Leitor do projeto; o texto que não se encaixa entra como **F** (fictício). **Sem regras**, o texto entra como está.
 - **Adicionar anotações ao OrçaCore** manda os pontos e cabos para a obra aberta: cada poste aparece em Demais Ativos como **«@P1 - comentário»** com as suas linhas, e cada cabo em Cabos. Faça os vínculos no **mapa**. (Plugin 0.16.0 ou mais novo.)
+
+## Mapa: um ponto só com todas as operações (24/11/2026)
+
+- Todas as linhas de um ponto «@P1» aparecem como **um único ponto** no mapa, qualquer que seja a operação (I, \*I, M, \*M, R, \*R, F), mesmo sem coordenada do CAD.
+- No painel do ponto, a lista **Estruturas** mostra todas as estruturas com a operação. As que estão **instalando ou mantendo** (I, \*I, M, \*M) ficam em **destaque verde** e recebem cabos. As que estão **removendo** (R, \*R) aparecem apagadas e riscadas, fora do vínculo.
+- Quando o ponto tem um poste em **F** (existente) e outro instalando, o nome do ponto mostra o poste instalando.

@@ -243,6 +243,9 @@
     .vz-ponto-linhas small{flex:0 0 auto;color:var(--g-muted,#8b949e)}.vz-ponto-linhas code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .vz-no-estruturas{display:grid;gap:5px}.vz-no-estrutura{padding:5px 7px;border:1px solid var(--g-border);border-radius:8px;background:var(--g-panel);overflow-wrap:anywhere}
     .vz-no-estrutura span,.vz-no-ajuda{color:var(--g-muted)}
+    .vz-no-estrutura.instalando{border-color:#2ea043;border-left-width:3px;background:#0f2a1a}.vz-no-estrutura.instalando .vz-no-linha>button:first-of-type{color:#7ee787;font-weight:700;font-size:14px}
+    .vz-no-estrutura.removendo{opacity:.55}.vz-no-estrutura.removendo strong{text-decoration:line-through}
+    .vz-no-estrutura .vz-op-badge{flex:none}
     .vz-no-cabo{padding:6px 8px;border:1px solid var(--g-border);border-radius:8px;margin-bottom:4px;background:var(--g-panel)}
     .vz-no-cabo h6{margin:0;font-size:12px;overflow-wrap:anywhere}.vz-no-cabo p{margin:0 0 3px}
     .vz-no-cabo .vz-op{margin-right:4px}
@@ -2741,6 +2744,8 @@
             return { info, idx: idx.filter(l => outros()[l] && !outros()[l].comentario) };
         }
         const opDaLinha = r => { const o = trim(r.operacao).toUpperCase(); return o === '' ? 'I' : o; };
+        const OPS_INSTALANDO = ['I', '*I', 'M', '*M'];                                       // TASK-238: em destaque na lista de estruturas do ponto
+        const seloOperacao = op => el('span', { class: 'vz-op-badge' + (/R$/.test(op) ? ' r' : /M$/.test(op) ? ' m' : op === 'F' ? ' f' : ''), text: op, title: 'Operação ' + op });
         /** Lista editável de linhas: [nº, ativo, operação, ×]. Ao preencher a última, entra outra vazia com a operação de cima. */
         function editorDeLinhas(iniciais, aoMudar) {
             const lista = el('div', { class: 'vz-linhas-ponto' });
@@ -3015,6 +3020,10 @@
             if (!no) { if (dialogo.open) dialogo.close(); return; }
             const a = analise();
             const estruturas = estruturasDoNo(no), ehFicticio = linhaFicticia(no);
+            // TASK-238: as estruturas em retirada (R, *R) também aparecem na lista, apagadas e fora do vínculo
+            const removendo = no.linhas.filter(l => { const r = outros()[l]; return r && trim(r.ativo) && !r.comentario && !r.grupoDecl && !VR.participaVinculo(r); })
+                .flatMap(l => { const cods = VR.codigosDaLinha(outros()[l], host.codigoEstrutura, host.codigosEstrutura).filter(Boolean);
+                    return (cods.length ? cods : outros()[l].entidade === 'ESTRUTURA' ? [trim(outros()[l].ativo)] : []).map(c => [l, c]); });
             const row = outros()[linhaNo(no)];
             const estruturasFicticias = ehFicticio ? row._mapaEstruturasFicticias || [] : [];
             const completo = VR.posteCompletoNoGrafo(estruturas, a);
@@ -3050,7 +3059,7 @@
                 ehFicticio ? el('div', { class: 'vz-no-estruturas' }, estruturasFicticias.map((codigo, i) =>
                     el('div', { class: 'vz-no-estrutura', 'data-estrutura-ancora': i }, [
                         el('div', { class: 'vz-no-linha' }, [el('strong', { text: codigo }), el('span', { text: 'Fictícia' })])
-                    ]))) : estruturas.length ? el('div', { class: 'vz-no-estruturas' }, estruturas.map(ie => {
+                    ]))) : estruturas.length || removendo.length ? el('div', { class: 'vz-no-estruturas' }, estruturas.map(ie => {
                     const r = a.estruturas[ie], e = infoEst(ie), codigo = codigoDe(ie);
                     const ficticios = ficticiosDe(ie);
                     const controlesFicticios = e.ocupa ? el('details', { class: 'vz-no-mais' }, [
@@ -3062,8 +3071,10 @@
                         ])
                     ]) : null;
                     const editar = controleEdicao(ehLinhaPosteNoPainel(linhaDe(ie)) ? 'poste' : 'estrutura', linhaDe(ie), 'estrutura ' + codigo);
-                    return el('div', { class: 'vz-no-estrutura', 'data-estrutura-no': ie }, [
+                    const op = opDaLinha(outros()[linhaDe(ie)]);
+                    return el('div', { class: 'vz-no-estrutura' + (OPS_INSTALANDO.includes(op) ? ' instalando' : ''), 'data-estrutura-no': ie }, [
                         el('div', { class: 'vz-no-linha' }, [
+                            seloOperacao(op),
                             botao(codigo, () => destacarEstrutura(ie), 'Destacar cabos de ' + codigo),
                             el('span', { class: 'vz-no-ocupacao' + (estruturaPendente(r) ? ' pendente' : ''),
                                 text: !e.ocupa ? 'Equipamento' : e.qtd === null ? String(r.tem) : r.tem + '/' + e.qtd,
@@ -3071,7 +3082,9 @@
                             editar
                         ]), controlesFicticios
                     ]);
-                })) : el('p', { class: 'vz-no-ajuda', text: 'Nenhuma estrutura cadastrada neste ponto.' })
+                }).concat(removendo.map(([l, codigo]) => el('div', { class: 'vz-no-estrutura removendo', 'data-estrutura-removendo': l }, [
+                    el('div', { class: 'vz-no-linha' }, [seloOperacao(opDaLinha(outros()[l])), el('strong', { text: codigo }), el('span', { text: 'removendo · fora do vínculo' })])
+                ])))) : el('p', { class: 'vz-no-ajuda', text: 'Nenhuma estrutura cadastrada neste ponto.' })
             ]);
             // TASK-235: «Editar ponto» abre o formulário do ponto (nome - comentário + linhas); o poste fictício antigo mantém o editor dele
             const editarPoste = ehFicticio ? (no.poste !== null && host.editarNoMapa && controleEdicao('poste-ficticio', no.poste, 'poste fictício'))
@@ -3084,7 +3097,7 @@
             if (host.associarNoMapa) {
                 const existeOutroPoste = [...grafo.nos.values()].some(n => n.poste !== null && !linhaFicticia(n) && n.id !== no.id);
                 for (const linha of new Set(estruturas.map(linhaDe))) {
-                    if (postesDe(linha).length || outros()[linha].entidade === 'POSTE') continue;
+                    if (postesDe(linha).length || outros()[linha].entidade === 'POSTE' || outros()[linha].grupoDe) continue;       // TASK-238: a linha do grupo já é do ponto do grupo
                     const ativo = outros()[linha].ativo;
                     const controles = el('div', { class: 'vz-no-editor' }, [el('small', { text: ativo })]);
                     if (existeOutroPoste) controles.append(botao('Associar a poste', () => escolherPosteDaEstrutura(linha, no), 'Associar ' + ativo + ' a poste'));
