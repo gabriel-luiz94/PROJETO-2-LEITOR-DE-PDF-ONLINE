@@ -59,6 +59,13 @@ namespace OrcamentoNanoCAD.Nucleo
                 HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
 #pragma warning restore SYSLIB0014
                 req.Method = metodo;
+                if (req.RequestUri.IsLoopback)
+                {
+                    // 0.16.5 (TASK-039): o OrçaCore deste computador — sem o proxy do Windows (a detecção automática de proxy pode prender a
+                    // chamada por muito tempo) e sem reaproveitar conexão (o servidor local fecha as ociosas).
+                    req.Proxy = null;
+                    req.KeepAlive = false;
+                }
                 req.Timeout = timeoutMs;
                 req.ReadWriteTimeout = timeoutMs;
                 req.Accept = "application/json";

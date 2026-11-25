@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-25 — Plugin 0.16.6: Abrir no OrçaCore sem travar o nanoCAD
+
+A conversa do plugin com o OrçaCore deste computador (Abrir no OrçaCore) saiu da thread do nanoCAD; chamadas a 127.0.0.1 sem proxy e sem keep-alive; tempos no log do plugin e passos da janela no log do OrçaCore (`services/janela_desktop.py`). [TASK-039 do plugin](../plugin_nanocad/.ai/tasks/TASK-039-25-11-2026.md).
+
 ## 2026-11-25 — Plugin 0.16.5: nanoCAD 5 sem o «API Logger» no Salvar
 
 Os botões do painel do plugin consultavam `Document.CommandInProgress`, que o nanoCAD 5 declara e não implementa (abria o «API Logger» e o Salvar da montagem manual não gravava). No build do nanoCAD 5 a consulta saiu. [TASK-039 do plugin](../plugin_nanocad/.ai/tasks/TASK-039-25-11-2026.md).

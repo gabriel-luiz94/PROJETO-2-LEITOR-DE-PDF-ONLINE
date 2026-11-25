@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-25 — 0.16.6
+
+nanoCAD 26 travava no **Abrir no OrçaCore** / **Adicionar anotações ao OrçaCore**: o Abrir conversava com o OrçaCore na thread do nanoCAD (até 30 s de espera) — agora em segundo plano, com a mensagem voltando à linha de comando (`Aplicacao.NaTela`); chamadas a `127.0.0.1` sem proxy do Windows e sem keep-alive; tempos de cada passo no `log.txt`. [TASK-039](tasks/TASK-039-25-11-2026.md).
+
 ## 2026-11-25 — 0.16.5
 
 nanoCAD 5: os botões do painel (Salvar, Abrir no OrçaCore…) abriam o «API Logger» do nanoCAD (`MGD · NOT_IMPLEMENTED · get_CommandInProgress`) e o Salvar da montagem manual não gravava. `Visual.Executar` consultava `Document.CommandInProgress`, que a API do nanoCAD 5 declara mas não implementa; no build `NANOCAD5` a consulta saiu e o painel manda o comando direto. nanoCAD 26 sem mudança. [TASK-039](tasks/TASK-039-25-11-2026.md).

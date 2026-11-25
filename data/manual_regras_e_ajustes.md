@@ -1204,3 +1204,9 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 
 - No nanoCAD 5, os botões do painel (Salvar, Abrir no OrçaCore…) mostravam a janela **API Logger** («NOT_IMPLEMENTED · get_CommandInProgress») e o Salvar da montagem manual não gravava. A partir do plugin **0.16.5** essa janela não aparece mais e o Salvar segue direto.
 - Se ainda não gravar, mande o arquivo `%APPDATA%\OrcamentoNanoCAD\log.txt`: ele mostra se o comando de salvar chegou a rodar.
+
+## Plugin: nanoCAD 26 — Abrir no OrçaCore sem travar (25/11/2026)
+
+- A partir do plugin **0.16.6**, **Abrir no OrçaCore** salva o projeto e manda para o OrçaCore em segundo plano: o nanoCAD continua respondendo e a linha de comando avisa quando o OrçaCore recebeu (ou o que deu errado).
+- As conversas com o OrçaCore deste computador não passam mais pelo proxy do Windows.
+- Se ainda travar, mande o arquivo `%APPDATA%\OrcamentoNanoCAD\log.txt` e diga qual janela parou de responder (a do nanoCAD ou a do OrçaCore).

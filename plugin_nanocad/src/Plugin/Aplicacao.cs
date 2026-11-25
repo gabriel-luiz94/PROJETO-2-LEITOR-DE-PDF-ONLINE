@@ -25,6 +25,8 @@ namespace OrcamentoNanoCAD
                     ed.WriteMessage("\nOrçaCore para nanoCAD " + ObraArquivo.VersaoPlugin + " carregado (desenvolvido por Gabriel Sales). Comando: ORCACORE ou OC (ajuda: ORC_AJUDA).\n");
             }
             catch (System.Exception) { /* sem documento aberto: tudo bem */ }
+            try { PrepararTela(); }
+            catch (System.Exception e) { Log("tela: " + e.Message); }
             try { AtualizacaoPlugin.Iniciar(); }
             catch (System.Exception e) { Log("atualização: " + e); }
             try { Compat.Tentar("atualização automática das guias", GuiasDeNota.Iniciar); }
@@ -41,6 +43,29 @@ namespace OrcamentoNanoCAD
         {
             Document d = Doc();
             return d == null ? null : d.Editor;
+        }
+
+        // ── 0.16.5 (TASK-039): voltar para a thread da tela depois de um trabalho em segundo plano (conversa com o OrçaCore) ──
+        private static System.Windows.Forms.Control _tela;
+
+        private static void PrepararTela()
+        {
+            if (_tela != null) return;
+            var c = new System.Windows.Forms.Control();
+            IntPtr h = c.Handle;                                  // cria a janela invisível NESTA thread (a do nanoCAD)
+            _tela = c;
+        }
+
+        /// <summary>Roda `acao` na thread da tela do nanoCAD (para escrever na linha de comando, mexer no painel…).</summary>
+        public static void NaTela(Action acao)
+        {
+            System.Windows.Forms.Control c = _tela;
+            if (c != null && c.IsHandleCreated && !c.IsDisposed)
+            {
+                try { if (c.InvokeRequired) { c.BeginInvoke(acao); return; } }
+                catch (InvalidOperationException) { }
+            }
+            try { acao(); } catch (System.Exception e) { Log("na tela: " + e.Message); }
         }
 
         public static void Msg(string texto)
