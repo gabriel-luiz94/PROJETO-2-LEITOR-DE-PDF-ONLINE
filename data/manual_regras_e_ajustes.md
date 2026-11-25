@@ -1199,3 +1199,8 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - Ao editar uma linha no Mapa (no painel do ponto, em **+ Linha**, **Editar ponto**, **Editar** de uma estrutura ou numa **Nova estrutura / Novo poste**), aperte **Ctrl+Enter** (ou dê duplo clique, ou deixe o mouse parado no campo): abre o mesmo balão de parâmetros das tabelas.
 - Ele lista os ativos da linha com o que está preenchido e o que falta. **Enter** entra nos parâmetros do ativo; **↑↓** escolhe o valor (ou digite outro); **Enter** grava e vai ao próximo; **Del** limpa; **Esc** volta e fecha.
 - O parâmetro entra no texto da linha (ex.: `N3(TIPOCABO=A)`); a linha vai para a tabela quando você confirma com **OK**, como antes.
+
+## Plugin: nanoCAD 5 — mensagem «API Logger» ao salvar (25/11/2026)
+
+- No nanoCAD 5, os botões do painel (Salvar, Abrir no OrçaCore…) mostravam a janela **API Logger** («NOT_IMPLEMENTED · get_CommandInProgress») e o Salvar da montagem manual não gravava. A partir do plugin **0.16.5** essa janela não aparece mais e o Salvar segue direto.
+- Se ainda não gravar, mande o arquivo `%APPDATA%\OrcamentoNanoCAD\log.txt`: ele mostra se o comando de salvar chegou a rodar.

@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-25 — 0.16.5
+
+nanoCAD 5: os botões do painel (Salvar, Abrir no OrçaCore…) abriam o «API Logger» do nanoCAD (`MGD · NOT_IMPLEMENTED · get_CommandInProgress`) e o Salvar da montagem manual não gravava. `Visual.Executar` consultava `Document.CommandInProgress`, que a API do nanoCAD 5 declara mas não implementa; no build `NANOCAD5` a consulta saiu e o painel manda o comando direto. nanoCAD 26 sem mudança. [TASK-039](tasks/TASK-039-25-11-2026.md).
+
 ## 2026-11-24 — 0.16.4
 
 Selecionar cabo (modo mapa) sem a pergunta «Inteira/Trecho»: LINE vale inteira; polilinha vale sempre o trecho clicado, de vértice a vértice (`MapaManual.TrechoClicado`), destacado em amarelo enquanto se escolhem as anotações. A janela mostra **Medido na linha** (só informação) e **Comprimento usado** (padrão: o medido arredondado sem casas decimais — `MapaManual.UsadoPadrao`), e cada linha do cabo tem o seu campo **m**: a metragem do texto capturado («PB70 32 m» ou «PB70/32 m») fica naquela linha (`CampoMapa.Metros`, «metros» na seção `cad`); as linhas sem metragem própria usam o comprimento usado. [TASK-038](tasks/TASK-038-23-11-2026.md).
