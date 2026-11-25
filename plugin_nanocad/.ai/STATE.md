@@ -3,6 +3,14 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.16.6
+
+TASK-039 (etapa 2): Abrir no OrçaCore em segundo plano (não prende a tela do nanoCAD); chamadas locais sem proxy/keep-alive; tempos no log. ✅ 153 testes do núcleo; DLLs 0.16.6. 🟡 Validar no nanoCAD 26 (Abrir no OrçaCore e Adicionar anotações) e no nanoCAD 5 (Salvar).
+
+## Plugin 0.16.5
+
+TASK-039 (etapa 1): nanoCAD 5 sem a consulta a `Document.CommandInProgress` (abria o «API Logger» e o Salvar da montagem manual não seguia). ✅ 153 testes do núcleo; DLLs 0.16.5; DLL do nanoCAD 5 sem `get_CommandInProgress`. 🟡 Validar no nanoCAD 5. ⏳ Etapa 2: nanoCAD 26 trava no Abrir no OrçaCore / Adicionar anotações.
+
 ## Plugin 0.16.4
 
 TASK-038 (ajuste): Selecionar cabo sem «Inteira/Trecho» — polilinha = trecho clicado (vértice a vértice), LINE = inteira; janela com Medido na linha + Comprimento usado (medido arredondado) e metragem por linha do cabo («PB70 32 m», «PB70/32 m»). ✅ 153 testes do núcleo; DLLs 0.16.4. 🟡 Validar no nanoCAD (clique no trecho e janela do cabo).

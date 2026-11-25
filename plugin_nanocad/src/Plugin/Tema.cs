@@ -250,7 +250,12 @@ namespace OrcamentoNanoCAD.UI
             HostMgd.ApplicationServices.Document d = Aplicacao.Doc();
             if (d == null) return;
             string atual = "";
+#if !NANOCAD5
             try { atual = Compat.Tentar("comando em andamento", () => d.CommandInProgress ?? "", ""); } catch (Exception) { }
+#endif
+            // 0.16.5: no nanoCAD 5 a API declara Document.CommandInProgress mas não implementa — a consulta abria o «API Logger»
+            // (MGD · NOT_IMPLEMENTED · get_CommandInProgress) a cada botão do painel e o comando (Salvar, Abrir no OrçaCore…) não seguia.
+            // Lá o painel manda o comando sem consultar o que está em andamento.
             if (atual.Length > 0 && !atual.StartsWith("ORC_", StringComparison.OrdinalIgnoreCase) && !atual.Equals("ORCACORE", StringComparison.OrdinalIgnoreCase)
                 && !atual.Equals("OC", StringComparison.OrdinalIgnoreCase) && !atual.Equals("ORCAMENTO", StringComparison.OrdinalIgnoreCase))
             {

@@ -85,6 +85,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] Plugin 0.16.5/0.16.6 — nanoCAD 5: Salvar/Abrir no OrçaCore sem o «API Logger» (`get_CommandInProgress`); nanoCAD 26: Abrir no OrçaCore em segundo plano, chamadas locais sem proxy ([TASK-039 do plugin](../plugin_nanocad/.ai/tasks/TASK-039-25-11-2026.md)). Aguardando teste nos dois nanoCAD.
 - [x] [TASK-249](tasks/TASK-249-24-11-2026.md) — Mapa: parâmetros dos ativos/estruturas das linhas do ponto pelo balão das tabelas (Ctrl+Enter, duplo clique, mouse parado).
 - [x] [TASK-248](tasks/TASK-248-24-11-2026.md) — Cava em rocha: parte `cava_rocha` do pacote, botão CAVA EM ROCHA ao lado do MAPA, conta igual à aba CAVA_ROCHA da ICP e lançamento em Outros.
 - [x] [TASK-247](tasks/TASK-247-24-11-2026.md) — Validação: R/*R sem aviso de vínculo/parâmetros e fora das cores; F sem aviso de vínculo; cor dos parâmetros na hora.

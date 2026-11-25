@@ -114,6 +114,8 @@ def mostrar(url_relativa: str, porta: int = None, somente_resumo: bool = False) 
     """Leva a janela do programa para a URL (ex.: /resumo?plugin_pendente=…) e a traz para a frente. False se não há janela."""
     if _janela is None:
         return False
+    inicio = time.monotonic()
+    logger.info(f"Janela: pedido do nanoCAD ({url_relativa}) — trazendo para a frente")       # TASK-039 do plugin: cada passo com o tempo no log
     for passo in (lambda: _janela.restore(), lambda: _janela.show()):
         try:
             passo()
@@ -138,10 +140,12 @@ def mostrar(url_relativa: str, porta: int = None, somente_resumo: bool = False) 
                 entregue = _janela.evaluate_js(script) is True
             except Exception:
                 pass  # a página pode ainda estar carregando
+            logger.info(f"Janela: entrega na página aberta {'ok' if entregue else 'não'} ({time.monotonic() - inicio:.1f} s)")
         if not entregue:
             if somente_resumo:
                 return False
             _janela.load_url(destino)
+            logger.info(f"Janela: carregando {url_relativa} ({time.monotonic() - inicio:.1f} s)")
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Janela não carregou a obra do nanoCAD: {e}")
         return False

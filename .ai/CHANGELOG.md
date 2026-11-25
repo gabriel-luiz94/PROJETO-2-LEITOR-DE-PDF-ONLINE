@@ -8,6 +8,14 @@
 
 ---
 
+## 2026-11-25 — Plugin 0.16.6: Abrir no OrçaCore sem travar o nanoCAD
+
+A conversa do plugin com o OrçaCore deste computador (Abrir no OrçaCore) saiu da thread do nanoCAD; chamadas a 127.0.0.1 sem proxy e sem keep-alive; tempos no log do plugin e passos da janela no log do OrçaCore (`services/janela_desktop.py`). [TASK-039 do plugin](../plugin_nanocad/.ai/tasks/TASK-039-25-11-2026.md).
+
+## 2026-11-25 — Plugin 0.16.5: nanoCAD 5 sem o «API Logger» no Salvar
+
+Os botões do painel do plugin consultavam `Document.CommandInProgress`, que o nanoCAD 5 declara e não implementa (abria o «API Logger» e o Salvar da montagem manual não gravava). No build do nanoCAD 5 a consulta saiu. [TASK-039 do plugin](../plugin_nanocad/.ai/tasks/TASK-039-25-11-2026.md).
+
 ## 2026-11-24 — Mapa: parâmetros dos ativos com Ctrl+Enter
 
 As linhas do ponto no Mapa (editar linha, + Linha, Editar ponto/estrutura, Nova estrutura/poste) abrem o mesmo balão de parâmetros das tabelas principais: Ctrl+Enter, duplo clique ou mouse parado; ↑↓/Tab/Enter/Del/Esc como na tabela. `AtivoBalao` ganhou `seletorExtra`/`preparar` (pontas por campo em `input._ativoBalao`) e desenha o balão dentro do `<dialog>` modal. [TASK-249](tasks/TASK-249-24-11-2026.md).
