@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-26 — Removendo (R, *R): destaque de parâmetro determinante e de ativo fora da base
+
+No «Colorir ativos por parâmetros», as linhas removendo voltam a ser destacadas, mas só com duas marcas: **vermelho** (o ativo não existe na base — Cabos e Outros) e **azul** (`par-determinante`: o ativo removido tem parâmetro que decide QUAL item sai). Sem verde/laranja nelas (parâmetro faltando continua sem aviso em R/*R, TASK-247). [TASK-252](tasks/TASK-252-26-11-2026.md).
+
 ## 2026-11-26 — Cabos: notação com seção AWG (`3xA1/0(1/0)+1/0`)
 
 `services/anotacao_cabos.py` e `static/anotacao_cabos.js`: o `+N` do condutor extra aceita seção AWG fracionária (`+1/0`, `+4/0`) e o neutro/extra AWG (`(1/0)`, `+1/0`) mapeia para a mesma família do cabo (`A1/0` → `A1/0`, `A4/0` → `A4/0`); em cabo que não é AWG, o valor segue literal. Sem regressão em `3xC16(16)+16`, `3xA35P(7,94)` e `+20kV`. [TASK-251](tasks/TASK-251-26-11-2026.md).

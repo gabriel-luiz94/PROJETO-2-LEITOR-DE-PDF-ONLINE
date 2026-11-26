@@ -48,11 +48,12 @@ def test_c1_param_nao_avisa_removendo():
     assert [x["regra_id"] for x in validar_base([], [{"id": "L1", "ativo": "1-NAOEXISTE", "operacao": "R"}], "PERNAMBUCO", [dict(r) for r in BASE_PARAM])] == ["C1-BASE"]
 
 
-def test_cores_pulam_removendo():
+def test_cores_do_removendo_so_fora_da_base_e_parametro_determinante():       # TASK-252 (antes, TASK-247: removendo não era pintado)
     with open(os.path.join(config.STATIC_DIR, "resumo.js"), encoding="utf-8") as f:
         js = f.read()
     corpo = js[js.index("function aplicarCoresParametros()"):js.index("function agendarCoresAposDesenhar()")]
-    assert "['R', '*R'].includes" in corpo
+    assert "['R', '*R'].includes" in corpo and "const removendo" in corpo
+    assert "if (removendo) r = sts.some(Boolean) ? 'par-determinante' : ''" in corpo and "par-nao-base" in corpo
 
 
 @pytest.mark.skipif(not NODE, reason="node indisponível")
