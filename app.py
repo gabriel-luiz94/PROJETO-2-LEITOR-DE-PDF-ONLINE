@@ -569,6 +569,37 @@ def _limpar_residuos_da_atualizacao():
         logger.warning(f"Limpeza da atualização anterior falhou: {e}")
 
 
+# ── TASK-250: prepara a base de cada projeto em segundo plano, para o 1º Montar Orçamento já sair rápido ──
+@app.on_event("startup")
+def _aquecer_calculo():
+    import os as _os
+    import threading as _th
+    if _os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+
+    def aquecer():
+        try:
+            from database import get_connection
+            from services.sync_service import get_merged_orcamento
+            from services.orcamento_calc import processar_calculo
+            from services.validacao_planilhas import validar_planilhas
+            from routers.vinculacao_config import postes_do_projeto
+            conn = get_connection()
+            try:
+                nomes = [r[0] for r in conn.execute("SELECT nome FROM projetos").fetchall() if r[0]]
+            finally:
+                conn.close()
+            rows = get_merged_orcamento(None)
+            for nome in nomes:
+                processar_calculo([], [], nome, rows)                                          # o que a validação usa
+                processar_calculo([], [], nome, rows, convencao_postes=postes_do_projeto(nome))   # o que o Resultado usa
+                validar_planilhas([], [], rows, nome)
+            logger.info(f"Cálculo preparado para {len(nomes)} projeto(s).")
+        except Exception as e:  # noqa: BLE001 — só um adiantamento: sem ele o 1º cálculo prepara na hora
+            logger.info(f"Preparação do cálculo em segundo plano não rodou: {e}")
+    _th.Thread(target=aquecer, name="aquecer-calculo", daemon=True).start()
+
+
 # ── Plugin do nanoCAD (TASK-131): o .exe instala/atualiza a DLL do plugin em %APPDATA%\OrcamentoNanoCAD\plugin (em segundo plano) ──
 @app.on_event("startup")
 def _instalar_plugin_nanocad():

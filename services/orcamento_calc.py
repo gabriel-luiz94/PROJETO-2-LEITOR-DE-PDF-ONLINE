@@ -1,6 +1,7 @@
 """
 services/orcamento_calc.py — Lógica de cálculo do orçamento.
 """
+import json
 import re
 
 
@@ -295,14 +296,53 @@ def _removendo(av) -> bool:
     return str((av or {}).get("operacao") or "").strip().upper() in ("R", "*R")
 
 
+# ── TASK-250: a preparação da base (índices, apelidos, assinaturas, compostos) não muda de um cálculo para outro ──
+# Antes era refeita a CADA cálculo (≈1 s numa base de ~4 mil linhas, mesmo para uma linha só; o Montar Orçamento calcula 3 vezes:
+# validação de cabos, de outros e o Resultado). Agora fica em cache pela impressão digital do CONTEÚDO da base + projeto + convenção
+# de postes: qualquer linha alterada, incluída ou excluída muda a chave e a preparação é refeita. O que vai no cache é só lido depois.
+_CACHE_PREPARO = {}
+_CACHE_PREPARO_MAX = 6
+_trava_preparo = __import__("threading").Lock()
+
+
+def _impressao_da_base(orcamento_rows) -> int:
+    from services.anotacao_outros import impressao_da_base
+    return impressao_da_base(orcamento_rows)
+
+
+def _preparo_da_base(orcamento_rows, req_proj, convencao_postes):
+    try:
+        chave = (_impressao_da_base(orcamento_rows), req_proj, json.dumps(convencao_postes, sort_keys=True, default=str))
+    except TypeError:
+        chave = None
+    if chave is not None:
+        with _trava_preparo:
+            achado = _CACHE_PREPARO.get(chave)
+        if achado is not None:
+            return achado
+    compostos = compostos_do_projeto(orcamento_rows, req_proj)          # TASK-110: N1C:=N1(C) + 2*N2(C)
+    _param = compostos_parametrizados(orcamento_rows, req_proj)         # TASK-134: CF(cabo,cabo2):=… e CHAVE_FACA(cabo=%S04%):=…
+    ctx_outros = contexto_da_base(orcamento_rows, req_proj, convencao_postes)          # TASK-081: apelidos, postes e assinaturas (antes de normalizar a base)
+    linhas, assinaturas, grupos_param = _preparar_parametros(orcamento_rows, req_proj)
+    preparo = (compostos, _param, ctx_outros, linhas, assinaturas, grupos_param)
+    if chave is not None:
+        with _trava_preparo:
+            if len(_CACHE_PREPARO) >= _CACHE_PREPARO_MAX:
+                _CACHE_PREPARO.pop(next(iter(_CACHE_PREPARO)))
+            _CACHE_PREPARO[chave] = preparo
+    return preparo
+
+
+def limpar_cache_preparo():
+    with _trava_preparo:
+        _CACHE_PREPARO.clear()
+
+
 def processar_calculo(req_cabos: list, req_outros: list, req_projeto: str, orcamento_rows: list, obra=None, convencao_postes=None, perfil_exportacao=None) -> dict:
     req_proj = (req_projeto or "").strip().upper()
     valores_obra = montar_obra(obra, req_proj, perfil_exportacao)                          # TASK-165: OBRA.MUNICIPIO/BAIRRO/UTD/UTEP/REGIAO/CONTEXTO ({} quando a obra não tem nada)
-    compostos = compostos_do_projeto(orcamento_rows, req_proj)          # TASK-110: N1C:=N1(C) + 2*N2(C)
-    _param = compostos_parametrizados(orcamento_rows, req_proj)         # TASK-134: CF(cabo,cabo2):=… e CHAVE_FACA(cabo=%S04%):=…
+    compostos, _param, ctx_outros, orcamento_rows, assinaturas, grupos_param = _preparo_da_base(orcamento_rows, req_proj, convencao_postes)
     compostos_formais, compostos_de_grupo = _param["formais"], _param["grupos"]
-    ctx_outros = contexto_da_base(orcamento_rows, req_proj, convencao_postes)          # TASK-081: apelidos, postes e assinaturas (antes de normalizar a base)
-    orcamento_rows, assinaturas, grupos_param = _preparar_parametros(orcamento_rows, req_proj)
     avisos = []
 
     # ── 1. Índice ATIVO → linhas do orçamento (O(1) lookup com Fallback de Projeto) ──

@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-26 — Montar Orçamento rápido e avisos sem vinculação
+
+O Montar Orçamento demorava ~2–3 s mesmo com uma linha: cada `processar_calculo` refazia a preparação da base inteira (contexto, parâmetros, compostos; ≈1 s em ~4 mil linhas) e o clique calculava 3 vezes (validação de cabos e de outros + Resultado). Agora `contexto_da_base` e a preparação ficam em cache pela impressão digital do conteúdo da base (+ projeto + convenção de postes) e o servidor prepara cada projeto ao iniciar: clique → Resultado ≈0,2 s. Os avisos do Montar Orçamento ficam só com erro, ativo não encontrado (C1-BASE) e parâmetros (C1-PARAM); os achados de vinculação saíram da validação. [TASK-250](tasks/TASK-250-26-11-2026.md).
+
 ## 2026-11-25 — Plugin 0.16.6: Abrir no OrçaCore sem travar o nanoCAD
 
 A conversa do plugin com o OrçaCore deste computador (Abrir no OrçaCore) saiu da thread do nanoCAD; chamadas a 127.0.0.1 sem proxy e sem keep-alive; tempos no log do plugin e passos da janela no log do OrçaCore (`services/janela_desktop.py`). [TASK-039 do plugin](../plugin_nanocad/.ai/tasks/TASK-039-25-11-2026.md).

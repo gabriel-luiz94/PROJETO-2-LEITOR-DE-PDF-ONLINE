@@ -230,8 +230,36 @@ def _fmt(q) -> str:
     return str(int(q)) if float(q).is_integer() else str(q)
 
 
+_CACHE_CONTEXTO = {}
+_trava_contexto = __import__("threading").Lock()
+
+
+def impressao_da_base(linhas) -> int:
+    """TASK-250: impressão digital do CONTEÚDO da base (qualquer linha alterada/incluída/excluída muda o número; ~20 ms em 4 mil linhas)."""
+    return hash(tuple(tuple(sorted((k, v if not isinstance(v, (list, dict)) else repr(v)) for k, v in r.items())) for r in linhas or []))
+
+
 def contexto_da_base(linhas, projeto, convencao_postes=None) -> dict:
-    """Contexto da base do projeto para interpretar_linha: apelidos, nomes oficiais, postes e assinaturas dos parâmetros."""
+    """Contexto da base do projeto para interpretar_linha: apelidos, nomes oficiais, postes e assinaturas dos parâmetros.
+    TASK-250: em cache pela impressão digital da base + projeto + convenção de postes (antes ≈0,5 s a cada chamada). O contexto é só lido."""
+    import json
+    try:
+        chave = (impressao_da_base(linhas), str(projeto or "").strip().upper(), json.dumps(convencao_postes, sort_keys=True, default=str))
+    except TypeError:
+        return _contexto_da_base(linhas, projeto, convencao_postes)
+    with _trava_contexto:
+        achado = _CACHE_CONTEXTO.get(chave)
+    if achado is not None:
+        return achado
+    ctx = _contexto_da_base(linhas, projeto, convencao_postes)
+    with _trava_contexto:
+        if len(_CACHE_CONTEXTO) >= 8:
+            _CACHE_CONTEXTO.pop(next(iter(_CACHE_CONTEXTO)))
+        _CACHE_CONTEXTO[chave] = ctx
+    return ctx
+
+
+def _contexto_da_base(linhas, projeto, convencao_postes=None) -> dict:
     p = str(projeto or "").strip().upper()
     nomes, postes = set(), set()
     for l in linhas or []:
