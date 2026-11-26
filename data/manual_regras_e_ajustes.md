@@ -1210,3 +1210,8 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 - A partir do plugin **0.16.6**, **Abrir no OrçaCore** salva o projeto e manda para o OrçaCore em segundo plano: o nanoCAD continua respondendo e a linha de comando avisa quando o OrçaCore recebeu (ou o que deu errado).
 - As conversas com o OrçaCore deste computador não passam mais pelo proxy do Windows.
 - Se ainda travar, mande o arquivo `%APPDATA%\OrcamentoNanoCAD\log.txt` e diga qual janela parou de responder (a do nanoCAD ou a do OrçaCore).
+
+## Montar Orçamento rápido e avisos (26/11/2026)
+
+- O **Montar Orçamento** ficou praticamente instantâneo: o programa guarda a preparação da base de orçamento e só a refaz quando a base muda. Ao abrir o programa ele já deixa tudo pronto em segundo plano.
+- Antes de calcular, só aparecem os avisos que importam para o orçamento: **erros**, **ativo não encontrado na base** e **parâmetro não preenchido** (ou inválido). Os avisos de **vinculação** (cabo × estrutura) não aparecem mais — a vinculação é conferida no **Mapa**.

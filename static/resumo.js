@@ -3283,13 +3283,6 @@ document.addEventListener('DOMContentLoaded', () => {
      * TASK-032). Achados no mesmo formato de /api/validacao/planilhas, para aparecerem juntos no
      * modal de Validação — sem round-trip ao backend, já que o vínculo só existe no frontend.
      */
-    function avaliarVinculacaoLocal() {
-        // TASK-084: usa a Tabela de Cabos + Tabela de Estruturas do projeto (a mesma lógica do modal e do modo autônomo)
-        const cfg = window.__vinculacaoConfig;
-        if (!cfg || typeof VinculacaoRegras === 'undefined') return [];
-        return VinculacaoRegras.achados(tableStates.cabos.data, tableStates.outros.data, cfg, _prefixoCaboVinculo, _codigoEstruturaVinculo, _codigosEstruturaVinculo);
-    }
-
     /* ═══════════════════════════════════════
        TOAST
     ═══════════════════════════════════════ */
@@ -5714,10 +5707,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 if (!resp.ok) throw new Error(await lerDetalhe(resp));
                 achados = (await resp.json()).achados;
-                // TASK-033: achados de vinculação cabo<->estrutura (TASK-032) — só existem no
-                // frontend (o vínculo nunca vai ao backend), por isso são calculados aqui e
-                // concatenados, em vez de vir de /api/validacao/planilhas.
-                achados = achados.concat(avaliarVinculacaoLocal());
+                // TASK-250: os achados de vinculação cabo↔estrutura (TASK-033) saíram dos avisos — a vinculação é conferida no Mapa.
             } catch (e) {
                 return { achados: [], ia: null, modos, falhou: `Não foi possível validar (${e.message}).` };
             }
@@ -5953,9 +5943,12 @@ document.addEventListener('DOMContentLoaded', () => {
      * Orçamento (TASK-051) — independente da preferência "Validar ao montar orçamento", que
      * continua controlando só a validação completa (regras de domínio/IA) em `validarAntesDeMontar`.
      * "Bloqueia mas permite continuar mesmo assim": reaproveita o mesmo painel/fluxo de sempre. */
+    /** TASK-250: no Montar Orçamento só param o cálculo os ERROS, o ativo não encontrado (C1-BASE) e os parâmetros (C1-PARAM). */
+    const ACHADO_QUE_PARA_O_ORCAMENTO = a => a.severidade === 'erro' || a.regra_id === 'C1-BASE' || a.regra_id === 'C1-PARAM';
     async function checarInconsistenciasBasicas() {
         const res = await executarValidacao(true);
         if (res.nada || res.falhou) return true;   // validação indisponível: não trava a ação
+        res.achados = res.achados.filter(ACHADO_QUE_PARA_O_ORCAMENTO);
         if (!res.achados.some(a => a.severidade === 'erro' || a.severidade === 'aviso')) return true;
         const escolha = await cicloValidacao(res, true);
         return escolha === 'continuar';
