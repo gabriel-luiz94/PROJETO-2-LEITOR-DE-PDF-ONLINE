@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-26 — Cabos: notação com seção AWG (`3xA1/0(1/0)+1/0`)
+
+`services/anotacao_cabos.py` e `static/anotacao_cabos.js`: o `+N` do condutor extra aceita seção AWG fracionária (`+1/0`, `+4/0`) e o neutro/extra AWG (`(1/0)`, `+1/0`) mapeia para a mesma família do cabo (`A1/0` → `A1/0`, `A4/0` → `A4/0`); em cabo que não é AWG, o valor segue literal. Sem regressão em `3xC16(16)+16`, `3xA35P(7,94)` e `+20kV`. [TASK-251](tasks/TASK-251-26-11-2026.md).
+
 ## 2026-11-26 — Montar Orçamento rápido e avisos sem vinculação
 
 O Montar Orçamento demorava ~2–3 s mesmo com uma linha: cada `processar_calculo` refazia a preparação da base inteira (contexto, parâmetros, compostos; ≈1 s em ~4 mil linhas) e o clique calculava 3 vezes (validação de cabos e de outros + Resultado). Agora `contexto_da_base` e a preparação ficam em cache pela impressão digital do conteúdo da base (+ projeto + convenção de postes) e o servidor prepara cada projeto ao iniciar: clique → Resultado ≈0,2 s. Os avisos do Montar Orçamento ficam só com erro, ativo não encontrado (C1-BASE) e parâmetros (C1-PARAM); os achados de vinculação saíram da validação. [TASK-250](tasks/TASK-250-26-11-2026.md).

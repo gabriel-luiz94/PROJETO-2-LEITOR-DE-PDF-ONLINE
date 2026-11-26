@@ -106,7 +106,7 @@ console.log(JSON.stringify(t.map(x => [A.ehNotacao(x), A.interpretar(x), A.fases
 def test_paridade_python_js_do_modulo():
     rnd = random.Random(83)
     pecas = ["3x", "1X", "2x", "C ", "", "A35P", "C16", "S1/0", "RAMA25", "PB35", "W2,25", "(7,94)", "(16)", "(S04)", "[C16]", "-13,8kV", "-13.8KV", "+20kV", "-7,9kV",
-             " 45 m", " 45m", " 45M", " 12,5", " 8", "16", "x", "(", ")", " ﻿", " ", "  "]
+             "A1/0", "(1/0)", "+1/0", "(4/0)", "+4/0", "A4/0", " 45 m", " 45m", " 45M", " 12,5", " 8", "16", "x", "(", ")", " ﻿", " ", "  "]
     textos = LINHAS + ["".join(rnd.choice(pecas) for _ in range(rnd.randint(1, 5))) for _ in range(600)]
     r = subprocess.run([NODE, "-e", _JS % {"ac": json.dumps(os.path.join(config.STATIC_DIR, "anotacao_cabos.js"))}], input=json.dumps(textos),
                        capture_output=True, text=True, timeout=60)
@@ -282,6 +282,17 @@ def test_condutor_extra_depois_do_neutro():
     assert itens("3xC35(35)+35 29 m")[0] == [("C35", 3, 29.0, False), ("C35", 1, 29.0, True), ("C35", 1, 29.0, True)]
     assert itens("3xC16(16) 35 m")[0] == [("C16", 3, 35.0, False), ("C16", 1, 35.0, True)]                              # sem o "+16": como sempre
     assert itens("C 3x1x95(95)+20kV 60 m") == ([("C3X1X95(95)", 1, 60.0, False)], "20", [])                                # "+20kV" continua sendo a tensão
+
+
+# ── TASK-251: seção AWG (1/0, 4/0) no neutro e no condutor extra ──
+def test_secao_awg_no_neutro_e_no_extra():
+    a10 = [("A1/0", 3, 45.0, False), ("A1/0", 1, 45.0, True), ("A1/0", 1, 45.0, True)]
+    assert itens("3xA1/0(1/0)+1/0 45 m") == (a10, None, [])
+    assert itens("3xA4/0(4/0) 30 m")[0] == [("A4/0", 3, 30.0, False), ("A4/0", 1, 30.0, True)]
+    assert itens("3xA1/0+1/0 45 m")[0] == a10[:2]
+    assert itens("3xC16(1/0) 5 m")[0][1] == ("1/0", 1, 5.0, True)                          # cabo que não é AWG: valor literal
+    assert itens("3xC16(16)+16 20 m")[0] == [("C16", 3, 20.0, False), ("C16", 1, 20.0, True), ("C16", 1, 20.0, True)]
+    assert itens("3xA35P(7,94)-13,8kV 45 m")[1] == "13,8"
 
 
 def test_totalizadora_divide_o_cabo_com_condutor_extra_em_5_ativos():

@@ -7,7 +7,7 @@ e o vínculo:
 
     [Nx]CODIGO[(neutro)][-TENSÃOkV] COMPRIMENTO [m]
     * Nx = fases (1x implícito); a tensão é ignorada (mas guardada: com tensão = rede de média, sem = baixa).
-    * "+N" depois do neutro (sem kV), ex.: 3xC16(16)+16 = mais um condutor da mesma família com a seção N (3 fases + neutro + 1 = 5 ativos); "+20kV" continua sendo a tensão;
+    * "+N" (N decimal ou AWG fracionário, ex.: +1/0) depois do neutro (sem kV), ex.: 3xC16(16)+16 = mais um condutor da mesma família com a seção N (3 fases + neutro + 1 = 5 ativos); "+20kV" continua sendo a tensão;
     * neutro entre parênteses: com vírgula (7,94) → CAZ7,94; numérico (16) → mesma família do cabo com a seção do parêntese
       (C16(16) → C16; S50P(35) → S35P); (S04) → o próprio cabo S04. Vira um item à parte (qtd 1, mesmo comprimento).
     * (S04) / [C16] soltos = cabo de neutro próprio; "16" sozinho = C16; RAMA25/PB35 = 1xRAMA25 / 1xPB35;
@@ -28,10 +28,11 @@ _A = re.ASCII
 _RE_SEPARA = re.compile(r"^(.*[^" + _WS + r"])" + _S + r"+([0-9]+(?:[.,][0-9]+)?)" + _S + r"*[mM]?\Z", _A | re.S)
 _RE_TENSAO = re.compile(_S + r"*[-+]" + _S + r"*([0-9]+(?:[.,][0-9]+)?)" + _S + r"*KV" + _S + r"*\Z", _A | re.I)
 _RE_SOLTO = re.compile(r"^[(\[]" + _S + r"*([A-Z][A-Za-z0-9_]*)" + _S + r"*[)\]]\Z", _A)
-_RE_EXTRA = re.compile(r"^(.*[^" + _WS + r"])" + _S + r"*\+" + _S + r"*([0-9]+(?:[.,][0-9]+)?)\Z", _A | re.S)          # "3xC16(16)+16": o "+16" é mais um condutor da mesma família
+_RE_EXTRA = re.compile(r"^(.*[^" + _WS + r"])" + _S + r"*\+" + _S + r"*([0-9]+(?:[.,][0-9]+)?(?:/[0-9]+)?)\Z", _A | re.S)          # "3xC16(16)+16": o "+16" é mais um condutor da mesma família
 _RE_POTENCIA = re.compile(r"^C" + _S + r"*[0-9][xX]", _A)
 _RE_CODIGO = re.compile(r"^(?:([0-9])[xX])?([A-Z]{0,4}[0-9][0-9A-Z/,.]*)(?:\(([^)]*)\))?\Z", _A)
 _RE_SECAO = re.compile(r"^([A-Z]*)([0-9]+)([A-Z]*)\Z", _A)
+_RE_SECAO_AWG = re.compile(r"^([A-Z]*)([0-9]+/[0-9]+)([A-Z]*)\Z", _A)               # TASK-251: A1/0, A4/0
 _RE_CURTO = re.compile(r"^(?:RAMA|PB)[0-9]+\Z", _A)
 _RE_NUMERO_SOZINHO = re.compile(r"^[0-9]{2,3}\Z", _A)
 _RE_MARCA = re.compile(r"^[0-9][xX]|^C" + _S + r"*[0-9][xX]|[(\[]|KV", _A | re.I)
@@ -91,6 +92,9 @@ def _neutro_de(codigo: str, valor: str, dic=None):
     if re.fullmatch(r"[0-9]+", v, _A):
         m = _RE_SECAO.match(codigo)
         return f"{m.group(1)}{v}{m.group(3)}" if m else codigo
+    if re.fullmatch(r"[0-9]+/[0-9]+", v, _A):                  # TASK-251: seção AWG (1/0, 4/0) → mesma família do cabo (A1/0(1/0) → A1/0); cabo que não é AWG: valor literal
+        m = _RE_SECAO_AWG.match(codigo)
+        return f"{m.group(1)}{v}{m.group(3)}" if m else v
     return v
 
 
