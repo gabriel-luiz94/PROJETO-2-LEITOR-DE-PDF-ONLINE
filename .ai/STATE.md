@@ -85,6 +85,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-251](tasks/TASK-251-26-11-2026.md) — Cabos: `3xA1/0(1/0)+1/0` aceito (neutro e condutor extra AWG na mesma família do cabo).
 - [x] [TASK-250](tasks/TASK-250-26-11-2026.md) — Montar Orçamento rápido (preparação da base em cache; ≈0,2 s) e avisos só de erro, ativo não encontrado e parâmetro (sem vinculação).
 - [x] Plugin 0.16.5/0.16.6 — nanoCAD 5: Salvar/Abrir no OrçaCore sem o «API Logger» (`get_CommandInProgress`); nanoCAD 26: Abrir no OrçaCore em segundo plano, chamadas locais sem proxy ([TASK-039 do plugin](../plugin_nanocad/.ai/tasks/TASK-039-25-11-2026.md)). Aguardando teste nos dois nanoCAD.
 - [x] [TASK-249](tasks/TASK-249-24-11-2026.md) — Mapa: parâmetros dos ativos/estruturas das linhas do ponto pelo balão das tabelas (Ctrl+Enter, duplo clique, mouse parado).

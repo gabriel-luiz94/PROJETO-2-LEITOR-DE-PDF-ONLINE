@@ -1215,3 +1215,8 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 
 - O **Montar Orçamento** ficou praticamente instantâneo: o programa guarda a preparação da base de orçamento e só a refaz quando a base muda. Ao abrir o programa ele já deixa tudo pronto em segundo plano.
 - Antes de calcular, só aparecem os avisos que importam para o orçamento: **erros**, **ativo não encontrado na base** e **parâmetro não preenchido** (ou inválido). Os avisos de **vinculação** (cabo × estrutura) não aparecem mais — a vinculação é conferida no **Mapa**.
+
+## Cabos: seção AWG na notação (26/11/2026)
+
+- Rótulos como **3xA1/0(1/0)+1/0 45 m** são aceitos na tabela Cabos: 3 fases A1/0, neutro A1/0 e mais um condutor A1/0, todos com 45 m. Também **3xA4/0(4/0) 30 m**.
+- O neutro ou condutor extra em AWG (`(1/0)`, `+1/0`) usa a mesma família do cabo. Notações antigas (`3xC16(16)+16`, `3xA35P(7,94)-13,8kV`, `+20kV`) não mudam.

@@ -12,10 +12,11 @@
     const RE_SEPARA = /^(.*\S)\s+(\d+(?:[.,]\d+)?)\s*[mM]?$/;
     const RE_TENSAO = /\s*[-+]\s*(\d+(?:[.,]\d+)?)\s*KV\s*$/i;      // 13,8kV ou 13.8KV
     const RE_SOLTO = /^[(\[]\s*([A-Z]\w*)\s*[)\]]$/;
-    const RE_EXTRA = /^(.*\S)\s*\+\s*(\d+(?:[.,]\d+)?)$/;          // "3xC16(16)+16": o "+16" é mais um condutor da mesma família (sem kV: com kV é a tensão)
+    const RE_EXTRA = /^(.*\S)\s*\+\s*(\d+(?:[.,]\d+)?(?:\/\d+)?)$/;          // "3xC16(16)+16": o "+16" é mais um condutor da mesma família (sem kV: com kV é a tensão)
     const RE_POTENCIA = /^C\s*\d[xX]/;
     const RE_CODIGO = /^(?:(\d)[xX])?([A-Z]{0,4}\d[\dA-Z/,.]*)(?:\(([^)]*)\))?$/;
     const RE_SECAO = /^([A-Z]*)(\d+)([A-Z]*)$/;
+    const RE_SECAO_AWG = /^([A-Z]*)(\d+\/\d+)([A-Z]*)$/;               // TASK-251: A1/0, A4/0
     const RE_CURTO = /^(?:RAMA|PB)\d+$/;
     const RE_NUMERO_SOZINHO = /^\d{2,3}$/;
     const RE_MARCA = /^\d[xX]|^C\s*\d[xX]|[(\[]|KV/i;
@@ -53,6 +54,10 @@
         if (/^\d+$/.test(v)) {
             const m = codigo.match(RE_SECAO);
             return m ? `${m[1]}${v}${m[3]}` : codigo;
+        }
+        if (/^\d+\/\d+$/.test(v)) {                                   // TASK-251: seção AWG → mesma família do cabo; cabo que não é AWG: valor literal
+            const m = codigo.match(RE_SECAO_AWG);
+            return m ? `${m[1]}${v}${m[3]}` : v;
         }
         return v;
     }
