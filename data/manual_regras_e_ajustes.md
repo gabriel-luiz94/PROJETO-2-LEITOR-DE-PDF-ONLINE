@@ -1223,4 +1223,4 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 
 ## Removendo: verde, laranja e vermelho (26/11/2026)
 
-- Com **Colorir ativos por parâmetros** ligado, as linhas **R** e ***R** mostram: **verde** = parâmetros ok; **laranja** = falta um parâmetro que decide qual material ou mão de obra é removido; **vermelho** = o ativo não está cadastrado na base. Passe o mouse para ver quais parâmetros faltam. Substitui o azul da versão anterior.
+- Com **Colorir ativos por parâmetros** ligado, as linhas **R** e ***R** mostram: **verde** = parâmetros ok; **laranja** = falta (ou é inválido) um parâmetro que realmente muda o que é removido (ex.: o trafo de `AVULSO_TRAFO`); parâmetros que só mudam a instalação (como em `N3` removendo) não deixam a linha laranja; **vermelho** = o ativo não está cadastrado na base. Passe o mouse para ver quais parâmetros faltam. Substitui o azul da versão anterior.

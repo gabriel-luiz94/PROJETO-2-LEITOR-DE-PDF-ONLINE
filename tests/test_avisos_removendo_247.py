@@ -54,7 +54,7 @@ def test_cores_do_removendo_verde_laranja_vermelho():       # TASK-253 (antes, T
     corpo = js[js.index("function aplicarCoresParametros()"):js.index("function agendarCoresAposDesenhar()")]
     assert "['R', '*R'].includes" in corpo and "const removendo" in corpo
     assert "if (removendo) r = _estadoDaRemocao(sts, c.assin)" in corpo and "par-nao-base" in corpo
-    assert "function _paramDeterminante(sig, nome)" in js and "par-determinante" not in js
+    assert "function _paramDeterminante(ativoBase, nome)" in js and "fator_r" in js[js.index("function _paramsDaRemocao"):] and "par-determinante" not in js
 
 
 @pytest.mark.skipif(not NODE, reason="node indisponível")

@@ -3448,18 +3448,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const sem = AnotacaoOutros.interpretarLinha(row.ativo, row.operacao || 'I', _classicoTotalizadora, ctxBase);
         return sem.erros.length ? [] : sem.itens.map(i => i.ativo);
     }
-    /** TASK-253: o parâmetro escolhe entre itens diferentes da base (valores/máscaras de variantes) = decide o material ou a mão de obra removidos. Parâmetro só de fórmula de fator (livre) não. */
-    function _paramDeterminante(sig, nome) {
-        const n = ((sig && sig.nomes) || []).find(x => AtivoParametros.nomeTela(x).toLowerCase() === nome);
-        if (!n) return false;
-        const v = (sig.valores && sig.valores[n]) || [], m = sig.mascaras && sig.mascaras[n];
-        return v.length >= 2 || (Array.isArray(m) ? m.length > 0 : !!m && Object.keys(m).length > 0);
+    /** TASK-253: o parâmetro MUDA a remoção? Só se alguma linha da base restrita por ele tem retirada (fator R ≠ 0 ou fórmula R) E há mais de um valor/máscara
+     *  entre essas linhas. Parâmetro que só escolhe itens de INSTALAÇÃO (fator R = 0) ou só entra na fórmula de quantidade não muda o que sai. */
+    let _cacheRemocao = null;
+    function _paramsDaRemocao(ativoBase) {
+        const proj = localStorage.getItem('projeto_selecionado') || '';
+        if (!_cacheRemocao || _cacheRemocao.base !== orcamentoBaseData || _cacheRemocao.n !== orcamentoBaseData.length || _cacheRemocao.proj !== proj) _cacheRemocao = { base: orcamentoBaseData, n: orcamentoBaseData.length, proj, por: {} };
+        if (_cacheRemocao.por[ativoBase]) return _cacheRemocao.por[ativoBase];
+        const P = proj.trim().toUpperCase(), valores = {};                                  // {PARAM: Set de restrições das linhas com retirada}
+        orcamentoBaseData.forEach(l => {
+            const lp = String(l.projeto || '').trim().toUpperCase();
+            if (lp && P && !lp.split('/').map(x => x.trim()).includes(P)) return;
+            if (!(Number(l.fator_r) || 0) && !String(l.formula_r || '').trim()) return;     // sem retirada nesta linha
+            const cel = String(l.ativo || '').trim();
+            if (!cel || cel.indexOf('(') < 0) return;
+            const a = AtivoParametros.analisarCelulaBase(cel);
+            if (a.erro || a.base !== ativoBase || a.tipo === 'composto') return;
+            (a.params || []).forEach(q => { if (q.valor !== null && q.valor !== undefined) (valores[AtivoParametros.nomeTela(q.nome).toLowerCase()] || (valores[AtivoParametros.nomeTela(q.nome).toLowerCase()] = new Set())).add(q.op + String(q.valor).toUpperCase()); });
+        });
+        const det = new Set(Object.keys(valores).filter(n => valores[n].size >= 2));
+        return (_cacheRemocao.por[ativoBase] = det);
     }
+    function _paramDeterminante(ativoBase, nome) { return _paramsDaRemocao(ativoBase).has(nome); }
     /** Cor de uma linha removendo (R, *R): verde = parâmetros ok; laranja = falta/inválido um parâmetro que decide material/mão de obra; sem parâmetros = sem cor. */
     function _estadoDaRemocao(sts, assin) {
         const l = (sts || []).filter(Boolean);
         if (!l.length) return '';
-        return l.some(s => s.params.some(p => (p.falta || p.invalido) && _paramDeterminante(assin[s.ativo], p.nome))) ? 'par-falta' : 'par-ok';
+        return l.some(s => s.params.some(p => (p.falta || p.invalido) && _paramDeterminante(s.ativo, p.nome))) ? 'par-falta' : 'par-ok';
     }
     /** Pinta o ativo das linhas de Outros e Cabos (só com a opção ligada; desligada, tira as cores): Outros → verde/laranja pelos parâmetros; vermelho = o ativo não existe na base (Cabos e Outros).
      *  Linha congelada nunca é pintada. Removendo (R, *R): verde = ok; laranja = falta parâmetro que decide material/mão de obra; vermelho = fora da base (TASK-253). */
