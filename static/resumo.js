@@ -3448,13 +3448,41 @@ document.addEventListener('DOMContentLoaded', () => {
         const sem = AnotacaoOutros.interpretarLinha(row.ativo, row.operacao || 'I', _classicoTotalizadora, ctxBase);
         return sem.erros.length ? [] : sem.itens.map(i => i.ativo);
     }
+    /** TASK-253: o parâmetro MUDA a remoção? Só se alguma linha da base restrita por ele tem retirada (fator R ≠ 0 ou fórmula R) E há mais de um valor/máscara
+     *  entre essas linhas. Parâmetro que só escolhe itens de INSTALAÇÃO (fator R = 0) ou só entra na fórmula de quantidade não muda o que sai. */
+    let _cacheRemocao = null;
+    function _paramsDaRemocao(ativoBase) {
+        const proj = localStorage.getItem('projeto_selecionado') || '';
+        if (!_cacheRemocao || _cacheRemocao.base !== orcamentoBaseData || _cacheRemocao.n !== orcamentoBaseData.length || _cacheRemocao.proj !== proj) _cacheRemocao = { base: orcamentoBaseData, n: orcamentoBaseData.length, proj, por: {} };
+        if (_cacheRemocao.por[ativoBase]) return _cacheRemocao.por[ativoBase];
+        const P = proj.trim().toUpperCase(), valores = {};                                  // {PARAM: Set de restrições das linhas com retirada}
+        orcamentoBaseData.forEach(l => {
+            const lp = String(l.projeto || '').trim().toUpperCase();
+            if (lp && P && !lp.split('/').map(x => x.trim()).includes(P)) return;
+            if (!(Number(l.fator_r) || 0) && !String(l.formula_r || '').trim()) return;     // sem retirada nesta linha
+            const cel = String(l.ativo || '').trim();
+            if (!cel || cel.indexOf('(') < 0) return;
+            const a = AtivoParametros.analisarCelulaBase(cel);
+            if (a.erro || a.base !== ativoBase || a.tipo === 'composto') return;
+            (a.params || []).forEach(q => { if (q.valor !== null && q.valor !== undefined) (valores[AtivoParametros.nomeTela(q.nome).toLowerCase()] || (valores[AtivoParametros.nomeTela(q.nome).toLowerCase()] = new Set())).add(q.op + String(q.valor).toUpperCase()); });
+        });
+        const det = new Set(Object.keys(valores).filter(n => valores[n].size >= 2));
+        return (_cacheRemocao.por[ativoBase] = det);
+    }
+    function _paramDeterminante(ativoBase, nome) { return _paramsDaRemocao(ativoBase).has(nome); }
+    /** Cor de uma linha removendo (R, *R): verde = parâmetros ok; laranja = falta/inválido um parâmetro que decide material/mão de obra; sem parâmetros = sem cor. */
+    function _estadoDaRemocao(sts, assin) {
+        const l = (sts || []).filter(Boolean);
+        if (!l.length) return '';
+        return l.some(s => s.params.some(p => (p.falta || p.invalido) && _paramDeterminante(s.ativo, p.nome))) ? 'par-falta' : 'par-ok';
+    }
     /** Pinta o ativo das linhas de Outros e Cabos (só com a opção ligada; desligada, tira as cores): Outros → verde/laranja pelos parâmetros; vermelho = o ativo não existe na base (Cabos e Outros).
-     *  Linha congelada nunca é pintada. Removendo (R, *R): só vermelho (fora da base) e azul (parâmetro determinante do item removido) — TASK-252. */
+     *  Linha congelada nunca é pintada. Removendo (R, *R): verde = ok; laranja = falta parâmetro que decide material/mão de obra; vermelho = fora da base (TASK-253). */
     function aplicarCoresParametros() {
         const inputs = document.querySelectorAll('#table-outros .inp-ativo, #table-cabos .inp-ativo');
         const ligada = corParametrosLigada();
         document.body.classList.toggle('colorir-parametros', ligada);
-        const limpar = i => { i.classList.remove('par-ok', 'par-falta', 'par-nao-base', 'par-determinante'); if (i.dataset.titNaoBase) { i.title = i.dataset.titNaoBase === '-' ? '' : i.dataset.titNaoBase; delete i.dataset.titNaoBase; } };
+        const limpar = i => { i.classList.remove('par-ok', 'par-falta', 'par-nao-base'); if (i.dataset.titNaoBase) { i.title = i.dataset.titNaoBase === '-' ? '' : i.dataset.titNaoBase; delete i.dataset.titNaoBase; } };
         if (!ligada) { inputs.forEach(limpar); return; }
         let c;
         try { c = _contextoParametros(); } catch (e) { return; }                       // base ainda carregando: pinta quando chegar
@@ -3468,7 +3496,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const idx = Number(inp.dataset.parIdx), row = tableStates[tipo].data[idx];
             limpar(inp);
             if (!row || row.congelada) return;
-            const removendo = ['R', '*R'].includes(String(row.operacao || '').trim().toUpperCase());          // TASK-252: removendo só destaca o ativo fora da base e o parâmetro determinante (sem verde/laranja)
+            const removendo = ['R', '*R'].includes(String(row.operacao || '').trim().toUpperCase());          // TASK-253: removendo: vermelho (fora da base); verde/laranja só pelo parâmetro que decide material/mão de obra
             const chave = tipo + '|' + row.ativo + '|' + (row.operacao || '') + '|' + (tipo === 'outros' ? JSON.stringify(pv[idx] || 0) + '|' + JSON.stringify(dv[idx] || 0) : '');
             let r = _cacheCores.m.get(chave);
             if (r === undefined) {
@@ -3480,7 +3508,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (!r && tipo === 'outros') {
                     const sts = _statusParametrosDaLinha(row, pv[idx], c.assin, c.ctx, c.obra, dv[idx]);
-                    if (removendo) r = sts.some(Boolean) ? 'par-determinante' : '';              // o ativo tem parâmetro: ele decide QUAL item sai
+                    if (removendo) r = _estadoDaRemocao(sts, c.assin);
                     else { const estado = AtivoStatus.estadoDaLinha(sts); r = estado === 'ok' ? 'par-ok' : (estado === 'falta' ? 'par-falta' : ''); }
                 }
                 _cacheCores.m.set(chave, r);
