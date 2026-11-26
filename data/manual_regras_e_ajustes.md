@@ -1220,3 +1220,8 @@ O mapa coloca cada ponto na coordenada do desenho. Quando você **arrasta** um p
 
 - Rótulos como **3xA1/0(1/0)+1/0 45 m** são aceitos na tabela Cabos: 3 fases A1/0, neutro A1/0 e mais um condutor A1/0, todos com 45 m. Também **3xA4/0(4/0) 30 m**.
 - O neutro ou condutor extra em AWG (`(1/0)`, `+1/0`) usa a mesma família do cabo. Notações antigas (`3xC16(16)+16`, `3xA35P(7,94)-13,8kV`, `+20kV`) não mudam.
+
+
+## Removendo: azul para parâmetro determinante e vermelho para ativo fora da base (26/11/2026)
+
+- Com **Colorir ativos por parâmetros** ligado, as linhas **R** e ***R** agora mostram: **vermelho** se o ativo não existe na base; **azul** se o ativo tem parâmetros (eles decidem qual item será removido — passe o mouse para ver quais). Elas continuam sem verde/laranja e sem aviso de parâmetro faltando.

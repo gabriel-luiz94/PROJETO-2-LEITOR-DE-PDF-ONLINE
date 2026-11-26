@@ -3449,12 +3449,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return sem.erros.length ? [] : sem.itens.map(i => i.ativo);
     }
     /** Pinta o ativo das linhas de Outros e Cabos (só com a opção ligada; desligada, tira as cores): Outros → verde/laranja pelos parâmetros; vermelho = o ativo não existe na base (Cabos e Outros).
-     *  Linha congelada ou removendo (R, *R) nunca é pintada (TASK-247). */
+     *  Linha congelada nunca é pintada. Removendo (R, *R): só vermelho (fora da base) e azul (parâmetro determinante do item removido) — TASK-252. */
     function aplicarCoresParametros() {
         const inputs = document.querySelectorAll('#table-outros .inp-ativo, #table-cabos .inp-ativo');
         const ligada = corParametrosLigada();
         document.body.classList.toggle('colorir-parametros', ligada);
-        const limpar = i => { i.classList.remove('par-ok', 'par-falta', 'par-nao-base'); if (i.dataset.titNaoBase) { i.title = i.dataset.titNaoBase === '-' ? '' : i.dataset.titNaoBase; delete i.dataset.titNaoBase; } };
+        const limpar = i => { i.classList.remove('par-ok', 'par-falta', 'par-nao-base', 'par-determinante'); if (i.dataset.titNaoBase) { i.title = i.dataset.titNaoBase === '-' ? '' : i.dataset.titNaoBase; delete i.dataset.titNaoBase; } };
         if (!ligada) { inputs.forEach(limpar); return; }
         let c;
         try { c = _contextoParametros(); } catch (e) { return; }                       // base ainda carregando: pinta quando chegar
@@ -3467,7 +3467,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const tipo = inp.dataset.parTipo === 'cabos' ? 'cabos' : 'outros';
             const idx = Number(inp.dataset.parIdx), row = tableStates[tipo].data[idx];
             limpar(inp);
-            if (!row || row.congelada || ['R', '*R'].includes(String(row.operacao || '').trim().toUpperCase())) return;          // TASK-247: removendo não entra nas cores
+            if (!row || row.congelada) return;
+            const removendo = ['R', '*R'].includes(String(row.operacao || '').trim().toUpperCase());          // TASK-252: removendo só destaca o ativo fora da base e o parâmetro determinante (sem verde/laranja)
             const chave = tipo + '|' + row.ativo + '|' + (row.operacao || '') + '|' + (tipo === 'outros' ? JSON.stringify(pv[idx] || 0) + '|' + JSON.stringify(dv[idx] || 0) : '');
             let r = _cacheCores.m.get(chave);
             if (r === undefined) {
@@ -3478,8 +3479,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (fora.length) r = 'par-nao-base';
                 }
                 if (!r && tipo === 'outros') {
-                    const estado = AtivoStatus.estadoDaLinha(_statusParametrosDaLinha(row, pv[idx], c.assin, c.ctx, c.obra, dv[idx]));
-                    r = estado === 'ok' ? 'par-ok' : (estado === 'falta' ? 'par-falta' : '');
+                    const sts = _statusParametrosDaLinha(row, pv[idx], c.assin, c.ctx, c.obra, dv[idx]);
+                    if (removendo) r = sts.some(Boolean) ? 'par-determinante' : '';              // o ativo tem parâmetro: ele decide QUAL item sai
+                    else { const estado = AtivoStatus.estadoDaLinha(sts); r = estado === 'ok' ? 'par-ok' : (estado === 'falta' ? 'par-falta' : ''); }
                 }
                 _cacheCores.m.set(chave, r);
                 if (_cacheCores.m.size > 5000) _cacheCores.m.clear();
