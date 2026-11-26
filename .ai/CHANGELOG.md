@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-26 — Removendo: verde / laranja / vermelho
+
+Substitui o azul da TASK-252. Linhas R e *R no «Colorir ativos por parâmetros»: **verde** = parâmetros ok; **laranja** = falta (ou é inválido) um parâmetro que decide material ou mão de obra (o parâmetro escolhe entre itens diferentes da base: ≥ 2 valores de variante ou máscara; parâmetro só de fórmula de fator não conta); **vermelho** = ativo não cadastrado na base. Sem aviso/validação novos (TASK-247 mantida). [TASK-253](tasks/TASK-253-26-11-2026.md).
+
 ## 2026-11-26 — Removendo (R, *R): destaque de parâmetro determinante e de ativo fora da base
 
 No «Colorir ativos por parâmetros», as linhas removendo voltam a ser destacadas, mas só com duas marcas: **vermelho** (o ativo não existe na base — Cabos e Outros) e **azul** (`par-determinante`: o ativo removido tem parâmetro que decide QUAL item sai). Sem verde/laranja nelas (parâmetro faltando continua sem aviso em R/*R, TASK-247). [TASK-252](tasks/TASK-252-26-11-2026.md).
