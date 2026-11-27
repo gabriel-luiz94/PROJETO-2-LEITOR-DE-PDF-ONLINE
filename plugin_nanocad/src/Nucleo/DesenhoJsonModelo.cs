@@ -8,7 +8,7 @@ using System.Text;
 
 namespace OrcamentoNanoCAD.Nucleo
 {
-    public static class DesenhoJsonModelo
+    public static partial class DesenhoJsonModelo
     {
         private static readonly Dictionary<string, HashSet<int>> Geometria = new Dictionary<string, HashSet<int>>(StringComparer.OrdinalIgnoreCase)
         {

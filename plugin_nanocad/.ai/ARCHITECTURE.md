@@ -151,3 +151,7 @@ falha se o esperado versionado ficou velho — sinal de que o código da aplica�
 Na TASK-041, `ProxyNoComputador` inicia o OrçaCore local em modo conversor quando o registro do executável anuncia esse recurso. O conversor lê uma cópia DXF temporária e materializa a representação visual de proxies do Model Space. O JSON registra a quantidade convertida em `visualProxies`. Atualizar e substituir recusam essa representação porque ela altera os handles e perde os dados proprietários das entidades.
 
 Na TASK-042, `TelaInicio` dá acesso a `TelaIntercambio`. A tela seleciona um comando `ORC_` e fecha antes de `Visual.Executar` enfileirar a ação no nanoCAD. O menu e a linha de comando compartilham os mesmos pontos de entrada.
+
+
+## Sincronização incremental experimental
+`Nucleo/DesenhoJsonPatch.cs` planeja operações; `Plugin/ComandosPatch.cs` usa transação e backup. Não altera o contrato de orçamento.

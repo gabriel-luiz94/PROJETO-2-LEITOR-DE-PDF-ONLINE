@@ -129,3 +129,7 @@
 
 - ✅ Recuperar a geometria dos proxies ACAD_PROXY_ENTITY e SPDSNOTEPOSITION no Model Space quando o DXF inclui a representação gráfica.
 - 🟡 Conferir no nanoCAD 5 e 26 a criação de um DXF separado, a importação por acréscimo e as mensagens para proxies sem gráfico. Atualizar e substituir exigem geometria nativa.
+
+
+## Sincronização incremental — TASK-045
+- 🟡 Validar aplicação experimental de patches v1 com confirmação e backup no nanoCAD 5 e 26. A importação comum rejeita patches incrementais.

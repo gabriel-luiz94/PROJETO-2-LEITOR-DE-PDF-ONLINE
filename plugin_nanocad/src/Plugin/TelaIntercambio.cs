@@ -29,10 +29,11 @@ namespace OrcamentoNanoCAD.UI
             Adicionar(menu, 6, "Substituir Model Space", "ORC_SUBSTITUIR_DESENHO");
             Adicionar(menu, 7, "Verificar conversor local", "ORC_CONVERSOR_DXF");
             Adicionar(menu, 8, "Exibir ajuda", "ORC_AJUDA_DESENHO");
+            Adicionar(menu, 9, "Sincronizar alterações (experimental)", "ORC_SINCRONIZAR_JSON");
             var fechar = Visual.Botao("Fechar", (o, e) => Close());
             fechar.DialogResult = DialogResult.Cancel;
             CancelButton = fechar;
-            menu.Controls.Add(fechar, 0, 9);
+            menu.Controls.Add(fechar, 0, 10);
             Controls.Add(menu);
             Visual.Aplicar(this);
         }

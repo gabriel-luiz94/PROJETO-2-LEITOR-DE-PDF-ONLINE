@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.18.3
+
+TASK-045: `ORC_SINCRONIZAR_JSON` aplica alterações incrementais de forma experimental, com confirmação e backup. ✅ Compilado para nanoCAD 5 e 26. 🟡 Validar aplicação, exclusão e desfazer no nanoCAD real. [TASK-045](tasks/TASK-045-27-11-2026.md).
+
 ## Plugin 0.18.2
 
 TASK-044: JSON geométrico sem o campo `encoding` usa UTF-8. ✅ Regressão identificada no `export3.json` e coberta no núcleo. 🟡 Validar a importação do arquivo real no nanoCAD. [TASK-044](tasks/TASK-044-27-11-2026.md).
