@@ -34,20 +34,17 @@ namespace OrcamentoNanoCAD
                 if (plano.Novos.Count + plano.Modificados.Count + plano.Excluidos.Count == 0)
                 { Aplicacao.Msg("Nenhuma alteração."); return; }
                 if (!Confirmar(s.Doc.Editor, "Sincronização experimental: " + plano.Novos.Count + " novos, " +
-                    plano.Modificados.Count + " modificados, " + plano.Excluidos.Count + " excluídos?") ||
-                    !SalvarBackupDxf(destino)) return;
-                // Revalidar após o diálogo/backup antes de escrever.
-                plano = DesenhoJsonModelo.PlanejarPatch(CapturarDxf(destino), recebido);
+                    plano.Modificados.Count + " modificados, " + plano.Excluidos.Count + " excluídos?")) return;
+                // O comando modal mantém o contexto do documento da captura à transação.
                 string temp = CaminhoDxfTemporario();
                 try
                 {
                     // Reaplica os metadados validados depois que todas as entidades têm handle no destino.
-                    var fonteJson = (JObj)Json.Ler(Json.Escrever(recebido, false));
-                    var entidadesFonte = DesenhoJsonModelo.Entidades(fonteJson);
+                    var entidadesFonte = DesenhoJsonModelo.Entidades(recebido);
                     foreach (string h in plano.XDataNovos.Keys.Concat(plano.Modificados.Where(h =>
                         DesenhoJsonModelo.XDataObservacao(entidadesFonte[h]).Count > 0)))
                         entidadesFonte[h].Lista("tags").RemoveAll(o => Json.ComoNumero(((IList<object>)o)[0]) >= 1000);
-                    EscreverDxfNoArquivo(fonteJson, temp);
+                    EscreverDxfNoArquivo(recebido, temp);
                     using (var fonte = new Database(false, true))
                     {
                         AbrirDxfTemporario(fonte, temp);
@@ -62,6 +59,8 @@ namespace OrcamentoNanoCAD
                                 throw new InvalidDataException("O CAD alterou os handles da fonte incremental.");
                             foreach (string h in plano.Novos)
                                 if (dst.ContainsKey(h)) throw new InvalidDataException("Colisão de handle: " + h);
+                            foreach (string h in plano.Modificados.Concat(plano.Excluidos))
+                                if (!dst.ContainsKey(h)) throw new InvalidDataException("Entidade não encontrada no Model Space do DWG: " + h);
                             foreach (string h in plano.Modificados)
                                 AtualizarGeometria((Entity)escrita.GetObject(dst[h], OpenMode.ForWrite),
                                     (Entity)leitura.GetObject(src[h], OpenMode.ForRead));
@@ -134,6 +133,8 @@ namespace OrcamentoNanoCAD
                 }
                 else if (codigo == 1070)
                     valores.Add(new TypedValue(codigo, short.Parse(valor, CultureInfo.InvariantCulture)));
+                else if (codigo == 1005)
+                    valores.Add(new TypedValue(codigo, new Handle(long.Parse(valor, NumberStyles.HexNumber, CultureInfo.InvariantCulture))));
                 else valores.Add(new TypedValue(codigo, valor));
             }
             if (!entidade.IsWriteEnabled) entidade.UpgradeOpen();

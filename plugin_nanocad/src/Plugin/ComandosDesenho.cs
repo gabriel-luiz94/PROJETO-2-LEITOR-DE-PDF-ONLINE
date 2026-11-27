@@ -165,7 +165,7 @@ namespace OrcamentoNanoCAD
                 "  ORC_ABRIR_DXF  Abrir um DXF para conferência\n" +
                 "  ORC_ATUALIZAR_DESENHO  Atualizar a geometria existente com backup\n" +
                 "  ORC_SUBSTITUIR_DESENHO  Substituir o Model Space com backup\n" +
-                "  ORC_SINCRONIZAR_JSON  Aplicar alterações incrementais com backup\n" +
+                "  ORC_SINCRONIZAR_JSON  Aplicar alterações incrementais com confirmação\n" +
                 "  ORC_CONVERSOR_DXF  Verificar o conversor local");
         }
 
