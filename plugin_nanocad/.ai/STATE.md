@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.18.0
+
+TASK-041 adiciona conversão visual local de proxies, geração de DXF separado, abertura, status e ajuda do intercâmbio CADSuite. ✅ Builds 5/26 e teste do conversor com os dois tipos de proxy. 🟡 Validar o executável Windows empacotado, o carregamento das DLLs e o fluxo no CAD real. [TASK-041](tasks/TASK-041-27-11-2026.md).
+
 ## Plugin 0.17.0
 
 TASK-040: intercâmbio CADSuite Web no Model Space, com CSEXPORTAR, CSIMPORTAR, CSSUBSTITUIR e CSATUALIZAR. ✅ 159 testes do núcleo, verificação C# 5/.NET 4 e DLLs 5/26 com manifestos. 🟡 Validar no nanoCAD real, incluindo dependências, proxies e comportamento de transações. [TASK-040](tasks/TASK-040-27-11-2026.md).

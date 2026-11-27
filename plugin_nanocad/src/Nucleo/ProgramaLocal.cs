@@ -19,6 +19,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public int Pid;
         public string Versao;
         public string ChaveAnotacoes;
+        public bool CadsuiteProxy;
 
         public static ProgramaInstalado De(JObj o)
         {
@@ -29,6 +30,7 @@ namespace OrcamentoNanoCAD.Nucleo
             p.Pid = (int)(o.Num("pid") ?? 0);
             p.Versao = o.Str("versao");
             p.ChaveAnotacoes = o.Str("anotacoes_chave");
+            p.CadsuiteProxy = o.Num("cadsuite_proxy") == 1;
             return p;
         }
     }

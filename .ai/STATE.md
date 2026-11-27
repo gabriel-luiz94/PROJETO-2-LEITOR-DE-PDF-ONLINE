@@ -6,6 +6,10 @@
 
 ---
 
+## Conversão visual CADSuite · TASK-255
+
+O OrçaCore empacotado oferece um modo local para converter gráficos de proxies em uma cópia DXF. O plugin 0.18.0 detecta esse recurso no registro do OrçaCore. A validação do executável Windows e do fluxo no nanoCAD está pendente. [TASK-255](tasks/TASK-255-27-11-2026.md).
+
 ## Edição pelos cartões do mapa · TASK-223
 
 Os cartões editam as linhas de Cabos e Demais Ativos no Resumo. Cada gravação entra no histórico. Uma alteração que deslocaria uma estrutura vinculada ou criaria incompatibilidade mostra o erro no cartão. [TASK-223](tasks/TASK-223-22-11-2026.md).
@@ -86,6 +90,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 ## Implementado
 
 - [x] [TASK-254](tasks/TASK-254-27-11-2026.md) — Exibição: mostrar/ocultar grupos, fictícios e comentários na tabela Demais ativos.
+- [x] [TASK-255](tasks/TASK-255-27-11-2026.md) — Conversor local para gráficos de proxies CADSuite. Validação no Windows pendente.
 - [x] [TASK-253](tasks/TASK-253-26-11-2026.md) — Removendo: verde (ok), laranja (falta parâmetro que decide material/mão de obra), vermelho (ativo fora da base); substitui o azul da TASK-252.
 - [x] [TASK-252](tasks/TASK-252-26-11-2026.md) — Removendo (R, *R): azul quando o ativo tem parâmetro determinante e vermelho quando não existe na base.
 - [x] [TASK-251](tasks/TASK-251-26-11-2026.md) — Cabos: `3xA1/0(1/0)+1/0` aceito (neutro e condutor extra AWG na mesma família do cabo).

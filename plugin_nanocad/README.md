@@ -28,6 +28,13 @@ importa em **Carregar Obra** (`POST /api/obras/importar`) para gerar o orçament
 4. **🌐 Abrir na aplicação** (`ORC_ABRIR_APP`): salva o projeto e o abre no OrçaCore deste computador (aberto: a janela vem para a frente
    com o projeto; fechado: o programa abre já com ele). Ou, no OrçaCore: 📁 Projeto → Abrir → `<desenho>.obra`. Nada é gravado no banco.
 
+### Intercâmbio CADSuite
+
+- **`CSEXPORTAR`** gera o JSON do Model Space. **`CSIMPORTAR`** acrescenta a geometria de um JSON ao desenho ativo.
+- **`CSGERARDXF`** cria um DXF separado para revisão. Abra o arquivo com **`CSABRIR`**.
+- Para recuperar a geometria visual de objetos proxy, abra uma vez o OrçaCore atualizado e execute **`CSCONFIG`** no nanoCAD para conferir o registro do conversor local. A recuperação usa os gráficos que o desenho contém. Objetos sem gráfico recuperável geram um aviso.
+- **`CSAJUDA`** lista os comandos. **`CSSUBSTITUIR`** e **`CSATUALIZAR`** trabalham com geometria nativa e pedem confirmação e backup.
+
 ### Conferir uma leitura
 
 - Abra **Pendências** para ver avisos sobre destino, vínculos, duplicidades, operação e textos de interesse fora da obra. Use **Buscar** ou selecione o poste pela placa.

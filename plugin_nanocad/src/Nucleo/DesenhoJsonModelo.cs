@@ -90,9 +90,14 @@ namespace OrcamentoNanoCAD.Nucleo
 
         public static void GarantirSemProxies(JObj desenho)
         {
-            if (desenho.Lista("sections").OfType<JObj>().SelectMany(s => s.Lista("records").OfType<JObj>()).Any(r =>
-                r.Str("type") == "ACAD_PROXY_ENTITY" || r.Str("type") == "ACAD_PROXY_OBJECT"))
-                throw new NotSupportedException("O JSON contém objetos proxy. Abra o desenho no aplicativo que os criou.");
+            if (TemProxies(desenho))
+                throw new NotSupportedException("O JSON ainda contém objetos proxy sem conversão. Abra o desenho no aplicativo que os criou.");
+        }
+
+        public static bool TemProxies(JObj desenho)
+        {
+            return desenho.Lista("sections").OfType<JObj>().SelectMany(s => s.Lista("records").OfType<JObj>()).Any(r =>
+                r.Str("type") == "ACAD_PROXY_ENTITY" || r.Str("type") == "ACAD_PROXY_OBJECT" || r.Str("type") == "SPDSNOTEPOSITION");
         }
 
         public static Dictionary<string, JObj> Entidades(JObj desenho)
