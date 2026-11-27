@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.17.0
+
+TASK-040: intercâmbio CADSuite Web no Model Space, com CSEXPORTAR, CSIMPORTAR, CSSUBSTITUIR e CSATUALIZAR. ✅ 159 testes do núcleo, verificação C# 5/.NET 4 e DLLs 5/26 com manifestos. 🟡 Validar no nanoCAD real, incluindo dependências, proxies e comportamento de transações. [TASK-040](tasks/TASK-040-27-11-2026.md).
+
 ## Plugin 0.16.6
 
 TASK-039 (etapa 2): Abrir no OrçaCore em segundo plano (não prende a tela do nanoCAD); chamadas locais sem proxy/keep-alive; tempos no log. ✅ 153 testes do núcleo; DLLs 0.16.6. 🟡 Validar no nanoCAD 26 (Abrir no OrçaCore e Adicionar anotações) e no nanoCAD 5 (Salvar).

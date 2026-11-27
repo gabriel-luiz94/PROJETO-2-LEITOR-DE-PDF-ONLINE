@@ -142,3 +142,8 @@ A montagem manual envia o polígono junto ao DXF ativo. A rota de leitura filtra
 
 `ParidadeTests.Esperados_versionados_batem_com_o_codigo_atual_da_aplicacao` roda os oráculos (se houver node/python) e
 falha se o esperado versionado ficou velho — sinal de que o código da aplicação mudou e o porte precisa acompanhar.
+
+
+## Intercâmbio geométrico (TASK-040)
+
+`Nucleo/DesenhoJson.cs` converte tags DXF ASCII e JSON. `DesenhoJsonModelo` filtra os registros de Paper Space e guarda as assinaturas do modelo e das dependências. `Plugin/ComandosDesenho.cs` usa um DXF temporário e uma base lateral para o leitor nativo. Os comandos de importação e substituição clonam as entidades no Model Space, isolando colisões de nomes. Na atualização, somente propriedades geométricas permitidas são gravadas nas entidades existentes. Esse formato é independente de `leitor-obra`.
