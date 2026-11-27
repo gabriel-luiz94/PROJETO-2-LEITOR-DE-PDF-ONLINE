@@ -48,9 +48,22 @@ namespace OrcamentoNanoCAD.Nucleo
                 throw new InvalidDataException("Formato incremental não suportado.");
             bool semantico = p.Num("version") == 2;
             var plano = new PlanoPatch();
-            var atual = (JObj)Json.Ler(Json.Escrever(integral, false));
+            // O filtro altera somente as listas de registros de ENTITIES e BLOCKS.
+            var secoes = new List<object>();
+            foreach (JObj secao in integral.Lista("sections").OfType<JObj>())
+            {
+                string nome = secao.Str("name");
+                if (nome == "ENTITIES" || nome == "BLOCKS")
+                {
+                    var copia = new JObj();
+                    foreach (var campo in secao) copia.Set(campo.Key, campo.Value);
+                    secoes.Add(copia.Set("records", new List<object>(secao.Lista("records"))));
+                }
+                else secoes.Add(secao);
+            }
+            var atual = new JObj().Set("sections", secoes);
             RestringirAoModelo(atual);
-            ConferirOrigemPatch(p, atual, semantico, plano);
+            bool modeloConfere = ConferirOrigemPatch(p, atual, semantico, plano);
             var antes = Entidades(atual);
             var depois = Entidades(recebido);
             plano.Novos.AddRange(ListaPatch(p, "added"));
@@ -84,7 +97,7 @@ namespace OrcamentoNanoCAD.Nucleo
             if (gruposPoste.Count > 0 && antes.Any(e => !excluidos.Contains(e.Key) && gruposPoste.Contains(GrupoAnotaposte(e.Value))))
                 throw new InvalidDataException("Já existe uma peça do grupo ANOTAPOSTE que não foi incluída na substituição.");
             foreach (var nota in novosPoste) plano.XDataNovos.Add(nota.Handle, nota.Tags);
-            if (semantico) ConferirReferenciasPatch(p, plano, antes, depois, novosPoste, atual);
+            if (semantico) ConferirReferenciasPatch(p, plano, antes, depois, novosPoste, modeloConfere);
             foreach (string h in plano.Novos)
             {
                 if (antes.ContainsKey(h)) throw new InvalidDataException("Handle novo já existe: " + h);
@@ -116,20 +129,30 @@ namespace OrcamentoNanoCAD.Nucleo
                 if (!antes.TryGetValue(h, out r) ||
                     !(SimplesSemMetadados(r, novosPoste.Count > 0) || excluidosPoste.Any(n => n.Handle == h)))
                     throw new InvalidDataException("Exclusão com metadados não suportada: " + h);
-                foreach (JObj s in integral.Lista("sections").OfType<JObj>())
-                    foreach (JObj obj in s.Lista("records").OfType<JObj>())
-                    {
-                        if (s.Str("name") == "HEADER") continue;
-                        if (semantico && s.Str("name") == "ENTITIES" && excluidos.Contains(NormalizarHandle(Valor(obj, 5)))) continue;
-                        if (obj.Lista("tags").Cast<IList<object>>().Any(t => {
-                            double? c = Json.ComoNumero(t[0]);
-                            return (c == 1005 || (c >= 320 && c <= 369) || (c >= 390 && c <= 399) || c == 480 || c == 481) &&
-                                NormalizarHandle((string)t[1]) == h;
-                        })) throw new InvalidDataException("Exclusão bloqueada por referência a " + h);
-                    }
             }
+            if (excluidos.Count > 0) ConferirExclusoesPatch(integral, excluidos, semantico);
             if (semantico) ConferirDependenciasPatch(atual, recebido, depois.Values);
             return plano;
+        }
+
+        private static void ConferirExclusoesPatch(JObj integral, HashSet<string> excluidos, bool semantico)
+        {
+            foreach (JObj secao in integral.Lista("sections").OfType<JObj>())
+            {
+                string nome = secao.Str("name");
+                if (nome == "HEADER") continue;
+                foreach (JObj registro in secao.Lista("records").OfType<JObj>())
+                {
+                    if (semantico && nome == "ENTITIES" && excluidos.Contains(NormalizarHandle(Valor(registro, 5)))) continue;
+                    foreach (var tag in registro.Lista("tags").Cast<IList<object>>())
+                    {
+                        double? c = Json.ComoNumero(tag[0]);
+                        if (!(c == 1005 || (c >= 320 && c <= 369) || (c >= 390 && c <= 399) || c == 480 || c == 481)) continue;
+                        string handle = NormalizarHandle((string)tag[1]);
+                        if (excluidos.Contains(handle)) throw new InvalidDataException("Exclusão bloqueada por referência a " + handle);
+                    }
+                }
+            }
         }
 
         private static bool ObservacaoSimples(JObj r, Dictionary<string,JObj> antes)

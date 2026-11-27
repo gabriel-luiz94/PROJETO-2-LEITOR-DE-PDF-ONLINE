@@ -52,9 +52,10 @@ public class DesenhoJsonAnotaposteTests
         var novos = (Peca + Guia).Replace("AC\n", "BC\n").Replace("AD\n", "BD\n");
         var recebido = CriarPatch(baseDwg, novos, new[] { "BC", "BD" }, new[] { "AC", "AD" });
         Assert.Equal(2, DesenhoJsonModelo.PlanejarPatch(baseDwg, recebido).Excluidos.Count);
-        var externo = Ler(Alvo + Peca + Guia + "0\nLINE\n5\nAF\n1001\nOUTRO\n1005\n00AC\n");
+        var externo = Ler(Alvo + Peca + Guia + "0\nLINE\n5\nAF\n67\n1\n1001\nOUTRO\n1005\n00AC\n");
         recebido.Obj("cadsuitePatch").Set("references", new List<object> { DesenhoJsonModelo.Entidades(baseDwg)["AB"] });
         Assert.Contains("Exclusão bloqueada por referência", Falha(externo, recebido));
+        Assert.Contains("AF", DesenhoJsonModelo.Entidades(externo).Keys);
     }
 
     private static string Falha(JObj atual, JObj patch)

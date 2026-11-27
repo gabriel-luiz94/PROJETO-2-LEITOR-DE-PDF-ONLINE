@@ -154,7 +154,7 @@ Na TASK-042, `TelaInicio` dá acesso a `TelaIntercambio`. A tela seleciona um co
 
 
 ## Sincronização incremental experimental
-`Nucleo/DesenhoJsonPatch.cs` planeja operações; `Plugin/ComandosPatch.cs` usa transação e backup. Não altera o contrato de orçamento.
+`Nucleo/DesenhoJsonPatch.cs` planeja operações. `Plugin/ComandosPatch.cs` captura o DWG uma vez e aplica as mudanças em uma transação do CAD, após confirmação.
 ### Identidade e conflitos do patch v2 (TASK-046)
 
-`DesenhoJsonOrigemPatch.cs` lê o fingerprint de `HEADER` e compara os registros individuais usados na sincronização. O patch v2 usa o mesmo fluxo de aplicação e backup do v1. O contrato do exportador externo está documentado na [TASK-046](tasks/TASK-046-27-11-2026.md).
+`DesenhoJsonOrigemPatch.cs` lê o fingerprint de `HEADER` e compara os registros individuais usados na sincronização. Os patches v1 e v2 usam o mesmo fluxo de aplicação. O contrato do exportador externo está documentado na [TASK-046](tasks/TASK-046-27-11-2026.md).

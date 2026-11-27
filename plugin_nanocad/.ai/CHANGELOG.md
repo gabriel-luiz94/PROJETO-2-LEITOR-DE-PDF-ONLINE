@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-27 — 0.18.7
+
+`ORC_SINCRONIZAR_JSON` usa uma captura do DWG e aplica o patch com confirmação e transação, sem exigir backup em arquivo. A validação de referências para exclusões usa uma única passagem. [TASK-049](tasks/TASK-049-27-11-2026.md).
+
 ## 2026-11-27 — 0.18.6
 
 O comando de sincronização converte as referências XDATA 1005 em objetos `Handle` ao montar o buffer nativo da guia. [TASK-048](tasks/TASK-048-27-11-2026.md).

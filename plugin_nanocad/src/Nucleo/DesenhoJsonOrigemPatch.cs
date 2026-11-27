@@ -25,7 +25,7 @@ namespace OrcamentoNanoCAD.Nucleo
             catch (OverflowException) { return ""; }
         }
 
-        private static void ConferirOrigemPatch(JObj patch, JObj atual, bool semantico, PlanoPatch plano)
+        private static bool ConferirOrigemPatch(JObj patch, JObj atual, bool semantico, PlanoPatch plano)
         {
             if (semantico)
             {
@@ -37,22 +37,25 @@ namespace OrcamentoNanoCAD.Nucleo
             }
 
             var divergencias = new List<string>();
-            if ((!semantico || patch.Has("sourceModel")) && patch.Str("sourceModel") != Assinatura(Registros(atual)))
+            bool compararModelo = !semantico || patch.Has("sourceModel");
+            bool modeloConfere = compararModelo && patch.Str("sourceModel") == Assinatura(Registros(atual));
+            if (compararModelo && !modeloConfere)
                 divergencias.Add("sourceModel (Model Space)");
             if ((!semantico || patch.Has("sourceDependencies")) &&
                 patch.Str("sourceDependencies") != Assinatura(Dependencias(atual)))
                 divergencias.Add("sourceDependencies (tabelas, blocos e objetos)");
-            if (divergencias.Count == 0) return;
+            if (divergencias.Count == 0) return modeloConfere;
 
             string detalhe = string.Join(", ", divergencias.ToArray());
             if (!semantico)
                 throw new InvalidDataException("Origem incremental v1 divergente em " + detalhe
                     + ". Reexporte o desenho ou gere um patch v2 com identidade persistente.");
             plano.Diagnosticos.Add("Assinaturas integrais divergentes em " + detalhe + ". Validação individual em uso.");
+            return modeloConfere;
         }
 
         private static void ConferirReferenciasPatch(JObj patch, PlanoPatch plano,
-            Dictionary<string, JObj> antes, Dictionary<string, JObj> depois, List<NotaPostePatch> novasNotas, JObj atual)
+            Dictionary<string, JObj> antes, Dictionary<string, JObj> depois, List<NotaPostePatch> novasNotas, bool modeloConfere)
         {
             var requeridas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (string h in plano.Novos)
@@ -85,7 +88,7 @@ namespace OrcamentoNanoCAD.Nucleo
             if (alvosNota.Count == 0) return;
             // O exportador anterior omitia os alvos de ANOTAPOSTE. A assinatura do modelo inteiro
             // só substitui os snapshots se comprovar que o modelo ainda corresponde à base.
-            if (patch.Str("sourceModel") != Assinatura(Registros(atual)))
+            if (!modeloConfere)
                 throw new InvalidDataException("ANOTAPOSTE sem registro de referência em references: " +
                     string.Join(", ", alvosNota.ToArray()) + ". Reexporte o patch com os registros originais dos alvos.");
             plano.Diagnosticos.Add("Alvos ANOTAPOSTE conferidos pela assinatura original do Model Space.");

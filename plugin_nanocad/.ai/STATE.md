@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.18.7
+
+TASK-049: a sincronização incremental usa uma captura do DWG e aplica o plano após a confirmação, sem pedir um arquivo de backup. A verificação de referências para exclusões percorre o DXF uma vez. 🟡 Validar tempos e desfazer no CAD. [TASK-049](tasks/TASK-049-27-11-2026.md).
+
 ## Plugin 0.18.6
 
 TASK-048: a sincronização grava referências XDATA com o tipo `Handle` exigido pelo nanoCAD. 🟡 Repetir a sincronização nativa que chegou à confirmação com 4 inclusões e 1 exclusão. [TASK-048](tasks/TASK-048-27-11-2026.md).
