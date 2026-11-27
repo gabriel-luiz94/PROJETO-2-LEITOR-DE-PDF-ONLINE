@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-27 — Exibição: mostrar/ocultar grupos, fictícios e comentários em Demais ativos
+
+Menu **Exibição → Linhas da tabela Demais ativos**: botões **Grupos** (linhas `@nome`), **Fictícios** (operação F) e **Comentários**, ligados por padrão; desligar só esconde as linhas (continuam na obra, no cálculo e no Mapa). A escolha fica lembrada no computador (`resumo_ver_*`). [TASK-254](tasks/TASK-254-27-11-2026.md).
+
 ## 2026-11-26 — Removendo: verde / laranja / vermelho
 
 Substitui o azul da TASK-252. Linhas R e *R no «Colorir ativos por parâmetros»: **verde** = parâmetros ok; **laranja** = falta (ou é inválido) um parâmetro que decide material ou mão de obra (o parâmetro muda a RETIRADA: há linhas da base restritas por ele com fator R ≠ 0 ou fórmula R e ≥ 2 valores/máscaras entre elas; parâmetro que só escolhe itens de instalação ou só entra na fórmula de quantidade não conta — ex.: `N3` removendo fica verde, `AVULSO_TRAFO(trafo=…)` laranja se o trafo não é válido); **vermelho** = ativo não cadastrado na base. Sem aviso/validação novos (TASK-247 mantida). [TASK-253](tasks/TASK-253-26-11-2026.md).

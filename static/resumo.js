@@ -827,6 +827,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (row.comentario) tr.classList.add('linha-comentario');
             else if (row.congelada && !row.grupoDecl) tr.classList.add('linha-congelada');
             if (row.bloqueada) tr.classList.add('linha-bloqueada');
+            if (String(row.operacao || '').trim().toUpperCase() === 'F' && !row.grupoDecl && !row.comentario) tr.classList.add('linha-ficticia');          // TASK-254
             if (lazy) {
                 tr.classList.add('lazy-row'); tr.style.height = hLazy + 'px'; tr._montar = montar;
                 // Exceder o cabeçalho cria colunas vazias no layout fixo e comprime o Ativo.
@@ -8668,3 +8669,22 @@ window.adicionarConexoesAosOutros = function() {
     
     fecharModalConexoes();
 };
+
+
+/* TASK-254: Exibição → «Linhas da tabela Demais ativos»: mostrar/ocultar grupos (@nome), fictícios (F) e comentários. Ligados por padrão; a escolha fica lembrada neste computador. */
+(function () {
+    const ITENS = { grupos: 'oculta-grupos', ficticios: 'oculta-ficticios', comentarios: 'oculta-comentarios' };
+    const ROTULO = { grupos: 'Grupos', ficticios: 'Fictícios', comentarios: 'Comentários' };
+    const chave = k => 'resumo_ver_' + k;
+    const visivel = k => { try { return localStorage.getItem(chave(k)) !== '0'; } catch (e) { return true; } };
+    function aplicar(k) {
+        const ver = visivel(k), b = document.querySelector(`[data-linhas-outros="${k}"]`);
+        document.body.classList.toggle(ITENS[k], !ver);
+        if (b) { b.classList.toggle('on', ver); b.setAttribute('aria-pressed', ver ? 'true' : 'false'); b.textContent = (ver ? '👁 ' : '🚫 ') + ROTULO[k]; }
+    }
+    Object.keys(ITENS).forEach(k => {
+        aplicar(k);
+        const b = document.querySelector(`[data-linhas-outros="${k}"]`);
+        if (b) b.addEventListener('click', () => { try { localStorage.setItem(chave(k), visivel(k) ? '0' : '1'); } catch (e) { /* vale só nesta sessão */ } aplicar(k); });
+    });
+})();
