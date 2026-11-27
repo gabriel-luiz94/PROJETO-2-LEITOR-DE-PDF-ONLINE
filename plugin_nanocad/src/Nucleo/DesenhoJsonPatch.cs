@@ -11,6 +11,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public readonly List<string> Modificados = new List<string>();
         public readonly List<string> Excluidos = new List<string>();
         public readonly List<string> Diagnosticos = new List<string>();
+        public readonly Dictionary<string, List<IList<object>>> XDataNovos = new Dictionary<string, List<IList<object>>>(StringComparer.OrdinalIgnoreCase);
     }
 
     public static partial class DesenhoJsonModelo
@@ -31,9 +32,9 @@ namespace OrcamentoNanoCAD.Nucleo
             return resultado;
         }
 
-        private static bool SimplesSemMetadados(JObj r)
+        private static bool SimplesSemMetadados(JObj r, bool aceitarTexto = false)
         {
-            if (!Geometria.ContainsKey(r.Str("type"))) return false;
+            if (!Geometria.ContainsKey(r.Str("type")) && !(aceitarTexto && r.Str("type") == "MTEXT")) return false;
             return !r.Lista("tags").Cast<IList<object>>().Any(t => {
                 double? c = Json.ComoNumero(t[0]);
                 return c == 102 || c >= 1000 || (c >= 340 && c <= 369) || (c >= 390 && c <= 399);
@@ -76,14 +77,24 @@ namespace OrcamentoNanoCAD.Nucleo
                     !(semantico ? RegistroEquivalente(r, original) : Json.Escrever(r, false) == Json.Escrever(original, false)))
                     throw new InvalidDataException("Conflito na entidade " + h + ": registro anterior mudou, foi removido ou é inválido.");
             }
-            if (semantico) ConferirReferenciasPatch(p, plano, antes, depois);
+            var excluidos = new HashSet<string>(plano.Excluidos, StringComparer.OrdinalIgnoreCase);
+            var novosPoste = semantico ? LerGruposAnotaposte(plano.Novos, depois) : new List<NotaPostePatch>();
+            var excluidosPoste = semantico ? LerGruposAnotaposte(plano.Excluidos, antes) : new List<NotaPostePatch>();
+            var gruposPoste = new HashSet<string>(novosPoste.Concat(excluidosPoste).Select(n => n.Grupo), StringComparer.Ordinal);
+            if (gruposPoste.Count > 0 && antes.Any(e => !excluidos.Contains(e.Key) && gruposPoste.Contains(GrupoAnotaposte(e.Value))))
+                throw new InvalidDataException("Já existe uma peça do grupo ANOTAPOSTE que não foi incluída na substituição.");
+            foreach (var nota in novosPoste) plano.XDataNovos.Add(nota.Handle, nota.Tags);
+            if (semantico) ConferirReferenciasPatch(p, plano, antes, depois, novosPoste, atual);
             foreach (string h in plano.Novos)
             {
                 if (antes.ContainsKey(h)) throw new InvalidDataException("Handle novo já existe: " + h);
                 var r = depois[h];
+                if (plano.XDataNovos.ContainsKey(h)) continue;
                 if (!SimplesSemMetadados(r) && !ObservacaoSimples(r, antes))
                     throw new InvalidDataException("Acréscimo com dependências ou metadados não suportados: " + h);
-                foreach (var tag in XDataObservacao(r))
+                var tags = XDataObservacao(r);
+                if (tags.Count > 0) plano.XDataNovos.Add(h, tags);
+                foreach (var tag in tags)
                     if (Json.ComoNumero(tag[0]) == 1005 && plano.Excluidos.Contains(NormalizarHandle((string)tag[1])))
                         throw new InvalidDataException("A guia da observação " + h + " aponta para uma entidade marcada para exclusão.");
             }
@@ -91,6 +102,8 @@ namespace OrcamentoNanoCAD.Nucleo
             {
                 JObj a, b = depois[h];
                 HashSet<int> codigos;
+                if (semantico && TemAnotaposte(b))
+                    throw new InvalidDataException("Envie ANOTAPOSTE como substituição do grupo completo, não como alteração individual: " + h);
                 if (!antes.TryGetValue(h, out a) || a.Str("type") != b.Str("type") ||
                     !Geometria.TryGetValue(a.Str("type"), out codigos) ||
                     (semantico ? !TagsEquivalentes(TagsNaoGeometricas(a, codigos), TagsNaoGeometricas(b, codigos))
@@ -100,12 +113,14 @@ namespace OrcamentoNanoCAD.Nucleo
             foreach (string h in plano.Excluidos)
             {
                 JObj r;
-                if (!antes.TryGetValue(h, out r) || !SimplesSemMetadados(r))
+                if (!antes.TryGetValue(h, out r) ||
+                    !(SimplesSemMetadados(r, novosPoste.Count > 0) || excluidosPoste.Any(n => n.Handle == h)))
                     throw new InvalidDataException("Exclusão com metadados não suportada: " + h);
                 foreach (JObj s in integral.Lista("sections").OfType<JObj>())
                     foreach (JObj obj in s.Lista("records").OfType<JObj>())
                     {
                         if (s.Str("name") == "HEADER") continue;
+                        if (semantico && s.Str("name") == "ENTITIES" && excluidos.Contains(NormalizarHandle(Valor(obj, 5)))) continue;
                         if (obj.Lista("tags").Cast<IList<object>>().Any(t => {
                             double? c = Json.ComoNumero(t[0]);
                             return (c == 1005 || (c >= 320 && c <= 369) || (c >= 390 && c <= 399) || c == 480 || c == 481) &&

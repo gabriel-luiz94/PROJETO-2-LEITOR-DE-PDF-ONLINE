@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-27 — 0.18.5
+
+A sincronização v2 aceita grupos completos `ANOTAPOSTE`, incluindo a substituição de anotações legadas e o remapeamento da guia para os handles reais. [TASK-047](tasks/TASK-047-27-11-2026.md).
+
 ## 2026-11-27 — 0.18.4
 
 A exportação inclui `sourceDrawingId` quando o DWG fornece o fingerprint. `ORC_SINCRONIZAR_JSON` aceita patch v2 e verifica conflitos nas entidades e dependências que a operação usa. [TASK-046](tasks/TASK-046-27-11-2026.md).
