@@ -476,6 +476,8 @@
         /* Ativo que não existe na base (mesmo interruptor; Cabos e Outros): vermelho vence verde/laranja */
         body.colorir-parametros #table-outros .inp-ativo.par-nao-base, body.colorir-parametros #table-cabos .inp-ativo.par-nao-base { background: rgba(248, 81, 73, 0.24); box-shadow: inset 3px 0 0 #f85149; }
         /* Linha congelada (fora de Totalizadora, orçamento e validação; serve de comentário) e bloqueada (sem edição) */
+        /* TASK-254: Exibição → Linhas da tabela Demais ativos (grupos, fictícios, comentários) */
+        body.oculta-grupos #table-outros tr.linha-grupo-decl, body.oculta-ficticios #table-outros tr.linha-ficticia, body.oculta-comentarios #table-outros tr.linha-comentario { display: none; }
         tr.linha-congelada > td { opacity: 0.62; }
         tr.linha-congelada > td:not(.col-num) input, tr.linha-congelada > td:not(.col-num) select { font-style: italic; color: #79c0ff; }
         tr.linha-congelada { background: repeating-linear-gradient(135deg, rgba(121,192,255,0.07) 0 8px, rgba(121,192,255,0.02) 8px 16px); box-shadow: inset 3px 0 0 #58a6ff; }
@@ -788,6 +790,12 @@
                     <div class="menu-linha">
                         <button class="chip-toggle on" id="chip-tabela-cabos" type="button" data-tabela="cabos" aria-pressed="true" title="Mostrar/ocultar a tabela de Cabos">👁 Cabos</button>
                         <button class="chip-toggle on" id="chip-tabela-outros" type="button" data-tabela="outros" aria-pressed="true" title="Mostrar/ocultar a tabela de Demais ativos">👁 Demais ativos</button>
+                    </div>
+                    <span class="ctl-rotulo">Linhas da tabela Demais ativos</span>
+                    <div class="menu-linha" id="menu-linhas-outros">
+                        <button class="chip-toggle on" id="chip-ver-grupos" type="button" data-linhas-outros="grupos" aria-pressed="true" title="Mostrar/ocultar as linhas com o nome dos grupos (@P1…)">👁 Grupos</button>
+                        <button class="chip-toggle on" id="chip-ver-ficticios" type="button" data-linhas-outros="ficticios" aria-pressed="true" title="Mostrar/ocultar as linhas fictícias (operação F)">👁 Fictícios</button>
+                        <button class="chip-toggle on" id="chip-ver-comentarios" type="button" data-linhas-outros="comentarios" aria-pressed="true" title="Mostrar/ocultar os comentários">👁 Comentários</button>
                     </div>
                     <span class="ctl-rotulo">Ao digitar</span>
                     <div class="menu-linha">

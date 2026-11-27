@@ -85,6 +85,7 @@ Branch de trabalho: `claude/beautiful-pasteur-2tdk18`
 
 ## Implementado
 
+- [x] [TASK-254](tasks/TASK-254-27-11-2026.md) — Exibição: mostrar/ocultar grupos, fictícios e comentários na tabela Demais ativos.
 - [x] [TASK-253](tasks/TASK-253-26-11-2026.md) — Removendo: verde (ok), laranja (falta parâmetro que decide material/mão de obra), vermelho (ativo fora da base); substitui o azul da TASK-252.
 - [x] [TASK-252](tasks/TASK-252-26-11-2026.md) — Removendo (R, *R): azul quando o ativo tem parâmetro determinante e vermelho quando não existe na base.
 - [x] [TASK-251](tasks/TASK-251-26-11-2026.md) — Cabos: `3xA1/0(1/0)+1/0` aceito (neutro e condutor extra AWG na mesma família do cabo).
