@@ -10,6 +10,7 @@ namespace OrcamentoNanoCAD.Nucleo
         public readonly List<string> Novos = new List<string>();
         public readonly List<string> Modificados = new List<string>();
         public readonly List<string> Excluidos = new List<string>();
+        public readonly List<string> Diagnosticos = new List<string>();
     }
 
     public static partial class DesenhoJsonModelo
@@ -42,15 +43,15 @@ namespace OrcamentoNanoCAD.Nucleo
         public static PlanoPatch PlanejarPatch(JObj integral, JObj recebido)
         {
             var p = recebido.Obj("cadsuitePatch");
-            if (p == null || p.Num("version") != 1) throw new InvalidDataException("Formato incremental não suportado.");
+            if (p == null || (p.Num("version") != 1 && p.Num("version") != 2))
+                throw new InvalidDataException("Formato incremental não suportado.");
+            bool semantico = p.Num("version") == 2;
+            var plano = new PlanoPatch();
             var atual = (JObj)Json.Ler(Json.Escrever(integral, false));
             RestringirAoModelo(atual);
-            if (p.Str("sourceModel") != Assinatura(Registros(atual)) ||
-                p.Str("sourceDependencies") != Assinatura(Dependencias(atual)))
-                throw new InvalidDataException("A origem incremental não corresponde ao desenho ativo. Exporte novamente; nenhuma alteração aplicada.");
+            ConferirOrigemPatch(p, atual, semantico, plano);
             var antes = Entidades(atual);
             var depois = Entidades(recebido);
-            var plano = new PlanoPatch();
             plano.Novos.AddRange(ListaPatch(p, "added"));
             plano.Modificados.AddRange(ListaPatch(p, "modified"));
             plano.Excluidos.AddRange(ListaPatch(p, "deleted"));
@@ -72,9 +73,10 @@ namespace OrcamentoNanoCAD.Nucleo
                 JObj original;
                 if (!conferidos.Add(h) || !antes.TryGetValue(h, out original) ||
                     !plano.Modificados.Concat(plano.Excluidos).Contains(h) ||
-                    Json.Escrever(r, false) != Json.Escrever(original, false))
-                    throw new InvalidDataException("Conflito no registro anterior: " + h);
+                    !(semantico ? RegistroEquivalente(r, original) : Json.Escrever(r, false) == Json.Escrever(original, false)))
+                    throw new InvalidDataException("Conflito na entidade " + h + ": registro anterior mudou, foi removido ou é inválido.");
             }
+            if (semantico) ConferirReferenciasPatch(p, plano, antes, depois);
             foreach (string h in plano.Novos)
             {
                 if (antes.ContainsKey(h)) throw new InvalidDataException("Handle novo já existe: " + h);
@@ -91,7 +93,8 @@ namespace OrcamentoNanoCAD.Nucleo
                 HashSet<int> codigos;
                 if (!antes.TryGetValue(h, out a) || a.Str("type") != b.Str("type") ||
                     !Geometria.TryGetValue(a.Str("type"), out codigos) ||
-                    Assinatura(TagsNaoGeometricas(a, codigos)) != Assinatura(TagsNaoGeometricas(b, codigos)))
+                    (semantico ? !TagsEquivalentes(TagsNaoGeometricas(a, codigos), TagsNaoGeometricas(b, codigos))
+                        : Assinatura(TagsNaoGeometricas(a, codigos)) != Assinatura(TagsNaoGeometricas(b, codigos))))
                     throw new InvalidDataException("Modificação não geométrica ou tipo não suportado: " + h);
             }
             foreach (string h in plano.Excluidos)
@@ -110,6 +113,7 @@ namespace OrcamentoNanoCAD.Nucleo
                         })) throw new InvalidDataException("Exclusão bloqueada por referência a " + h);
                     }
             }
+            if (semantico) ConferirDependenciasPatch(atual, recebido, depois.Values);
             return plano;
         }
 
