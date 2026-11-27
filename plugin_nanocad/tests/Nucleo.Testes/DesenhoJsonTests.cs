@@ -1,10 +1,40 @@
 using System.IO;
 using System.Linq;
+using System.Text;
 using OrcamentoNanoCAD.Nucleo;
 using Xunit;
 
 public class DesenhoJsonTests
 {
+    [Fact]
+    public void DxfSemCampoDeCodificacaoUsaUtf8()
+    {
+        var json = new JObj();
+        Assert.Same(DesenhoJson.Utf8, DesenhoJson.CodificacaoDxf(json));
+        Assert.Same(DesenhoJson.Utf8, DesenhoJson.CodificacaoDxf(json.Set("encoding", null)));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("UTF-8")]
+    [InlineData("utf8")]
+    public void MarcadoresUtf8PreservamAcentos(string marcador)
+    {
+        var encoding = DesenhoJson.CodificacaoDxf(new JObj().Set("encoding", marcador));
+        Assert.Empty(encoding.GetPreamble());
+        Assert.Equal(new byte[] { 0xC3, 0xA7 }, encoding.GetBytes("ç"));
+    }
+
+    [Fact]
+    public void DxfMantemBytesLegadosERecusaMarcadorDesconhecido()
+    {
+        var json = new JObj().Set("encoding", "bytes-iso-8859-1");
+        Assert.Equal(new byte[] { 0xE7 }, DesenhoJson.CodificacaoDxf(json).GetBytes("ç"));
+        Assert.Throws<EncoderFallbackException>(() => DesenhoJson.CodificacaoDxf(json).GetBytes("€"));
+        json.Set("encoding", "outro");
+        Assert.Throws<InvalidDataException>(() => DesenhoJson.CodificacaoDxf(json));
+    }
+
     [Fact]
     public void PreservaTagsEHandles()
     {
@@ -79,6 +109,32 @@ public class DesenhoJsonTests
         var registros = ((JObj)proxy.Lista("sections").Single()).Lista("records");
         ((JObj)registros.Single()).Set("type", "LINE");
         Assert.Throws<InvalidDataException>(() => DesenhoJson.EscreverDxf(proxy, TextWriter.Null));
+    }
+
+    [Fact]
+    public void ContaEntidadesR12SemHandleEIgnoraComentarioESubordinados()
+    {
+        const string entidades = "999\nComentário inicial\n0\nLINE\n8\n0\n0\nPOLYLINE\n8\n0\n0\nVERTEX\n8\n0\n0\nSEQEND\n";
+        var r12 = DesenhoComEntidades("AC1009", entidades);
+        Assert.Equal(2, DesenhoJsonModelo.ContarParaImportacao(r12));
+        Assert.Contains("Handle ausente em LINE", Assert.Throws<InvalidDataException>(() => DesenhoJsonModelo.Entidades(r12)).Message);
+        var moderno = DesenhoComEntidades("AC1027", entidades);
+        Assert.Contains("Handle ausente em LINE", Assert.Throws<InvalidDataException>(() => DesenhoJsonModelo.ContarParaImportacao(moderno)).Message);
+    }
+
+    [Fact]
+    public void ImportacaoDiferenciaHandleInvalidoDeRepetido()
+    {
+        var invalido = DesenhoComEntidades("AC1009", "0\nLINE\n5\n0\n");
+        Assert.Contains("Handle inválido em LINE", Assert.Throws<InvalidDataException>(() => DesenhoJsonModelo.ContarParaImportacao(invalido)).Message);
+        var repetido = DesenhoComEntidades("AC1009", "0\nLINE\n5\nAB\n0\nCIRCLE\n5\n00ab\n");
+        Assert.Contains("Handle repetido (AB) em CIRCLE", Assert.Throws<InvalidDataException>(() => DesenhoJsonModelo.ContarParaImportacao(repetido)).Message);
+    }
+
+    private static JObj DesenhoComEntidades(string versao, string entidades)
+    {
+        return Ler("0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\n" + versao + "\n0\nENDSEC\n" +
+            "0\nSECTION\n2\nENTITIES\n" + entidades + "0\nENDSEC\n0\nEOF\n");
     }
 
     private static JObj Ler(string dxf)

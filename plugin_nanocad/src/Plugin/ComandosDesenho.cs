@@ -15,9 +15,6 @@ namespace OrcamentoNanoCAD
 {
     public partial class Comandos
     {
-        private static readonly UTF8Encoding Utf8Dxf = new UTF8Encoding(false, true);
-        private static readonly Encoding BytesDxf = Encoding.GetEncoding(28591, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
-
         private static void AbrirIntercambio()
         {
             string comando;
@@ -61,7 +58,7 @@ namespace OrcamentoNanoCAD
                                 Aplicacao.Log("ORC_EXPORTAR_JSON: " + erro);
                                 Aplicacao.NaTela(() => Aplicacao.Msg("Exportação seguirá com os proxies originais. " + erro.Message));
                             }
-                            File.WriteAllText(temp, Json.Escrever(exportado, false), Utf8Dxf);
+                            File.WriteAllText(temp, Json.Escrever(exportado, false), DesenhoJson.Utf8);
                             File.Move(temp, destino);
                             Aplicacao.NaTela(() => Aplicacao.Msg("Geometria do Model Space exportada para JSON."));
                         }
@@ -107,6 +104,7 @@ namespace OrcamentoNanoCAD
                 JObj recebido = SelecionarJson();
                 if (recebido == null) return;
                 recebido = PrepararEntrada(recebido, true);
+                int esperado = ContarEntidades(recebido, true);
                 using (var janela = new SaveFileDialog { Filter = "Desenho DXF|*.dxf" })
                 {
                     if (janela.ShowDialog() != DialogResult.OK) return;
@@ -121,7 +119,7 @@ namespace OrcamentoNanoCAD
                             using (var tr = banco.TransactionManager.StartTransaction())
                             {
                                 var modelo = GuiasDeNota.Modelo(banco, tr, OpenMode.ForRead);
-                                if (IdsDoModelo(modelo, tr, true).Count != DesenhoJsonModelo.Entidades(recebido).Count)
+                                if (IdsDoModelo(modelo, tr, true).Count != esperado)
                                     throw new InvalidDataException("O nanoCAD não leu todas as entidades do DXF.");
                             }
                         }
@@ -172,7 +170,7 @@ namespace OrcamentoNanoCAD
 
         private static void SalvarExportacao(JObj desenho, string destino)
         {
-            File.WriteAllText(destino, Json.Escrever(desenho, false), Utf8Dxf);
+            File.WriteAllText(destino, Json.Escrever(desenho, false), DesenhoJson.Utf8);
             Aplicacao.NaTela(() => Aplicacao.Msg("Geometria do Model Space exportada para JSON."));
         }
 
@@ -182,7 +180,7 @@ namespace OrcamentoNanoCAD
             using (var janela = new OpenFileDialog { Filter = "Desenho JSON|*.json" })
             {
                 if (janela.ShowDialog() != DialogResult.OK) return null;
-                recebido = Json.Ler(File.ReadAllText(janela.FileName, Utf8Dxf)) as JObj;
+                recebido = Json.Ler(File.ReadAllText(janela.FileName, DesenhoJson.Utf8)) as JObj;
             }
 
             // Valida a estrutura recebida antes de filtrar ou chamar a API nativa.
@@ -197,9 +195,15 @@ namespace OrcamentoNanoCAD
                 throw new InvalidDataException("O intercâmbio visual de proxies está disponível em ORC_IMPORTAR_JSON ou ORC_GERAR_DXF.");
             if (DesenhoJsonModelo.TemProxies(recebido)) recebido = ConverterRepresentacao(recebido);
             DesenhoJsonModelo.GarantirSemProxies(recebido);
-            if (DesenhoJsonModelo.Entidades(recebido).Count == 0)
-                throw new InvalidDataException("O JSON não contém entidades no Model Space.");
             return recebido;
+        }
+
+        private static int ContarEntidades(JObj desenho, bool aceitarR12SemHandle)
+        {
+            int total = aceitarR12SemHandle ? DesenhoJsonModelo.ContarParaImportacao(desenho) : DesenhoJsonModelo.Entidades(desenho).Count;
+            if (total == 0)
+                throw new InvalidDataException("O JSON não contém entidades no Model Space.");
+            return total;
         }
 
         private static void AplicarDesenhoJson(Sessao s, bool substituir, bool atualizar)
@@ -207,7 +211,7 @@ namespace OrcamentoNanoCAD
             JObj recebido = SelecionarJson();
             if (recebido == null) return;
             recebido = PrepararEntrada(recebido, !substituir && !atualizar);
-            var entidades = DesenhoJsonModelo.Entidades(recebido);
+            int esperado = ContarEntidades(recebido, !substituir && !atualizar);
 
             Database destino = s.Doc.Database;
             JObj modeloAtual = null;
@@ -241,7 +245,7 @@ namespace OrcamentoNanoCAD
                         var para = GuiasDeNota.Modelo(destino, escrita, OpenMode.ForRead);
                         var importados = IdsDoModelo(de, leitura, true);
                         var anteriores = IdsDoModelo(para, escrita, substituir);
-                        if (importados.Count != entidades.Count)
+                        if (importados.Count != esperado)
                             throw new InvalidDataException("O nanoCAD não carregou todas as entidades do JSON.");
                         if (modeloAtual != null)
                         {
@@ -323,10 +327,7 @@ namespace OrcamentoNanoCAD
 
         private static void EscreverDxfNoArquivo(JObj desenho, string caminho)
         {
-            string encoding = desenho.Str("encoding");
-            if (encoding != "" && encoding != "bytes-iso-8859-1")
-                throw new InvalidDataException("Codificação DXF desconhecida.");
-            using (var escritor = new StreamWriter(caminho, false, encoding == "" ? Utf8Dxf : BytesDxf))
+            using (var escritor = new StreamWriter(caminho, false, DesenhoJson.CodificacaoDxf(desenho)))
                 DesenhoJson.EscreverDxf(desenho, escritor);
         }
 
@@ -345,14 +346,14 @@ namespace OrcamentoNanoCAD
         {
             try
             {
-                using (var leitor = new StreamReader(caminho, Utf8Dxf, false))
+                using (var leitor = new StreamReader(caminho, DesenhoJson.Utf8, false))
                     return DesenhoJson.LerDxf(leitor);
             }
             catch (DecoderFallbackException)
             {
                 // O DXF antigo pode estar em uma página de códigos legada. Preserva os bytes.
-                using (var leitor = new StreamReader(caminho, BytesDxf, false))
-                    return DesenhoJson.LerDxf(leitor).Set("encoding", "bytes-iso-8859-1");
+                using (var leitor = new StreamReader(caminho, DesenhoJson.BytesLegados, false))
+                    return DesenhoJson.LerDxf(leitor).Set("encoding", DesenhoJson.MarcadorBytesLegados);
             }
         }
 

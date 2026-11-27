@@ -2,12 +2,27 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Text;
 
 namespace OrcamentoNanoCAD.Nucleo
 {
     // Contrato geométrico independente de leitor-obra. Valores DXF permanecem strings.
     public static class DesenhoJson
     {
+        public static readonly UTF8Encoding Utf8 = new UTF8Encoding(false, true);
+        public const string MarcadorBytesLegados = "bytes-iso-8859-1";
+        public static readonly Encoding BytesLegados = Encoding.GetEncoding(28591, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+
+        public static Encoding CodificacaoDxf(JObj documento)
+        {
+            string encoding = (documento.Str("encoding") ?? "").Trim();
+            if (encoding.Length == 0 || encoding.Equals("utf-8", StringComparison.OrdinalIgnoreCase)
+                || encoding.Equals("utf8", StringComparison.OrdinalIgnoreCase))
+                return Utf8;
+            if (encoding == MarcadorBytesLegados) return BytesLegados;
+            throw new InvalidDataException("Codificação DXF desconhecida no campo encoding. Use utf-8 para texto Unicode ou bytes-iso-8859-1 para bytes legados.");
+        }
+
         public static JObj LerDxf(TextReader leitor)
         {
             var secoes = new List<object>();
