@@ -234,3 +234,7 @@ mudanças lá aparecem em poucos segundos. Estrutura/cabo fora da base vira Conf
   obra gravada no DWG e em `<desenho>.obra.json`, troca opcional da layer da anotação.
 - DLL pronta em `appload/nanoCAD26/`; `build_nanocad5.bat` para o nanoCAD 5.
 - Contrato: a importação de obra da aplicação passa a manter os campos de vínculo/geometria; teste de contrato em `tests/test_plugin_nanocad_contrato.py`.
+
+
+## 2026-11-27 — TASK-040 (fonte experimental, sem release)
+Conversão de tags DXF/JSON e comandos CSEXPORTAR/CSIMPORTAR para arquivos separados. Sem compilação; demais comandos pendentes.

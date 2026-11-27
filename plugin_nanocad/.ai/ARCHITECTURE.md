@@ -142,3 +142,7 @@ A montagem manual envia o polígono junto ao DXF ativo. A rota de leitura filtra
 
 `ParidadeTests.Esperados_versionados_batem_com_o_codigo_atual_da_aplicacao` roda os oráculos (se houver node/python) e
 falha se o esperado versionado ficou velho — sinal de que o código da aplicação mudou e o porte precisa acompanhar.
+
+
+## Intercâmbio geométrico experimental (TASK-040)
+`Nucleo/DesenhoJson.cs` converte pares ASCII DXF e JSON; `Plugin/ComandosDesenho.cs` reutiliza `DxfDoDesenho` e `Json`. Independente do leitor-obra; sem mutação do desenho ativo nesta etapa.

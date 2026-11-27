@@ -215,3 +215,7 @@ Branch de trabalho: `codex/plugin-desenho-ativo`
 ## Última atualização
 
 2026-11-11 — TASK-014 (nanoCAD 5 pronto) e TASK-015 (projetos/leitura da aplicação). Antes: TASK-013 (atualização automática), TASK-012 (painel Cabos/Postes, filtro do leitor, ícones), TASK-011, TASK-004 a 010, TASK-003 e TASK-001.
+
+
+## TASK-040 — Intercâmbio geométrico (em andamento)
+Código-fonte inicial de CSEXPORTAR/CSIMPORTAR; sem build ou testes executados. Exportação integral DXF, importação para novo arquivo. Model Space isolado, substituição e atualização pendentes. DLLs permanecem 0.16.6.

@@ -115,3 +115,8 @@
 | Criar, editar, mover e reapontar MTEXT com guia | ✅ build · 🟡 CAD |
 | Auditar a layer, alternar LV e excluir MTEXT com confirmação | ✅ build · 🟡 CAD |
 | Filtrar MTEXT na análise | ✅ build 26 · 🟡 CAD |
+
+
+## Intercâmbio CADSuite Web — TASK-040
+- ⏳ Exportar Model Space em cad-dxf-tags-v1 (fonte inicial exporta DXF integral).
+- ⏳ Importar, substituir e atualizar no desenho ativo preservando metadados e layouts (fonte inicial gera novo DXF).
