@@ -88,6 +88,7 @@ namespace OrcamentoNanoCAD
                 using (TelaInicio t = new TelaInicio(s, salva))
                 {
                     if (Application.ShowModalDialog(t) != DialogResult.OK || t.Escolha == Escolha.Nada) return;
+                    if (t.Escolha == Escolha.Intercambio) { AbrirIntercambio(); return; }
                     if (t.Escolha == Escolha.Painel) { PainelObra.Abrir(s); return; }
                     if (t.Escolha == Escolha.Continuar) { Continuar(s, salva); return; }
                     RegrasProjeto regras = RegrasFrescas(t.Regras, t.Projeto);
@@ -1133,6 +1134,7 @@ namespace OrcamentoNanoCAD
                 + "  ORC_LEITURA    configurar layers da rede, bloco de poste e guias · ORC_DIAGNOSTICO o que foi lido\n"
                 + "  ORC_FECHAR     fechar a obra · log: " + Aplicacao.ArquivoLog + "\n"
                 + "  ORC_NOTA / ORC_EDITAR_NOTA / ORC_MOVER_NOTA   notas no DWG\n"
+                + "  ORC_AJUDA_DESENHO   comandos de intercâmbio de desenhos (menu ORCACORE → Intercâmbio de desenhos)\n"
                 + "  ORC_AUDITAR_LAYERS / ORC_ATUALIZAR_GUIAS   auditoria de MTEXT e guias\n"
                 + "  ORC_ATUALIZAR_PLUGIN conferir agora se há versão nova · ORC_VOLTAR_VERSAO voltar para a anterior\n"
                 + "  Plugin " + ObraArquivo.VersaoPlugin + ": " + AtualizacaoPlugin.Status + "\n"

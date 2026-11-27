@@ -6,6 +6,7 @@ using System.Text;
 using System.Windows.Forms;
 using HostMgd.ApplicationServices;
 using OrcamentoNanoCAD.Nucleo;
+using OrcamentoNanoCAD.UI;
 using Teigha.DatabaseServices;
 using Teigha.Runtime;
 using Application = HostMgd.ApplicationServices.Application;
@@ -17,10 +18,21 @@ namespace OrcamentoNanoCAD
         private static readonly UTF8Encoding Utf8Dxf = new UTF8Encoding(false, true);
         private static readonly Encoding BytesDxf = Encoding.GetEncoding(28591, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
 
-        [CommandMethod("CSEXPORTAR")]
+        private static void AbrirIntercambio()
+        {
+            string comando;
+            using (var tela = new TelaIntercambio())
+            {
+                if (Application.ShowModalDialog(tela) != DialogResult.OK) return;
+                comando = tela.Comando;
+            }
+            Visual.Executar(comando);
+        }
+
+        [CommandMethod("ORC_EXPORTAR_JSON")]
         public void ExportarDesenhoJson()
         {
-            Rodar("CSEXPORTAR", s =>
+            Rodar("ORC_EXPORTAR_JSON", s =>
             {
                 using (var janela = new SaveFileDialog { Filter = "Desenho JSON|*.json", OverwritePrompt = true })
                 {
@@ -46,7 +58,7 @@ namespace OrcamentoNanoCAD
                             try { exportado = ConverterRepresentacao(desenho); }
                             catch (System.Exception erro)
                             {
-                                Aplicacao.Log("CSEXPORTAR: " + erro);
+                                Aplicacao.Log("ORC_EXPORTAR_JSON: " + erro);
                                 Aplicacao.NaTela(() => Aplicacao.Msg("Exportação seguirá com os proxies originais. " + erro.Message));
                             }
                             File.WriteAllText(temp, Json.Escrever(exportado, false), Utf8Dxf);
@@ -55,7 +67,7 @@ namespace OrcamentoNanoCAD
                         }
                         catch (System.Exception erro)
                         {
-                            Aplicacao.Log("CSEXPORTAR: " + erro);
+                            Aplicacao.Log("ORC_EXPORTAR_JSON: " + erro);
                             Aplicacao.NaTela(() => Aplicacao.Msg("Não foi possível concluir a exportação: " + erro.Message));
                         }
                         finally
@@ -69,28 +81,28 @@ namespace OrcamentoNanoCAD
             });
         }
 
-        [CommandMethod("CSIMPORTAR")]
+        [CommandMethod("ORC_IMPORTAR_JSON")]
         public void ImportarDesenhoJson()
         {
-            Rodar("CSIMPORTAR", s => AplicarDesenhoJson(s, false, false));
+            Rodar("ORC_IMPORTAR_JSON", s => AplicarDesenhoJson(s, false, false));
         }
 
-        [CommandMethod("CSSUBSTITUIR")]
+        [CommandMethod("ORC_SUBSTITUIR_DESENHO")]
         public void SubstituirDesenhoJson()
         {
-            Rodar("CSSUBSTITUIR", s => AplicarDesenhoJson(s, true, false));
+            Rodar("ORC_SUBSTITUIR_DESENHO", s => AplicarDesenhoJson(s, true, false));
         }
 
-        [CommandMethod("CSATUALIZAR")]
+        [CommandMethod("ORC_ATUALIZAR_DESENHO")]
         public void AtualizarDesenhoJson()
         {
-            Rodar("CSATUALIZAR", s => AplicarDesenhoJson(s, false, true));
+            Rodar("ORC_ATUALIZAR_DESENHO", s => AplicarDesenhoJson(s, false, true));
         }
 
-        [CommandMethod("CSGERARDXF")]
+        [CommandMethod("ORC_GERAR_DXF")]
         public void GerarDxfDoJson()
         {
-            Rodar("CSGERARDXF", s =>
+            Rodar("ORC_GERAR_DXF", s =>
             {
                 JObj recebido = SelecionarJson();
                 if (recebido == null) return;
@@ -116,15 +128,15 @@ namespace OrcamentoNanoCAD
                         File.Move(temp, destino);
                     }
                     finally { if (File.Exists(temp)) File.Delete(temp); }
-                    Aplicacao.Msg("DXF criado. Use CSABRIR para conferi-lo.");
+                    Aplicacao.Msg("DXF criado. Use ORC_ABRIR_DXF para conferi-lo.");
                 }
             });
         }
 
-        [CommandMethod("CSABRIR", CommandFlags.Session)]
+        [CommandMethod("ORC_ABRIR_DXF", CommandFlags.Session)]
         public void AbrirDxfConvertido()
         {
-            Rodar("CSABRIR", s =>
+            Rodar("ORC_ABRIR_DXF", s =>
             {
                 using (var janela = new OpenFileDialog { Filter = "Desenho DXF|*.dxf" })
                 {
@@ -134,10 +146,10 @@ namespace OrcamentoNanoCAD
             });
         }
 
-        [CommandMethod("CSCONFIG")]
+        [CommandMethod("ORC_CONVERSOR_DXF")]
         public void StatusDoConversor()
         {
-            Rodar("CSCONFIG", s =>
+            Rodar("ORC_CONVERSOR_DXF", s =>
             {
                 var app = ProgramaNoComputador.Registrado();
                 Aplicacao.Msg(ProxyNoComputador.Disponivel(app) ? "Conversor local registrado: " + app.Exe :
@@ -145,11 +157,17 @@ namespace OrcamentoNanoCAD
             });
         }
 
-        [CommandMethod("CSAJUDA")]
+        [CommandMethod("ORC_AJUDA_DESENHO")]
         public void AjudaDoIntercambio()
         {
-            Aplicacao.Msg("CADSuite: CSEXPORTAR gera JSON; CSIMPORTAR acrescenta ao modelo; CSGERARDXF gera um novo DXF; " +
-                "CSABRIR abre um DXF; CSSUBSTITUIR e CSATUALIZAR alteram o modelo com backup; CSCONFIG mostra o conversor local.");
+            Aplicacao.Msg("OrçaCore — intercâmbio de desenhos\n" +
+                "  ORC_EXPORTAR_JSON  Exportar o desenho ativo para JSON\n" +
+                "  ORC_IMPORTAR_JSON  Acrescentar a geometria de um JSON ao desenho ativo\n" +
+                "  ORC_GERAR_DXF  Criar um DXF separado a partir de um JSON\n" +
+                "  ORC_ABRIR_DXF  Abrir um DXF para conferência\n" +
+                "  ORC_ATUALIZAR_DESENHO  Atualizar a geometria existente com backup\n" +
+                "  ORC_SUBSTITUIR_DESENHO  Substituir o Model Space com backup\n" +
+                "  ORC_CONVERSOR_DXF  Verificar o conversor local");
         }
 
         private static void SalvarExportacao(JObj desenho, string destino)
@@ -176,7 +194,7 @@ namespace OrcamentoNanoCAD
         private static JObj PrepararEntrada(JObj recebido, bool podeAproximar)
         {
             if (!podeAproximar && ((recebido.Num("visualProxies") ?? 0) > 0 || DesenhoJsonModelo.TemProxies(recebido)))
-                throw new InvalidDataException("O intercâmbio visual de proxies está disponível em CSIMPORTAR ou CSGERARDXF.");
+                throw new InvalidDataException("O intercâmbio visual de proxies está disponível em ORC_IMPORTAR_JSON ou ORC_GERAR_DXF.");
             if (DesenhoJsonModelo.TemProxies(recebido)) recebido = ConverterRepresentacao(recebido);
             DesenhoJsonModelo.GarantirSemProxies(recebido);
             if (DesenhoJsonModelo.Entidades(recebido).Count == 0)
@@ -197,7 +215,7 @@ namespace OrcamentoNanoCAD
             if (substituir || atualizar)
             {
                 if (substituir && (s.Obra != null || PersistenciaDwg.Procurar(s) != null))
-                    throw new InvalidOperationException("Este desenho tem uma obra do OrçaCore com referências a handles. Use CSIMPORTAR ou uma cópia sem a obra associada.");
+                    throw new InvalidOperationException("Este desenho tem uma obra do OrçaCore com referências a handles. Use ORC_IMPORTAR_JSON ou uma cópia sem a obra associada.");
                 JObj integral = CapturarDxf(destino);
                 modeloAtual = substituir ? (JObj)Json.Ler(Json.Escrever(integral, false)) : integral;
                 DesenhoJsonModelo.RestringirAoModelo(modeloAtual);
@@ -283,7 +301,7 @@ namespace OrcamentoNanoCAD
                 EscreverDxfNoArquivo(desenho, entrada);
                 JObj r = ProxyNoComputador.Converter(entrada, saida);
                 double total = r.Num("convertidos") ?? 0;
-                foreach (string aviso in Json.ListaDeTextos(r["avisos"])) Aplicacao.Log("CADSuite: " + aviso);
+                foreach (string aviso in Json.ListaDeTextos(r["avisos"])) Aplicacao.Log("Intercâmbio de desenhos: " + aviso);
                 if (total == 0)
                 {
                     Aplicacao.NaTela(() => Aplicacao.Msg("Nenhum proxy pôde ser convertido. Consulte o log do plugin."));
@@ -358,7 +376,7 @@ namespace OrcamentoNanoCAD
 
         private static bool SalvarBackupDxf(Database banco)
         {
-            using (var janela = new SaveFileDialog { Filter = "Backup DXF|*.dxf", FileName = "backup-cadsuite.dxf", OverwritePrompt = true })
+            using (var janela = new SaveFileDialog { Filter = "Backup DXF|*.dxf", FileName = "backup-orcacore.dxf", OverwritePrompt = true })
             {
                 janela.Title = "Salvar uma cópia do desenho antes da alteração";
                 if (janela.ShowDialog() != DialogResult.OK) return false;

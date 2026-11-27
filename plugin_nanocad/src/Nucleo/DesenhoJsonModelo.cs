@@ -82,7 +82,7 @@ namespace OrcamentoNanoCAD.Nucleo
                         if ((codigo == 1005 || (codigo >= 320 && codigo <= 369) || (codigo >= 390 && codigo <= 399)) &&
                             handles.Contains(valor))
                             throw new InvalidDataException("Há uma referência externa a uma entidade do modelo (" + valor +
-                                "). Use CSIMPORTAR para manter os vínculos existentes.");
+                                "). Use ORC_IMPORTAR_JSON para manter os vínculos existentes.");
                     }
                 }
             }

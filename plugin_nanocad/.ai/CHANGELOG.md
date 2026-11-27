@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-27 — 0.18.1
+
+As ações de DXF e JSON ficam em **ORCACORE → Intercâmbio de desenhos**. Os comandos usam o prefixo `ORC_` para evitar colisões com outros plugins do nanoCAD. [TASK-042](tasks/TASK-042-27-11-2026.md).
+
 ## 2026-11-27 — 0.18.0
 
 CSEXPORTAR e CSIMPORTAR aproveitam a geometria visual disponível em proxies com o conversor local do OrçaCore. CSGERARDXF gera um DXF separado, CSABRIR abre um DXF, CSCONFIG mostra o status do conversor e CSAJUDA lista os comandos. [TASK-041](tasks/TASK-041-27-11-2026.md).
