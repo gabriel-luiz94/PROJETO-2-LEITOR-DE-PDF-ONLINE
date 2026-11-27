@@ -17,7 +17,7 @@ namespace OrcamentoNanoCAD
             Rodar("ORC_SINCRONIZAR_JSON", s =>
             {
                 JObj recebido;
-                using (var janela = new OpenFileDialog { Filter = "Alterações CADSuite|*.json" })
+                using (var janela = new OpenFileDialog { Filter = "Alterações incrementais OrçaCore|*.json" })
                 {
                     if (janela.ShowDialog() != DialogResult.OK) return;
                     recebido = Json.Ler(File.ReadAllText(janela.FileName, DesenhoJson.Utf8)) as JObj;
@@ -30,7 +30,7 @@ namespace OrcamentoNanoCAD
                     throw new InvalidDataException("Exclusões bloqueadas quando existe uma obra OrçaCore associada.");
                 if (plano.Novos.Count + plano.Modificados.Count + plano.Excluidos.Count == 0)
                 { Aplicacao.Msg("Nenhuma alteração."); return; }
-                if (!Confirmar(s.Doc.Editor, "Sincronizar: " + plano.Novos.Count + " novos, " +
+                if (!Confirmar(s.Doc.Editor, "Sincronização experimental: " + plano.Novos.Count + " novos, " +
                     plano.Modificados.Count + " modificados, " + plano.Excluidos.Count + " excluídos?") ||
                     !SalvarBackupDxf(destino)) return;
                 // Revalidar após o diálogo/backup antes de escrever.

@@ -34,6 +34,7 @@ Abra **`ORCACORE`** (ou **`OC`**) e escolha **Intercâmbio de desenhos**. As mes
 
 - **`ORC_EXPORTAR_JSON`** gera o JSON do Model Space. **`ORC_IMPORTAR_JSON`** acrescenta a geometria de um JSON ao desenho ativo.
 - **`ORC_GERAR_DXF`** cria um DXF separado para revisão. Abra o arquivo com **`ORC_ABRIR_DXF`**.
+- **`ORC_SINCRONIZAR_JSON`** aplica alterações incrementais de um patch v1 no desenho de origem, com confirmação e backup. A opção é experimental. Confira o resultado em uma cópia do DWG.
 - Para recuperar a geometria visual de objetos proxy, abra uma vez o OrçaCore atualizado e execute **`ORC_CONVERSOR_DXF`** no nanoCAD para conferir o registro do conversor local. A recuperação usa os gráficos que o desenho contém. Objetos sem gráfico recuperável geram um aviso.
 - **`ORC_AJUDA_DESENHO`** lista os comandos. **`ORC_SUBSTITUIR_DESENHO`** e **`ORC_ATUALIZAR_DESENHO`** trabalham com geometria nativa e pedem confirmação e backup.
 

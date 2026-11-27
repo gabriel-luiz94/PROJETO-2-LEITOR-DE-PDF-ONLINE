@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-27 — 0.18.3
+
+`ORC_SINCRONIZAR_JSON` aplica patches v1 de forma experimental, com verificação de origem, confirmação, backup e operações restritas. [TASK-045](tasks/TASK-045-27-11-2026.md).
+
 ## 2026-11-27 — 0.18.2
 
 Arquivos de intercâmbio sem `encoding`, com valor vazio ou com marcador `utf-8`/ `utf8` são convertidos para DXF em UTF-8. [TASK-044](tasks/TASK-044-27-11-2026.md).
@@ -256,7 +260,3 @@ mudanças lá aparecem em poucos segundos. Estrutura/cabo fora da base vira Conf
 
 ## 2026-11-27 — TASK-040 (fonte experimental, sem release)
 Conversão de tags DXF/JSON e comandos CSEXPORTAR/CSIMPORTAR para arquivos separados. Sem compilação; demais comandos pendentes.
-
-
-## 2026-11-27 — TASK-045 (fonte experimental)
-Comando incremental com verificação de origem, backup e operações restritas. Sem release.

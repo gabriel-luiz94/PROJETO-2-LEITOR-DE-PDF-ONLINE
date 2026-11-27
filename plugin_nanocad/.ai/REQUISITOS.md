@@ -132,4 +132,4 @@
 
 
 ## Sincronização incremental — TASK-045
-⏳ Aplicação segura de patches CADSuite v1; fonte experimental, validação e release pendentes.
+- 🟡 Validar aplicação experimental de patches v1 com confirmação e backup no nanoCAD 5 e 26. A importação comum rejeita patches incrementais.

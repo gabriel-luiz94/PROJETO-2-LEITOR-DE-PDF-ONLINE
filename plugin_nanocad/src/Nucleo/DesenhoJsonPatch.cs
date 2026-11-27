@@ -58,7 +58,7 @@ namespace OrcamentoNanoCAD.Nucleo
             if (todos.Distinct(StringComparer.OrdinalIgnoreCase).Count() != todos.Count)
                 throw new InvalidDataException("Operações sobrepostas no arquivo incremental.");
             if (!new HashSet<string>(depois.Keys, StringComparer.OrdinalIgnoreCase).SetEquals(plano.Novos.Concat(plano.Modificados)) ||
-                Registros(recebido).Count != depois.Count)
+                Registros(recebido).Count != depois.Count || depois.Values.Any(Papel))
                 throw new InvalidDataException("Registros incrementais incompatíveis ou subordinados não suportados.");
             var anteriores = p.Lista("before");
             if (anteriores == null || anteriores.Count != plano.Modificados.Count + plano.Excluidos.Count)
@@ -81,6 +81,9 @@ namespace OrcamentoNanoCAD.Nucleo
                 var r = depois[h];
                 if (!SimplesSemMetadados(r) && !ObservacaoSimples(r, antes))
                     throw new InvalidDataException("Acréscimo com dependências ou metadados não suportados: " + h);
+                foreach (var tag in XDataObservacao(r))
+                    if (Json.ComoNumero(tag[0]) == 1005 && plano.Excluidos.Contains(NormalizarHandle((string)tag[1])))
+                        throw new InvalidDataException("A guia da observação " + h + " aponta para uma entidade marcada para exclusão.");
             }
             foreach (string h in plano.Modificados)
             {
@@ -102,8 +105,8 @@ namespace OrcamentoNanoCAD.Nucleo
                         if (s.Str("name") == "HEADER") continue;
                         if (obj.Lista("tags").Cast<IList<object>>().Any(t => {
                             double? c = Json.ComoNumero(t[0]);
-                            return (c == 1005 || (c >= 320 && c <= 369) || (c >= 390 && c <= 399)) &&
-                                string.Equals(((string)t[1]).Trim(), h, StringComparison.OrdinalIgnoreCase);
+                            return (c == 1005 || (c >= 320 && c <= 369) || (c >= 390 && c <= 399) || c == 480 || c == 481) &&
+                                NormalizarHandle((string)t[1]) == h;
                         })) throw new InvalidDataException("Exclusão bloqueada por referência a " + h);
                     }
             }
