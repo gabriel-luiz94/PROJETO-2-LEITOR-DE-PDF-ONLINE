@@ -15,9 +15,6 @@ namespace OrcamentoNanoCAD
 {
     public partial class Comandos
     {
-        private static readonly UTF8Encoding Utf8Dxf = new UTF8Encoding(false, true);
-        private static readonly Encoding BytesDxf = Encoding.GetEncoding(28591, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
-
         private static void AbrirIntercambio()
         {
             string comando;
@@ -61,7 +58,7 @@ namespace OrcamentoNanoCAD
                                 Aplicacao.Log("ORC_EXPORTAR_JSON: " + erro);
                                 Aplicacao.NaTela(() => Aplicacao.Msg("Exportação seguirá com os proxies originais. " + erro.Message));
                             }
-                            File.WriteAllText(temp, Json.Escrever(exportado, false), Utf8Dxf);
+                            File.WriteAllText(temp, Json.Escrever(exportado, false), DesenhoJson.Utf8);
                             File.Move(temp, destino);
                             Aplicacao.NaTela(() => Aplicacao.Msg("Geometria do Model Space exportada para JSON."));
                         }
@@ -173,7 +170,7 @@ namespace OrcamentoNanoCAD
 
         private static void SalvarExportacao(JObj desenho, string destino)
         {
-            File.WriteAllText(destino, Json.Escrever(desenho, false), Utf8Dxf);
+            File.WriteAllText(destino, Json.Escrever(desenho, false), DesenhoJson.Utf8);
             Aplicacao.NaTela(() => Aplicacao.Msg("Geometria do Model Space exportada para JSON."));
         }
 
@@ -183,7 +180,7 @@ namespace OrcamentoNanoCAD
             using (var janela = new OpenFileDialog { Filter = "Desenho JSON|*.json" })
             {
                 if (janela.ShowDialog() != DialogResult.OK) return null;
-                recebido = Json.Ler(File.ReadAllText(janela.FileName, Utf8Dxf)) as JObj;
+                recebido = Json.Ler(File.ReadAllText(janela.FileName, DesenhoJson.Utf8)) as JObj;
             }
 
             // Valida a estrutura recebida antes de filtrar ou chamar a API nativa.
@@ -330,10 +327,7 @@ namespace OrcamentoNanoCAD
 
         private static void EscreverDxfNoArquivo(JObj desenho, string caminho)
         {
-            string encoding = desenho.Str("encoding");
-            if (encoding != "" && encoding != "bytes-iso-8859-1")
-                throw new InvalidDataException("Codificação DXF desconhecida.");
-            using (var escritor = new StreamWriter(caminho, false, encoding == "" ? Utf8Dxf : BytesDxf))
+            using (var escritor = new StreamWriter(caminho, false, DesenhoJson.CodificacaoDxf(desenho)))
                 DesenhoJson.EscreverDxf(desenho, escritor);
         }
 
@@ -352,14 +346,14 @@ namespace OrcamentoNanoCAD
         {
             try
             {
-                using (var leitor = new StreamReader(caminho, Utf8Dxf, false))
+                using (var leitor = new StreamReader(caminho, DesenhoJson.Utf8, false))
                     return DesenhoJson.LerDxf(leitor);
             }
             catch (DecoderFallbackException)
             {
                 // O DXF antigo pode estar em uma página de códigos legada. Preserva os bytes.
-                using (var leitor = new StreamReader(caminho, BytesDxf, false))
-                    return DesenhoJson.LerDxf(leitor).Set("encoding", "bytes-iso-8859-1");
+                using (var leitor = new StreamReader(caminho, DesenhoJson.BytesLegados, false))
+                    return DesenhoJson.LerDxf(leitor).Set("encoding", DesenhoJson.MarcadorBytesLegados);
             }
         }
 

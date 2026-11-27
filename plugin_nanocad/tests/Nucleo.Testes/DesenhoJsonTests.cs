@@ -1,10 +1,40 @@
 using System.IO;
 using System.Linq;
+using System.Text;
 using OrcamentoNanoCAD.Nucleo;
 using Xunit;
 
 public class DesenhoJsonTests
 {
+    [Fact]
+    public void DxfSemCampoDeCodificacaoUsaUtf8()
+    {
+        var json = new JObj();
+        Assert.Same(DesenhoJson.Utf8, DesenhoJson.CodificacaoDxf(json));
+        Assert.Same(DesenhoJson.Utf8, DesenhoJson.CodificacaoDxf(json.Set("encoding", null)));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("UTF-8")]
+    [InlineData("utf8")]
+    public void MarcadoresUtf8PreservamAcentos(string marcador)
+    {
+        var encoding = DesenhoJson.CodificacaoDxf(new JObj().Set("encoding", marcador));
+        Assert.Empty(encoding.GetPreamble());
+        Assert.Equal(new byte[] { 0xC3, 0xA7 }, encoding.GetBytes("ç"));
+    }
+
+    [Fact]
+    public void DxfMantemBytesLegadosERecusaMarcadorDesconhecido()
+    {
+        var json = new JObj().Set("encoding", "bytes-iso-8859-1");
+        Assert.Equal(new byte[] { 0xE7 }, DesenhoJson.CodificacaoDxf(json).GetBytes("ç"));
+        Assert.Throws<EncoderFallbackException>(() => DesenhoJson.CodificacaoDxf(json).GetBytes("€"));
+        json.Set("encoding", "outro");
+        Assert.Throws<InvalidDataException>(() => DesenhoJson.CodificacaoDxf(json));
+    }
+
     [Fact]
     public void PreservaTagsEHandles()
     {

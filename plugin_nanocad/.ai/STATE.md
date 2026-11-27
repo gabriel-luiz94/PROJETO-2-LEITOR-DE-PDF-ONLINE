@@ -5,6 +5,8 @@
 
 ## Plugin 0.18.2
 
+TASK-044: JSON geométrico sem o campo `encoding` usa UTF-8. ✅ Regressão identificada no `export3.json` e coberta no núcleo. 🟡 Validar a importação do arquivo real no nanoCAD. [TASK-044](tasks/TASK-044-27-11-2026.md).
+
 TASK-043: importar por acréscimo e gerar DXF aceitam entidades DXF R12 sem handle. O erro informa o tipo e a posição do registro quando o handle é ausente, inválido ou repetido. ✅ Reproduzido e corrigido no núcleo. 🟡 Validar a leitura no nanoCAD e conferir o JSON que motivou o relato. [TASK-043](tasks/TASK-043-27-11-2026.md).
 
 ## Plugin 0.18.1
