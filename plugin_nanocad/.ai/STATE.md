@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.18.2
+
+TASK-043: importar por acréscimo e gerar DXF aceitam entidades DXF R12 sem handle. O erro informa o tipo e a posição do registro quando o handle é ausente, inválido ou repetido. ✅ Reproduzido e corrigido no núcleo. 🟡 Validar a leitura no nanoCAD e conferir o JSON que motivou o relato. [TASK-043](tasks/TASK-043-27-11-2026.md).
+
 ## Plugin 0.18.1
 
 TASK-042: o menu `ORCACORE` → **Intercâmbio de desenhos** abre as oito ações de DXF e JSON com comandos `ORC_`. ✅ DLLs compiladas para nanoCAD 5 e 26. 🟡 Conferir a abertura da janela e a execução dos comandos pelo menu nas duas versões. [TASK-042](tasks/TASK-042-27-11-2026.md).

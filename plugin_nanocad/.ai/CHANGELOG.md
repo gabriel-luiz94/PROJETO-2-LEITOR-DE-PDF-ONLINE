@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-27 — 0.18.2
+
+O intercâmbio por acréscimo e a geração de DXF aceitam entidades R12 sem handle. A validação distingue handle ausente, inválido e repetido e indica o registro afetado. [TASK-043](tasks/TASK-043-27-11-2026.md).
+
 ## 2026-11-27 — 0.18.1
 
 As ações de DXF e JSON ficam em **ORCACORE → Intercâmbio de desenhos**. Os comandos usam o prefixo `ORC_` para evitar colisões com outros plugins do nanoCAD. [TASK-042](tasks/TASK-042-27-11-2026.md).

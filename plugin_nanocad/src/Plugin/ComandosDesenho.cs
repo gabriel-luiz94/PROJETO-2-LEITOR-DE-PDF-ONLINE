@@ -107,6 +107,7 @@ namespace OrcamentoNanoCAD
                 JObj recebido = SelecionarJson();
                 if (recebido == null) return;
                 recebido = PrepararEntrada(recebido, true);
+                int esperado = ContarEntidades(recebido, true);
                 using (var janela = new SaveFileDialog { Filter = "Desenho DXF|*.dxf" })
                 {
                     if (janela.ShowDialog() != DialogResult.OK) return;
@@ -121,7 +122,7 @@ namespace OrcamentoNanoCAD
                             using (var tr = banco.TransactionManager.StartTransaction())
                             {
                                 var modelo = GuiasDeNota.Modelo(banco, tr, OpenMode.ForRead);
-                                if (IdsDoModelo(modelo, tr, true).Count != DesenhoJsonModelo.Entidades(recebido).Count)
+                                if (IdsDoModelo(modelo, tr, true).Count != esperado)
                                     throw new InvalidDataException("O nanoCAD não leu todas as entidades do DXF.");
                             }
                         }
@@ -197,9 +198,15 @@ namespace OrcamentoNanoCAD
                 throw new InvalidDataException("O intercâmbio visual de proxies está disponível em ORC_IMPORTAR_JSON ou ORC_GERAR_DXF.");
             if (DesenhoJsonModelo.TemProxies(recebido)) recebido = ConverterRepresentacao(recebido);
             DesenhoJsonModelo.GarantirSemProxies(recebido);
-            if (DesenhoJsonModelo.Entidades(recebido).Count == 0)
-                throw new InvalidDataException("O JSON não contém entidades no Model Space.");
             return recebido;
+        }
+
+        private static int ContarEntidades(JObj desenho, bool aceitarR12SemHandle)
+        {
+            int total = aceitarR12SemHandle ? DesenhoJsonModelo.ContarParaImportacao(desenho) : DesenhoJsonModelo.Entidades(desenho).Count;
+            if (total == 0)
+                throw new InvalidDataException("O JSON não contém entidades no Model Space.");
+            return total;
         }
 
         private static void AplicarDesenhoJson(Sessao s, bool substituir, bool atualizar)
@@ -207,7 +214,7 @@ namespace OrcamentoNanoCAD
             JObj recebido = SelecionarJson();
             if (recebido == null) return;
             recebido = PrepararEntrada(recebido, !substituir && !atualizar);
-            var entidades = DesenhoJsonModelo.Entidades(recebido);
+            int esperado = ContarEntidades(recebido, !substituir && !atualizar);
 
             Database destino = s.Doc.Database;
             JObj modeloAtual = null;
@@ -241,7 +248,7 @@ namespace OrcamentoNanoCAD
                         var para = GuiasDeNota.Modelo(destino, escrita, OpenMode.ForRead);
                         var importados = IdsDoModelo(de, leitura, true);
                         var anteriores = IdsDoModelo(para, escrita, substituir);
-                        if (importados.Count != entidades.Count)
+                        if (importados.Count != esperado)
                             throw new InvalidDataException("O nanoCAD não carregou todas as entidades do JSON.");
                         if (modeloAtual != null)
                         {

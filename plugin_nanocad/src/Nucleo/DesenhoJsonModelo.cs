@@ -102,17 +102,58 @@ namespace OrcamentoNanoCAD.Nucleo
 
         public static Dictionary<string, JObj> Entidades(JObj desenho)
         {
+            int total;
+            return IndexarEntidades(desenho, false, out total);
+        }
+
+        public static int ContarParaImportacao(JObj desenho)
+        {
+            int total;
+            IndexarEntidades(desenho, VersaoDxf(desenho) == "AC1009", out total);
+            return total;
+        }
+
+        private static Dictionary<string, JObj> IndexarEntidades(JObj desenho, bool aceitarSemHandle, out int total)
+        {
             var resultado = new Dictionary<string, JObj>(StringComparer.OrdinalIgnoreCase);
+            total = 0;
+            int posicao = 0;
             foreach (JObj r in Registros(desenho).OfType<JObj>())
             {
+                posicao++;
                 string tipo = r.Str("type");
                 if (tipo == "VERTEX" || tipo == "ATTRIB" || tipo == "SEQEND") continue;
-                string handle = NormalizarHandle(Valor(r, 5));
-                if (handle.Length == 0 || resultado.ContainsKey(handle))
-                    throw new InvalidDataException("Handle de entidade ausente, inválido ou repetido.");
+                if (tipo == "data" && r.Lista("tags").Cast<IList<object>>().All(t => Json.ComoNumero(t[0]) == 999)) continue;
+                total++;
+                string bruto = Valor(r, 5, null);
+                if (bruto == null && aceitarSemHandle) continue;
+                string local = tipo + " no registro " + posicao + " de ENTITIES.";
+                if (bruto == null)
+                    throw new InvalidDataException("Handle ausente em " + local);
+                string handle = NormalizarHandle(bruto);
+                if (handle.Length == 0)
+                    throw new InvalidDataException("Handle inválido em " + local);
+                if (resultado.ContainsKey(handle))
+                    throw new InvalidDataException("Handle repetido (" + handle + ") em " + local);
                 resultado.Add(handle, r);
             }
             return resultado;
+        }
+
+        private static string VersaoDxf(JObj desenho)
+        {
+            var cabecalho = desenho.Lista("sections").OfType<JObj>().FirstOrDefault(s => s.Str("name") == "HEADER");
+            if (cabecalho == null) return "";
+            bool versao = false;
+            foreach (var tag in cabecalho.Lista("records").OfType<JObj>().SelectMany(r => r.Lista("tags")).Cast<IList<object>>())
+            {
+                double? codigo = Json.ComoNumero(tag[0]);
+                if (codigo == 999) continue;
+                string valor = ((string)tag[1]).Trim();
+                if (versao) return codigo == 1 ? valor : "";
+                versao = codigo == 9 && valor == "$ACADVER";
+            }
+            return "";
         }
 
         private static string NormalizarHandle(string valor)
@@ -182,7 +223,7 @@ namespace OrcamentoNanoCAD.Nucleo
                 (layout.Length > 0 && !string.Equals(layout, "Model", StringComparison.OrdinalIgnoreCase));
         }
 
-        private static string Valor(JObj registro, int codigo)
+        private static string Valor(JObj registro, int codigo, string padrao = "")
         {
             int nivel = 0;
             foreach (var par in registro.Lista("tags"))
@@ -194,7 +235,7 @@ namespace OrcamentoNanoCAD.Nucleo
                 else if (n == 102 && v.Trim() == "}" && nivel > 0) nivel--;
                 else if (nivel == 0 && n == codigo) return v;
             }
-            return "";
+            return padrao;
         }
 
         private static IEnumerable<object> TagsNaoGeometricas(JObj registro, HashSet<int> codigos)

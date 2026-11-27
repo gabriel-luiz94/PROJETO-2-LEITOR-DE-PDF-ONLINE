@@ -81,6 +81,32 @@ public class DesenhoJsonTests
         Assert.Throws<InvalidDataException>(() => DesenhoJson.EscreverDxf(proxy, TextWriter.Null));
     }
 
+    [Fact]
+    public void ContaEntidadesR12SemHandleEIgnoraComentarioESubordinados()
+    {
+        const string entidades = "999\nComentário inicial\n0\nLINE\n8\n0\n0\nPOLYLINE\n8\n0\n0\nVERTEX\n8\n0\n0\nSEQEND\n";
+        var r12 = DesenhoComEntidades("AC1009", entidades);
+        Assert.Equal(2, DesenhoJsonModelo.ContarParaImportacao(r12));
+        Assert.Contains("Handle ausente em LINE", Assert.Throws<InvalidDataException>(() => DesenhoJsonModelo.Entidades(r12)).Message);
+        var moderno = DesenhoComEntidades("AC1027", entidades);
+        Assert.Contains("Handle ausente em LINE", Assert.Throws<InvalidDataException>(() => DesenhoJsonModelo.ContarParaImportacao(moderno)).Message);
+    }
+
+    [Fact]
+    public void ImportacaoDiferenciaHandleInvalidoDeRepetido()
+    {
+        var invalido = DesenhoComEntidades("AC1009", "0\nLINE\n5\n0\n");
+        Assert.Contains("Handle inválido em LINE", Assert.Throws<InvalidDataException>(() => DesenhoJsonModelo.ContarParaImportacao(invalido)).Message);
+        var repetido = DesenhoComEntidades("AC1009", "0\nLINE\n5\nAB\n0\nCIRCLE\n5\n00ab\n");
+        Assert.Contains("Handle repetido (AB) em CIRCLE", Assert.Throws<InvalidDataException>(() => DesenhoJsonModelo.ContarParaImportacao(repetido)).Message);
+    }
+
+    private static JObj DesenhoComEntidades(string versao, string entidades)
+    {
+        return Ler("0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\n" + versao + "\n0\nENDSEC\n" +
+            "0\nSECTION\n2\nENTITIES\n" + entidades + "0\nENDSEC\n0\nEOF\n");
+    }
+
     private static JObj Ler(string dxf)
     {
         return DesenhoJson.LerDxf(new StringReader(dxf));
