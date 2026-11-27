@@ -256,3 +256,7 @@ mudanças lá aparecem em poucos segundos. Estrutura/cabo fora da base vira Conf
 
 ## 2026-11-27 — TASK-040 (fonte experimental, sem release)
 Conversão de tags DXF/JSON e comandos CSEXPORTAR/CSIMPORTAR para arquivos separados. Sem compilação; demais comandos pendentes.
+
+
+## 2026-11-27 — TASK-045 (fonte experimental)
+Comando incremental com verificação de origem, backup e operações restritas. Sem release.

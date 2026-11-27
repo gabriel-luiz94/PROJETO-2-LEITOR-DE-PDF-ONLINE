@@ -165,6 +165,7 @@ namespace OrcamentoNanoCAD
                 "  ORC_ABRIR_DXF  Abrir um DXF para conferência\n" +
                 "  ORC_ATUALIZAR_DESENHO  Atualizar a geometria existente com backup\n" +
                 "  ORC_SUBSTITUIR_DESENHO  Substituir o Model Space com backup\n" +
+                "  ORC_SINCRONIZAR_JSON  Aplicar alterações incrementais com backup\n" +
                 "  ORC_CONVERSOR_DXF  Verificar o conversor local");
         }
 
@@ -183,6 +184,8 @@ namespace OrcamentoNanoCAD
                 recebido = Json.Ler(File.ReadAllText(janela.FileName, DesenhoJson.Utf8)) as JObj;
             }
 
+            if (recebido != null && recebido.Has("cadsuitePatch"))
+                throw new InvalidDataException("Arquivo incremental: use ORC_SINCRONIZAR_JSON.");
             // Valida a estrutura recebida antes de filtrar ou chamar a API nativa.
             DesenhoJson.EscreverDxf(recebido, TextWriter.Null);
             DesenhoJsonModelo.RestringirAoModelo(recebido);
