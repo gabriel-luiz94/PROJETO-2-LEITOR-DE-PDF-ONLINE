@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using OrcamentoNanoCAD.Nucleo;
 using Teigha.DatabaseServices;
+using Teigha.Geometry;
 using Teigha.Runtime;
 
 namespace OrcamentoNanoCAD
@@ -36,16 +38,15 @@ namespace OrcamentoNanoCAD
                     !SalvarBackupDxf(destino)) return;
                 // Revalidar após o diálogo/backup antes de escrever.
                 plano = DesenhoJsonModelo.PlanejarPatch(CapturarDxf(destino), recebido);
-                var registros = DesenhoJsonModelo.Entidades(recebido);
                 string temp = CaminhoDxfTemporario();
                 try
                 {
-                    // Retirar apenas os links de observação da fonte temporária; serão gravados
-                    // explicitamente com handles do destino, não com handles do banco auxiliar.
+                    // Reaplica os metadados validados depois que todas as entidades têm handle no destino.
                     var fonteJson = (JObj)Json.Ler(Json.Escrever(recebido, false));
-                    foreach (var r in DesenhoJsonModelo.Entidades(fonteJson).Values)
-                        if (DesenhoJsonModelo.XDataObservacao(r).Count > 0)
-                            r.Lista("tags").RemoveAll(o => Json.ComoNumero(((IList<object>)o)[0]) >= 1000);
+                    var entidadesFonte = DesenhoJsonModelo.Entidades(fonteJson);
+                    foreach (string h in plano.XDataNovos.Keys.Concat(plano.Modificados.Where(h =>
+                        DesenhoJsonModelo.XDataObservacao(entidadesFonte[h]).Count > 0)))
+                        entidadesFonte[h].Lista("tags").RemoveAll(o => Json.ComoNumero(((IList<object>)o)[0]) >= 1000);
                     EscreverDxfNoArquivo(fonteJson, temp);
                     using (var fonte = new Database(false, true))
                     {
@@ -70,33 +71,29 @@ namespace OrcamentoNanoCAD
                                 using (var mapa = new IdMapping())
                                 {
                                     fonte.WblockCloneObjects(ids, para.ObjectId, mapa, DuplicateRecordCloning.Ignore, false);
+                                    var novos = new Dictionary<string, Entity>(StringComparer.OrdinalIgnoreCase);
                                     foreach (string h in plano.Novos)
                                     {
                                         var par = mapa[src[h]];
                                         if (!par.IsCloned || par.Value.IsNull)
                                             throw new InvalidOperationException("Falha na clonagem: " + h);
-                                        var entidade = escrita.GetObject(par.Value, OpenMode.ForWrite) as Entity;
+                                        var entidade = escrita.GetObject(par.Value, OpenMode.ForRead) as Entity;
                                         if (entidade == null || entidade.OwnerId != para.ObjectId)
                                             throw new InvalidOperationException("Entidade fora do Model Space.");
-                                        var xd = DesenhoJsonModelo.XDataObservacao(registros[h]);
-                                        if (xd.Count == 0) continue;
-                                        var apps = (RegAppTable)escrita.GetObject(destino.RegAppTableId, OpenMode.ForRead);
-                                        if (!apps.Has("CADSUITE_OBS"))
+                                        novos.Add(h, entidade);
+                                    }
+                                    foreach (var xdata in plano.XDataNovos)
+                                    {
+                                        var entidade = novos[xdata.Key];
+                                        var tags = DesenhoJsonModelo.RemapearXDataPatch(xdata.Value, entidade.Handle.ToString(), h =>
                                         {
-                                            apps.UpgradeOpen();
-                                            var app = new RegAppTableRecord { Name = "CADSUITE_OBS" };
-                                            apps.Add(app); escrita.AddNewlyCreatedDBObject(app, true);
-                                        }
-                                        var valores = new List<TypedValue>();
-                                        foreach (var tag in xd)
-                                        {
-                                            int codigo = (int)Json.ComoNumero(tag[0]).Value;
-                                            string valor = (string)tag[1];
-                                            if (codigo == 1005)
-                                                valor = escrita.GetObject(dst[valor.Trim().TrimStart('0')], OpenMode.ForRead).Handle.ToString();
-                                            valores.Add(new TypedValue(codigo, valor));
-                                        }
-                                        using (var dados = new ResultBuffer(valores.ToArray())) entidade.XData = dados;
+                                            Entity nova;
+                                            if (novos.TryGetValue(h, out nova)) return nova.Handle.ToString();
+                                            ObjectId id;
+                                            return dst.TryGetValue(h, out id)
+                                                ? escrita.GetObject(id, OpenMode.ForRead).Handle.ToString() : null;
+                                        });
+                                        GravarXDataPatch(destino, escrita, entidade, tags);
                                     }
                                 }
                             }
@@ -110,6 +107,37 @@ namespace OrcamentoNanoCAD
                 }
                 finally { if (File.Exists(temp)) File.Delete(temp); }
             });
+        }
+
+        private static void GravarXDataPatch(Database destino, Transaction escrita, Entity entidade, IList<IList<object>> tags)
+        {
+            string nome = (string)tags[0][1];
+            var apps = (RegAppTable)escrita.GetObject(destino.RegAppTableId, OpenMode.ForRead);
+            if (!apps.Has(nome))
+            {
+                if (!apps.IsWriteEnabled) apps.UpgradeOpen();
+                var app = new RegAppTableRecord { Name = nome };
+                apps.Add(app);
+                escrita.AddNewlyCreatedDBObject(app, true);
+            }
+            var valores = new List<TypedValue>();
+            for (int i = 0; i < tags.Count; i++)
+            {
+                int codigo = (int)Json.ComoNumero(tags[i][0]).Value;
+                string valor = (string)tags[i][1];
+                if (codigo == 1010)
+                {
+                    double x = double.Parse(valor, CultureInfo.InvariantCulture);
+                    double y = double.Parse((string)tags[++i][1], CultureInfo.InvariantCulture);
+                    double z = double.Parse((string)tags[++i][1], CultureInfo.InvariantCulture);
+                    valores.Add(new TypedValue(codigo, new Point3d(x, y, z)));
+                }
+                else if (codigo == 1070)
+                    valores.Add(new TypedValue(codigo, short.Parse(valor, CultureInfo.InvariantCulture)));
+                else valores.Add(new TypedValue(codigo, valor));
+            }
+            if (!entidade.IsWriteEnabled) entidade.UpgradeOpen();
+            using (var dados = new ResultBuffer(valores.ToArray())) entidade.XData = dados;
         }
     }
 }

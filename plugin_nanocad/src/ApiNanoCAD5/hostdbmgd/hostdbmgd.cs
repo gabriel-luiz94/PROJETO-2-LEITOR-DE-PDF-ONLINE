@@ -157,6 +157,7 @@ namespace Teigha.DatabaseServices
         public global::Teigha.DatabaseServices.ResultBuffer GetXDataForApplication(string applicationName) { throw null; }
         public void UpgradeOpen() { throw null; }
         public global::Teigha.DatabaseServices.Handle Handle { get { throw null; }  }
+        public bool IsWriteEnabled { get { throw null; }  }
         public global::Teigha.DatabaseServices.ObjectId ObjectId { get { throw null; }  }
         public virtual global::Teigha.DatabaseServices.ObjectId OwnerId { get { throw null; }  }
         public virtual global::Teigha.DatabaseServices.ResultBuffer XData { get { throw null; } set { } }

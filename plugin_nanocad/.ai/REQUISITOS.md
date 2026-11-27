@@ -134,3 +134,4 @@
 ## Sincronização incremental — TASK-045
 - 🟡 Validar aplicação experimental de patches v1 com confirmação e backup no nanoCAD 5 e 26. A importação comum rejeita patches incrementais.
 - 🟡 Validar patches v2 no fluxo CADSuite Web e nanoCAD. Identificar o DWG pelo fingerprint e conferir os registros afetados e os alvos das guias antes da confirmação.
+- 🟡 Sincronizar grupos completos `ANOTAPOSTE` com remapeamento das peças e da guia. Confirmar transação, backup e desfazer no CAD.

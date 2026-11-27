@@ -52,27 +52,43 @@ namespace OrcamentoNanoCAD.Nucleo
         }
 
         private static void ConferirReferenciasPatch(JObj patch, PlanoPatch plano,
-            Dictionary<string, JObj> antes, Dictionary<string, JObj> depois)
+            Dictionary<string, JObj> antes, Dictionary<string, JObj> depois, List<NotaPostePatch> novasNotas, JObj atual)
         {
             var requeridas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (string h in plano.Novos)
                 foreach (var tag in XDataObservacao(depois[h]))
                     if (Json.ComoNumero(tag[0]) == 1005) requeridas.Add(NormalizarHandle((string)tag[1]));
+            var alvosNota = new HashSet<string>(novasNotas.SelectMany(n => n.Alvos), StringComparer.OrdinalIgnoreCase);
+            foreach (string h in alvosNota)
+                if (!antes.ContainsKey(h) || plano.Excluidos.Contains(h))
+                    throw new InvalidDataException("Alvo ANOTAPOSTE " + h + " ausente ou marcado para exclusão.");
 
             var referencias = patch.Lista("references");
-            if (referencias == null || referencias.Count != requeridas.Count)
+            if (referencias == null)
                 throw new InvalidDataException("O patch v2 precisa de um registro em references para cada alvo distinto de guia.");
 
+            var conferidas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (object item in referencias)
             {
                 var registro = item as JObj;
                 if (registro == null || registro.Lista("tags") == null)
                     throw new InvalidDataException("Registro de referência inválido no patch v2.");
                 string h = NormalizarHandle(Valor(registro, 5));
-                JObj atual;
-                if (!requeridas.Remove(h) || !antes.TryGetValue(h, out atual) || !RegistroEquivalente(registro, atual))
+                JObj entidade;
+                if (!conferidas.Add(h) || !(requeridas.Contains(h) || alvosNota.Contains(h)) ||
+                    !antes.TryGetValue(h, out entidade) || !RegistroEquivalente(registro, entidade))
                     throw new InvalidDataException("Conflito no alvo da guia " + h + ": a entidade de referência mudou, foi removida ou é inválida.");
             }
+            if (!requeridas.IsSubsetOf(conferidas))
+                throw new InvalidDataException("O patch v2 precisa de um registro em references para cada alvo distinto de guia.");
+            alvosNota.ExceptWith(conferidas);
+            if (alvosNota.Count == 0) return;
+            // O exportador anterior omitia os alvos de ANOTAPOSTE. A assinatura do modelo inteiro
+            // só substitui os snapshots se comprovar que o modelo ainda corresponde à base.
+            if (patch.Str("sourceModel") != Assinatura(Registros(atual)))
+                throw new InvalidDataException("ANOTAPOSTE sem registro de referência em references: " +
+                    string.Join(", ", alvosNota.ToArray()) + ". Reexporte o patch com os registros originais dos alvos.");
+            plano.Diagnosticos.Add("Alvos ANOTAPOSTE conferidos pela assinatura original do Model Space.");
         }
 
         private static bool RegistroEquivalente(JObj a, JObj b)
