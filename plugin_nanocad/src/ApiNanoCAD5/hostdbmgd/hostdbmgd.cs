@@ -35,6 +35,14 @@ namespace Teigha.DatabaseServices
         public double Width { get { throw null; } set { } }
         protected AbstractViewTableRecord() { }
     }
+    public class Arc : global::Teigha.DatabaseServices.Curve
+    {
+        public global::Teigha.Geometry.Point3d Center { get { throw null; } set { } }
+        public double EndAngle { get { throw null; } set { } }
+        public double Radius { get { throw null; } set { } }
+        public double StartAngle { get { throw null; } set { } }
+        protected Arc() { }
+    }
     public enum AttachmentPoint : int
     {
         BaseAlign = unchecked((int)(13)),
@@ -126,7 +134,9 @@ namespace Teigha.DatabaseServices
     }
     public sealed class Database : global::Teigha.Runtime.RXObject
     {
+        public Database(bool buildDefaultDrawing, bool noDocument) { }
         public global::Teigha.DatabaseServices.ObjectId GetObjectId(bool createIfNotFound, global::Teigha.DatabaseServices.Handle objHandle, int identifier) { throw null; }
+        public void WblockCloneObjects(global::Teigha.DatabaseServices.ObjectIdCollection identifiers, global::Teigha.DatabaseServices.ObjectId id, global::Teigha.DatabaseServices.IdMapping mapping, global::Teigha.DatabaseServices.DuplicateRecordCloning cloning, bool deferTranslation) { throw null; }
         public global::Teigha.DatabaseServices.ObjectId BlockTableId { get { throw null; }  }
         public global::Teigha.DatabaseServices.ObjectId LayerTableId { get { throw null; }  }
         public global::Teigha.DatabaseServices.ObjectId NamedObjectsDictionaryId { get { throw null; }  }
@@ -148,6 +158,7 @@ namespace Teigha.DatabaseServices
         public void UpgradeOpen() { throw null; }
         public global::Teigha.DatabaseServices.Handle Handle { get { throw null; }  }
         public global::Teigha.DatabaseServices.ObjectId ObjectId { get { throw null; }  }
+        public virtual global::Teigha.DatabaseServices.ObjectId OwnerId { get { throw null; }  }
         public virtual global::Teigha.DatabaseServices.ResultBuffer XData { get { throw null; } set { } }
         protected DBObject() { }
     }
@@ -157,6 +168,15 @@ namespace Teigha.DatabaseServices
         public double Height { get { throw null; } set { } }
         public global::Teigha.Geometry.Point3d Position { get { throw null; } set { } }
         public string TextString { get { throw null; } set { } }
+    }
+    public enum DuplicateRecordCloning : int
+    {
+        NotApplicable = unchecked((int)(0)),
+        Ignore = unchecked((int)(1)),
+        Replace = unchecked((int)(2)),
+        RefMangleName = unchecked((int)(3)),
+        MangleName = unchecked((int)(4)),
+        UnmangleName = unchecked((int)(5)),
     }
     public enum DwgVersion : int
     {
@@ -381,6 +401,17 @@ namespace Teigha.DatabaseServices
         public Handle(long v) { }
         public string ToString() { throw null; }
     }
+    public sealed class IdMapping : global::Teigha.Runtime.RXObject, System.Collections.IEnumerable
+    {
+        public IdMapping() { }
+        public global::Teigha.DatabaseServices.IdPair this[global::Teigha.DatabaseServices.ObjectId key] { get { throw null; } set { } }
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { throw null; }
+    }
+    public struct IdPair
+    {
+        public bool IsCloned { get { throw null; }  }
+        public global::Teigha.DatabaseServices.ObjectId Value { get { throw null; }  }
+    }
     public sealed class LayerTable : global::Teigha.DatabaseServices.SymbolTable
     {
         public global::Teigha.DatabaseServices.SymbolTableEnumerator GetEnumerator() { throw null; }
@@ -433,6 +464,12 @@ namespace Teigha.DatabaseServices
         public static global::Teigha.DatabaseServices.ObjectId Null { get { throw null; }  }
         public global::Teigha.Runtime.RXClass ObjectClass { get { throw null; }  }
     }
+    public sealed class ObjectIdCollection : global::Teigha.Runtime.DisposableWrapper
+    {
+        public ObjectIdCollection(global::Teigha.DatabaseServices.ObjectId[] values) { }
+        public global::System.Collections.IEnumerator GetEnumerator() { throw null; }
+        protected ObjectIdCollection() { }
+    }
     public enum OpenMode : int
     {
         ForRead = unchecked((int)(0)),
@@ -443,8 +480,16 @@ namespace Teigha.DatabaseServices
     {
         public Polyline() { }
         public void AddVertexAt(int index, global::Teigha.Geometry.Point2d pt, double bulge, double startWidth, double endWidth) { throw null; }
+        public double GetBulgeAt(int index) { throw null; }
+        public double GetEndWidthAt(int index) { throw null; }
         public global::Teigha.Geometry.Point2d GetPoint2dAt(int index) { throw null; }
+        public double GetStartWidthAt(int index) { throw null; }
+        public void SetBulgeAt(int index, double bulge) { throw null; }
+        public void SetEndWidthAt(int index, double endWidth) { throw null; }
+        public void SetPointAt(int index, global::Teigha.Geometry.Point2d pt) { throw null; }
+        public void SetStartWidthAt(int index, double startWidth) { throw null; }
         public bool Closed { get { throw null; } set { } }
+        public double Elevation { get { throw null; } set { } }
         public int NumberOfVertices { get { throw null; }  }
     }
     public class Polyline2d : global::Teigha.DatabaseServices.Curve, System.Collections.IEnumerable

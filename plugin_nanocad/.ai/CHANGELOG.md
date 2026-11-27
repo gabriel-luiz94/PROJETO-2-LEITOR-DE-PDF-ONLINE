@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-27 — 0.17.0
+
+Intercâmbio de geometria do Model Space em `cad-dxf-tags-v1`. CSEXPORTAR guarda o JSON e a assinatura da origem. CSIMPORTAR acrescenta entidades ao desenho ativo. CSSUBSTITUIR substitui o conteúdo do Model Space quando as referências permitem. CSATUALIZAR aplica alterações geométricas nos mesmos handles. Substituição e atualização pedem confirmação e backup. [TASK-040](tasks/TASK-040-27-11-2026.md).
+
 ## 2026-11-25 — 0.16.6
 
 nanoCAD 26 travava no **Abrir no OrçaCore** / **Adicionar anotações ao OrçaCore**: o Abrir conversava com o OrçaCore na thread do nanoCAD (até 30 s de espera) — agora em segundo plano, com a mensagem voltando à linha de comando (`Aplicacao.NaTela`); chamadas a `127.0.0.1` sem proxy do Windows e sem keep-alive; tempos de cada passo no `log.txt`. [TASK-039](tasks/TASK-039-25-11-2026.md).

@@ -13,9 +13,11 @@ namespace OrcamentoNanoCAD.Nucleo
             var secoes = new List<object>();
             List<object> registros = null, tags = null;
             bool fim = false;
+            bool primeira = true;
             string linha;
             while ((linha = leitor.ReadLine()) != null)
             {
+                if (primeira) { linha = linha.TrimStart('\uFEFF'); primeira = false; }
                 int codigo;
                 string valor = leitor.ReadLine();
                 if (valor == null || !int.TryParse(linha, NumberStyles.Integer, CultureInfo.InvariantCulture, out codigo))
@@ -23,7 +25,9 @@ namespace OrcamentoNanoCAD.Nucleo
                 if (codigo == 0 && valor.Trim() == "EOF") { if (registros != null) throw new InvalidDataException("Seção aberta."); fim = true; break; }
                 if (codigo == 0 && valor.Trim() == "SECTION")
                 {
-                    if (registros != null || leitor.ReadLine() == null) throw new InvalidDataException("Seção inválida.");
+                    int codigoNome;
+                    if (registros != null || !int.TryParse(leitor.ReadLine(), NumberStyles.Integer, CultureInfo.InvariantCulture, out codigoNome) || codigoNome != 2)
+                        throw new InvalidDataException("Seção inválida.");
                     string nome = leitor.ReadLine();
                     if (string.IsNullOrEmpty(nome)) throw new InvalidDataException("Seção sem nome.");
                     registros = new List<object>(); tags = null;
@@ -58,16 +62,22 @@ namespace OrcamentoNanoCAD.Nucleo
                 foreach (object obj in secao.Lista("records"))
                 {
                     JObj registro = obj as JObj;
-                    if (registro == null || registro.Lista("tags") == null) throw new InvalidDataException("Registro inválido.");
+                    if (registro == null || registro.Lista("tags") == null || registro.Lista("tags").Count == 0)
+                        throw new InvalidDataException("Registro inválido.");
+                    bool primeiraTag = true;
                     foreach (object tag in registro.Lista("tags"))
                     {
-                        var par = tag as List<object>;
+                        var par = tag as IList<object>;
                         if (par == null || par.Count != 2 || !(par[1] is string)) throw new InvalidDataException("Tag inválida.");
                         double? n = Json.ComoNumero(par[0]);
                         if (!n.HasValue || n.Value != Math.Floor(n.Value) || n.Value < 0 || n.Value > 1071) throw new InvalidDataException("Código DXF inválido.");
                         string v = (string)par[1];
-                        if (n.Value == 0 && (v.Trim() == "EOF" || v.Trim() == "SECTION" || v.Trim() == "ENDSEC")) throw new InvalidDataException("Delimitador dentro do registro.");
+                        if (n.Value == 0 && (!primeiraTag || v.Trim() == "EOF" || v.Trim() == "SECTION" || v.Trim() == "ENDSEC"))
+                            throw new InvalidDataException("Delimitador dentro do registro.");
+                        if (primeiraTag && (n.Value == 0 ? v.Trim() : "data") != registro.Str("type"))
+                            throw new InvalidDataException("Tipo de registro incompatível com as tags.");
                         Par(escritor, (int)n.Value, v);
+                        primeiraTag = false;
                     }
                 }
                 Par(escritor, 0, "ENDSEC");

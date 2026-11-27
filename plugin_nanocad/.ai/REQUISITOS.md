@@ -118,5 +118,6 @@
 
 
 ## Intercâmbio CADSuite Web — TASK-040
-- ⏳ Exportar Model Space em cad-dxf-tags-v1 (fonte inicial exporta DXF integral).
-- ⏳ Importar, substituir e atualizar no desenho ativo preservando metadados e layouts (fonte inicial gera novo DXF).
+- ✅ Exportar as entidades do Model Space em `cad-dxf-tags-v1` com as dependências DXF.
+- 🟡 Importar e substituir no Model Space por clonagem nativa; atualização geométrica no lugar para linhas, círculos, arcos e polilinhas leves.
+- 🟡 Confirmar no nanoCAD 5 e 26 a ida e volta de blocos, XDATA, Xrecords e a recusa de objetos proxy na importação.

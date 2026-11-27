@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.17.0
+
+TASK-040: intercâmbio CADSuite Web no Model Space, com CSEXPORTAR, CSIMPORTAR, CSSUBSTITUIR e CSATUALIZAR. ✅ 159 testes do núcleo, verificação C# 5/.NET 4 e DLLs 5/26 com manifestos. 🟡 Validar no nanoCAD real, incluindo dependências, proxies e comportamento de transações. [TASK-040](tasks/TASK-040-27-11-2026.md).
+
 ## Plugin 0.16.6
 
 TASK-039 (etapa 2): Abrir no OrçaCore em segundo plano (não prende a tela do nanoCAD); chamadas locais sem proxy/keep-alive; tempos no log. ✅ 153 testes do núcleo; DLLs 0.16.6. 🟡 Validar no nanoCAD 26 (Abrir no OrçaCore e Adicionar anotações) e no nanoCAD 5 (Salvar).
@@ -215,7 +219,3 @@ Branch de trabalho: `codex/plugin-desenho-ativo`
 ## Última atualização
 
 2026-11-11 — TASK-014 (nanoCAD 5 pronto) e TASK-015 (projetos/leitura da aplicação). Antes: TASK-013 (atualização automática), TASK-012 (painel Cabos/Postes, filtro do leitor, ícones), TASK-011, TASK-004 a 010, TASK-003 e TASK-001.
-
-
-## TASK-040 — Intercâmbio geométrico (em andamento)
-Código-fonte inicial de CSEXPORTAR/CSIMPORTAR; sem build ou testes executados. Exportação integral DXF, importação para novo arquivo. Model Space isolado, substituição e atualização pendentes. DLLs permanecem 0.16.6.

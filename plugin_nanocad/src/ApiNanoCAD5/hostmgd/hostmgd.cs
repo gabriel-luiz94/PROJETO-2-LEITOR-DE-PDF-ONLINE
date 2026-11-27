@@ -22,7 +22,6 @@ namespace HostMgd.ApplicationServices
         public event global::HostMgd.ApplicationServices.CommandEventHandler CommandEnded;
         public global::HostMgd.ApplicationServices.DocumentLock LockDocument() { throw null; }
         public void SendStringToExecute(string command, bool activate, bool wrapUpInactiveDoc, bool echoCommand) { throw null; }
-        public string CommandInProgress { get { throw null; }  }
         public global::Teigha.DatabaseServices.Database Database { get { throw null; }  }
         public global::HostMgd.EditorInput.Editor Editor { get { throw null; }  }
         public string Name { get { throw null; }  }
@@ -54,8 +53,8 @@ namespace HostMgd.EditorInput
     {
         public void DrawVector(global::Teigha.Geometry.Point3d from, global::Teigha.Geometry.Point3d to, int color, bool drawHighlighted) { throw null; }
         public global::Teigha.DatabaseServices.ViewTableRecord GetCurrentView() { throw null; }
-        public global::HostMgd.EditorInput.PromptEntityResult GetEntity(string message) { throw null; }
         public global::HostMgd.EditorInput.PromptEntityResult GetEntity(global::HostMgd.EditorInput.PromptEntityOptions options) { throw null; }
+        public global::HostMgd.EditorInput.PromptEntityResult GetEntity(string message) { throw null; }
         public global::HostMgd.EditorInput.PromptResult GetKeywords(global::HostMgd.EditorInput.PromptKeywordOptions options) { throw null; }
         public global::HostMgd.EditorInput.PromptPointResult GetPoint(global::HostMgd.EditorInput.PromptPointOptions options) { throw null; }
         public global::HostMgd.EditorInput.PromptSelectionResult GetSelection(global::HostMgd.EditorInput.PromptSelectionOptions options, global::HostMgd.EditorInput.SelectionFilter filter) { throw null; }
