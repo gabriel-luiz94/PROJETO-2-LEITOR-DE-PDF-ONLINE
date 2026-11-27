@@ -3,6 +3,10 @@
 > Retrato do estado atual do `plugin_nanocad/`. ✅ = testado sem CAD · 🟡 = implementado, aguardando teste no nanoCAD
 > pelo usuário · ⏳ = pendente. Requisitos detalhados: [`REQUISITOS.md`](REQUISITOS.md).
 
+## Plugin 0.18.1
+
+TASK-042: o menu `ORCACORE` → **Intercâmbio de desenhos** abre as oito ações de DXF e JSON com comandos `ORC_`. ✅ DLLs compiladas para nanoCAD 5 e 26. 🟡 Conferir a abertura da janela e a execução dos comandos pelo menu nas duas versões. [TASK-042](tasks/TASK-042-27-11-2026.md).
+
 ## Plugin 0.18.0
 
 TASK-041 adiciona conversão visual local de proxies, geração de DXF separado, abertura, status e ajuda do intercâmbio CADSuite. ✅ Builds 5/26 e teste do conversor com os dois tipos de proxy. 🟡 Validar o executável Windows empacotado, o carregamento das DLLs e o fluxo no CAD real. [TASK-041](tasks/TASK-041-27-11-2026.md).

@@ -11,7 +11,7 @@ using OrcamentoNanoCAD.Nucleo;
 namespace OrcamentoNanoCAD.UI
 {
     // ── tela inicial (mockup A) ──
-    public enum Escolha { Nada, Construir, Ler, Continuar, Painel, Leitura }
+    public enum Escolha { Nada, Construir, Ler, Continuar, Painel, Leitura, Intercambio }
 
     public class TelaInicio : Form
     {
@@ -90,6 +90,7 @@ namespace OrcamentoNanoCAD.UI
             baixo.Controls.Add(colProj);
             baixo.Controls.Add(colSalva);
             raiz.Controls.Add(baixo);
+            raiz.Controls.Add(Visual.Botao("Intercâmbio de desenhos…", (o, e) => Escolher(Escolha.Intercambio)));
             _status = Visual.Rotulo(Sincronizador.Status, Visual.Normal, Visual.Suave);
             _status.MaximumSize = new Size(700, 0);
             _status.Margin = new Padding(0, 10, 0, 0);

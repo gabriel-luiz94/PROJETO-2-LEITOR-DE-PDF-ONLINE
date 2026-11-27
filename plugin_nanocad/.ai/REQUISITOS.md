@@ -117,12 +117,13 @@
 | Filtrar MTEXT na análise | ✅ build 26 · 🟡 CAD |
 
 
-## Intercâmbio CADSuite Web — TASK-040
+## Intercâmbio de desenhos — TASK-040 e TASK-042
+- 🟡 Oferecer as ações de DXF e JSON no menu `ORCACORE` → **Intercâmbio de desenhos** e como comandos `ORC_`.
 - ✅ Exportar as entidades do Model Space em `cad-dxf-tags-v1` com as dependências DXF.
 - 🟡 Importar e substituir no Model Space por clonagem nativa; atualização geométrica no lugar para linhas, círculos, arcos e polilinhas leves.
 - 🟡 Confirmar no nanoCAD 5 e 26 a ida e volta de blocos, XDATA e Xrecords.
 
-## Representação visual CADSuite — TASK-041
+## Representação visual de proxies — TASK-041
 
 - ✅ Recuperar a geometria dos proxies ACAD_PROXY_ENTITY e SPDSNOTEPOSITION no Model Space quando o DXF inclui a representação gráfica.
 - 🟡 Conferir no nanoCAD 5 e 26 a criação de um DXF separado, a importação por acréscimo e as mensagens para proxies sem gráfico. Atualizar e substituir exigem geometria nativa.
