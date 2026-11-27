@@ -62,6 +62,8 @@ namespace OrcamentoNanoCAD.Nucleo
         {
             desenho.Set("sourceModel", Assinatura(Registros(desenho)));
             desenho.Set("sourceDependencies", Assinatura(Dependencias(desenho)));
+            string id = IdentidadeDwg(desenho);
+            if (id.Length != 0) desenho.Set("sourceDrawingId", id);
         }
 
         public static void GarantirSubstituicaoSemReferencias(JObj integral, JObj modelo)
@@ -142,6 +144,11 @@ namespace OrcamentoNanoCAD.Nucleo
 
         private static string VersaoDxf(JObj desenho)
         {
+            return VariavelDxf(desenho, "$ACADVER", 1);
+        }
+
+        private static string VariavelDxf(JObj desenho, string nome, int tipo)
+        {
             var cabecalho = desenho.Lista("sections").OfType<JObj>().FirstOrDefault(s => s.Str("name") == "HEADER");
             if (cabecalho == null) return "";
             bool versao = false;
@@ -150,8 +157,8 @@ namespace OrcamentoNanoCAD.Nucleo
                 double? codigo = Json.ComoNumero(tag[0]);
                 if (codigo == 999) continue;
                 string valor = ((string)tag[1]).Trim();
-                if (versao) return codigo == 1 ? valor : "";
-                versao = codigo == 9 && valor == "$ACADVER";
+                if (versao) return codigo == tipo ? valor : "";
+                versao = codigo == 9 && valor == nome;
             }
             return "";
         }

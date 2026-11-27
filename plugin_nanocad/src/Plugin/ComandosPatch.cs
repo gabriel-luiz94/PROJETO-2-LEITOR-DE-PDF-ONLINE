@@ -26,6 +26,7 @@ namespace OrcamentoNanoCAD
                 DesenhoJsonModelo.GarantirSemProxies(recebido);
                 var destino = s.Doc.Database;
                 var plano = DesenhoJsonModelo.PlanejarPatch(CapturarDxf(destino), recebido);
+                foreach (string diagnostico in plano.Diagnosticos) Aplicacao.Log("ORC_SINCRONIZAR_JSON: " + diagnostico);
                 if (plano.Excluidos.Count > 0 && (s.Obra != null || PersistenciaDwg.Procurar(s) != null))
                     throw new InvalidDataException("Exclusões bloqueadas quando existe uma obra OrçaCore associada.");
                 if (plano.Novos.Count + plano.Modificados.Count + plano.Excluidos.Count == 0)

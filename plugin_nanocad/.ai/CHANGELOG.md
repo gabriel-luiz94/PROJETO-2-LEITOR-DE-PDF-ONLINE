@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-27 — 0.18.4
+
+A exportação inclui `sourceDrawingId` quando o DWG fornece o fingerprint. `ORC_SINCRONIZAR_JSON` aceita patch v2 e verifica conflitos nas entidades e dependências que a operação usa. [TASK-046](tasks/TASK-046-27-11-2026.md).
+
 ## 2026-11-27 — 0.18.3
 
 `ORC_SINCRONIZAR_JSON` aplica patches v1 de forma experimental, com verificação de origem, confirmação, backup e operações restritas. [TASK-045](tasks/TASK-045-27-11-2026.md).
