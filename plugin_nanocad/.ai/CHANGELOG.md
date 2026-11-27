@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-27 — 0.18.6
+
+O comando de sincronização converte as referências XDATA 1005 em objetos `Handle` ao montar o buffer nativo da guia. [TASK-048](tasks/TASK-048-27-11-2026.md).
+
 ## 2026-11-27 — 0.18.5
 
 A sincronização v2 aceita grupos completos `ANOTAPOSTE`, incluindo a substituição de anotações legadas e o remapeamento da guia para os handles reais. [TASK-047](tasks/TASK-047-27-11-2026.md).

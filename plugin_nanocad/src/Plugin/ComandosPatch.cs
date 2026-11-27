@@ -134,6 +134,8 @@ namespace OrcamentoNanoCAD
                 }
                 else if (codigo == 1070)
                     valores.Add(new TypedValue(codigo, short.Parse(valor, CultureInfo.InvariantCulture)));
+                else if (codigo == 1005)
+                    valores.Add(new TypedValue(codigo, new Handle(long.Parse(valor, NumberStyles.HexNumber, CultureInfo.InvariantCulture))));
                 else valores.Add(new TypedValue(codigo, valor));
             }
             if (!entidade.IsWriteEnabled) entidade.UpgradeOpen();
