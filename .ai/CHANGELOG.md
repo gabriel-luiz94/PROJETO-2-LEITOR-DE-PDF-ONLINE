@@ -8,6 +8,10 @@
 
 ---
 
+## 2026-11-27 — Conversor local de gráficos de proxies CADSuite
+
+O OrçaCore empacotado anuncia ao plugin do nanoCAD a conversão de gráficos de proxies. O conversor processa um DXF temporário sem iniciar a interface desktop. [TASK-255](tasks/TASK-255-27-11-2026.md).
+
 ## 2026-11-27 — Exibição: mostrar/ocultar grupos, fictícios e comentários em Demais ativos
 
 Menu **Exibição → Linhas da tabela Demais ativos**: botões **Grupos** (linhas `@nome`), **Fictícios** (operação F) e **Comentários**, ligados por padrão; desligar só esconde as linhas (continuam na obra, no cálculo e no Mapa). A escolha fica lembrada no computador (`resumo_ver_*`). [TASK-254](tasks/TASK-254-27-11-2026.md).

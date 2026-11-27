@@ -682,6 +682,7 @@ namespace Teigha.Runtime
     public sealed class CommandMethodAttribute : global::System.Attribute
     {
         public CommandMethodAttribute(string globalName) { }
+        public CommandMethodAttribute(string globalName, global::Teigha.Runtime.CommandFlags flags) { }
         protected CommandMethodAttribute() { }
     }
     public abstract class DisposableWrapper : global::System.MarshalByRefObject, System.IDisposable

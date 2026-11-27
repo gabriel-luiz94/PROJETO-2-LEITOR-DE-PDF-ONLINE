@@ -42,13 +42,17 @@ def arquivo_registro() -> str:
 
 def registrar(porta: int, versao: str) -> None:
     """O .exe diz ao plugin onde está e em que porta atende (só o programa empacotado)."""
-    if not getattr(sys, "frozen", False) and not os.environ.get("GRIDREADER_REGISTRAR"):
+    empacotado = getattr(sys, "frozen", False)
+    if not empacotado and not os.environ.get("GRIDREADER_REGISTRAR"):
         return
     try:
         os.makedirs(pasta_dados(), exist_ok=True)
+        registro = {"exe": sys.executable, "porta": int(porta), "versao": versao, "pid": os.getpid(),
+                    "anotacoes_chave": _chave_anotacoes}
+        if empacotado:
+            registro["cadsuite_proxy"] = 1
         with open(arquivo_registro(), "w", encoding="utf-8") as f:
-            json.dump({"exe": sys.executable, "porta": int(porta), "versao": versao, "pid": os.getpid(),
-                       "anotacoes_chave": _chave_anotacoes}, f, ensure_ascii=False, indent=2)
+            json.dump(registro, f, ensure_ascii=False, indent=2)
     except OSError as e:
         logger.warning(f"Não deu para registrar o programa para o plugin do nanoCAD: {e}")
 

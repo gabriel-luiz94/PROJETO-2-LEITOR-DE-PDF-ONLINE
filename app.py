@@ -7,6 +7,10 @@ Suporta dois modos de operação:
 """
 
 import sys as _sys
+if __name__ == "__main__" and len(_sys.argv) > 1 and _sys.argv[1] == "--trabalhador-cadsuite-proxy":
+    from services.cadsuite_proxy import main as _proxy_main
+    _sys.exit(_proxy_main(_sys.argv[2:]))
+
 if "--trabalhador-leitor-js" in _sys.argv:   # processo filho do modo autônomo (no .exe, sys.executable é o próprio programa)
     from services.autonomo.trabalhador_js import main as _trabalhador_main
     _trabalhador_main(_sys.argv[1:])

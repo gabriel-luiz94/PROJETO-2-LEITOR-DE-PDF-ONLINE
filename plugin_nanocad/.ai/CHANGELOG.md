@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-27 — 0.18.0
+
+CSEXPORTAR e CSIMPORTAR aproveitam a geometria visual disponível em proxies com o conversor local do OrçaCore. CSGERARDXF gera um DXF separado, CSABRIR abre um DXF, CSCONFIG mostra o status do conversor e CSAJUDA lista os comandos. [TASK-041](tasks/TASK-041-27-11-2026.md).
+
 ## 2026-11-27 — 0.17.0
 
 Intercâmbio de geometria do Model Space em `cad-dxf-tags-v1`. CSEXPORTAR guarda o JSON e a assinatura da origem. CSIMPORTAR acrescenta entidades ao desenho ativo. CSSUBSTITUIR substitui o conteúdo do Model Space quando as referências permitem. CSATUALIZAR aplica alterações geométricas nos mesmos handles. Substituição e atualização pedem confirmação e backup. [TASK-040](tasks/TASK-040-27-11-2026.md).

@@ -147,3 +147,5 @@ falha se o esperado versionado ficou velho — sinal de que o código da aplica�
 ## Intercâmbio geométrico (TASK-040)
 
 `Nucleo/DesenhoJson.cs` converte tags DXF ASCII e JSON. `DesenhoJsonModelo` filtra os registros de Paper Space e guarda as assinaturas do modelo e das dependências. `Plugin/ComandosDesenho.cs` usa um DXF temporário e uma base lateral para o leitor nativo. Os comandos de importação e substituição clonam as entidades no Model Space, isolando colisões de nomes. Na atualização, somente propriedades geométricas permitidas são gravadas nas entidades existentes. Esse formato é independente de `leitor-obra`.
+
+Na TASK-041, `ProxyNoComputador` inicia o OrçaCore local em modo conversor quando o registro do executável anuncia esse recurso. O conversor lê uma cópia DXF temporária e materializa a representação visual de proxies do Model Space. O JSON registra a quantidade convertida em `visualProxies`. Atualizar e substituir recusam essa representação porque ela altera os handles e perde os dados proprietários das entidades.

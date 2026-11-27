@@ -31,6 +31,7 @@ namespace HostMgd.ApplicationServices
     public sealed class DocumentCollection : global::System.MarshalByRefObject, System.IDisposable
     {
         public event global::HostMgd.ApplicationServices.DocumentCollectionEventHandler DocumentActivated;
+        public global::HostMgd.ApplicationServices.Document Open(string fileName, bool forReadOnly) { throw null; }
         public global::HostMgd.ApplicationServices.Document MdiActiveDocument { get { throw null; } set { } }
         protected DocumentCollection() { }
         void System.IDisposable.Dispose() { }

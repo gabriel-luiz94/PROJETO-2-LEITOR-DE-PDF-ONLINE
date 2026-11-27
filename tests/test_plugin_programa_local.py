@@ -69,6 +69,7 @@ def test_programa_fechado_abre_com_o_arquivo_do_plugin(tmp_path, monkeypatch):
     programa_local.registrar(8123, "2.2.0")
     reg = json.loads((tmp_path / "OrcamentoNanoCAD" / "programa.json").read_text(encoding="utf-8"))
     assert reg["porta"] == 8123 and reg["versao"] == "2.2.0" and reg["exe"]
+    assert "cadsuite_proxy" not in reg
     arq = tmp_path / "obra.json"
     arq.write_text(json.dumps({"chave": "rua.dwg", "envelope": ENV}), encoding="utf-8")
     assert programa_local.ler_argumento(["--abrir-obra", str(arq)]) == str(arq)
@@ -78,6 +79,14 @@ def test_programa_fechado_abre_com_o_arquivo_do_plugin(tmp_path, monkeypatch):
     ruim = tmp_path / "ruim.json"
     ruim.write_text("{}", encoding="utf-8")
     assert programa_local.carregar_arquivo(str(ruim)) == ""
+
+
+def test_executavel_empacotado_anuncia_o_conversor(tmp_path, monkeypatch):
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    monkeypatch.setattr(programa_local.sys, "frozen", True, raising=False)
+    programa_local.registrar(8123, "2.9.7")
+    registro = json.loads((tmp_path / "OrcamentoNanoCAD" / "programa.json").read_text(encoding="utf-8"))
+    assert registro["cadsuite_proxy"] == 1
 
 
 def test_app_e_resumo_ligados():

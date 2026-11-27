@@ -4,9 +4,11 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
+using HostMgd.ApplicationServices;
 using OrcamentoNanoCAD.Nucleo;
 using Teigha.DatabaseServices;
 using Teigha.Runtime;
+using Application = HostMgd.ApplicationServices.Application;
 
 namespace OrcamentoNanoCAD
 {
@@ -25,9 +27,44 @@ namespace OrcamentoNanoCAD
                     if (janela.ShowDialog() != DialogResult.OK) return;
                     JObj desenho = CapturarDxf(s.Doc.Database);
                     DesenhoJsonModelo.RestringirAoModelo(desenho);
-                    DesenhoJsonModelo.MarcarOrigem(desenho);
-                    File.WriteAllText(janela.FileName, Json.Escrever(desenho, false), Utf8Dxf);
-                    Aplicacao.Msg("Geometria do Model Space exportada para JSON.");
+                    string destino = janela.FileName;
+                    if (!DesenhoJsonModelo.TemProxies(desenho))
+                    {
+                        DesenhoJsonModelo.MarcarOrigem(desenho);
+                        SalvarExportacao(desenho, destino);
+                        return;
+                    }
+                    if (File.Exists(destino))
+                        throw new IOException("Escolha um novo arquivo para exportar a representação de proxies.");
+                    Aplicacao.Msg("Recuperando a representação visual dos proxies em segundo plano…");
+                    System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+                    {
+                        string temp = destino + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                        try
+                        {
+                            JObj exportado = desenho;
+                            try { exportado = ConverterRepresentacao(desenho); }
+                            catch (System.Exception erro)
+                            {
+                                Aplicacao.Log("CSEXPORTAR: " + erro);
+                                Aplicacao.NaTela(() => Aplicacao.Msg("Exportação seguirá com os proxies originais. " + erro.Message));
+                            }
+                            File.WriteAllText(temp, Json.Escrever(exportado, false), Utf8Dxf);
+                            File.Move(temp, destino);
+                            Aplicacao.NaTela(() => Aplicacao.Msg("Geometria do Model Space exportada para JSON."));
+                        }
+                        catch (System.Exception erro)
+                        {
+                            Aplicacao.Log("CSEXPORTAR: " + erro);
+                            Aplicacao.NaTela(() => Aplicacao.Msg("Não foi possível concluir a exportação: " + erro.Message));
+                        }
+                        finally
+                        {
+                            try { File.Delete(temp); }
+                            catch (IOException erro) { Aplicacao.Log(erro.Message); }
+                            catch (UnauthorizedAccessException erro) { Aplicacao.Log(erro.Message); }
+                        }
+                    });
                 }
             });
         }
@@ -50,21 +87,109 @@ namespace OrcamentoNanoCAD
             Rodar("CSATUALIZAR", s => AplicarDesenhoJson(s, false, true));
         }
 
-        private static void AplicarDesenhoJson(Sessao s, bool substituir, bool atualizar)
+        [CommandMethod("CSGERARDXF")]
+        public void GerarDxfDoJson()
+        {
+            Rodar("CSGERARDXF", s =>
+            {
+                JObj recebido = SelecionarJson();
+                if (recebido == null) return;
+                recebido = PrepararEntrada(recebido, true);
+                using (var janela = new SaveFileDialog { Filter = "Desenho DXF|*.dxf" })
+                {
+                    if (janela.ShowDialog() != DialogResult.OK) return;
+                    string destino = janela.FileName;
+                    string temp = Path.Combine(Path.GetDirectoryName(destino), Guid.NewGuid().ToString("N") + ".dxf");
+                    try
+                    {
+                        EscreverDxfNoArquivo(recebido, temp);
+                        using (var banco = new Database(false, true))
+                        {
+                            AbrirDxfTemporario(banco, temp);
+                            using (var tr = banco.TransactionManager.StartTransaction())
+                            {
+                                var modelo = GuiasDeNota.Modelo(banco, tr, OpenMode.ForRead);
+                                if (IdsDoModelo(modelo, tr, true).Count != DesenhoJsonModelo.Entidades(recebido).Count)
+                                    throw new InvalidDataException("O nanoCAD não leu todas as entidades do DXF.");
+                            }
+                        }
+                        File.Move(temp, destino);
+                    }
+                    finally { if (File.Exists(temp)) File.Delete(temp); }
+                    Aplicacao.Msg("DXF criado. Use CSABRIR para conferi-lo.");
+                }
+            });
+        }
+
+        [CommandMethod("CSABRIR", CommandFlags.Session)]
+        public void AbrirDxfConvertido()
+        {
+            Rodar("CSABRIR", s =>
+            {
+                using (var janela = new OpenFileDialog { Filter = "Desenho DXF|*.dxf" })
+                {
+                    if (janela.ShowDialog() != DialogResult.OK) return;
+                    Application.DocumentManager.Open(janela.FileName, false);
+                }
+            });
+        }
+
+        [CommandMethod("CSCONFIG")]
+        public void StatusDoConversor()
+        {
+            Rodar("CSCONFIG", s =>
+            {
+                var app = ProgramaNoComputador.Registrado();
+                Aplicacao.Msg(ProxyNoComputador.Disponivel(app) ? "Conversor local registrado: " + app.Exe :
+                    "Conversor local indisponível. Atualize e abra o OrçaCore uma vez para registrá-lo.");
+            });
+        }
+
+        [CommandMethod("CSAJUDA")]
+        public void AjudaDoIntercambio()
+        {
+            Aplicacao.Msg("CADSuite: CSEXPORTAR gera JSON; CSIMPORTAR acrescenta ao modelo; CSGERARDXF gera um novo DXF; " +
+                "CSABRIR abre um DXF; CSSUBSTITUIR e CSATUALIZAR alteram o modelo com backup; CSCONFIG mostra o conversor local.");
+        }
+
+        private static void SalvarExportacao(JObj desenho, string destino)
+        {
+            File.WriteAllText(destino, Json.Escrever(desenho, false), Utf8Dxf);
+            Aplicacao.NaTela(() => Aplicacao.Msg("Geometria do Model Space exportada para JSON."));
+        }
+
+        private static JObj SelecionarJson()
         {
             JObj recebido;
             using (var janela = new OpenFileDialog { Filter = "Desenho JSON|*.json" })
             {
-                if (janela.ShowDialog() != DialogResult.OK) return;
+                if (janela.ShowDialog() != DialogResult.OK) return null;
                 recebido = Json.Ler(File.ReadAllText(janela.FileName, Utf8Dxf)) as JObj;
             }
 
             // Valida a estrutura recebida antes de filtrar ou chamar a API nativa.
             DesenhoJson.EscreverDxf(recebido, TextWriter.Null);
             DesenhoJsonModelo.RestringirAoModelo(recebido);
-            var entidades = DesenhoJsonModelo.Entidades(recebido);
-            if (entidades.Count == 0) throw new InvalidDataException("O JSON não contém entidades no Model Space.");
+            return recebido;
+        }
+
+        private static JObj PrepararEntrada(JObj recebido, bool podeAproximar)
+        {
+            if (!podeAproximar && ((recebido.Num("visualProxies") ?? 0) > 0 || DesenhoJsonModelo.TemProxies(recebido)))
+                throw new InvalidDataException("O intercâmbio visual de proxies está disponível em CSIMPORTAR ou CSGERARDXF.");
+            if (DesenhoJsonModelo.TemProxies(recebido)) recebido = ConverterRepresentacao(recebido);
             DesenhoJsonModelo.GarantirSemProxies(recebido);
+            if (DesenhoJsonModelo.Entidades(recebido).Count == 0)
+                throw new InvalidDataException("O JSON não contém entidades no Model Space.");
+            return recebido;
+        }
+
+        private static void AplicarDesenhoJson(Sessao s, bool substituir, bool atualizar)
+        {
+            JObj recebido = SelecionarJson();
+            if (recebido == null) return;
+            recebido = PrepararEntrada(recebido, !substituir && !atualizar);
+            var entidades = DesenhoJsonModelo.Entidades(recebido);
 
             Database destino = s.Doc.Database;
             JObj modeloAtual = null;
@@ -86,11 +211,7 @@ namespace OrcamentoNanoCAD
             string temp = CaminhoDxfTemporario();
             try
             {
-                string encoding = recebido.Str("encoding");
-                if (encoding != "" && encoding != "bytes-iso-8859-1")
-                    throw new InvalidDataException("Codificação DXF desconhecida.");
-                using (var escritor = new StreamWriter(temp, false, encoding == "" ? Utf8Dxf : BytesDxf))
-                    DesenhoJson.EscreverDxf(recebido, escritor);
+                EscreverDxfNoArquivo(recebido, temp);
 
                 using (var fonte = new Database(false, true))
                 {
@@ -153,27 +274,68 @@ namespace OrcamentoNanoCAD
             finally { if (File.Exists(temp)) File.Delete(temp); }
         }
 
+        private static JObj ConverterRepresentacao(JObj desenho)
+        {
+            string entrada = CaminhoDxfTemporario();
+            string saida = CaminhoDxfTemporario();
+            try
+            {
+                EscreverDxfNoArquivo(desenho, entrada);
+                JObj r = ProxyNoComputador.Converter(entrada, saida);
+                double total = r.Num("convertidos") ?? 0;
+                foreach (string aviso in Json.ListaDeTextos(r["avisos"])) Aplicacao.Log("CADSuite: " + aviso);
+                if (total == 0)
+                {
+                    Aplicacao.NaTela(() => Aplicacao.Msg("Nenhum proxy pôde ser convertido. Consulte o log do plugin."));
+                    return desenho;
+                }
+                var convertido = LerDxfDoArquivo(saida);
+                DesenhoJsonModelo.RestringirAoModelo(convertido);
+                convertido.Set("visualProxies", total);
+                Aplicacao.NaTela(() => Aplicacao.Msg(total + " proxy(s) convertido(s) apenas em geometria visual." +
+                    (DesenhoJsonModelo.TemProxies(convertido) ? " Há proxies remanescentes. Veja o log." : "")));
+                return convertido;
+            }
+            finally
+            {
+                if (File.Exists(entrada)) File.Delete(entrada);
+                if (File.Exists(saida)) File.Delete(saida);
+            }
+        }
+
+        private static void EscreverDxfNoArquivo(JObj desenho, string caminho)
+        {
+            string encoding = desenho.Str("encoding");
+            if (encoding != "" && encoding != "bytes-iso-8859-1")
+                throw new InvalidDataException("Codificação DXF desconhecida.");
+            using (var escritor = new StreamWriter(caminho, false, encoding == "" ? Utf8Dxf : BytesDxf))
+                DesenhoJson.EscreverDxf(desenho, escritor);
+        }
+
         private static JObj CapturarDxf(Database banco)
         {
             string temp = CaminhoDxfTemporario();
             try
             {
                 DxfDoDesenho.Exportar(banco, temp);
-                JObj desenho;
-                try
-                {
-                    using (var leitor = new StreamReader(temp, Utf8Dxf, false))
-                        desenho = DesenhoJson.LerDxf(leitor);
-                }
-                catch (DecoderFallbackException)
-                {
-                    // O DXF antigo pode estar em uma página de códigos legada. Preserva os bytes.
-                    using (var leitor = new StreamReader(temp, BytesDxf, false))
-                        desenho = DesenhoJson.LerDxf(leitor).Set("encoding", "bytes-iso-8859-1");
-                }
-                return desenho;
+                return LerDxfDoArquivo(temp);
             }
             finally { if (File.Exists(temp)) File.Delete(temp); }
+        }
+
+        private static JObj LerDxfDoArquivo(string caminho)
+        {
+            try
+            {
+                using (var leitor = new StreamReader(caminho, Utf8Dxf, false))
+                    return DesenhoJson.LerDxf(leitor);
+            }
+            catch (DecoderFallbackException)
+            {
+                // O DXF antigo pode estar em uma página de códigos legada. Preserva os bytes.
+                using (var leitor = new StreamReader(caminho, BytesDxf, false))
+                    return DesenhoJson.LerDxf(leitor).Set("encoding", "bytes-iso-8859-1");
+            }
         }
 
         private static string CaminhoDxfTemporario()
